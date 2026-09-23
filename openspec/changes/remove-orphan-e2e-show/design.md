@@ -10,115 +10,175 @@ different UUID remains an operational recurrence limitation.
 
 **Goals:** document the unrecoverable creator search, keep the canonical seed
 free of the orphan, provide deterministic owned-fixture teardown, and provide a
-read-only preflight for the known ID. Task 1 hardens the existing permanent-show
-delete RPC with payment and registration-FK guards; it does not by itself make
-the RPC the only user-reachable delete path.
+read-only preflight for the known ID. Task 1 limits the existing permanent-show
+RPC to unused shows; Task 1b routes the application service through that RPC.
 
-**Non-Goals:** execute a shared-database deletion from this branch, broadly delete all non-seed published shows, or add a cleanup UI. This has no offline/replication product-path impact.
+**Non-Goals:** execute a shared-database deletion from this branch, broadly
+delete all non-seed published shows, or add a cleanup UI. This has no
+offline/replication product-path impact.
 
 ## Decisions
 
-- Prefer explicit fixture-ID lifecycle cleanup over name-pattern deletion. IDs are stable and do not risk deleting a legitimate show with similar text.
+- Prefer explicit fixture-ID lifecycle cleanup over name-pattern deletion. IDs
+  are stable and do not risk deleting a legitimate show with similar text.
 - Never run the orphan cleanup from the canonical seed or an automatic E2E
   lifecycle. The operator artifact is a read-only preflight: it never invokes a
-  mutation and has no confirmation variable. An approved shared cleanup, after
-  merge, uses the existing site-admin Show Details delete action.
-- Survey dependent rows and the creator before the operator step; mirror
-  payment-evidence signals, including entry payment links and enrollment
-  references, in the read-only preflight. The RPC rechecks its guards after
-  acquiring its full scoped lock set and owns child-delete ordering.
-- Include entries reached through an orphan enrollment's registration_id in
-  the RPC guard and refuse paid/refunded or payment-evidence rows.
-- Treat preflight results as advisory and potentially stale; only the RPC's
-  in-transaction checks protect the eventual mutation from concurrent writes.
-- Qualify the RPC-only claim: hardDeleteShow in the application service still
-  directly issues PostgREST DELETE until Task 1b routes it through the RPC.
-  Separately, the authenticated shows_delete grant and RLS policy still permit
-  direct table deletion (including for club admins). Removing that user-reachable
-  path requires an explicit authorization decision and policy/grant migration.
-- Treat live sibling enumeration as read-only evidence. Any actual shared cleanup waits for an approved reseed after merge.
+  mutation and has no confirmation variable. Any shared cleanup remains a
+  separate, explicitly approved operation after merge.
+- Permanent deletion is for unused shows only. Any enrollment or entry blocks,
+  regardless of payment state. Any other retained FK child also blocks, including
+  `ON DELETE SET NULL` rows; losing their show association is not acceptable.
+- Only the structural `trials_show_id_fkey` and `classes_trial_id_fkey` edges
+  may be deleted. The RPC compares its exact reviewed manifest to the live
+  catalog before checking rows, so added, removed, retargeted, re-columned, or
+  action-changed FKs fail closed even when their child tables are empty.
+- Existing logical array/text associations are not a reason for global table
+  locks: a show-scoped Stripe order or payment link is itself a retained FK
+  child; an order's refunds remain attached to that order; a payment-intent
+  reference to a target entry is covered because every entry blocks deletion.
+  This was cross-checked in the former migration body for
+  `stripe_orders.entry_ids`, `entry_payment_links.entry_ids`, and
+  `stripe_order_refunds.stripe_payment_intent_id`. No order, link, or refund
+  table is deleted by the RPC.
+- A direct DELETE on `shows` is not part of the product workflow. Drop
+  `shows_delete` and revoke table DELETE from `PUBLIC`, `anon`, and
+  `authenticated`; preserve owner/`service_role` maintenance access and the
+  authenticated RPC grant with its in-function site-admin check. PostgreSQL has
+  no column-level DELETE privilege, so the table-level revoke closes the only
+  such grant surface; unrelated column grants are not broadly revoked.
+- The user-facing Show Details action remains the existing permanent-delete
+  surface. Club admins retain soft-delete and ordinary show management but do
+  not gain permanent deletion.
 
-## Task 1a: Delete Boundary and Concurrency Protocol
+## Task 1: Applied FK Inventory and Dispositions
 
-The migration-source dependency/writer inventory is recorded here; it is not an
-applied-catalog verification. `pnpm exec supabase status` could not inspect a
-local migrated database in this environment, and no linked/shared database was
-queried or changed.
+The applied graph was queried read-only from the linked Supabase project in this
+worktree, using `pg_catalog.pg_constraint`, `pg_get_constraintdef`, and the
+referenced relations `public.shows`, `public.trials`, and `public.classes`.
+Every returned edge was a single-column FK. The successful catalog output
+identified 61 edges: 8 to `classes`, 39 to `shows`, and 14 to `trials`. An
+independent expanded-column retry during implementation failed while
+initializing the CLI login role (`LegacyDbConfigLoginRoleNetworkError:
+TransportError`); the inventory below uses the successful read-only catalog
+result, not source grep. The migration rechecks this exact identity and action
+set in the deployed database.
 
-| Data/dependency                                                                                                                                                                                                                                                                                  | Delete behavior and disposition                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `shows → trials → classes`; `entries` references show/trial/class with cascade; `enrollments` descend from shows and `entries.registration_id` is another owner route                                                                                                                            | Lock only rows belonging to the target, then re-evaluate every guard. Refuse cross-show entries whose `trial_id`, `class_id`, or `registration_id` points into the target. Delete eligible ordinary descendants only through the existing FK-safe sequence.                                                        |
-| `stripe_orders` (`show_id`, `enrollment_id`, non-FK `entry_ids`), `entry_payment_links` (`show_id`, non-FK `entry_ids`), `stripe_order_refunds` (`order_id` and non-FK payment-intent association), entry/enrollment payment fields, `show_money_locks`, `promo_codes`, `trial_packet_snapshots` | Refusal-required payment, refund, checkout, in-flight money, or packet evidence. The array/payment-intent paths are covered by fixed-order `EXCLUSIVE` relation locks on the three association writer tables; target row locks cover existing entry/enrollment payment updates.                                    |
-| `show_payouts`, `paperwork_prints`, `show_incidents`, `trial_packet_generation_claims`                                                                                                                                                                                                           | Refusal-required retained records. The guards count every payout state, every print confirmation including voided rows, each incident, and completed or failed generation claims. Their show FK cascades must not erase these facts.                                                                               |
-| `trial_packet_print_reminders`                                                                                                                                                                                                                                                                   | Disposable retry/idempotency state: it records a reminder slot/lease, not the retained packet or delivery evidence. It may cascade with an eligible exact-show delete.                                                                                                                                             |
-| `entry_status_history`                                                                                                                                                                                                                                                                           | Subordinate operational history tied to an entry that is itself eligible for deletion; it cascades only with that exact parent entry.                                                                                                                                                                              |
-| `email_log.show_id`                                                                                                                                                                                                                                                                              | `ON DELETE SET NULL`; retain delivery history detached from the show. Show-lifecycle jobs/attempt state may cascade, while the independent email log retains delivery facts.                                                                                                                                       |
-| Other show/trial/class operational/configuration children                                                                                                                                                                                                                                        | Existing exact-parent FKs own cleanup: examples include carts/waitlists, judge/result visibility configuration, assignments/officials, announcements/messages, armbands, volunteer scheduling, passcodes, calendar tokens, and lifecycle workflow rows. No broad scan or separately implemented cascade was added. |
-| `secretary_tasks.show_id`, `role_requests.show_id`, support ticket `show_id`                                                                                                                                                                                                                     | `ON DELETE SET NULL`; preserve the parent record while detaching its optional show association.                                                                                                                                                                                                                    |
+| Constraint                                    | Child column → parent column                           | Delete action | Disposition |
+| --------------------------------------------- | ------------------------------------------------------ | ------------- | ----------- |
+| `class_visibility_overrides_class_id_fkey`    | `class_visibility_overrides.class_id` → `classes.id`   | CASCADE       | retain      |
+| `entries_class_id_fkey`                       | `entries.class_id` → `classes.id`                      | CASCADE       | retain      |
+| `entry_cart_items_class_id_fkey`              | `entry_cart_items.class_id` → `classes.id`             | NO ACTION     | retain      |
+| `judge_assignments_class_id_fkey`             | `judge_assignments.class_id` → `classes.id`            | CASCADE       | retain      |
+| `paperwork_prints_class_id_fkey`              | `paperwork_prints.class_id` → `classes.id`             | CASCADE       | retain      |
+| `show_incidents_class_id_fkey`                | `show_incidents.class_id` → `classes.id`               | SET NULL      | retain      |
+| `volunteer_class_assignments_class_id_fkey`   | `volunteer_class_assignments.class_id` → `classes.id`  | CASCADE       | retain      |
+| `waitlist_entries_class_id_fkey`              | `waitlist_entries.class_id` → `classes.id`             | CASCADE       | retain      |
+| `announcements_show_id_fkey`                  | `announcements.show_id` → `shows.id`                   | CASCADE       | retain      |
+| `armbands_show_id_fkey`                       | `armbands.show_id` → `shows.id`                        | CASCADE       | retain      |
+| `calendar_feed_tokens_show_id_fkey`           | `calendar_feed_tokens.show_id` → `shows.id`            | CASCADE       | retain      |
+| `dog_favorites_show_id_fkey`                  | `dog_favorites.show_id` → `shows.id`                   | CASCADE       | retain      |
+| `email_log_show_id_fkey`                      | `email_log.show_id` → `shows.id`                       | SET NULL      | retain      |
+| `registrations_show_id_fkey`                  | `enrollments.show_id` → `shows.id`                     | CASCADE       | retain      |
+| `entries_show_id_fkey`                        | `entries.show_id` → `shows.id`                         | CASCADE       | retain      |
+| `entry_carts_show_id_fkey`                    | `entry_carts.show_id` → `shows.id`                     | CASCADE       | retain      |
+| `entry_payment_links_show_id_fkey`            | `entry_payment_links.show_id` → `shows.id`             | CASCADE       | retain      |
+| `judge_assignments_show_id_fkey`              | `judge_assignments.show_id` → `shows.id`               | CASCADE       | retain      |
+| `paperwork_prints_show_id_fkey`               | `paperwork_prints.show_id` → `shows.id`                | CASCADE       | retain      |
+| `premium_generation_attempts_show_id_fkey`    | `premium_generation_attempts.show_id` → `shows.id`     | CASCADE       | retain      |
+| `premium_generations_show_id_fkey`            | `premium_generations.show_id` → `shows.id`             | CASCADE       | retain      |
+| `promo_codes_show_id_fkey`                    | `promo_codes.show_id` → `shows.id`                     | CASCADE       | retain      |
+| `result_submissions_show_id_fkey`             | `result_submissions.show_id` → `shows.id`              | CASCADE       | retain      |
+| `ringside_sessions_show_id_fkey`              | `ringside_sessions.show_id` → `shows.id`               | CASCADE       | retain      |
+| `role_requests_show_id_fkey`                  | `role_requests.show_id` → `shows.id`                   | SET NULL      | retain      |
+| `secretary_tasks_show_id_fkey`                | `secretary_tasks.show_id` → `shows.id`                 | SET NULL      | retain      |
+| `show_announcements_show_id_fkey`             | `show_announcements.show_id` → `shows.id`              | CASCADE       | retain      |
+| `show_eve_nudge_log_show_id_fkey`             | `show_eve_nudge_log.show_id` → `shows.id`              | CASCADE       | retain      |
+| `show_incidents_show_id_fkey`                 | `show_incidents.show_id` → `shows.id`                  | CASCADE       | retain      |
+| `show_lifecycle_email_jobs_show_id_fkey`      | `show_lifecycle_email_jobs.show_id` → `shows.id`       | CASCADE       | retain      |
+| `show_lifecycle_email_steps_show_id_fkey`     | `show_lifecycle_email_steps.show_id` → `shows.id`      | CASCADE       | retain      |
+| `show_message_threads_show_id_fkey`           | `show_message_threads.show_id` → `shows.id`            | CASCADE       | retain      |
+| `show_messages_show_id_fkey`                  | `show_messages.show_id` → `shows.id`                   | CASCADE       | retain      |
+| `show_money_locks_show_id_fkey`               | `show_money_locks.show_id` → `shows.id`                | CASCADE       | retain      |
+| `show_officials_show_id_fkey`                 | `show_officials.show_id` → `shows.id`                  | CASCADE       | retain      |
+| `show_passcodes_show_id_fkey`                 | `show_passcodes.show_id` → `shows.id`                  | CASCADE       | retain      |
+| `show_payouts_show_id_fkey`                   | `show_payouts.show_id` → `shows.id`                    | CASCADE       | retain      |
+| `show_visibility_settings_show_id_fkey`       | `show_visibility_settings.show_id` → `shows.id`        | CASCADE       | retain      |
+| `stripe_orders_show_id_fkey`                  | `stripe_orders.show_id` → `shows.id`                   | RESTRICT      | retain      |
+| `support_tickets_show_id_fkey`                | `support_tickets.show_id` → `shows.id`                 | SET NULL      | retain      |
+| `trial_packet_generation_claims_show_id_fkey` | `trial_packet_generation_claims.show_id` → `shows.id`  | CASCADE       | retain      |
+| `trial_packet_print_reminders_show_id_fkey`   | `trial_packet_print_reminders.show_id` → `shows.id`    | CASCADE       | retain      |
+| `trial_packet_snapshots_show_id_fkey`         | `trial_packet_snapshots.show_id` → `shows.id`          | RESTRICT      | retain      |
+| `trials_show_id_fkey`                         | `trials.show_id` → `shows.id`                          | CASCADE       | disposable  |
+| `user_roles_show_id_fkey`                     | `user_roles.show_id` → `shows.id`                      | CASCADE       | retain      |
+| `volunteer_general_assignments_show_id_fkey`  | `volunteer_general_assignments.show_id` → `shows.id`   | CASCADE       | retain      |
+| `volunteers_show_id_fkey`                     | `volunteers.show_id` → `shows.id`                      | CASCADE       | retain      |
+| `activity_log_trial_id_fkey`                  | `activity_log.trial_id` → `trials.id`                  | CASCADE       | retain      |
+| `announcements_trial_id_fkey`                 | `announcements.trial_id` → `trials.id`                 | CASCADE       | retain      |
+| `armbands_trial_id_fkey`                      | `armbands.trial_id` → `trials.id`                      | CASCADE       | retain      |
+| `classes_trial_id_fkey`                       | `classes.trial_id` → `trials.id`                       | CASCADE       | disposable  |
+| `entries_trial_id_fkey`                       | `entries.trial_id` → `trials.id`                       | CASCADE       | retain      |
+| `judge_assignments_trial_id_fkey`             | `judge_assignments.trial_id` → `trials.id`             | CASCADE       | retain      |
+| `paperwork_prints_trial_id_fkey`              | `paperwork_prints.trial_id` → `trials.id`              | CASCADE       | retain      |
+| `promo_codes_trial_id_fkey`                   | `promo_codes.trial_id` → `trials.id`                   | CASCADE       | retain      |
+| `result_submissions_trial_id_fkey`            | `result_submissions.trial_id` → `trials.id`            | CASCADE       | retain      |
+| `show_incidents_trial_id_fkey`                | `show_incidents.trial_id` → `trials.id`                | SET NULL      | retain      |
+| `trial_checklist_state_trial_id_fkey`         | `trial_checklist_state.trial_id` → `trials.id`         | CASCADE       | retain      |
+| `trial_judge_supplies_trial_id_fkey`          | `trial_judge_supplies.trial_id` → `trials.id`          | CASCADE       | retain      |
+| `trial_visibility_overrides_trial_id_fkey`    | `trial_visibility_overrides.trial_id` → `trials.id`    | CASCADE       | retain      |
+| `volunteer_general_assignments_trial_id_fkey` | `volunteer_general_assignments.trial_id` → `trials.id` | CASCADE       | retain      |
 
-Writer inventory is based on repository source: registration services and
-checkout/webhook RPCs update enrollment/entry payment state; Stripe writers
-associate orders and refunds; `cron-process-payouts` writes `show_payouts`;
-`ReplicatedPaperworkPrintsTable` writes print confirmations;
-`services/database/show-incidents.ts` records incidents;
-`generate-trial-packet/packetGeneration.ts` writes generation claims; and the
-reminder edge function writes transient reminder slots. These paths were not
-exercised against a database during this task.
+## Eligibility and Concurrency
 
-The function takes `EXCLUSIVE` relation locks only on `stripe_orders`,
-`entry_payment_links`, and `stripe_order_refunds`, in a fixed order, then locks
-the target show, trials, classes, enrollments, and all route-associated entries
-in deterministic ID order. Guards run after these locks and before deletion.
-The two-second transaction-local `lock_timeout` fails closed with SQLSTATE
-`55P03`; the message directs an operator to retry during a quiet window and
-explicitly disables automated retry. The short association locks can briefly
-pause writes to those three relations during a delete attempt; they avoid table
-locks on hot entries/enrollments/classes/trials. Direct table DELETE grants and
-RLS authorization remain unchanged pending the separate owner decision.
+The RPC retains its signature, `SECURITY DEFINER`, empty `search_path`, fully
+qualified references, in-function site-admin check, authenticated execute grant,
+and `42501`/`23503`/`55P03` error contract. It checks the FK manifest, locks the
+target show then target trials and classes in ID order, and rejects every
+enrollment or entry reached through show, trial, class, or enrollment ownership
+before any delete. Cross-show entries that point into the target are an explicit
+refusal. Each retained FK edge gets a dynamic existence check; only identifiers
+from the reviewed manifest are inserted into SQL through `%I`, with the show ID
+bound by `USING`. It deletes only classes, trials, then the exact show.
 
-The source-backed writer audit found the reviewed Stripe paths acquire
-`stripe_orders` before their trigger/refund work on enrollments, entries, and
-refund rows; webhook entry stamping and subsequent order insertion are separate
-transactions. No reverse-order cycle was found in these paths. If another
-transaction nevertheless forms a PostgreSQL deadlock, SQLSTATE `40P01` aborts
-the RPC transaction and remains fail-closed; Task 1b must present it as an
-operator-only retry (never retry automatically), alongside `55P03`.
+The show/trial/class `FOR UPDATE` locks conflict with FK-backed child inserts
+and updates, preventing an otherwise-unused decision from racing a new
+enrollment or entry. A two-second transaction-local lock timeout fails closed
+with `55P03` and operator-only retry guidance. The app never retries. The prior
+global locks on `stripe_orders`, `entry_payment_links`, and
+`stripe_order_refunds` are removed; those payment associations cannot make an
+eligible show disposable and are covered through their target-owned FK child or
+entry.
 
-The `SECURITY DEFINER` function now uses an empty `search_path`; all tables and
-the project authorization helper are schema-qualified. Its signature, platform
-admin check, revoke, and authenticated execute grant are unchanged.
-`scripts/qa/hard-delete-show-concurrency.sh` is registered only in the exact
-loopback behavioral runner and covers payment-field update, cross-show entry
-insert, and `entry_ids` association insert with two sessions. The harness is
-registered and syntax/source-tested, but could not be run here because the
-local migrated database is unavailable.
+The local two-session harness holds an uncommitted enrollment insert, then an
+uncommitted cross-show entry targeting a target class. In both cases deletion
+must time out with the show intact; after writer commit, an authenticated
+site-admin operator retry must refuse the now-populated target with `23503`.
+The runner's exact loopback URL guard remains mandatory. This harness is
+source-checked here but requires a migrated local database for behavioral
+execution.
 
-## Risks / Trade-offs
+## Test-fixture and Operator Flow
 
-- [The show carries payment-linked rows] → inspect every show-scoped money
-  record; after Task 1b, let the reviewed hard-delete RPC own FK-safe deletion.
-- [Association writers briefly contend] → limit relation locks to the three
-  non-FK association tables, use a two-second timeout, fail closed, and require
-  an operator (never an automated retry) to retry outside the busy window.
-- [The original creator is unrecoverable] → protect only the known leaked ID and
-  state explicitly that a different future UUID requires a new inventory/fix;
-  this change does not claim to prevent arbitrary UUID leaks.
-- [Over-broad cleanup removes tester-owned data] → scope by explicit fixture IDs/ranges, never by all published rows outside the seed.
+The SQL fixture includes a sparse show with trials/classes as the only successful
+case; independent unpaid enrollment/entry, status history, result submission,
+activity log, payout, print, incident, packet snapshot/claim, and email fixtures
+must refuse while their records survive. Separate cross-show entry and
+result-submission fixtures cover target class/trial references. An empty new FK
+table demonstrates that unclassified catalog edges refuse before deletion.
+The direct authenticated club-admin DELETE assertion changes from a positive
+control to permission denial; the separate `soft_delete_show` authorization
+test remains the legitimate club-admin path.
 
-## Migration Plan
+The E2E owned-show helper records exact created IDs and calls the same RPC-backed
+service for cleanup. If a fixture unexpectedly has entries or durable evidence,
+teardown reports the show ID and refusal instead of bypassing the rule. The
+one-time artifact for `f3360000-0000-0000-0000-000000000001` remains read-only.
 
-Land the Task 1 migration and behavioral SQL regression, then route the
-application service through the RPC in Task 1b. A normal reseed must not invoke
-the orphan preflight or perform cleanup. The preflight is read-only and does not
-call the RPC; an actual shared cleanup requires separate approval and the
-existing site-admin Show Details delete action. The behavioral SQL runner was
-inspected but not invoked because it requires the local migrated database.
-Rollback of an applied migration requires a separately reviewed forward
-migration; source-only rollback can revert the preflight and teardown wiring.
+## Verification and Non-Goals
 
-## Validation Profile
-
-- Risk: high
-- Validation: full
-- Rationale: An approved shared cleanup deletes relational fixture data through
-  the site-admin UI, so its guard behavior needs focused regression evidence.
+This task does not delete a populated show, create a new admin UI, run cleanup
+from the seed or CI, infer the missing creator of the known orphan, or deploy or
+push a migration without separate approval. The migration was not applied to a
+shared database. The linked database's migration history and `origin/main` were
+checked by the task owner at a point in time and did not contain this migration
+version; recheck both before any future push. Behavioral SQL and concurrency
+checks still require an available migrated local database.

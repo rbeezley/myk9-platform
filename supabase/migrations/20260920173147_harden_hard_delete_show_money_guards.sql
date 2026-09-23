@@ -1,6 +1,6 @@
--- MYK9-615: the permanent-show-delete RPC refuses before its first destructive
--- statement whenever financial, checkout, packet, retained audit, or
--- cross-show entry evidence still belongs to the target show.
+-- MYK9-615: permanent deletion is limited to genuinely unused shows.
+-- The manifest below is the reviewed applied FK graph (61 edges); only the
+-- show->trials->classes structural edges are disposable.
 
 CREATE OR REPLACE FUNCTION public.hard_delete_show(p_show_id UUID)
 RETURNS void
@@ -9,366 +9,230 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_order_count bigint;
-  v_refund_count bigint;
-  v_payment_link_count bigint;
-  v_entry_payment_count bigint;
-  v_enrollment_payment_count bigint;
-  v_money_lock_count bigint;
-  v_promo_code_count bigint;
-  v_packet_snapshot_count bigint;
-  v_payout_count bigint;
-  v_paperwork_print_count bigint;
-  v_incident_count bigint;
-  v_packet_claim_count bigint;
-  v_cross_show_links bigint;
+  v_fk_manifest CONSTANT pg_catalog.jsonb := $manifest$
+  [
+    {"constraint_schema":"public","constraint_name":"class_visibility_overrides_class_id_fkey","child_schema":"public","child_table":"class_visibility_overrides","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"entries_class_id_fkey","child_schema":"public","child_table":"entries","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"entry_cart_items_class_id_fkey","child_schema":"public","child_table":"entry_cart_items","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"NO ACTION","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"judge_assignments_class_id_fkey","child_schema":"public","child_table":"judge_assignments","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"paperwork_prints_class_id_fkey","child_schema":"public","child_table":"paperwork_prints","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_incidents_class_id_fkey","child_schema":"public","child_table":"show_incidents","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"volunteer_class_assignments_class_id_fkey","child_schema":"public","child_table":"volunteer_class_assignments","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"waitlist_entries_class_id_fkey","child_schema":"public","child_table":"waitlist_entries","child_column":"class_id","parent_schema":"public","parent_table":"classes","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"announcements_show_id_fkey","child_schema":"public","child_table":"announcements","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"armbands_show_id_fkey","child_schema":"public","child_table":"armbands","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"calendar_feed_tokens_show_id_fkey","child_schema":"public","child_table":"calendar_feed_tokens","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"dog_favorites_show_id_fkey","child_schema":"public","child_table":"dog_favorites","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"email_log_show_id_fkey","child_schema":"public","child_table":"email_log","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"registrations_show_id_fkey","child_schema":"public","child_table":"enrollments","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"entries_show_id_fkey","child_schema":"public","child_table":"entries","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"entry_carts_show_id_fkey","child_schema":"public","child_table":"entry_carts","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"entry_payment_links_show_id_fkey","child_schema":"public","child_table":"entry_payment_links","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"judge_assignments_show_id_fkey","child_schema":"public","child_table":"judge_assignments","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"paperwork_prints_show_id_fkey","child_schema":"public","child_table":"paperwork_prints","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"premium_generation_attempts_show_id_fkey","child_schema":"public","child_table":"premium_generation_attempts","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"premium_generations_show_id_fkey","child_schema":"public","child_table":"premium_generations","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"promo_codes_show_id_fkey","child_schema":"public","child_table":"promo_codes","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"result_submissions_show_id_fkey","child_schema":"public","child_table":"result_submissions","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"ringside_sessions_show_id_fkey","child_schema":"public","child_table":"ringside_sessions","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"role_requests_show_id_fkey","child_schema":"public","child_table":"role_requests","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"secretary_tasks_show_id_fkey","child_schema":"public","child_table":"secretary_tasks","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_announcements_show_id_fkey","child_schema":"public","child_table":"show_announcements","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_eve_nudge_log_show_id_fkey","child_schema":"public","child_table":"show_eve_nudge_log","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_incidents_show_id_fkey","child_schema":"public","child_table":"show_incidents","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_lifecycle_email_jobs_show_id_fkey","child_schema":"public","child_table":"show_lifecycle_email_jobs","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_lifecycle_email_steps_show_id_fkey","child_schema":"public","child_table":"show_lifecycle_email_steps","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_message_threads_show_id_fkey","child_schema":"public","child_table":"show_message_threads","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_messages_show_id_fkey","child_schema":"public","child_table":"show_messages","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_money_locks_show_id_fkey","child_schema":"public","child_table":"show_money_locks","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_officials_show_id_fkey","child_schema":"public","child_table":"show_officials","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_passcodes_show_id_fkey","child_schema":"public","child_table":"show_passcodes","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_payouts_show_id_fkey","child_schema":"public","child_table":"show_payouts","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_visibility_settings_show_id_fkey","child_schema":"public","child_table":"show_visibility_settings","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"stripe_orders_show_id_fkey","child_schema":"public","child_table":"stripe_orders","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"RESTRICT","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"support_tickets_show_id_fkey","child_schema":"public","child_table":"support_tickets","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_packet_generation_claims_show_id_fkey","child_schema":"public","child_table":"trial_packet_generation_claims","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_packet_print_reminders_show_id_fkey","child_schema":"public","child_table":"trial_packet_print_reminders","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_packet_snapshots_show_id_fkey","child_schema":"public","child_table":"trial_packet_snapshots","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"RESTRICT","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trials_show_id_fkey","child_schema":"public","child_table":"trials","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"disposable"},
+    {"constraint_schema":"public","constraint_name":"user_roles_show_id_fkey","child_schema":"public","child_table":"user_roles","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"volunteer_general_assignments_show_id_fkey","child_schema":"public","child_table":"volunteer_general_assignments","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"volunteers_show_id_fkey","child_schema":"public","child_table":"volunteers","child_column":"show_id","parent_schema":"public","parent_table":"shows","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"activity_log_trial_id_fkey","child_schema":"public","child_table":"activity_log","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"announcements_trial_id_fkey","child_schema":"public","child_table":"announcements","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"armbands_trial_id_fkey","child_schema":"public","child_table":"armbands","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"classes_trial_id_fkey","child_schema":"public","child_table":"classes","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"disposable"},
+    {"constraint_schema":"public","constraint_name":"entries_trial_id_fkey","child_schema":"public","child_table":"entries","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"judge_assignments_trial_id_fkey","child_schema":"public","child_table":"judge_assignments","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"paperwork_prints_trial_id_fkey","child_schema":"public","child_table":"paperwork_prints","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"promo_codes_trial_id_fkey","child_schema":"public","child_table":"promo_codes","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"result_submissions_trial_id_fkey","child_schema":"public","child_table":"result_submissions","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"show_incidents_trial_id_fkey","child_schema":"public","child_table":"show_incidents","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"SET NULL","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_checklist_state_trial_id_fkey","child_schema":"public","child_table":"trial_checklist_state","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_judge_supplies_trial_id_fkey","child_schema":"public","child_table":"trial_judge_supplies","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"trial_visibility_overrides_trial_id_fkey","child_schema":"public","child_table":"trial_visibility_overrides","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"},
+    {"constraint_schema":"public","constraint_name":"volunteer_general_assignments_trial_id_fkey","child_schema":"public","child_table":"volunteer_general_assignments","child_column":"trial_id","parent_schema":"public","parent_table":"trials","parent_column":"id","delete_action":"CASCADE","disposition":"retain"}
+  ]
+  $manifest$::pg_catalog.jsonb;
+  v_edge record;
+  v_fk_drift text;
+  v_has_retained_child boolean;
+  v_cross_show_entry boolean;
 BEGIN
-  -- Keep the existing site-admin authorization inside the SECURITY DEFINER RPC.
   IF NOT (SELECT public.is_platform_admin()) THEN
     RAISE EXCEPTION 'Permission denied: only site administrators can permanently delete shows'
       USING ERRCODE = '42501';
   END IF;
 
-  -- entry_ids and refund payment-intent associations are not foreign keys. Take
-  -- short, fixed-order relation locks so new associations cannot arrive between
-  -- the guards and delete. A timeout is fail-closed; only an operator may retry
-  -- later during a quiet window (there is deliberately no automated retry).
   PERFORM pg_catalog.set_config('lock_timeout', '2s', true);
-  LOCK TABLE public.stripe_orders IN EXCLUSIVE MODE;
-  LOCK TABLE public.entry_payment_links IN EXCLUSIVE MODE;
-  LOCK TABLE public.stripe_order_refunds IN EXCLUSIVE MODE;
-
-  -- Serialize FK-backed inserts and updates against the target hierarchy and
-  -- payment-field updates. Lock only this show's existing rows, in stable
-  -- order, rather than table-locking hot enrollment / entry relations.
   PERFORM 1
   FROM public.shows
   WHERE id = p_show_id
   FOR UPDATE;
-
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Show not found' USING ERRCODE = 'P0002';
   END IF;
-
   PERFORM 1
   FROM public.trials
   WHERE show_id = p_show_id
   ORDER BY id
   FOR UPDATE;
-
   PERFORM 1
-  FROM public.classes c
-  JOIN public.trials t ON t.id = c.trial_id
+  FROM public.classes AS c
+  JOIN public.trials AS t ON t.id = c.trial_id
   WHERE t.show_id = p_show_id
   ORDER BY c.id
   FOR UPDATE OF c;
 
-  PERFORM 1
-  FROM public.enrollments
-  WHERE show_id = p_show_id
-  ORDER BY id
-  FOR UPDATE;
+  -- Compare both directions so missing, extra, renamed, retargeted, re-columned,
+  -- or action-changed constraints fail closed before checking rows or deleting.
+  WITH actual AS (
+    SELECT constraint_ns.nspname AS constraint_schema, c.conname AS constraint_name,
+           child_ns.nspname AS child_schema, child.relname AS child_table,
+           child_col.attname AS child_column, parent_ns.nspname AS parent_schema,
+           parent.relname AS parent_table, parent_col.attname AS parent_column,
+           CASE c.confdeltype WHEN 'a' THEN 'NO ACTION' WHEN 'r' THEN 'RESTRICT'
+             WHEN 'c' THEN 'CASCADE' WHEN 'n' THEN 'SET NULL'
+             WHEN 'd' THEN 'SET DEFAULT' END AS delete_action
+    FROM pg_catalog.pg_constraint AS c
+    JOIN pg_catalog.pg_namespace AS constraint_ns ON constraint_ns.oid = c.connamespace
+    JOIN pg_catalog.pg_class AS child ON child.oid = c.conrelid
+    JOIN pg_catalog.pg_namespace AS child_ns ON child_ns.oid = child.relnamespace
+    JOIN pg_catalog.pg_class AS parent ON parent.oid = c.confrelid
+    JOIN pg_catalog.pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+    CROSS JOIN LATERAL pg_catalog.unnest(c.conkey) WITH ORDINALITY AS child_key(attnum, ordinality)
+    JOIN LATERAL pg_catalog.unnest(c.confkey) WITH ORDINALITY AS parent_key(attnum, ordinality)
+      ON parent_key.ordinality = child_key.ordinality
+    JOIN pg_catalog.pg_attribute AS child_col
+      ON child_col.attrelid = child.oid AND child_col.attnum = child_key.attnum
+    JOIN pg_catalog.pg_attribute AS parent_col
+      ON parent_col.attrelid = parent.oid AND parent_col.attnum = parent_key.attnum
+    WHERE c.contype = 'f'
+      AND c.confrelid IN ('public.shows'::pg_catalog.regclass,
+                          'public.trials'::pg_catalog.regclass,
+                          'public.classes'::pg_catalog.regclass)
+  ), reviewed AS (
+    SELECT * FROM pg_catalog.jsonb_to_recordset(v_fk_manifest) AS manifest(
+      constraint_schema text, constraint_name text, child_schema text, child_table text,
+      child_column text, parent_schema text, parent_table text, parent_column text,
+      delete_action text, disposition text
+    )
+  ), delta AS (
+    (SELECT constraint_schema, constraint_name, child_schema, child_table, child_column,
+            parent_schema, parent_table, parent_column, delete_action FROM actual
+     EXCEPT
+     SELECT constraint_schema, constraint_name, child_schema, child_table, child_column,
+            parent_schema, parent_table, parent_column, delete_action FROM reviewed)
+    UNION ALL
+    (SELECT constraint_schema, constraint_name, child_schema, child_table, child_column,
+            parent_schema, parent_table, parent_column, delete_action FROM reviewed
+     EXCEPT
+     SELECT constraint_schema, constraint_name, child_schema, child_table, child_column,
+            parent_schema, parent_table, parent_column, delete_action FROM actual)
+  )
+  SELECT pg_catalog.string_agg(
+    DISTINCT constraint_schema || '.' || constraint_name, ', ' ORDER BY constraint_schema || '.' || constraint_name
+  ) INTO v_fk_drift
+  FROM delta;
 
-  PERFORM 1
-  FROM public.entries e
-  WHERE e.show_id = p_show_id
-     OR e.trial_id IN (
-       SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id
-     )
-     OR e.class_id IN (
-       SELECT c.id
-       FROM public.classes c
-       JOIN public.trials t ON t.id = c.trial_id
-       WHERE t.show_id = p_show_id
-     )
-     OR e.registration_id IN (
-       SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-     )
-  ORDER BY e.id
-  FOR UPDATE OF e;
+  IF v_fk_drift IS NOT NULL THEN
+    RAISE EXCEPTION 'Unclassified or changed show/trial/class foreign-key edge(s): %', v_fk_drift
+      USING ERRCODE = '23503';
+  END IF;
 
-  -- All guards run after the association and scoped row locks, in this same
-  -- transaction; a later refusal rolls the locks back with the transaction.
-
-  -- Stripe orders may name the show, one of its enrollments, or one of its
-  -- entries. The last route also covers legacy order rows whose show/enrollment
-  -- scope was detached while their entry_ids still identify the purchase.
-  SELECT pg_catalog.count(*) INTO v_order_count
-  FROM public.stripe_orders so
-  WHERE so.show_id = p_show_id
-     OR so.enrollment_id IN (
-       SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-     )
-     OR EXISTS (
-       SELECT 1
-       FROM public.entries e
-       WHERE e.id = ANY(COALESCE(so.entry_ids, ARRAY[]::pg_catalog.uuid[]))
-         AND (
-           e.show_id = p_show_id
-           OR e.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id)
-           OR e.class_id IN (
-             SELECT c.id
-             FROM public.classes c
-             JOIN public.trials t ON t.id = c.trial_id
-             WHERE t.show_id = p_show_id
-           )
-           OR e.registration_id IN (
-             SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-           )
-         )
-     );
-
-  -- Refund rows are permanent ledger facts and can remain after their order is
-  -- detached. Follow either the order scope or the entry's payment intent.
-  SELECT pg_catalog.count(*) INTO v_refund_count
-  FROM public.stripe_order_refunds r
-  WHERE EXISTS (
-          SELECT 1
-          FROM public.stripe_orders so
-          WHERE so.id = r.order_id
-            AND (
-              so.show_id = p_show_id
-              OR so.enrollment_id IN (
-                SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-              )
-              OR EXISTS (
-                SELECT 1
-                FROM public.entries e
-                WHERE e.id = ANY(COALESCE(so.entry_ids, ARRAY[]::pg_catalog.uuid[]))
-                  AND (
-                    e.show_id = p_show_id
-                    OR e.trial_id IN (
-                      SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id
-                    )
-                    OR e.class_id IN (
-                      SELECT c.id
-                      FROM public.classes c
-                      JOIN public.trials t ON t.id = c.trial_id
-                      WHERE t.show_id = p_show_id
-                    )
-                    OR e.registration_id IN (
-                      SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-                    )
-                  )
-              )
-            )
-        )
-     OR EXISTS (
-          SELECT 1
-          FROM public.entries e
-          WHERE e.stripe_payment_intent_id = r.stripe_payment_intent_id
-            AND (
-              e.show_id = p_show_id
-              OR e.trial_id IN (
-                SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id
-              )
-              OR e.class_id IN (
-                SELECT c.id
-                FROM public.classes c
-                JOIN public.trials t ON t.id = c.trial_id
-                WHERE t.show_id = p_show_id
-              )
-              OR e.registration_id IN (
-                SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-              )
-            )
-        );
-
-  -- Payment links hold an external checkout session even before a Stripe order
-  -- exists, so count both their direct show scope and entry_ids association.
-  SELECT pg_catalog.count(*) INTO v_payment_link_count
-  FROM public.entry_payment_links l
-  WHERE l.show_id = p_show_id
-     OR EXISTS (
-       SELECT 1
-       FROM public.entries e
-       WHERE e.id = ANY(l.entry_ids)
-         AND (
-           e.show_id = p_show_id
-           OR e.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id)
-           OR e.class_id IN (
-             SELECT c.id
-             FROM public.classes c
-             JOIN public.trials t ON t.id = c.trial_id
-             WHERE t.show_id = p_show_id
-           )
-           OR e.registration_id IN (
-             SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-           )
-         )
-     );
-
-  -- Preserve entry-level money trails. entry_status='paid' alone is a workflow
-  -- label; payment_status and the recorded amount/reference/refund fields are
-  -- the financial evidence. Match the seed guard's secretary_paid $0 exception.
-  SELECT pg_catalog.count(*) INTO v_entry_payment_count
-  FROM public.entries e
-  WHERE (
-        e.show_id = p_show_id
-        OR e.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id)
+  SELECT EXISTS (
+    SELECT 1 FROM public.entries AS e
+    WHERE e.show_id IS DISTINCT FROM p_show_id
+      AND (e.trial_id IN (SELECT id FROM public.trials WHERE show_id = p_show_id)
         OR e.class_id IN (
-          SELECT c.id
-          FROM public.classes c
-          JOIN public.trials t ON t.id = c.trial_id
-          WHERE t.show_id = p_show_id
+          SELECT c.id FROM public.classes AS c
+          JOIN public.trials AS t ON t.id = c.trial_id WHERE t.show_id = p_show_id
         )
-        OR e.registration_id IN (
-          SELECT en.id FROM public.enrollments en WHERE en.show_id = p_show_id
-        )
-      )
-    AND (
-      e.payment_status IN ('paid', 'refunded')
-      OR NULLIF(pg_catalog.btrim(e.payment_reference), '') IS NOT NULL
-      OR NULLIF(pg_catalog.btrim(e.stripe_payment_intent_id), '') IS NOT NULL
-      OR e.refund_amount IS NOT NULL
-      OR e.refunded_at IS NOT NULL
-      OR NULLIF(pg_catalog.btrim(e.refund_notes), '') IS NOT NULL
-      OR e.payment_received_on IS NOT NULL
-      OR NULLIF(pg_catalog.btrim(e.payment_notes), '') IS NOT NULL
-      OR (
-        e.payment_method IS NOT NULL
-        AND e.payment_method <> 'waived'
-        AND (e.payment_method <> 'secretary_paid' OR coalesce(e.entry_fee, 0) > 0)
-      )
-    );
-
-  -- Enrollment payment statuses include the specific desk-payment methods and
-  -- partial refunds, in addition to the generic paid/refunded states.
-  SELECT pg_catalog.count(*) INTO v_enrollment_payment_count
-  FROM public.enrollments en
-  WHERE en.show_id = p_show_id
-    AND (
-      en.payment_status IN (
-        'paid', 'paid_online', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund'
-      )
-      OR NULLIF(pg_catalog.btrim(en.payment_reference), '') IS NOT NULL
-      OR coalesce(en.paid_amount, 0) <> 0
-      OR en.refund_amount IS NOT NULL
-      OR en.refunded_at IS NOT NULL
-      OR NULLIF(pg_catalog.btrim(en.refund_notes), '') IS NOT NULL
-    );
-
-  SELECT pg_catalog.count(*) INTO v_money_lock_count
-  FROM public.show_money_locks
-  WHERE show_id = p_show_id;
-
-  -- Promo codes may be show-scoped or trial-scoped.
-  SELECT pg_catalog.count(*) INTO v_promo_code_count
-  FROM public.promo_codes pc
-  WHERE pc.show_id = p_show_id
-     OR pc.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id);
-
-  SELECT pg_catalog.count(*) INTO v_packet_snapshot_count
-  FROM public.trial_packet_snapshots
-  WHERE show_id = p_show_id;
-
-  -- These records are durable evidence, not ordinary disposable show children.
-  -- Count every print confirmation (including voided rows) and every incident
-  -- or generation claim, including failed packet-generation evidence.
-  SELECT pg_catalog.count(*) INTO v_payout_count
-  FROM public.show_payouts
-  WHERE show_id = p_show_id;
-
-  SELECT pg_catalog.count(*) INTO v_paperwork_print_count
-  FROM public.paperwork_prints pp
-  WHERE pp.show_id = p_show_id;
-
-  SELECT pg_catalog.count(*) INTO v_incident_count
-  FROM public.show_incidents si
-  WHERE si.show_id = p_show_id;
-
-  SELECT pg_catalog.count(*) INTO v_packet_claim_count
-  FROM public.trial_packet_generation_claims pc
-  WHERE pc.show_id = p_show_id;
-
-  IF v_order_count > 0
-     OR v_refund_count > 0
-     OR v_payment_link_count > 0
-     OR v_entry_payment_count > 0
-     OR v_enrollment_payment_count > 0
-     OR v_money_lock_count > 0
-     OR v_promo_code_count > 0
-     OR v_packet_snapshot_count > 0
-     OR v_payout_count > 0
-     OR v_paperwork_print_count > 0
-     OR v_incident_count > 0
-     OR v_packet_claim_count > 0 THEN
-    RAISE EXCEPTION
-      'payment evidence or retained show records prevent permanent deletion (Stripe orders %, refunds %, entry payment links %, entry payment records %, enrollment payment records %, money locks %, promo codes %, trial packet snapshots %, show payouts %, paperwork print confirmations %, show incidents %, packet generation claims %)',
-      v_order_count, v_refund_count, v_payment_link_count, v_entry_payment_count,
-      v_enrollment_payment_count, v_money_lock_count, v_promo_code_count,
-      v_packet_snapshot_count, v_payout_count, v_paperwork_print_count,
-      v_incident_count, v_packet_claim_count
+        OR e.registration_id IN (SELECT id FROM public.enrollments WHERE show_id = p_show_id))
+  ) INTO v_cross_show_entry;
+  IF v_cross_show_entry THEN
+    RAISE EXCEPTION 'Cross-show entry association prevents permanent show deletion'
       USING ERRCODE = '23503';
   END IF;
 
-  -- Deleting target classes/trials or enrollments would also delete this entry,
-  -- despite its own show_id naming a different show. Refuse before child deletes.
-  SELECT pg_catalog.count(*) INTO v_cross_show_links
-  FROM public.entries e
-  WHERE e.show_id IS DISTINCT FROM p_show_id
-    AND (
-      e.trial_id IN (SELECT id FROM public.trials WHERE show_id = p_show_id)
-      OR e.class_id IN (
-        SELECT c.id
-        FROM public.classes c
-        JOIN public.trials t ON t.id = c.trial_id
-        WHERE t.show_id = p_show_id
-      )
-      OR e.registration_id IN (
-        SELECT id FROM public.enrollments WHERE show_id = p_show_id
-      )
-    );
-
-  IF v_cross_show_links > 0 THEN
-    RAISE EXCEPTION
-      'cross-show entry association(s) prevent permanent deletion for show % (% row(s))',
-      p_show_id, v_cross_show_links
+  IF EXISTS (SELECT 1 FROM public.enrollments WHERE show_id = p_show_id)
+     OR EXISTS (
+       SELECT 1 FROM public.entries AS e
+       WHERE e.show_id = p_show_id
+          OR e.trial_id IN (SELECT id FROM public.trials WHERE show_id = p_show_id)
+          OR e.class_id IN (
+            SELECT c.id FROM public.classes AS c
+            JOIN public.trials AS t ON t.id = c.trial_id WHERE t.show_id = p_show_id
+          )
+          OR e.registration_id IN (SELECT id FROM public.enrollments WHERE show_id = p_show_id)
+     ) THEN
+    RAISE EXCEPTION 'Show has entries or enrollments; permanent deletion is limited to unused shows'
       USING ERRCODE = '23503';
   END IF;
 
-  -- Delete in the existing reviewed FK-safe order (deepest children first).
+  -- All identifiers come from the constant manifest, are schema-qualified, and
+  -- pass through %I. The only runtime value is bound with USING, never pasted.
+  FOR v_edge IN
+    SELECT * FROM pg_catalog.jsonb_to_recordset(v_fk_manifest) AS manifest(
+      constraint_schema text, constraint_name text, child_schema text, child_table text,
+      child_column text, parent_schema text, parent_table text, parent_column text,
+      delete_action text, disposition text
+    )
+    ORDER BY constraint_name
+  LOOP
+    IF v_edge.disposition = 'retain' THEN
+      IF v_edge.parent_table = 'shows' THEN
+        EXECUTE pg_catalog.format(
+          'SELECT EXISTS (SELECT 1 FROM %I.%I AS child WHERE child.%I = $1)',
+          v_edge.child_schema, v_edge.child_table, v_edge.child_column
+        ) INTO v_has_retained_child USING p_show_id;
+      ELSIF v_edge.parent_table = 'trials' THEN
+        EXECUTE pg_catalog.format(
+          'SELECT EXISTS (SELECT 1 FROM %I.%I AS child WHERE child.%I IN '
+          '(SELECT target_trial.id FROM public.trials AS target_trial WHERE target_trial.show_id = $1))',
+          v_edge.child_schema, v_edge.child_table, v_edge.child_column
+        ) INTO v_has_retained_child USING p_show_id;
+      ELSE
+        EXECUTE pg_catalog.format(
+          'SELECT EXISTS (SELECT 1 FROM %I.%I AS child WHERE child.%I IN '
+          '(SELECT target_class.id FROM public.classes AS target_class '
+          'JOIN public.trials AS target_trial ON target_trial.id = target_class.trial_id '
+          'WHERE target_trial.show_id = $1))',
+          v_edge.child_schema, v_edge.child_table, v_edge.child_column
+        ) INTO v_has_retained_child USING p_show_id;
+      END IF;
+      IF v_has_retained_child THEN
+        RAISE EXCEPTION 'Retained evidence in %.% (constraint %) prevents permanent deletion',
+          v_edge.child_schema, v_edge.child_table, v_edge.constraint_name
+          USING ERRCODE = '23503';
+      END IF;
+    END IF;
+  END LOOP;
 
-  -- 1. Delete entries (references classes)
-  DELETE FROM public.entries
-  WHERE class_id IN (
-    SELECT c.id FROM public.classes c
-    JOIN public.trials t ON c.trial_id = t.id
-    WHERE t.show_id = p_show_id
-  );
-
-  -- 2. Delete waitlist entries (references classes)
-  DELETE FROM public.waitlist_entries
-  WHERE class_id IN (
-    SELECT c.id FROM public.classes c
-    JOIN public.trials t ON c.trial_id = t.id
-    WHERE t.show_id = p_show_id
-  );
-
-  -- 3. Delete cart items (references classes)
-  DELETE FROM public.entry_cart_items
-  WHERE class_id IN (
-    SELECT c.id FROM public.classes c
-    JOIN public.trials t ON c.trial_id = t.id
-    WHERE t.show_id = p_show_id
-  );
-
-  -- 4. Delete carts (references shows)
-  DELETE FROM public.entry_carts WHERE show_id = p_show_id;
-
-  -- 5. Delete classes (references trials)
-  DELETE FROM public.classes
-  WHERE trial_id IN (
-    SELECT t.id FROM public.trials t WHERE t.show_id = p_show_id
-  );
-
-  -- 6. Delete judge assignments (references shows)
-  DELETE FROM public.judge_assignments WHERE show_id = p_show_id;
-
-  -- 7. Delete trials (references shows)
+  DELETE FROM public.classes AS c
+  USING public.trials AS t
+  WHERE t.id = c.trial_id AND t.show_id = p_show_id;
   DELETE FROM public.trials WHERE show_id = p_show_id;
-
-  -- 8. Delete the show
   DELETE FROM public.shows WHERE id = p_show_id;
 EXCEPTION WHEN lock_not_available THEN
   RAISE EXCEPTION
@@ -379,3 +243,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.hard_delete_show(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;
+
+DROP POLICY IF EXISTS shows_delete ON public.shows;
+REVOKE DELETE ON TABLE public.shows FROM PUBLIC, anon, authenticated;

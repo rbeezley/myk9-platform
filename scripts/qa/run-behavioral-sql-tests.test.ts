@@ -23,6 +23,10 @@ const hardDeleteShowFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/hard_delete_show_money_guards_test.sql'),
   'utf8'
 );
+const hardDeleteShowDesign = readFileSync(
+  resolve(repositoryRoot, 'openspec/changes/remove-orphan-e2e-show/design.md'),
+  'utf8'
+);
 const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
 const pullRefundFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/pull_refund_decision_rls_test.sql'),
@@ -115,7 +119,7 @@ const launchCriticalSqlTests = [
 ];
 
 describe('behavioral SQL test harness', () => {
-  it('serializes owned-show deletion before guards and preserves the RPC security contract', () => {
+  it('locks the target graph and checks a complete FK manifest before deleting', () => {
     expect(existsSync(hardDeleteShowMigration)).toBe(true);
     if (!existsSync(hardDeleteShowMigration)) return;
 
@@ -132,98 +136,149 @@ describe('behavioral SQL test harness', () => {
     expect(migration).toContain(
       'GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;'
     );
+    expect(migration).toContain('DROP POLICY IF EXISTS shows_delete ON public.shows;');
+    expect(migration).toContain(
+      'REVOKE DELETE ON TABLE public.shows FROM PUBLIC, anon, authenticated;'
+    );
 
-    const relationLocks = [
-      "PERFORM pg_catalog.set_config('lock_timeout', '2s', true);",
-      'LOCK TABLE public.stripe_orders IN EXCLUSIVE MODE;',
-      'LOCK TABLE public.entry_payment_links IN EXCLUSIVE MODE;',
-      'LOCK TABLE public.stripe_order_refunds IN EXCLUSIVE MODE;',
-    ];
-    let previousRelationLock = -1;
-    for (const lockStatement of relationLocks) {
-      const position = migration.indexOf(lockStatement);
-      expect(position, `missing or reordered lock statement: ${lockStatement}`).toBeGreaterThan(
-        previousRelationLock
-      );
-      previousRelationLock = position;
+    expect(migration).toContain('FROM pg_catalog.pg_constraint');
+    expect(migration).toContain('pg_catalog.jsonb_to_recordset(v_fk_manifest)');
+    expect(migration).toContain("IF v_edge.disposition = 'retain' THEN");
+    expect(migration).toContain('pg_catalog.format(');
+    expect(migration).toContain('%I.%I');
+    expect(migration).toContain('child.%I');
+    expect((migration.match(/EXECUTE pg_catalog\.format\(/g) ?? []).length).toBe(3);
+    expect((migration.match(/USING p_show_id/g) ?? []).length).toBe(3);
+    for (const associationTable of [
+      'stripe_orders',
+      'entry_payment_links',
+      'stripe_order_refunds',
+    ]) {
+      expect(migration).not.toContain(`LOCK TABLE public.${associationTable}`);
     }
 
-    const targetLockMatch =
-      /PERFORM 1\s+FROM public\.shows\s+WHERE id = p_show_id\s+FOR UPDATE;/.exec(migration);
-    const targetLock = targetLockMatch?.index ?? -1;
-    const scopedRowLocks = [
-      /FROM public\.trials\s+WHERE show_id = p_show_id\s+ORDER BY id\s+FOR UPDATE;/,
-      /FROM public\.classes c\s+JOIN public\.trials t ON t\.id = c\.trial_id\s+WHERE t\.show_id = p_show_id\s+ORDER BY c\.id\s+FOR UPDATE OF c;/,
-      /FROM public\.enrollments\s+WHERE show_id = p_show_id\s+ORDER BY id\s+FOR UPDATE;/,
-      /FROM public\.entries e[\s\S]*?ORDER BY e\.id\s+FOR UPDATE OF e;/,
-    ];
-    let previousScopedLock = targetLock;
-    for (const lockPattern of scopedRowLocks) {
-      const position = lockPattern.exec(migration)?.index ?? -1;
-      expect(position, `missing or reordered scoped row lock: ${lockPattern}`).toBeGreaterThan(
-        previousScopedLock
-      );
-      previousScopedLock = position;
-    }
-    const firstGuard = migration.indexOf('SELECT pg_catalog.count(*) INTO');
-    const firstDelete = migration.indexOf('DELETE FROM public.entries');
+    const targetLock = migration.indexOf(
+      'FROM public.shows\n  WHERE id = p_show_id\n  FOR UPDATE;'
+    );
+    const trialLock = migration.indexOf(
+      'FROM public.trials\n  WHERE show_id = p_show_id\n  ORDER BY id\n  FOR UPDATE;'
+    );
+    const classLock = migration.indexOf('ORDER BY c.id\n  FOR UPDATE OF c;');
+    const graphCheck = migration.indexOf('FROM pg_catalog.pg_constraint');
+    const firstDelete = migration.indexOf('DELETE FROM public.classes');
+    const deleteTargets = [...migration.matchAll(/DELETE\s+FROM\s+public\.([a-z_]+)/gi)].map(
+      match => match[1]
+    );
+
+    expect(migration).toContain("PERFORM pg_catalog.set_config('lock_timeout', '2s', true);");
     expect(targetLock).toBeGreaterThanOrEqual(0);
-    expect(targetLock).toBeGreaterThan(previousRelationLock);
-    expect(firstGuard).toBeGreaterThan(previousScopedLock);
-    expect(firstDelete).toBeGreaterThan(firstGuard);
+    expect(trialLock).toBeGreaterThan(targetLock);
+    expect(classLock).toBeGreaterThan(trialLock);
+    expect(graphCheck).toBeGreaterThan(classLock);
+    expect(firstDelete).toBeGreaterThan(graphCheck);
+    expect(deleteTargets).toEqual(['classes', 'trials', 'shows']);
   });
 
-  it('preserves payout, print, incident, and packet-failure evidence before deletion', () => {
+  it('records every applied FK edge and only disposes structural show descendants', () => {
     const migration = readFileSync(hardDeleteShowMigration, 'utf8');
+    const manifestMatch =
+      /v_fk_manifest CONSTANT pg_catalog\.jsonb := \$manifest\$([\s\S]*?)\$manifest\$::pg_catalog\.jsonb;/i.exec(
+        migration
+      );
+    expect(manifestMatch).not.toBeNull();
+    const manifest = JSON.parse(manifestMatch?.[1] ?? '[]') as Array<{
+      constraint_schema: string;
+      constraint_name: string;
+      child_schema: string;
+      child_table: string;
+      child_column: string;
+      parent_schema: string;
+      parent_table: string;
+      parent_column: string;
+      delete_action: string;
+      disposition: string;
+    }>;
 
-    for (const refusalCounter of [
-      'v_payout_count',
-      'v_paperwork_print_count',
-      'v_incident_count',
-      'v_packet_claim_count',
-    ]) {
-      expect(migration).toContain(refusalCounter);
-    }
-    for (const protectedTable of [
-      'public.show_payouts',
-      'public.paperwork_prints',
-      'public.show_incidents',
-      'public.trial_packet_generation_claims',
-    ]) {
-      expect(migration).toContain(`FROM ${protectedTable}`);
-    }
-    expect(migration).not.toContain('DELETE FROM public.show_payouts');
-    expect(migration).not.toContain('DELETE FROM public.paperwork_prints');
-    expect(migration).not.toContain('DELETE FROM public.show_incidents');
-    expect(migration).not.toContain('DELETE FROM public.trial_packet_generation_claims');
+    expect(manifest).toHaveLength(61);
+    expect(new Set(manifest.map(edge => edge.constraint_name)).size).toBe(61);
+    expect(
+      manifest.every(
+        edge =>
+          edge.constraint_schema === 'public' &&
+          edge.child_schema === 'public' &&
+          edge.parent_schema === 'public' &&
+          edge.parent_column === 'id'
+      )
+    ).toBe(true);
+    const documentedConstraintNames = [
+      ...hardDeleteShowDesign.matchAll(/^\| `([^`]+_fkey)`\s+\|/gm),
+    ]
+      .map(match => match[1])
+      .sort();
+    expect(manifest.map(edge => edge.constraint_name).sort()).toEqual(documentedConstraintNames);
+    expect(manifest.filter(edge => edge.disposition === 'retain')).toHaveLength(59);
+    expect(
+      manifest
+        .filter(edge => edge.disposition === 'disposable')
+        .map(({ constraint_name, child_table, child_column, parent_table, delete_action }) => ({
+          constraint_name,
+          child_table,
+          child_column,
+          parent_table,
+          delete_action,
+        }))
+        .sort((left, right) => left.constraint_name.localeCompare(right.constraint_name))
+    ).toEqual([
+      {
+        constraint_name: 'classes_trial_id_fkey',
+        child_table: 'classes',
+        child_column: 'trial_id',
+        parent_table: 'trials',
+        delete_action: 'CASCADE',
+      },
+      {
+        constraint_name: 'trials_show_id_fkey',
+        child_table: 'trials',
+        child_column: 'show_id',
+        parent_table: 'shows',
+        delete_action: 'CASCADE',
+      },
+    ]);
+    expect(manifest.find(edge => edge.constraint_name === 'email_log_show_id_fkey')).toMatchObject({
+      delete_action: 'SET NULL',
+      disposition: 'retain',
+    });
+    expect(
+      manifest.find(edge => edge.constraint_name === 'stripe_orders_show_id_fkey')
+    ).toMatchObject({
+      delete_action: 'RESTRICT',
+      disposition: 'retain',
+    });
   });
 
-  it('tests detached refunds and each retained-evidence guard independently', () => {
-    expect(hardDeleteShowFixture).toContain(
-      "'00000000-0000-0000-0000-000000615005', 'MYK9-615 refund', 'AKC'"
-    );
-    expect(hardDeleteShowFixture).toContain(
-      "INSERT INTO public.stripe_orders (id, amount_cents, status)\nVALUES ('00000000-0000-0000-0000-000000620005', 3000, 'refunded');"
-    );
-    expect(hardDeleteShowFixture).toContain("'pi_myk9_615_refund'");
-    expect(hardDeleteShowFixture).toContain(
-      "('Stripe refund with detached order', '00000000-0000-0000-0000-000000615005'::uuid, 'refunds 1')"
-    );
-
-    for (const [showId, expectedMessage] of [
-      ['615023', 'show payouts 1'],
-      ['615024', 'paperwork print confirmations 1'],
-      ['615025', 'show incidents 1'],
-      ['615026', 'packet generation claims 1'],
+  it('covers unused-only refusal records, cross-show links, and an unknown empty FK', () => {
+    for (const caseName of [
+      'unused show with trials and classes',
+      'unpaid enrollment',
+      'unpaid entry',
+      'entry status history',
+      'result submission',
+      'activity log',
+      'show payout',
+      'paperwork print',
+      'show incident',
+      'trial packet snapshot',
+      'packet generation claim',
+      'email log',
+      'cross-show entry',
+      'cross-show result submission',
+      'unclassified empty FK',
     ]) {
-      expect(hardDeleteShowFixture).toContain(`'00000000-0000-0000-0000-000000${showId}'`);
-      expect(hardDeleteShowFixture).toContain(`'${expectedMessage}'`);
+      expect(hardDeleteShowFixture).toContain(caseName);
     }
-    expect(hardDeleteShowFixture).toContain('public.trial_packet_print_reminders');
-    expect(hardDeleteShowFixture).toContain('public.entry_status_history');
-    expect(hardDeleteShowFixture).toContain(
-      'zero-evidence show or its ordinary children survived deletion'
-    );
+    expect(hardDeleteShowFixture).toContain('CREATE TABLE public.qa_unknown_show_child');
+    expect(hardDeleteShowFixture).toContain('REFERENCES public.shows(id) ON DELETE CASCADE');
+    expect(hardDeleteShowFixture).toContain('retained evidence row was deleted');
   });
 
   it('registers the local-only two-session hard-delete concurrency harness', () => {
@@ -236,11 +291,15 @@ describe('behavioral SQL test harness', () => {
 
     const source = readFileSync(harness, 'utf8');
     expect(source).toContain('postgresql://postgres:postgres@127.0.0.1:54322/postgres');
-    expect(source).toContain('SET payment_reference');
+    expect(source).toContain('start_writer enrollment-insert');
+    expect(source).toContain('start_writer cross-show-entry');
+    expect(source).toContain('bounded lock timeout');
     expect(source).toContain('INSERT INTO public.entries');
-    expect(source).toContain('entry_ids');
     expect(source).toContain('automated retries are disabled');
     expect(source).toContain('pg_stat_activity');
+    expect(source).not.toContain('payment-update');
+    expect(source).not.toContain('entry-id-array');
+    expect(source).not.toContain('entry_ids');
   });
 
   it('seeds pull/refund people before auth users so the signup trigger adopts them', () => {

@@ -23,11 +23,9 @@
 -- is hidden would also pass if the guard hid everything — a worse bug the other
 -- way — so each block reads its own club's row first.
 --
--- The DELETE case uses its OWN club-less show. Pointing it at the shared one
--- made every later case pass vacuously against the vulnerable policy set: the
--- delete succeeded, and "the row is not visible" is trivially true of a row that
--- no longer exists. Found by replaying this file's assertions against the
--- pre-migration predicates on a throwaway local Postgres.
+-- Permanent DELETE is now revoked at the table ACL for every authenticated
+-- caller. This block proves the club admin cannot delete even their own show;
+-- the separate soft-delete authorization checks remain the supported path.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -205,23 +203,20 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 1.1 shows_update refuses a club-less show';
 
-  DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585024';
-  GET DIAGNOSTICS n = ROW_COUNT;
-  IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 1.2 shows_delete reached a club-less show (MYK9-585)';
+  -- Permanent deletion is RPC-only. Table privilege denial must cover even a
+  -- show that this club admin owns; soft_delete_show remains the supported path.
+  refused := false;
+  BEGIN
+    DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027';
+  EXCEPTION WHEN insufficient_privilege THEN refused := true;
+  END;
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL 1.2 authenticated club admin retained direct DELETE on shows';
   END IF;
-  RAISE NOTICE 'PASS 1.2 shows_delete refuses a club-less show';
-
-  -- Positive control for 1.2, in the same role and the same statement shape: a
-  -- zero row count means "the policy refused" only if the SAME caller's DELETE
-  -- on their OWN club's show returns one. Without this, a shows_delete that
-  -- denied everybody would pass 1.2.
-  DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027';
-  GET DIAGNOSTICS n = ROW_COUNT;
-  IF n <> 1 THEN
-    RAISE EXCEPTION 'FAIL 1.2b club admin lost DELETE on their own club''s show';
+  IF NOT EXISTS (SELECT 1 FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027') THEN
+    RAISE EXCEPTION 'FAIL 1.2 denied direct DELETE removed the club admin''s show';
   END IF;
-  RAISE NOTICE 'PASS 1.2b shows_delete still accepts the admin''s own club''s show';
+  RAISE NOTICE 'PASS 1.2 authenticated club admin cannot directly DELETE shows';
 
   refused := false;
   BEGIN

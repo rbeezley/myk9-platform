@@ -5,7 +5,7 @@ description: Use when shipping or merging an existing PR/branch through review-c
 
 # Ship PR
 
-Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → **independent review gate** → squash-merge → close-out → worktree cleanup, in that order.
+Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → risk-appropriate review gate (optional for bounded low-risk changes) → squash-merge → close-out → worktree cleanup, in that order.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
 
@@ -112,12 +112,18 @@ After fixes, invoke `/commit` to push.
 pnpm qa:review-tier --base origin/main
 ```
 
-The printed `tier:` is the floor for this PR. Do NOT run a cross-harness
-review when the floor is `adversarial` or `none` — that is the whole point
-of the calculator, and a needless Codex/Claude round is the budget leaving.
+The printed `review:` says whether evidence is required. To evaluate a
+dependency-only PR, include its existing label: `pnpm qa:review-tier --base
+origin/main --label dependencies`. CI remains mandatory even when review is
+optional; reviewers are welcome whenever useful. The printed `tier:` remains
+the floor when the optional route does not apply.
 `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:`
 comments for every tier — never type an evidence line by hand.
 
+- **`review: optional (...)`** — no synthetic attestation is needed; the gate
+  passes without review evidence while the diff stays eligible. A newly added
+  independent-risk path or removal of the `dependencies` label restores the
+  review requirement. A voluntary review can still use the normal process.
 - **`none`** — no review log required (`/dev/null` is fine):
   `bash scripts/qa/post-review-gate.sh $PR_NUMBER none <base-sha> <head-sha> "low-risk paths, CI green" /dev/null`
 - **`adversarial`** — run at least 2 subagent reviews with distinct

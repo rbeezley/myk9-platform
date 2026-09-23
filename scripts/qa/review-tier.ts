@@ -62,6 +62,63 @@ export function touchesMigration(files: readonly string[]): boolean {
 /** Docs are the only `none`, and never the instruction files above. */
 const NONE_PATTERNS: readonly RegExp[] = [/^docs\//, /^[^/]*\.md$/];
 
+const DEPENDENCY_ONLY_PATTERNS: readonly RegExp[] = [
+  /^package\.json$/,
+  /^(apps|packages)\/[^/]+\/package\.json$/,
+  /^pnpm-lock\.yaml$/,
+];
+const APP_SOURCE_PATTERN = /^apps\/[^/]+\/src\//;
+const SMALL_APP_FILE_LIMIT = 3;
+const SMALL_APP_CHANGED_LINE_LIMIT = 100;
+
+export interface OptionalReviewInput {
+  changedFiles: readonly string[];
+  labels?: readonly string[];
+  additions?: number;
+  deletions?: number;
+  fileListUnusable?: boolean;
+}
+
+/**
+ * Low-risk changes may skip mandatory review while their ordinary CI checks
+ * remain required. Dependency-only skips require the existing `dependencies`
+ * label; small app fixes are capped at three app-source files and 100 changed
+ * lines. Guardrail, migration, and incomplete-file-list cases never qualify.
+ */
+export function optionalReviewReason(input: OptionalReviewInput): string | undefined {
+  const { changedFiles } = input;
+  if (changedFiles.length === 0 || input.fileListUnusable) return undefined;
+
+  if (requiredTier(changedFiles).tier === 'none') return 'documentation';
+
+  const isDependencyOnly = changedFiles.every(file =>
+    DEPENDENCY_ONLY_PATTERNS.some(pattern => pattern.test(file))
+  );
+  if (isDependencyOnly && input.labels?.some(label => label.toLowerCase() === 'dependencies')) {
+    return 'dependency-only';
+  }
+
+  if (
+    requiredTier(changedFiles).tier === 'independent' ||
+    touchesMigration(changedFiles) ||
+    changedFiles.length > SMALL_APP_FILE_LIMIT ||
+    !changedFiles.every(file => APP_SOURCE_PATTERN.test(file))
+  ) {
+    return undefined;
+  }
+
+  if (input.additions === undefined || input.deletions === undefined) return undefined;
+  const changedLines = input.additions + input.deletions;
+  if (
+    !Number.isFinite(changedLines) ||
+    changedLines < 0 ||
+    changedLines > SMALL_APP_CHANGED_LINE_LIMIT
+  ) {
+    return undefined;
+  }
+  return 'small-app-change';
+}
+
 function floorFor(file: string): { tier: Tier; reason: string } {
   if (INDEPENDENT_PATTERNS.some(p => p.test(file))) {
     return { tier: 'independent', reason: `${file} is a guardrail or high-risk path` };
@@ -105,6 +162,19 @@ export function changedFiles(base: string): string[] {
   return out.split('\n').filter(Boolean);
 }
 
+function changedLineCounts(base: string): { additions: number; deletions: number } {
+  const out = execFileSync('git', ['diff', '--numstat', `${base}...HEAD`], { encoding: 'utf8' });
+  return out.split('\n').filter(Boolean).reduce(
+    (counts, line) => {
+      const [added, deleted] = line.split('\t');
+      // Binary changes report `-`; they cannot qualify for the bounded app route.
+      if (added === '-' || deleted === '-') return { additions: Number.NaN, deletions: Number.NaN };
+      return { additions: counts.additions + Number(added), deletions: counts.deletions + Number(deleted) };
+    },
+    { additions: 0, deletions: 0 }
+  );
+}
+
 /**
  * `--files-stdin`: read a newline-separated file list on stdin and print ONLY
  * the tier. `scripts/qa/post-review-gate.sh` uses it to check an `owner`
@@ -129,7 +199,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
   const files = changedFiles(base);
   const { tier, reason } = requiredTier(files);
+  const labelIndex = process.argv.indexOf('--label');
+  const labels = labelIndex === -1 ? [] : [process.argv[labelIndex + 1] ?? ''];
+  const counts = changedLineCounts(base);
+  const optional = optionalReviewReason({ changedFiles: files, labels, ...counts });
   console.log(`review-tier: ${files.length} file(s) vs ${base}`);
   console.log(`tier: ${tier}`);
   console.log(`reason: ${reason}`);
+  console.log(optional ? `review: optional (${optional})` : 'review: required');
 }

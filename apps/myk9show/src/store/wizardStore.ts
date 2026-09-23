@@ -6,7 +6,11 @@ import {
   resolvePremiumStyle,
   type PremiumStyle,
 } from '@/types/premium-types';
-import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
+import {
+  migrateWizardState,
+  recoverInterruptedCloneHydration,
+  WIZARD_STORE_VERSION,
+} from './wizardStore.migrations';
 
 /** Maps show organization to a default trial type (discipline). */
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
@@ -291,6 +295,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           ...current,
           ...(persisted as Partial<WizardState>),
         });
+        state.cloneHydration = recoverInterruptedCloneHydration(state.cloneHydration);
         // Zustand persist serializes Date via JSON.stringify → ISO string.
         const rawLastSaved: unknown = state.lastSaved;
         if (typeof rawLastSaved === 'string') {

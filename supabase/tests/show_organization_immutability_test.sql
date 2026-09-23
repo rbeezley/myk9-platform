@@ -44,10 +44,29 @@ BEGIN
 END;
 $test$;
 
--- No live trial means changing the show organization remains allowed.
+-- No persisted trial means changing the show organization remains allowed.
 UPDATE public.shows
 SET organization = 'UKC'
 WHERE id = '00000000-0000-0000-0000-000000604011';
+
+-- The resulting registry remains authoritative for future child writes.
+DO $test$
+DECLARE
+  v_state text;
+BEGIN
+  BEGIN
+    INSERT INTO public.trials (id, show_id, name, date, registry_id)
+    VALUES ('00000000-0000-0000-0000-000000604022', '00000000-0000-0000-0000-000000604011',
+            'MYK9-604 Foreign Registry Trial', current_date, 'AKC');
+    RAISE EXCEPTION 'FAIL: an AKC trial was accepted on the UKC show';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE;
+    IF v_state <> 'MK490' THEN
+      RAISE EXCEPTION 'FAIL: expected SQLSTATE MK490 for a foreign trial, got %', v_state;
+    END IF;
+  END;
+END;
+$test$;
 
 -- Soft-deleted trials still lock the show because admin restore can make their classes live
 -- again under the original registry.
@@ -69,11 +88,13 @@ BEGIN
 END;
 $test$;
 
--- The child validator's SHARE lock is the serialization boundary against concurrent updates
--- to the non-key organization column (whose UPDATE acquires NO KEY UPDATE).
+-- Confirm the installed child trigger exists and the function uses the reviewed SHARE-lock
+-- implementation. The behavioral rejection above proves registry enforcement, not a concurrent
+-- race; concurrency follows from Postgres SHARE conflicting with NO KEY UPDATE on the parent.
 DO $test$
 DECLARE
   v_function text;
+  v_trigger_count integer;
 BEGIN
   SELECT pg_get_functiondef(function_row.oid)
     INTO v_function
@@ -82,6 +103,21 @@ BEGIN
   WHERE schema_row.nspname = 'public'
     AND function_row.proname = 'enforce_show_registry_on_trial';
 
+  SELECT count(*)
+    INTO v_trigger_count
+  FROM pg_trigger AS trigger_row
+  JOIN pg_class AS table_row ON table_row.oid = trigger_row.tgrelid
+  JOIN pg_namespace AS schema_row ON schema_row.oid = table_row.relnamespace
+  JOIN pg_proc AS function_row ON function_row.oid = trigger_row.tgfoid
+  WHERE schema_row.nspname = 'public'
+    AND table_row.relname = 'trials'
+    AND NOT trigger_row.tgisinternal
+    AND function_row.proname = 'enforce_show_registry_on_trial';
+
+  IF v_function IS NULL OR v_trigger_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL wiring: expected installed trial validator function and one trigger, found function=% trigger_count=%',
+      v_function IS NOT NULL, v_trigger_count;
+  END IF;
   IF position('FOR SHARE' IN v_function) = 0 THEN
     RAISE EXCEPTION 'FAIL: trial registry enforcement must lock the parent show FOR SHARE';
   END IF;

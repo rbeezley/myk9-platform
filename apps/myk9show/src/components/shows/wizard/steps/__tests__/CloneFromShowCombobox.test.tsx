@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
@@ -375,8 +376,12 @@ describe('CloneFromShowCombobox', () => {
     mockGetClassesByTrialId.mockResolvedValueOnce({ data: [], error: new Error('offline') });
 
     await selectSourceShow();
+    cleanup();
+    mockCloneHydration.status = 'failed';
+    const user = userEvent.setup();
+    const { rerender } = render(<CloneFromShowCombobox />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not load.*classes/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not load.*classes/i);
     expect(mockAddTrial).not.toHaveBeenCalled();
     expect(mockSetCloneHydration).toHaveBeenLastCalledWith({
       status: 'failed',
@@ -384,6 +389,10 @@ describe('CloneFromShowCombobox', () => {
       sourceShowName: 'Heartland Spring Trial',
     });
     expect(screen.getByRole('button', { name: /retry clone/i })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: /start fresh/i }));
+    rerender(<CloneFromShowCombobox />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('does not append hydrated trials after start fresh cancels the selection', async () => {

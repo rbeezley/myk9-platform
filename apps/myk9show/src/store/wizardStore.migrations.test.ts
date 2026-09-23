@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
+import {
+  migrateWizardState,
+  recoverInterruptedCloneHydration,
+  WIZARD_STORE_VERSION,
+} from './wizardStore.migrations';
 
 describe('wizard store migration', () => {
   it('converts exact legacy generated labels to derived names', () => {
@@ -49,5 +53,25 @@ describe('wizard store migration', () => {
     const persisted = { trials: [{ id: 'one', nameOverride: 'Custom' }] };
 
     expect(migrateWizardState(persisted, WIZARD_STORE_VERSION)).toBe(persisted);
+  });
+
+  it('recovers a persisted in-flight clone as retryable after reload', () => {
+    expect(
+      recoverInterruptedCloneHydration({
+        status: 'hydrating',
+        sourceShowId: 'source-1',
+        sourceShowName: 'Spring Trial',
+      })
+    ).toEqual({ status: 'failed', sourceShowId: 'source-1', sourceShowName: 'Spring Trial' });
+  });
+
+  it('does not preserve an unwakeable hydration state without a source show', () => {
+    expect(
+      recoverInterruptedCloneHydration({
+        status: 'hydrating',
+        sourceShowId: null,
+        sourceShowName: null,
+      })
+    ).toEqual({ status: 'idle', sourceShowId: null, sourceShowName: null });
   });
 });

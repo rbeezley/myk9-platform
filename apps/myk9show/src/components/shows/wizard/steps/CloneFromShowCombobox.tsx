@@ -38,9 +38,9 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   } = useWizardStore();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [cloneFailed, setCloneFailed] = useState(cloneHydration.status === 'failed');
   const cloneRequestIdRef = useRef(0);
   const clonedShowName = cloneHydration.sourceShowName;
+  const cloneFailed = cloneHydration.status === 'failed';
   const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
   const { templates } = useTemplates();
@@ -81,7 +81,6 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     cloneRequestIdRef.current = requestId;
     setOpen(false);
     setSearch('');
-    setCloneFailed(false);
     resetWizard();
     setCloneHydration({ status: 'hydrating', sourceShowId: show.id, sourceShowName: show.name });
 
@@ -124,7 +123,6 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       sourceTrials = await getCloneSourceTrials(show);
     } catch {
       if (requestId !== cloneRequestIdRef.current) return;
-      setCloneFailed(true);
       setCloneHydration({ status: 'failed', sourceShowId: show.id, sourceShowName: show.name });
       return;
     }
@@ -178,7 +176,6 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
 
   const handleStartFresh = () => {
     cloneRequestIdRef.current += 1;
-    setCloneFailed(false);
     resetWizard();
   };
 

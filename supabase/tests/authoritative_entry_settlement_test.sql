@@ -142,11 +142,11 @@ INSERT INTO public.entries (
   'confirmed', 'pending', 0, now()
 );
 INSERT INTO public.entry_carts (
-  id, exhibitor_id, show_id, status, stripe_checkout_session_id,
+  id, exhibitor_id, show_id, status,
   subtotal_cents, platform_fee_cents, total_cents
 ) VALUES (
   '00000000-0000-0000-0000-000000639724', '00000000-0000-0000-0000-000000639723',
-  '00000000-0000-0000-0000-000000639702', 'active', 'cs_639_mixed_cart', 14000, 980, 14980
+  '00000000-0000-0000-0000-000000639702', 'active', 14000, 980, 14980
 );
 INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_id, entry_fee_cents)
 VALUES
@@ -159,6 +159,9 @@ VALUES
    '00000000-0000-0000-0000-000000639710', '00000000-0000-0000-0000-000000639711', NULL, 3500),
   ('00000000-0000-0000-0000-000000639728', '00000000-0000-0000-0000-000000639724',
    '00000000-0000-0000-0000-000000639710', '00000000-0000-0000-0000-000000639713', NULL, 3500);
+-- Cart-item INSERT invalidates a bound session; bind only after assembling it.
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_639_mixed_cart'
+ WHERE id = '00000000-0000-0000-0000-000000639724';
 
 INSERT INTO public.entry_payment_links (
   id, show_id, entry_ids, stripe_checkout_session_id, status,
@@ -455,16 +458,18 @@ END;
 $$;
 
 INSERT INTO public.entry_carts (
-  id, exhibitor_id, show_id, status, stripe_checkout_session_id,
+  id, exhibitor_id, show_id, status,
   subtotal_cents, platform_fee_cents, total_cents
 ) VALUES (
   '00000000-0000-0000-0000-000000639743', '00000000-0000-0000-0000-000000639723',
-  '00000000-0000-0000-0000-000000639702', 'active', 'cs_639_wrong_class', 3500, 245, 3745
+  '00000000-0000-0000-0000-000000639702', 'active', 3500, 245, 3745
 );
 INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_id, entry_fee_cents)
 VALUES ('00000000-0000-0000-0000-000000639744', '00000000-0000-0000-0000-000000639743',
   '00000000-0000-0000-0000-000000639705', '00000000-0000-0000-0000-000000639704',
   '00000000-0000-0000-0000-000000639715', 3500);
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_639_wrong_class'
+ WHERE id = '00000000-0000-0000-0000-000000639743';
 DO $$
 DECLARE v_error boolean := false;
 BEGIN
@@ -496,16 +501,18 @@ INSERT INTO public.classes (id, trial_id, name, element, level)
 VALUES ('00000000-0000-0000-0000-000000639742', '00000000-0000-0000-0000-000000639741',
         'MYK9-639 other-show class', 'Container', 'Novice');
 INSERT INTO public.entry_carts (
-  id, exhibitor_id, show_id, status, stripe_checkout_session_id,
+  id, exhibitor_id, show_id, status,
   subtotal_cents, platform_fee_cents, total_cents
 ) VALUES (
   '00000000-0000-0000-0000-000000639745', '00000000-0000-0000-0000-000000639723',
-  '00000000-0000-0000-0000-000000639740', 'active', 'cs_639_wrong_show', 3500, 245, 3745
+  '00000000-0000-0000-0000-000000639740', 'active', 3500, 245, 3745
 );
 INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_id, entry_fee_cents)
 VALUES ('00000000-0000-0000-0000-000000639746', '00000000-0000-0000-0000-000000639745',
   '00000000-0000-0000-0000-000000639705', '00000000-0000-0000-0000-000000639742',
   '00000000-0000-0000-0000-000000639715', 3500);
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_639_wrong_show'
+ WHERE id = '00000000-0000-0000-0000-000000639745';
 DO $$
 DECLARE v_error boolean := false;
 BEGIN

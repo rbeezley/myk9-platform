@@ -51,11 +51,11 @@ INSERT INTO public.entries (
    '00000000-0000-0000-0000-000000639805', '00000000-0000-0000-0000-000000639802',
    '00000000-0000-0000-0000-000000639803', 'confirmed', 'paid', 'check', 35);
 INSERT INTO public.entry_carts (
-  id, exhibitor_id, show_id, status, stripe_checkout_session_id,
+  id, exhibitor_id, show_id, status,
   subtotal_cents, platform_fee_cents, total_cents
 ) VALUES (
   '00000000-0000-0000-0000-000000639813', '00000000-0000-0000-0000-000000639810',
-  '00000000-0000-0000-0000-000000639802', 'active', 'cs_639_full_refund', 7000, 490, 7490
+  '00000000-0000-0000-0000-000000639802', 'active', 7000, 490, 7490
 );
 INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_fee_cents)
 VALUES
@@ -63,6 +63,9 @@ VALUES
    '00000000-0000-0000-0000-000000639807', '00000000-0000-0000-0000-000000639804', 3500),
   ('00000000-0000-0000-0000-000000639815', '00000000-0000-0000-0000-000000639813',
    '00000000-0000-0000-0000-000000639807', '00000000-0000-0000-0000-000000639805', 3500);
+-- Cart-item INSERT invalidates a bound session; bind only after assembling it.
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_639_full_refund'
+ WHERE id = '00000000-0000-0000-0000-000000639813';
 
 DO $$
 DECLARE

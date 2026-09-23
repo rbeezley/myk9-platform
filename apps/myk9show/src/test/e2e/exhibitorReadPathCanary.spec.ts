@@ -38,6 +38,10 @@ test('exhibitor read path works against live data', async ({ page }) => {
   const broken: string[] = [];
   let profileRows: number | undefined;
   let entryRows = 0;
+  // Zero rows is "staging is empty" ONLY if the read actually completed. A
+  // regression that stops the entries read from being issued would otherwise
+  // leave entryRows at 0 and skip as data-absent (Codex review, #2392).
+  let entriesReadCompleted = false;
 
   page.on('response', async response => {
     const table = readPathTable(response);
@@ -49,7 +53,10 @@ test('exhibitor read path works against live data', async ({ page }) => {
     const rows = await response.json().catch(() => null);
     const count = Array.isArray(rows) ? rows.length : rows ? 1 : 0;
     if (table === 'exhibitor_profiles') profileRows = count;
-    if (table === 'view_authenticated_entry_results') entryRows += count;
+    if (table === 'view_authenticated_entry_results') {
+      entryRows += count;
+      entriesReadCompleted = true;
+    }
   });
 
   const assertNoBrokenRead = () =>
@@ -89,6 +96,14 @@ test('exhibitor read path works against live data', async ({ page }) => {
     heading,
     'the demo exhibitor has a profile row, yet My Shows did not mount'
   ).toBeVisible();
+  await expect
+    .poll(() => entriesReadCompleted || broken.length > 0, {
+      timeout: 15000,
+      message:
+        'My Shows mounted but the entries view was never read successfully. The read ' +
+        'path is broken, not the data: this IS a regression',
+    })
+    .toBe(true);
   await page.waitForLoadState('networkidle');
 
   assertNoBrokenRead();

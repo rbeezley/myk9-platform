@@ -330,6 +330,15 @@ reads without the canary left nothing to catch a broken read path.
 - **P2: the Phase 1 spike was discovered by the default config** and fails
   against a local target. Deleted; its findings are recorded above.
 
+#### Third Codex round (2026-09-23)
+
+- **P1: the canary treated "no entries read happened" as "no entries".** A
+  regression that stops the entries view being requested left `entryRows` at 0
+  and skipped as data-absent. The skip now requires a completed, successful
+  entries read that returned zero rows; a read that never completes fails.
+  Verified all branches: data present → pass; zero rows → skip; 403 → fail;
+  read aborted → fail ("the entries view was never read successfully").
+
 ### Phase 5 — testing
 
 A phase is not complete until its tests pass.

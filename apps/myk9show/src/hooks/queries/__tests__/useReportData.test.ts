@@ -4,6 +4,22 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
 import type { Show } from '@/types/show-types';
+import { mapReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
+
+const hydrationMocks = vi.hoisted(() => ({
+  revision: 0,
+  listeners: new Set<(event: { ids: readonly string[]; revision: number }) => void>(),
+}));
+
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  getHandlerPeopleHydrationRevision: () => hydrationMocks.revision,
+  subscribeHandlerPeopleHydration: (
+    listener: (event: { ids: readonly string[]; revision: number }) => void
+  ) => {
+    hydrationMocks.listeners.add(listener);
+    return () => hydrationMocks.listeners.delete(listener);
+  },
+}));
 
 vi.mock('@/services/database/entries/refreshShowEntriesForRead', () => ({
   refreshShowEntriesForRead: vi.fn().mockResolvedValue(undefined),
@@ -72,11 +88,156 @@ describe('useReportData', () => {
     // implementations, so a mockResolvedValue set by one test leaks into
     // whichever test CI's --sequence.shuffle runs next.
     vi.resetAllMocks();
+    hydrationMocks.revision = 0;
+    hydrationMocks.listeners.clear();
+    onlineManager.setOnline(true);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map(),
       serverError: null,
       registrationsReadComplete: true,
     });
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it('re-reads the report when authoritative handler people finish during its initial query', async () => {
+    const staleEntry = {
+      id: 'entry-1',
+      class_id: 'class-1',
+      handler_id: 'handler-1',
+      handler: null,
+      handler_identity: { name: null, person: null, source: 'unknown' as const },
+      dog: { id: 'dog-1', call_name: 'Rocket', owner: { first_name: 'Owner', last_name: 'Name' } },
+    };
+    const hydratedEntry = {
+      ...staleEntry,
+      handler: 'Assigned Handler',
+      handler_identity: {
+        name: 'Assigned Handler',
+        person: { id: 'handler-1', first_name: 'Assigned', last_name: 'Handler' },
+        source: 'assigned-person' as const,
+      },
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({
+      data: [{ id: 'class-1', trial_id: 'trial-1', element: 'Scent Work' }],
+      error: null,
+    } as never);
+    mockGetEntriesByShowFromReplication.mockImplementation(async () => {
+      if (mockGetEntriesByShowFromReplication.mock.calls.length === 1) {
+        // Simulate loadHandlerPeople returning the local cache after its fast
+        // deadline, then publishing the authoritative response before React
+        // Query publishes the first result.
+        hydrationMocks.revision += 1;
+        for (const listener of hydrationMocks.listeners) {
+          listener({ ids: ['handler-1'], revision: hydrationMocks.revision });
+        }
+        return { data: [staleEntry], error: null } as never;
+      }
+      return { data: [hydratedEntry], error: null } as never;
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      const printed = mapReportEntries(result.current.entries ?? []);
+      expect(printed[0]?.handler).toBe('Assigned Handler');
+    });
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes an owner-fallback print when its authoritative person arrives late', async () => {
+    const staleEntry = {
+      id: 'entry-1',
+      class_id: 'class-1',
+      handler_id: null,
+      handler: null,
+      handler_identity: { name: null, person: null, source: 'unknown' as const },
+      dog: {
+        id: 'dog-1',
+        call_name: 'Rocket',
+        owner: { first_name: 'Owner', last_name: 'Name' },
+      },
+    };
+    const hydratedEntry = {
+      ...staleEntry,
+      handler_identity: {
+        name: 'Owner Name',
+        person: { id: 'owner-1', first_name: 'Owner', last_name: 'Name' },
+        source: 'owner' as const,
+      },
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({
+      data: [{ id: 'class-1', trial_id: 'trial-1', element: 'Scent Work' }],
+      error: null,
+    } as never);
+    mockGetEntriesByShowFromReplication.mockImplementation(async () => {
+      if (mockGetEntriesByShowFromReplication.mock.calls.length === 1) {
+        hydrationMocks.revision += 1;
+        for (const listener of hydrationMocks.listeners) {
+          listener({ ids: ['owner-1'], revision: hydrationMocks.revision });
+        }
+        return { data: [staleEntry], error: null } as never;
+      }
+      return { data: [hydratedEntry], error: null } as never;
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(mapReportEntries(result.current.entries ?? [])[0]?.handler).toBe('Owner Name');
+    });
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the cached printed handler available when an identity refresh completes offline', async () => {
+    const cachedEntry = {
+      id: 'entry-1',
+      class_id: 'class-1',
+      handler_id: 'handler-1',
+      handler: null,
+      handler_identity: { name: null, person: null, source: 'unknown' as const },
+      dog: { id: 'dog-1', call_name: 'Rocket' },
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
+      data: [cachedEntry],
+      error: null,
+    } as never);
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.dataState).toBe('ready'));
+
+    onlineManager.setOnline(false);
+    act(() => {
+      hydrationMocks.revision += 1;
+      for (const listener of hydrationMocks.listeners) {
+        listener({ ids: ['handler-1'], revision: hydrationMocks.revision });
+      }
+    });
+
+    await waitFor(() => expect(result.current.dataState).toBe('ready'));
+    expect(mapReportEntries(result.current.entries ?? [])[0]?.handler).toBe('Unknown');
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(1);
   });
 
   it('returns null show when show is null', () => {

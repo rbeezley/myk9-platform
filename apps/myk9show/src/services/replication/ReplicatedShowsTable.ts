@@ -339,6 +339,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     }
 
     const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, updates);
+    // Style is an RPC-owned field. Never let a stale generic Show edit carry it
+    // back to Supabase or overwrite a newer Preview save.
+    delete resolvedUpdates.style;
     const updatedShow: ReplicatedShow = {
       ...currentShow,
       ...resolvedUpdates,
@@ -348,6 +351,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     await this.set(showId, updatedShow, true); // Mark as dirty
     const updatePayload = this.toSupabaseRow(updatedShow);
+    // Style is owned exclusively by update_show_style. Omitting it from the
+    // generic payload prevents a stale row from clobbering a concurrent style
+    // mutation, even when the local row already contains a style value.
+    delete updatePayload.style;
     if (!('experienceIsPublished' in resolvedUpdates)) delete updatePayload.experience_is_published;
     if (!('experiencePublishedAt' in resolvedUpdates)) delete updatePayload.experience_published_at;
     if (!('experiencePublishedStyle' in resolvedUpdates))

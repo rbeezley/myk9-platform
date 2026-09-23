@@ -12,7 +12,10 @@ vi.mock('../supabaseClient', () => ({
   supabase: { from: mocks.from },
 }));
 
-import { postgrestGetSecretaryPullMetadataMap } from './secretaryPostgrest';
+import {
+  postgrestGetSecretaryEntriesForShow,
+  postgrestGetSecretaryPullMetadataMap,
+} from './secretaryPostgrest';
 
 describe('postgrestGetSecretaryPullMetadataMap', () => {
   beforeEach(() => {
@@ -128,11 +131,15 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
       return query;
     });
 
-    const { postgrestGetSecretaryEntriesForShow } = await import('./secretaryPostgrest');
     const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
 
     expect(result.error).toBeNull();
-    expect(result.data).toEqual([{ id: 'entry-1' }]);
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: 'entry-1',
+        handler_identity: { name: null, person: null, source: 'unknown' },
+      }),
+    ]);
 
     const viewReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
     expect(viewReads).toHaveLength(2);
@@ -142,5 +149,50 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
     expect(viewReads[1].select).not.toContain('payment_received_on');
     // The retry must not also drop the scored columns the reports depend on.
     expect(viewReads[1].select).toContain('final_placement');
+  });
+
+  it('projects the canonical handler identity from joined handler and owner rows', async () => {
+    mocks.from.mockImplementation((relation: string) => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve(
+            relation === 'view_authenticated_entry_results'
+              ? {
+                  data: [
+                    {
+                      id: 'entry-owner-handler',
+                      handler: null,
+                      handler_id: null,
+                      dog: {
+                        owner: {
+                          id: 'owner-1',
+                          first_name: 'Olivia',
+                          last_name: 'Owner',
+                        },
+                      },
+                    },
+                  ],
+                  error: null,
+                }
+              : { data: [], error: null }
+          )
+        ),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      };
+      return query;
+    });
+
+    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(result.data[0]).toMatchObject({
+      handler_identity: {
+        name: 'Olivia Owner',
+        source: 'owner',
+      },
+    });
   });
 });

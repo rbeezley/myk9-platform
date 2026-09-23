@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { Check, FileText, Palette } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FileText, Palette } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,7 +16,6 @@ interface ShowEditPremiumTabProps {
   clubId: string;
   showOrg: 'AKC' | 'UKC' | null;
   isActive: boolean;
-  handleSelectChange: (field: keyof ShowEditFormData) => (value: string) => void;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
   handleValueChange: <K extends keyof ShowEditFormData>(
     field: K
@@ -27,7 +27,6 @@ export function ShowEditPremiumTab({
   clubId,
   showOrg,
   isActive,
-  handleSelectChange,
   handleCheckboxChange,
   handleValueChange,
 }: ShowEditPremiumTabProps) {
@@ -69,38 +68,28 @@ export function ShowEditPremiumTab({
           </p>
         </CardHeader>
         <CardContent>
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-            role="radiogroup"
-            aria-label="Show experience style"
-          >
-            {STYLE_OPTIONS.map(opt => {
-              const selected = (data.style || 'monogram') === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={opt.name}
-                  onClick={() => handleSelectChange('style')(opt.key)}
-                  className={`text-left p-3 rounded-md border transition-colors ${
-                    selected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
-                      {opt.name}
-                    </span>
-                    {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground leading-snug">{opt.tagline}</p>
-                </button>
-              );
-            })}
-          </div>
+          {hasShowId ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                The current draft style is{' '}
+                <span className="font-medium text-foreground">{data.style || 'monogram'}</span>.
+                Choose and save presentation styles in the show Preview so the live rendering and
+                draft stay together.
+              </p>
+              <Link
+                to={`/shows/${data.id}?preview=public`}
+                className="inline-flex min-h-11 items-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Open show Preview
+              </Link>
+            </div>
+          ) : (
+            <Alert>
+              <AlertDescription>
+                Save the show first to choose a presentation style.
+              </AlertDescription>
+            </Alert>
+          )}
           <label className="mt-4 flex items-start gap-3 rounded-md border p-3 cursor-pointer">
             <Checkbox
               aria-label="Generate exhibitor documents on save"
@@ -160,55 +149,6 @@ export function ShowEditPremiumTab({
     </TabsContent>
   );
 }
-
-interface StyleOption {
-  key: PremiumStyle;
-  name: string;
-  tagline: string;
-}
-
-const STYLE_OPTIONS: StyleOption[] = [
-  {
-    key: 'monogram',
-    name: 'Monogram',
-    tagline: 'Centered TC monogram, large serif title - conservative classic.',
-  },
-  {
-    key: 'banner',
-    name: 'Banner',
-    tagline: 'Black bar across top, left-aligned title - clean and direct.',
-  },
-  {
-    key: 'headline',
-    name: 'Headline',
-    tagline: 'Stacked header with double-rule divider - quietly bold.',
-  },
-  {
-    key: 'magazine',
-    name: 'Magazine',
-    tagline: 'Editorial spread - display serif cover, pull quotes inside.',
-  },
-  {
-    key: 'poster',
-    name: 'Poster',
-    tagline: 'Bold single-page hero - tight uppercase, ink-blot accents.',
-  },
-  {
-    key: 'gazette',
-    name: 'Gazette',
-    tagline: 'Newspaper broadsheet - masthead, multi-column body.',
-  },
-  {
-    key: 'fieldGuide',
-    name: 'Field Guide',
-    tagline: 'Utility reference - section-numbered sections, dense data tables.',
-  },
-  {
-    key: 'heritage',
-    name: 'Heritage',
-    tagline: 'Traditional kennel club - ivory paper, ornamental rules.',
-  },
-];
 
 function currencyToNumber(value: string): number {
   const parsed = Number.parseFloat(value);

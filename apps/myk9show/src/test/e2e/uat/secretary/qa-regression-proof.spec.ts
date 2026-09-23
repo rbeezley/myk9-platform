@@ -119,7 +119,7 @@ test.describe('Secretary QA regression proof', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
+    const addTrialAction = page.getByRole('button', { name: /^Add (First|Another) Trial$/ }).last();
     await expect(addTrialAction).toBeVisible();
     await addTrialAction.click({ force: true });
 

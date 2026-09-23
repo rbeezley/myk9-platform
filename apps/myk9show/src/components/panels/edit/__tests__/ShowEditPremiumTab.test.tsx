@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const premiumEditorProps: Array<{
@@ -11,6 +11,13 @@ const premiumEditorProps: Array<{
 let publishedExperienceContentMock: unknown = null;
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
+vi.mock('react-router-dom', () => ({
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock('@/features/premium/PremiumContentEditor', () => ({
   PremiumContentEditor: (props: {
     onPremiumChange?: (value: unknown) => void;
@@ -54,26 +61,23 @@ describe('ShowEditPremiumTab', () => {
     publishedExperienceContentMock = null;
   });
 
-  it('writes the selected experience style to the show style field', async () => {
-    const user = userEvent.setup();
-    const handleSelectChange = vi.fn(() => vi.fn());
-
+  it('links the settings surface to the canonical show Preview editor', () => {
     render(
       <ShowEditPremiumTab
         data={baseData}
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={handleSelectChange}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
     );
 
-    await user.click(screen.getByRole('radio', { name: /heritage/i }));
-
-    expect(handleSelectChange).toHaveBeenCalledWith('style');
-    expect(handleSelectChange.mock.results[0]?.value).toHaveBeenCalledWith('heritage');
+    expect(screen.getByRole('link', { name: /open show preview/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1?preview=public'
+    );
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 
   it('renders the shared show content editor in the same tab as style selection', () => {
@@ -83,7 +87,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
@@ -101,7 +104,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
@@ -127,7 +129,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={handleValueChange}
       />
@@ -139,7 +140,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={handleValueChange}
       />
@@ -189,7 +189,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
@@ -235,7 +234,6 @@ describe('ShowEditPremiumTab', () => {
         clubId="c1"
         showOrg="AKC"
         isActive
-        handleSelectChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />

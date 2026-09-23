@@ -15,9 +15,11 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
-import { resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
+import { getTrialCreationCopy, resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
 function safeParseDateString(str: string | undefined): Date | undefined {
@@ -30,16 +32,28 @@ function safeParseDateString(str: string | undefined): Date | undefined {
 
 interface TrialConfigurationStepProps {
   className?: string;
-  /** Number of existing trials already in the show (for add-trials mode info banner). */
-  existingTrialCount?: number;
+  /** Shared naming and show-level trial context created by the wizard page. */
+  trialView: WizardTrialView;
   /** True once the user has clicked Next — gates the "at least one trial required" error. */
   submitted?: boolean;
+  /** Existing-show trials are addable only after a confirmed replicated snapshot. */
+  existingTrialsReady?: boolean;
+  /** Read status for the existing-show trial snapshot. */
+  existingTrialsReadStatus?: ReplicatedReadStatus | undefined;
+  /** Error from the latest existing-show trial snapshot read. */
+  existingTrialsReadError?: string | null | undefined;
+  /** Retry the existing-show trial snapshot read. */
+  onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
-  existingTrialCount = 0,
+  trialView,
   submitted = false,
+  existingTrialsReady = true,
+  existingTrialsReadStatus,
+  existingTrialsReadError,
+  onRetryExistingTrials,
 }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
@@ -48,6 +62,18 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const trialTypeOptions = useMemo(() => {
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
+
+  const creationCopy = useMemo(
+    () => getTrialCreationCopy(trialView.hasAnyTrials),
+    [trialView.hasAnyTrials]
+  );
+  const effectiveTrialNames = useMemo(
+    () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
+    [trials, trialView]
+  );
+  const canAddTrial = existingTrialsReady;
+  const isExistingTrialsLoading = !canAddTrial && existingTrialsReadStatus === 'loading';
+  const existingTrialsReadFailed = !canAddTrial && existingTrialsReadStatus === 'error';
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -60,8 +86,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     // Validate each trial
     trials.forEach((trial, index) => {
       const prefix = `trial-${index}`;
+      const trialName = effectiveTrialNames[index] ?? '';
 
-      if (!trial.name.trim()) {
+      if (!trialName.trim()) {
         newErrors[`${prefix}-name`] = 'Trial name is required';
       }
 
@@ -89,7 +116,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     });
 
     // Check for duplicate trial names (only non-empty names)
-    const names = trials.map(t => t.name.trim().toLowerCase()).filter(Boolean);
+    const names = effectiveTrialNames.map(name => name.trim().toLowerCase()).filter(Boolean);
     const duplicateNames = names.filter((name, index) => names.indexOf(name) !== index);
     if (duplicateNames.length > 0) {
       newErrors.duplicateNames = 'Trial names must be unique';
@@ -105,9 +132,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     }
 
     return newErrors;
-  }, [trials, show.startDate, show.endDate, show.organization, submitted]);
+  }, [trials, effectiveTrialNames, show.startDate, show.endDate, show.organization, submitted]);
 
   const handleAddTrial = () => {
+    if (!canAddTrial) return;
+
     const trialIndex = trials.length;
     // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
     const startDate = (show.startDate && parseLocalDateString(show.startDate)) || new Date();
@@ -123,13 +152,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
     const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
 
-    // Count how many existing trials fall on the same date to get the per-day number
-    const baseDateStr = format(baseDate, 'yyyy-MM-dd');
-    const sameDayCount = trials.filter(t => t.dateTime?.startsWith(baseDateStr)).length;
-    const dayName = format(baseDate, 'EEEE'); // e.g. "Saturday"
-
     addTrial({
-      name: `${dayName} Trial ${sameDayCount + 1}`,
+      nameOverride: undefined,
       dateTime: defaultDateTime,
       eventNumber: '',
       classes: [],
@@ -138,7 +162,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
   const handleTrialDateTimeChange = (trialId: string, date: Date | undefined) => {
     if (date) {
-      updateTrial(trialId, { dateTime: format(date, "yyyy-MM-dd'T'HH:mm:ss") });
+      const nextDateTime = format(date, "yyyy-MM-dd'T'HH:mm:ss");
+      updateTrial(trialId, { dateTime: nextDateTime });
     }
   };
 
@@ -149,17 +174,54 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
           {/* Add Trial Button */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-foreground">Trials ({trials.length})</h3>
-            <Button onClick={handleAddTrial} className="flex items-center gap-2">
+            <Button
+              onClick={handleAddTrial}
+              disabled={!canAddTrial}
+              title={canAddTrial ? undefined : 'Waiting for the current trials to finish loading'}
+              className="flex items-center gap-2"
+            >
               <Plus className="h-4 w-4" />
-              Add Trial
+              {creationCopy.addTrialLabel}
             </Button>
           </div>
 
+          {existingTrialsReadFailed ? (
+            <div
+              role="alert"
+              className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+            >
+              <div>
+                <p className="font-medium text-foreground">
+                  We couldn&apos;t verify the current trials.
+                </p>
+                <p className="text-muted-foreground">
+                  {existingTrialsReadError || 'Try again before adding a trial.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-fit"
+                onClick={() => void onRetryExistingTrials?.()}
+                disabled={isExistingTrialsLoading}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : !canAddTrial ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              {isExistingTrialsLoading
+                ? 'Loading the current trials…'
+                : 'Checking the current trials before adding another one…'}
+            </p>
+          ) : null}
+
           {/* Existing trials info banner */}
-          {existingTrialCount > 0 && (
+          {trialView.persistedTrialCount > 0 && (
             <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {existingTrialCount} existing {existingTrialCount === 1 ? 'trial' : 'trials'}
+                {trialView.persistedTrialCount} existing{' '}
+                {trialView.persistedTrialCount === 1 ? 'trial' : 'trials'}
               </span>{' '}
               already exist. Use Edit Trial on the trial detail page to make changes to them.
             </div>
@@ -178,154 +240,180 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shadow-sm">
                   <CalendarPlus className="h-8 w-8 text-primary" />
                 </div>
-                <h4 className="text-xl font-semibold text-foreground mb-2">Schedule Your Trials</h4>
+                <h4 className="text-xl font-semibold text-foreground mb-2">
+                  {creationCopy.emptyStateTitle}
+                </h4>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                  Trials are individual competition events within your show. Add your first trial to
-                  get started.
+                  {creationCopy.emptyStateDescription}
                 </p>
-                <Button onClick={handleAddTrial} size="lg" className="shadow-md">
+                <Button
+                  onClick={handleAddTrial}
+                  disabled={!canAddTrial}
+                  title={
+                    canAddTrial ? undefined : 'Waiting for the current trials to finish loading'
+                  }
+                  size="lg"
+                  className="shadow-md"
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add First Trial
+                  {creationCopy.addTrialLabel}
                 </Button>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              {trials.map((trial, index) => (
-                <div
-                  key={trial.id}
-                  className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="font-medium">Trial {index + 1}</h4>
+              {trials.map((trial, index) => {
+                const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? '';
+                return (
+                  <div
+                    key={trial.id}
+                    className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <h4 className="font-medium">{trialName}</h4>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTrial(trial.id)}
+                        aria-label={`Remove ${trialName}`}
+                        title="Remove trial"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeTrial(trial.id)}
-                      aria-label={`Remove Trial ${index + 1}`}
-                      title="Remove trial"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`trial-${trial.id}-name`}>
+                          Trial Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id={`trial-${trial.id}-name`}
+                          value={trialName}
+                          onChange={e => updateTrial(trial.id, { nameOverride: e.target.value })}
+                          placeholder="e.g., Trial 1, Novice Trial"
+                          className="h-10"
+                        />
+                        {trial.nameOverride !== undefined && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            onClick={() => updateTrial(trial.id, { nameOverride: undefined })}
+                            className="min-h-11 px-0 py-1"
+                          >
+                            Use suggested name
+                          </Button>
+                        )}
+                        {errors[`trial-${index}-name`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-name`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`trial-${trial.id}-type`}>
+                          Trial Type <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={trial.trialType ?? ''}
+                          onValueChange={value => updateTrial(trial.id, { trialType: value })}
+                        >
+                          <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
+                            <SelectValue placeholder="Select discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trialTypeOptions.map(type => (
+                              <SelectItem key={type} value={type}>
+                                {formatTrialTypeLabel(type)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors[`trial-${index}-trialType`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-trialType`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor={`trial-${trial.id}-eventNumber`}
+                          className="flex items-center gap-1.5"
+                        >
+                          Event Number
+                          {show.organization === 'AKC' && (
+                            <span className="text-destructive">*</span>
+                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p>
+                                  {show.organization === 'AKC'
+                                    ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
+                                    : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id={`trial-${trial.id}-eventNumber`}
+                          value={trial.eventNumber}
+                          onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
+                          placeholder={
+                            show.organization === 'AKC'
+                              ? 'Required: AKC event number'
+                              : 'Optional event number'
+                          }
+                          className="h-10"
+                          required={show.organization === 'AKC'}
+                        />
+                        {errors[`trial-${index}-eventNumber`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-eventNumber`]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-name`}>
-                        Trial Name <span className="text-destructive">*</span>
+                      <Label htmlFor={`trial-${trial.id}-dateTime`}>
+                        Trial Date & Time <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id={`trial-${trial.id}-name`}
-                        value={trial.name}
-                        onChange={e => updateTrial(trial.id, { name: e.target.value })}
-                        placeholder="e.g., Trial 1, Novice Trial"
+                      <DateTimePicker
+                        id={`trial-${trial.id}-dateTime`}
+                        value={safeParseDateString(trial.dateTime)}
+                        onChange={date => handleTrialDateTimeChange(trial.id, date)}
+                        placeholder="Pick trial date and time"
                         className="h-10"
-                      />
-                      {errors[`trial-${index}-name`] && (
-                        <p className="text-sm text-destructive">{errors[`trial-${index}-name`]}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-type`}>
-                        Trial Type <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={trial.trialType ?? ''}
-                        onValueChange={value => updateTrial(trial.id, { trialType: value })}
-                      >
-                        <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
-                          <SelectValue placeholder="Select discipline" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trialTypeOptions.map(type => (
-                            <SelectItem key={type} value={type}>
-                              {formatTrialTypeLabel(type)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors[`trial-${index}-trialType`] && (
-                        <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-trialType`]}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor={`trial-${trial.id}-eventNumber`}
-                        className="flex items-center gap-1.5"
-                      >
-                        Event Number
-                        {show.organization === 'AKC' && <span className="text-destructive">*</span>}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p>
-                                {show.organization === 'AKC'
-                                  ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
-                                  : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <Input
-                        id={`trial-${trial.id}-eventNumber`}
-                        value={trial.eventNumber}
-                        onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                        placeholder={
-                          show.organization === 'AKC'
-                            ? 'Required: AKC event number'
-                            : 'Optional event number'
+                        minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
+                        maxDate={
+                          show.endDate
+                            ? startOfDay(safeParseDateString(show.endDate) || new Date())
+                            : undefined
                         }
-                        className="h-10"
-                        required={show.organization === 'AKC'}
+                        defaultMonth={safeParseDateString(show.startDate)}
+                        showTime={true}
+                        timeFormat="12h"
                       />
-                      {errors[`trial-${index}-eventNumber`] && (
+                      {errors[`trial-${index}-dateTime`] && (
                         <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-eventNumber`]}
+                          {errors[`trial-${index}-dateTime`]}
                         </p>
                       )}
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`trial-${trial.id}-dateTime`}>
-                      Trial Date & Time <span className="text-destructive">*</span>
-                    </Label>
-                    <DateTimePicker
-                      id={`trial-${trial.id}-dateTime`}
-                      value={safeParseDateString(trial.dateTime)}
-                      onChange={date => handleTrialDateTimeChange(trial.id, date)}
-                      placeholder="Pick trial date and time"
-                      className="h-10"
-                      minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
-                      maxDate={
-                        show.endDate
-                          ? startOfDay(safeParseDateString(show.endDate) || new Date())
-                          : undefined
-                      }
-                      defaultMonth={safeParseDateString(show.startDate)}
-                      showTime={true}
-                      timeFormat="12h"
-                    />
-                    {errors[`trial-${index}-dateTime`] && (
-                      <p className="text-sm text-destructive">
-                        {errors[`trial-${index}-dateTime`]}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

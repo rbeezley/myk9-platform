@@ -122,6 +122,38 @@ describe('end to end from the db row the catalog is fed', () => {
     expect(screen.getByText('Mariana Rivera Jr.')).toBeInTheDocument();
   });
 
+  it('marks an ID-only assigned junior from the canonical hydrated handler identity', () => {
+    const entry = {
+      ...dbEntry('2012-04-02'),
+      handler: null,
+      handler_id: 'handler-1',
+      handler_person: {
+        first_name: 'Mariana',
+        last_name: 'Rivera',
+        date_of_birth: '2012-04-02',
+        junior_handler_numbers: { AKC: '7654321' },
+      },
+      handler_identity: {
+        name: 'Mariana Rivera',
+        person: {
+          id: 'handler-1',
+          first_name: 'Mariana',
+          last_name: 'Rivera',
+          date_of_birth: '2012-04-02',
+          junior_handler_numbers: { AKC: '7654321' },
+        },
+        source: 'assigned-person' as const,
+      },
+    } as unknown as ReportDbEntry;
+    const [mapped] = mapReportEntries([entry], trial);
+
+    expect(mapped?.handler).toBe('Mariana Rivera');
+    expect(mapped?.handlerIsJunior).toBe(true);
+
+    render(<ShowCatalog {...propsWith([mapped as ReportEntry])} />);
+    expect(screen.getByText('Mariana Rivera Jr.')).toBeInTheDocument();
+  });
+
   it('refuses to mark when handler_id names someone other than the printed handler', () => {
     // The P1 from round 1. `entries.handler` is free text, `entries.handler_id` is
     // a FK, and a rename leaves the id behind. Here the paperwork says "Grandma

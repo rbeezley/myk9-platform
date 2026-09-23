@@ -491,7 +491,7 @@ describe('mapScopedReportEntries', () => {
       expect(handler).toBe(UNKNOWN_HANDLER);
     });
 
-    it('does not fall back to the dog owner, who need not be the handler', () => {
+    it('uses the dog owner only when the entry has no assigned handler', () => {
       const row = {
         ...handlerDbRow({ handler: null, handler_id: null }),
         dog: {
@@ -501,7 +501,7 @@ describe('mapScopedReportEntries', () => {
         },
       } as unknown as DbEntry;
 
-      expect(handlerOf(row)).toBe(UNKNOWN_HANDLER);
+      expect(handlerOf(row)).toBe('Dog Owner');
     });
 
     it('ignores a whitespace-only handler', () => {

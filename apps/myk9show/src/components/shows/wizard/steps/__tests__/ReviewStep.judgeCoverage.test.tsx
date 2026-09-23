@@ -12,6 +12,12 @@ import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ReviewStep } from '../ReviewStep';
 import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+const trialView = createWizardTrialView(
+  [{ id: 'trial-1', nameOverride: 'Trial 1', trialDate: '2026-07-01T08:00:00.000Z' }],
+  []
+);
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
@@ -45,7 +51,7 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        name: 'Trial 1',
+        nameOverride: 'Trial 1',
         dateTime: '2026-07-01T08:00:00.000Z',
         classes: [
           { id: 'c1', name: 'Interior Novice A', judgeId: 'judge-1' },
@@ -77,7 +83,7 @@ beforeEach(() => {
 
 describe('ReviewStep — judge coverage tile', () => {
   it('counts classes covered, not judges used', () => {
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={trialView} />);
 
     const tile = screen.getByText(/classes with a judge/i).closest('div') as HTMLElement;
     // One of two classes has a judge.
@@ -86,13 +92,13 @@ describe('ReviewStep — judge coverage tile', () => {
   });
 
   it('does not present the old judges-used-over-judges-added ratio as the headline', () => {
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={trialView} />);
     // The old label stated coverage it was not measuring.
     expect(screen.queryByText(/^judges assigned$/i)).not.toBeInTheDocument();
   });
 
   it('still reports how many judges were added, as a secondary detail', () => {
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={trialView} />);
     expect(screen.getByText(/1 judge of 1 judge added/i)).toBeInTheDocument();
   });
 });

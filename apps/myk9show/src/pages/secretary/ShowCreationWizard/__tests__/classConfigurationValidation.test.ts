@@ -97,6 +97,19 @@ describe('normalizeWizardClassSelections', () => {
     });
   });
 
+  it('rejects a composite level that conflicts with its explicit section', () => {
+    expect(() =>
+      normalizeWizardClassSelections('AKC', [
+        trial('Scent Work', {
+          className: 'Container Novice A',
+          element: 'Container',
+          level: 'Novice A',
+          section: 'B',
+        }),
+      ])
+    ).toThrow(/Container Novice A.*conflicts with section/i);
+  });
+
   it('rejects a blank ownership section but accepts configured continuation classes', () => {
     expect(() =>
       normalizeWizardClassSelections('UKC', [

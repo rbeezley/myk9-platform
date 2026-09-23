@@ -66,6 +66,16 @@ export function normalizeScentWorkTriple(
     for (const candidate of offeredLevels) {
       for (const variant of element.variantsByLevel?.[candidate!.key] ?? []) {
         if (key(`${candidate!.label} ${variant.label}`) === key(levelInput)) {
+          if (
+            sectionInput &&
+            key(sectionInput) !== key(variant.key) &&
+            key(sectionInput) !== key(variant.label)
+          ) {
+            return {
+              valid: false,
+              reason: `level variant “${variant.label}” conflicts with section “${sectionInput}”`,
+            };
+          }
           level = candidate;
           section = variant.key;
           break;

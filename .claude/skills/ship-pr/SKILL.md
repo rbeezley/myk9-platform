@@ -122,8 +122,9 @@ comments for every tier — never type an evidence line by hand.
 
 - **`review: optional (...)`** — no synthetic attestation is needed; the gate
   passes without review evidence while the diff stays eligible. A newly added
-  independent-risk path or removal of the `dependencies` label restores the
-  review requirement. A voluntary review can still use the normal process.
+  independent-risk path, an edit to an existing test file, a `package.json`
+  change outside the dependency fields, or removal of the `dependencies` label
+  restores the review requirement. A voluntary review can still use the normal process.
 - **`none`** — no review log required (`/dev/null` is fine):
   `bash scripts/qa/post-review-gate.sh $PR_NUMBER none <base-sha> <head-sha> "low-risk paths, CI green" /dev/null`
 - **`adversarial`** — run at least 2 subagent reviews with distinct

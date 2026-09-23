@@ -111,10 +111,38 @@ describe('evaluateReviewGate', () => {
       comments: [],
       changedFiles: ['packages/replication/package.json', 'pnpm-lock.yaml'],
       labels: ['dependencies'],
+      dependencyManifestsVerified: true,
     });
 
     expect(result.state).toBe('success');
     expect(result.description).toContain('dependency-only');
+  });
+
+  it('requires review for a labeled dependency set whose manifests did not verify', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['apps/myk9show/package.json', 'pnpm-lock.yaml'],
+      labels: ['dependencies'],
+      dependencyManifestsVerified: false,
+    });
+
+    expect(result.state).toBe('failure');
+    expect(result.description).toMatch(/no independent review recorded/);
+  });
+
+  it('requires review for a small edit to an existing guard test', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['apps/myk9show/src/test/database/anonEntriesGrantContract.test.ts'],
+      addedFiles: [],
+      additions: 1,
+      deletions: 1,
+    });
+
+    expect(result.state).toBe('failure');
+    expect(result.description).toMatch(/no independent review recorded/);
   });
 
   it('passes a small non-protected app fix without a review comment', () => {
@@ -551,7 +579,9 @@ describe('workflow wiring', () => {
   });
 
   it('re-evaluates when the dependency label is added or removed', () => {
-    expect(workflow).toMatch(/pull_request_target:\n\s+types: \[[^\]]*labeled[^\]]*unlabeled[^\]]*\]/);
+    expect(workflow).toMatch(
+      /pull_request_target:\n\s+types: \[[^\]]*labeled[^\]]*unlabeled[^\]]*\]/
+    );
   });
 });
 
@@ -1707,7 +1737,8 @@ describe('runCli threads BOTH halves of the short-list invariant to the evaluato
           labels: [{ name: 'dependencies' }],
         });
       }
-      if (args.some(a => a.includes('/pulls/'))) return 'packages/replication/package.json\npnpm-lock.yaml\n';
+      if (args.some(a => a.includes('/pulls/')))
+        return 'packages/replication/package.json\npnpm-lock.yaml\n';
       if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
       throw new Error(`unexpected gh call: ${args.join(' ')}`);
     };

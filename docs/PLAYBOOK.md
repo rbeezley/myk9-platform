@@ -99,9 +99,15 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
 - **Optional review** — the `Review gate` passes without review evidence for
   bounded low-risk diffs; all normal CI checks remain required. The eligible cases
   are docs-only changes; app-source diffs touching at most 3 files and 100 total
-  added/deleted lines outside every independent path; and dependency-only diffs
-  whose files are only workspace `package.json` files plus `pnpm-lock.yaml`, when
-  the PR has the existing `dependencies` label. An incomplete or truncated file
+  added/deleted lines outside every independent path, where any test or test-support
+  file (`*.test.*`, `*.spec.*`, `test/`, `__tests__/`, `__mocks__/`) is newly ADDED —
+  editing, deleting or renaming an existing test needs review, because guard and
+  contract tests live throughout app source and one `it.skip` disables them; and
+  dependency-only diffs whose files are only workspace `package.json` files plus
+  `pnpm-lock.yaml`, when the PR has the existing `dependencies` label AND every
+  changed manifest differs from its merge-base version only in `dependencies`,
+  `devDependencies`, `peerDependencies`, `optionalDependencies` or `pnpm.overrides`
+  (a `scripts`, lifecycle-hook or other `pnpm` change needs review). An incomplete or truncated file
   list, a migration, or an independent path never qualifies. A current-head review
   that reports unaddressed findings still fails the gate. Reviewers may review any
   optional PR when it would add value.

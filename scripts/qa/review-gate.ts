@@ -46,6 +46,7 @@ import {
   touchesMigration,
   type Tier,
 } from './review-tier.ts';
+import { fetchAddedFiles, verifyDependencyManifests } from './optional-review-inputs.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -413,6 +414,9 @@ export interface EvaluateReviewGateInput {
   labels?: readonly string[];
   additions?: number;
   deletions?: number;
+  /** See OptionalReviewInput in review-tier.ts; both fail closed when absent. */
+  addedFiles?: readonly string[];
+  dependencyManifestsVerified?: boolean;
   /**
    * True when the changed-file list is empty, disagrees with GitHub's own
    * `changedFiles` count, or hit the 3000-file cap, and may therefore be
@@ -735,6 +739,7 @@ function gh(args: string[]): string {
 
 interface PrView {
   headRefOid: string;
+  baseRefOid?: string;
   isDraft: boolean;
   labels?: Array<{ name: string }>;
   additions?: number;
@@ -791,7 +796,7 @@ export function runCli(
       '--repo',
       repo,
       '--json',
-      'headRefOid,isDraft,statusCheckRollup,changedFiles,labels,additions,deletions',
+      'headRefOid,baseRefOid,isDraft,statusCheckRollup,changedFiles,labels,additions,deletions',
     ])
   ) as PrView;
   if (view.isDraft) {
@@ -848,10 +853,18 @@ export function runCli(
         `repos/${repo}/issues/${prNumber}/comments?per_page=100`,
       ])
     );
+    const labels = view.labels?.map(label => label.name) ?? [];
     result = evaluate({
       headSha: view.headRefOid,
       changedFiles,
-      labels: view.labels?.map(label => label.name) ?? [],
+      labels,
+      addedFiles: fetchAddedFiles(run, repo, prNumber),
+      dependencyManifestsVerified: verifyDependencyManifests(run, repo, {
+        changedFiles,
+        labels,
+        baseSha: view.baseRefOid,
+        headSha: view.headRefOid,
+      }),
       additions: view.additions,
       deletions: view.deletions,
       declaredFileCount: view.changedFiles,

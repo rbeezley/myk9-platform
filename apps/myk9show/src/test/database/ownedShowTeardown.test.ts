@@ -165,17 +165,49 @@ describe('createOwnedShowTeardown', () => {
     expect(teardown.pending()).toEqual([]);
   });
 
-  it('ignores a successful response whose decoded JSON has no valid show ID', async () => {
+  it.each([
+    ['an empty object', {}],
+    ['null', null],
+    ['an empty array', []],
+    ['a non-string ID', { id: 42 }],
+    ['a whitespace ID', { id: '   ' }],
+  ])('reports a successful response with no usable ID: %s', async (_label, body) => {
     const teardown = createOwnedShowTeardown();
     const responsePage = createResponsePage();
     teardown.attachShowCreateObserver(responsePage.page);
-    responsePage.emitResponse({ json: async () => ({ id: 42 }) });
-    responsePage.emitResponse({ json: async () => 'not a PostgREST row' });
-    responsePage.emitResponse({ json: async () => ({ id: '   ' }) });
+    responsePage.emitResponse({ json: async () => body });
+
+    await expect(teardown.awaitObservedCreates()).rejects.toThrow(/no usable show ID/);
+    await expect(teardown.cleanup(vi.fn(async () => ({})))).rejects.toThrow(/no usable show ID/);
+    expect(teardown.pending(), _label).toEqual([]);
+  });
+
+  it('cleans recoverable IDs even when another successful response has no usable ID', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    const deleteShow = vi.fn(async () => ({}));
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({ json: async () => ({}) });
+    responsePage.emitResponse({ json: async () => ({ id: 'recoverable-show-id' }) });
+
+    await expect(teardown.awaitObservedCreates()).rejects.toThrow(/no usable show ID/);
+    await expect(teardown.cleanup(deleteShow)).rejects.toThrow(/no usable show ID/);
+
+    expect(deleteShow).toHaveBeenCalledExactlyOnceWith('recoverable-show-id');
+    expect(teardown.pending()).toEqual([]);
+  });
+
+  it('keeps usable IDs from a partial array response without losing them to malformed rows', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({
+      json: async () => [{ id: 'partial-array-show-id' }, null, { id: 42 }],
+    });
 
     await teardown.awaitObservedCreates();
 
-    expect(teardown.pending()).toEqual([]);
+    expect(teardown.pending()).toEqual(['partial-array-show-id']);
   });
 
   it('waits for response parsing before cleanup snapshots IDs', async () => {

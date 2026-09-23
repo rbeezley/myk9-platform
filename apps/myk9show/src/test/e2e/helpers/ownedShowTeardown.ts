@@ -21,6 +21,7 @@ export function createOwnedShowTeardown() {
     return showId;
   };
   const trackReturnedIds = (body: unknown) => {
+    let trackedCount = 0;
     for (const row of Array.isArray(body) ? body : [body]) {
       if (
         row &&
@@ -30,7 +31,11 @@ export function createOwnedShowTeardown() {
         row.id.trim()
       ) {
         track(row.id);
+        trackedCount += 1;
       }
+    }
+    if (trackedCount === 0) {
+      throw new Error('Successful show create response contained no usable show ID');
     }
   };
   const waitForObservedParses = async () => {
@@ -94,7 +99,7 @@ export function createOwnedShowTeardown() {
       await waitForObservedParses();
       if (observedErrors.length > 0) {
         throw new Error(
-          `Owned E2E show create response parsing failed: ${observedErrors.map(formatError).join('; ')}`
+          `Owned E2E show create response could not be tracked: ${observedErrors.map(formatError).join('; ')}`
         );
       }
     },
@@ -116,7 +121,7 @@ export function createOwnedShowTeardown() {
               }, showId);
       const failures = observedErrors
         .splice(0)
-        .map(error => `show create response parse failed: ${formatError(error)}`);
+        .map(error => `show create response could not be tracked: ${formatError(error)}`);
       for (const showId of [...ownedShowIds]) {
         try {
           const result = await deleteShow(showId);

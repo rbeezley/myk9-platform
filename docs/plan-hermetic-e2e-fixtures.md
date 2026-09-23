@@ -288,6 +288,33 @@ which is allowed to be loud about it. Staging being empty is an operational
 condition, not a pull-request condition, and it should page the operator once
 a night rather than nine PRs at random.
 
+#### Phase 4 findings (2026-09-23) — complete
+
+Pulled into the Phase 3 PR (#2392) after Codex's review: removing the live
+reads without the canary left nothing to catch a broken read path.
+
+- `exhibitorReadPathCanary.spec.ts` is in `PR_SMOKE_SPECS` (required) and in
+  `REGRESSION_SPECS`. It reads `exhibitor_profiles`, the entries view, `shows`
+  and `dogs` live. A 4xx/5xx on any of them **fails** and names the read. It
+  checks for a failed read before checking the page mounted, because a 403 can
+  stop the page mounting and "did not mount" would name the symptom instead.
+  No profile row, or no entries, **skips** with a `staging-data-absent`
+  annotation.
+- The nightly half needs no new workflow. The regression run sets
+  `MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true` and targets a seeded database, so
+  under that flag absence fails instead of skipping.
+- Verified all four branches: empty staging in PR mode → skip; empty staging
+  in nightly mode → fail ("nightly: staging data is missing …"); data present
+  (served by the fixture in a temporary mutation) → pass; entries view
+  answering 403 → fail ("403 view_authenticated_entry_results").
+- `exhibitorFixtureSmoke.spec.ts` is also in PR smoke now. Its positive
+  control removes the profile row itself instead of relying on staging lacking
+  it, so it stays valid after a reseed.
+- Not verified: whether the isolated nightly database seeds the demo exhibitor.
+  The nightly job is gated on `vars.MYK9SHOW_REGRESSION_CI_ENABLED`. If that
+  database lacks the exhibitor, the canary fails there. That is its job, but
+  check on the first nightly run after merge.
+
 ### Phase 5 — testing
 
 A phase is not complete until its tests pass.

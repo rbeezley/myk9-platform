@@ -87,15 +87,25 @@ function isoDate(ms: number) {
 }
 
 /**
+ * The show's first day, `YYYY-MM-DD`: 30 days after today (UTC). Exported
+ * because the add-trials date picker opens on this date, and a spec asserting
+ * on the picker must compare against IT, not against today. In December it
+ * falls in next year (Codex review, #2392).
+ */
+export function secretaryFixtureShowStartDate(): string {
+  const todayUtc = Math.floor(Date.now() / DAY_MS) * DAY_MS;
+  return isoDate(todayUtc + 30 * DAY_MS);
+}
+
+/**
  * Dates relative to the REAL clock, so the fixture never ages out:
- * - the show starts 30 days from now, which is what the add-trials date picker
- *   defaults to and what its "near today" assertion measures;
+ * - the show starts on {@link secretaryFixtureShowStartDate};
  * - entries opened on 2026-01-01, before the mail-in spec's pinned clock
  *   (2026-05-15), and close a week before the show, so that pinned moment is
  *   always inside the entry window.
  */
 function showDates() {
-  const start = Date.now() + 30 * DAY_MS;
+  const start = Date.parse(`${secretaryFixtureShowStartDate()}T00:00:00.000Z`);
   return {
     start_date: isoDate(start),
     end_date: isoDate(start + DAY_MS),

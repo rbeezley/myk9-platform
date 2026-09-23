@@ -5,6 +5,7 @@ import {
   FIXTURE_SHOW_NAME,
   FIXTURE_DOG_CALL_NAME,
 } from './helpers/exhibitorFixture';
+import { fulfillRows } from './helpers/postgrestRoute';
 
 /**
  * Phase 2 acceptance for the hermetic fixture
@@ -49,9 +50,14 @@ test.describe('exhibitor fixture', () => {
    * original specs gave a clean pass while proving nothing
    * (LESSONS measurement-harness, mutation-actually-mutated).
    */
-  test('positive control: without the fixture the exhibitor is redirected to onboarding', async ({
+  test('positive control: without the profile row the exhibitor is redirected to onboarding', async ({
     page,
   }) => {
+    // Remove the row HERE rather than relying on staging lacking it. An
+    // earlier draft signed in unmocked and so passed only while staging was
+    // broken: once reseeded, the demo exhibitor has a real profile row and the
+    // control would fail on a correct fixture (Codex review, #2392).
+    await page.route('**/rest/v1/exhibitor_profiles*', route => fulfillRows(route, []));
     await signInAsExhibitor(page, '/exhibitor/entries');
 
     // `networkidle` is NOT a synchronisation point for this redirect: it fires
@@ -62,9 +68,9 @@ test.describe('exhibitor fixture', () => {
       .poll(() => new URL(page.url()).pathname, {
         timeout: 15000,
         message:
-          'the demo exhibitor reached /exhibitor/entries WITHOUT the fixture, so ' +
-          'staging has a profile row again and these specs no longer prove that ' +
-          'the fixture is what makes them pass. Re-check the control.',
+          'the exhibitor reached /exhibitor/entries with an EMPTY profile read, so ' +
+          'the onboarding gate no longer keys on exhibitor_profiles and the fixture ' +
+          'row is no longer what makes the converted specs pass. Re-check the control.',
       })
       .toBe('/onboarding');
   });

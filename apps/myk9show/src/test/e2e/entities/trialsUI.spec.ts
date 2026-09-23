@@ -372,7 +372,7 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     await page.waitForLoadState('networkidle');
 
     const addFirst = page.getByRole('button', { name: 'Add First Trial' });
-    const addMore = page.getByRole('button', { name: /^Add Trial$/ });
+    const addMore = page.getByRole('button', { name: /Add (First|Another) Trial/ });
     if (await addFirst.isVisible().catch(() => false)) {
       await addFirst.click();
     } else {
@@ -439,7 +439,7 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
     // The empty state shows "Add First Trial"; once one trial exists the
     // header swaps to "Add Trial". Either way, click whichever is visible.
     const addFirst = page.getByRole('button', { name: 'Add First Trial' });
-    const addMore = page.getByRole('button', { name: /^Add Trial$/ });
+    const addMore = page.getByRole('button', { name: /Add (First|Another) Trial/ });
     if (await addFirst.isVisible().catch(() => false)) {
       await addFirst.click();
     } else {

@@ -67,7 +67,7 @@ export function buildEditModeDraft({
 
           return {
             id: trial.id,
-            name: trial.type || trial.name || 'Trial',
+            nameOverride: trial.type || trial.name || 'Trial',
             dateTime: trial.trialDate,
             eventNumber: trial.eventNumber || '',
             trialType: trial.trialType || undefined,

@@ -183,7 +183,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     expect(trigger.compareDocumentPosition(bell) & 4).toBeTruthy();
   });
 
-  it('opens on click and lists the six decided actions in order', async () => {
+  it('opens on click and lists the seven decided actions in order', async () => {
     const user = userEvent.setup();
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
@@ -201,6 +201,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add entry for my dog',
       'Open Entries',
       'Open Show Day',
+      'Add a new trial',
       'Generate & publish premium',
       'Show Details',
     ]);
@@ -220,6 +221,10 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     expect(within(menu).getByText('Open Entries').closest('a')).toHaveAttribute(
       'href',
       '/shows/show-1/entries'
+    );
+    expect(within(menu).getByText('Add a new trial').closest('a')).toHaveAttribute(
+      'href',
+      '/secretary/create-show/wizard?showId=show-1&mode=add-trials'
     );
   });
 });

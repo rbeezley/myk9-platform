@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { QueryClient } from '@tanstack/react-query';
 import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const rpcMock = vi.fn();
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -55,7 +56,20 @@ vi.mock('@/lib/notifications', () => ({
 
 // Import after mocks so the module-under-test picks them up.
 import { OfficialsNotAssignedError } from '../showSaveErrors';
-import { saveShowAtomicOnline } from '../saveShowAtomicOnline';
+import { saveShowAtomicOnline as saveShowAtomicOnlineWithView } from '../saveShowAtomicOnline';
+import type { SaveShowAtomicOnlineArgs } from '../saveShowAtomicOnline';
+
+function saveShowAtomicOnline(args: Omit<SaveShowAtomicOnlineArgs, 'trialView'>) {
+  const trialView = createWizardTrialView(
+    args.trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+  return saveShowAtomicOnlineWithView({ ...args, trialView });
+}
 
 const baseShow: WizardShowData = {
   name: 'Test Show',

@@ -5,11 +5,11 @@ BEGIN;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000604001', 'MYK9-604 Organization Guard Club');
 
-INSERT INTO public.shows (id, name, type, start_date, end_date, organization, club_id)
+INSERT INTO public.shows (id, name, start_date, end_date, organization, club_id)
 VALUES
-  ('00000000-0000-0000-0000-000000604010', 'MYK9-604 Live Trial Show', 'Specialty', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001'),
-  ('00000000-0000-0000-0000-000000604011', 'MYK9-604 Empty Show', 'Specialty', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001'),
-  ('00000000-0000-0000-0000-000000604012', 'MYK9-604 Soft Deleted Trial Show', 'Specialty', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001');
+  ('00000000-0000-0000-0000-000000604010', 'MYK9-604 Live Trial Show', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001'),
+  ('00000000-0000-0000-0000-000000604011', 'MYK9-604 Empty Show', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001'),
+  ('00000000-0000-0000-0000-000000604012', 'MYK9-604 Soft Deleted Trial Show', current_date, current_date + 1, 'AKC', '00000000-0000-0000-0000-000000604001');
 
 INSERT INTO public.trials (id, show_id, name, date, registry_id)
 VALUES

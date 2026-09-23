@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { TestSetup } from '../helpers/testSetup';
+import { createOwnedShowTeardown } from '../helpers/ownedShowTeardown';
+
+type E2eResult = { success: boolean; [key: string]: unknown };
 
 test.describe('Class CRUD Operations', () => {
   let testSetup: TestSetup;
+  let ownedShows: ReturnType<typeof createOwnedShowTeardown>;
 
   test.beforeEach(async ({ page }) => {
     testSetup = new TestSetup(page);
+    ownedShows = createOwnedShowTeardown();
+  });
+
+  test.afterEach(async ({ page }) => {
+    await ownedShows.cleanup(page);
   });
 
   test('should query classes from Supabase database (READ - no auth)', async ({ page }) => {
@@ -42,73 +51,52 @@ test.describe('Class CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, deleteClass } = await import('/src/services/database/classes/index.ts');
+    const showStartDate = new Date();
+    showStartDate.setDate(showStartDate.getDate() + 30);
+    const showEndDate = new Date(showStartDate);
+    showEndDate.setDate(showEndDate.getDate() + 3);
+    const showData = {
+      name: `Test Show for Class ${Date.now()}`,
+      organization: 'AKC',
+      start_date: showStartDate.toISOString().split('T')[0],
+      end_date: showEndDate.toISOString().split('T')[0],
+      status: 'draft',
+    };
+    const { data: createdShow, error: showError } = await ownedShows.create(page, showData);
+    const result: E2eResult =
+      showError || !createdShow
+        ? { success: false, error: showError?.message || 'Failed to create show' }
+        : await page.evaluate(
+            async ({ showId, date }) => {
+              const { createTrial } = await import('/src/services/database/trials/index.ts');
+              const { createClass } = await import('/src/services/database/classes/index.ts');
+              const { data: createdTrial, error: trialError } = await createTrial({
+                show_id: showId,
+                name: `Test Trial for Class ${Date.now()}`,
+                date,
+                trial_number: 'T1',
+                status: 'upcoming',
+              });
+              if (trialError || !createdTrial) {
+                return { success: false, error: trialError?.message || 'Failed to create trial' };
+              }
 
-      // First create a show
-      const showStartDate = new Date();
-      showStartDate.setDate(showStartDate.getDate() + 30);
-      const showEndDate = new Date(showStartDate);
-      showEndDate.setDate(showEndDate.getDate() + 3);
-
-      const showData = {
-        name: `Test Show for Class ${Date.now()}`,
-        organization: 'AKC',
-        start_date: showStartDate.toISOString().split('T')[0],
-        end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft',
-      };
-
-      const { data: createdShow, error: showError } = await createShow(showData);
-      if (showError || !createdShow) {
-        return { success: false, error: showError?.message || 'Failed to create show' };
-      }
-
-      // Create a trial for this show
-      const trialData = {
-        show_id: createdShow.id,
-        name: `Test Trial for Class ${Date.now()}`,
-        date: showStartDate.toISOString().split('T')[0],
-        trial_number: 'T1',
-        status: 'upcoming',
-      };
-
-      const { data: createdTrial, error: trialError } = await createTrial(trialData);
-      if (trialError || !createdTrial) {
-        await deleteShow(createdShow.id);
-        return { success: false, error: trialError?.message || 'Failed to create trial' };
-      }
-
-      // Create a class for this trial
-      const classData = {
-        trial_id: createdTrial.id,
-        name: `E2E Test Class ${Date.now()}`,
-        level: 'Novice',
-        status: 'upcoming',
-      };
-
-      const { data: createdClass, error: classError } = await createClass(classData);
-
-      // Clean up
-      if (createdClass?.id) {
-        await deleteClass(createdClass.id);
-      }
-      await deleteTrial(createdTrial.id);
-      await deleteShow(createdShow.id);
-
-      if (classError) {
-        return { success: false, error: classError.message };
-      }
-
-      return {
-        success: true,
-        classId: createdClass?.id,
-        className: createdClass?.name,
-        trialId: createdTrial.id,
-      };
-    });
+              const { data: createdClass, error: classError } = await createClass({
+                trial_id: createdTrial.id,
+                name: `E2E Test Class ${Date.now()}`,
+                level: 'Novice',
+                status: 'upcoming',
+              });
+              if (classError) return { success: false, error: classError.message };
+              return {
+                success: true,
+                classId: createdClass?.id,
+                className: createdClass?.name,
+                trialId: createdTrial.id,
+              };
+            },
+            { showId: createdShow.id, date: showStartDate.toISOString().split('T')[0] }
+          );
 
     console.log('Class create result:', result);
     expect(result.success).toBe(true);
@@ -122,80 +110,62 @@ test.describe('Class CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, updateClass, deleteClass } =
-        await import('/src/services/database/classes/index.ts');
-
-      // Create show
-      const showStartDate = new Date();
-      showStartDate.setDate(showStartDate.getDate() + 30);
-      const showEndDate = new Date(showStartDate);
-      showEndDate.setDate(showEndDate.getDate() + 3);
-
-      const { data: createdShow, error: showError } = await createShow({
-        name: `Update Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: showStartDate.toISOString().split('T')[0],
-        end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft',
-      });
-
-      if (showError || !createdShow) {
-        return { success: false, error: showError?.message || 'Failed to create show' };
-      }
-
-      // Create trial
-      const { data: createdTrial, error: trialError } = await createTrial({
-        show_id: createdShow.id,
-        name: `Update Test Trial ${Date.now()}`,
-        date: showStartDate.toISOString().split('T')[0],
-        trial_number: 'T1',
-        status: 'upcoming',
-      });
-
-      if (trialError || !createdTrial) {
-        await deleteShow(createdShow.id);
-        return { success: false, error: trialError?.message || 'Failed to create trial' };
-      }
-
-      // Create class
-      const { data: createdClass, error: classError } = await createClass({
-        trial_id: createdTrial.id,
-        name: `Update Test Class ${Date.now()}`,
-        level: 'Novice',
-        status: 'upcoming',
-      });
-
-      if (classError || !createdClass) {
-        await deleteTrial(createdTrial.id);
-        await deleteShow(createdShow.id);
-        return { success: false, error: classError?.message || 'Failed to create class' };
-      }
-
-      // Update the class
-      const { data: updatedClass, error: updateError } = await updateClass(createdClass.id, {
-        level: 'Open',
-        description: 'Updated description',
-      });
-
-      // Clean up
-      await deleteClass(createdClass.id);
-      await deleteTrial(createdTrial.id);
-      await deleteShow(createdShow.id);
-
-      if (updateError) {
-        return { success: false, error: updateError.message };
-      }
-
-      return {
-        success: true,
-        originalLevel: 'Novice',
-        updatedLevel: updatedClass?.level,
-        levelMatches: updatedClass?.level === 'Open',
-      };
+    const showStartDate = new Date();
+    showStartDate.setDate(showStartDate.getDate() + 30);
+    const showEndDate = new Date(showStartDate);
+    showEndDate.setDate(showEndDate.getDate() + 3);
+    const { data: createdShow, error: showError } = await ownedShows.create(page, {
+      name: `Update Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: showStartDate.toISOString().split('T')[0],
+      end_date: showEndDate.toISOString().split('T')[0],
+      status: 'draft',
     });
+    const result: E2eResult =
+      showError || !createdShow
+        ? { success: false, error: showError?.message || 'Failed to create show' }
+        : await page.evaluate(
+            async ({ showId, date }) => {
+              const { createTrial } = await import('/src/services/database/trials/index.ts');
+              const { createClass, updateClass } =
+                await import('/src/services/database/classes/index.ts');
+              const { data: createdTrial, error: trialError } = await createTrial({
+                show_id: showId,
+                name: `Update Test Trial ${Date.now()}`,
+                date,
+                trial_number: 'T1',
+                status: 'upcoming',
+              });
+              if (trialError || !createdTrial) {
+                return { success: false, error: trialError?.message || 'Failed to create trial' };
+              }
+              const { data: createdClass, error: classError } = await createClass({
+                trial_id: createdTrial.id,
+                name: `Update Test Class ${Date.now()}`,
+                level: 'Novice',
+                status: 'upcoming',
+              });
+              if (classError || !createdClass) {
+                return { success: false, error: classError?.message || 'Failed to create class' };
+              }
+
+              const { data: updatedClass, error: updateError } = await updateClass(
+                createdClass.id,
+                {
+                  level: 'Open',
+                  description: 'Updated description',
+                }
+              );
+              if (updateError) return { success: false, error: updateError.message };
+              return {
+                success: true,
+                originalLevel: 'Novice',
+                updatedLevel: updatedClass?.level,
+                levelMatches: updatedClass?.level === 'Open',
+              };
+            },
+            { showId: createdShow.id, date: showStartDate.toISOString().split('T')[0] }
+          );
 
     console.log('Class update result:', result);
     expect(result.success).toBe(true);
@@ -208,75 +178,56 @@ test.describe('Class CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, deleteClass, getClassById } =
-        await import('/src/services/database/classes/index.ts');
-
-      // Create show
-      const showStartDate = new Date();
-      showStartDate.setDate(showStartDate.getDate() + 30);
-      const showEndDate = new Date(showStartDate);
-      showEndDate.setDate(showEndDate.getDate() + 3);
-
-      const { data: createdShow, error: showError } = await createShow({
-        name: `Delete Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: showStartDate.toISOString().split('T')[0],
-        end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft',
-      });
-
-      if (showError || !createdShow) {
-        return { success: false, error: showError?.message || 'Failed to create show' };
-      }
-
-      // Create trial
-      const { data: createdTrial, error: trialError } = await createTrial({
-        show_id: createdShow.id,
-        name: `Delete Test Trial ${Date.now()}`,
-        date: showStartDate.toISOString().split('T')[0],
-        trial_number: 'T1',
-        status: 'upcoming',
-      });
-
-      if (trialError || !createdTrial) {
-        await deleteShow(createdShow.id);
-        return { success: false, error: trialError?.message || 'Failed to create trial' };
-      }
-
-      // Create class
-      const { data: createdClass, error: classError } = await createClass({
-        trial_id: createdTrial.id,
-        name: `Delete Test Class ${Date.now()}`,
-        level: 'Novice',
-        status: 'upcoming',
-      });
-
-      if (classError || !createdClass) {
-        await deleteTrial(createdTrial.id);
-        await deleteShow(createdShow.id);
-        return { success: false, error: classError?.message || 'Failed to create class' };
-      }
-
-      // Soft delete the class
-      const { error: deleteError } = await deleteClass(createdClass.id);
-
-      // Verify class is soft-deleted (should not be found by normal query)
-      const { data: checkClass } = await getClassById(createdClass.id);
-
-      // Clean up parent entities
-      await deleteTrial(createdTrial.id);
-      await deleteShow(createdShow.id);
-
-      return {
-        success: !deleteError,
-        classId: createdClass.id,
-        classDeleted: !checkClass,
-        error: deleteError?.message,
-      };
+    const showStartDate = new Date();
+    showStartDate.setDate(showStartDate.getDate() + 30);
+    const showEndDate = new Date(showStartDate);
+    showEndDate.setDate(showEndDate.getDate() + 3);
+    const { data: createdShow, error: showError } = await ownedShows.create(page, {
+      name: `Delete Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: showStartDate.toISOString().split('T')[0],
+      end_date: showEndDate.toISOString().split('T')[0],
+      status: 'draft',
     });
+    const result: E2eResult =
+      showError || !createdShow
+        ? { success: false, error: showError?.message || 'Failed to create show' }
+        : await page.evaluate(
+            async ({ showId, date }) => {
+              const { createTrial } = await import('/src/services/database/trials/index.ts');
+              const { createClass, deleteClass, getClassById } =
+                await import('/src/services/database/classes/index.ts');
+              const { data: createdTrial, error: trialError } = await createTrial({
+                show_id: showId,
+                name: `Delete Test Trial ${Date.now()}`,
+                date,
+                trial_number: 'T1',
+                status: 'upcoming',
+              });
+              if (trialError || !createdTrial) {
+                return { success: false, error: trialError?.message || 'Failed to create trial' };
+              }
+              const { data: createdClass, error: classError } = await createClass({
+                trial_id: createdTrial.id,
+                name: `Delete Test Class ${Date.now()}`,
+                level: 'Novice',
+                status: 'upcoming',
+              });
+              if (classError || !createdClass) {
+                return { success: false, error: classError?.message || 'Failed to create class' };
+              }
+
+              const { error: deleteError } = await deleteClass(createdClass.id);
+              const { data: checkClass } = await getClassById(createdClass.id);
+              return {
+                success: !deleteError,
+                classId: createdClass.id,
+                classDeleted: !checkClass,
+                error: deleteError?.message,
+              };
+            },
+            { showId: createdShow.id, date: showStartDate.toISOString().split('T')[0] }
+          );
 
     console.log('Class delete result:', result);
     expect(result.success).toBe(true);
@@ -289,81 +240,59 @@ test.describe('Class CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, deleteClass, getClassesByTrialId } =
-        await import('/src/services/database/classes/index.ts');
-
-      // Create show
-      const showStartDate = new Date();
-      showStartDate.setDate(showStartDate.getDate() + 30);
-      const showEndDate = new Date(showStartDate);
-      showEndDate.setDate(showEndDate.getDate() + 3);
-
-      const { data: createdShow, error: showError } = await createShow({
-        name: `Classes By Trial Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: showStartDate.toISOString().split('T')[0],
-        end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft',
-      });
-
-      if (showError || !createdShow) {
-        return { success: false, error: showError?.message || 'Failed to create show' };
-      }
-
-      // Create trial
-      const { data: createdTrial, error: trialError } = await createTrial({
-        show_id: createdShow.id,
-        name: `Classes By Trial Test Trial ${Date.now()}`,
-        date: showStartDate.toISOString().split('T')[0],
-        trial_number: 'T1',
-        status: 'upcoming',
-      });
-
-      if (trialError || !createdTrial) {
-        await deleteShow(createdShow.id);
-        return { success: false, error: trialError?.message || 'Failed to create trial' };
-      }
-
-      // Create two classes for this trial
-      const class1Data = {
-        trial_id: createdTrial.id,
-        name: 'Class A',
-        level: 'Novice',
-        status: 'upcoming',
-      };
-      const class2Data = {
-        trial_id: createdTrial.id,
-        name: 'Class B',
-        level: 'Open',
-        status: 'upcoming',
-      };
-
-      const { data: class1 } = await createClass(class1Data);
-      const { data: class2 } = await createClass(class2Data);
-
-      // Get classes by trial ID
-      const { data: classes, error: getError } = await getClassesByTrialId(createdTrial.id);
-
-      // Clean up
-      if (class1?.id) await deleteClass(class1.id);
-      if (class2?.id) await deleteClass(class2.id);
-      await deleteTrial(createdTrial.id);
-      await deleteShow(createdShow.id);
-
-      if (getError) {
-        return { success: false, error: getError.message };
-      }
-
-      return {
-        success: true,
-        trialId: createdTrial.id,
-        classesCount: classes?.length || 0,
-        foundClasses: classes?.map(c => c.name) || [],
-      };
+    const showStartDate = new Date();
+    showStartDate.setDate(showStartDate.getDate() + 30);
+    const showEndDate = new Date(showStartDate);
+    showEndDate.setDate(showEndDate.getDate() + 3);
+    const { data: createdShow, error: showError } = await ownedShows.create(page, {
+      name: `Classes By Trial Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: showStartDate.toISOString().split('T')[0],
+      end_date: showEndDate.toISOString().split('T')[0],
+      status: 'draft',
     });
+    const result: E2eResult =
+      showError || !createdShow
+        ? { success: false, error: showError?.message || 'Failed to create show' }
+        : await page.evaluate(
+            async ({ showId, date }) => {
+              const { createTrial } = await import('/src/services/database/trials/index.ts');
+              const { createClass, getClassesByTrialId } =
+                await import('/src/services/database/classes/index.ts');
+              const { data: createdTrial, error: trialError } = await createTrial({
+                show_id: showId,
+                name: `Classes By Trial Test Trial ${Date.now()}`,
+                date,
+                trial_number: 'T1',
+                status: 'upcoming',
+              });
+              if (trialError || !createdTrial) {
+                return { success: false, error: trialError?.message || 'Failed to create trial' };
+              }
+              await createClass({
+                trial_id: createdTrial.id,
+                name: 'Class A',
+                level: 'Novice',
+                status: 'upcoming',
+              });
+              await createClass({
+                trial_id: createdTrial.id,
+                name: 'Class B',
+                level: 'Open',
+                status: 'upcoming',
+              });
+
+              const { data: classes, error: getError } = await getClassesByTrialId(createdTrial.id);
+              if (getError) return { success: false, error: getError.message };
+              return {
+                success: true,
+                trialId: createdTrial.id,
+                classesCount: classes?.length || 0,
+                foundClasses: classes?.map(c => c.name) || [],
+              };
+            },
+            { showId: createdShow.id, date: showStartDate.toISOString().split('T')[0] }
+          );
 
     console.log('Get classes by trial result:', result);
     expect(result.success).toBe(true);

@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { TestSetup } from '../helpers/testSetup';
+import { createOwnedShowTeardown } from '../helpers/ownedShowTeardown';
+
+type E2eResult = { success: boolean; [key: string]: unknown };
 
 test.describe('Show CRUD Operations', () => {
   let testSetup: TestSetup;
+  let ownedShows: ReturnType<typeof createOwnedShowTeardown>;
 
   test.beforeEach(async ({ page }) => {
     testSetup = new TestSetup(page);
+    ownedShows = createOwnedShowTeardown();
+  });
+
+  test.afterEach(async ({ page }) => {
+    await ownedShows.cleanup(page);
   });
 
   test('should query shows from Supabase database (READ - no auth)', async ({ page }) => {
@@ -42,50 +51,27 @@ test.describe('Show CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-
-      // Calculate dates
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 30);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 2);
-
-      const testShowData = {
-        name: `E2E Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        location: 'Test Venue, Test City, TS',
-        status: 'draft',
-        max_total_entries: 100,
-        pre_entry_fee: 25,
-      };
-
-      const { data: createdShow, error: createError } = await createShow(testShowData);
-
-      if (createError) {
-        return { success: false, error: createError.message };
-      }
-
-      // Clean up - delete the test show (soft delete)
-      if (createdShow?.id) {
-        await deleteShow(createdShow.id);
-      }
-
-      return {
-        success: true,
-        showId: createdShow?.id,
-        showName: createdShow?.name,
-        organization: createdShow?.organization,
-      };
-    });
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 30);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 2);
+    const testShowData = {
+      name: `E2E Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      location: 'Test Venue, Test City, TS',
+      status: 'draft',
+      max_total_entries: 100,
+      pre_entry_fee: 25,
+    };
+    const result = await ownedShows.create(page, testShowData);
 
     console.log('Show create result:', result);
-    expect(result.success).toBe(true);
-    expect(result.showId).toBeTruthy();
-    expect(result.showName).toContain('E2E Test Show');
-    expect(result.organization).toBe('AKC');
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBeTruthy();
+    expect(result.data?.name).toContain('E2E Test Show');
+    expect(result.data?.organization).toBe('AKC');
   });
 
   test('should update an existing show in database (UPDATE)', async ({ page }) => {
@@ -95,63 +81,50 @@ test.describe('Show CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { createShow, updateShow, deleteShow } =
-        await import('/src/services/database/shows/index.ts');
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 60);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 2);
+    const testShowData = {
+      name: `Update Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      location: 'Original Venue',
+      status: 'draft',
+    };
+    const { data: createdShow, error: createError } = await ownedShows.create(page, testShowData);
+    const result: E2eResult =
+      createError || !createdShow
+        ? { success: false, error: createError?.message || 'Failed to create show' }
+        : await page.evaluate(
+            async ({ showId, originalLocation }) => {
+              const { updateShow } = await import('/src/services/database/shows/index.ts');
 
-      // Calculate dates
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 60);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 2);
+              // MYK9-579: 'upcoming' exercises the status update without depending
+              // on a seed club's Stripe fixture remaining payouts-enabled.
+              const updatedLocation = 'Updated Venue, New City';
+              const updatedStatus = 'upcoming';
+              const { data: updatedShow, error: updateError } = await updateShow(showId, {
+                location: updatedLocation,
+                status: updatedStatus,
+                max_total_entries: 150,
+              });
 
-      const testShowData = {
-        name: `Update Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        location: 'Original Venue',
-        status: 'draft',
-      };
+              if (updateError) return { success: false, showId, error: updateError.message };
 
-      const { data: createdShow, error: createError } = await createShow(testShowData);
-
-      if (createError || !createdShow) {
-        return { success: false, error: createError?.message || 'Failed to create show' };
-      }
-
-      // Update the show. MYK9-579: enforce_show_publish_gate() refuses a
-      // draft->published update with no club, or a club with no
-      // payouts-enabled Stripe account -- the e2e client can't self-seed a
-      // club_stripe_accounts row (only SELECT is granted to `authenticated`;
-      // writing it needs the service role). 'upcoming' exercises the same
-      // status-column UPDATE machinery this test cares about without
-      // depending on any seed club's Stripe fixture staying payouts-enabled.
-      const updatedLocation = 'Updated Venue, New City';
-      const updatedStatus = 'upcoming'; // Valid status per check constraint, not gated
-      const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
-        location: updatedLocation,
-        status: updatedStatus,
-        max_total_entries: 150,
-      });
-
-      if (updateError) {
-        await deleteShow(createdShow.id);
-        return { success: false, error: updateError.message };
-      }
-
-      // Clean up
-      await deleteShow(createdShow.id);
-
-      return {
-        success: true,
-        originalLocation: testShowData.location,
-        updatedLocation: updatedShow?.location,
-        updatedStatus: updatedShow?.status,
-        locationMatches: updatedShow?.location === updatedLocation,
-        statusMatches: updatedShow?.status === updatedStatus,
-      };
-    });
+              return {
+                success: true,
+                showId,
+                originalLocation,
+                updatedLocation: updatedShow?.location,
+                updatedStatus: updatedShow?.status,
+                locationMatches: updatedShow?.location === updatedLocation,
+                statusMatches: updatedShow?.status === updatedStatus,
+              };
+            },
+            { showId: createdShow.id, originalLocation: testShowData.location }
+          );
 
     console.log('Show update result:', result);
     expect(result.success).toBe(true);
@@ -166,62 +139,34 @@ test.describe('Show CRUD Operations', () => {
     await testSetup.signIn('admin');
     await page.waitForLoadState('networkidle');
 
-    const result = await page.evaluate(async () => {
-      const { supabase } = await import('/src/services/database/supabaseClient.ts');
-      const { createShow, deleteShow, getShowById } =
-        await import('/src/services/database/shows/index.ts');
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 30);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 2);
+    const testShowData = {
+      name: `E2E Test Show ${Date.now()}`,
+      organization: 'AKC',
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      location: 'Test Venue, Test City, TS',
+      status: 'draft',
+      max_total_entries: 100,
+      pre_entry_fee: 25,
+    };
+    const { data: createdShow, error: createError } = await ownedShows.create(page, testShowData);
+    const result: E2eResult =
+      createError || !createdShow
+        ? { success: false, error: createError?.message || 'Failed to create show' }
+        : await page.evaluate(async showId => {
+            const { deleteShow, getShowById } =
+              await import('/src/services/database/shows/index.ts');
 
-      // Calculate dates
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 30);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 2);
+            const { error: deleteError } = await deleteShow(showId);
+            if (deleteError) return { success: false, showId, error: deleteError.message };
 
-      const testShowData = {
-        name: `E2E Test Show ${Date.now()}`,
-        organization: 'AKC',
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        location: 'Test Venue, Test City, TS',
-        status: 'draft',
-        max_total_entries: 100,
-        pre_entry_fee: 25,
-      };
-
-      const { data: createdShow, error: createError } = await createShow(testShowData);
-
-      if (createError || !createdShow) {
-        const { data: userData } = await supabase.auth.getUser();
-        const { data: siteAdmin } = await supabase.rpc('is_site_admin');
-        const { data: platformAdmin } = await supabase.rpc('is_platform_admin');
-        return {
-          success: false,
-          error: createError?.message || 'Failed to create show',
-          authEmail: userData.user?.email,
-          siteAdmin,
-          platformAdmin,
-          payload: testShowData,
-        };
-      }
-
-      const showId = createdShow.id;
-
-      // Delete the show (hard delete)
-      const { error: deleteError } = await deleteShow(showId);
-
-      if (deleteError) {
-        return { success: false, error: deleteError.message };
-      }
-
-      // Verify deletion - show should not be found
-      const { data: fetchedShow, error: fetchError } = await getShowById(showId);
-
-      return {
-        success: true,
-        showId,
-        showDeleted: !fetchedShow || !!fetchError,
-      };
-    });
+            const { data: fetchedShow, error: fetchError } = await getShowById(showId);
+            return { success: true, showId, showDeleted: !fetchedShow || !!fetchError };
+          }, createdShow.id);
 
     console.log('Show delete result:', result);
     expect(result.success).toBe(true);

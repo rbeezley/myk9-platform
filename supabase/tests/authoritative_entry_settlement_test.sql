@@ -30,12 +30,14 @@ INSERT INTO public.dogs (id, name, call_name, breed, status)
 VALUES
   ('00000000-0000-0000-0000-000000639705', 'MYK9-639 Settlement Dog', 'Dog', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639710', 'MYK9-639 Cart Dog', 'Cart', 'Beagle', 'active'),
-  ('00000000-0000-0000-0000-000000639730', 'MYK9-639 Mismatched Dog', 'Mismatch', 'Beagle', 'active');
+  ('00000000-0000-0000-0000-000000639730', 'MYK9-639 Mismatched Dog', 'Mismatch', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639760', 'MYK9-639 Capacity Dog', 'Capacity', 'Beagle', 'active');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 VALUES
   ('00000000-0000-0000-0000-000000639705', 'AKC', 'SR6397001', true),
   ('00000000-0000-0000-0000-000000639710', 'AKC', 'SR6397002', true),
-  ('00000000-0000-0000-0000-000000639730', 'AKC', 'SR6397003', true);
+  ('00000000-0000-0000-0000-000000639730', 'AKC', 'SR6397003', true),
+  ('00000000-0000-0000-0000-000000639760', 'AKC', 'SR6397004', true);
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000639721', 'MYK9-639', 'Cart Exhibitor');
 INSERT INTO auth.users (
@@ -244,8 +246,38 @@ BEGIN
     RAISE EXCEPTION 'FAIL same-show wrong-dog lineage was accepted or partially stamped';
   END IF;
 
-  -- Reversal leaves the old money row as the live service identity; its
-  -- soft-deleted successor must not make the valid one-hop reversal ambiguous.
+  -- A soft-deleted successor alone is not a valid reversal. Until the source
+  -- status is restored, a moved row is still superseded and cannot be paid.
+  UPDATE public.entries SET entry_status = 'moved'
+   WHERE id = '00000000-0000-0000-0000-000000639735';
+  v_error := false;
+  BEGIN
+    PERFORM * FROM public.quote_entry_payment_lineage(
+      '00000000-0000-0000-0000-000000639735'
+    );
+  EXCEPTION WHEN SQLSTATE '22023' THEN v_error := true;
+  END;
+  IF NOT v_error THEN
+    RAISE EXCEPTION 'FAIL a superseded leaf with a soft-deleted successor was quoted';
+  END IF;
+  v_error := false;
+  BEGIN
+    PERFORM * FROM public.settle_entry_order(
+      'payment_link', '00000000-0000-0000-0000-000000639737', v_facts,
+      3745, 'cs_639_reversed_move', 'pi_639_reversed_move',
+      '[{"lineId":"00000000-0000-0000-0000-000000639735","priceCents":3500}]'
+    );
+  EXCEPTION WHEN SQLSTATE '22023' THEN v_error := true;
+  END;
+  IF NOT v_error OR EXISTS (SELECT 1 FROM public.stripe_orders
+       WHERE stripe_checkout_session_id = 'cs_639_reversed_move') THEN
+    RAISE EXCEPTION 'FAIL a superseded leaf was paid without a live service row';
+  END IF;
+
+  -- A completed reversal restores the original money row as the live service
+  -- identity; its soft-deleted successor does not make the chain ambiguous.
+  UPDATE public.entries SET entry_status = 'confirmed'
+   WHERE id = '00000000-0000-0000-0000-000000639735';
   SELECT * INTO STRICT v_result FROM public.settle_entry_order(
     'payment_link', '00000000-0000-0000-0000-000000639737', v_facts,
     3745, 'cs_639_reversed_move', 'pi_639_reversed_move',

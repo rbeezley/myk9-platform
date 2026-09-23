@@ -22,11 +22,11 @@ const recoveredCartMigration = readFileSync(
   'utf8'
 );
 const settlementMigration = readFileSync(
-  resolve(root, 'supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'),
+  resolve(root, 'supabase/migrations/20260923022007_myk9_639_authoritative_entry_settlement.sql'),
   'utf8'
 );
 const lineageMigration = readFileSync(
-  resolve(root, 'supabase/migrations/20260922184500_myk9_639_entry_payment_lineage.sql'),
+  resolve(root, 'supabase/migrations/20260923021937_myk9_639_entry_payment_lineage.sql'),
   'utf8'
 );
 const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');

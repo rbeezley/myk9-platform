@@ -105,9 +105,11 @@ BEGIN
              WHERE child.moved_from_entry_id = d.id AND child.deleted_at IS NULL)) AS over_depth,
            bool_or((SELECT count(*) FROM public.entries AS child
              WHERE child.moved_from_entry_id = d.id AND child.deleted_at IS NULL) > 1) AS forked,
+           -- A moved row is only a valid internal node. A soft-deleted
+           -- successor does not itself complete a reversal of that status.
            bool_or(NOT EXISTS (SELECT 1 FROM public.entries AS child
              WHERE child.moved_from_entry_id = d.id AND child.deleted_at IS NULL)
-             AND e.entry_status IN ('withdrawn','scratched','not_accepted','absent','cancelled')) AS inactive_leaf,
+             AND e.entry_status IN ('moved','withdrawn','scratched','not_accepted','absent','cancelled')) AS inactive_leaf,
            bool_or(d.depth > 0 AND (e.entry_fee <> 0 OR e.payment_status <> 'pending'
              OR e.payment_method IS NOT NULL OR e.stripe_payment_intent_id IS NOT NULL
              OR COALESCE(e.refund_amount, 0) <> 0 OR e.refunded_at IS NOT NULL)) AS child_has_money

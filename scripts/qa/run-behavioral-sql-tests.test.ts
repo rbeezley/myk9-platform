@@ -284,8 +284,8 @@ describe('behavioral SQL test harness', () => {
       resolve(repositoryRoot, 'scripts/qa/run-entry-settlement-concurrency.sh'),
       'utf8'
     );
-    expect(concurrencyRunner).toContain("run_order 638 settlement");
-    expect(concurrencyRunner).toContain("run_order 639 capacity");
+    expect(concurrencyRunner).toContain('run_order 638 settlement');
+    expect(concurrencyRunner).toContain('run_order 639 capacity');
     expect(concurrencyRunner).toContain('psql "$DATABASE_URL"');
     expect(concurrencyRunner).toContain('public.settle_entry_order');
     expect(concurrencyRunner).toContain('public.create_online_paid_entry');

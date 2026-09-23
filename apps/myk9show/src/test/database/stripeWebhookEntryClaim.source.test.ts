@@ -14,7 +14,7 @@ const source = readFileSync(
 const settlement = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'
+    '../../../../../supabase/migrations/20260923022007_myk9_639_authoritative_entry_settlement.sql'
   ),
   'utf8'
 );

@@ -55,7 +55,7 @@ run_order() {
   local suffix="000000${ids}"
   local show="00000000-0000-0000-0000-${suffix}702"
   local cart="00000000-0000-0000-0000-${suffix}724"
-  local dog="00000000-0000-0000-0000-${suffix}710"
+  local dog="00000000-0000-0000-0000-${suffix}760"
   local class="00000000-0000-0000-0000-${suffix}716"
   local trial="00000000-0000-0000-0000-${suffix}703"
   local exhibitor="00000000-0000-0000-0000-${suffix}723"

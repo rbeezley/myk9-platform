@@ -37,11 +37,13 @@ export const FIXTURE_AUTH_USER_ID = '4b63a211-b6bd-4916-b1f9-567f1bebb038';
 export const FIXTURE_PERSON_ID = '6fd402f4-88fb-447d-876e-7c6ae3c429d1';
 
 export const FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000001';
+export const FIXTURE_PAST_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000002';
 export const FIXTURE_TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000011';
 export const FIXTURE_CLASS_ID = 'f1f1f1f1-0000-0000-0000-000000000021';
 export const FIXTURE_DOG_ID = 'f1f1f1f1-0000-0000-0000-000000000031';
 
 export const FIXTURE_SHOW_NAME = 'Fixture Scent Work Trial';
+export const FIXTURE_PAST_SHOW_NAME = 'Fixture Completed Trial';
 export const FIXTURE_DOG_CALL_NAME = 'Fixture';
 
 /**
@@ -224,9 +226,46 @@ function isCountProbe(route: Route) {
   return route.request().method() === 'HEAD';
 }
 
+/**
+ * A finished entry on a past show.
+ *
+ * The default set holds one upcoming and one completed entry ON PURPOSE.
+ * `my-entries-page-ui` asserts that Upcoming + Completed sums to All, and
+ * with a single upcoming entry that arithmetic reads 1 + 0 === 1 — true for
+ * the wrong reason, and it would stay true if the Completed bucket were
+ * broken outright.
+ */
+const COMPLETED_ENTRY_OVERRIDES: Record<string, unknown> = {
+  id: 'f1f1f1f1-0000-0000-0000-000000000052',
+  show_id: FIXTURE_PAST_SHOW_ID,
+  armband: 102,
+  entry_status: 'confirmed',
+  payment_status: 'paid',
+  is_scored: true,
+  result_status: 'qualified',
+  final_placement: 1,
+  search_time_seconds: 42.5,
+  total_faults: 0,
+  class_results_released_at: '2020-02-02T00:00:00.000Z',
+  submitted_at: '2020-01-01T00:00:00.000Z',
+  show: {
+    id: FIXTURE_PAST_SHOW_ID,
+    name: FIXTURE_PAST_SHOW_NAME,
+    deleted_at: null,
+    status: 'completed',
+    start_date: '2020-02-01',
+    end_date: '2020-02-02',
+    entry_close_date: '2020-01-15',
+    venue_name: 'Fixture Fairgrounds',
+    city: 'Testville',
+    state: 'KS',
+    trials: [{ id: FIXTURE_TRIAL_ID, date: '2020-02-01', timezone: 'America/Chicago' }],
+  },
+};
+
 export interface ExhibitorFixtureOptions {
   /**
-   * Entry rows to serve. Defaults to one paid, confirmed, upcoming entry.
+   * Entry rows to serve. Defaults to one upcoming and one completed entry.
    * Pass `[]` for the genuine zero state — which is a DIFFERENT assertion from
    * "the database happened to be empty", and specs should be able to ask for
    * it deliberately.
@@ -242,7 +281,7 @@ export async function installExhibitorFixture(
   page: Page,
   options: ExhibitorFixtureOptions = {}
 ): Promise<void> {
-  const entries = options.entries ?? [entryRow()];
+  const entries = options.entries ?? [entryRow(), entryRow(COMPLETED_ENTRY_OVERRIDES)];
 
   await page.route('**/rest/v1/exhibitor_profiles*', async route => {
     if (isCountProbe(route)) return fulfillRows(route, []);

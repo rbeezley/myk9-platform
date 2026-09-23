@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
+import { installExhibitorFixture } from './helpers/exhibitorFixture';
 
 /**
  * A long unbreakable string must not widen a dialog's other children.
@@ -44,11 +45,11 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * of the primitive itself. That contract is what protects the ~40 dialogs
  * carrying no local guard.
  *
- * DATA DEPENDENCY (this spec is in the BLOCKING PR-smoke set): each case needs
- * the demo exhibitor account (`E2E_DEMO_EXHIBITOR_*`) plus whatever that case's
- * `dataDependency` string names. Every trigger lookup below carries that string
- * as its assertion message, so a seed-data change fails with "the demo
- * exhibitor has no entry rendering ..." rather than an opaque locator timeout.
+ * DATA (this spec is in the BLOCKING PR-smoke set): both cases sign in as the
+ * demo exhibitor (`E2E_DEMO_EXHIBITOR_*`) over the hermetic exhibitor fixture
+ * (docs/plan-hermetic-e2e-fixtures.md), so neither depends on what staging
+ * holds. Case 2 needs it too: without an `exhibitor_profiles` row every
+ * signed-in exhibitor route, `/account` included, redirects to `/onboarding`.
  */
 
 const GUARD_CLASS = 'grid-cols-[minmax(0,1fr)]';
@@ -103,10 +104,10 @@ const CASES: DialogCase[] = [
     source: 'src/components/ui/dialog/dialog.tsx',
     selector: '[role="dialog"]',
     dataDependency:
-      'the demo exhibitor (E2E_DEMO_EXHIBITOR_*) must have at least one entry on ' +
-      '/exhibitor/entries, whose show card renders an "Actions" menu holding ' +
-      '"Add to calendar"',
+      'the hermetic exhibitor fixture serves an upcoming entry whose show card renders ' +
+      'an "Actions" menu holding "Add to calendar"',
     async open(page) {
+      await installExhibitorFixture(page);
       await signInAsExhibitor(page, '/exhibitor/entries');
       // MYK9-631 moved "Add to calendar" from a bare header link into the show
       // card's one Actions menu, so the trigger is now two clicks: the menu,
@@ -114,9 +115,8 @@ const CASES: DialogCase[] = [
       const actions = page.getByRole('button', { name: /^Actions for / }).first();
       await expect(
         actions,
-        'MISSING SEED DATA, not a dialog regression: no show card on ' +
-          '/exhibitor/entries. This spec needs an entry row to obtain an open Dialog; ' +
-          'reseed the demo exhibitor or repoint this case at another Dialog trigger.'
+        'no show card on /exhibitor/entries although the hermetic fixture serves an ' +
+          'upcoming entry. Check that installExhibitorFixture still matches the entries read path.'
       ).toBeVisible();
       await actions.click();
       const trigger = page
@@ -125,8 +125,8 @@ const CASES: DialogCase[] = [
       await expect(
         trigger,
         'No "Add to calendar" item in the show card Actions menu. It is withheld while ' +
-          'the show relation is still replicating (empty showId), so this is seed/replication ' +
-          'state rather than a dialog regression.'
+          'the show relation is still replicating (empty showId), so check the fixture\'s ' +
+          'shows route before suspecting the dialog.'
       ).toBeVisible();
       await trigger.click();
     },
@@ -136,10 +136,12 @@ const CASES: DialogCase[] = [
     source: 'src/components/ui/alert-dialog/alert-dialog.tsx',
     selector: '[role="alertdialog"]',
     dataDependency:
-      'none beyond a signed-in account -- /account?section=data renders "Clear Cache" for ' +
-      'every user. The confirm dialog opens only when the device has no unsynced mutations, ' +
-      'which is always true in a fresh browser context.',
+      'an onboarded exhibitor -- /account?section=data renders "Clear Cache" for every user, ' +
+      'but only once the exhibitor_profiles row stops the /onboarding redirect. The confirm ' +
+      'dialog opens only when the device has no unsynced mutations, which is always true in a ' +
+      'fresh browser context.',
     async open(page) {
+      await installExhibitorFixture(page);
       await signInAsExhibitor(page, '/account?section=data');
       const trigger = page.getByRole('button', { name: 'Clear Cache', exact: true });
       await expect(

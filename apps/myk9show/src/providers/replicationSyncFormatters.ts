@@ -3,8 +3,7 @@ import type { PendingMutation } from '@myk9/replication';
 export interface SyncFailedEventDetail {
   count: number;
   mutations: Array<
-    Pick<PendingMutation, 'id' | 'tableName' | 'operation' | 'error' | 'failureKind'> &
-      Partial<Pick<PendingMutation, 'rowId' | 'rpc' | 'data'>>
+    Pick<PendingMutation, 'id' | 'tableName' | 'operation' | 'error' | 'failureKind' | 'rpc'>
   >;
   message: string;
 }
@@ -100,10 +99,6 @@ function actionLabel(operation: string | undefined): string {
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   if (hasPermanentScoreAuthorizationFailure(detail)) {
     return "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
-  }
-
-  if (detail.mutations[0]?.rpc?.name === 'update_show_style') {
-    return "We couldn't save that presentation style. Your current style has been restored. Retry or discard this change.";
   }
 
   const first = detail.mutations[0];

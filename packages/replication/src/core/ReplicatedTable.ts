@@ -14,7 +14,6 @@
 
 import type { IDBPDatabase, IDBPObjectStore } from 'idb';
 import type {
-  PendingMutation,
   ReplicatedRow,
   ReplicationConflictResolution,
   ReplicationConflictSnapshot,
@@ -162,41 +161,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
-   * Check whether a row still has queued work besides the mutation being
-   * reconciled. This lets table-specific failure recovery preserve dirty local
-   * data while allowing a row whose only failed mutation was discarded to be
-   * marked clean.
-   */
-  protected async getMutationsForRow(rowId: string): Promise<PendingMutation[] | null> {
-    if (!this.mutationManager) return [];
-    try {
-      const [pending, failed] = await Promise.all([
-        this.mutationManager.getPendingMutationsForRow(this.tableName, rowId),
-        this.mutationManager.getFailedMutations(),
-      ]);
-      return [...pending, ...failed]
-        .filter(
-          mutation =>
-            mutation.tableName === this.tableName && String(mutation.rowId) === String(rowId)
-        )
-        .sort((a, b) => {
-          const sequenceA = a.sequenceNumber ?? Number.MIN_SAFE_INTEGER;
-          const sequenceB = b.sequenceNumber ?? Number.MIN_SAFE_INTEGER;
-          if (sequenceA !== sequenceB) return sequenceA - sequenceB;
-          if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
-          return a.id.localeCompare(b.id);
-        });
-    } catch (error) {
-      // Unknown queue state is not safe to reconcile as if it were empty.
-      this.logger.warn(
-        `[${this.tableName}] Could not inspect row mutations for ${rowId}; reconciliation skipped`,
-        error
-      );
-      return null;
-    }
-  }
-
-  /**
    * Rebuild a full Supabase UPDATE payload from a local row after conflict
    * resolution. Subclasses with direct full-row UPDATE mutations should override
    * this with their table mapper; RPC/delta-only tables can keep the default.
@@ -305,11 +269,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   protected requestUpload(): void {
     this.mutationManager?.requestUpload();
-  }
-
-  /** Remove a deferred mutation when its dependent local write fails. */
-  protected async discardQueuedMutation(mutationId: string): Promise<void> {
-    await this.mutationManager?.discardPendingMutation(mutationId);
   }
 
   // ========================================
@@ -714,7 +673,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    *   from PR #341. Without this, every subsequent replication pull takes
    *   the wasteful mergeDirtyRow branch instead of normal resolveConflict.
    */
-  async markAsSynced(id: string, expectedVersion?: number): Promise<boolean> {
+  async markAsSynced(id: string): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
 
@@ -726,14 +685,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
 
-    if (
-      !existingRow ||
-      !existingRow.isDirty ||
-      (expectedVersion !== undefined && existingRow.version !== expectedVersion)
-    ) {
+    if (!existingRow || !existingRow.isDirty) {
       // No-op: row absent, or already synced. End the transaction cleanly.
       await tx.done;
-      return false;
+      return;
     }
 
     await tx.store.put(buildSyncedReplicatedRow(existingRow, Date.now()));
@@ -742,7 +697,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Marked row ${normalizedId} as synced (was dirty)`);
 
     this.notifyListeners();
-    return true;
   }
 
   /**

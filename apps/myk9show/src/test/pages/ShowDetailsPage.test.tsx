@@ -177,11 +177,8 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 }));
 
 vi.mock('@/features/premium/showStylePersistence', () => ({
-  saveShowDraftStyle: (input: {
-    show: Record<string, unknown>;
-    style: string;
-    queryClient: QueryClient;
-  }) => saveShowDraftStyleMock(input),
+  saveShowDraftStyle: (input: { show: Record<string, unknown>; style: string; ownerId: string }) =>
+    saveShowDraftStyleMock(input),
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -475,32 +472,7 @@ describe('ShowDetailsPage', () => {
       })
     );
     updateShowMutationMock.mockResolvedValue({ ...mockShow });
-    saveShowDraftStyleMock.mockImplementation(
-      async ({
-        show,
-        style,
-        queryClient,
-      }: {
-        show: Record<string, unknown>;
-        style: string;
-        queryClient: QueryClient;
-      }) => {
-        const updatedShow = { ...show, style };
-        queryClient.setQueryData(['shows', 'detail', show.id], updatedShow);
-        for (const key of [
-          ['shows', 'list'],
-          ['shows', 'club', show.clubId],
-          ['shows', 'status', show.status],
-          ['shows', 'upcoming'],
-          ['shows', 'withEntryCounts'],
-        ]) {
-          queryClient.setQueryData<Array<Record<string, unknown>>>(key, current =>
-            current?.map(item => (item.id === show.id ? updatedShow : item))
-          );
-        }
-        return updatedShow;
-      }
-    );
+    saveShowDraftStyleMock.mockResolvedValue(undefined);
     showEditPanelMock.impl = () => null;
   });
 
@@ -1093,7 +1065,7 @@ describe('ShowDetailsPage', () => {
     });
   });
 
-  it('persists preview style through the replicated mutation when Zustand and filtered caches are cold', async () => {
+  it('keeps the acknowledged preview local without rewriting cold-query readers', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     mockShow = { ...mockShow, style: 'monogram' };
@@ -1111,25 +1083,28 @@ describe('ShowDetailsPage', () => {
 
     await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
     expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+    expect(saveShowDraftStyleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: 'user-1', style: 'heritage' })
+    );
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
-      style: 'heritage',
+      style: 'monogram',
     });
     expect(
       queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
-    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
     expect(
       queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'club', 'club-1'])
-    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
     expect(
       queryClient.getQueryData<Array<{ id: string; style?: string }>>([
         'shows',
         'status',
         'Upcoming',
       ])
-    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
   });
 
-  it('persists preview style through a warm React Query cache', async () => {
+  it('keeps warm React Query readers untouched until normal sync completes', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     mockShow = { ...mockShow, style: 'monogram' };
@@ -1144,11 +1119,11 @@ describe('ShowDetailsPage', () => {
     await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
     expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
-      style: 'heritage',
+      style: 'monogram',
     });
     expect(
       queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
-    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

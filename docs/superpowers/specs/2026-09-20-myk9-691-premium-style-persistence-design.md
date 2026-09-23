@@ -2,20 +2,13 @@
 
 ## Purpose
 
-Allow an authorized show manager to preview and save an entitled Premium presentation style from the existing show Preview without risking unrelated show data, bypassing offline durability, or changing the already-published public snapshot.
+Allow an authorized show manager to preview and save an entitled Premium presentation style from the existing show Preview without risking unrelated show data or changing the already-published public snapshot.
 
 ## Context
 
-The Preview UI and shared style selector already satisfy most of the visible behavior. Preview is the sole style editor; Settings links to it rather than duplicating the control. The failed correction path is persistence:
+The Preview UI and shared style selector already satisfy most visible behavior. Preview is the sole style editor; Settings links to it rather than duplicating the control. The persistence boundary must avoid rebuilding a full database row from the intentionally lossy app-level `Show` model: doing so can change status or overwrite payment, handler, capacity, and other fields omitted by the mapper.
 
-- A cold replicated store was seeded from the app-level `Show` model.
-- That model is intentionally lossy relative to the replicated/database row.
-- Reconstructing a full row changed values such as `upcoming` to `draft` and could overwrite payment, handler, capacity, and other fields absent from the mapper.
-- A generic direct partial mutation is not sufficient because OCC conflict reconciliation can rebuild a queued direct update from the full local row.
-- The existing cache synchronizer updates only some query families and inserts the show into caches whose filters may not match.
-- A generic show save can carry a stale full-row style and clobber a concurrent style mutation.
-
-This is therefore a persistence-boundary repair, not another UI guard.
+Style save is explicitly online-only. Offline queuing would create a second write contract, durable projection and rollback lifecycle, and difficult semantics when the session changes or an RPC response is lost. The feature therefore does not claim to provide offline persistence or immediate convergence across every local reader.
 
 ## Decisions
 
@@ -33,38 +26,29 @@ The function:
 - returns the new integer replication version;
 - is executable by `authenticated` only, with `PUBLIC` and `anon` revoked.
 
-A `BEFORE UPDATE OF style` trigger rejects invoker-level direct table updates, so
-the existing table grant cannot bypass the RPC's authorization and Premium gate.
+A `BEFORE UPDATE OF style` trigger rejects invoker-level direct table updates, so the existing table grant cannot bypass the RPC's authorization and Premium gate. The RPC does not publish an experience snapshot; publication remains the responsibility of the existing publish flow.
 
-The RPC does not publish an experience snapshot. Draft publication remains the responsibility of the existing publish flow.
+### 2. Save is online-only and bound to the initiating owner
 
-### 2. Offline replication queues the RPC as a delta
+The Preview save command receives the displayed `Show`, selected `ShowStyle`, and initiating owner ID. It does not receive a React Query client and does not write a replica row or query cache.
 
-`ReplicatedShowsTable.updateShowStyle(showId, style)` queues an UPDATE mutation whose data is exactly `{ id, style }` and whose RPC arguments are exactly `{ p_show_id, p_style }`.
+Before the RPC, the command verifies that the network is available, the active session still belongs to the initiating owner, and the show has no pending local mutations. Because this preflight is asynchronous, it verifies the owner again immediately before sending the session-bound RPC. It validates the returned replication version and verifies the owner again after the RPC. If the session changes after submission, the command reports that the style may already have been saved and does not request sync in the new account's context.
 
-The mutation is queued with deferred upload. If the replicated row already exists, the table patches that row's style and pending metadata before requesting upload. If the table is cold, it does not synthesize or persist a partial `ReplicatedShow`; the durable queued mutation is sufficient. If the local replica write fails after queueing, the pending mutation is discarded before upload. A permanent RPC rejection restores the clean replica base and warm caches.
+After an acknowledged RPC under the same owner, it dispatches the established `replication:sync-requested` event. The regular show synchronization observes the RPC's updated timestamp/version and refreshes the replica. Other screens may continue showing their previous value until that sync completes; no immediate local convergence is claimed.
 
-Because the queued mutation is RPC-routed, OCC reconciliation never expands it into a full-row `shows` update.
+Generic show updates continue to exclude style from their payloads so a stale form cannot overwrite the dedicated style command. If unrelated local show changes are pending, Save asks the user to sync those changes first. If the RPC rejects or its response is ambiguous, the UI does not claim the old style definitely remains saved; it asks the user to sync/reload before retrying.
 
-### 3. A feature command returns the current-page view
-
-Create a Premium feature command that accepts the complete `Show` already on screen, the selected `ShowStyle`, and the React Query client. It queues the replication mutation, derives a merged view by changing only `style`, `_syncStatus`, and `_lastModified`, updates every existing show-shaped query cache entry with that partial patch, and returns the merged show.
-
-It never inserts a show into an absent or filtered cache. Statistics caches are left unchanged because style does not affect them.
-
-Covered cache families are detail, list (including filtered list keys), search, club, status, upcoming, date range, entry counts, deleted-show, and public collections.
-
-### 4. Preview async state belongs to one show
+### 3. Preview owns transient selection and acknowledged current-page state
 
 The page keys `ShowPublicLanding` by `show.id`. Navigating from show A to show B unmounts A's pending preview state. If A's save finishes later, its completion cannot change B's current or pending style.
 
 The existing interaction contract remains:
 
 - selecting an entitled style changes the preview immediately;
-- Save queues the draft style;
-- Cancel restores the persisted draft;
-- a save failure restores the persisted draft and explains the outcome in plain language;
-- a permanent deferred server rejection reconciles the local replica and caches before showing the failure action;
+- Save is disabled offline and explains that a connection is required;
+- Cancel restores the persisted draft selection without making a request;
+- an acknowledged save commits the style in the mounted Preview only;
+- a failed or ambiguous save presents uncertainty-aware recovery guidance;
 - published shows label draft and published styles separately;
 - the public presentation continues using the published snapshot until the existing publish action runs.
 
@@ -76,54 +60,55 @@ Preview selection
       v
 local pending style (render only)
       |
-    Save
+    Save (online; owner + clean-row preflight)
       |
       v
-saveShowDraftStyle(show, style, queryClient)
+session-bound update_show_style RPC
       |
-      +--> ReplicatedShowsTable.updateShowStyle
+      +--> update shows.style only; advance updated_at/version
+      |
+      +--> verify initiating owner still active
+      |
+      +--> dispatch replication:sync-requested
       |       |
-      |       +--> durable RPC mutation: { id, style }
-      |       +--> patch warm replica only
-      |
-      +--> patch existing React Query show entries by id
-      +--> return merged current-page Show
+      |       +--> established show sync refreshes the replica
       |
       v
-Preview commits draft style
+mounted Preview commits acknowledged style
 
-background upload --> update_show_style RPC --> shows.style only
+other local readers update when normal sync completes
 existing publish flow -----------------------> published snapshot
 ```
 
 ## Alternatives Rejected
 
-### Repair the full-row mapper
+### Offline queue and style projection
 
-Rejected because every new or omitted show field can recreate the overwrite. A style edit must not depend on a complete cross-layer row mapper.
+Rejected because it adds a feature-specific projection, queued RPC lifecycle, durable rollback semantics, and auth-switch hazards to generic replication machinery. MYK9-691 does not require offline acceptance, so that complexity is not justified.
 
-### Queue a direct partial table update
+### Direct PostgREST update
 
-Rejected because direct UPDATE conflict reconciliation may rebuild the mutation from the full replicated row, recreating the same clobber class. It also cannot enforce Premium entitlement at the write boundary.
+Rejected because the narrow RPC is the authorization and Premium-entitlement boundary and preserves unrelated columns by construction.
 
-### Save online through PostgREST and use replication only when warm
+### Immediate replica or query-cache reconciliation
 
-Rejected because the same user action would have different durability and authorization behavior depending on cache warmth and connectivity.
+Rejected because a direct write to shared local replica/cache state can race with account changes and queued show mutations. The acknowledged Preview can update its own mounted state safely; other readers converge through the established sync path.
 
 ## Testing
 
 - SQL behavioral test: valid manager writes, Monogram without Premium, Premium rejection, unrelated-column preservation, cross-club denial, anonymous denial, invalid-style rejection, returned version, and rejection of a raw authenticated `shows.style` UPDATE. The script is present but has not been run locally because no Postgres runtime is available.
-- Replication unit tests: exact delta/RPC payload, deferred upload, warm-row patch, cold-row non-fabrication, and queue failure behavior.
-- Feature-command unit tests: merged return value, every show cache family patched, absent caches remain absent, statistics remain unchanged, and persistence failure leaves caches untouched.
-- Preview/page tests: default, entitlement filtering, live preview, Save, Cancel, error recovery, draft-versus-published labels, and navigation during an in-flight save.
+- Persistence command tests: offline save makes no RPC or mutation; exact RPC arguments; pending-change precondition; owner change during preflight makes no RPC; RPC rejection and ambiguous failure; owner change after submission does not request sync; acknowledged same-owner save dispatches the sync event and performs no replica or cache write.
+- Preview/page tests: default, entitlement filtering, live preview, online Save, offline disabled state, Cancel, error recovery, draft-versus-published labels, and navigation during an in-flight save.
 - Focused tests run red before implementation, then green; final validation includes shuffled app tests for touched files, typecheck, lint/format, OpenSpec strict validation, migration guard, and the code-quality ratchet.
 
 ## Deployment
 
-The migration ships in the PR but is never applied from the feature branch. After merge, applying it to the linked Supabase project requires the normal explicit shared-system approval. The app path may ship only with the RPC migration in the same merged change; otherwise queued saves would fail until the function exists.
+The migration ships in the PR but is never applied from the feature branch. After merge, applying it to the linked Supabase project requires the normal explicit shared-system approval. The app path may ship only with the RPC migration in the same merged change; otherwise online saves would fail until the function exists.
 
 ## Non-goals
 
+- Offline style persistence or a feature-specific mutation queue/projection.
+- Immediate replica or cross-screen cache convergence after Save.
 - Adding styles, products, pages, dialogs, or a second style editor.
 - Publishing or regenerating Premium artifacts when Save draft is clicked.
 - Generalizing every show update into a new partial-update framework.

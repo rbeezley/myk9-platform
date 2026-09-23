@@ -8,7 +8,6 @@ import type {
 
 export function toUploadedMutation(mutation: PendingMutation): UploadedMutation {
   return {
-    mutationId: mutation.id,
     tableName: mutation.tableName,
     rowId: mutation.rowId,
     operation: mutation.operation,

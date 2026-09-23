@@ -146,7 +146,7 @@ describe('ShowPublicLanding style preview', () => {
 
   it('does not claim the prior style remained active after an ambiguous save error', async () => {
     entitlement.canAuthorizePremium = true;
-    const onSaveDraftStyle = vi.fn().mockRejectedValue(new Error('offline queue unavailable'));
+    const onSaveDraftStyle = vi.fn().mockRejectedValue(new Error('server response was lost'));
     const user = renderPreview({ onSaveDraftStyle }).user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));

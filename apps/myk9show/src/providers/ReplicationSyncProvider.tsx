@@ -701,7 +701,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
-  }, [queryClient]);
+  }, []);
 
   // Re-surface persisted sync failures from previous sessions when the user
   // authenticates. A failure toast lost to navigation or reload must not bury

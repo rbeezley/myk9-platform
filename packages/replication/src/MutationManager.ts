@@ -304,21 +304,6 @@ export class MutationManager {
   }
 
   /**
-   * Remove one queued mutation after its dependent local write could not be
-   * committed. This is deliberately owner-scoped and does not schedule an
-   * upload; it closes the queue/local-write transaction boundary for callers
-   * that queue with deferred upload.
-   */
-  async discardPendingMutation(mutationId: string): Promise<void> {
-    const authUserId = await this.requireCurrentUserId();
-    const discarded = await this.queueStore.discardPendingMutation(mutationId, authUserId, () =>
-      this.requireSameCurrentUserId(authUserId)
-    );
-    if (!discarded) return;
-    await this.backupStore.writeCurrent();
-  }
-
-  /**
    * Update the OCC serverVersion on all pending mutations for a row.
    *
    * Call this after the user chooses "Keep mine" so that the next upload uses

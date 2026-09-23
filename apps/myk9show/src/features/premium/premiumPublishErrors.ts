@@ -5,6 +5,7 @@ export type PremiumPublishFailureCode =
   | 'missing-organization'
   | 'missing-secretary'
   | 'configuration'
+  | 'setup-required'
   | 'permission'
   | 'stale-attempt'
   | 'intent-conflict'
@@ -27,7 +28,7 @@ export class PremiumPublishError extends Error {
 
 export function isMissingPremiumPublishRpc(
   error: unknown,
-  functionName = 'begin_premium_publish'
+  functionName = 'begin_or_reconcile_premium_publish'
 ): boolean {
   if (error instanceof PremiumPublishError && error.originalError !== undefined) {
     return isMissingPremiumPublishRpc(error.originalError, functionName);
@@ -75,6 +76,17 @@ export function classifyPremiumPublishError(
   error: unknown,
   stage: PremiumPublishStage
 ): PremiumPublishError {
+  if (
+    isMissingPremiumPublishRpc(error) ||
+    isMissingPremiumPublishRpc(error, 'publish_premium_artifact')
+  ) {
+    return new PremiumPublishError(
+      'Premium publishing setup is not available yet; try again shortly',
+      stage,
+      'setup-required',
+      error
+    );
+  }
   if (error instanceof PremiumPublishError) return error;
 
   const message = errorText(error);
@@ -137,6 +149,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'Add a secretary to this show before publishing the premium list.';
     case 'configuration':
       return 'Premium publishing is temporarily unavailable. Please contact support.';
+    case 'setup-required':
+      return 'Premium publishing setup is still being deployed. Try again shortly.';
     case 'permission':
       return "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary.";
     case 'stale-attempt':

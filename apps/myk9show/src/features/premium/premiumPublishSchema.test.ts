@@ -41,8 +41,11 @@ describe('premium publication schemas', () => {
 
   it('accepts only a complete current-schema persisted attempt', () => {
     const attempt = {
-      schemaVersion: 2,
+      schemaVersion: 4,
+      mode: 'generated',
+      intentKey: 'generated-current-sources',
       showId: 'show-1',
+      publisherId: 'user-1',
       fingerprint: 'stable-intent',
       intent: { premium, inkSaver: true },
       artifactId: 'artifact-1',

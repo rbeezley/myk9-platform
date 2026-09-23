@@ -22,7 +22,10 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { getShowStyle } from '@/features/registries';
-import { publishGeneratedPremiumAttempt } from '@/features/premium/premiumPublishCoordinator';
+import {
+  premiumPublishDraftKey,
+  runPremiumPublishOperation,
+} from '@/features/premium/premiumPublishCoordinator';
 import {
   classifyPremiumPublishError,
   PremiumPublishError,
@@ -398,26 +401,37 @@ function AuthorizedShowManagementShell({
               generatedPremium?: GeneratedPremium;
               inkSaver?: boolean;
             };
-            const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
-            if (!localShow) {
-              throw new Error('Show was not available in the local store.');
-            }
-            // Persist judge assignments to judge_assignments table
-            await persistShowJudgeAssignments(id, showData.assignedJudges || []);
-            queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
-            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-              current?.map(s => (s.id === id ? localShow : s))
-            );
+            const persistShowChanges = async () => {
+              const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
+              if (!localShow) {
+                throw new Error('Show was not available in the local store.');
+              }
+              // Persist judge assignments to judge_assignments table
+              await persistShowJudgeAssignments(id, showData.assignedJudges || []);
+              queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
+              queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
+                current?.map(s => (s.id === id ? localShow : s))
+              );
+            };
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
               try {
-                await publishGeneratedPremiumAttempt({
+                const premium = applyShowFormDataToPremium(
+                  publishableShowData.generatedPremium,
+                  showData as Partial<ShowInput>
+                );
+                await runPremiumPublishOperation({
                   showId: id,
-                  premium: applyShowFormDataToPremium(
-                    publishableShowData.generatedPremium,
-                    showData as Partial<ShowInput>
-                  ),
+                  mode: 'draft',
+                  intentKey: premiumPublishDraftKey({
+                    premium,
+                    inkSaver: Boolean(publishableShowData.inkSaver),
+                  }),
                   inkSaver: Boolean(publishableShowData.inkSaver),
+                  createPremium: async () => {
+                    await persistShowChanges();
+                    return premium;
+                  },
                 });
               } catch (error) {
                 const classified = classifyPremiumPublishError(error, 'experience-snapshot');
@@ -434,6 +448,8 @@ function AuthorizedShowManagementShell({
               });
               queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(id) });
               queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+            } else {
+              await persistShowChanges();
             }
           }
           notifications.success('Show changes saved');

@@ -13,7 +13,7 @@ describe('premium publish error contract', () => {
       isMissingPremiumPublishRpc({
         code: 'PGRST202',
         message:
-          'Could not find the function public.begin_premium_publish(p_show_id) in the schema cache',
+          'Could not find the function public.begin_or_reconcile_premium_publish(p_show_id) in the schema cache',
       })
     ).toBe(true);
     expect(isMissingPremiumPublishRpc({ code: '42501', message: 'permission denied' })).toBe(false);

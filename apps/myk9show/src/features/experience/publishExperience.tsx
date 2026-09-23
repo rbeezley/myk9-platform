@@ -16,10 +16,16 @@ export async function publishExperience({
     artifactId: attempt.artifactId,
     inkSaver,
   });
+  // The legacy URL column remains part of the commit identity, but private
+  // Storage is only downloadable through the committed-pointer endpoint.
+  const storageBase = (
+    import.meta.env.VITE_SUPABASE_URL || 'https://sojmvhhwsjxmfistvzbe.supabase.co'
+  ).replace(/\/$/, '');
+  const premiumUrl = `${storageBase}/storage/v1/object/public/premium-published/${staged.path}`;
   const snapshot = buildExperienceSnapshot({
     premium,
     premiumPath: staged.path,
-    premiumUrl: staged.publicUrl,
+    premiumUrl,
   });
 
   const { data, error } = await (supabase as unknown as PremiumPublishRpcClient).rpc(
@@ -27,7 +33,7 @@ export async function publishExperience({
     {
       p_show_id: showId,
       p_storage_path: staged.path,
-      p_public_url: staged.publicUrl,
+      p_public_url: premiumUrl,
       p_publish_version: attempt.publishVersion,
       p_experience_style: premium.style,
       p_experience_content: snapshot,

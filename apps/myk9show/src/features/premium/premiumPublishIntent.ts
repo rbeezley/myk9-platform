@@ -6,8 +6,11 @@ export interface PremiumPublishIntent {
 }
 
 export interface PremiumPublishAttempt {
-  schemaVersion: 2;
+  schemaVersion: 4;
+  mode: 'generated' | 'draft';
+  intentKey: string;
   showId: string;
+  publisherId: string;
   fingerprint: string;
   intent: PremiumPublishIntent;
   artifactId: string;
@@ -27,6 +30,13 @@ function stableSerialize(value: unknown): string {
   return JSON.stringify(value) ?? 'null';
 }
 
-export function premiumPublishIntentFingerprint(intent: PremiumPublishIntent): string {
+export function premiumPublishIntentFingerprint(
+  intent: PremiumPublishIntent,
+  publisherId = ''
+): string {
+  return stableSerialize({ premium: intent.premium, inkSaver: intent.inkSaver, publisherId });
+}
+
+export function premiumPublishDraftKey(intent: PremiumPublishIntent): string {
   return stableSerialize({ premium: intent.premium, inkSaver: intent.inkSaver });
 }

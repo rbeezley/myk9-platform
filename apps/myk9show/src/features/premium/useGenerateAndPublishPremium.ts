@@ -10,10 +10,8 @@ import {
   premiumPublishFailureMessage,
 } from './premiumPublishErrors';
 import {
-  beginPremiumPublishAttempt,
-  discardPremiumPublishAttempt,
-  getPremiumPublishAttempt,
-  publishGeneratedPremiumAttempt,
+  GENERATED_PREMIUM_INTENT_KEY,
+  runPremiumPublishOperation,
 } from './premiumPublishCoordinator';
 
 const PUBLISH_FAILURE_MESSAGE = GENERIC_PREMIUM_PUBLISH_FAILURE;
@@ -109,21 +107,12 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     }
     begin(showId);
     try {
-      const cachedAttempt = getPremiumPublishAttempt(showId);
-      if (!cachedAttempt) await beginPremiumPublishAttempt(showId);
-      let premium = cachedAttempt?.intent.premium;
-      if (!premium) {
-        try {
-          premium = await generate(showId);
-        } catch (error) {
-          discardPremiumPublishAttempt(showId);
-          throw error;
-        }
-      }
-      await publishGeneratedPremiumAttempt({
+      await runPremiumPublishOperation({
         showId,
-        premium,
+        mode: 'generated',
+        intentKey: GENERATED_PREMIUM_INTENT_KEY,
         inkSaver: false,
+        createPremium: () => generate(showId),
       });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),

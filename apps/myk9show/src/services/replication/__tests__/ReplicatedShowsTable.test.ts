@@ -709,7 +709,29 @@ describe('ReplicatedShowsTable', () => {
       );
 
       await table.set('show-1', show);
-      await table.updateShow('show-1', { name: 'Renamed Show' });
+      await table.updateShow('show-1', {
+        name: 'Renamed Show',
+        experienceIsPublished: true,
+        experiencePublishedAt: '2026-05-10T14:00:00.000Z',
+        experiencePublishedStyle: 'poster',
+        experiencePublishedContent: {
+          style: 'poster',
+          generatedAt: '2026-05-10T14:00:00.000Z',
+          narratives: {
+            showHours: 'Doors open at 7:00 AM.',
+            trialInformation: 'Running order will be posted before judging.',
+          },
+          supplemental: {
+            vetClinic: null,
+            accommodations: [],
+            hospitalityNotes: null,
+            awardsDescription: null,
+            additionalNotes: null,
+            coverImageUrl: null,
+          },
+          outputs: { premiumUrl: 'https://example.com/premium.pdf' },
+        },
+      });
 
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
@@ -721,6 +743,8 @@ describe('ReplicatedShowsTable', () => {
           experience_published_content: expect.anything(),
         })
       );
+      expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('experience_published_content');
+      expect((await table.get('show-1'))?.experienceIsPublished).toBe(false);
     });
 
     it('should throw error when updating non-existent show', async () => {

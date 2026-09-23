@@ -338,7 +338,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       throw new Error(`Show ${showId} not found`);
     }
 
-    const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, updates);
+    const safeUpdates = { ...updates };
+    delete safeUpdates.experienceIsPublished;
+    delete safeUpdates.experiencePublishedAt;
+    delete safeUpdates.experiencePublishedStyle;
+    delete safeUpdates.experiencePublishedContent;
+    const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, safeUpdates);
     const updatedShow: ReplicatedShow = {
       ...currentShow,
       ...resolvedUpdates,

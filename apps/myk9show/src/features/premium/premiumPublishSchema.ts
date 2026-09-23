@@ -64,8 +64,11 @@ const generatedPremiumSchema = z.object({
 });
 
 const persistedAttemptSchema = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(4),
+  mode: z.enum(['generated', 'draft']),
+  intentKey: z.string().min(1),
   showId: z.string().min(1),
+  publisherId: z.string().min(1),
   fingerprint: z.string().min(1),
   intent: z.object({ premium: generatedPremiumSchema, inkSaver: z.boolean() }),
   artifactId: z.string().min(1),

@@ -80,6 +80,7 @@ export default defineConfig({
       '../../supabase/functions/send-targeted-message/targeting.test.ts',
       '../../supabase/functions/send-waitlist-invite/auth.test.ts',
       '../../supabase/functions/generate-premium/*.test.ts',
+      '../../supabase/functions/get-premium-download/*.test.ts',
       '../../supabase/functions/admin-delete-user/*.test.ts',
       '../../supabase/functions/admin-generate-reset-link/*.test.ts',
       '../../supabase/functions/admin-invite-user/*.test.ts',

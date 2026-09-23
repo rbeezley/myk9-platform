@@ -15,18 +15,17 @@ export interface PublishPremiumOptions {
 
 export interface StagedPremiumArtifact {
   path: string;
-  publicUrl: string;
 }
 
 /**
- * Render the premium PDF in the browser and stage it in public Storage.
+ * Render the premium PDF in the browser and stage it in private Storage.
  * Database publication is deliberately performed by publishExperience's
  * atomic RPC after the complete snapshot has been built.
  *
  * Browser-side render avoids paying the LLM cost on every visitor request —
  * the edge function (which calls Anthropic) runs once per publish, not once
  * per page-load. Each staged artifact is immutable, so a failed republish
- * cannot replace the last-good public bytes.
+ * cannot replace the last-good committed bytes.
  */
 export async function publishPremium(
   showId: string,
@@ -54,8 +53,7 @@ export async function publishPremium(
     });
   }
 
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { path, publicUrl: urlData.publicUrl };
+  return { path };
 }
 
 export async function renderPremiumPdf(

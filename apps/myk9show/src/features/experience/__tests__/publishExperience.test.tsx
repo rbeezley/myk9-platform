@@ -7,14 +7,14 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(async (): Promise<{ data: unknown; error: Error | null }> => ({
     data: {
       premiumPath: 'show-1/artifact-1.pdf',
-      premiumUrl: 'https://example.com/abc.pdf',
+      premiumUrl:
+        'https://test.supabase.co/storage/v1/object/public/premium-published/show-1/artifact-1.pdf',
       publishedAt: '2026-05-09T15:00:00.000Z',
     },
     error: null as Error | null,
   })),
   upload: vi.fn(async () => ({
     path: 'show-1/artifact-1.pdf',
-    publicUrl: 'https://example.com/abc.pdf',
   })),
 }));
 
@@ -25,8 +25,11 @@ vi.mock('@/features/premium/publishPremium', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: mocks.rpc } }));
 
 const attempt: PremiumPublishAttempt = {
-  schemaVersion: 2,
+  schemaVersion: 4,
+  mode: 'generated',
+  intentKey: 'generated-current-sources',
   showId: 'show-1',
+  publisherId: 'user-1',
   fingerprint: 'complete-intent',
   intent: {
     premium: {
@@ -71,7 +74,8 @@ describe('publishExperience', () => {
     mocks.rpc.mockResolvedValue({
       data: {
         premiumPath: 'show-1/artifact-1.pdf',
-        premiumUrl: 'https://example.com/abc.pdf',
+        premiumUrl:
+          'https://test.supabase.co/storage/v1/object/public/premium-published/show-1/artifact-1.pdf',
         publishedAt: '2026-05-09T15:00:00.000Z',
       },
       error: null,
@@ -79,7 +83,6 @@ describe('publishExperience', () => {
     mocks.upload.mockReset();
     mocks.upload.mockResolvedValue({
       path: 'show-1/artifact-1.pdf',
-      publicUrl: 'https://example.com/abc.pdf',
     });
   });
 
@@ -88,7 +91,7 @@ describe('publishExperience', () => {
 
     expect(result).toEqual({
       publishedAt: '2026-05-09T15:00:00.000Z',
-      premiumUrl: 'https://example.com/abc.pdf',
+      premiumUrl: `${(import.meta.env.VITE_SUPABASE_URL || 'https://sojmvhhwsjxmfistvzbe.supabase.co').replace(/\/$/, '')}/storage/v1/object/public/premium-published/show-1/artifact-1.pdf`,
     });
     expect(mocks.upload).toHaveBeenCalledWith('show-1', attempt.intent.premium, {
       artifactId: 'artifact-1',
@@ -97,14 +100,14 @@ describe('publishExperience', () => {
     expect(mocks.rpc).toHaveBeenCalledWith('publish_premium_artifact', {
       p_show_id: 'show-1',
       p_storage_path: 'show-1/artifact-1.pdf',
-      p_public_url: 'https://example.com/abc.pdf',
+      p_public_url: `${(import.meta.env.VITE_SUPABASE_URL || 'https://sojmvhhwsjxmfistvzbe.supabase.co').replace(/\/$/, '')}/storage/v1/object/public/premium-published/show-1/artifact-1.pdf`,
       p_publish_version: 1,
       p_experience_style: 'heritage',
       p_experience_content: expect.objectContaining({
         style: 'heritage',
         outputs: {
           premiumPath: 'show-1/artifact-1.pdf',
-          premiumUrl: 'https://example.com/abc.pdf',
+          premiumUrl: `${(import.meta.env.VITE_SUPABASE_URL || 'https://sojmvhhwsjxmfistvzbe.supabase.co').replace(/\/$/, '')}/storage/v1/object/public/premium-published/show-1/artifact-1.pdf`,
         },
       }),
     });

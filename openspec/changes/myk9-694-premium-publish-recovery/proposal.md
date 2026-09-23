@@ -1,30 +1,31 @@
 ## Why
 
-Tracking: MYK9-694. The canonical premium publish action can fail with a generic message, blocking show publication and hiding the actionable cause.
-
-Original request: "Select the next 5 issues from the to-do status. Then orchestrate implementing them using Luna as the implementer as a subagent? Do as many in parallel as you can. work them all the way to an open or merged PR. you will need to use the fallback review of adversarial sub agents as we are out of claude tokens until 9/24."
+Tracking: MYK9-694. The canonical premium publish action can fail with a generic message, blocking show publication and hiding the actionable cause. The current implementation also uploads to a public Storage bucket before the show row commits, so staged PDFs are downloadable even when publication fails.
 
 ## What Changes
 
-- Trace the current generate → PDF upload → show metadata → experience snapshot flow and fix the proven root cause.
-- Preserve the single canonical publish action and its per-show double-submit latch.
-- Classify known missing configuration/required-data failures into plain, actionable recovery copy while keeping raw payloads out of the UI.
-- Keep retries idempotent across one append-only versioned artifact and the atomic show-row commit, and cover partial-progress recovery.
-- Persist a trusted Storage path and its exactly validated public URL together; readers trust the path for versioned rows and use the URL only for legacy rows.
-- Issue a monotonic server-side attempt version before generation so a stalled older attempt cannot overwrite a newer publish.
-- Apply PDF MIME/size limits and remove organizer update/delete access to published artifacts.
-- Keep the deployed app's legacy flat `<show-id>.pdf` write behavior temporarily for rollback compatibility; a legacy write invalidates the versioned identity so both old and new apps show the latest publication.
-- Route every existing publish entry point through the same per-show attempt/retry coordinator and classify real Edge Function error bodies.
-
-This does not duplicate an existing surface. The existing premium card and Actions command already share one publish flow; the fix belongs in that flow rather than a new recovery page or dialog.
+- Fix the demonstrated premium publication failure and provide actionable recovery for known missing requirements.
+- Keep the existing canonical publish action and per-show coordinator; do not add a new page or dialog.
+- Stage an append-only PDF in a private bucket and atomically commit its trusted path with the show experience snapshot.
+- Serve published PDFs through a narrow public download endpoint that signs only the path currently committed for that show.
+- Preserve management-card preview for a committed draft show only after validating its bearer and checking existing `can_manage_show` / `is_show_secretary` helpers under the caller JWT; anonymous and unrelated users still receive not-found. Keep RBAC out of custom Edge role-table joins.
+- Protect all publication-owned pointer, version, and experience snapshot fields across both show INSERT and UPDATE: authenticated creation is allowed only with safe empty publication defaults, and the commit RPC remains the only way to transition to published state.
+- Separate durable publication/readiness metadata from ephemeral signed URLs; obtain a fresh signed URL only when a user explicitly downloads.
+- Preserve legacy flat PDFs as read-only committed data through the endpoint, but remove legacy flat writes and missing-schema fallback.
+- Support both PostgREST `PGRST204` and PostgreSQL `42703` exact missing-column errors during endpoint-before-migration rollout; do not disguise unrelated failures as legacy compatibility.
+- Make retry safe for partial uploads, changed intent, and stale attempts; do not expose raw technical errors.
+- Preserve all existing object bytes and rows, including Darboshea; no cleanup or migration of that data is in scope.
 
 ## Non-goals
 
-- A second publishing workflow.
-- Hiding server/storage defects behind client-only success.
-- Changing premium visual design or adding premium fields unrelated to the demonstrated failure.
+- A second publishing workflow or visual redesign.
+- Old-client write compatibility or rollback to a client that uses public Storage URLs.
+- Deleting, moving, overwriting, or modifying Darboshea's row or Storage object.
+- Applying the migration to a linked database as part of this PR.
 
 ## Impact
 
-- Existing premium/experience publish services and shared publish hook.
-- Focused generation, upload, metadata, retry, success, and error tests.
+- Existing premium/experience publish services, shared publish hook, and publish-info reader.
+- A public committed-pointer download Edge Function.
+- One migration changing the bucket to private, defining publication RPCs and scoped policies.
+- Client, Edge Function, and behavioral SQL regression coverage.

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
-import { premiumPublishIntentFingerprint } from './premiumPublishIntent';
+import { premiumPublishDraftKey } from './premiumPublishIntent';
+import {
+  runPremiumPublishOperation,
+  resetPremiumPublishCoordinatorForTests,
+} from './premiumPublishCoordinator';
 
 interface PublishAttemptArgs {
   showId: string;
@@ -8,8 +12,21 @@ interface PublishAttemptArgs {
 }
 
 const beginMock = vi.hoisted(() =>
-  vi.fn(async (..._args: unknown[]): Promise<{ data: unknown; error: unknown | null }> => ({
-    data: 7,
+  vi.fn(
+    async (
+      ..._args: unknown[]
+    ): Promise<{
+      data: unknown;
+      error: unknown | null;
+    }> => ({
+      data: { status: 'reserved', version: 7 },
+      error: null,
+    })
+  )
+);
+const getUserMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    data: { user: { id: 'user-a' } },
     error: null,
   }))
 );
@@ -19,25 +36,14 @@ const publishExperienceMock = vi.hoisted(() =>
     return { publishedAt: '2026-09-19T12:00:00.000Z', premiumUrl: 'https://trusted.test/a.pdf' };
   })
 );
-const publishLegacyMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    publishedAt: '2026-09-19T12:00:00.000Z',
-    premiumUrl: 'https://trusted.test/legacy.pdf',
-  }))
-);
 
-vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: beginMock } }));
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { rpc: beginMock, auth: { getUser: getUserMock } },
+}));
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: publishExperienceMock,
 }));
-vi.mock('@/features/experience/publishExperienceLegacy', () => ({
-  publishExperienceLegacy: publishLegacyMock,
-}));
 
-import {
-  publishGeneratedPremiumAttempt,
-  resetPremiumPublishCoordinatorForTests,
-} from './premiumPublishCoordinator';
 import { PremiumPublishError } from './premiumPublishErrors';
 
 function premium(venue = 'Louisville'): GeneratedPremium {
@@ -73,176 +79,232 @@ function premium(venue = 'Louisville'): GeneratedPremium {
   };
 }
 
-function input(options?: { venue?: string; inkSaver?: boolean }) {
+function operation(options?: {
+  showId?: string;
+  venue?: string;
+  inkSaver?: boolean;
+  intentKey?: string;
+  mode?: 'generated' | 'draft';
+}) {
+  const value = premium(options?.venue);
+  const mode = options?.mode ?? 'generated';
+  const inkSaver = options?.inkSaver ?? false;
   return {
-    showId: 'show-1',
-    premium: premium(options?.venue),
-    inkSaver: options?.inkSaver ?? false,
-  };
+    showId: options?.showId ?? 'show-1',
+    mode,
+    intentKey:
+      options?.intentKey ??
+      (mode === 'generated'
+        ? 'generated-current-sources'
+        : premiumPublishDraftKey({ premium: value, inkSaver })),
+    inkSaver,
+    createPremium: vi.fn(async () => value),
+  } as const;
 }
 
 describe('premium publish coordinator', () => {
   beforeEach(() => {
     beginMock.mockReset();
-    beginMock.mockResolvedValue({ data: 7, error: null });
+    beginMock.mockResolvedValue({ data: { status: 'reserved', version: 7 }, error: null });
+    getUserMock.mockReset();
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-a' } }, error: null });
     publishExperienceMock.mockReset();
     publishExperienceMock.mockImplementation(async () => ({
       publishedAt: '2026-09-19T12:00:00.000Z',
       premiumUrl: 'https://trusted.test/a.pdf',
     }));
-    publishLegacyMock.mockReset();
-    publishLegacyMock.mockResolvedValue({
-      publishedAt: '2026-09-19T12:00:00.000Z',
-      premiumUrl: 'https://trusted.test/legacy.pdf',
-    });
     resetPremiumPublishCoordinatorForTests();
   });
 
-  it('shares an identical in-flight intent for duplicate submits', async () => {
-    const first = publishGeneratedPremiumAttempt(input());
-    const second = publishGeneratedPremiumAttempt(input());
-    await Promise.all([first, second]);
-    expect(beginMock).toHaveBeenCalledTimes(1);
-    expect(publishExperienceMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('reuses the same version and artifact after a lost response for the same complete intent', async () => {
-    publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
-    await expect(publishGeneratedPremiumAttempt(input({ inkSaver: true }))).rejects.toThrow(
-      'response lost'
-    );
-    await publishGeneratedPremiumAttempt(input({ inkSaver: true }));
-
-    expect(beginMock).toHaveBeenCalledTimes(1);
-    const firstAttempt = publishExperienceMock.mock.calls[0]?.[0].attempt as {
-      artifactId: string;
-      publishVersion: number;
-      fingerprint: string;
-    };
-    const retryAttempt = publishExperienceMock.mock.calls[1]?.[0].attempt as typeof firstAttempt;
-    expect(retryAttempt).toMatchObject({
-      artifactId: firstAttempt.artifactId,
-      publishVersion: 7,
-      fingerprint: premiumPublishIntentFingerprint({ premium: premium(), inkSaver: true }),
-    });
-  });
-
-  it('starts a new artifact and version when only inkSaver changes', async () => {
-    beginMock
-      .mockResolvedValueOnce({ data: 7, error: null })
-      .mockResolvedValueOnce({ data: 8, error: null });
-    publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
-    await expect(publishGeneratedPremiumAttempt(input({ inkSaver: false }))).rejects.toThrow();
-    await publishGeneratedPremiumAttempt(input({ inkSaver: true }));
-
-    const firstAttempt = publishExperienceMock.mock.calls[0]?.[0].attempt as {
-      artifactId: string;
-      publishVersion: number;
-    };
-    const secondAttempt = publishExperienceMock.mock.calls[1]?.[0].attempt as typeof firstAttempt;
-    expect(secondAttempt.publishVersion).toBe(8);
-    expect(secondAttempt.artifactId).not.toBe(firstAttempt.artifactId);
-  });
-
-  it('does not let a different in-flight intent join the first promise', async () => {
-    const first = publishGeneratedPremiumAttempt(input());
-    await expect(
-      publishGeneratedPremiumAttempt(input({ venue: 'Lexington' }))
-    ).rejects.toMatchObject({
-      code: 'intent-conflict',
-    });
-    await first;
-    expect(publishExperienceMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('evicts stale attempts so the next explicit retry starts a fresh version', async () => {
-    beginMock
-      .mockResolvedValueOnce({ data: 7, error: null })
-      .mockResolvedValueOnce({ data: 8, error: null });
-    publishExperienceMock
-      .mockRejectedValueOnce(
-        new PremiumPublishError('stale version', 'experience-snapshot', 'stale-attempt')
-      )
-      .mockResolvedValueOnce({
-        publishedAt: '2026-09-19T12:00:01.000Z',
-        premiumUrl: 'https://trusted.test/b.pdf',
+  it('installs the lock synchronously and shares identical operations', async () => {
+    let release!: () => void;
+    publishExperienceMock.mockImplementationOnce(async () => {
+      await new Promise<void>(resolve => {
+        release = resolve;
       });
-    await expect(publishGeneratedPremiumAttempt(input())).rejects.toMatchObject({
-      code: 'stale-attempt',
+      return { publishedAt: '2026-09-19T12:00:00.000Z', premiumUrl: 'https://trusted.test/a.pdf' };
     });
-    await publishGeneratedPremiumAttempt(input());
-    const retried = publishExperienceMock.mock.calls[1]?.[0].attempt as {
+    const input = operation();
+    const first = runPremiumPublishOperation(input);
+    const second = runPremiumPublishOperation(operation());
+    await vi.waitFor(() => expect(beginMock).toHaveBeenCalledTimes(1));
+    expect(beginMock).toHaveBeenCalledTimes(1);
+    expect(input.createPremium).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([first, second]);
+    expect(publishExperienceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a different in-flight intent with a typed conflict', async () => {
+    let release!: () => void;
+    publishExperienceMock.mockImplementationOnce(async () => {
+      await new Promise<void>(resolve => {
+        release = resolve;
+      });
+      return { publishedAt: 'now', premiumUrl: 'url' };
+    });
+    const first = runPremiumPublishOperation(operation());
+    await Promise.resolve();
+    await expect(
+      runPremiumPublishOperation(operation({ mode: 'draft', intentKey: 'draft:changed' }))
+    ).rejects.toMatchObject({ code: 'intent-conflict' });
+    release();
+    await first;
+  });
+
+  it('allows independent shows to publish concurrently', async () => {
+    const first = runPremiumPublishOperation(operation({ showId: 'show-a' }));
+    const second = runPremiumPublishOperation(operation({ showId: 'show-b' }));
+    await Promise.all([first, second]);
+    expect(beginMock).toHaveBeenCalledTimes(2);
+    expect(publishExperienceMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconciles a lost commit response before regenerating or reserving another version', async () => {
+    const firstOperation = operation();
+    publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
+    await expect(runPremiumPublishOperation(firstOperation)).rejects.toThrow('response lost');
+    beginMock.mockResolvedValueOnce({
+      data: {
+        status: 'already_committed',
+        version: 7,
+        publishedAt: '2026-09-19T12:00:00.000Z',
+        premiumUrl: 'https://trusted.test/a.pdf',
+      },
+      error: null,
+    });
+
+    await expect(runPremiumPublishOperation(operation())).resolves.toEqual({
+      publishedAt: '2026-09-19T12:00:00.000Z',
+      premiumUrl: 'https://trusted.test/a.pdf',
+    });
+    expect(beginMock).toHaveBeenCalledTimes(2);
+    expect(beginMock).toHaveBeenLastCalledWith('begin_or_reconcile_premium_publish', {
+      p_show_id: 'show-1',
+      p_prior_version: 7,
+      p_prior_path: expect.stringMatching(/^show-1\/.+\.pdf$/),
+    });
+    expect(firstOperation.createPremium).toHaveBeenCalledTimes(1);
+    expect(publishExperienceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconciles an exact authored draft without regenerating the saved content', async () => {
+    const firstOperation = operation({ mode: 'draft' });
+    publishExperienceMock.mockRejectedValueOnce(new Error('commit response lost'));
+    await expect(runPremiumPublishOperation(firstOperation)).rejects.toThrow(
+      'commit response lost'
+    );
+    beginMock.mockResolvedValueOnce({
+      data: {
+        status: 'already_committed',
+        version: 7,
+        publishedAt: '2026-09-19T12:00:00.000Z',
+        premiumUrl: 'https://trusted.test/a.pdf',
+      },
+      error: null,
+    });
+    const retry = operation({ mode: 'draft' });
+    await runPremiumPublishOperation(retry);
+    expect(retry.createPremium).not.toHaveBeenCalled();
+    expect(publishExperienceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reserves a fresh version and reuses staged bytes only for identical regenerated content', async () => {
+    publishExperienceMock.mockRejectedValueOnce(new Error('commit response lost'));
+    await expect(runPremiumPublishOperation(operation())).rejects.toThrow('commit response lost');
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    await runPremiumPublishOperation(operation());
+
+    const first = publishExperienceMock.mock.calls[0]?.[0].attempt as { artifactId: string };
+    const retry = publishExperienceMock.mock.calls[1]?.[0].attempt as {
+      artifactId: string;
+      publishVersion: number;
+      mode: string;
+      publisherId: string;
+    };
+    expect(retry).toMatchObject({
+      artifactId: first.artifactId,
+      publishVersion: 8,
+      mode: 'generated',
+      publisherId: 'user-a',
+    });
+  });
+
+  it('uses a fresh artifact after regeneration changes the current source intent', async () => {
+    publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
+    await expect(runPremiumPublishOperation(operation())).rejects.toThrow('response lost');
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    await runPremiumPublishOperation(operation({ venue: 'Lexington' }));
+    const first = publishExperienceMock.mock.calls[0]?.[0].attempt as { artifactId: string };
+    const second = publishExperienceMock.mock.calls[1]?.[0].attempt as {
       artifactId: string;
       publishVersion: number;
     };
-    expect(retried.publishVersion).toBe(8);
-    expect(retried.artifactId).not.toBe(
-      (publishExperienceMock.mock.calls[0]?.[0].attempt as { artifactId: string }).artifactId
-    );
+    expect(second.publishVersion).toBe(8);
+    expect(second.artifactId).not.toBe(first.artifactId);
   });
 
-  it('hydrates a valid same-intent attempt from session storage after reload', async () => {
+  it('does not reuse attempts after the publisher changes', async () => {
     publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
-    const savedInput = input({ inkSaver: true });
-    await expect(publishGeneratedPremiumAttempt(savedInput)).rejects.toThrow('response lost');
-    const firstAttempt = publishExperienceMock.mock.calls[0]?.[0].attempt;
-    if (!firstAttempt) throw new Error('first attempt missing');
-    resetPremiumPublishCoordinatorForTests({ preserveStorage: true });
-    await publishGeneratedPremiumAttempt(savedInput);
-    expect(beginMock).toHaveBeenCalledTimes(1);
-    expect(publishExperienceMock.mock.calls[1]?.[0].attempt).toEqual(firstAttempt);
+    await expect(runPremiumPublishOperation(operation())).rejects.toThrow('response lost');
+    getUserMock.mockResolvedValueOnce({ data: { user: { id: 'user-b' } }, error: null });
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    await runPremiumPublishOperation(operation());
+    const first = publishExperienceMock.mock.calls[0]?.[0].attempt as { artifactId: string };
+    const second = publishExperienceMock.mock.calls[1]?.[0].attempt as {
+      artifactId: string;
+      publisherId: string;
+    };
+    expect(second.publisherId).toBe('user-b');
+    expect(second.artifactId).not.toBe(first.artifactId);
+    expect(beginMock.mock.calls[1]?.[0]).toBe('begin_or_reconcile_premium_publish');
+    expect(beginMock.mock.calls[1]?.[1]).toMatchObject({
+      p_prior_version: null,
+      p_prior_path: null,
+    });
   });
 
-  it('discards corrupt or unsupported persisted attempt data', async () => {
-    sessionStorage.setItem('myk9:premium-publish-attempts:v2', '{bad json');
-    await publishGeneratedPremiumAttempt(input());
-    expect(beginMock).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem('myk9:premium-publish-attempts:v2')).toBeNull();
-  });
-
-  it('uses the legacy adapter only when the begin RPC is absent from the old schema', async () => {
+  it('returns retryable setup guidance without falling back when reservation RPC is missing', async () => {
     beginMock.mockResolvedValueOnce({
       data: null,
       error: {
         code: 'PGRST202',
-        message: 'Could not find the function public.begin_premium_publish in the schema cache',
+        message:
+          'Could not find the function public.begin_or_reconcile_premium_publish in the schema cache',
       },
     });
-
-    await expect(publishGeneratedPremiumAttempt(input())).resolves.toMatchObject({
-      premiumUrl: 'https://trusted.test/legacy.pdf',
-    });
-    expect(publishLegacyMock).toHaveBeenCalledWith({
-      showId: 'show-1',
-      intent: { premium: premium(), inkSaver: false },
+    await expect(runPremiumPublishOperation(operation())).rejects.toMatchObject({
+      code: 'setup-required',
     });
     expect(publishExperienceMock).not.toHaveBeenCalled();
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    await runPremiumPublishOperation(operation());
+    expect(beginMock).toHaveBeenCalledTimes(2);
   });
 
-  it('does not use legacy publishing for authorization or other begin-RPC errors', async () => {
-    beginMock.mockResolvedValueOnce({
-      data: null,
-      error: { code: '42501', message: 'Not authorized to publish this show' },
+  it('reports stale commits and lets the next operation reserve a new version', async () => {
+    publishExperienceMock
+      .mockRejectedValueOnce(
+        new PremiumPublishError('stale version', 'experience-snapshot', 'stale-attempt')
+      )
+      .mockResolvedValueOnce({ publishedAt: 'later', premiumUrl: 'url' });
+    await expect(runPremiumPublishOperation(operation())).rejects.toMatchObject({
+      code: 'stale-attempt',
     });
-
-    await expect(publishGeneratedPremiumAttempt(input())).rejects.toMatchObject({
-      code: 'permission',
-    });
-    expect(publishLegacyMock).not.toHaveBeenCalled();
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    await runPremiumPublishOperation(operation());
+    expect(publishExperienceMock).toHaveBeenCalledTimes(2);
   });
 
-  it('uses the legacy adapter when only the versioned commit RPC is missing', async () => {
-    publishExperienceMock.mockRejectedValueOnce(
-      new PremiumPublishError('Missing publication RPC', 'experience-snapshot', 'unknown', {
-        code: 'PGRST202',
-        message: 'Could not find the function public.publish_premium_artifact in the schema cache',
-      })
-    );
-
-    await expect(publishGeneratedPremiumAttempt(input())).resolves.toMatchObject({
-      premiumUrl: 'https://trusted.test/legacy.pdf',
-    });
-    expect(publishLegacyMock).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem('myk9:premium-publish-attempts:v2')).toBeNull();
+  it('fails clearly if a persisted draft intent changes while its previous publication is pending', async () => {
+    const draft = operation({ mode: 'draft', intentKey: 'draft:v1' });
+    publishExperienceMock.mockRejectedValueOnce(new Error('response lost'));
+    await expect(runPremiumPublishOperation(draft)).rejects.toThrow('response lost');
+    beginMock.mockResolvedValueOnce({ data: { status: 'reserved', version: 8 }, error: null });
+    const updated = operation({ mode: 'draft', intentKey: 'draft:v2', venue: 'Lexington' });
+    await runPremiumPublishOperation(updated);
+    const first = publishExperienceMock.mock.calls[0]?.[0].attempt as { artifactId: string };
+    const second = publishExperienceMock.mock.calls[1]?.[0].attempt as { artifactId: string };
+    expect(second.artifactId).not.toBe(first.artifactId);
   });
 });

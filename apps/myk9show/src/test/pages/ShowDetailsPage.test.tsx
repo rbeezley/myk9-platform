@@ -5,10 +5,10 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
 import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
+import type { GeneratedPremium } from '@/types/premium-types';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
-const publishGeneratedPremiumAttemptMock = vi.hoisted(() => vi.fn());
-const beginPremiumPublishAttemptMock = vi.hoisted(() => vi.fn(async () => 1));
+const runPremiumPublishOperationMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const notificationsErrorMock = vi.hoisted(() => vi.fn());
@@ -180,8 +180,8 @@ vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
 }));
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
-  beginPremiumPublishAttempt: beginPremiumPublishAttemptMock,
-  publishGeneratedPremiumAttempt: (args: unknown) => publishGeneratedPremiumAttemptMock(args),
+  premiumPublishDraftKey: vi.fn(() => 'draft-intent-key'),
+  runPremiumPublishOperation: (args: unknown) => runPremiumPublishOperationMock(args),
 }));
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -443,8 +443,10 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
-    publishGeneratedPremiumAttemptMock.mockReset();
-    beginPremiumPublishAttemptMock.mockClear();
+    runPremiumPublishOperationMock.mockReset();
+    runPremiumPublishOperationMock.mockImplementation(
+      async (operation: { createPremium: () => Promise<unknown> }) => operation.createPremium()
+    );
     updateShowLocallyMock.mockReset();
     notificationsSuccessMock.mockReset();
     notificationsErrorMock.mockReset();
@@ -1094,33 +1096,34 @@ describe('ShowDetailsPage', () => {
       'show-1',
       expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
     );
-    expect(publishGeneratedPremiumAttemptMock).toHaveBeenCalledWith(
+    expect(runPremiumPublishOperationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         showId: 'show-1',
+        mode: 'draft',
+        intentKey: 'draft-intent-key',
         inkSaver: false,
-        premium: expect.objectContaining({
-          style: 'heritage',
-          show: expect.objectContaining({
-            name: 'Bluegrass Classic Renamed',
-            venue: 'Lexington, KY',
-            preEntryFee: 31.5,
-            dayOfFee: 41,
-            acceptChecks: true,
-            acceptCash: true,
-          }),
-          trials: expect.arrayContaining([
-            expect.objectContaining({
-              judges: [
-                {
-                  name: 'Fresh Judge',
-                  elements: ['Container', 'Interior'],
-                },
-              ],
-            }),
-          ]),
-        }),
+        createPremium: expect.any(Function),
       })
     );
+    const draftOperation = runPremiumPublishOperationMock.mock.calls[0]?.[0] as {
+      createPremium: () => Promise<GeneratedPremium>;
+    };
+    await expect(draftOperation.createPremium()).resolves.toMatchObject({
+      style: 'heritage',
+      show: expect.objectContaining({
+        name: 'Bluegrass Classic Renamed',
+        venue: 'Lexington, KY',
+        preEntryFee: 31.5,
+        dayOfFee: 41,
+        acceptChecks: true,
+        acceptCash: true,
+      }),
+      trials: expect.arrayContaining([
+        expect.objectContaining({
+          judges: [{ name: 'Fresh Judge', elements: ['Container', 'Interior'] }],
+        }),
+      ]),
+    });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'show-1', 'publish-info'],
     });
@@ -1143,7 +1146,7 @@ describe('ShowDetailsPage', () => {
   it('keeps the editor open and surfaces calm recovery copy when premium publish fails', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
-    publishGeneratedPremiumAttemptMock.mockRejectedValueOnce(
+    runPremiumPublishOperationMock.mockRejectedValueOnce(
       new Error('organization is missing: internal configuration details')
     );
     showEditPanelMock.impl = ({ onSave }) => (

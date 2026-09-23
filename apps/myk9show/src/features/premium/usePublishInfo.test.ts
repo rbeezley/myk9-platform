@@ -11,6 +11,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const getPublicUrlMock = vi.hoisted(() => vi.fn());
+const invokeMock = vi.hoisted(() => vi.fn());
 const selectMock = vi.hoisted(() =>
   vi.fn((_columns: string) => ({
     eq: vi.fn(() => ({ maybeSingle: maybeSingleMock })),
@@ -19,6 +20,7 @@ const selectMock = vi.hoisted(() =>
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
+    functions: { invoke: invokeMock },
     from: vi.fn(() => ({
       select: selectMock,
     })),
@@ -34,9 +36,11 @@ describe('usePublishInfo', () => {
     maybeSingleMock.mockReset();
     selectMock.mockClear();
     getPublicUrlMock.mockReset();
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue({ data: { url: 'https://signed.test/current.pdf' }, error: null });
   });
 
-  it('derives the public URL from the trusted persisted storage path', async () => {
+  it('returns durable publication metadata without requiring a signed URL', async () => {
     maybeSingleMock.mockResolvedValue({
       data: {
         published_premium_path: 'show-b/artifact-1.pdf',
@@ -47,18 +51,17 @@ describe('usePublishInfo', () => {
       },
       error: null,
     });
-    getPublicUrlMock.mockReturnValue({
-      data: { publicUrl: 'https://trusted.example/show-b/artifact-1.pdf' },
-    });
-
     await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
       publishedPath: 'show-b/artifact-1.pdf',
-      publishedUrl: 'https://trusted.example/show-b/artifact-1.pdf',
+      publishedLocator: 'https://attacker.example/forged.pdf',
+      hasPublishedPremium: true,
+      versionedSchemaAvailable: true,
     });
-    expect(getPublicUrlMock).toHaveBeenCalledWith('show-b/artifact-1.pdf');
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(getPublicUrlMock).not.toHaveBeenCalled();
   });
 
-  it('uses the latest legacy URL after a rollback publish clears the versioned path', async () => {
+  it('recognizes retained flat legacy publication without signing it during metadata read', async () => {
     maybeSingleMock.mockResolvedValue({
       data: {
         published_premium_path: null,
@@ -72,39 +75,63 @@ describe('usePublishInfo', () => {
 
     await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
       publishedPath: null,
-      publishedUrl: 'https://legacy.example.test/show-b.pdf',
+      publishedLocator: 'https://legacy.example.test/show-b.pdf',
+      hasPublishedPremium: true,
     });
-    expect(getPublicUrlMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it('reads the legacy URL shape when the new publish-path column is not deployed yet', async () => {
-    maybeSingleMock
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          code: 'PGRST204',
-          message:
-            "Could not find the 'published_premium_path' column of 'shows' in the schema cache",
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          published_premium_url: 'https://legacy.example.test/show-b.pdf',
-          published_premium_at: '2026-09-22T21:49:00.000Z',
-          updated_at: '2026-09-22T21:49:00.000Z',
-          experience_is_published: true,
-        },
-        error: null,
-      });
+  it.each(['PGRST204', '42703'])(
+    'reads the legacy URL shape when the new column is missing with %s',
+    async code => {
+      maybeSingleMock
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            code,
+            message:
+              code === 'PGRST204'
+                ? "Could not find the 'published_premium_path' column of 'shows' in the schema cache"
+                : 'column shows.published_premium_path does not exist',
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            published_premium_url: 'https://legacy.example.test/show-b.pdf',
+            published_premium_at: '2026-09-22T21:49:00.000Z',
+            updated_at: '2026-09-22T21:49:00.000Z',
+            experience_is_published: true,
+          },
+          error: null,
+        });
 
-    await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
-      publishedPath: null,
-      publishedUrl: 'https://legacy.example.test/show-b.pdf',
+      await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
+        publishedPath: null,
+        publishedLocator: 'https://legacy.example.test/show-b.pdf',
+        hasPublishedPremium: true,
+        versionedSchemaAvailable: false,
+      });
+      expect(invokeMock).not.toHaveBeenCalled();
+      expect(selectMock.mock.calls.map(([columns]) => columns)).toEqual([
+        'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published',
+        'published_premium_url, published_premium_at, updated_at, experience_is_published',
+      ]);
+    }
+  );
+
+  it('keeps committed status readable if the download endpoint is unavailable', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_path: 'show-b/artifact-1.pdf',
+        published_premium_url: 'https://legacy.example.test/show-b.pdf',
+        published_premium_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
     });
-    expect(selectMock.mock.calls.map(([columns]) => columns)).toEqual([
-      'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published',
-      'published_premium_url, published_premium_at, updated_at, experience_is_published',
-    ]);
+    invokeMock.mockRejectedValueOnce(new Error('endpoint is not deployed'));
+
+    await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({ hasPublishedPremium: true });
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it('does not retry a permission failure with the legacy projection', async () => {
@@ -125,7 +152,7 @@ describe('usePublishInfo', () => {
     };
 
     expect(options.placeholderData).toEqual(expect.any(Function));
-    expect(options.placeholderData?.({ publishedUrl: 'https://show-a.test/premium.pdf' })).toBe(
+    expect(options.placeholderData?.({ publishedLocator: 'https://show-a.test/premium.pdf' })).toBe(
       undefined
     );
   });
@@ -137,7 +164,7 @@ describe('usePublishInfo', () => {
       enabled?: boolean;
       select?: (data: unknown) => unknown;
     };
-    const cachedInfo = { publishedUrl: 'https://show-a.test/premium.pdf' };
+    const cachedInfo = { publishedLocator: 'https://show-a.test/premium.pdf' };
 
     expect(options.enabled).toBe(false);
     expect(options.select?.(cachedInfo)).toBeUndefined();
@@ -150,7 +177,7 @@ describe('usePublishInfo', () => {
       enabled?: boolean;
       select?: (data: unknown) => unknown;
     };
-    const cachedInfo = { publishedUrl: 'https://show-b.test/premium.pdf' };
+    const cachedInfo = { publishedLocator: 'https://show-b.test/premium.pdf' };
 
     expect(options.enabled).toBe(true);
     expect(options.select?.(cachedInfo)).toBe(cachedInfo);

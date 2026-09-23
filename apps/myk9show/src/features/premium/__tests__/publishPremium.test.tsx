@@ -4,6 +4,7 @@ import type { GeneratedPremium } from '../../../types/premium-types';
 const toBlobMock = vi.fn();
 const pdfSpy = vi.fn((_element: unknown) => ({ toBlob: toBlobMock }));
 const uploadMock = vi.fn();
+const getPublicUrlMock = vi.fn(() => ({ data: { publicUrl: 'https://example.com/abc.pdf' } }));
 const fromMock = vi.fn();
 
 vi.mock('@react-pdf/renderer', () => ({
@@ -23,7 +24,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     storage: {
       from: () => ({
         upload: uploadMock,
-        getPublicUrl: () => ({ data: { publicUrl: 'https://example.com/abc.pdf' } }),
+        getPublicUrl: getPublicUrlMock,
       }),
     },
     from: (...args: unknown[]) => {
@@ -95,6 +96,8 @@ describe('publishPremium', () => {
     toBlobMock.mockReset();
     pdfSpy.mockClear();
     uploadMock.mockReset();
+    getPublicUrlMock.mockClear();
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://example.com');
     fromMock.mockReset();
     toBlobMock.mockResolvedValue(new Blob(['pdf']));
     uploadMock.mockResolvedValue({ error: null });
@@ -153,9 +156,9 @@ describe('publishPremium', () => {
 
     expect(uploadMock).toHaveBeenCalledTimes(1);
     expect(fromMock).not.toHaveBeenCalled();
+    expect(getPublicUrlMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       path: 'show-1/artifact-1.pdf',
-      publicUrl: 'https://example.com/abc.pdf',
     });
   });
 

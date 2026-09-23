@@ -294,8 +294,12 @@ Pulled into the Phase 3 PR (#2392) after Codex's review: removing the live
 reads without the canary left nothing to catch a broken read path.
 
 - `exhibitorReadPathCanary.spec.ts` is in `PR_SMOKE_SPECS` (required) and in
-  `REGRESSION_SPECS`. It reads `exhibitor_profiles`, the entries view, `shows`
-  and `dogs` live. A 4xx/5xx on any of them **fails** and names the read. It
+  `REGRESSION_SPECS`. It **requires** two live reads, `exhibitor_profiles`
+  and the entries view, and only **watches** `shows` and `dogs`: those are
+  replication pulls, and a card can render from entry embeds without them
+  (narrowed after the fifth Codex round; requiring them would pin the canary
+  to replication internals). A failed read on any of the four **fails** and
+  names the read. It
   checks for a failed read before checking the page mounted, because a 403 can
   stop the page mounting and "did not mount" would name the symptom instead.
   No profile row, or no entries, **skips** with a `staging-data-absent`

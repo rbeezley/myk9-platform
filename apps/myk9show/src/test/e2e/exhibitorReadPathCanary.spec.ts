@@ -19,12 +19,24 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * - READ PATH BROKEN: a read on the path answers 4xx/5xx, or the data is
  *   there and the page does not render it. That blocks.
  *
+ * WHAT IT PROVES, EXACTLY. Two reads are REQUIRED: `exhibitor_profiles` and
+ * the entries view `view_authenticated_entry_results`. Each must complete
+ * and be judged well-formed, or the canary fails. Those two decide whether My
+ * Shows works: the profile gates the page, and entry rows carry their show
+ * and dog as embeds. `shows` and `dogs` are only WATCHED: if they are read and
+ * fail, the canary fails, but it does not require them to be read at all.
+ * They are replication pulls, and requiring them would pin the canary to
+ * replication internals rather than to what the exhibitor sees (Codex review,
+ * #2392).
+ *
  * In the nightly regression run (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true),
  * absence FAILS too: that run targets a seeded database, so an empty one is
  * exactly what the nightly exists to report, once a night instead of on every
  * pull request.
  */
 
+// Every read judged for breakage. Only the first two are REQUIRED to happen;
+// see "WHAT IT PROVES" above.
 const READ_PATH = ['exhibitor_profiles', 'view_authenticated_entry_results', 'shows', 'dogs'];
 const DATA_REQUIRED = process.env.MYK9_PLAYWRIGHT_REGRESSION_ENABLED === 'true';
 

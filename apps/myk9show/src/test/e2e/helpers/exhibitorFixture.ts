@@ -24,8 +24,10 @@
  * the app can talk to Supabase. `exhibitorReadPathCanary.spec.ts` owns that
  * question. See docs/plan-hermetic-e2e-fixtures.md.
  */
-import type { Page, Route } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import type { Tables } from '@/types/supabase';
+import { fulfillRows, isCountProbe } from './postgrestRoute';
+import { installExhibitorProfile } from './exhibitorProfileRoute';
 
 /**
  * The demo exhibitor's real identifiers. These stay real on purpose: the
@@ -59,7 +61,10 @@ type ShowRow = Pick<
 // NOTE: `dogs` has no `handler_id`. An earlier draft of this fixture invented
 // one and typecheck rejected it — which is the whole argument for typing
 // fixture rows against the generated schema rather than hand-writing JSON.
-type DogRow = Pick<Tables<'dogs'>, 'id' | 'call_name' | 'breed' | 'owner_id' | 'deleted_at'>;
+type DogRow = Pick<
+  Tables<'dogs'>,
+  'id' | 'call_name' | 'name' | 'breed' | 'owner_id' | 'deleted_at'
+>;
 
 const NOW = '2026-01-01T00:00:00.000Z';
 
@@ -98,33 +103,10 @@ const DOG_ROW: DogRow & Record<string, unknown> = {
   breed: 'Belgian Tervuren',
   owner_id: FIXTURE_PERSON_ID,
   deleted_at: null,
-  registered_name: 'Fixture Of The Test Suite',
+  name: 'Fixture Of The Test Suite',
   version: 1,
   created_at: NOW,
   updated_at: NOW,
-};
-
-/**
- * The row that stops the onboarding redirect. `onboarding_completed_at` is the
- * field `useExhibitorProfile` turns `onboardingCompleted` on from, and the
- * `person` key mirrors the embed the query asks for
- * (`person:people!person_id(...)`).
- */
-const EXHIBITOR_PROFILE_ROW = {
-  id: 'f1f1f1f1-0000-0000-0000-000000000041',
-  person_id: FIXTURE_PERSON_ID,
-  auth_user_id: FIXTURE_AUTH_USER_ID,
-  onboarding_completed_at: NOW,
-  created_at: NOW,
-  updated_at: NOW,
-  person: {
-    id: FIXTURE_PERSON_ID,
-    first_name: 'Test',
-    last_name: 'Exhibitor',
-    email: 'exhibitor@myk9t.com',
-    phone: null,
-    profile_image: null,
-  },
 };
 
 /**
@@ -211,21 +193,6 @@ function entryRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function fulfillRows(route: Route, rows: unknown[]) {
-  const count = rows.length;
-  await route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    headers: { 'content-range': `0-${Math.max(count - 1, 0)}/${count}` },
-    body: JSON.stringify(rows),
-  });
-}
-
-/** A HEAD count probe wants headers, not a body (LESSONS postgrest-count-column). */
-function isCountProbe(route: Route) {
-  return route.request().method() === 'HEAD';
-}
-
 /**
  * A finished entry on a past show.
  *
@@ -283,9 +250,14 @@ export async function installExhibitorFixture(
 ): Promise<void> {
   const entries = options.entries ?? [entryRow(), entryRow(COMPLETED_ENTRY_OVERRIDES)];
 
-  await page.route('**/rest/v1/exhibitor_profiles*', async route => {
-    if (isCountProbe(route)) return fulfillRows(route, []);
-    await fulfillRows(route, [EXHIBITOR_PROFILE_ROW]);
+  // The load-bearing row: without it every route redirects to /onboarding.
+  await installExhibitorProfile(page, {
+    authUserId: FIXTURE_AUTH_USER_ID,
+    personId: FIXTURE_PERSON_ID,
+    profileId: 'f1f1f1f1-0000-0000-0000-000000000041',
+    firstName: 'Test',
+    lastName: 'Exhibitor',
+    email: 'exhibitor@myk9t.com',
   });
 
   await page.route('**/rest/v1/view_authenticated_entry_results*', async route => {

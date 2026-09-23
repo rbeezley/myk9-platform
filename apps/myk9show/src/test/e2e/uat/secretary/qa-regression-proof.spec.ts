@@ -1,7 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { SECRETARY_USER, signInAsSecretary } from '../shared/auth';
 import { currentMonthWizardDates } from '../../shared/wizardDates';
-import { ADD_TRIALS_SHOW_ID } from '../shared/seededShows';
+import {
+  installSecretaryFixture,
+  SECRETARY_FIXTURE_SHOW_ID,
+} from '../../helpers/secretaryFixture';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -103,9 +106,14 @@ test.describe('Secretary QA regression proof', () => {
   });
 
   test('trial configuration uses human AKC labels and required event numbers', async ({ page }) => {
+    // Hermetic show (docs/plan-hermetic-e2e-fixtures.md). This case opened the
+    // seeded show until staging was emptied on 2026-09-20 and the wizard fell
+    // to "We couldn't open this show". The fixture aborts writes, so nothing
+    // here can save into the secretary's real club.
+    await installSecretaryFixture(page);
     await signInAsSecretary(
       page,
-      `/secretary/create-show/wizard?showId=${ADD_TRIALS_SHOW_ID}&mode=add-trials`
+      `/secretary/create-show/wizard?showId=${SECRETARY_FIXTURE_SHOW_ID}&mode=add-trials`
     );
 
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({

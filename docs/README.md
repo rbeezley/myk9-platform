@@ -68,6 +68,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-exhibitor-onboarding-remediation.md](plan-exhibitor-onboarding-remediation.md)                             | Active    | Exhibitor Onboarding Remediation Plan                                              |
 | [plan-exhibitor-show-actions.md](plan-exhibitor-show-actions.md)                                                 | Active    | Exhibitor Show Actions — inventory and one actions surface (MYK9-631)              |
 | [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md)                                   | Active    | Plan: Fix nightly review findings                                                  |
+| [plan-backlog-batches-2026-09-23.md](plan-backlog-batches-2026-09-23.md)                                         | Active    | Linear backlog in batches 2026-09-23 — 53 issues into 19 PRs                       |
 | [plan-linear-backlog-burndown-2026-09.md](plan-linear-backlog-burndown-2026-09.md)                               | Active    | Linear backlog burndown 2026-09 — orchestrated clearance of Todo/In Progress       |
 | [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md)                                                 | Active    | Current Linear Todo implementation plan — 2026-09-05                               |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Complete  | MYK9-110 — cross-project recovery rehearsal                                        |

@@ -244,20 +244,42 @@ BEGIN
     RAISE EXCEPTION 'FAIL exact lost-response retry did not reconcile committed publication: %', reconcile;
   END IF;
 
-  SELECT published_premium_path INTO previous_path FROM public.shows WHERE id = own_show;
-  IF previous_path IS NULL OR NOT EXISTS (
-    SELECT 1 FROM public.shows
-    WHERE id = own_show
-      AND experience_is_published
-      AND experience_published_style = 'heritage'
-      AND published_premium_url = versioned_url
-      AND premium_publish_version = first_version
-      AND published_premium_version = first_version
-      AND experience_published_content->'outputs'->>'premiumPath' = own_show::text || '/' || artifact || '.pdf'
-      AND experience_published_content->'outputs'->>'premiumUrl' = versioned_url
-      AND experience_published_content->>'generatedAt' = experience_published_at::text
-  ) THEN
-    RAISE EXCEPTION 'FAIL atomic publication did not commit metadata and snapshot';
+  SELECT published_premium_path,
+         jsonb_build_object(
+           'path', published_premium_path,
+           'url', published_premium_url,
+           'isPublished', experience_is_published,
+           'style', experience_published_style,
+           'attemptVersion', premium_publish_version,
+           'publishedVersion', published_premium_version,
+           'snapshotPath', experience_published_content->'outputs'->>'premiumPath',
+           'snapshotUrl', experience_published_content->'outputs'->>'premiumUrl',
+           'publicationTimesMatch',
+             published_premium_at IS NOT NULL
+             AND experience_published_at IS NOT NULL
+             AND published_premium_at = experience_published_at,
+           'generatedAtMatchesPublishedAt',
+             coalesce(
+               experience_published_content->'generatedAt' = to_jsonb(published_premium_at),
+               false
+             )
+         )
+    INTO previous_path, result
+    FROM public.shows
+   WHERE id = own_show;
+  IF result IS DISTINCT FROM jsonb_build_object(
+       'path', own_show::text || '/' || artifact || '.pdf',
+       'url', versioned_url,
+       'isPublished', true,
+       'style', 'heritage',
+       'attemptVersion', first_version,
+       'publishedVersion', first_version,
+       'snapshotPath', own_show::text || '/' || artifact || '.pdf',
+       'snapshotUrl', versioned_url,
+       'publicationTimesMatch', true,
+       'generatedAtMatchesPublishedAt', true
+     ) THEN
+    RAISE EXCEPTION 'FAIL atomic publication state differs from committed intent: %', result;
   END IF;
 
   -- The publication RPC is the only application writer for the full

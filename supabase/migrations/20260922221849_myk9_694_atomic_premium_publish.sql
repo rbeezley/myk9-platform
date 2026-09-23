@@ -137,6 +137,10 @@ BEGIN
 END;
 $$;
 
+-- Trigger functions are invoked by the trigger machinery and are not API RPCs.
+-- Remove PostgreSQL's default PUBLIC execute privilege explicitly.
+REVOKE ALL ON FUNCTION public.guard_premium_publication_state() FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS validate_premium_publication_identity ON public.shows;
 DROP TRIGGER IF EXISTS premium_publication_state_guard ON public.shows;
 CREATE TRIGGER premium_publication_state_guard

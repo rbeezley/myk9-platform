@@ -21,7 +21,17 @@ VALUES
   ('00000000-0000-0000-0000-000000639713', '00000000-0000-0000-0000-000000639703',
    'MYK9-639 denial class', 'Exterior', 'Novice'),
   ('00000000-0000-0000-0000-000000639716', '00000000-0000-0000-0000-000000639703',
-   'MYK9-639 recovered cart class', 'Buried', 'Novice');
+   'MYK9-639 recovered cart class', 'Buried', 'Novice'),
+  ('00000000-0000-0000-0000-000000639717', '00000000-0000-0000-0000-000000639703',
+   'MYK9-639 move-up class two', 'Container', 'Advanced'),
+  ('00000000-0000-0000-0000-000000639718', '00000000-0000-0000-0000-000000639703',
+   'MYK9-639 move-up class three', 'Container', 'Excellent'),
+  ('00000000-0000-0000-0000-000000639719', '00000000-0000-0000-0000-000000639703',
+   'MYK9-639 wrong-dog lineage class', 'Interior', 'Advanced'),
+  ('00000000-0000-0000-0000-000000639720', '00000000-0000-0000-0000-000000639703',
+   'MYK9-639 reversal source class', 'Buried', 'Novice'),
+  ('00000000-0000-0000-0000-000000639780', '00000000-0000-0000-0000-000000639703',
+   'MYK9-639 reversal destination class', 'Buried', 'Advanced');
 UPDATE public.classes SET max_entries = 1, allow_waitlist = true
  WHERE id = '00000000-0000-0000-0000-000000639711';
 UPDATE public.classes SET max_entries = 1, allow_waitlist = false
@@ -31,13 +41,15 @@ VALUES
   ('00000000-0000-0000-0000-000000639705', 'MYK9-639 Settlement Dog', 'Dog', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639710', 'MYK9-639 Cart Dog', 'Cart', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639730', 'MYK9-639 Mismatched Dog', 'Mismatch', 'Beagle', 'active'),
-  ('00000000-0000-0000-0000-000000639760', 'MYK9-639 Capacity Dog', 'Capacity', 'Beagle', 'active');
+  ('00000000-0000-0000-0000-000000639760', 'MYK9-639 Capacity Dog', 'Capacity', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639770', 'MYK9-639 Replacement Offer Dog', 'Replacement', 'Beagle', 'active');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 VALUES
   ('00000000-0000-0000-0000-000000639705', 'AKC', 'SR6397001', true),
   ('00000000-0000-0000-0000-000000639710', 'AKC', 'SR6397002', true),
   ('00000000-0000-0000-0000-000000639730', 'AKC', 'SR6397003', true),
-  ('00000000-0000-0000-0000-000000639760', 'AKC', 'SR6397004', true);
+  ('00000000-0000-0000-0000-000000639760', 'AKC', 'SR6397004', true),
+  ('00000000-0000-0000-0000-000000639770', 'AKC', 'SR6397005', true);
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES ('00000000-0000-0000-0000-000000639721', 'MYK9-639', 'Cart Exhibitor',
         'myk9-639-settlement-cart@example.test');
@@ -65,10 +77,10 @@ INSERT INTO public.entries (
    '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', NULL, 'moved', 'pending', 'online', 35),
   ('00000000-0000-0000-0000-000000639707', '00000000-0000-0000-0000-000000639705',
-   '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
+   '00000000-0000-0000-0000-000000639717', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', '00000000-0000-0000-0000-000000639706', 'moved', 'pending', NULL, 0),
   ('00000000-0000-0000-0000-000000639708', '00000000-0000-0000-0000-000000639705',
-   '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
+   '00000000-0000-0000-0000-000000639718', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', '00000000-0000-0000-0000-000000639707', 'confirmed', 'pending', NULL, 0);
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, payment_method, entry_fee
@@ -83,10 +95,10 @@ INSERT INTO public.entries (
    '00000000-0000-0000-0000-000000639716', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', 'pending-payment', 'pending', 'check', 35),
   ('00000000-0000-0000-0000-000000639731', '00000000-0000-0000-0000-000000639705',
-   '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
+   '00000000-0000-0000-0000-000000639719', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', 'moved', 'pending', 'online', 35),
   ('00000000-0000-0000-0000-000000639732', '00000000-0000-0000-0000-000000639730',
-   '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
+   '00000000-0000-0000-0000-000000639719', '00000000-0000-0000-0000-000000639702',
    '00000000-0000-0000-0000-000000639703', 'confirmed', 'pending', NULL, 0);
 UPDATE public.entries SET moved_from_entry_id = '00000000-0000-0000-0000-000000639731'
  WHERE id = '00000000-0000-0000-0000-000000639732';
@@ -94,7 +106,7 @@ INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, payment_method, entry_fee
 ) VALUES (
   '00000000-0000-0000-0000-000000639735', '00000000-0000-0000-0000-000000639730',
-  '00000000-0000-0000-0000-000000639716', '00000000-0000-0000-0000-000000639702',
+  '00000000-0000-0000-0000-000000639720', '00000000-0000-0000-0000-000000639702',
   '00000000-0000-0000-0000-000000639703', 'confirmed', 'pending', 'check', 35
 );
 INSERT INTO public.entries (
@@ -122,7 +134,7 @@ INSERT INTO public.waitlist_entries (
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, payment_method, entry_fee
 ) VALUES (
-  '00000000-0000-0000-0000-000000639752', '00000000-0000-0000-0000-000000639730',
+  '00000000-0000-0000-0000-000000639752', '00000000-0000-0000-0000-000000639770',
   '00000000-0000-0000-0000-000000639716', '00000000-0000-0000-0000-000000639702',
   '00000000-0000-0000-0000-000000639703', 'promotion-expired', 'pending', 'online', 35
 );
@@ -130,14 +142,14 @@ INSERT INTO public.waitlist_entries (
   id, class_id, exhibitor_id, dog_id, position, status, promoted_entry_id
 ) VALUES
   ('00000000-0000-0000-0000-000000639753', '00000000-0000-0000-0000-000000639716',
-   '00000000-0000-0000-0000-000000639723', '00000000-0000-0000-0000-000000639730',
+   '00000000-0000-0000-0000-000000639723', '00000000-0000-0000-0000-000000639770',
    3, 'expired', '00000000-0000-0000-0000-000000639752');
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, moved_from_entry_id,
   entry_status, payment_status, entry_fee, deleted_at
 ) VALUES (
   '00000000-0000-0000-0000-000000639736', '00000000-0000-0000-0000-000000639730',
-  '00000000-0000-0000-0000-000000639704', '00000000-0000-0000-0000-000000639702',
+  '00000000-0000-0000-0000-000000639780', '00000000-0000-0000-0000-000000639702',
   '00000000-0000-0000-0000-000000639703', '00000000-0000-0000-0000-000000639735',
   'confirmed', 'pending', 0, now()
 );
@@ -291,6 +303,22 @@ BEGIN
   );
   IF v_result.canonical_entry_ids <> ARRAY['00000000-0000-0000-0000-000000639735'::uuid] THEN
     RAISE EXCEPTION 'FAIL a reversed move-up did not restore the money root as the live service entry';
+  END IF;
+  SELECT * INTO STRICT v_order FROM public.stripe_orders
+   WHERE stripe_checkout_session_id = 'cs_639_reversed_move';
+  IF (SELECT payment_status FROM public.entries
+       WHERE id = '00000000-0000-0000-0000-000000639735') IS DISTINCT FROM 'paid'
+     OR (SELECT payment_method FROM public.entries
+       WHERE id = '00000000-0000-0000-0000-000000639735') IS DISTINCT FROM 'online'
+     OR (SELECT stripe_payment_intent_id FROM public.entries
+       WHERE id = '00000000-0000-0000-0000-000000639735') IS DISTINCT FROM 'pi_639_reversed_move'
+     OR v_order.entry_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000639735'::uuid]
+     OR v_order.metadata->>'entry_payment_link_id' IS DISTINCT FROM '00000000-0000-0000-0000-000000639737'
+     OR v_order.metadata->>'settlement_source_kind' IS DISTINCT FROM 'payment_link'
+     OR v_order.metadata->>'settlement_source_id' IS DISTINCT FROM '00000000-0000-0000-0000-000000639737'
+     OR (SELECT status FROM public.entry_payment_links
+       WHERE id = '00000000-0000-0000-0000-000000639737') IS DISTINCT FROM 'paid' THEN
+    RAISE EXCEPTION 'FAIL reversed move-up did not persist its entry, order, and payment-link settlement state';
   END IF;
 
   -- A charged expired promotion remains payable only while the matching offer

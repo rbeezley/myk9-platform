@@ -1,0 +1,178 @@
+name: Deploy myK9Show
+
+# Pre-launch deploy on demand. Vercel's Git integration no longer builds
+# myK9Show (apps/myk9show/vercel.json sets git.deploymentEnabled to false), so
+# merging to main changes nothing live: production moves only when someone runs
+# this workflow. It builds here, on free Actions minutes, and uploads the
+# finished output with `vercel deploy --prebuilt`, so a deploy costs Vercel one
+# deployment and no build minutes. MYK9-44 replaces this with the CI-gated
+# staging -> production path in deploy-staging.yml / deploy-production.yml.
+#
+#   gh workflow run deploy-myk9show.yml                       # newest green main
+#   gh workflow run deploy-myk9show.yml -f commit_sha=<sha>   # a specific commit
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character main commit SHA (blank = newest main commit with a green CI run)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-myk9show
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Pick a green main commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      commit_sha: ${{ steps.pick.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate the commit
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+
+          green_shas="$(gh run list --workflow CI --branch main --event push --status success --limit 100 --json headSha --jq '.[].headSha')"
+
+          if [[ -z "$REQUESTED_SHA" ]]; then
+            # gh lists newest first, so the first green SHA is the newest one.
+            commit_sha="$(head -n 1 <<<"$green_shas")"
+            [[ -n "$commit_sha" ]] || {
+              echo "no successful main CI push run found" >&2
+              exit 1
+            }
+          else
+            commit_sha="$REQUESTED_SHA"
+            [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "commit_sha must be a full 40-character SHA" >&2
+              exit 1
+            }
+            grep -Fxq "$commit_sha" <<<"$green_shas" || {
+              echo "no successful main CI push run found for $commit_sha" >&2
+              exit 1
+            }
+          fi
+
+          git merge-base --is-ancestor "$commit_sha" origin/main || {
+            echo "$commit_sha is not reachable from origin/main" >&2
+            exit 1
+          }
+
+          behind="$(git rev-list --count "$commit_sha..origin/main")"
+          echo "commit_sha=$commit_sha" >>"$GITHUB_OUTPUT"
+          {
+            echo "### myK9Show deploy"
+            echo ""
+            echo "- Commit: \`$commit_sha\` ($(git log -1 --format=%s "$commit_sha"))"
+            echo "- Commits on main not included (still in CI or failed it): $behind"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Build and deploy to Vercel production
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://myk9show.com
+    permissions:
+      contents: read
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_CLI: vercel@59
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.preflight.outputs.commit_sha }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+
+      - name: Pull production project settings and env
+        run: pnpm dlx "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build
+        run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy the prebuilt output
+        id: deploy
+        run: |
+          set -euo pipefail
+          url="$(pnpm dlx "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
+          echo "url=$url" >>"$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+      # MYK9-546: the custom domain once served a bundle days behind the default
+      # alias. Fail the run unless this deployment owns myk9show.com and the
+      # domain serves the same entry chunk as the default production alias (the
+      # per-deployment URL can sit behind Vercel deployment protection).
+      - name: Verify myk9show.com serves this deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          ref="${DEPLOYMENT_URL#https://}"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$ref?teamId=$VERCEL_ORG_ID" >deployment.json
+          deployment_id="$(node -e '
+            const d = JSON.parse(require("node:fs").readFileSync("deployment.json", "utf8"));
+            if (d.readyState !== "READY") throw new Error(`deployment is ${d.readyState}, not READY`);
+            if (d.projectId !== process.env.VERCEL_PROJECT_ID) throw new Error("deployment belongs to another project");
+            process.stdout.write(d.id ?? d.uid);
+          ')"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v2/deployments/$deployment_id/aliases?teamId=$VERCEL_ORG_ID" >aliases.json
+          node -e '
+            const a = JSON.parse(require("node:fs").readFileSync("aliases.json", "utf8"));
+            if (!a.aliases?.some(({ alias }) => alias === "myk9show.com")) {
+              throw new Error("this deployment does not own myk9show.com");
+            }
+          '
+          # Read the whole page before matching: `curl | grep | head` can SIGPIPE
+          # curl, which pipefail turns into a failed step.
+          entry() {
+            local html
+            html="$(curl --fail --silent --show-error --location "$1")"
+            grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
+          }
+          for attempt in 1 2 3 4 5 6; do
+            default_alias="$(entry "https://myk9-platform-myk9show.vercel.app/")"
+            public="$(entry "https://myk9show.com/")"
+            [[ -n "$public" && "$default_alias" == "$public" ]] && break
+            echo "attempt $attempt: default alias=$default_alias myk9show.com=$public"
+            if [[ $attempt -lt 6 ]]; then sleep 10; fi
+          done
+          [[ -n "$public" && "$default_alias" == "$public" ]] || {
+            echo "entry chunk mismatch after 60s: default alias=$default_alias myk9show.com=$public" >&2
+            exit 1
+          }
+          rm -f deployment.json aliases.json
+          {
+            echo "- Deployment: $DEPLOYMENT_URL (\`$deployment_id\`)"
+            echo "- myk9show.com serves \`$public\`"
+          } >>"$GITHUB_STEP_SUMMARY"

@@ -113,4 +113,11 @@ for test_file in "${TEST_FILES[@]}"; do
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$test_file"
 done
 
+if [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+  echo "SKIP: local hard-delete concurrency harness (source-contract test mode)"
+else
+  MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
+    bash "$REPO_ROOT/scripts/qa/hard-delete-show-concurrency.sh"
+fi
+
 echo "BEHAVIORAL SQL TESTS PASSED (${#TEST_FILES[@]} files)"

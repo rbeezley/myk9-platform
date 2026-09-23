@@ -1,7 +1,7 @@
--- MYK9-615: hard_delete_show refuses to discard any scoped money evidence,
--- active money lock, promo-code history, packet snapshot, or cross-show entry.
--- Each refusal gets an isolated show fixture; the successful zero-evidence case
--- includes only unpaid rows with blank payment references. Everything rolls back.
+-- MYK9-615: hard_delete_show refuses scoped payment/evidence rows, permanent
+-- show-day audit history, and cross-show entries. Each refusal gets an isolated
+-- show fixture; the successful zero-evidence case proves ordinary transient
+-- children are disposable. Everything rolls back.
 
 BEGIN;
 
@@ -72,6 +72,14 @@ VALUES
   ('00000000-0000-0000-0000-000000615021', 'MYK9-615 other show', 'AKC',
    DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft'),
   ('00000000-0000-0000-0000-000000615022', 'MYK9-615 zero evidence', 'AKC',
+   DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft'),
+  ('00000000-0000-0000-0000-000000615023', 'MYK9-615 payout', 'AKC',
+   DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft'),
+  ('00000000-0000-0000-0000-000000615024', 'MYK9-615 print confirmation', 'AKC',
+   DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft'),
+  ('00000000-0000-0000-0000-000000615025', 'MYK9-615 incident', 'AKC',
+   DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft'),
+  ('00000000-0000-0000-0000-000000615026', 'MYK9-615 packet generation failure', 'AKC',
    DATE '2026-09-01', DATE '2026-09-02', '00000000-0000-0000-0000-000000615001', 'draft');
 
 INSERT INTO public.trials (id, show_id, name, date)
@@ -111,34 +119,45 @@ VALUES
 
 INSERT INTO public.entries (
   id, show_id, class_id, trial_id, registration_id, payment_status,
-  payment_reference, payment_method, refund_amount
+  payment_reference, payment_method, refund_amount, stripe_payment_intent_id
 )
 VALUES
+  ('00000000-0000-0000-0000-000000619005', '00000000-0000-0000-0000-000000615005',
+   NULL, NULL, NULL, 'pending', NULL, NULL, NULL, 'pi_myk9_615_refund'),
   ('00000000-0000-0000-0000-000000619006', '00000000-0000-0000-0000-000000615006',
-   NULL, NULL, NULL, 'pending', NULL, NULL, NULL),
+   NULL, NULL, NULL, 'pending', NULL, NULL, NULL, NULL),
   ('00000000-0000-0000-0000-000000619008', '00000000-0000-0000-0000-000000615008',
-   NULL, NULL, NULL, 'pending', 'RCPT-615', NULL, NULL),
+   NULL, NULL, NULL, 'pending', 'RCPT-615', NULL, NULL, NULL),
   ('00000000-0000-0000-0000-000000619014', '00000000-0000-0000-0000-000000615014',
-   NULL, NULL, NULL, 'paid', '   ', 'cash', NULL),
+   NULL, NULL, NULL, 'paid', '   ', 'cash', NULL, NULL),
   ('00000000-0000-0000-0000-000000619015', '00000000-0000-0000-0000-000000615015',
-   NULL, NULL, NULL, 'refunded', NULL, 'cash', NULL),
+   NULL, NULL, NULL, 'refunded', NULL, 'cash', NULL, NULL),
   ('00000000-0000-0000-0000-000000619016', '00000000-0000-0000-0000-000000615016',
-   NULL, NULL, NULL, 'pending', NULL, NULL, 2.00),
+   NULL, NULL, NULL, 'pending', NULL, NULL, 2.00, NULL),
   ('00000000-0000-0000-0000-000000619020', '00000000-0000-0000-0000-000000615021',
    '00000000-0000-0000-0000-000000617020',
    '00000000-0000-0000-0000-000000616020',
-   '00000000-0000-0000-0000-000000618020', 'pending', NULL, NULL, NULL),
+   '00000000-0000-0000-0000-000000618020', 'pending', NULL, NULL, NULL, NULL),
   ('00000000-0000-0000-0000-000000619022', '00000000-0000-0000-0000-000000615022',
    '00000000-0000-0000-0000-000000617022',
    '00000000-0000-0000-0000-000000616022',
-   '00000000-0000-0000-0000-000000618022', 'pending', '   ', NULL, NULL);
+   '00000000-0000-0000-0000-000000618022', 'pending', '   ', NULL, NULL, NULL);
+
+INSERT INTO public.entry_status_history (entry_id, previous_status, new_status, reason)
+VALUES ('00000000-0000-0000-0000-000000619022', NULL, 'pending', 'MYK9-615 disposable entry history');
+
+INSERT INTO public.trial_packet_print_reminders (show_id, trial_date, reminder_kind)
+VALUES ('00000000-0000-0000-0000-000000615022', DATE '2026-09-01', 'evening-before');
 
 INSERT INTO public.stripe_orders (id, amount_cents, status, show_id)
 VALUES
   ('00000000-0000-0000-0000-000000620003', 5000, 'succeeded',
-   '00000000-0000-0000-0000-000000615003'),
-  ('00000000-0000-0000-0000-000000620005', 3000, 'refunded',
-   '00000000-0000-0000-0000-000000615005');
+   '00000000-0000-0000-0000-000000615003');
+
+-- The refund's order is deliberately detached: only its payment-intent
+-- association to the target entry protects the refund from show deletion.
+INSERT INTO public.stripe_orders (id, amount_cents, status)
+VALUES ('00000000-0000-0000-0000-000000620005', 3000, 'refunded');
 
 INSERT INTO public.stripe_orders (id, amount_cents, status, enrollment_id)
 VALUES ('00000000-0000-0000-0000-000000620004', 2500, 'succeeded',
@@ -180,6 +199,41 @@ VALUES ('00000000-0000-0000-0000-000000620019',
         '00000000-0000-0000-0000-000000615019/emergency.pdf',
         now(), '00000000-0000-0000-0000-000000615109',
         repeat('a', 64), 1, 100, 'failed');
+
+INSERT INTO public.show_payouts (id, show_id, amount_cents, status)
+VALUES ('00000000-0000-0000-0000-000000620023',
+        '00000000-0000-0000-0000-000000615023', 12500, 'completed');
+
+-- Voided is still durable print evidence; it is intentionally counted too.
+INSERT INTO public.paperwork_prints (
+  id, show_id, scope_kind, report_id, coverage, fingerprint,
+  printed_by, printed_by_name, printed_at, voided_at, voided_by, void_reason
+)
+VALUES (
+  '00000000-0000-0000-0000-000000620024',
+  '00000000-0000-0000-0000-000000615024', 'show', 'entry-list', '{}',
+  'myk9-615-print-fingerprint', '00000000-0000-0000-0000-000000615109',
+  'MYK9-615 Admin', now() - interval '1 minute', now(),
+  '00000000-0000-0000-0000-000000615109', 'Fixture correction'
+);
+
+INSERT INTO public.show_incidents (
+  id, show_id, incident_type, severity, summary, created_by
+)
+VALUES (
+  '00000000-0000-0000-0000-000000620025',
+  '00000000-0000-0000-0000-000000615025', 'complaint', 'reportable',
+  'MYK9-615 retained incident evidence', '00000000-0000-0000-0000-000000615109'
+);
+
+INSERT INTO public.trial_packet_generation_claims (
+  id, show_id, trial_date, last_error, failed_at, attempts
+)
+VALUES (
+  '00000000-0000-0000-0000-000000620026',
+  '00000000-0000-0000-0000-000000615026', DATE '2026-09-01',
+  'MYK9-615 preserved failed packet-generation evidence', now(), 1
+);
 
 CREATE FUNCTION pg_temp.assert_hard_delete_refused(
   p_show_id uuid,
@@ -238,7 +292,7 @@ BEGIN
     SELECT * FROM (VALUES
       ('direct Stripe order', '00000000-0000-0000-0000-000000615003'::uuid, 'payment evidence'),
       ('enrollment-scoped Stripe order', '00000000-0000-0000-0000-000000615004'::uuid, 'payment evidence'),
-      ('Stripe refund', '00000000-0000-0000-0000-000000615005'::uuid, 'payment evidence'),
+      ('Stripe refund with detached order', '00000000-0000-0000-0000-000000615005'::uuid, 'refunds 1'),
       ('entry payment link', '00000000-0000-0000-0000-000000615006'::uuid, 'payment evidence'),
       ('nonblank enrollment payment reference', '00000000-0000-0000-0000-000000615007'::uuid, 'payment evidence'),
       ('nonblank entry payment reference', '00000000-0000-0000-0000-000000615008'::uuid, 'payment evidence'),
@@ -252,7 +306,11 @@ BEGIN
       ('show money lock', '00000000-0000-0000-0000-000000615017'::uuid, 'money lock'),
       ('show promo code', '00000000-0000-0000-0000-000000615018'::uuid, 'promo code'),
       ('trial packet snapshot', '00000000-0000-0000-0000-000000615019'::uuid, 'trial packet'),
-      ('cross-show entry association', '00000000-0000-0000-0000-000000615020'::uuid, 'cross-show entry association')
+      ('cross-show entry association', '00000000-0000-0000-0000-000000615020'::uuid, 'cross-show entry association'),
+      ('show payout', '00000000-0000-0000-0000-000000615023'::uuid, 'show payouts 1'),
+      ('voided paperwork print confirmation', '00000000-0000-0000-0000-000000615024'::uuid, 'paperwork print confirmations 1'),
+      ('permanent show incident', '00000000-0000-0000-0000-000000615025'::uuid, 'show incidents 1'),
+      ('failed packet generation claim', '00000000-0000-0000-0000-000000615026'::uuid, 'packet generation claims 1')
     ) AS cases(case_name, show_id, expected_message)
   LOOP
     PERFORM pg_temp.assert_hard_delete_refused(
@@ -268,7 +326,9 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.trials WHERE id = '00000000-0000-0000-0000-000000616022')
      OR EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000000617022')
      OR EXISTS (SELECT 1 FROM public.entries WHERE id = '00000000-0000-0000-0000-000000619022')
-     OR EXISTS (SELECT 1 FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000618022') THEN
+     OR EXISTS (SELECT 1 FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000618022')
+     OR EXISTS (SELECT 1 FROM public.trial_packet_print_reminders WHERE show_id = '00000000-0000-0000-0000-000000615022')
+     OR EXISTS (SELECT 1 FROM public.entry_status_history WHERE entry_id = '00000000-0000-0000-0000-000000619022') THEN
     RAISE EXCEPTION 'FAIL MYK9-615: zero-evidence show or its ordinary children survived deletion';
   END IF;
 

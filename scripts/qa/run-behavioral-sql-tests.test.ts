@@ -19,6 +19,10 @@ const hardDeleteShowMigration = resolve(
   repositoryRoot,
   'supabase/migrations/20260920173147_harden_hard_delete_show_money_guards.sql'
 );
+const hardDeleteShowFixture = readFileSync(
+  resolve(repositoryRoot, 'supabase/tests/hard_delete_show_money_guards_test.sql'),
+  'utf8'
+);
 const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
 const pullRefundFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/pull_refund_decision_rls_test.sql'),
@@ -111,7 +115,7 @@ const launchCriticalSqlTests = [
 ];
 
 describe('behavioral SQL test harness', () => {
-  it('locks the target show before guards and preserves the RPC security contract', () => {
+  it('serializes owned-show deletion before guards and preserves the RPC security contract', () => {
     expect(existsSync(hardDeleteShowMigration)).toBe(true);
     if (!existsSync(hardDeleteShowMigration)) return;
 
@@ -120,8 +124,8 @@ describe('behavioral SQL test harness', () => {
       'CREATE OR REPLACE FUNCTION public.hard_delete_show(p_show_id UUID)'
     );
     expect(migration).toContain('SECURITY DEFINER');
-    expect(migration).toContain('SET search_path = public');
-    expect(migration).toContain('IF NOT (SELECT is_platform_admin()) THEN');
+    expect(migration).toContain("SET search_path = ''");
+    expect(migration).toContain('IF NOT (SELECT public.is_platform_admin()) THEN');
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION public.hard_delete_show(UUID) FROM PUBLIC, anon;'
     );
@@ -129,14 +133,114 @@ describe('behavioral SQL test harness', () => {
       'GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;'
     );
 
+    const relationLocks = [
+      "PERFORM pg_catalog.set_config('lock_timeout', '2s', true);",
+      'LOCK TABLE public.stripe_orders IN EXCLUSIVE MODE;',
+      'LOCK TABLE public.entry_payment_links IN EXCLUSIVE MODE;',
+      'LOCK TABLE public.stripe_order_refunds IN EXCLUSIVE MODE;',
+    ];
+    let previousRelationLock = -1;
+    for (const lockStatement of relationLocks) {
+      const position = migration.indexOf(lockStatement);
+      expect(position, `missing or reordered lock statement: ${lockStatement}`).toBeGreaterThan(
+        previousRelationLock
+      );
+      previousRelationLock = position;
+    }
+
     const targetLockMatch =
       /PERFORM 1\s+FROM public\.shows\s+WHERE id = p_show_id\s+FOR UPDATE;/.exec(migration);
     const targetLock = targetLockMatch?.index ?? -1;
-    const firstGuard = migration.indexOf('SELECT count(*) INTO');
-    const firstDelete = migration.indexOf('DELETE FROM entries');
+    const scopedRowLocks = [
+      /FROM public\.trials\s+WHERE show_id = p_show_id\s+ORDER BY id\s+FOR UPDATE;/,
+      /FROM public\.classes c\s+JOIN public\.trials t ON t\.id = c\.trial_id\s+WHERE t\.show_id = p_show_id\s+ORDER BY c\.id\s+FOR UPDATE OF c;/,
+      /FROM public\.enrollments\s+WHERE show_id = p_show_id\s+ORDER BY id\s+FOR UPDATE;/,
+      /FROM public\.entries e[\s\S]*?ORDER BY e\.id\s+FOR UPDATE OF e;/,
+    ];
+    let previousScopedLock = targetLock;
+    for (const lockPattern of scopedRowLocks) {
+      const position = lockPattern.exec(migration)?.index ?? -1;
+      expect(position, `missing or reordered scoped row lock: ${lockPattern}`).toBeGreaterThan(
+        previousScopedLock
+      );
+      previousScopedLock = position;
+    }
+    const firstGuard = migration.indexOf('SELECT pg_catalog.count(*) INTO');
+    const firstDelete = migration.indexOf('DELETE FROM public.entries');
     expect(targetLock).toBeGreaterThanOrEqual(0);
-    expect(firstGuard).toBeGreaterThan(targetLock);
+    expect(targetLock).toBeGreaterThan(previousRelationLock);
+    expect(firstGuard).toBeGreaterThan(previousScopedLock);
     expect(firstDelete).toBeGreaterThan(firstGuard);
+  });
+
+  it('preserves payout, print, incident, and packet-failure evidence before deletion', () => {
+    const migration = readFileSync(hardDeleteShowMigration, 'utf8');
+
+    for (const refusalCounter of [
+      'v_payout_count',
+      'v_paperwork_print_count',
+      'v_incident_count',
+      'v_packet_claim_count',
+    ]) {
+      expect(migration).toContain(refusalCounter);
+    }
+    for (const protectedTable of [
+      'public.show_payouts',
+      'public.paperwork_prints',
+      'public.show_incidents',
+      'public.trial_packet_generation_claims',
+    ]) {
+      expect(migration).toContain(`FROM ${protectedTable}`);
+    }
+    expect(migration).not.toContain('DELETE FROM public.show_payouts');
+    expect(migration).not.toContain('DELETE FROM public.paperwork_prints');
+    expect(migration).not.toContain('DELETE FROM public.show_incidents');
+    expect(migration).not.toContain('DELETE FROM public.trial_packet_generation_claims');
+  });
+
+  it('tests detached refunds and each retained-evidence guard independently', () => {
+    expect(hardDeleteShowFixture).toContain(
+      "'00000000-0000-0000-0000-000000615005', 'MYK9-615 refund', 'AKC'"
+    );
+    expect(hardDeleteShowFixture).toContain(
+      "INSERT INTO public.stripe_orders (id, amount_cents, status)\nVALUES ('00000000-0000-0000-0000-000000620005', 3000, 'refunded');"
+    );
+    expect(hardDeleteShowFixture).toContain("'pi_myk9_615_refund'");
+    expect(hardDeleteShowFixture).toContain(
+      "('Stripe refund with detached order', '00000000-0000-0000-0000-000000615005'::uuid, 'refunds 1')"
+    );
+
+    for (const [showId, expectedMessage] of [
+      ['615023', 'show payouts 1'],
+      ['615024', 'paperwork print confirmations 1'],
+      ['615025', 'show incidents 1'],
+      ['615026', 'packet generation claims 1'],
+    ]) {
+      expect(hardDeleteShowFixture).toContain(`'00000000-0000-0000-0000-000000${showId}'`);
+      expect(hardDeleteShowFixture).toContain(`'${expectedMessage}'`);
+    }
+    expect(hardDeleteShowFixture).toContain('public.trial_packet_print_reminders');
+    expect(hardDeleteShowFixture).toContain('public.entry_status_history');
+    expect(hardDeleteShowFixture).toContain(
+      'zero-evidence show or its ordinary children survived deletion'
+    );
+  });
+
+  it('registers the local-only two-session hard-delete concurrency harness', () => {
+    const runnerSource = readFileSync(runner, 'utf8');
+    const harness = resolve(repositoryRoot, 'scripts/qa/hard-delete-show-concurrency.sh');
+
+    expect(runnerSource).toContain('hard-delete-show-concurrency.sh');
+    expect(existsSync(harness)).toBe(true);
+    if (!existsSync(harness)) return;
+
+    const source = readFileSync(harness, 'utf8');
+    expect(source).toContain('postgresql://postgres:postgres@127.0.0.1:54322/postgres');
+    expect(source).toContain('SET payment_reference');
+    expect(source).toContain('INSERT INTO public.entries');
+    expect(source).toContain('entry_ids');
+    expect(source).toContain('automated retries are disabled');
+    expect(source).toContain('pg_stat_activity');
   });
 
   it('seeds pull/refund people before auth users so the signup trigger adopts them', () => {
@@ -216,6 +320,7 @@ describe('behavioral SQL test harness', () => {
           PATH: `${scratch}:${process.env.PATH ?? ''}`,
           MYK9_BEHAVIORAL_SQL_DATABASE_URL:
             'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+          MYK9_SKIP_HARD_DELETE_CONCURRENCY: '1',
           MYK9_FAKE_PSQL_LOG: invocationLog,
         },
       });

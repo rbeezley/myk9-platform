@@ -14,19 +14,35 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f scripts/qa/preflight-known-orphan-show.sql
 ```
 
-The preflight prints the exact show identity, same-title siblings, counts for
-entries, enrollments, submissions, activity, and retained record classes, plus
-the catalog edge-count status and the live FK definitions. It always rolls back
-its read-only transaction.
+The preflight prints the exact show identity and same-title siblings, followed
+by summary counts for entries, enrollments, submissions, activity, and common
+retained records. It also reads the manifest embedded in the current
+`hard_delete_show` function, compares every live FK identity, column, and delete
+action against it, and reports missing or added/changed edges. The status is an
+exact comparison, not an edge-count comparison.
 
-This preflight is advisory and can become stale. The catalog status compares
-live edge counts with the reviewed manifest counts and prints every live edge
-for inspection; a matching count alone does not prove each edge is unchanged.
-If the target identity differs, any blocker is present, the catalog counts
-differ, or an edge is unknown or changed, stop and investigate. An approved
-site administrator must recheck eligibility through the RPC when using the
-existing Show Details permanent-delete action. The RPC performs the authoritative
-catalog and retained-record checks in the deletion transaction.
+The catalog-driven inventory then emits one read-only row count for every live
+FK edge into shows, trials, or classes, including announcements, carts,
+assignments, favorites, tickets, and cross-show links through a target trial or
+class. These per-edge rows are the complete blocker inventory for the reviewed
+FK graph; the summary counts above only spotlight common record classes. Each
+row includes its exact FK definition, the manifest disposition (`DISPOSABLE`
+only for a matched reviewed structural edge; all others default to
+`RETAINED`), a review status, and the referencing-row count. New or changed
+edges are labeled `UNCLASSIFIED / CHANGED — STOP`; composite edges are labeled
+`UNCLASSIFIED COMPOSITE FK — STOP` and have no row count. Only the two reviewed
+structural edges can be labeled disposable; any other or missing disposition
+stops the preflight. The preflight ends by rolling back its read-only
+transaction.
+
+This preflight is advisory and can become stale. If the RPC or its embedded
+manifest is unavailable, the exact comparison reports a stop status. If the
+target identity differs, any blocker is present, the catalog status is not an
+exact match, or any edge is unclassified/changed, stop and investigate. Even
+with an exact match and zero reported rows, an approved site administrator must
+recheck eligibility through the RPC when using the existing Show Details
+permanent-delete action. The RPC performs the authoritative catalog and
+retained-record checks in the deletion transaction.
 
 Any shared cleanup, reseed, or recording of post-delete and sibling evidence
 requires separate approval. Once approved, use only the existing Show Details

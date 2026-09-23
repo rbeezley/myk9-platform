@@ -35,7 +35,7 @@ describe('MYK9-615 orphan cleanup boundary', () => {
     expect(withoutComments).not.toMatch(
       /\b(?:INSERT|UPDATE|TRUNCATE|CREATE|ALTER|DROP|CALL|DO)\b/i
     );
-    expect(withoutComments).not.toMatch(/hard_delete_show\s*\(/i);
+    expect(withoutComments).not.toMatch(/SELECT\s+public\.hard_delete_show\s*\(/i);
     expect(preflight).toContain(ORPHAN_SHOW_ID);
     expect(preflight).toContain(ORPHAN_TITLE);
     expect(withoutComments).toContain('public.entries');
@@ -46,6 +46,41 @@ describe('MYK9-615 orphan cleanup boundary', () => {
     expect(withoutComments).toContain('public.trial_packet_snapshots');
     expect(withoutComments).toContain('public.stripe_orders');
     expect(withoutComments).toContain('public.entry_payment_links');
+    expect(withoutComments).toContain('pg_catalog.pg_constraint');
+    expect(withoutComments).toContain('\\gexec');
+    expect(withoutComments).toContain('cardinality(fk.conkey)');
+    expect(withoutComments).toContain("'RETAINED (default)'");
+    expect(withoutComments).toContain("'DISPOSABLE (reviewed structure)'");
+    expect(withoutComments).toContain('fk.confdeltype');
+    expect(withoutComments).not.toContain('EDGE COUNT MATCHES REVIEWED MANIFEST');
+    expect(withoutComments).toContain('pg_catalog.pg_get_functiondef');
+    expect(withoutComments).toContain("'$manifest$'");
+    expect(withoutComments).toContain('jsonb_array_elements');
+    expect(withoutComments).toContain('missing_edges');
+    expect(withoutComments).toContain('missing_edge_details');
+    expect(withoutComments).toContain('added_or_changed_edges');
+    expect(withoutComments).toContain('added_or_changed_edge_details');
+    expect(withoutComments).toContain('referencing_rows');
+    expect(withoutComments).toContain('MATCHED TO CURRENT RPC MANIFEST');
+    expect(withoutComments).toContain('UNCLASSIFIED / CHANGED');
+    expect(withoutComments).toContain('UNCLASSIFIED COMPOSITE FK');
+    expect(withoutComments).toContain('STOP: UNRECOGNIZED RPC DISPOSITION');
+    expect(withoutComments).toContain('EXACT MATCH TO CURRENT RPC MANIFEST');
+    expect(withoutComments).toContain('expected.disposition');
+    expect(withoutComments).toContain('reviewed_disposable');
+    expect(withoutComments).toContain("'trials_show_id_fkey'");
+    expect(withoutComments).toContain("'classes_trial_id_fkey'");
+    expect(withoutComments).toContain('FROM live_edges live');
+    expect(withoutComments).toContain("parent.relname IN ('shows', 'trials', 'classes')");
+    expect(withoutComments).toContain('WHERE child.%I IN (%s)');
+    expect(withoutComments).toContain('WHERE p.id = %L::uuid');
+    expect(withoutComments).toContain('WHERE p.show_id = %L::uuid');
+    expect(withoutComments).toContain('WHERE t.show_id = %L::uuid');
+    expect(withoutComments.match(/'SELECT %L::text AS constraint_name/g) ?? []).toHaveLength(2);
+    expect(withoutComments.match(/f3360000-0000-0000-0000-000000000001/g)?.length).toBeGreaterThan(
+      1
+    );
+    expect(withoutComments).not.toContain("VALUES ('shows', 39)");
   });
 
   it('documents the existing Show Details action as the separately approved mutation path', () => {

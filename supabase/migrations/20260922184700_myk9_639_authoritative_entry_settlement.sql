@@ -56,6 +56,7 @@ DECLARE
   v_results jsonb := '[]'::jsonb;
   v_line record;
   v_evidence record;
+  v_lock record;
   v_created record;
   v_root_id uuid;
   v_live_id uuid;
@@ -125,6 +126,28 @@ BEGIN
     v_source_total := COALESCE(v_cart.total_cents, 0);
     PERFORM 1 FROM public.entry_cart_items AS i
      WHERE i.cart_id = p_source_id ORDER BY i.id FOR UPDATE;
+
+    -- create_online_paid_entry takes judge-day advisory locks before the
+    -- capacity helper takes a class lock. Existing-line resolution also takes
+    -- class locks, so reserve every new-line judge-day key first, in a global
+    -- deterministic order. Otherwise this mixed cart could hold class A while
+    -- waiting for a judge-day key held by a creator waiting for class A.
+    FOR v_lock IN
+      SELECT DISTINCT ja.person_id, t.date AS trial_date,
+        pg_catalog.hashtext(
+          'judgeday:' || ja.person_id::text || ':' || t.date::text
+        ) AS lock_key
+        FROM public.entry_cart_items AS i
+        JOIN public.classes AS c ON c.id = i.class_id
+        JOIN public.trials AS t ON t.id = c.trial_id
+        JOIN public.judge_assignments AS ja
+          ON ja.class_id = i.class_id AND ja.show_id = v_cart.show_id
+       WHERE i.cart_id = p_source_id AND i.entry_id IS NULL
+         AND ja.status = 'confirmed' AND ja.person_id IS NOT NULL
+       ORDER BY ja.person_id, t.date
+    LOOP
+      PERFORM pg_catalog.pg_advisory_xact_lock(v_lock.lock_key);
+    END LOOP;
   ELSE
     SELECT * INTO v_link FROM public.entry_payment_links AS l
      WHERE l.id = p_source_id FOR UPDATE;

@@ -1,5 +1,7 @@
 # MYK9-698 worktree bootstrap hardening
 
+> **Status:** Active
+
 ## Scope
 
 Preserve complete, NUL-safe worktree inventory parsing while preventing simultaneous bootstrap runs from failing on shared Git config writes. Reject non-absolute checkout paths before changing Git configuration or copying local setup files.

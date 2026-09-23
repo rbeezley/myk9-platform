@@ -238,7 +238,7 @@ cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
 Reading the rollup — three traps from the instruction file's LESSONS:
 
-- A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs plus the app's own Vercel context and say which check you ignored.
+- A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs and say which check you ignored. (myK9Show itself no longer builds PR previews; only the guides project does.)
 - A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push — a rerun keeps the stale merge ref. **That push is a new head:** go back to Step 3 and Step 4, and record the gate for the new SHA before merging. Conflict resolutions and integration changes must not skip the review.
 - "No pending checks" is not "settled" — and neither is "nothing failed". Seconds after a push a
   lone fast status context has nothing pending and nothing red while no CI job has registered at
@@ -282,8 +282,8 @@ Then tell the user: "Auto-merge armed — GitHub will merge when required checks
 Do this **before** Step 7: once the worktree is removed the harness keeps its CWD there, and later shell calls fail.
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
-2. A merge is not a deploy. Check the production build for a `main` commit at or after the merge commit (`gh api repos/<owner>/<repo>/commits/<sha>/status`); a Vercel build-rate-limit failure on `main` leaves staging serving the previous bundle.
-3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If the production build has not gone green yet, leave the issue **In Progress**, say so, and tell the user what to re-check.
+2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
+3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If a criterion needs production evidence and no deploy run has shipped the merge commit yet, leave the issue **In Progress**, say so, and tell the user a deploy is pending.
 
 ---
 

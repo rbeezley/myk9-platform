@@ -1,4 +1,7 @@
 {
+  "git": {
+    "deploymentEnabled": false
+  },
   "buildCommand": "cd ../.. && npx turbo build --filter=@myk9/show",
   "outputDirectory": "dist",
   "framework": "vite",

@@ -1,5 +1,7 @@
 # Vercel preview quota controls
 
+> **2026-09-23:** the myK9Show app project no longer builds from Git at all (`git.deploymentEnabled: false`); production deploys run through `deploy-myk9show.yml` — see [`ci-vercel-deploys.md`](ci-vercel-deploys.md). What follows still applies to the guides project.
+
 > **Status:** Repo-side policy is in place. Vercel dashboard verification is still required because the current connector can read basic project metadata but cannot read or update the monorepo skip-unaffected setting.
 
 The Vercel Hobby tier has a daily deployment-created limit. This monorepo can spend that quota quickly because each PR push may create previews for more than one connected Vercel project. The target behavior is:

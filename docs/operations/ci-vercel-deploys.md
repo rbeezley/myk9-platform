@@ -2,10 +2,31 @@
 
 ## Current pre-launch mode
 
-Until real users are onboarded, myK9Show uses the Hobby-compatible fast path:
-every push to `main` is built by Vercel and served at `myk9show.com` — the
-build starts before CI finishes and is not gated by it. Pull requests still
-receive preview deployments for review.
+Until real users are onboarded, myK9Show deploys on demand. Since 2026-09-23
+`apps/myk9show/vercel.json` sets `git.deploymentEnabled: false`, so Vercel's Git
+integration builds neither `main` nor pull-request branches for the app: merging
+changes nothing live, and there are no app preview URLs (use `pnpm dev:show`).
+About 26 merges a day had been spending the Hobby deployment quota, and a Pro
+month billed build-minute overage.
+
+Production moves only when someone runs
+[`deploy-myk9show.yml`](../../.github/workflows/deploy-myk9show.yml) (Actions tab →
+**Deploy myK9Show**, or `gh workflow run deploy-myk9show.yml`):
+
+1. It picks the newest `main` commit whose `CI` push run succeeded (or the
+   `commit_sha` input, which must also have a green `main` CI run).
+2. It runs `vercel pull` / `vercel build` in Actions and uploads the output with
+   `vercel deploy --prebuilt --prod`: one Vercel deployment, no Vercel build
+   minutes.
+3. It fails unless the deployment is READY, owns `myk9show.com`, and the domain
+   serves the same `index-*.js` as `myk9-platform-myk9show.vercel.app`.
+
+The run summary names the deployed commit and how many `main` commits it
+leaves out. It uses the repository `VERCEL_TOKEN` / `VERCEL_ORG_ID` /
+`VERCEL_PROJECT_ID` secrets; if a run fails at `vercel pull`, check that the
+token has not expired. To go back to deploy-on-merge, delete the `git` block
+from `apps/myk9show/vercel.json`. MYK9-44 replaces this workflow with the
+CI-gated path below.
 
 **Probe the custom domain, never only the default alias.** On 2026-09-15
 `myk9show.com` served a bundle four days behind `main` while

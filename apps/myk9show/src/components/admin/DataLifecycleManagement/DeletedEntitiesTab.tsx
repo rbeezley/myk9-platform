@@ -39,7 +39,6 @@ import {
   getDeletedShows,
   restoreShow,
   hardDeleteShow,
-  SHOW_HAS_STRIPE_ORDERS,
 } from '@/services/database/shows';
 import { getDeletedTrials, restoreTrial, hardDeleteTrial } from '@/services/database/trials';
 import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
@@ -92,6 +91,8 @@ const ENTITY_LABEL: Record<EntityType, string> = {
   club: 'Club',
   person: 'Person',
 };
+
+const SPECIFIC_SHOW_DELETE_ERROR_CODES = new Set(['23503', '55P03', '40P01', '42501']);
 
 /* ------------------------------------------------------------------ */
 /*  Mapper helpers – convert raw query rows to DeletedEntity           */
@@ -390,10 +391,14 @@ export function DeletedEntitiesTab() {
           { error?: { code?: string; message?: string } | null } | undefined;
         if (result?.error) {
           logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
-          // MYK9-527: a refusal is not a transient failure, so do not tell the
-          // admin to try again. The ledger guard stamps a code and a message
-          // that says what to do; render that verbatim.
-          if (result.error.code === SHOW_HAS_STRIPE_ORDERS && result.error.message) {
+          // Show deletion refusals carry distinct retention, permission, and
+          // operator-retry guidance from the database service.
+          if (
+            deleteTarget.type === 'show' &&
+            result.error.code &&
+            SPECIFIC_SHOW_DELETE_ERROR_CODES.has(result.error.code) &&
+            result.error.message
+          ) {
             notifications.error(result.error.message);
           } else {
             notifications.error(`Couldn't permanently delete ${label}. Please try again.`);

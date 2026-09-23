@@ -136,66 +136,38 @@ export const SHOW_HAS_STRIPE_ORDERS = 'SHOW_HAS_STRIPE_ORDERS';
 export const showHasStripeOrdersMessage = (count: number) =>
   `This show has ${count} Stripe order${count === 1 ? '' : 's'}; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.`;
 
+const HARD_DELETE_SHOW_ERROR_MESSAGES: Record<string, string> = {
+  '23503':
+    'This show has records that must be kept for history and reconciliation, so it cannot be permanently deleted.',
+  '55P03':
+    'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+  '40P01':
+    'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+  '42501': 'Only a site administrator can permanently delete a show.',
+};
+
 // Hard delete show (permanent removal)
 export const hardDeleteShow = async (id: string) => {
   const startTime = Date.now();
 
   try {
-    // MYK9-527: stripe_orders.show_id and .enrollment_id are ON DELETE RESTRICT
-    // (migration 20260915191700), so a show carrying orders — directly or via
-    // one of its enrollments — now fails with a raw 23503 instead of silently
-    // nulling the ledger's scope columns. Check first so the admin sees what is
-    // actually wrong. Counted with an explicit column, never `*`: a count over
-    // `*` on a column-allowlisted table returns a bodyless 403.
-    const { data: enrollmentRows, error: enrollmentError } = await supabase
-      .from('enrollments')
-      .select('id')
-      .eq('show_id', id);
-    if (enrollmentError) throw enrollmentError;
-
-    const enrollmentIds = (enrollmentRows ?? []).map(row => row.id);
-    // One query, so an order carrying BOTH the show_id and an enrollment_id of
-    // that show is counted once rather than twice.
-    const orFilter =
-      enrollmentIds.length > 0
-        ? `show_id.eq.${id},enrollment_id.in.(${enrollmentIds.join(',')})`
-        : `show_id.eq.${id}`;
-
-    const { count, error: countError } = await supabase
-      .from('stripe_orders')
-      .select('id', { count: 'exact', head: true })
-      .or(orFilter);
-    if (countError) throw countError;
-
-    const orderCount = count ?? 0;
-
-    if (orderCount > 0) {
-      const guardError = new Error(showHasStripeOrdersMessage(orderCount)) as Error & {
-        code?: string;
-      };
-      guardError.code = SHOW_HAS_STRIPE_ORDERS;
-      throw guardError;
-    }
-
-    const { data, error } = await supabase.from('shows').delete().eq('id', id).select('id, name');
+    // The RPC owns authorization, eligibility checks, locking, and the FK-safe
+    // delete sequence. It returns void, so the service returns the confirmed ID
+    // in the established { data, error } shape for its callers.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('hard_delete_show', { p_show_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('show', 'hard_delete', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'show', 'hard_delete');
+      const dbError = createDatabaseError(error, 'show', 'hard_delete');
+      const specificMessage = dbError.code ? HARD_DELETE_SHOW_ERROR_MESSAGES[dbError.code] : null;
+      if (specificMessage) dbError.message = specificMessage;
+      throw dbError;
     }
 
-    // RLS silently returns 0 rows instead of an error when the policy rejects
-    // the DELETE: without this check, the UI would claim success while the row
-    // persisted. Same class of silent-failure bug as migration 135.
-    const deletedShow = Array.isArray(data) ? data[0] : data;
-    if (!deletedShow) {
-      throw new Error(
-        'Show was not deleted. You may not have permission to permanently delete this show, or it no longer exists.'
-      );
-    }
-    return { data: deletedShow, error: null };
+    return { data: { id }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show', 'hard_delete');

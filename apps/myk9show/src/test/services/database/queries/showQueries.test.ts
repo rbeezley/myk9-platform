@@ -10,7 +10,6 @@ import {
   updateShow,
   deleteShow,
   hardDeleteShow,
-  SHOW_HAS_STRIPE_ORDERS,
   searchShows,
   getShowStatistics,
   getShowsWithEntryCounts,
@@ -446,117 +445,60 @@ describe('Show Queries', () => {
   });
 
   describe('hardDeleteShow', () => {
-    it('returns the deleted row when Supabase confirms the delete', async () => {
-      const deleted = { id: 'show-123', name: 'Expired Show' };
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [deleted], error: null }));
+    it('calls the unused-show RPC once and returns the deleted show ID', async () => {
+      const showId = 'show-123';
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
-      const result = await hardDeleteShow('show-123');
+      const result = await hardDeleteShow(showId);
 
-      expect(result.error).toBeNull();
-      expect(result.data).toEqual(deleted);
+      expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('hard_delete_show', { p_show_id: showId });
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('shows');
+      expect(result).toEqual({ data: { id: showId }, error: null });
     });
 
-    it('surfaces an error when RLS silently returns zero rows', async () => {
-      // PostgREST returns { data: [], error: null } when an RLS policy rejects
-      // a DELETE — the previous implementation accepted this as success.
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
-
-      const result = await hardDeleteShow('show-rls-blocked');
-
-      expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-      expect(result.error?.message).toMatch(/not deleted|permission/i);
-    });
-
-    it('propagates Postgres errors through createDatabaseError', async () => {
-      const mockError = { message: 'deadlock detected', code: '40P01', details: null };
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
-
-      const result = await hardDeleteShow('show-err');
-
-      expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-    });
-
-    // MYK9-527: stripe_orders.show_id / .enrollment_id are ON DELETE RESTRICT
-    // (migration 20260915191700). Without this pre-check the admin sees a raw
-    // 23503; with it, a typed refusal naming the count.
-    describe('Stripe ledger guard (MYK9-527)', () => {
-      const routeByTable = (
-        responses: Record<string, Record<string, unknown>>,
-        seen?: string[]
-      ) => {
-        mockSupabase.from.mockImplementation((table: string) => {
-          seen?.push(table);
-          return createChainableQuery(responses[table] ?? { data: [], error: null, count: null });
-        });
-      };
-
-      it('refuses the delete and names the order count when the show carries orders', async () => {
-        const tables: string[] = [];
-        routeByTable(
-          {
-            enrollments: { data: [{ id: 'enr-1' }], error: null },
-            stripe_orders: { data: null, error: null, count: 3 },
-          },
-          tables
+    it.each([
+      {
+        code: '23503',
+        databaseMessage: 'retained relation has rows',
+        expectedMessage:
+          'This show has records that must be kept for history and reconciliation, so it cannot be permanently deleted.',
+      },
+      {
+        code: '55P03',
+        databaseMessage: 'lock timeout',
+        expectedMessage:
+          'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+      },
+      {
+        code: '40P01',
+        databaseMessage: 'deadlock detected',
+        expectedMessage:
+          'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+      },
+      {
+        code: '42501',
+        databaseMessage: 'permission denied',
+        expectedMessage: 'Only a site administrator can permanently delete a show.',
+      },
+    ])(
+      'maps database error $code to its specific refusal',
+      async ({ code, databaseMessage, expectedMessage }) => {
+        const showId = 'show-refused';
+        mockSupabase.rpc.mockReturnValue(
+          createChainableQuery({ data: null, error: { code, message: databaseMessage } })
         );
 
-        const result = await hardDeleteShow('show-with-orders');
+        const result = await hardDeleteShow(showId);
 
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('hard_delete_show', { p_show_id: showId });
+        expect(mockSupabase.from).not.toHaveBeenCalledWith('shows');
         expect(result.data).toBeNull();
-        expect(result.error?.code).toBe(SHOW_HAS_STRIPE_ORDERS);
-        expect(result.error?.message).toBe(
-          'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.'
-        );
-        // The refusal must happen BEFORE the delete, not be recovered from it.
-        expect(tables).not.toContain('shows');
-      });
-
-      it('singularises the message for exactly one order', async () => {
-        routeByTable({
-          enrollments: { data: [], error: null },
-          stripe_orders: { data: null, error: null, count: 1 },
-        });
-
-        const result = await hardDeleteShow('show-with-one-order');
-
-        expect(result.error?.message).toContain('has 1 Stripe order;');
-      });
-
-      it('deletes normally when the show carries no orders', async () => {
-        const deleted = { id: 'show-clean', name: 'Clean Show' };
-        routeByTable({
-          enrollments: { data: [], error: null },
-          stripe_orders: { data: null, error: null, count: 0 },
-          shows: { data: [deleted], error: null },
-        });
-
-        const result = await hardDeleteShow('show-clean');
-
-        expect(result.error).toBeNull();
-        expect(result.data).toEqual(deleted);
-      });
-
-      it("counts orders reached through the show's enrollments, not only its show_id", async () => {
-        const filters: unknown[] = [];
-        mockSupabase.from.mockImplementation((table: string) => {
-          if (table === 'enrollments') {
-            return createChainableQuery({ data: [{ id: 'enr-1' }, { id: 'enr-2' }], error: null });
-          }
-          const query = createChainableQuery({ data: null, error: null, count: 2 });
-          filters.push(query);
-          return query;
-        });
-
-        const result = await hardDeleteShow('show-enr');
-
-        expect(result.error?.code).toBe(SHOW_HAS_STRIPE_ORDERS);
-        const orFilter = (filters[0] as Record<string, { mock: { calls: unknown[][] } }>).or.mock
-          .calls[0][0];
-        expect(orFilter).toBe('show_id.eq.show-enr,enrollment_id.in.(enr-1,enr-2)');
-      });
-    });
+        expect(result.error?.code).toBe(code);
+        expect(result.error?.message).toBe(expectedMessage);
+      }
+    );
   });
 
   describe('searchShows', () => {

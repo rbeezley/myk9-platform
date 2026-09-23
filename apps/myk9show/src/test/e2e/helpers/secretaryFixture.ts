@@ -11,8 +11,10 @@
  *
  * WHAT IT REPLACES. The show and its trial, classes and judges, plus the dog
  * the mail-in search finds. Identity stays REAL, as in the exhibitor fixture:
- * the secretary signs in for real and `get_user_roles` answers with their
- * genuine club scope, which is why the show below is owned by that club.
+ * the secretary signs in for real, and the show is owned by whichever club
+ * the live `get_user_roles` answer scopes them to. That club differs between
+ * shared staging and the nightly isolated database, so it is read, never
+ * hard-coded (Codex review, #2392).
  * `useShowManageScope` then grants management exactly as it would in
  * production, instead of the fixture forging a permission.
  *
@@ -22,18 +24,7 @@
 import type { Page, Route } from '@playwright/test';
 import type { Tables } from '@/types/supabase';
 import { fulfillRows, isRead } from './postgrestRoute';
-import { installExhibitorProfile } from './exhibitorProfileRoute';
-
-/**
- * The staging secretary's club scope, as `get_user_roles` returns it. Part of
- * the secretary's identity, like the exhibitor's `people.id`: if it changes,
- * the scope gate withholds management and the specs fail on their own
- * positive controls.
- */
-export const SECRETARY_CLUB_ID = 'f8f9c772-3b83-416b-8ff3-688124fc5602';
-/** The staging secretary's auth user and `people.id` (E2E_SECRETARY_*). */
-const SECRETARY_AUTH_USER_ID = 'dd25d7cb-0754-4bcd-a757-fa9b95412d4b';
-const SECRETARY_PERSON_ID = 'bf0f113c-c6eb-4482-8198-b41413263d79';
+import { awaitIdentity, deferred, installExhibitorProfile } from './exhibitorProfileRoute';
 
 export const SECRETARY_FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000101';
 const TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000111';
@@ -114,7 +105,7 @@ function showDates() {
   };
 }
 
-function buildRows() {
+function buildRows(clubId: string) {
   const dates = showDates();
 
   const trial: TrialRow & Record<string, unknown> = {
@@ -159,7 +150,7 @@ function buildRows() {
   const show: ShowRow & Record<string, unknown> = {
     id: SECRETARY_FIXTURE_SHOW_ID,
     name: SECRETARY_FIXTURE_SHOW_NAME,
-    club_id: SECRETARY_CLUB_ID,
+    club_id: clubId,
     organization: 'AKC',
     style: 'scent_work',
     status: 'published',
@@ -219,7 +210,7 @@ function buildRows() {
   const showWithEmbeds = {
     ...show,
     club: {
-      id: SECRETARY_CLUB_ID,
+      id: clubId,
       name: 'Fixture Kennel Club',
       address: null,
       phone: null,
@@ -251,24 +242,35 @@ async function serve(route: Route, rows: unknown[]) {
  * `shows`, `trials` and `classes` on the first authenticated render.
  */
 export async function installSecretaryFixture(page: Page): Promise<void> {
-  const { showWithEmbeds, trial, classes, dog } = buildRows();
+  // The club the live role read scopes this secretary to.
+  const club = deferred<string>();
+  page.on('response', async response => {
+    if (!response.url().includes('/rest/v1/rpc/get_user_roles')) return;
+    const roles = (await response.json().catch(() => [])) as Array<{
+      role_name?: string;
+      scope_type?: string;
+      scope_id?: string | null;
+    }>;
+    const scope = roles.find(
+      r => r.role_name === 'secretary' && r.scope_type === 'club' && r.scope_id
+    );
+    if (scope?.scope_id) club.resolve(scope.scope_id);
+  });
+  const rows = club.promise.then(buildRows);
+  const serveBuilt = async (route: Route, pick: (built: Awaited<typeof rows>) => unknown[]) => {
+    const built = await awaitIdentity(route, rows, "the secretary's club scope");
+    if (built) await serve(route, pick(built));
+  };
 
   // Not for the onboarding redirect, which a secretary is exempt from, but for
   // `useCurrentPersonId`: without this row the dog roster never loads and the
   // mail-in wizard cannot resolve the owner of the dog it just found.
-  await installExhibitorProfile(page, {
-    authUserId: SECRETARY_AUTH_USER_ID,
-    personId: SECRETARY_PERSON_ID,
-    profileId: 'f1f1f1f1-0000-0000-0000-000000000151',
-    firstName: 'Test',
-    lastName: 'Secretary',
-    email: 'secretary@myk9t.com',
-  });
+  await installExhibitorProfile(page);
 
-  await page.route('**/rest/v1/shows?*', route => serve(route, [showWithEmbeds]));
-  await page.route('**/rest/v1/trials?*', route => serve(route, [trial]));
-  await page.route('**/rest/v1/classes?*', route => serve(route, classes));
-  await page.route('**/rest/v1/dogs?*', route => serve(route, [dog]));
+  await page.route('**/rest/v1/shows?*', route => serveBuilt(route, b => [b.showWithEmbeds]));
+  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => [b.trial]));
+  await page.route('**/rest/v1/classes?*', route => serveBuilt(route, b => b.classes));
+  await page.route('**/rest/v1/dogs?*', route => serveBuilt(route, b => [b.dog]));
   // `searchAllDogs` resolves registration matches first and folds the ids into
   // the dog query; served empty, so the name match alone must find the dog.
   await page.route('**/rest/v1/dog_registrations?*', route => serve(route, []));

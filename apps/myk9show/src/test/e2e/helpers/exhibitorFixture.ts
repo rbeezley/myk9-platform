@@ -24,19 +24,15 @@
  * the app can talk to Supabase. `exhibitorReadPathCanary.spec.ts` owns that
  * question. See docs/plan-hermetic-e2e-fixtures.md.
  */
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import type { Tables } from '@/types/supabase';
 import { fulfillRows, isCountProbe } from './postgrestRoute';
-import { installExhibitorProfile } from './exhibitorProfileRoute';
+import { awaitIdentity, installExhibitorProfile } from './exhibitorProfileRoute';
 
-/**
- * The demo exhibitor's real identifiers. These stay real on purpose: the
- * fixture replaces the exhibitor's DATA, not their identity — sign-in still
- * goes to Supabase auth, so `auth.uid` is genuine and the RBAC RPCs answer
- * for a real account.
- */
-export const FIXTURE_AUTH_USER_ID = '4b63a211-b6bd-4916-b1f9-567f1bebb038';
-export const FIXTURE_PERSON_ID = '6fd402f4-88fb-447d-876e-7c6ae3c429d1';
+// The exhibitor's IDENTITY is never a constant here: sign-in is real, and the
+// `people.id` the dog and entries rows point at is resolved from the live
+// target by `installExhibitorProfile`. It differs between shared staging and
+// the nightly isolated database.
 
 export const FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000001';
 export const FIXTURE_PAST_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000002';
@@ -61,10 +57,8 @@ type ShowRow = Pick<
 // NOTE: `dogs` has no `handler_id`. An earlier draft of this fixture invented
 // one and typecheck rejected it — which is the whole argument for typing
 // fixture rows against the generated schema rather than hand-writing JSON.
-type DogRow = Pick<
-  Tables<'dogs'>,
-  'id' | 'call_name' | 'name' | 'breed' | 'owner_id' | 'deleted_at'
->;
+// `owner_id` is filled in at serve time from the live person.
+type DogRow = Pick<Tables<'dogs'>, 'id' | 'call_name' | 'name' | 'breed' | 'deleted_at'>;
 
 const NOW = '2026-01-01T00:00:00.000Z';
 
@@ -101,7 +95,6 @@ const DOG_ROW: DogRow & Record<string, unknown> = {
   id: FIXTURE_DOG_ID,
   call_name: FIXTURE_DOG_CALL_NAME,
   breed: 'Belgian Tervuren',
-  owner_id: FIXTURE_PERSON_ID,
   deleted_at: null,
   name: 'Fixture Of The Test Suite',
   version: 1,
@@ -123,7 +116,6 @@ function entryRow(overrides: Record<string, unknown> = {}) {
     class_id: FIXTURE_CLASS_ID,
     trial_id: FIXTURE_TRIAL_ID,
     handler: 'Test Exhibitor',
-    handler_id: FIXTURE_PERSON_ID,
     payment_status: 'paid',
     payment_method: 'card',
     entry_status: 'confirmed',
@@ -251,18 +243,22 @@ export async function installExhibitorFixture(
   const entries = options.entries ?? [entryRow(), entryRow(COMPLETED_ENTRY_OVERRIDES)];
 
   // The load-bearing row: without it every route redirects to /onboarding.
-  await installExhibitorProfile(page, {
-    authUserId: FIXTURE_AUTH_USER_ID,
-    personId: FIXTURE_PERSON_ID,
-    profileId: 'f1f1f1f1-0000-0000-0000-000000000041',
-    firstName: 'Test',
-    lastName: 'Exhibitor',
-    email: 'exhibitor@myk9t.com',
-  });
+  const { person } = await installExhibitorProfile(page);
+  const personId = (route: Route) =>
+    awaitIdentity(
+      route,
+      person.then(p => p.id),
+      "the exhibitor's people.id"
+    );
 
   await page.route('**/rest/v1/view_authenticated_entry_results*', async route => {
     if (isCountProbe(route)) return fulfillRows(route, []);
-    await fulfillRows(route, entries);
+    const id = await personId(route);
+    if (!id) return;
+    await fulfillRows(
+      route,
+      entries.map(row => ({ handler_id: id, ...row }))
+    );
   });
 
   await page.route('**/rest/v1/shows*', async route => {
@@ -272,7 +268,9 @@ export async function installExhibitorFixture(
 
   await page.route('**/rest/v1/dogs*', async route => {
     if (isCountProbe(route)) return fulfillRows(route, []);
-    await fulfillRows(route, [DOG_ROW]);
+    const id = await personId(route);
+    if (!id) return;
+    await fulfillRows(route, [{ ...DOG_ROW, owner_id: id }]);
   });
 }
 

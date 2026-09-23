@@ -108,7 +108,7 @@ confirms works.
   intercepted and the database still empty. If seam 1 cannot clear this,
   switch to seam 2 and record why here before continuing.
 
-#### Phase 1 findings (2026-09-21, spike in `exhibitorReadPathCapture.spec.ts`)
+#### Phase 1 findings (2026-09-21, spike in `exhibitorReadPathCapture.spec.ts`, since deleted: the default Playwright config discovered it, and its findings live here)
 
 **The captured read path.** A signed-in exhibitor on `/exhibitor/entries`
 issues one auth POST, four RBAC RPCs (`get_effective_permissions`,
@@ -314,6 +314,21 @@ reads without the canary left nothing to catch a broken read path.
   The nightly job is gated on `vars.MYK9SHOW_REGRESSION_CI_ENABLED`. If that
   database lacks the exhibitor, the canary fails there. That is its job, but
   check on the first nightly run after merge.
+
+#### Second Codex round (2026-09-23)
+
+- **P1: fixtures hard-coded shared-staging identity.** The nightly isolated
+  database seeds the same accounts with different ids: the secretary is scoped
+  to club `dededede-…0001` there, not `f8f9c772-…`, so `useShowManageScope`
+  would deny the fixture show. Both fixtures now resolve identity from the live
+  target. `exhibitorProfileRoute` takes the auth uid from the app's own profile
+  request and reads that account's `people` row with the request's credentials.
+  The secretary fixture takes its club from the live `get_user_roles` answer.
+  The exhibitor fixture fills `owner_id`/`handler_id` from the resolved person
+  at serve time. A value that never resolves fails the request with a named
+  500, rather than hanging it.
+- **P2: the Phase 1 spike was discovered by the default config** and fails
+  against a local target. Deleted; its findings are recorded above.
 
 ### Phase 5 — testing
 

@@ -3,8 +3,8 @@
 -- ----------------------------------------------------------------------------
 -- WHAT THIS IS
 --   A realistic, *publicly visible* LEAN demo dataset (2 clubs, the three
---   Heartland shows -- AKC ...010 with 4 trials and 10 classes, UKC ...011,
---   ASCA ...012 -- 6 dogs, 12 hand-authored entries on the demo show) that
+--   Heartland shows -- AKC ...010 with 4 trials and 11 classes, UKC ...011,
+--   ASCA ...012 -- 6 dogs, 13 hand-authored entries on the demo show) that
 --   preserves the golden paths. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
 --     - Show officials are modeled through user_roles grants. A class's judge is
@@ -166,12 +166,12 @@ END $$;
 --   club   dededede-0000-0000-0000-000000000001
 --   show   dededede-0000-0000-0000-000000000010 (AKC)
 --   trials dededede-0000-0000-0000-00000000002{1..4}  -- all AKC (MYK9-490)
---   class  dec1a55e-0000-0000-0000-00000000003{1..9}, ...040
+--   class  dec1a55e-0000-0000-0000-00000000003{1..9}, ...040, ...045 (MYK9-515 full class)
 --   MYK9-490 single-registry sibling shows, same club:
 --   show   dededede-0000-0000-0000-000000000011 (UKC)  trial ...025  class dec1a55e-...04{1,2}
 --   show   dededede-0000-0000-0000-000000000012 (ASCA) trial ...026  class dec1a55e-...04{3,4}
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
---   entry  dededede-0000-0000-0000-00000000005{1..8}, ...067/...068 (+ ...059/...060 refund fixtures)
+--   entry  dededede-0000-0000-0000-00000000005{1..8}, ...067/...068, ...069 (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
 --   load-fixture ranges (created by seed-load-fixture.sql, deleted here):
 --   load dog     a1090000-0000-0000-0001-*   load entry   a1090000-0000-0000-0002-*
@@ -213,6 +213,8 @@ WHERE class_id IN (
         -- delete exactly like a cart on ...031-...035 would (review of #2242).
         'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
         'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
+        -- ...045 is the MYK9-515 full-class fixture on the demo show.
+        'dec1a55e-0000-0000-0000-000000000045',
         -- MYK9-490 sibling-show classes (UKC / ASCA)
         'dec1a55e-0000-0000-0000-000000000041','dec1a55e-0000-0000-0000-000000000042',
         'dec1a55e-0000-0000-0000-000000000043','dec1a55e-0000-0000-0000-000000000044')
@@ -246,7 +248,9 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000055','dededede-0000-0000-0000-000000000056',
   'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058',
   'dededede-0000-0000-0000-000000000067','dededede-0000-0000-0000-000000000068',
-  'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060'
+  'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060',
+  -- ...069 is the MYK9-515 full-class entry (paid, handled by the exhibitor).
+  'dededede-0000-0000-0000-000000000069'
 );
 -- PAID-STRAY GUARD. Both entry deletes above are done, so every entry the seed
 -- itself created is gone and anything still standing was created by something
@@ -460,7 +464,7 @@ DELETE FROM public.classes WHERE id IN (
   -- classes they used to be live on the sibling shows and are cleared below.
   'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
   'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
-  'dec1a55e-0000-0000-0000-000000000040'
+  'dec1a55e-0000-0000-0000-000000000040','dec1a55e-0000-0000-0000-000000000045'
 );
 -- waitlist_entries.dog_id is also NO ACTION (see the myk9_109 waitlist cleanup
 -- above); a stray waitlist join for one of these demo dogs would block this
@@ -747,7 +751,8 @@ ON CONFLICT (club_id, person_id) DO UPDATE
 --    confirmed judge assignment (section 11), so judge-day capacity does not
 --    apply to them either way; the ...036 fixture (MYK9-515, seed-load-fixture.sql
 --    section 17c) stays full by its own max_entries class limit, unaffected by
---    this change.
+--    this change. The MYK9-515 full-class fixture is ...045 (section 4), capped
+--    by its own max_entries on trial ...024, which has no judge assignment.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.shows (
   id, name, organization, description,
@@ -977,6 +982,10 @@ VALUES
   ('dec1a55e-0000-0000-0000-000000000039', 'dededede-0000-0000-0000-000000000024',
    'Buried Novice A', 'Novice', 'Buried', 'A',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
+  -- MYK9-515 full-class fixture; capped at its one entry below this insert.
+  ('dec1a55e-0000-0000-0000-000000000045', 'dededede-0000-0000-0000-000000000024',
+   'Handler Discrimination Advanced', 'Advanced', 'Handler Discrimination', NULL,
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 3, 1),
   -- Purpose-built two-entry class for the unreleased-results fixture. It is
   -- intentionally outside the MYK9-109 load set so every eligible entry can
   -- be scored and its persisted placements can be read back deterministically.
@@ -984,10 +993,46 @@ VALUES
    'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
 
--- MYK9-515's full-class fixture (class ...036 capped at its 63 seeded entries)
--- lives in supabase/seed-load-fixture.sql section 17c, because those 63 entries
--- are load-fixture rows. On the lean set ...036 is uncapped and empty, so the
--- full-chip e2e in wizardVisualQA.spec.ts needs that file applied first.
+-- MYK9-515 FULL-CLASS FIXTURE (lean set). One class is full on the lean seed
+-- alone, so the registration wizard's full-chip reason
+-- (`ClassSelectionStep.fullReason.ts`) has something real to explain end to
+-- end without the opt-in load fixture (MYK9-558 review: the fixture used to be
+-- ...036 capped at its 63 LOAD entries, so a plain reseed left it empty and the
+-- wizardVisualQA.spec.ts full-chip test red).
+--
+-- ...045 'Handler Discrimination Advanced' on Trial 4 (...024) carries exactly
+-- ONE hand-authored entry (...069, section 6) and `max_entries = 1`. Why this
+-- shape:
+--   - A NEW class, not an existing one: seed-load-fixture.sql adds entries to
+--     every one of ...032-...039, and ...031 / ...040 are the released and
+--     preliminary RESULTS fixtures (a started class renders a different reason).
+--     A class the fixture never touches stays full at exactly its cap whether or
+--     not the fixture is applied.
+--   - Trial ...024 carries no confirmed judge assignment (section 11), so
+--     judge-day capacity cannot also mark it full: the chip isolates the
+--     CLASS-LIMIT branch of the reason.
+--   - Handler Discrimination / Advanced appears nowhere else in the show, so
+--     `openAlternative()` finds no same-offering class on another day and the
+--     reason takes the "no alternative, contact the secretary" branch. No
+--     hand-authored entry sits in Handler Discrimination Novice (...037), so
+--     this class adds no move-up target to any seeded entry.
+--   - The entry is Cooper (...046, owned by secretary@myk9t.com), NOT one of the
+--     exhibitor's five dogs, so whichever dog the e2e selects first sees the
+--     class as full rather than already entered. Its HANDLER is
+--     exhibitor@myk9t.com (the show allows non-owner handlers), and that is
+--     load-bearing: `useClassAvailability` counts entries through the
+--     exhibitor's own RLS view, and entries_select admits only rows the caller
+--     manages, handles, or owns the dog of. An entry the exhibitor cannot read
+--     does not count toward the chip.
+--   - `allow_waitlist = false` is set explicitly, and the secretary contact is
+--     the club email (shows.club_id -> clubs.email, testadmin@myk9t.com), so the
+--     rendered reason reads "This class is full. Contact the show secretary at
+--     testadmin@myk9t.com." -- the e2e's `/is full/` assertion.
+-- seedDemoFullClassContract.test.ts pins the cap to the entry count.
+UPDATE public.classes
+SET max_entries = 1,
+    allow_waitlist = false
+WHERE id = 'dec1a55e-0000-0000-0000-000000000045';
 
 -- ---------------------------------------------------------------------------
 -- 4b. Classes for the sibling single-registry shows (MYK9-490)
@@ -1157,6 +1202,21 @@ VALUES
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
    'confirmed', 'paid', 30.00, 107, 2, false, 1);
+
+-- MYK9-515 full-class entry (...069): Cooper, owned by secretary@myk9t.com and
+-- HANDLED by exhibitor@myk9t.com, in ...045 (capped at 1, section 4). The
+-- handler is what makes the entry visible to the exhibitor's capacity count;
+-- see the section 4 comment. Armband 105 is Cooper's show armband (section 7).
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000069',
+   'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000045',
+   'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000024',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   'confirmed', 'paid', 30.00, 105, 1, false, 1);
 
 -- ---------------------------------------------------------------------------
 -- 6b. MULTI-DOG ORDER FIXTURE — the shape production actually produces.
@@ -2043,10 +2103,10 @@ VALUES
    'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 48)::timestamp + INTERVAL '16:59:31') AT TIME ZONE 'UTC'));
 
 -- Lean-set postcondition (MYK9-558 Part B). This file alone must leave the
--- demo show with only its 12 hand-authored entries and no MYK9-109 load rows
+-- demo show with only its 13 hand-authored entries and no MYK9-109 load rows
 -- anywhere: a load fixture that survives a plain reseed is exactly what put
 -- 252 load dogs in the secretary's dog search. seed-load-fixture.sql asserts
--- its own totals (516 on the demo show, 1260 generated) after it runs.
+-- its own totals (517 on the demo show, 1260 generated) after it runs.
 DO $$
 DECLARE
   v_entry_count integer;
@@ -2056,8 +2116,8 @@ BEGIN
   FROM public.entries
   WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 
-  IF v_entry_count <> 12 THEN
-    RAISE EXCEPTION 'seed-demo expected 12 demo-show entries (lean set), found %', v_entry_count;
+  IF v_entry_count <> 13 THEN
+    RAISE EXCEPTION 'seed-demo expected 13 demo-show entries (lean set), found %', v_entry_count;
   END IF;
 
   SELECT

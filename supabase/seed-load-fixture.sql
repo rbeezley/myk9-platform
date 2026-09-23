@@ -6,12 +6,10 @@
 --   supabase/seed-demo.sql (MYK9-558 Part B). It adds, on top of the lean demo
 --   set:
 --     - 63 `Load NN` dogs x 8 classes = 504 entries on the demo show ...010
---       (the 63-entry full-class / PDF-calibration shape), plus their armbands;
+--       (the 63-entry PDF-calibration shape), plus their armbands;
 --     - three load clubs, three load shows (2 trials x 2 classes each), 189
 --       dogs and 252 entries per show, the per-show load-secretary grants and
 --       memberships, and the sandbox Stripe account on load club 1;
---     - the MYK9-515 full-class cap on class ...036 (section 17c), which is only
---       full while these 63 entries exist.
 --   Counts are mirrored in apps/myk9show/src/test/load/loadFixture.ts; keep the
 --   two aligned (SQL cannot import those constants).
 --
@@ -36,7 +34,8 @@
 --   A plain rerun of supabase/seed-demo.sql removes every row this file
 --   creates: its section 0 deletes the whole myk9_109 id ranges (dogs, entries,
 --   armbands, shows, trials, classes, clubs, and everything that cascades from
---   them) and recreates class ...036 without a cap. This file is NOT idempotent
+--   them). It never touches the MYK9-515 full class ...045, which seed-demo.sql
+--   owns and keeps full on its own. This file is NOT idempotent
 --   on its own; the preflight below refuses a second application until
 --   seed-demo.sql has been rerun.
 -- ============================================================================
@@ -610,55 +609,9 @@ FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
 
 -- ---------------------------------------------------------------------------
--- 17c. MYK9-515 FULL-CLASS CAP (moved from seed-demo.sql section 4)
+-- 17c. POSTCONDITIONS -- demo-show total (13 hand-authored from seed-demo.sql
+--      plus 504 generated) and the multi-show totals.
 -- ---------------------------------------------------------------------------
--- MYK9-515: one full class fixture, so the registration wizard's full-chip
--- reason (`ClassSelectionStep.fullReason.ts`) has something real to explain
--- end to end. Every class in seed-demo.sql section 4 is left at `max_entries = null`;
--- this is the only class in the show with a cap, set to exactly its seeded entry
--- count (63, from the MYK9-109 load fixture, section 17 above) so it reads as full
--- without inventing headroom.
---
--- Why `...036` ('Container Advanced', Sunday Trial 3, trial `...023`), and
--- NOT `...034`/`...035` (Sunday Trial, trial `...022`):
---   - MYK9-529: before that fix, `judge_day_summary` reported BOTH judge-days
---     on this show over `default_judge_day_capacity` (125) from real entry
---     volume alone -- Saturday (`...021`: 031/032/033) at 129 confirmed,
---     Sunday (`...022`: 034/035) at 127 -- so ...034 and ...035 rendered
---     "Every class in this trial is full" from JUDGE-DAY capacity, not this
---     fixture's own `max_entries` cap, which would have made this fixture
---     untestable in isolation (no way to tell which mechanism produced the
---     full chip). MYK9-529 raised the capacity to 200 so neither judge-day is
---     full on its own; `...036` stays the only class with an explicit
---     `max_entries` cap, so it is the only one that isolates the CLASS-LIMIT
---     branch of the full-chip logic. Trials `...023`/`...024` (036-039) still
---     carry no confirmed judge assignment (section 11), so they were never
---     reachable by judge-day capacity either way; ...036 is the first of them.
---   - None of the exhibitor's own named dogs (Willow, Ranger, Juniper, Scout,
---     Maple; section 5) has an entry in this class, so `exhibitor@myk9t.com`
---     always sees it as an available-but-full chip, never an already-entered
---     one, regardless of which dog the e2e walk selects first.
---   - Its 63 entries are the MYK9-109 load fixture only (handler
---     `exhibitor@myk9t.com`, but different dogs from the account's five named
---     ones); no hand-authored entry (section 6) targets this class, so
---     nothing else in the seed depends on its headroom.
---   - No other class in this show shares its element+level (Container/
---     Advanced) on a DIFFERENT day: the only repeated element+level pair
---     anywhere in the show is the deliberate SAME-day `...032`/`...040`
---     Interior/Advanced collision (MYK9-489), which `openAlternative()`
---     excludes because it is not a different day. So this fixture exercises
---     the "no alternative, contact the secretary" branch of the reason, not
---     the "another day still has space" branch -- the latter would need an
---     eleventh class, out of scope here. `allow_waitlist` is already `false`
---     on this class, and the secretary contact comes from the club's email
---     (shows.club_id -> clubs.email, testadmin@myk9t.com), so the rendered
---     reason reads "This class is full. Contact the show secretary at
---     testadmin@myk9t.com." -- it satisfies the e2e's `/is full/` assertion
---     (wizardVisualQA.spec.ts).
-UPDATE public.classes
-SET max_entries = 63
-WHERE id = 'dec1a55e-0000-0000-0000-000000000036';
-
 DO $$
 DECLARE
   v_entry_count integer;
@@ -667,8 +620,8 @@ BEGIN
   FROM public.entries
   WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 
-  IF v_entry_count <> 516 THEN
-    RAISE EXCEPTION 'MYK9-109 expected 516 demo-show entries, found %', v_entry_count;
+  IF v_entry_count <> 517 THEN
+    RAISE EXCEPTION 'MYK9-109 expected 517 demo-show entries, found %', v_entry_count;
   END IF;
 END $$;
 

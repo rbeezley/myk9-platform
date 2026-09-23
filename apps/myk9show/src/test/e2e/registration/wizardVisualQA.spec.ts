@@ -977,32 +977,32 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
 /**
  * MYK9-515 — a full chip must explain itself at both widths.
  *
- * Full class fixture: `...036` ("Container Advanced", Trial 3) — seeded with
- * `max_entries = 63` against its 63 seeded entries. Both halves come from the
- * OPT-IN load fixture (supabase/seed-load-fixture.sql section 17c, MYK9-558),
- * so this test needs that file applied after seed-demo.sql; on the lean set
- * ...036 is uncapped and empty, and the positive control below fails. Not
- * `...034`/`...035` (Trial 2): `judge_day_summary` already reports both
- * of this show's judge-days over `default_judge_day_capacity` from real
- * entry volume alone, so those two render "Every class in this trial is
- * full" independently of any seed change — verified against the linked
- * database on 2026-09-14. Trial `...023` carries no confirmed judge
- * assignment, so `...036` is full ONLY because of the seeded `max_entries`.
+ * Full class fixture: `...045` ("Handler Discrimination Advanced", Trial 4),
+ * seeded by the LEAN seed alone (supabase/seed-demo.sql section 4) with
+ * `max_entries = 1` against its one hand-authored entry `...069`, so it is full
+ * after a plain reseed with or without the opt-in load fixture (MYK9-558; this
+ * used to be `...036`, full only while the load fixture's 63 entries existed).
+ * seedDemoFullClassContract.test.ts pins the cap to that entry count.
  *
- * None of the exhibitor's named dogs is entered in `...036`, so
- * `selectFirstDog`'s dog always sees this chip as full-but-selectable, never
- * already-entered. `allow_waitlist` is false on this class, so the rendered
- * reason is the "no alternative, contact the secretary" branch (the contact
- * is the club email, `clubs.email`), not the "another day still has space"
- * branch — no other class in this show shares Container/Advanced on a
- * different day (see the seed comment for why).
+ * Trial `...024` carries no confirmed judge assignment, so `...045` is full
+ * ONLY because of the seeded `max_entries`, which isolates the class-limit
+ * branch of the reason.
+ *
+ * The entry is Cooper (owned by secretary@myk9t.com), so `selectFirstDog`'s
+ * dog, whichever of the exhibitor's five it is, sees this chip as
+ * full-but-selectable, never already-entered. Its handler is the exhibitor,
+ * which is what lets the exhibitor's RLS-scoped capacity count see it.
+ * `allow_waitlist` is false, so the rendered reason is the "no alternative,
+ * contact the secretary" branch (the contact is the club email,
+ * `clubs.email`), not the "another day still has space" branch: no other class
+ * in this show is Handler Discrimination / Advanced.
  *
  * The reason text itself is covered by `ClassSelectionStep.fullReason.test.ts`
  * (the rule) and `__tests__/ClassSelectionStep.fullChip.test.tsx` (the render
  * and the `aria-describedby` wiring); this is the end-to-end proof that a
  * real full class reaches them.
  */
-const FULL_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000036';
+const FULL_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000045';
 
 for (const viewport of [
   { name: 'phone', width: 390, height: 844 },

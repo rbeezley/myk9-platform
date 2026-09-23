@@ -34,7 +34,7 @@ database is left untouched — but the reseed has not happened either. Check wit
 2. **Reseed** — run `supabase/seed-demo.sql`. It is idempotent (content reset,
    not the wipe) and references the protected accounts by email lookup. Every
    delete it runs is scoped to the ids it seeds, so a hand-created show survives.
-   It yields the LEAN set (two clubs, the three Heartland shows, six dogs, 12
+   It yields the LEAN set (two clubs, the three Heartland shows, six dogs, 13
    entries on the demo show) and removes the MYK9-109 load fixture if it was
    applied.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF

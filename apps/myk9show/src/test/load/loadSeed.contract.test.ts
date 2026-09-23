@@ -31,7 +31,7 @@ describe('canonical MYK9-109 load fixture', () => {
     expect(seed).not.toMatch(
       /INSERT INTO public\.(dogs|entries|armbands|shows|trials|classes|clubs)[^;]*a1090000-/
     );
-    expect(seed).toContain('seed-demo expected 12 demo-show entries (lean set)');
+    expect(seed).toContain('seed-demo expected 13 demo-show entries (lean set)');
     const handAuthored = PRIMARY_LOAD_SHOW.showEntryCount - PRIMARY_LOAD_SHOW.generatedEntryCount;
     expect(seed).toContain(`IF v_entry_count <> ${handAuthored} THEN`);
     expect(seed).toContain('seed-demo expected no MYK9-109 load-fixture rows after a reseed');
@@ -58,8 +58,11 @@ describe('canonical MYK9-109 load fixture', () => {
     );
   });
 
-  it('asserts the declared 516-row show total', () => {
-    expect(fixture).toContain('MYK9-109 expected 516 demo-show entries');
+  it('asserts the declared show total the fixture computes', () => {
+    expect(fixture).toContain(`IF v_entry_count <> ${PRIMARY_LOAD_SHOW.showEntryCount} THEN`);
+    expect(fixture).toContain(
+      `MYK9-109 expected ${PRIMARY_LOAD_SHOW.showEntryCount} demo-show entries`
+    );
   });
 });
 

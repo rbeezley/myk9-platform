@@ -77,19 +77,19 @@ describe('manual distributed load workflow', () => {
       "if: ${{ always() && needs.prepare.result == 'success' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 12"
     );
     expect(workflow).toContain('supabase/seed-demo.sql');
-    expect(workflow).toContain('516|504|0');
+    expect(workflow).toContain('517|504|0');
     // MYK9-558: the load fixture is opt-in. Prepare applies it after the lean
     // reseed; the restore is the lean reseed alone, which removes it.
     expect(workflow.match(/-f supabase\/seed-demo\.sql/g)).toHaveLength(2);
     expect(workflow.match(/-f supabase\/seed-load-fixture\.sql/g)).toHaveLength(1);
     const lean = workflow.indexOf('-f supabase/seed-demo.sql');
     const applied = workflow.indexOf('-f supabase/seed-load-fixture.sql');
-    const prepareCheck = workflow.indexOf('516|504|0');
+    const prepareCheck = workflow.indexOf('517|504|0');
     expect(applied).toBeGreaterThan(lean);
     expect(prepareCheck).toBeGreaterThan(applied);
     const restore = workflow.slice(workflow.indexOf('Restore canonical seed'));
     expect(restore).not.toContain('seed-load-fixture.sql');
-    expect(restore).toContain('"12|0|0"');
+    expect(restore).toContain('"13|0|0"');
     expect(workflow).toContain(
       "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
     );

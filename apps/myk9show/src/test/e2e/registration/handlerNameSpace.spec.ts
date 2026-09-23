@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
-import { applyRegistrationClock } from './seedRoster';
+import { applyRegistrationClock, searchForSeededDog, SEEDED_SEARCH_DOGS } from './seedRoster';
 
 /**
  * MYK9-567: a human tester could not put a space in the handler name —
@@ -22,7 +22,7 @@ import { applyRegistrationClock } from './seedRoster';
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
-const DOG_SEARCH = 'Ranger';
+const DOG_SEARCH = SEEDED_SEARCH_DOGS.ranger.callName;
 const CLASS_ELEMENT = 'Container';
 const CLASS_LEVEL = 'Novice A';
 const MOCK_CART_ID = 'e2e-handler-name-cart';
@@ -97,16 +97,6 @@ async function preventSharedWrites(page: Page) {
   );
 }
 
-async function waitForDogSearch(page: Page, query: string) {
-  await page.waitForResponse(
-    response =>
-      response.url().includes('/rest/v1/dogs') &&
-      response.request().method() === 'GET' &&
-      response.url().toLowerCase().includes(query),
-    { timeout: 10000 }
-  );
-}
-
 test('the handler name field accepts spaces, hyphens and apostrophes', async ({ page }) => {
   // MYK9-545: the seed's entry window is relative to the reseed date.
   await applyRegistrationClock(page);
@@ -117,9 +107,7 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
     timeout: 15000,
   });
 
-  const search = page.getByPlaceholder(/Search all dogs/i);
-  await search.fill(DOG_SEARCH);
-  await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
+  await searchForSeededDog(page, SEEDED_SEARCH_DOGS.ranger);
   // MYK9-545: the dogs response landing is not the row landing, and the load
   // fixture repeats call names, so wait for the exact row to render first.
   const dogCheckbox = page.getByRole('checkbox', {

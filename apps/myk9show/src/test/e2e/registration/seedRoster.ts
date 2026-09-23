@@ -1,3 +1,5 @@
+import { expect, type Page } from '@playwright/test';
+
 /**
  * Seed-derived facts the registration specs may rely on, and the two drift
  * traps that broke the whole sweep on 2026-09-15 (MYK9-545).
@@ -30,6 +32,50 @@ export const SEEDED_EXHIBITOR_DOG_COUNT = 5;
  * that only needs presence should take `.first()`.
  */
 export const SEEDED_EXHIBITOR_DOG_NAMES = ['Willow', 'Ranger', 'Juni', 'Scout', 'Maple'] as const;
+
+export interface SeededSearchDog {
+  id: string;
+  callName: string;
+  ownerId: string;
+}
+
+export const SEEDED_SEARCH_DOGS = {
+  ranger: {
+    id: 'dededede-0000-0000-0000-000000000042',
+    callName: 'Ranger',
+    ownerId: 'dededede-0000-0000-0000-000000000101',
+  },
+  willow: {
+    id: 'dededede-0000-0000-0000-000000000041',
+    callName: 'Willow',
+    ownerId: 'dededede-0000-0000-0000-000000000101',
+  },
+  cooper: {
+    id: 'dededede-0000-0000-0000-000000000046',
+    callName: 'Cooper',
+    ownerId: 'dededede-0000-0000-0000-000000000102',
+  },
+} as const satisfies Record<string, SeededSearchDog>;
+
+/** Search the real dog endpoint and fail with the missing seed identity. */
+export async function searchForSeededDog(page: Page, dog: SeededSearchDog): Promise<void> {
+  const responsePromise = page.waitForResponse(
+    response =>
+      response.url().includes('/rest/v1/dogs') &&
+      response.request().method() === 'GET' &&
+      decodeURIComponent(response.url()).toLowerCase().includes(dog.callName.toLowerCase()),
+    { timeout: 10000 }
+  );
+  await page.getByPlaceholder(/Search all dogs/i).fill(dog.callName);
+  const response = await responsePromise;
+  const rows = (await response.json()) as Array<{ id: string; call_name?: string }>;
+  expect(rows, `Shared staging seed drift: missing ${dog.callName} (${dog.id})`).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: dog.id })])
+  );
+  await expect(
+    page.getByRole('checkbox', { name: new RegExp(`^Select ${dog.callName}$`, 'i') })
+  ).toBeVisible();
+}
 
 /**
  * The demo show's entry window is `CURRENT_DATE - 16 .. + 76` (`seed-demo.sql`

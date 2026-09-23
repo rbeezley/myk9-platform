@@ -39,10 +39,14 @@ export function useCurrentActions(): CurrentActions {
   // The one control behind the `publish-premium` command -- the same read,
   // derivation and flow the Premium List card renders, so the menu can never
   // offer a publish the card has withdrawn. Called unconditionally (hooks
-  // rules) with an empty id off a show route, where the read is disabled and
-  // `run` is a no-op. `true`: this menu is manager-only, so staleness is
-  // always the viewer's business here.
-  const premium = usePremiumPublishControl(showId ?? '', true);
+  // rules) with an empty id off a show route, or with the show-management gate
+  // closed while scope resolves. `true`: this menu is manager-only, so
+  // staleness is always the viewer's business here.
+  const premium = usePremiumPublishControl(
+    showId ?? '',
+    true,
+    scope.status === 'resolved' && scope.canManage
+  );
 
   const resolved = useMemo(
     () =>

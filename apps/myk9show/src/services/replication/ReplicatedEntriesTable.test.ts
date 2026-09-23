@@ -31,6 +31,15 @@ describe('rowToEntry — embedded dog mapping', () => {
     expect(entry.dog_breed).toBe('Mixed Breed');
   });
 
+  it('maps embedded dogs.owner_id into dogOwnerId for handler identity projection', () => {
+    const entry = rowToEntry({
+      ...baseRow,
+      dogs: { owner_id: 'owner-1', call_name: 'Max', breed: 'Mixed Breed' },
+    } as never);
+
+    expect(entry.dogOwnerId).toBe('owner-1');
+  });
+
   it('leaves dog fields undefined when no dog is embedded', () => {
     const entry = rowToEntry({ ...baseRow, dogs: null } as never);
 

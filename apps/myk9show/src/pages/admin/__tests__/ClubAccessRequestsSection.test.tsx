@@ -52,6 +52,9 @@ describe('ClubAccessRequestsSection', () => {
 
     expect(await screen.findByText('Heartland Dog Club')).toBeInTheDocument();
     expect(screen.getByText(/Liz Beezley/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/active member.*club-admin.*secretary\/show-manager access/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Create a new club' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Use Existing Dog Club' })).toBeInTheDocument();
   });

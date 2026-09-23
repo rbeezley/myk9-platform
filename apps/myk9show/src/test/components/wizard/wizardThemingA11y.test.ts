@@ -151,7 +151,7 @@ describe('Show creation wizard — dark-mode theming guards', () => {
 
 describe('Show creation wizard — a11y guards', () => {
   it('TrialConfigurationStep delete button has an accessible name and adapts in dark mode', () => {
-    expect(trialConfigStep).toContain('aria-label={`Remove Trial ${index + 1}`}');
+    expect(trialConfigStep).toContain('aria-label={`Remove ${trialName}`}');
     expect(trialConfigStep).toContain(
       'text-destructive hover:text-destructive hover:bg-destructive/10'
     );

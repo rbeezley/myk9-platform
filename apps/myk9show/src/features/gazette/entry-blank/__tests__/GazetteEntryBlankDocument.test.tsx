@@ -148,4 +148,19 @@ describe('GazetteEntryBlankDocument', () => {
     // lowercase-roman folio convention of the rest of the document).
     expect(screen.getByText('i')).toBeTruthy();
   });
+
+  it('keeps distinct owner and handler names in their labeled fields', () => {
+    const props = buildEntryBlankProps({
+      ...BASE_OPTS,
+      owner: { first_name: 'Olivia', last_name: 'Owner' },
+      handler: { first_name: 'Harper', last_name: 'Handler' },
+    });
+    render(<GazetteEntryBlankDocument {...props} />);
+    const ownerField = screen.getByText('Owner name').closest('div');
+    const handlerField = screen.getByText('Handler (if different)').closest('div');
+    expect(ownerField).toHaveTextContent('Olivia Owner');
+    expect(ownerField).not.toHaveTextContent('Harper Handler');
+    expect(handlerField).toHaveTextContent('Harper Handler');
+    expect(handlerField).not.toHaveTextContent('Olivia Owner');
+  });
 });

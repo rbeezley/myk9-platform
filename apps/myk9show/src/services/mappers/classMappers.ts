@@ -337,6 +337,11 @@ export const mapDatabaseToEntry = (dbEntry: DbEntryWithRelations): SyncableEntry
     time: result?.time_seconds?.toString() || '',
     placement: result?.placement || '',
     classId: dbEntry.class_id || '',
+    isScored: dbEntry.is_scored ?? undefined,
+    resultStatus: dbEntry.result_status ?? undefined,
+    entryStatus: dbEntry.entry_status ?? undefined,
+    checkInStatus: dbEntry.check_in_status ?? undefined,
+    deletedAt: dbEntry.deleted_at,
 
     // Sync metadata
     _version: 1,

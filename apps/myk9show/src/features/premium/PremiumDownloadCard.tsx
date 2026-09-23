@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
+import { PREMIUM_UP_TO_DATE_REASON } from './premiumPublishAction';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
 // never fire: the one link that carried `#setup-publish-premium` was a router
@@ -15,6 +16,8 @@ const ANCHOR_CLASS = 'scroll-mt-20';
 
 interface PremiumDownloadCardProps {
   showId: string;
+  /** True only after the show-management scope resolves for this show. */
+  canManageShow: boolean;
   /**
    * When true, render the "show data has changed since publish" badge to
    * nudge a re-publish. Only shown to people who can manage the show; for
@@ -52,7 +55,11 @@ function PublishFailureNotice({
   );
 }
 
-export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
+export function PremiumDownloadCard({
+  showId,
+  canManageShow,
+  showStaleBadge = false,
+}: PremiumDownloadCardProps) {
   // Read, derivation and flow all come from one hook, because the header
   // Actions menu offers the SAME publish from every section and the two must
   // never disagree about whether it is on offer or what it is called.
@@ -67,7 +74,8 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     landingUnpublished,
     needsRepublish,
     action,
-  } = usePremiumPublishControl(showId, showStaleBadge);
+    infoState,
+  } = usePremiumPublishControl(showId, showStaleBadge, canManageShow);
   const publishedUrl = info?.publishedUrl;
   const publishedAt = info?.publishedAt;
 
@@ -88,7 +96,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         <PublishFailureNotice
           message={failureMessage}
           onRetry={handleGenerateAndPublish}
-          disabled={isBusy}
+          disabled={isBusy || action.disabledReason !== undefined}
         />
       )}
       {!hasPublishedPremium ? (
@@ -98,20 +106,27 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm">Premium List</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {infoState === 'ready' ? 'Premium PDF is not published yet' : action.disabledReason}
+            </p>
           </div>
           {/* size="touch": publishing the premium is a PRIMARY action, which
               docs/INTENT.md § 3 never permits below the 44px floor. */}
-          <Button
-            size="touch"
-            className="shrink-0 whitespace-nowrap"
-            onClick={handleGenerateAndPublish}
-            disabled={action.disabledReason !== undefined}
-            {...(action.disabledReason ? { title: action.disabledReason } : {})}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {action.label}
-          </Button>
+          <div className="flex shrink-0 flex-col items-start gap-1">
+            <Button
+              size="touch"
+              className="whitespace-nowrap"
+              onClick={handleGenerateAndPublish}
+              disabled={action.disabledReason !== undefined}
+              {...(action.disabledReason ? { title: action.disabledReason } : {})}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {action.label}
+            </Button>
+            {action.disabledReason && (
+              <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -137,17 +152,24 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
               Premium PDF published {publishedLabel}
             </p>
           </div>
-          {needsRepublish && (
-            <Button
-              size="touch"
-              className="shrink-0 whitespace-nowrap"
-              onClick={handleGenerateAndPublish}
-              disabled={action.disabledReason !== undefined}
-              {...(action.disabledReason ? { title: action.disabledReason } : {})}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {action.label}
-            </Button>
+          {(needsRepublish ||
+            (action.disabledReason !== undefined &&
+              action.disabledReason !== PREMIUM_UP_TO_DATE_REASON)) && (
+            <div className="flex shrink-0 flex-col items-start gap-1">
+              <Button
+                size="touch"
+                className="whitespace-nowrap"
+                onClick={handleGenerateAndPublish}
+                disabled={action.disabledReason !== undefined}
+                {...(action.disabledReason ? { title: action.disabledReason } : {})}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {action.label}
+              </Button>
+              {action.disabledReason && (
+                <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
+              )}
+            </div>
           )}
           <a
             href={publishedUrl ?? ''}

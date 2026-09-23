@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, act } from '@testing-library/react';
+import { screen, act, waitFor } from '@testing-library/react';
 import type { ShowPasscodes } from '@myk9/core';
 import { render } from '@/test/utils/testUtils';
 import ShowCreationWizardPage from '../ShowCreationWizardPage';
@@ -88,6 +88,55 @@ describe('ShowCreationWizardPage success overlay', () => {
     expect(screen.getByText(FIXTURE_PASSCODES.judge)).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.steward)).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.exhibitor)).toBeInTheDocument();
+  });
+
+  it('explains ringside code sharing and keeps code copying available', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+
+    act(() => {
+      capturedOnCreated?.(
+        '63165809-e025-25c6-6cf9-979f63165809',
+        'Spring Trial',
+        FIXTURE_PASSCODES
+      );
+    });
+
+    const overlay = screen.getByRole('heading', { name: /show created!/i }).closest('div.fixed');
+    expect(overlay).not.toBeNull();
+    expect(overlay).toHaveClass('max-h-[100dvh]', 'overflow-y-auto');
+    expect(overlay?.firstElementChild).toHaveClass(
+      'min-h-full',
+      'flex-col',
+      'justify-center',
+      'p-4',
+      'sm:p-8'
+    );
+    expect(screen.getByRole('button', { name: /review & publish show/i })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: /^copy (admin|judge|steward|exhibitor) code$/i })
+    ).toHaveLength(4);
+
+    expect(
+      screen.getByRole('heading', { name: /role-specific access codes/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /the judge and steward codes are ringside access codes for assigned judges and stewards to open the ringside scoring tools/i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/share judge and steward codes only with assigned show officials/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/admin and exhibitor codes are for their named roles/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/do not replace normal myk9show account or exhibitor sign-in/i)
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Copy Judge code' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(FIXTURE_PASSCODES.judge));
   });
 
   it('opens the created show so the secretary can review and publish it', async () => {

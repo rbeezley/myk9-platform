@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { useWizardStore } from '@/store/wizardStore';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { createMockTemplate } from '@/test/utils/mockData';
 import { ClassSelectionStep } from '../ClassSelectionStep';
 import { ReviewStep } from '../ReviewStep';
@@ -12,7 +13,49 @@ const alternateTemplate = {
   id: 'alternate-template',
   templateName: 'Alternate AKC template',
 };
+const orderedTemplate = {
+  ...createMockTemplate(),
+  id: 'ordered-template',
+  classDefinitions: [
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+      className: 'Container Novice A',
+      displayOrder: 1,
+    },
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Buried',
+      level: 'Advanced',
+      section: 'A',
+      className: 'Buried Advanced A',
+      displayOrder: 2,
+    },
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Interior',
+      level: 'Excellent',
+      section: 'A',
+      className: 'Interior Excellent A',
+      displayOrder: 3,
+    },
+  ],
+};
 let availableTemplates = [template];
+
+function currentTrialView() {
+  const trials = useWizardStore.getState().trials;
+  return createWizardTrialView(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+}
 
 vi.mock('@/hooks/useTemplates', () => ({
   useTemplates: () => ({
@@ -61,7 +104,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       trials: [
         {
           id: 'trial-1',
-          name: 'Saturday Trial',
+          nameOverride: 'Saturday Trial',
           dateTime: '2026-10-01T08:00:00.000Z',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
@@ -93,7 +136,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
   });
 
   it('keeps a renamed clone searchable and removable, then updates Review counts and assignments', async () => {
-    const classes = render(<ClassSelectionStep />);
+    const classes = render(<ClassSelectionStep trialView={currentTrialView()} />);
 
     await classes.user.type(screen.getByPlaceholderText('Search classes...'), 'Renamed Container');
     await classes.user.click(
@@ -110,7 +153,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
     );
 
     classes.unmount();
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={currentTrialView()} />);
 
     const classesTile = screen
       .getByText(/^Classes$/, { selector: 'p' })
@@ -123,15 +166,73 @@ describe('ClassSelectionStep retained cloned classes', () => {
 
   it('hydrates an asynchronously loaded saved template without clearing retained classes', async () => {
     availableTemplates = [];
-    const classes = render(<ClassSelectionStep />);
+    const classes = render(<ClassSelectionStep trialView={currentTrialView()} />);
 
     availableTemplates = [template, alternateTemplate];
-    classes.rerender(<ClassSelectionStep />);
+    classes.rerender(<ClassSelectionStep trialView={currentTrialView()} />);
 
     await classes.user.type(screen.getByPlaceholderText('Search classes...'), 'Renamed Container');
     expect(
       await screen.findByRole('checkbox', { name: 'Deselect Renamed Container Special' })
     ).toBeChecked();
     expect(useWizardStore.getState().trials[0]?.classes).toHaveLength(2);
+  });
+
+  function renderOrderedTemplate() {
+    availableTemplates = [orderedTemplate];
+    useWizardStore.getState().resetWizard();
+    useWizardStore.setState(state => ({
+      show: {
+        ...state.show,
+        organization: 'AKC',
+      },
+      trials: [
+        {
+          id: 'trial-1',
+          nameOverride: 'Saturday Trial',
+          dateTime: '2026-10-01T08:00:00.000Z',
+          eventNumber: 'SW-1',
+          trialType: 'Scent Work',
+          classes: [],
+        },
+      ],
+    }));
+
+    return render(<ClassSelectionStep trialView={currentTrialView()} />);
+  }
+
+  function elementOrder() {
+    return Array.from(document.querySelectorAll('.myk9-class-element-title')).map(
+      element => element.textContent
+    );
+  }
+
+  it('keeps the original element order when one class is selected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+  });
+
+  it('keeps the original element order when a selected class is deselected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Deselect Buried Advanced A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+  });
+
+  it('keeps the original element order when multiple elements are selected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Interior Excellent A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+    expect(
+      useWizardStore.getState().trials[0]?.classes.map(cls => cls.customizations.element)
+    ).toEqual(['Buried', 'Interior']);
   });
 });

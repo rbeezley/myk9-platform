@@ -8,7 +8,7 @@ import {
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
-import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -317,31 +317,27 @@ async function fetchEntryFormData(
       first_name: owner.firstName,
       last_name: owner.lastName,
     });
-    // `handler` is the name the AKC form PRINTS. It stays null when the handler
-    // is the owner — that is what the `!== ownerFullName` filter is for; the
-    // form prints the owner block in that case.
-    const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
-    const handler = handlerEntry?.handler ?? null;
-
-    // MYK9-570: WHO that handler is, for the junior fields, is decided by the
-    // one resolver in handlerIdentity.ts — never inferred here from whatever is
-    // in scope. Two rounds of review found this block wrong in two different
-    // ways (a person borrowed from another entry; then, after that fallback was
-    // deleted, the owner-handled case lost the number entirely — 1276 of 1281
-    // live entries), so the choice no longer lives at the call site.
-    //
-    // The printed name is `handler` when there IS a separate handler entry, and
-    // the owner's name otherwise. Both candidates are offered; the resolver
-    // admits one only if its name is the one being printed.
-    const printedHandlerName = handler ?? ownerFullName;
-    const handlerIdPerson = handlerEntry?.handlerId
-      ? (personMap.get(handlerEntry.handlerId) ?? null)
-      : null;
-    const handlerRaw = resolveHandlerPerson({
-      printedHandlerName,
-      handlerIdPerson,
+    // Keep identity tied to one entry: never borrow a handler_id from a sibling
+    // entry for this dog. Prefer an explicit non-owner name as before, then an
+    // ID-only assignment. Owner fallback is projected only when no identity is
+    // assigned on any entry.
+    const handlerEntry =
+      dogEntries.find(e => e.handler?.trim() && e.handler.trim() !== ownerFullName) ??
+      dogEntries.find(e => e.handlerId?.trim());
+    const handlerIdentity = projectHandlerIdentity({
+      assignedHandlerName: handlerEntry?.handler,
+      assignedHandlerId: handlerEntry?.handlerId,
+      assignedHandlerPerson: handlerEntry?.handlerId
+        ? (personMap.get(handlerEntry.handlerId) ?? null)
+        : null,
       ownerPerson: ownerRaw ?? null,
     });
+    // The form has a separate owner block, so omit the handler field when the
+    // projected identity is the owner. An unresolved assigned ID remains null
+    // instead of silently substituting the owner.
+    const handler =
+      handlerIdentity.name && handlerIdentity.name !== ownerFullName ? handlerIdentity.name : null;
+    const handlerRaw = handlerIdentity.person;
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;

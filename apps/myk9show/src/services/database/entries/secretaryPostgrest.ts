@@ -5,6 +5,7 @@ import {
   isSecretaryPaymentSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
+import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
@@ -174,7 +175,15 @@ export async function postgrestGetSecretaryEntriesForShow(
     throw createDatabaseError(error, 'entries', operation);
   }
 
-  const entries = (data ?? []) as unknown as SecretaryEntry[];
+  const entries = (data ?? []).map(row => {
+    const entry = row as unknown as SecretaryEntry;
+    return {
+      ...entry,
+      handler_identity: projectPostgrestEntryHandlerIdentity(
+        row as unknown as Record<string, unknown>
+      ),
+    };
+  });
 
   // The view carries the scored columns but NOT the pull/refund bookkeeping
   // (`withdrawn_at`, `refund_decision`, `refund_decided_at`), which live only on

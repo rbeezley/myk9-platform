@@ -59,7 +59,7 @@ export class ShowCreationWizardPage {
 
   // ========== Step 2: Trials ==========
   private get addTrialButton() {
-    return this.page.locator('button:has-text("Add Trial"), button:has-text("Add First Trial")');
+    return this.page.getByRole('button', { name: /Add (First|Another) Trial/ });
   }
 
   // ========== Step 3: Classes ==========

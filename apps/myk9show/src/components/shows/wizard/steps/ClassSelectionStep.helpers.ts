@@ -59,15 +59,20 @@ export const mergeTemplateWithRetainedClassDefinitions = (
   template: ClassTemplate,
   retainedClasses: ClassDefinition[]
 ): ClassTemplate => {
-  const retainedKeys = new Set(retainedClasses.map(getClassIdentityKey));
+  const retainedByKey = new Map(
+    retainedClasses.map(classDefinition => [getClassIdentityKey(classDefinition), classDefinition])
+  );
+  const templateKeys = new Set(template.classDefinitions.map(getClassIdentityKey));
 
   return {
     ...template,
     classDefinitions: [
-      ...template.classDefinitions.filter(
-        definition => !retainedKeys.has(getClassIdentityKey(definition))
+      ...template.classDefinitions.map(
+        definition => retainedByKey.get(getClassIdentityKey(definition)) ?? definition
       ),
-      ...retainedClasses,
+      ...retainedClasses.filter(
+        classDefinition => !templateKeys.has(getClassIdentityKey(classDefinition))
+      ),
     ],
   };
 };

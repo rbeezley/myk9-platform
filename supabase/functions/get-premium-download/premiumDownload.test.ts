@@ -165,7 +165,9 @@ describe('createPremiumDownload', () => {
     const deleted = backend(row({ deleted_at: '2026-09-21T12:00:00Z' }));
     deleted.canPreview.mockResolvedValueOnce(true);
 
-    await expect(createPremiumDownload(showId, deleted, 'validated-manager-jwt')).resolves.toBeNull();
+    await expect(
+      createPremiumDownload(showId, deleted, 'validated-manager-jwt')
+    ).resolves.toBeNull();
     expect(deleted.canPreview).not.toHaveBeenCalled();
     expect(deleted.sign).not.toHaveBeenCalled();
   });

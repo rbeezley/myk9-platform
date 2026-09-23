@@ -88,7 +88,7 @@ The invariant is that an uncommitted object is never anonymously downloadable an
 | Endpoint deploys safely before migration             | Pre-schema test uses only legacy URL column; post-schema test resolves versioned path                | Planned         |
 | Failure/retry/partial upload safety                  | Client retries + atomic SQL preservation                                                             | Planned         |
 | Stale version/concurrency                            | RPC behavioral test + client coordination test                                                       | Planned         |
-| Lost commit response and cross-surface arbitration    | Exact-pointer reconcile test + synchronous same-show lock/conflict tests                              | Planned         |
+| Lost commit response and cross-surface arbitration   | Exact-pointer reconcile test + synchronous same-show lock/conflict tests                             | Planned         |
 | Same-version idempotency binds complete intent       | Exact retry succeeds; changed style/snapshot retry rejects and preserves committed row               | Planned         |
 | Authorization/configuration recovery                 | SQL manager/secretary/stranger/anon; UI actionable errors                                            | Planned         |
 | Download readiness and URL freshness                 | Signing only on click; no-store URL; outage cannot mask durable status or disable republish          | Planned         |

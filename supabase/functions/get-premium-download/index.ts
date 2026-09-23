@@ -27,7 +27,9 @@ interface ShowQuery {
 
 interface PremiumDownloadClient {
   auth: {
-    getUser(token: string): Promise<{ data: { user?: unknown | null } | null; error: unknown | null }>;
+    getUser(
+      token: string
+    ): Promise<{ data: { user?: unknown | null } | null; error: unknown | null }>;
   };
   rpc(
     functionName: 'can_manage_show' | 'is_show_secretary',
@@ -115,8 +117,8 @@ export async function processPremiumDownloadRequest(req: Request): Promise<Respo
         ),
         request.headers.get('Authorization')
       );
-    if (!url) throw new HttpError(404, 'Not found');
-    return { url };
+      if (!url) throw new HttpError(404, 'Not found');
+      return { url };
     },
     {
       getEnv: name => Deno.env.get(name),

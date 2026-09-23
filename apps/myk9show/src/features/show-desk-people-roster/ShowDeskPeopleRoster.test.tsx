@@ -35,6 +35,11 @@ function entry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     show_id: 'show-1',
     handler: null,
     handler_id: 'person-1',
+    handler_identity: {
+      name: 'Alice Martin',
+      person: { id: 'person-1', first_name: 'Alice', last_name: 'Martin' },
+      source: 'assigned-person',
+    },
     payment_status: 'paid',
     entry_status: 'accepted',
     entry_fee: 25,

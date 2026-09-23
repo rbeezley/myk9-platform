@@ -17,6 +17,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { prewarmClassRulesCache } from '@/services/sportTemplateService';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
   buildRetainedClassDefinition,
   buildWizardClassItem,
@@ -38,6 +39,8 @@ interface ClassSelectionStepProps {
   className?: string;
   /** Classes that already exist in the DB (for add-classes mode). */
   existingDBClasses?: ExistingClassInfo[] | undefined;
+  /** Shared naming and show-level trial context created by the wizard page. */
+  trialView: WizardTrialView;
   /** True once the user has clicked Next — gates eager validation errors. */
   submitted?: boolean;
 }
@@ -50,6 +53,7 @@ interface TrialClassState {
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   className,
   existingDBClasses = [],
+  trialView,
   submitted = false,
 }) => {
   const {
@@ -73,6 +77,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   );
 
   const { templates } = useTemplates();
+  const effectiveTrialNames = useMemo(
+    () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
+    [trials, trialView]
+  );
 
   // Pre-warm class rules cache so rules are already fetched by the time the user saves.
   useEffect(() => {
@@ -276,13 +284,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     if (submitted) {
       trials.forEach((trial, index) => {
         if (trial.classes.length === 0) {
-          newErrors[`trial-${index}`] = `${trial.name} must have at least one class`;
+          newErrors[`trial-${index}`] =
+            `${effectiveTrialNames[index]} must have at least one class`;
         }
       });
     }
 
     return newErrors;
-  }, [totalClasses, trials, submitted]);
+  }, [totalClasses, trials, effectiveTrialNames, submitted]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
@@ -424,11 +433,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   gridTemplateColumns: `repeat(${trials.length}, minmax(7rem, 1fr))`,
                 }}
               >
-                {trials.map(trial => {
+                {trials.map((trial, index) => {
                   const isCompleted = trial.classes.length > 0;
                   return (
                     <TabsTrigger key={trial.id} value={trial.id}>
-                      <span className="truncate">{trial.name}</span>
+                      <span className="truncate">{effectiveTrialNames[index]}</span>
                       <Badge
                         variant={isCompleted ? 'default' : 'outline'}
                         className="text-xs ml-1.5"
@@ -441,7 +450,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               </TabsList>
 
               {/* Trial Content */}
-              {trials.map(trial => (
+              {trials.map((trial, index) => (
                 <TabsContent key={trial.id} value={trial.id} className="space-y-6">
                   {/* Template Selection */}
                   {activeTemplates.length > 1 && (
@@ -449,7 +458,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <FileText className="h-5 w-5" />
-                          Select Template for {trial.name}
+                          Select Template for {effectiveTrialNames[index]}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -527,7 +536,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   {currentTemplateWithRetainedClasses ? (
                     <Card>
                       <CardHeader>
-                        <CardTitle>Select Classes for {trial.name}</CardTitle>
+                        <CardTitle>Select Classes for {effectiveTrialNames[index]}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <SimpleClassSelector
@@ -556,7 +565,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           Select a Template
                         </h4>
                         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                          Choose a template above to begin selecting classes for {trial.name}.
+                          Choose a template above to begin selecting classes for{' '}
+                          {effectiveTrialNames[index]}.
                         </p>
                       </div>
                     </div>

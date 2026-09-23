@@ -72,7 +72,8 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
     update.confirmation_message = input.confirmationMessage || null;
   if (input.startingArmbandNumber !== undefined)
     update.starting_armband_number = input.startingArmbandNumber;
-  if (input.style !== undefined) update.style = input.style;
+  // Style has an exclusive Preview RPC path. Omitting it here prevents a
+  // stale settings-form snapshot from clobbering a newer draft style.
 
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or

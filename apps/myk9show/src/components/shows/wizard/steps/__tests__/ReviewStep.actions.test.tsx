@@ -3,6 +3,12 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ReviewStep } from '../ReviewStep';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+const trialView = createWizardTrialView(
+  [{ id: 'trial-1', nameOverride: 'Trial 1', trialDate: '2026-07-01T09:00:00Z' }],
+  []
+);
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -32,7 +38,7 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        name: 'Trial 1',
+        nameOverride: 'Trial 1',
         dateTime: '2026-07-01T09:00:00Z',
         type: 'scent_work',
         classes: [{ id: 'class-1', name: 'Novice A', level: 'novice', element: 'container' }],
@@ -52,7 +58,7 @@ describe('ReviewStep completion actions', () => {
   it('offers one draft-create action and leaves publishing to show management', async () => {
     const onCreateShow = vi.fn();
     const user = userEvent.setup();
-    render(<ReviewStep onCreateShow={onCreateShow} />);
+    render(<ReviewStep trialView={trialView} onCreateShow={onCreateShow} />);
 
     expect(screen.getByRole('button', { name: /^create show$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /publish/i })).not.toBeInTheDocument();

@@ -13,6 +13,9 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ReviewStep } from '../ReviewStep';
 import { toast } from 'sonner';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+const trialView = createWizardTrialView([], []);
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -54,7 +57,7 @@ beforeEach(() => {
 
 describe('ReviewStep — blocking errors must actually block', () => {
   it('does not claim the configuration is complete while errors are listed', () => {
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={trialView} />);
 
     expect(screen.getByText(/at least one trial is required/i)).toBeInTheDocument();
     expect(screen.queryByText(/show configuration complete/i)).not.toBeInTheDocument();
@@ -62,7 +65,7 @@ describe('ReviewStep — blocking errors must actually block', () => {
 
   it('refuses create and says why', async () => {
     const onCreateShow = vi.fn();
-    render(<ReviewStep onCreateShow={onCreateShow} />);
+    render(<ReviewStep trialView={trialView} onCreateShow={onCreateShow} />);
 
     await userEvent.click(screen.getByRole('button', { name: /^create show$/i }));
 

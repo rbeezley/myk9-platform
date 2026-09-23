@@ -205,6 +205,47 @@ thing standing between a schema change and a green-but-broken suite.
   the secretary Actions button to render, so it needs a secretary-side fixture
   as well as the exhibitor one.
 
+#### Phase 3 findings (2026-09-23) — complete
+
+The scope was five specs, not three. Verified with the full PR-smoke set under
+`playwright.ci.config.ts`, `--repeat-each=2 --retries=0`: **84 passed, 0
+failed**, 2 skipped (the mobile-only case on the chromium project, by design).
+
+- **Two more specs were broken and CI never said so.** `uat/secretary/critical-path`
+  (mail-in) and `uat/secretary/qa-regression-proof` (add trials) opened the
+  seeded show `dededede-…0010`, which the wipe removed. Every post-wipe E2E run
+  hit the job's time cap retrying the first three specs, so these two never
+  ran. Fixing the first three would have exposed them as the next red.
+  `secretaryFixture.ts` now serves a read-only show, trial, classes and a
+  non-owned dog, owned by the secretary's **real** club scope, so
+  `useShowManageScope` grants management as it would in production instead of
+  the fixture forging a permission. Writes to its routes are aborted.
+- **Both demo accounts lost their `exhibitor_profiles` rows, and for the
+  secretary the loss doesn't announce itself.** A secretary is exempt from the
+  onboarding redirect, but `useCurrentPersonId` reads `person_id` off that row
+  and nowhere else. So every person-keyed query stayed disabled: the dog
+  roster never loaded, and the mail-in wizard refused a dog it had just found
+  with "All dogs in one registration must share the same owner."
+  `exhibitorProfileRoute.ts` serves the row for both fixtures from each
+  account's real identity.
+- **The header Actions case needed no secretary show.** For a secretary the
+  button renders from role alone on `/secretary/dashboard`, at the same width
+  as on a show. Mutation-checked: forcing the labelled trigger at phone widths
+  turns the case red ("needs 114px, has 61px"). Its desktop-width read was
+  also a latent flake: `toHaveText(/Actions/)` matched the `sr-only` label
+  before the media query flipped. It now polls the width.
+- **`dialogContainsLongContent` case 2** failed for the same reason as
+  everything else: `/account` is an exhibitor route and redirected to
+  `/onboarding`. The fixture fixes it; its "no data dependency" note was
+  corrected.
+- **Fixture bugs caught on the way:** a `dogs.registered_name` key (no such
+  column; the name is `dogs.name`), which the typed `Pick` could not see
+  because it sat in the untyped tail of the row; and `.single()` requests
+  answered with an array (`fulfillRows` now returns an object for
+  `vnd.pgrst.object`).
+- **Default exhibitor dataset** carries one upcoming and one completed entry,
+  so "Upcoming + Completed = All" cannot pass as 1 + 0 = 1.
+
 ### Phase 4 — the canary
 
 - One spec, live data, explicitly named so its failure is self-describing

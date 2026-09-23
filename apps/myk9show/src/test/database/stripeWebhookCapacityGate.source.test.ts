@@ -32,6 +32,18 @@ const lineageMigration = readFileSync(
 const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
 
 describe('stripe webhook online cart capacity gate', () => {
+  it('fresh-verifies and refunds a paid session when its cart is missing', () => {
+    const missingCartStart = webhookSource.indexOf('if (cartError || !cart)');
+    const missingCartEnd = webhookSource.indexOf('\n  const freshSession =', missingCartStart);
+    const missingCartPath = webhookSource.slice(missingCartStart, missingCartEnd);
+
+    expect(missingCartPath).toContain('stripe.checkout.sessions.retrieve(session.id)');
+    expect(missingCartPath).toContain('decideFreshSessionGate(missingCartSession)');
+    expect(missingCartPath).toContain('issueCartOverflowAutoRefund(');
+    expect(missingCartPath).toContain('fullCartRefundDecision(missingCartGate.amountTotalCents');
+    expect(missingCartPath).toContain('invalidCartItemIds: []');
+  });
+
   it('routes cart and payment-link settlement through one SQL authority', () => {
     expect(webhookSource.match(/'settle_entry_order'/g)).toHaveLength(2);
     expect(webhookSource).toContain('loadEntrySettlementLinePricesFromStripe');

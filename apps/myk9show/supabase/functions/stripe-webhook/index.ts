@@ -896,11 +896,29 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .single();
   if (cartError || !cart) {
     console.error('Paid entry checkout cart could not be loaded:', cartError);
+    const missingCartSession = await stripe.checkout.sessions.retrieve(session.id);
+    const missingCartGate = decideFreshSessionGate(missingCartSession);
+    if (missingCartGate.action === 'skip') {
+      console.log(
+        `Checkout session ${session.id}: ${missingCartGate.reason} — waiting for a paid event`
+      );
+      return;
+    }
+    const paymentIntentId = extractPaymentIntentId(missingCartSession.payment_intent);
     await alertAdmin(
       'Paid checkout has no cart — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but cart <code>${cartId}</code> could not be read. No entries were created.</p><p>Verify the payment and refund it, or restore the cart and re-send the event.</p>`,
+      `<p>Checkout session <code>${session.id}</code> is paid, but cart <code>${cartId}</code> could not be read. No entries were created; the full charge will be refunded automatically if Stripe accepts the refund.</p>`,
       { source: 'stripe-webhook', dedupeKey: `paid-checkout-no-cart-${session.id}` }
     );
+    await issueCartOverflowAutoRefund({
+      session: missingCartSession,
+      paymentIntentId,
+      decision: fullCartRefundDecision(missingCartGate.amountTotalCents, paymentIntentId),
+      invalidCartItemIds: [],
+      waitlistedCartItemIds: [],
+      deniedCartItemIds: [],
+      failedCartItemIds: [],
+    });
     return;
   }
 

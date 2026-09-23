@@ -23,12 +23,26 @@ database is left untouched — but the reseed has not happened either. Check wit
 
 ## What a reseed is
 
-1. **Hard wipe** — clears all shows/trials/classes/entries/dogs/clubs and all
-   non-protected people (the 11 protected accounts survive). Order:
+1. **Hard wipe (historical, 2026-06-17 only)** — cleared all
+   shows/trials/classes/entries/dogs/clubs and all non-protected people (the 11
+   protected accounts survived). Order:
    `entry_cart_items → shows (cascade) → dogs → clubs → non-protected people`.
-   Always dry-run inside `BEGIN … ROLLBACK` first.
+   **Do not repeat it** now that clubs run their own UAT shows on staging
+   (MYK9-558): a blanket delete would destroy them. Remove stray data from the
+   site-admin dashboard (soft-delete, then Admin → Data Lifecycle Management →
+   Deleted Entities) instead.
 2. **Reseed** — run `supabase/seed-demo.sql`. It is idempotent (content reset,
-   not the wipe) and references the protected accounts by email lookup.
+   not the wipe) and references the protected accounts by email lookup. Every
+   delete it runs is scoped to the ids it seeds, so a hand-created show survives.
+   It yields the LEAN set (two clubs, the three Heartland shows, six dogs, 12
+   entries on the demo show) and removes the MYK9-109 load fixture if it was
+   applied.
+3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
+   calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
+   same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo
+   show plus the three load clubs and shows. Rerun step 2 alone to remove it;
+   never leave it applied while a club is testing on staging, because the staff
+   dog picker searches every dog in the system.
 
 ```bash
 # From a checkout linked to staging (or copy supabase/.temp from a linked tree).

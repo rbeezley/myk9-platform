@@ -246,7 +246,9 @@ a whole sweep on 2026-09-15 (MYK9-545) and are now guarded in
   rendered "This show is not accepting online entries yet" instead of step 1.
   Use `applyRegistrationClock(page)`: real time by default, and
   `QA_REGISTRATION_TIME` when a hand run needs a pinned moment.
-- **Call names are not unique.** The MYK9-109 load fixture repeats them (three
+- **Call names are not unique.** The MYK9-109 load fixture
+  (`supabase/seed-load-fixture.sql`, applied only for a load rehearsal or PDF
+  calibration since MYK9-558) repeats them (three
   dogs answer to "Birch"), so `Select <call name>` is an ambiguous accessible
   name. Anchor the regex (`^Select Ranger$`) or pick from
   `SEEDED_EXHIBITOR_DOG_NAMES` — and note those names are the CALL names, so the

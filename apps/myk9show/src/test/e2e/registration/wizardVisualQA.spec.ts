@@ -977,10 +977,12 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
 /**
  * MYK9-515 — a full chip must explain itself at both widths.
  *
- * Full class fixture: `...036` ("Container Advanced", Sunday Trial 3) —
- * seeded with `max_entries = 63` against its 63 seeded entries
- * (supabase/seed-demo.sql, MYK9-515 comment above the classes insert). Not
- * `...034`/`...035` (Sunday Trial): `judge_day_summary` already reports both
+ * Full class fixture: `...036` ("Container Advanced", Trial 3) — seeded with
+ * `max_entries = 63` against its 63 seeded entries. Both halves come from the
+ * OPT-IN load fixture (supabase/seed-load-fixture.sql section 17c, MYK9-558),
+ * so this test needs that file applied after seed-demo.sql; on the lean set
+ * ...036 is uncapped and empty, and the positive control below fails. Not
+ * `...034`/`...035` (Trial 2): `judge_day_summary` already reports both
  * of this show's judge-days over `default_judge_day_capacity` from real
  * entry volume alone, so those two render "Every class in this trial is
  * full" independently of any seed change — verified against the linked

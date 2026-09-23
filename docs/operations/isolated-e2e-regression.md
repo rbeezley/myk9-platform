@@ -8,7 +8,7 @@ The stateful Playwright regression suite runs only against a disposable local Su
 
 1. Start the local Supabase stack with the repository migrations.
 2. Create or reset the canonical E2E accounts using the CI-provided passwords.
-3. Apply `supabase/seed-demo.sql` and verify the known show, classes, judge assignments, and role grants.
+3. Apply `supabase/seed-demo.sql`, then the opt-in `supabase/seed-load-fixture.sql` (the MYK9-109 load fixture, split out of the demo seed by MYK9-558), and verify the known show, classes, judge assignments, role grants and the 516-entry demo show.
 4. Build and run the curated regression suite with one worker and zero retries.
 5. Reset and reseed the local stack, then run the same suite a second time.
 6. Upload both reports and stop the local stack, even after a failure.

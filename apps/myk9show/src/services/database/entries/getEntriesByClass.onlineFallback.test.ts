@@ -25,20 +25,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * `.eq().is().order()` chain these postgrest reads need.
  */
 
-const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
-  vi.hoisted(() => ({
-    mockEntriesTable: {
-      getEntriesByClass: vi.fn(),
-      getAll: vi.fn().mockResolvedValue([]),
-    },
-    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-    mockClassesTable: {
-      getAll: vi.fn().mockResolvedValue([]),
-      getClassesByTrial: vi.fn().mockResolvedValue([]),
-    },
-    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
-  }));
+const {
+  mockEntriesTable,
+  mockDogsTable,
+  mockClassesTable,
+  mockShowsTable,
+  mockTrialsTable,
+  mockLoadHandlerPeople,
+} = vi.hoisted(() => ({
+  mockEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
+  },
+  mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
+  mockClassesTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    getClassesByTrial: vi.fn().mockResolvedValue([]),
+  },
+  mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
+  mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockLoadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
+}));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: mockEntriesTable,
@@ -54,6 +61,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
+}));
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  loadHandlerPeople: mockLoadHandlerPeople,
 }));
 
 const defaultOnlineRow = { id: 'entry-online-1', class: { id: 'c1' } };
@@ -85,6 +95,8 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
     onlineCallCount = 0;
+    mockLoadHandlerPeople.mockReset();
+    mockLoadHandlerPeople.mockResolvedValue(new Map());
   });
 
   it('falls back to the online read when the local replica has zero rows for the class', async () => {
@@ -115,6 +127,64 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
     expect(result.data).toHaveLength(1);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
     expect(onlineCallCount).toBe(0);
+  });
+
+  it('projects the owner as handler identity when replicated assignment is blank', async () => {
+    mockDogsTable.getAllDogs.mockResolvedValue([
+      { id: 'dog-owner', name: 'Scout', breed: 'Beagle', ownerId: 'owner-1' },
+    ]);
+    mockLoadHandlerPeople.mockResolvedValue(
+      new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
+    );
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-owner-handler',
+        dogId: 'dog-owner',
+        classId: 'c1',
+        showId: 's1',
+        handler: null,
+        handlerId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        runOrder: 1,
+      },
+    ]);
+
+    const result = await getEntriesByClass('c1');
+
+    expect(result.data[0]).toMatchObject({
+      handler_identity: { name: 'Olivia Owner', source: 'owner' },
+    });
+    expect(mockLoadHandlerPeople).toHaveBeenCalledWith(['owner-1']);
+  });
+
+  it('keeps an unresolved assigned handler unknown instead of using the owner', async () => {
+    mockDogsTable.getAllDogs.mockResolvedValue([
+      { id: 'dog-owner', name: 'Scout', breed: 'Beagle', ownerId: 'owner-1' },
+    ]);
+    mockLoadHandlerPeople.mockResolvedValue(
+      new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
+    );
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-unresolved-handler',
+        dogId: 'dog-owner',
+        classId: 'c1',
+        showId: 's1',
+        handler: null,
+        handlerId: 'missing-handler',
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        runOrder: 1,
+      },
+    ]);
+
+    const result = await getEntriesByClass('c1');
+
+    expect(result.data[0]).toMatchObject({
+      handler_identity: { name: null, source: 'unknown' },
+    });
+    expect(mockLoadHandlerPeople).toHaveBeenCalledWith(['missing-handler', 'owner-1']);
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

@@ -1,7 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { buildCreateShowPayload } from '../buildCreateShowPayload';
+import { buildCreateShowPayload as buildPayloadWithView } from '../buildCreateShowPayload';
 import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+function buildCreateShowPayload(
+  show: WizardShowData,
+  trials: WizardTrial[],
+  judgeDetails: Parameters<typeof buildPayloadWithView>[2],
+  ruleMap: Map<string, SportClassRuleRow>,
+  status: Parameters<typeof buildPayloadWithView>[4]
+) {
+  const trialView = createWizardTrialView(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+  return buildPayloadWithView(show, trials, judgeDetails, ruleMap, status, trialView);
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,7 +45,7 @@ const baseShow: WizardShowData = {
 
 const baseTrial: WizardTrial = {
   id: 'wizard-trial-1',
-  name: 'Saturday Trial',
+  nameOverride: 'Saturday Trial',
   dateTime: '2026-06-01T09:00:00',
   eventNumber: 'EVT-001',
   trialType: 'Scent Work',
@@ -116,6 +135,33 @@ describe('buildCreateShowPayload', () => {
       'unpublished'
     );
     expect(rpcInput.p_trials[0]!.status).toBe('upcoming');
+  });
+
+  it('saves derived day-scoped names in draft order while preserving explicit overrides', () => {
+    const trials: WizardTrial[] = [
+      { ...baseTrial, id: 'generated-1', nameOverride: undefined },
+      { ...baseTrial, id: 'custom', nameOverride: 'Custom Nosework Trial' },
+      { ...baseTrial, id: 'generated-2', nameOverride: undefined },
+    ];
+
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      trials,
+      {},
+      new Map(),
+      'unpublished'
+    );
+
+    expect(rpcInput.p_trials.map(trial => trial.name)).toEqual([
+      'Monday Trial 1',
+      'Custom Nosework Trial',
+      'Monday Trial 3',
+    ]);
+    expect(localEntities.trials.map(trial => trial.name)).toEqual([
+      'Monday Trial 1',
+      'Custom Nosework Trial',
+      'Monday Trial 3',
+    ]);
   });
 
   it('localEntities.show has _syncStatus synced and _localOnly false', () => {

@@ -106,7 +106,9 @@ test.describe('Show Wizard UI — Add Trials mode (secretary)', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
     await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
     // The "Add Trial" button is the affordance to start a new trial entry.
-    await expect(page.getByRole('button', { name: /^Add Trial$/ }).first()).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Add (First|Another) Trial/ }).first()
+    ).toBeVisible();
   });
 });
 

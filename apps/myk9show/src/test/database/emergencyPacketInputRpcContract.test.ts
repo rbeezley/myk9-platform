@@ -11,15 +11,15 @@ import { describe, expect, it } from 'vitest';
  * MYK9-228.
  */
 // `emergency_packet_input` is rebuilt in full by each successive
-// `CREATE OR REPLACE`; the latest is `20260912234500` (classes.judge_name
-// retired, MYK9-479). Every assertion about that function's body must read the LATEST
+// `CREATE OR REPLACE`; the latest is `20260922220537` (handler identity,
+// MYK9-603). Every assertion about that function's body must read the LATEST
 // definition — asserting against a superseded file passes against text that no
 // longer describes the deployed function. This path is the one thing here that
 // MUST be updated whenever the function is rebuilt again.
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260912234500_drop_classes_judge_name.sql'
+    '../../../../../supabase/migrations/20260922220537_myk9_603_emergency_packet_handler_identity.sql'
   ),
   'utf8'
 );
@@ -102,6 +102,27 @@ describe('emergency_packet_input contract', () => {
       sql.indexOf('COMMENT ON FUNCTION public.emergency_packet_input')
     );
     expect(fn).not.toMatch(/cl\.judge_name/);
+  });
+
+  it('prefers assigned handler identity and falls back to the owner only when unassigned', () => {
+    const fn = sql.slice(
+      sql.indexOf('CREATE OR REPLACE FUNCTION public.emergency_packet_input'),
+      sql.indexOf('COMMENT ON FUNCTION public.emergency_packet_input')
+    );
+    expect(fn).toMatch(/NULLIF\(btrim\(e\.handler\), ''\) IS NOT NULL THEN btrim\(e\.handler\)/);
+    expect(fn).toMatch(
+      /WHEN e\.handler_id IS NOT NULL THEN[\s\S]*handler_person\.first_name[\s\S]*handler_person\.last_name/
+    );
+    expect(fn).toMatch(
+      /WHEN d\.owner_id IS NOT NULL THEN[\s\S]*owner_person\.first_name[\s\S]*owner_person\.last_name/
+    );
+    expect(fn).toMatch(
+      /LEFT JOIN public\.people handler_person[\s\S]*handler_person\.deleted_at IS NULL/
+    );
+    expect(fn).toMatch(
+      /LEFT JOIN public\.people owner_person[\s\S]*owner_person\.deleted_at IS NULL/
+    );
+    expect(fn).toMatch(/ELSE 'Unknown Handler'[\s\S]*END AS handler/);
   });
 
   it('normalises the section sentinel the way the app does', () => {

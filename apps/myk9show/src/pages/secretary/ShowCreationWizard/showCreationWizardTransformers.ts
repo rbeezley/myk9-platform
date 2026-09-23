@@ -7,6 +7,7 @@ import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 
 export interface WizardShowData {
@@ -36,7 +37,7 @@ export interface WizardShowData {
 
 export interface WizardTrial {
   id: string;
-  name: string;
+  nameOverride?: string | undefined;
   dateTime: string;
   eventNumber: string;
   trialType?: string | undefined;
@@ -113,8 +114,9 @@ export function createClassDataFromWizard(
   judgeDetails: JudgeDetailsMap,
   showId: string,
   existingTrials: ExistingTrial[],
-  editMode?: EditMode,
-  showFees?: { preEntryFee?: number; dayOfShowFee?: number }
+  editMode: EditMode | undefined,
+  showFees: { preEntryFee?: number; dayOfShowFee?: number } | undefined,
+  trialView: WizardTrialView
 ): ClassData[] {
   const classes: ClassData[] = [];
 
@@ -143,9 +145,10 @@ export function createClassDataFromWizard(
         const classData: ClassData = {
           id: classId,
           trialId: trialId,
-          trial: wizardTrial.name,
+          trial: trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? '',
           trialDate: format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd'),
-          trialNumber: wizardTrial.eventNumber || wizardTrial.name,
+          trialNumber:
+            wizardTrial.eventNumber || trialView.effectiveNamesByTrialId.get(wizardTrial.id) || '',
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
@@ -223,7 +226,8 @@ export function transformWizardDataToShow(
   judgeDetails: JudgeDetailsMap,
   clubs: Club[],
   status: ShowStatus,
-  editMode?: EditMode
+  editMode: EditMode | undefined,
+  trialView: WizardTrialView
 ): Show {
   // Use existing ID in edit mode, or generate new ID for new shows
   const showId = editMode
@@ -252,7 +256,7 @@ export function transformWizardDataToShow(
   // Transform trials
   const showTrials = trials.map((trial, index) => ({
     id: trial.id,
-    name: trial.name,
+    name: trialView.effectiveNamesByTrialId.get(trial.id) ?? '',
     date: trial.dateTime,
     trialNumber: `${index + 1}`,
     status: 'Upcoming',

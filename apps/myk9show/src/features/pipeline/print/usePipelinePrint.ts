@@ -11,6 +11,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';
 import type { ClassPipelineItem } from '../mission-control-types';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
+import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
 /** Map result_status from DB to display text */
 function mapResultStatus(status: string | null): string | null {
@@ -25,15 +26,9 @@ function mapResultStatus(status: string | null): string | null {
   return map[status] ?? status;
 }
 
-interface OwnerData {
-  first_name?: string | null;
-  last_name?: string | null;
-}
-
 interface DogData {
   call_name?: string | null;
   breed?: string | null;
-  owner?: OwnerData | null;
 }
 
 interface EntryRow {
@@ -46,14 +41,15 @@ interface EntryRow {
   search_time_seconds?: number | null;
   total_faults?: number | null;
   dog?: DogData | null;
+  handler_identity?: ProjectedEntryHandler | null;
 }
 
 function mapEntry(row: EntryRow): PrintReportEntry {
   const dog = row.dog;
-  const owner = dog?.owner;
-  const firstName = owner?.first_name ?? '';
-  const lastName = owner?.last_name ?? '';
-  const handlerName = firstName || lastName ? `${firstName} ${lastName}`.trim() : 'Unknown Handler';
+  const handlerName =
+    row.handler_identity?.source === 'unknown' || !row.handler_identity?.name
+      ? 'Unknown Handler'
+      : row.handler_identity.name;
 
   return {
     id: String(row.id),

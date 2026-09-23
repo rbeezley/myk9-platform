@@ -3,6 +3,7 @@
 -- The transaction rolls back every fixture and payment row.
 
 BEGIN;
+-- MYK9-639-RACE-SETUP-BEGIN: the concurrency runner reuses this fixture setup.
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000639701', 'MYK9-639 settlement club');
 INSERT INTO public.shows (id, name, type, organization, start_date, end_date, club_id, status)
@@ -181,6 +182,7 @@ INSERT INTO public.entry_payment_links (
    ARRAY['00000000-0000-0000-0000-000000639747'::uuid], 'cs_639_expired_promotion', 'expired',
    3500, '[{"entry_id":"00000000-0000-0000-0000-000000639747","amount_cents":3500}]', 245);
 
+-- MYK9-639-RACE-SETUP-END
 DO $$
 DECLARE
   v_result record;

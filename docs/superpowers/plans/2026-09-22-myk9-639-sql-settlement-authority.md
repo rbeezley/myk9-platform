@@ -25,3 +25,11 @@ Add transactional psql behavioral assertions for forged identity, missing/extra/
 ## Scope boundary
 
 Only the SQL contract, payment-link issuance snapshot schema, structural plan/spec, and behavioral SQL tests are in this task. Checkout/webhook/payment-link TypeScript integration is handled separately. Do not push, open a PR, apply a migration, deploy, or execute any payment/refund.
+
+## Concurrency proof redesign (2026-09-23)
+
+The first two-session runner paused on a lock acquired by the test before either RPC ran. An adversarial review showed that waiting on that artificial lock could pass even if the settlement RPC lost its show-capacity lock. Delete that barrier rather than adding another guard around it.
+
+For each start order, run the first **real** RPC inside a transaction and hold the transaction open after the RPC returns. Verify through `pg_locks` that this backend owns the canonical `showcapacity:<show-id>` advisory lock. Only then start the other RPC in a second connection. Require that its blocked advisory lock has the same key and `pg_blocking_pids` names the first backend. Release the first transaction, wait for both to complete, then verify one canonical order/root and idempotent settlement retry. Use separate clean fixture identities for the two orders. The fixture must retain its role/transaction context and be created only on an exact loopback, freshly reset Supabase database; CI owns start/reset/stop. Explicitly fail if fixture IDs already exist rather than silently reuse them. A source-order SQL assertion remains a complementary guard, not a substitute for this observed lock graph.
+
+Testing phase: run the harness contract and Bash syntax checks locally; run the full behavioral and two-session SQL steps in CI on a migrated disposable Supabase database. A draft PR that skips those jobs is not closure proof. Review the resulting logs for both observed lock waits and the persisted money/entry assertions before advancing the payment PR.

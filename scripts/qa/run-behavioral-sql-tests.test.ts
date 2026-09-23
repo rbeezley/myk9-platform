@@ -20,6 +20,10 @@ const subscriptionEntitlementFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/subscription_entitlement_grants_test.sql'),
   'utf8'
 );
+const authoritativeSettlementFixture = readFileSync(
+  resolve(repositoryRoot, 'supabase/tests/authoritative_entry_settlement_test.sql'),
+  'utf8'
+);
 // Deliberately a second copy of the runner's TEST_FILES list rather than an import
 // of it: the assertion below is what stops a launch-critical test being quietly
 // dropped from the harness. Registering a test means editing BOTH this list and
@@ -37,6 +41,9 @@ const launchCriticalSqlTests = [
   'checkout_confirmation_on_insert_test.sql',
   'club_access_request_approval_test.sql',
   'entry_requires_dog_registration_test.sql',
+  'authoritative_entry_full_make_whole_test.sql',
+  'authoritative_entry_settlement_lock_order_test.sql',
+  'authoritative_entry_settlement_test.sql',
   'club_secretary_grant_test.sql',
   'club_show_managers_visibility_test.sql',
   'club_delete_restrict_test.sql',
@@ -267,6 +274,33 @@ describe('behavioral SQL test harness', () => {
     expect(workflow).toContain('supabase start --exclude');
     expect(workflow).toContain('supabase db reset --no-seed');
     expect(workflow).toContain('bash scripts/qa/run-behavioral-sql-tests.sh');
+    expect(workflow).toContain('bash scripts/qa/run-entry-settlement-concurrency.sh');
     expect(workflow).toContain('supabase stop --no-backup');
+  });
+
+  it('runs settlement and capacity writes in separate local psql sessions in both orders', () => {
+    const concurrencyRunner = readFileSync(
+      resolve(repositoryRoot, 'scripts/qa/run-entry-settlement-concurrency.sh'),
+      'utf8'
+    );
+    expect(concurrencyRunner).toContain("run_order 638 settlement");
+    expect(concurrencyRunner).toContain("run_order 639 capacity");
+    expect(concurrencyRunner).toContain('psql "$DATABASE_URL"');
+    expect(concurrencyRunner).toContain('public.settle_entry_order');
+    expect(concurrencyRunner).toContain('public.create_online_paid_entry');
+    expect(concurrencyRunner).toContain('40P01');
+    expect(concurrencyRunner).toContain('exact local loopback');
+    expect(concurrencyRunner).toContain('ready_file');
+    expect(concurrencyRunner).toContain('pg_stat_activity');
+    expect(concurrencyRunner).toContain('pg_blocking_pids');
+    expect(concurrencyRunner).toContain("hashtext('$lock_key')::bigint");
+    expect(concurrencyRunner).toContain('waiter.classid = owner.classid');
+    expect(concurrencyRunner).toContain('fixture show $show already exists');
+    expect(concurrencyRunner).not.toContain('pg_advisory_xact_lock(');
+    expect(concurrencyRunner).toContain('owned_pids');
+    expect(authoritativeSettlementFixture).toContain(
+      '-- MYK9-639-RACE-SETUP-BEGIN: the concurrency runner reuses this fixture setup.'
+    );
+    expect(authoritativeSettlementFixture).toContain('-- MYK9-639-RACE-SETUP-END');
   });
 });

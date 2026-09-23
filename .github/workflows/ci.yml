@@ -364,6 +364,11 @@ jobs:
           MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash scripts/qa/run-behavioral-sql-tests.sh
 
+      - name: Entry settlement capacity concurrency regression
+        env:
+          MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: bash scripts/qa/run-entry-settlement-concurrency.sh
+
       - uses: actions/setup-node@v7
         with:
           node-version: '22'

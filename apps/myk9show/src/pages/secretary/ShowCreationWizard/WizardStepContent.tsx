@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Trial } from '@/store/trialStore';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
 import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigurationStep';
@@ -7,11 +7,13 @@ import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionSt
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
 import type { EditMode } from './show-creation-wizard-types';
 import { getSubmitLabel } from './wizardLabels';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 
 interface WizardStepContentProps {
   currentStep: number;
   editMode: EditMode | undefined;
-  existingTrials: Trial[];
+  trialView: WizardTrialView;
+  existingTrialsReady: boolean;
   existingClasses: SyncableClassData[];
   hasAttemptedNext: boolean;
   isLoading: boolean;
@@ -19,6 +21,12 @@ interface WizardStepContentProps {
   onBack: () => void;
   /** True when the show's existing officials could not be read. */
   officialsUnknown?: boolean | undefined;
+  /** Read status for the existing-show trial snapshot. */
+  existingTrialsReadStatus?: ReplicatedReadStatus | undefined;
+  /** Error from the latest existing-show trial snapshot read. */
+  existingTrialsReadError?: string | null | undefined;
+  /** Retry the existing-show trial snapshot read. */
+  onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
 
 /**
@@ -29,28 +37,31 @@ interface WizardStepContentProps {
 export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   currentStep,
   editMode,
-  existingTrials,
+  trialView,
+  existingTrialsReady,
   existingClasses,
   hasAttemptedNext,
   isLoading,
   onCreateShow,
   onBack,
   officialsUnknown,
+  existingTrialsReadStatus,
+  existingTrialsReadError,
+  onRetryExistingTrials,
 }) => {
   const stepProps = { className: '' };
-
   switch (currentStep) {
     case 0:
       return <ShowDetailsStep {...stepProps} />;
     case 1: {
-      const existingTrialCount =
-        editMode?.mode === 'add-trials'
-          ? existingTrials.filter(t => t.showId === editMode.showId).length
-          : 0;
       return (
         <TrialConfigurationStep
           {...stepProps}
-          existingTrialCount={existingTrialCount}
+          trialView={trialView}
+          existingTrialsReady={existingTrialsReady}
+          existingTrialsReadStatus={existingTrialsReadStatus}
+          existingTrialsReadError={existingTrialsReadError}
+          onRetryExistingTrials={onRetryExistingTrials}
           submitted={hasAttemptedNext}
         />
       );
@@ -71,6 +82,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
                 }))
               : undefined
           }
+          trialView={trialView}
         />
       );
     case 3:
@@ -82,6 +94,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           onBack={onBack}
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
+          trialView={trialView}
         />
       );
     default:

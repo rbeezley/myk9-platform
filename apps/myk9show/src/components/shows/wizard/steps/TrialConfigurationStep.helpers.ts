@@ -3,11 +3,42 @@ import {
   formatTrialTypeLabel,
   getTrialTypesForOrganization,
 } from '@/types/template.types';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;
   organization?: string;
   trialType?: string;
+}
+
+export interface TrialCreationCopy {
+  addTrialLabel: 'Add First Trial' | 'Add Another Trial';
+  emptyStateTitle: 'Schedule Your Trials' | 'Add Another Trial';
+  emptyStateDescription: string;
+}
+
+export function getTrialCreationCopy(hasAnyTrials: boolean): TrialCreationCopy {
+  if (!hasAnyTrials) {
+    return {
+      addTrialLabel: 'Add First Trial',
+      emptyStateTitle: 'Schedule Your Trials',
+      emptyStateDescription:
+        'Trials are individual competition events within your show. Add your first trial to get started.',
+    };
+  }
+
+  return {
+    addTrialLabel: 'Add Another Trial',
+    emptyStateTitle: 'Add Another Trial',
+    emptyStateDescription: 'Add another trial to continue setting up this show.',
+  };
+}
+
+export function isTrialSnapshotReady(
+  readStatus: ReplicatedReadStatus,
+  hasConfirmedSnapshot: boolean
+): boolean {
+  return hasConfirmedSnapshot && readStatus !== 'idle' && readStatus !== 'loading';
 }
 
 function normalizeTrialTypeOption(trialType: string | undefined): TrialType | undefined {

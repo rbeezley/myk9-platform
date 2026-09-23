@@ -1,3 +1,5 @@
+import type { ProjectedEntryHandler } from './entryHandlerProjection';
+
 export interface SecretaryEntry {
   id: string;
   dog_id: string | null;
@@ -84,6 +86,7 @@ export interface SecretaryEntry {
     last_name: string | null;
     auth_user_id: string | null;
   } | null;
+  handler_identity: ProjectedEntryHandler;
   dog: {
     id: string;
     name: string;

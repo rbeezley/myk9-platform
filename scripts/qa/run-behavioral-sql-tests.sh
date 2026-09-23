@@ -57,6 +57,7 @@ TEST_FILES=(
   "$TEST_DIR/authoritative_entry_full_make_whole_test.sql"
   "$TEST_DIR/authoritative_entry_settlement_lock_order_test.sql"
   "$TEST_DIR/authoritative_entry_settlement_test.sql"
+  "$TEST_DIR/emergency_packet_handler_identity_test.sql"
   "$TEST_DIR/anon_tv_entry_soft_delete_test.sql"
   "$TEST_DIR/judge_assignment_private_read_test.sql"
   "$TEST_DIR/judge_assignment_touches_class_test.sql"

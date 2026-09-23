@@ -113,6 +113,30 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'KID-NUMBER' });
   });
 
+  it('prints an ID-only assigned handler instead of the dog owner', async () => {
+    routeTables([{ id: 'entry-a', handler: null, handler_id: KID.id }], [SARAH, KID]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.owner.firstName).toBe('Sarah');
+    expect(dog.handler).toBe('Chris Kid');
+    expect(dog.handlerDateOfBirth).toBe('2012-04-02');
+    expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'KID-NUMBER' });
+  });
+
+  it('keeps an unresolved ID-only assignment unknown instead of falling back to the owner', async () => {
+    routeTables([{ id: 'entry-a', handler: null, handler_id: 'person-not-cached' }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.owner.firstName).toBe('Sarah');
+    expect(dog.handler).toBeNull();
+    expect(dog.handlerDateOfBirth).toBeNull();
+    expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
+  });
+
   it('does NOT borrow a handler person from another entry on the same dog', async () => {
     // The round-1 P2, pinned so that RESTORING the cross-entry fallback fails on
     // its own rather than being caught by the name guard. Round 2 showed the
@@ -172,6 +196,17 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     const { result } = renderEntryFormData();
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
     expect(result.current.dogs[0]!.handlerDateOfBirth).toBe('2009-05-05');
+  });
+
+  it('uses the owner as the handler when the entry has no assigned handler', async () => {
+    routeTables([{ id: 'entry-a', handler: null, handler_id: null }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.handler).toBeNull();
+    expect(dog.handlerDateOfBirth).toBe('2009-05-05');
+    expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'SARAH-NUMBER' });
   });
 
   it('does not treat the owner as the handler when someone else is printed', async () => {

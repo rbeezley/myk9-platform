@@ -44,6 +44,7 @@ const launchCriticalSqlTests = [
   'authoritative_entry_full_make_whole_test.sql',
   'authoritative_entry_settlement_lock_order_test.sql',
   'authoritative_entry_settlement_test.sql',
+  'emergency_packet_handler_identity_test.sql',
   'club_secretary_grant_test.sql',
   'club_show_managers_visibility_test.sql',
   'club_delete_restrict_test.sql',

@@ -1,9 +1,6 @@
----
-name: IA-Review
-description: "Required methodology for Information Architecture (IA) reviews — surface-level structural audits of how navigation, routes, tabs, and panels are organized. Use when a feature, role surface, or section of the app feels 'spread out,' 'disconnected,' 'fragmented,' or when users keep asking 'where do I do X?' This skill produces a structured findings document with severity-rated tables PLUS a recommended phased remediation plan. Trigger words: 'IA review', 'audit the IA', 'review IA', 'audit information architecture', 'this section feels spread out', 'feels disconnected', 'why are there 3 places to do this', 'navigation feels off', 'consolidate routes', 'is this surface fragmented', 'show me the IA debt', 'route audit'. Distinct from UX-Audit (which evaluates the whole UX surface in 6 passes including a brief IA pass) — use IA-Review when IA is the suspected root cause and you want a deeper structural pass than UX-Audit's Pass 2 provides. v1; refine after first real audit."
----
+# UX Audit — IA review mode (`--ia`)
 
-# IA Review for Existing Surfaces
+Formerly the standalone `IA-Review` skill (merged 2026-09-24, MYK9-728). Read `../SKILL.md` first for scoping and intent rules.
 
 ## Overview
 
@@ -24,12 +21,12 @@ Evaluate the Information Architecture of an existing role surface, feature area,
 
 ## When NOT to Use
 
-- **Visual / interaction issues only** → use `UX-Audit` instead (its Pass 2 covers IA as one of 6 dimensions; that's enough if IA isn't the primary suspect)
+- **Visual / interaction issues only** → use the default six-pass mode (`references/six-pass.md`; its Pass 2 covers IA as one of 6 dimensions, enough when IA isn't the primary suspect)
 - **Operational health** (console errors, broken UI) → use `audit-pages`
 - **Single-feature task walks** → use `qa-feature`
-- **Greenfield design from a PRD** → IA review is for _existing_ implementations; for new features use `UX-to-Prompt`
+- **Greenfield design from a PRD** → IA review is for _existing_ implementations
 
-If unsure: run UX-Audit's Pass 2 first as a screening step. If Pass 2 surfaces 3+ IA findings or any Critical/High IA issue, escalate to a full IA-Review.
+If unsure: run the six-pass mode's Pass 2 first as a screening step. If Pass 2 surfaces 3+ IA findings or any Critical/High IA issue, escalate to this full IA review.
 
 ## Input Sources
 
@@ -301,7 +298,7 @@ Sum is 3–15. Map to priority:
 
 ## Diagnostic Signals (the 8 symptoms)
 
-Use these as a quick screening tool. Any single signal warrants further investigation; 3+ signals on the same surface strongly suggest a full IA-Review is needed.
+Use these as a quick screening tool. Any single signal warrants further investigation; 3+ signals on the same surface strongly suggest a full IA review is needed.
 
 | Signal                                              | What it means                                       | Often found in                        |
 | --------------------------------------------------- | --------------------------------------------------- | ------------------------------------- |
@@ -391,20 +388,19 @@ Update this table as audits complete.
 
 ## Chaining With Other Skills
 
-| When you find...                               | Delegate to...                                                       |
-| ---------------------------------------------- | -------------------------------------------------------------------- |
-| Visual / interaction issues during the audit   | `UX-Audit` — capture findings there, not in the IA review            |
-| Real-browser flows are needed for Step 2       | `qa-feature` or `playwright-cli`                                     |
-| Console errors / broken UI surface during walk | `audit-pages` — file the bug separately                              |
-| Findings warrant a new feature                 | `UX-to-Prompt` (for redesigns) once the remediation plan is approved |
-| Ready to implement a phase                     | Standard implementation flow → `simplify` → `commit` → `ship-pr`     |
+| When you find...                               | Delegate to...                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------------- |
+| Visual / interaction issues during the audit   | six-pass mode — capture findings there, not in the IA review     |
+| Real-browser flows are needed for Step 2       | `qa-feature` or `playwright-cli`                                 |
+| Console errors / broken UI surface during walk | `audit-pages` — file the bug separately                          |
+| Ready to implement a phase                     | Standard implementation flow → `simplify` → `commit` → `ship-pr` |
 
 ## v1.1 Refinement Notes
 
 This is the first version of this skill. Expected refinements after the first real audit:
 
 - **Step 3 mental-model elicitation** is documented as substituting product-owner intuition or fresh-contributor grouping in absence of real user research. After the first audit, capture which method worked best and codify.
-- **The findings doc format** is modeled on UX-Audit. After the first real run produces a concrete findings doc, refine the template based on what was actually useful to read.
+- **The findings doc format** is modeled on the six-pass mode. After the first real run produces a concrete findings doc, refine the template based on what was actually useful to read.
 - **Severity rubric calibration** — the 3-axis × 1–5 sum is a starting point. After scoring real findings, adjust thresholds (currently 11+ = Critical) if findings cluster unhelpfully at one priority.
 - **App-specific surface priors** — update the table as each surface gets audited; replace estimates with actual measurements.
 

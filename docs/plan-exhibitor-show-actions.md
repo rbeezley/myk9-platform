@@ -4,7 +4,7 @@
 
 **Date:** 2026-09-17
 **Linear:** MYK9-631 (acceptance criterion 1 only — inventory, no code)
-**Method:** `.claude/skills/IA-Review` Steps 1 and 4, scoped to _actions_ rather than routes (the route layer for this surface was already audited in [`ia-review-exhibitor-surface.md`](ia-review-exhibitor-surface.md)).
+**Method:** `.claude/skills/UX-Audit/references/ia-review.md` (then the `IA-Review` skill) Steps 1 and 4, scoped to _actions_ rather than routes (the route layer for this surface was already audited in [`ia-review-exhibitor-surface.md`](ia-review-exhibitor-surface.md)).
 **Role intent:** Exhibitor — _"This respects my time."_ ([`INTENT.md`](INTENT.md) §Exhibitor)
 
 ## Scope

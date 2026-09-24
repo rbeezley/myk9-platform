@@ -1,10 +1,6 @@
----
-name: launch-checklist
-description: "Use when preparing myK9Show for public launch or a go-live gate review — 'are we ready to launch', 'go-live checklist', 'what's blocking launch', or before flipping the platform from pre-launch to real users."
-user-invocable: true
----
+# Go-live gate review
 
-# Launch Checklist
+Formerly the standalone `launch-checklist` skill (merged 2026-09-24, MYK9-728). The operator steps behind each item live in `docs/operations/go-live-runbook.md`; this is the evidence walk over them.
 
 Gate review for taking myK9Show from pre-launch to real users. Work through every section; each item gets a status (**done / blocked / owner-action**) with evidence (command output, dashboard link), not assertions. Several items are operator-gated — flag them for Richard rather than attempting them.
 
@@ -46,7 +42,7 @@ Gate review for taking myK9Show from pre-launch to real users. Work through ever
 
 - [ ] Sentry alerts routed somewhere a human sees them.
 - [ ] `incident-triage` skill exists and reflects current infrastructure.
-- [ ] Domain/DNS + Vercel production project confirmed (staging is myk9-platform-myk9show.vercel.app).
+- [ ] Domain/DNS + Vercel production project confirmed (myk9show.com and myk9-platform-myk9show.vercel.app are production; production moves only on a **Deploy myK9Show** run).
 - [ ] Legal: TOS/privacy attorney review status acknowledged (docs shipped, review pending).
 
 ## Output

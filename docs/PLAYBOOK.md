@@ -22,10 +22,7 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 
 1. `superpowers:brainstorming` — explore intent/requirements before implementation (required before creative work).
 2. `superpowers:test-driven-development` — write the test first.
-3. Implement. For React component work, `vercel-react-best-practices` (rendering, data
-   fetching, bundle cost) and `vercel-composition-patterns` (compound components, render
-   props, context) are the reference skills — reach for them when a component grows boolean
-   props or a list re-renders more than it should.
+3. Implement.
 4. `/simplify` — constructive cleanup pass (3 parallel agents: efficiency, quality, reuse). Auto-fixes safe wins.
 5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes).
 6. `/commit`
@@ -208,14 +205,13 @@ that follows this playbook can regress.
 
 Read [`docs/INTENT.md`](INTENT.md) first — every UX change must preserve the target feeling for that role. Don't remove/change behavior behind an `// INTENT:` comment without explicit approval.
 
-| Situation                                                                                                           | Use                                                       |
-| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Deep-dive a single role's end-to-end journey, multi-viewport, persona-driven, regression-diffed against prior run   | `role-journey-ux-audit`                                   |
-| General UX review of a page/feature — mental model, IA, affordances, cognitive load, state coverage, flow integrity | `UX-Audit` (6-pass, produces severity-rated findings doc) |
-| Navigation/routes/tabs feel fragmented, "why are there 3 places to do X"                                            | `IA-Review` (structural audit + phased remediation plan)  |
-| Real-browser walk of an existing feature, fixing bugs at the root cause mid-walk, leaves a Playwright spec behind   | `qa-feature`                                              |
-| Sweep for console/network errors after a refactor, before release                                                   | `audit-pages`                                             |
-| Check rendered UI against the Web Interface Guidelines (focus, contrast, motion, forms)                             | `web-design-guidelines`                                   |
+| Situation                                                                                                           | Use                                                          |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Deep-dive a single role's end-to-end journey, multi-viewport, persona-driven, regression-diffed against prior run   | `role-journey-ux-audit`                                      |
+| General UX review of a page/feature — mental model, IA, affordances, cognitive load, state coverage, flow integrity | `UX-Audit` (6-pass, produces severity-rated findings doc)    |
+| Navigation/routes/tabs feel fragmented, "why are there 3 places to do X"                                            | `UX-Audit --ia` (structural audit + phased remediation plan) |
+| Real-browser walk of an existing feature, fixing bugs at the root cause mid-walk, leaves a Playwright spec behind   | `qa-feature`                                                 |
+| Sweep for console/network errors after a refactor, before release                                                   | `audit-pages`                                                |
 
 `role-journey-ux-audit` and `UX-Audit` overlap (both persona/6-pass style) — prefer `role-journey-ux-audit` when the ask names a specific role and wants viewport + regression diffing; use `UX-Audit` for a single page/feature review.
 

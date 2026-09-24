@@ -66,23 +66,18 @@ Use the harness's in-app Browser for local app recording when it is available. I
 
 Do not use the Playwright MCP/test driver from the monorepo root for this live walk. The root config has dependency/version coupling that can fail before the app is even opened; this workflow records with Browser/`playwright-cli`, then writes and runs the project Playwright spec from `apps/myk9show`.
 
-Pull the credentials for the chosen role from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`.
-
-Browser flow:
-
-- Navigate to `http://localhost:5173/sign-in`
-- Fill the chosen role email and `Test123!`
-- Submit the form
-- Capture a snapshot before starting the walk
+Accounts and the sign-in flow are canonical in the `audit-pages` skill (§ Setup): the `@myk9t.com` role accounts, passwords from `.env.local` (never typed into reports or commands you paste back), and the **two-step** form — the password field does not exist until you submit the email step.
 
 `playwright-cli` flow:
 
 ```bash
 playwright-cli open http://localhost:5173/sign-in
-playwright-cli fill <email-ref> "<role-email>"
-playwright-cli fill <password-ref> "Test123!"
-playwright-cli click <submit-ref>
-playwright-cli snapshot
+playwright-cli fill <credential-input-ref> "<role-email>"
+playwright-cli click <continue-button-ref>      # reveals the password step in place
+playwright-cli snapshot                          # get the password-input ref
+playwright-cli fill <password-input-ref> "$E2E_<ROLE>_PASSWORD"
+playwright-cli click <sign-in-button-ref>
+playwright-cli snapshot                          # confirm you left /sign-in
 ```
 
 With `playwright-cli`, optionally save storage state so you can resume mid-recording without re-typing credentials:

@@ -65,8 +65,10 @@ test.describe('Show management workflow', () => {
     await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible({ timeout: 15000 });
     await page.getByTestId('header-actions-trigger').click();
-    await expect(page.getByRole('menuitem', { name: 'Open Entry Management' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Show Details' })).toBeVisible();
+    // "Open Entry Management" was renamed "Open Entries" by #2331; the hero's
+    // Edit button became this menu's "Edit show details" (MYK9-736).
+    await expect(page.getByRole('menuitem', { name: 'Open Entries' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Edit show details' })).toBeVisible();
     await page.keyboard.press('Escape');
 
     // MYK9-630 phase 2: the five standalone page links above the tab strip are

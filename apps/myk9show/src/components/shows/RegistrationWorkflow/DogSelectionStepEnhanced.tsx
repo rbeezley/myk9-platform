@@ -50,6 +50,7 @@ import {
   addVisibleDogSelections,
   filterAccessibleDogs,
   getDogEligibilityStatus,
+  getRegistrationNumberLabel,
   removeDogSelection,
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
@@ -95,6 +96,12 @@ interface DogSelectionStepProps {
   selectedDogs: string[];
   onSelectionChange: (dogIds: string[]) => void;
   offlineFirst?: boolean;
+  /**
+   * The show's sanctioning registry, already resolved through
+   * `@/features/registries` by the caller (never a raw column read).
+   * Null/undefined = not known yet; the copy then says "registration number".
+   */
+  showRegistryId?: string | null | undefined;
 }
 
 interface DogRowProps {
@@ -111,7 +118,8 @@ interface DogRowProps {
 function getEmptyStateMessage(
   searchQuery: string,
   activeQuickFilter: string,
-  advancedSearch: boolean
+  advancedSearch: boolean,
+  registrationNumberLabel: string
 ): string {
   if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
   if (advancedSearch) {
@@ -123,7 +131,7 @@ function getEmptyStateMessage(
       case 'recent':
         return 'No recently active dogs match this filter. Clear the filter or search by name, breed, or registration number.';
       default:
-        return 'Search by name, breed, or registration number to find a dog to register.';
+        return `Search by name, breed, or ${registrationNumberLabel} to find a dog to register.`;
     }
   }
   switch (activeQuickFilter) {
@@ -134,9 +142,7 @@ function getEmptyStateMessage(
     case 'recent':
       return 'No recently active dogs found. Clear the filter to see all your dogs.';
     default:
-      return advancedSearch
-        ? 'Search by name, breed, or AKC number to find a dog to register.'
-        : "You don't have any dogs yet. Add a dog from your profile to get started.";
+      return "You don't have any dogs yet. Add a dog from your profile to get started.";
   }
 }
 
@@ -267,7 +273,9 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
   offlineFirst = false,
+  showRegistryId,
 }) => {
+  const registrationNumberLabel = getRegistrationNumberLabel(showRegistryId);
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
     useRegistrationPermissions();
@@ -614,7 +622,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   onActiveFilterChange={setActiveQuickFilter}
                   showQuickFilters={true}
                   showAdvancedFilters={true}
-                  placeholder="Search all dogs by name, breed, or AKC number..."
+                  placeholder={`Search all dogs by name, breed, or ${registrationNumberLabel}...`}
                 />
               </div>
             )}
@@ -790,7 +798,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     {getEmptyStateMessage(
                       searchQuery,
                       activeQuickFilter,
-                      workflowConfig.features.advancedSearch
+                      workflowConfig.features.advancedSearch,
+                      registrationNumberLabel
                     )}
                   </p>
                 )}

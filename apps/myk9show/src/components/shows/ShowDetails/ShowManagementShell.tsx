@@ -161,10 +161,6 @@ export function ShowManagementShell(props: ShowManagementShellProps) {
   return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
 }
 
-// The shell owns several independent route/layout branches; keep the
-// authorization gate above structural while documenting the existing branch
-// complexity here rather than weakening the shared lint threshold.
-// eslint-disable-next-line complexity
 function AuthorizedShowManagementShell({
   show,
   showId,
@@ -293,7 +289,6 @@ function AuthorizedShowManagementShell({
                   </span>
                 </>
               }
-              primaryAction={{ label: 'Edit', onClick: openEditPanel }}
               footer={
                 <QuickInfoCards
                   show={show}

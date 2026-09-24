@@ -123,7 +123,6 @@ describe('ListControls', () => {
 
     const searchWrapper = screen.getByPlaceholderText('Search people…').parentElement;
     expect(searchWrapper?.className).toContain('w-full');
-    expect(searchWrapper?.className).toContain('sm:w-52');
 
     const tableToggle = screen.getByLabelText('Table view').parentElement;
     expect(tableToggle?.className).toContain('self-end');
@@ -132,5 +131,22 @@ describe('ListControls', () => {
     const mobileFilterButton = screen.getByRole('button', { name: 'Open filters' });
     expect(mobileFilterButton.className).toContain('min-h-11');
     expect(mobileFilterButton.className).toContain('sm:hidden');
+  });
+
+  it('lets the search box grow into the free row space from sm up, capped near 30rem (MYK9-736)', () => {
+    setup();
+
+    const classes = (
+      screen.getByPlaceholderText('Search people…').parentElement?.className ?? ''
+    ).split(/\s+/);
+    // Grows into whatever the chips and view toggle leave free...
+    expect(classes).toContain('sm:flex-1');
+    // ...but never wider than ~30rem, and never narrower than the old 13rem box.
+    expect(classes).toContain('sm:max-w-[30rem]');
+    expect(classes).toContain('sm:min-w-52');
+    // The old fixed width would pin it at 13rem whatever the row had free.
+    expect(classes.filter(c => /^sm:w-(?!auto$)/.test(c))).toEqual([]);
+    // Full width on phones, where the toolbar stacks.
+    expect(classes).toContain('w-full');
   });
 });

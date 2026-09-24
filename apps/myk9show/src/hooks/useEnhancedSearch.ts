@@ -83,7 +83,6 @@ export function useEnhancedSearch<T = unknown>(
         getSuggestions: () => [],
         removeSearch: () => {},
         clearSearches: () => {},
-        getFrequentSearches: () => [],
       };
 
   // Search cache utilities

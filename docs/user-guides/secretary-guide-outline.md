@@ -92,7 +92,7 @@
 **Rough steps (qa-draft):**
 
 1. From the Show Workbench, click the **Setup** tab.
-2. Edit show details: click the edit action (pencil or **Edit Show**).
+2. Edit show details: **Actions → Edit show details** in the top bar.
 3. Add or change a judge: find the class row → edit judge assignment.
 4. View setup readiness signals — completion checklist or progress indicators.
 

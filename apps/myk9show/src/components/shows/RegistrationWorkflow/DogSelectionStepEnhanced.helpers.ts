@@ -1,5 +1,18 @@
 import type { Dog } from '@/types/dog-types';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
+import { getRegistry, listRegistries } from '@/features/registries';
+
+/**
+ * How the picker names the registration number a secretary can search by.
+ * `showRegistryId` is the show's one registry, already resolved through
+ * `@/features/registries` by the caller; unknown or not yet resolved says
+ * "registration number" rather than guessing a registry (MYK9-736). Both the
+ * local filter and `searchAllDogs` match a number from any registry.
+ */
+export function getRegistrationNumberLabel(showRegistryId: string | null | undefined): string {
+  const known = listRegistries().find(id => id === showRegistryId);
+  return known ? `${getRegistry(known).id} number` : 'registration number';
+}
 
 export function addDogSelection(
   selectedDogIds: string[],

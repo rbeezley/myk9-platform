@@ -80,9 +80,7 @@ export function DetailHero({
               {eyebrow}
             </p>
           )}
-          <div
-            className={cn('flex min-w-0 flex-wrap items-center gap-3', headerActions && 'lg:pr-44')}
-          >
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight break-words">{name}</h2>
             {badges?.map((badge, i) => (
               <span
@@ -108,10 +106,11 @@ export function DetailHero({
               ))}
             </div>
           )}
+          {/* In flow at every width, inside the title column: it wraps under the
+              title instead of being pinned over the side actions (MYK9-736 --
+              `lg:absolute` put the status pill on top of the Edit button). */}
           {headerActions && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 lg:absolute lg:right-6 lg:top-6 lg:z-10 lg:mt-0 lg:justify-end">
-              {headerActions}
-            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">{headerActions}</div>
           )}
         </div>
 

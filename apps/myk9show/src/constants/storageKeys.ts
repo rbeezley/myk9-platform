@@ -63,13 +63,6 @@ export const STORAGE_KEYS = {
   SAVED_VIEWS_PREFIX: 'myk9:saved-views',
 
   // ==========================================================================
-  // Search / Caching
-  // ==========================================================================
-
-  /** Prefix for recent searches - append search category */
-  RECENT_SEARCHES_PREFIX: 'recent-searches-',
-
-  // ==========================================================================
   // Mobile Performance (from MobilePerformanceOptimizer)
   // ==========================================================================
 
@@ -121,13 +114,6 @@ export function getDraftKey(entityType: string, entityId: string): string {
  */
 export function getDraftMetadataKey(entityType: string): string {
   return `${STORAGE_KEYS.DRAFT_METADATA_PREFIX}${entityType}`;
-}
-
-/**
- * Helper to get recent searches key for a category
- */
-export function getRecentSearchesKey(category: string): string {
-  return `${STORAGE_KEYS.RECENT_SEARCHES_PREFIX}${category}`;
 }
 
 /**

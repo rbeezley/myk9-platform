@@ -302,29 +302,11 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
     [recentSearches]
   );
 
-  const getFrequentSearches = useCallback(
-    (limit: number = 5): { query: string; count: number }[] => {
-      const queryCount = new Map<string, number>();
-
-      recentSearches.forEach(search => {
-        const query = search.query.toLowerCase();
-        queryCount.set(query, (queryCount.get(query) || 0) + 1);
-      });
-
-      return Array.from(queryCount.entries())
-        .map(([query, count]) => ({ query, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, limit);
-    },
-    [recentSearches]
-  );
-
   return {
     recentSearches,
     addSearch,
     removeSearch,
     clearSearches,
     getSuggestions,
-    getFrequentSearches,
   };
 }

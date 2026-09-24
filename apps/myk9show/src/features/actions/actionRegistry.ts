@@ -146,7 +146,25 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
   return { kind: 'global' };
 }
 
-function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
+/**
+ * A search-only href (`?edit=true`) resolved against the viewer's current
+ * query string: the action's params are added to the ones already there, and
+ * win a shared key. A bare `?edit=true` link replaced the whole query, so
+ * Entry Management lost its queue, search and selection behind the edit panel
+ * (MYK9-736 Codex review). Absolute hrefs pass through untouched.
+ */
+export function mergeSearchOnlyHref(href: string, currentSearch: string): string {
+  if (!href.startsWith('?')) return href;
+  const merged = new URLSearchParams(currentSearch);
+  new URLSearchParams(href).forEach((value, key) => merged.set(key, value));
+  return `?${merged.toString()}`;
+}
+
+function buildShowActions(
+  showId: string,
+  shellMounted: boolean,
+  viewer: ActionViewer
+): AppAction[] {
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);
@@ -197,12 +215,23 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
       separatorBefore: true,
     },
     {
-      // Show Details is the canonical page for reviewing a show. Editing stays
-      // on that page for viewers who already have the existing management
-      // permission; this menu item is navigation only.
+      // The show's one edit entry point (MYK9-736): the hero's Edit button sat
+      // under the status pill at ordinary desktop widths, and a "Show Details"
+      // item here was only a self-link on the page it named. Same audience as
+      // the button it replaces -- this whole list is `canManageShow`-gated,
+      // exactly like `ShowManagementShell`, which owns the panel.
+      //
+      // SEARCH-ONLY where the shell is mounted, so the panel opens on the
+      // section the secretary is already on: an absolute `/shows/:id?edit=true`
+      // walked them off Entry Management to Overview and stranded them there
+      // when they closed it. On a SIBLING route (`/register`, `/trials/...`) no
+      // shell is mounted, so a relative param would sit in the URL with nothing
+      // to consume it; there the item goes to the show page, where the panel
+      // lives.
       id: 'show-settings',
-      label: 'Show Details',
-      href: `/shows/${encoded}`,
+      label: 'Edit show details',
+      aliases: ['show details', 'settings', 'edit show'],
+      href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
     },
   ];
 }
@@ -227,6 +256,6 @@ function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
  * button is HIDDEN, not disabled.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
-  if (route.kind === 'show') return buildShowActions(route.showId, viewer);
+  if (route.kind === 'show') return buildShowActions(route.showId, route.shellMounted, viewer);
   return buildRoleWideActions(viewer);
 }

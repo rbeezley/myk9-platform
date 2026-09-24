@@ -5,6 +5,7 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
 import {
+  mergeSearchOnlyHref,
   parseActionRouteContext,
   resolveActions,
   type AppAction,
@@ -26,7 +27,7 @@ export interface CurrentActions {
  * route would then bounce the viewer off.
  */
 export function useCurrentActions(): CurrentActions {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const route = useMemo(() => parseActionRouteContext(pathname), [pathname]);
   const { hasRole, hasPermission } = useAuthContext();
 
@@ -68,6 +69,10 @@ export function useCurrentActions(): CurrentActions {
   const actions = useMemo(
     () =>
       resolved.map(action => {
+        // A search-only destination keeps the section's own query params.
+        if (action.href?.startsWith('?')) {
+          return { ...action, href: mergeSearchOnlyHref(action.href, search) };
+        }
         if (action.command !== 'publish-premium') return action;
         return {
           ...action,
@@ -81,7 +86,7 @@ export function useCurrentActions(): CurrentActions {
             : {}),
         };
       }),
-    [resolved, premium.action.label, premium.action.disabledReason, premium.run]
+    [resolved, search, premium.action.label, premium.action.disabledReason, premium.run]
   );
 
   return { route, actions };

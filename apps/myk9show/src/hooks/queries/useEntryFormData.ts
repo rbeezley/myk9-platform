@@ -54,6 +54,8 @@ export interface UseEntryFormDataResult {
     experiencePublishedContent?: ShowExperienceSnapshot | null;
   } | null;
   isLoading: boolean;
+  /** True during any fetch, including a background refresh of cached data. */
+  isFetching: boolean;
   isError: boolean;
 }
 
@@ -396,6 +398,7 @@ export function useEntryFormData({
     classes: query.data?.classes ?? [],
     show: query.data?.show ?? null,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     isError: query.isError,
   };
 }

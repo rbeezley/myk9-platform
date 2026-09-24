@@ -59,3 +59,20 @@ export function writeMarkupIntoFrame(
     if (timerId !== undefined) clearTimeout(timerId);
   };
 }
+
+/**
+ * Empty the frame — PDF or markup — so nothing stale stays on screen or reaches
+ * `printIframe`, which refuses an empty body. Used while a hosted report's data
+ * is loading or refreshing (MYK9-717).
+ */
+export function clearFrame(iframe: HTMLIFrameElement): void {
+  if (isDisplayingPdf(iframe)) {
+    iframe.src = 'about:blank';
+    return;
+  }
+  const doc = iframe.contentDocument;
+  if (!doc?.body?.innerHTML) return;
+  doc.open();
+  doc.write('');
+  doc.close();
+}

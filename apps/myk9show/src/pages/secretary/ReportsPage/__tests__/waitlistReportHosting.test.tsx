@@ -98,8 +98,8 @@ describe('Waitlist Report hosting (MYK9-717)', () => {
     ]);
     const { result } = renderHosted();
 
-    expect(result.current.isHostedDataPending).toBe(true);
-    await waitFor(() => expect(result.current.isHostedDataPending).toBe(false));
+    expect(result.current.isHostedDataBusy).toBe(true);
+    await waitFor(() => expect(result.current.isHostedDataBusy).toBe(false));
     expect(mockGetWaitlistReportRows).toHaveBeenCalledWith('show-1');
 
     const markup = renderReportMarkup(result.current);
@@ -128,30 +128,58 @@ describe('Waitlist Report hosting (MYK9-717)', () => {
     expect(mockGetWaitlistReportRows).not.toHaveBeenCalled();
   });
 
+  function renderPreview(hosted: ReturnType<typeof useHostedReportData>) {
+    const props = {
+      reportType: 'waitlist-report',
+      show,
+      trials,
+      classes,
+      entries: [],
+      trialId: 'all',
+      classId: 'all',
+      dogId: 'all',
+      sortOrder: '',
+      isLoading: false,
+      isError: false,
+      dataState: 'ready' as const,
+    };
+    const view = render(<ReportPreview {...props} hosted={hosted} />);
+    const frame = view.container.querySelector('iframe') as HTMLIFrameElement;
+    return {
+      frame,
+      rerenderWith: (next: ReturnType<typeof useHostedReportData>) =>
+        view.rerender(<ReportPreview {...props} hosted={next} />),
+    };
+  }
+
+  const LOADED = {
+    waitlist: {
+      data: [{ id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: 'Jane' }],
+      isLoading: false,
+      isError: false,
+    },
+    isHostedDataBusy: false,
+  };
+
   it('previews a waitlist for a show with no confirmed entries yet', async () => {
-    mockGetWaitlistReportRows.mockResolvedValue([
-      { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: 'Jane Mitchell' },
-    ]);
-    const { container } = render(
-      <ReportPreview
-        reportType="waitlist-report"
-        show={show}
-        trials={trials}
-        classes={classes}
-        entries={[]}
-        trialId="all"
-        classId="all"
-        dogId="all"
-        sortOrder=""
-        isLoading={false}
-        isError={false}
-        dataState="ready"
-      />
-    );
+    const { frame } = renderPreview(LOADED);
 
     expect(screen.queryByText(/No entries found/i)).toBeNull();
-    const frame = container.querySelector('iframe') as HTMLIFrameElement;
     await waitFor(() => expect(frame.contentDocument?.body.textContent).toContain('Buddy'));
+  });
+
+  it('blanks the frame while the hosted data refreshes, then shows the fresh copy', async () => {
+    const { frame, rerenderWith } = renderPreview(LOADED);
+    await waitFor(() => expect(frame.contentDocument?.body.textContent).toContain('Buddy'));
+
+    rerenderWith({ ...LOADED, isHostedDataBusy: true });
+    await waitFor(() => expect(frame.contentDocument?.body?.textContent ?? '').toBe(''));
+
+    rerenderWith({
+      ...LOADED,
+      waitlist: { ...LOADED.waitlist, data: [{ ...LOADED.waitlist.data[0], callName: 'Rex' }] },
+    });
+    await waitFor(() => expect(frame.contentDocument?.body.textContent).toContain('Rex'));
   });
 
   it('re-reads after a waitlist mutation invalidates the show', async () => {

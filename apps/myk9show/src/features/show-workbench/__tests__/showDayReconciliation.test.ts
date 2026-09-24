@@ -18,34 +18,34 @@ describe('summarizeShowDayReconciliation', () => {
   it('totals at-show paid, check, cash, and waived entries', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'early-entry',
-        submitted_at: EARLY,
-        entry_fee: 30,
-        payment_status: 'paid',
-        payment_method: 'online',
-      },
-      {
-        id: 'cash-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: 35,
-        payment_status: 'paid',
-        payment_method: 'cash',
-      },
-      {
-        id: 'check-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: '40',
-        payment_status: 'paid',
-        payment_method: 'check',
-      },
-      {
-        id: 'waived-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: 0,
-        payment_status: 'waived',
-        payment_method: 'waived',
-      },
+        {
+          id: 'early-entry',
+          submitted_at: EARLY,
+          entry_fee: 30,
+          payment_status: 'paid',
+          payment_method: 'online',
+        },
+        {
+          id: 'cash-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: 35,
+          payment_status: 'paid',
+          payment_method: 'cash',
+        },
+        {
+          id: 'check-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: '40',
+          payment_status: 'paid',
+          payment_method: 'check',
+        },
+        {
+          id: 'waived-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: 0,
+          payment_status: 'waived',
+          payment_method: 'waived',
+        },
       ],
       WINDOW
     );
@@ -62,13 +62,13 @@ describe('summarizeShowDayReconciliation', () => {
   it('falls back to payment status when an at-show row has no method', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'old-paid-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: 25,
-        payment_status: 'paid',
-        payment_method: null,
-      },
+        {
+          id: 'old-paid-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: 25,
+          payment_status: 'paid',
+          payment_method: null,
+        },
       ],
       WINDOW
     );
@@ -82,13 +82,13 @@ describe('summarizeShowDayReconciliation', () => {
   it('does not count cash or check entries as collected until payment is marked paid', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'cash-pending-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: 35,
-        payment_status: 'pending',
-        payment_method: 'cash',
-      },
+        {
+          id: 'cash-pending-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: 35,
+          payment_status: 'pending',
+          payment_method: 'cash',
+        },
       ],
       WINDOW
     );
@@ -101,19 +101,19 @@ describe('summarizeShowDayReconciliation', () => {
   it('totals pulled entries that need manual refund review', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'paid-scratch',
-        entry_fee: 35,
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        payment_status: 'paid',
-      },
-      {
-        id: 'pending-pull',
-        entry_fee: 30,
-        check_in_status: 'pulled',
-        payment_status: 'pending',
-      },
+        {
+          id: 'paid-scratch',
+          entry_fee: 35,
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          payment_status: 'paid',
+        },
+        {
+          id: 'pending-pull',
+          entry_fee: 30,
+          check_in_status: 'pulled',
+          payment_status: 'pending',
+        },
       ],
       WINDOW
     );
@@ -126,12 +126,12 @@ describe('summarizeShowDayReconciliation', () => {
   it('totals already-refunded pulled entries separately', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'refunded-scratch',
-        entry_fee: '40',
-        entry_status: 'withdrawn',
-        payment_status: 'Refunded',
-      },
+        {
+          id: 'refunded-scratch',
+          entry_fee: '40',
+          entry_status: 'withdrawn',
+          payment_status: 'Refunded',
+        },
       ],
       WINDOW
     );
@@ -145,18 +145,18 @@ describe('summarizeShowDayReconciliation', () => {
   it('normalizes payment status case for collected and refund-review totals', () => {
     const summary = summarizeShowDayReconciliation(
       [
-      {
-        id: 'paid-pull',
-        entry_fee: 35,
-        check_in_status: 'pulled',
-        payment_status: 'Paid',
-      },
-      {
-        id: 'paid-late-entry',
-        submitted_at: AT_SHOW,
-        entry_fee: 40,
-        payment_status: 'Paid',
-      },
+        {
+          id: 'paid-pull',
+          entry_fee: 35,
+          check_in_status: 'pulled',
+          payment_status: 'Paid',
+        },
+        {
+          id: 'paid-late-entry',
+          submitted_at: AT_SHOW,
+          entry_fee: 40,
+          payment_status: 'Paid',
+        },
       ],
       WINDOW
     );
@@ -190,10 +190,7 @@ describe('summarizeShowDayReconciliation', () => {
     it("reads the day on the show's own calendar, not UTC", () => {
       // 01:30 UTC on the 17th is 21:30 on the 16th in New York: the night
       // before the show, keyed at home, not at the desk.
-      const eveBefore = summarizeShowDayReconciliation(
-        [paidCheck('2026-09-17T01:30:00Z')],
-        WINDOW
-      );
+      const eveBefore = summarizeShowDayReconciliation([paidCheck('2026-09-17T01:30:00Z')], WINDOW);
       // 04:30 UTC on the 17th is 00:30 on show day in New York.
       const showDay = summarizeShowDayReconciliation([paidCheck('2026-09-17T04:30:00Z')], WINDOW);
 

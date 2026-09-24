@@ -86,7 +86,9 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           <div role="group" aria-label="Show entries">
             <p className={STAT_LABEL_CLASS}>Entries</p>
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
-            <p className="text-xs text-muted-foreground">{recon.lateEntryCount} taken at the show</p>
+            <p className="text-xs text-muted-foreground">
+              {recon.lateEntryCount} taken at the show
+            </p>
           </div>
           <div role="group" aria-label="Collected at-show late-entry fees">
             <p className={STAT_LABEL_CLASS}>At-show collected</p>

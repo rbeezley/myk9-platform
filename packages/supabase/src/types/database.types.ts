@@ -12351,6 +12351,27 @@ export type Database = {
         Returns: undefined
       }
       derive_registry_id: { Args: { p_organization: string }; Returns: string }
+      dog_force_delete_audit: {
+        Args: { p_deleted_at: string; p_dog_id: string }
+        Returns: {
+          action_type: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          record_id: string | null
+          record_type: string | null
+          trial_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "activity_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       emergency_packet_input: {
         Args: { p_show_id: string; p_trial_date?: string }
         Returns: Json
@@ -12622,36 +12643,15 @@ export type Database = {
         Args: never
         Returns: {
           breed: string
-          breeder_id: string | null
           call_name: string
-          co_owner_id: string | null
-          color: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          deceased: boolean | null
-          deceased_date: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          height: string | null
+          deleted_at: string
+          deleted_by: string
+          deleted_by_email: string
+          deleted_by_name: string
+          force_delete_audit: Json
           id: string
-          image_url: string | null
-          license_key: string | null
-          microchip_number: string | null
-          name: string | null
-          owner_id: string | null
-          sex: string | null
-          spayed_neutered: boolean | null
-          status: string | null
-          updated_at: string | null
-          version: number
-          weight: string | null
+          name: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "dogs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       get_deleted_people: {
         Args: never
@@ -13366,41 +13366,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      restore_dog: {
-        Args: { p_dog_id: string }
-        Returns: {
-          breed: string
-          breeder_id: string | null
-          call_name: string
-          co_owner_id: string | null
-          color: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          deceased: boolean | null
-          deceased_date: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          height: string | null
-          id: string
-          image_url: string | null
-          license_key: string | null
-          microchip_number: string | null
-          name: string | null
-          owner_id: string | null
-          sex: string | null
-          spayed_neutered: boolean | null
-          status: string | null
-          updated_at: string | null
-          version: number
-          weight: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "dogs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
+      restore_dog: { Args: { p_dog_id: string }; Returns: Json }
       restore_person: {
         Args: { p_person_id: string }
         Returns: {

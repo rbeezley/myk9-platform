@@ -134,6 +134,11 @@ export function DeletedEntitySection({
                         </>
                       )}
                     </div>
+                    {item.details?.map(line => (
+                      <p key={line} className="mt-1 text-xs text-muted-foreground break-words">
+                        {line}
+                      </p>
+                    ))}
                   </div>
                   <div className="flex gap-2 ml-3">
                     <Button

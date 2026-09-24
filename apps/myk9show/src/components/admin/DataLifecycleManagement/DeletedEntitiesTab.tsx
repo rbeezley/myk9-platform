@@ -49,6 +49,17 @@ import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/databas
 import { getDeletedUsers, restoreUser, hardDeleteUser } from '@/services/database/users';
 
 import { DeletedEntitySection } from './DeletedEntitySection';
+import {
+  describeRestoreDog,
+  fetchAndMap,
+  mapClass,
+  mapClub,
+  mapDog,
+  mapEntry,
+  mapPerson,
+  mapShow,
+  mapTrial,
+} from './deletedEntityMappers';
 import type { DeletedEntity, EntityType, EntitySectionConfig, SelectedEntity } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -91,90 +102,6 @@ const ENTITY_LABEL: Record<EntityType, string> = {
   dog: 'Dog',
   club: 'Club',
   person: 'Person',
-};
-
-/* ------------------------------------------------------------------ */
-/*  Mapper helpers – convert raw query rows to DeletedEntity           */
-/* ------------------------------------------------------------------ */
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapShow = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: row.name || 'Unnamed Show',
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapTrial = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: row.name || 'Unnamed Trial',
-  context: row.show?.name ? `Show: ${row.show.name}` : undefined,
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapClass = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: row.name || 'Unnamed Class',
-  context: row.trial?.name ? `Trial: ${row.trial.name}` : undefined,
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapEntry = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: `${row.dog?.call_name ?? row.dog?.name ?? 'Unknown Dog'} → ${row.class?.name ?? 'Unknown Class'}`,
-  context: row.class?.name,
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapDog = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: row.name || 'Unnamed Dog',
-  context: row.breed,
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapClub = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: row.name || 'Unnamed Club',
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapPerson = (row: any): DeletedEntity => ({
-  id: row.id,
-  name: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'Unnamed Person',
-  context: row.email,
-  deleted_at: row.deleted_at,
-  deleted_by_email: row.deleted_by_user?.email ?? null,
-});
-
-/* ------------------------------------------------------------------ */
-/*  Fetch wrapper – normalises the { data, error } return shape        */
-/* ------------------------------------------------------------------ */
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type QueryFn = () => Promise<{ data: any[]; error: any } | any>;
-
-const fetchAndMap = async (
-  queryFn: QueryFn,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mapper: (row: any) => DeletedEntity
-): Promise<DeletedEntity[]> => {
-  const result = await queryFn();
-  // Some query fns return { data, error }, others return the Supabase
-  // response directly which also has { data, error }.
-  const rows = result?.data ?? [];
-  return rows.map(mapper);
 };
 
 /* ------------------------------------------------------------------ */
@@ -302,6 +229,7 @@ export function DeletedEntitiesTab() {
         iconColor: 'text-orange-600',
         fetchDeleted: () => fetchAndMap(getDeletedDogs, mapDog),
         restore: restoreDog,
+        describeRestore: describeRestoreDog,
         hardDelete: hardDeleteDog,
       },
       {
@@ -362,7 +290,10 @@ export function DeletedEntitiesTab() {
           return;
         }
         logger.info('Entity restored', 'trash', { type: restoreTarget.type, id: restoreTarget.id });
-        notifications.success(`${label} restored`);
+        // A restore can succeed and still leave something for a human (MYK9-607).
+        const notice = config.describeRestore?.(result) ?? null;
+        if (notice) notifications.warning(notice);
+        else notifications.success(`${label} restored`);
         setCounts(prev => ({
           ...prev,
           [restoreTarget.type]: Math.max(0, prev[restoreTarget.type] - 1),

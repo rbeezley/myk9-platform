@@ -27,12 +27,12 @@
  *
  * The unique index allows at most one active cart per (show, exhibitor), so for
  * a show-scoped read the active cart wins whenever it exists; the rule does its
- * work across shows (`/cart` without a show, and the badge). Items already
- * stranded in 'expired' rows are moved into the openable cart by the one-off
- * `docs/operations/myk9-650-stranded-cart-remediation.sql`, which ranks the
- * same way. Whether the client should be able to reopen an 'expired' row at all
- * is an open decision (a SECURITY DEFINER reopen), not something this module
- * can route around.
+ * work across shows (`/cart` without a show, and the badge). No data needed
+ * moving to meet this rule: a read-only census of the live database on
+ * 2026-09-24 found 0 active and 0 expired carts, so 0 stranded items, and no
+ * remediation was written. Whether the client should be able to reopen an
+ * 'expired' row at all is an open decision (a SECURITY DEFINER reopen), not
+ * something this module can route around.
  *
  * The status predicate is unchanged: `('active','expired')` with no
  * `expires_at` filter, so a lapsed hold on an active row is still recovered.
@@ -82,7 +82,7 @@ const createdAtMs = (value: string | null): number => {
 
 /**
  * Newest first, a missing `created_at` last, then id descending so the pick is
- * deterministic — the same ORDER BY the remediation script uses.
+ * deterministic.
  */
 const newestFirst = (a: RecoverableCartCandidate, b: RecoverableCartCandidate): number =>
   createdAtMs(b.created_at) - createdAtMs(a.created_at) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);

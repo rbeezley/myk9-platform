@@ -129,7 +129,8 @@ describe('loadActiveCart recovers the cart that has items (MYK9-650)', () => {
 
     // The expired cart cannot be reactivated by this client
     // (trg_entry_carts_protect_status), so the active one is the only cart that
-    // opens. The stranded item is left for the remediation script.
+    // opens. The older cart's item stays where it is (the 2026-09-24 live
+    // census found no such carts, so no remediation exists).
     expect(cart?.id).toBe('cart-newer-empty');
     expect(holder.db.carts.map(c => [c.id, c.status])).toEqual([
       ['cart-older', 'expired'],

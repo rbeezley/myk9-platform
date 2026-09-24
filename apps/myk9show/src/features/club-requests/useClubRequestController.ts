@@ -40,6 +40,8 @@ export function useClubRequestController(options: Options): ClubRequestControlle
     // The other side decides while the requester is away; re-read on return
     // instead of trusting the app-wide five-minute staleTime.
     refetchOnMount: 'always',
+    // A page left open while the club decides re-reads when the tab returns.
+    refetchOnWindowFocus: 'always',
   });
 
   const refreshStatus = () => queryClient.invalidateQueries({ queryKey: options.queryKey });
@@ -82,10 +84,12 @@ export function useClubRequestController(options: Options): ClubRequestControlle
   } else if (deniedThisSession) {
     // The submit itself was refused as a standing denial (MK571).
     state = { kind: 'denied', reviewerNote: null };
+  } else if (statusQuery.isError) {
+    // Checked before cached data: a failed re-read must not fall back to an
+    // older answer that could re-offer a submit (fail closed).
+    state = { kind: 'error' };
   } else if (statusQuery.data) {
     state = statusQuery.data;
-  } else if (statusQuery.isError) {
-    state = { kind: 'error' };
   } else {
     state = { kind: 'loading' };
   }

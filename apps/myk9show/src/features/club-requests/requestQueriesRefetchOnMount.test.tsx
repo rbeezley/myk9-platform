@@ -6,11 +6,14 @@
  * Members, sees the cached answer from before the other side acted.
  *
  * Each case mounts a hook under the app's real defaults, unmounts it, mounts
- * it again inside the stale window, and asserts the read ran twice.
+ * it again inside the stale window, and asserts the read ran twice. The
+ * requester's own status also re-reads when the tab regains focus, and a
+ * failed re-read fails CLOSED instead of showing the cached answer.
  */
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -98,5 +101,51 @@ describe('request reads refetch when their surface is opened again', () => {
     await waitFor(() => expect(mocks.listClubRoleRequests).toHaveBeenCalledTimes(1));
     remount();
     await waitFor(() => expect(mocks.listClubRoleRequests).toHaveBeenCalledTimes(2));
+  });
+
+  it("re-reads the requester's own status when the tab regains focus", async () => {
+    const fetchStatus = vi.fn().mockResolvedValue({ kind: 'pending' });
+    const client = appLikeClient();
+    const { first } = mountTwice(client, () =>
+      useClubRequestController({
+        queryKey: ['my-request', 'club-focus'],
+        preState: null,
+        fetchStatus,
+        submitRequest: vi.fn(),
+        successMessage: 'sent',
+        logContext: {},
+      })
+    );
+
+    await waitFor(() => expect(first.result.current.state.kind).toBe('pending'));
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
+    focusManager.setFocused(undefined);
+  });
+
+  it('fails closed when the re-read errors, instead of showing the cached form', async () => {
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: 'available' })
+      .mockRejectedValue(new Error('network'));
+    const client = appLikeClient();
+    const { first, remount } = mountTwice(client, () =>
+      useClubRequestController({
+        queryKey: ['my-request', 'club-error'],
+        preState: null,
+        fetchStatus,
+        submitRequest: vi.fn(),
+        successMessage: 'sent',
+        logContext: {},
+      })
+    );
+
+    await waitFor(() => expect(first.result.current.state.kind).toBe('available'));
+    const second = remount();
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(second.result.current.state.kind).toBe('error'));
   });
 });

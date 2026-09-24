@@ -23,20 +23,26 @@ const formData: UserFormData = {
   roles: [],
 };
 
+const SITE_ADMIN_ONLY_NOTE =
+  /only a site admin can change this email once the person has entries or a sign-in account/i;
+
 /**
- * The tab reads two tables: `user_roles` for the role chips and `people` for
- * the sign-in linkage. Route by table so a change to one query cannot silently
- * satisfy the other's assertion.
+ * The editor reads the lock facts through one RPC, `person_email_lock_facts`,
+ * which returns the database's own snake_case payload (or NULL). Route by
+ * function name so an unrelated RPC cannot satisfy the assertion.
  */
-function mockPerson(person: Record<string, unknown> | null) {
-  mockSupabase.from.mockImplementation((table: string) =>
-    createChainableQuery(
-      table === 'people' ? { data: person, error: null } : { data: [], error: null }
-    )
+function mockLockFacts(facts: Record<string, boolean> | null, error: unknown = null) {
+  mockSupabase.rpc.mockImplementation((fn: string) =>
+    fn === 'person_email_lock_facts'
+      ? (Promise.resolve({ data: facts, error }) as unknown as ReturnType<
+          typeof createChainableQuery
+        >)
+      : createChainableQuery()
   );
 }
 
-function renderTab(personId: string | undefined = 'person-1') {
+function renderTab(options: { personId?: string; isSiteAdmin?: boolean } = {}) {
+  const { personId = 'person-1', isSiteAdmin = false } = options;
   const context = {
     data: formData,
     updateData: () => {},
@@ -52,7 +58,7 @@ function renderTab(personId: string | undefined = 'person-1') {
     <EditPanelContext.Provider value={context}>
       <BasicInfoTab
         personId={personId}
-        hasAdminPermission={false}
+        hasAdminPermission={isSiteAdmin}
         canEditAdvancedFields={false}
         onOpenPhotoModal={() => {}}
       />
@@ -60,71 +66,99 @@ function renderTab(personId: string | undefined = 'person-1') {
   );
 }
 
-// MYK9-136: the contact email and the sign-in email are the same value, and
-// nothing in this panel can change the latter, so offering to edit it here
-// only ever produces two addresses that disagree. The self-service profile and
-// account pages have always shown the sign-in address read-only; this brings
-// the admin panel in line with them.
-//
-// The linkage is read here rather than passed in because the admin roster's
-// `get_admin_user_list` RPC does not return `auth_user_id` — a passed-down
-// flag would be false for every linked user on the main user-management page.
-describe('BasicInfoTab sign-in email', () => {
+const emailInput = () => screen.getByLabelText(/email address/i);
+
+const lockRpcCalled = () =>
+  waitFor(() =>
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('person_email_lock_facts', {
+      p_person_id: 'person-1',
+    })
+  );
+
+// MYK9-136: a signed-in person's contact email IS their sign-in address, and
+// nothing in this panel can change the latter, so it is read-only for everyone.
+// MYK9-710: once a person has entries or roles, the database refuses any
+// non-site-admin email change, so the editor must not offer one.
+describe('BasicInfoTab email lock', () => {
   beforeEach(() => {
-    mockSupabase.from.mockClear();
+    mockSupabase.rpc.mockClear();
   });
 
   it('locks the email field for a person who can sign in', async () => {
-    mockPerson({ auth_user_id: 'auth-1', email: 'ada@example.com' });
+    mockLockFacts({ has_sign_in: true, has_roles: true, has_entries: false });
 
     renderTab();
 
-    await waitFor(() =>
-      expect(screen.getByLabelText(/email address/i)).toHaveAttribute('readonly')
-    );
-    expect(screen.getByLabelText(/email address/i)).toHaveValue('ada@example.com');
+    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+    expect(emailInput()).toHaveValue('ada@example.com');
+    expect(screen.getByText(/address they sign in with/i)).toBeInTheDocument();
   });
 
-  it('explains why the field is locked', async () => {
-    mockPerson({ auth_user_id: 'auth-1', email: 'ada@example.com' });
+  it('keeps a signed-in person locked for a site admin too', async () => {
+    mockLockFacts({ has_sign_in: true, has_roles: true, has_entries: true });
+
+    renderTab({ isSiteAdmin: true });
+
+    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+  });
+
+  it('locks the email for a secretary editing a mail-in person with entries', async () => {
+    mockLockFacts({ has_sign_in: false, has_roles: false, has_entries: true });
 
     renderTab();
 
-    expect(await screen.findByText(/address they sign in with/i)).toBeInTheDocument();
+    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+    expect(screen.getByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
   });
 
-  it('leaves the email editable for a person with no sign-in account', async () => {
-    mockPerson({ auth_user_id: null, email: 'ada@example.com' });
+  it('locks the email for a secretary editing a person who holds roles', async () => {
+    mockLockFacts({ has_sign_in: false, has_roles: true, has_entries: false });
 
     renderTab();
 
-    await waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('people'));
-    expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('readonly');
+    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+    expect(screen.getByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
   });
 
-  // Unknown must read as editable, not locked: the refusal lives in
-  // `updateUser`, which fails closed, so an unreadable linkage costs a clearer
-  // affordance — never a lost edit for someone who has no account at all.
-  it('leaves the email editable when the linkage cannot be read', async () => {
-    mockPerson(null);
+  it('leaves the email editable for a site admin editing a mail-in person with entries', async () => {
+    mockLockFacts({ has_sign_in: false, has_roles: false, has_entries: true });
+
+    renderTab({ isSiteAdmin: true });
+
+    await lockRpcCalled();
+    expect(emailInput()).not.toHaveAttribute('readonly');
+    expect(screen.queryByText(SITE_ADMIN_ONLY_NOTE)).not.toBeInTheDocument();
+  });
+
+  it('leaves the email editable for a mail-in person with no entries or roles', async () => {
+    mockLockFacts({ has_sign_in: false, has_roles: false, has_entries: false });
 
     renderTab();
 
-    await waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('people'));
-    expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('readonly');
+    await lockRpcCalled();
+    expect(emailInput()).not.toHaveAttribute('readonly');
   });
 
-  // Create mode has no person to look up, and an email must be typeable — the
-  // linked mock below would lock the field if the lookup ran regardless of
-  // there being no id to look up. (A `from('people')` call-spy could not prove
-  // this: the shared render wrapper's auth provider queries that table too, so
-  // the call is not attributable to this component.)
+  // Unknown reads as editable, not locked: the database refuses the save and
+  // the editor reports the refusal, so an unreadable lock costs a clearer
+  // affordance, never a lost edit for someone who is not locked at all.
+  it('leaves the email editable when the lock facts cannot be read', async () => {
+    mockLockFacts(null, { message: 'boom' });
+
+    renderTab();
+
+    await lockRpcCalled();
+    expect(emailInput()).not.toHaveAttribute('readonly');
+  });
+
+  // Create mode has no person to look up, and an email must be typeable.
   it('leaves the email editable in create mode', async () => {
-    mockPerson({ auth_user_id: 'auth-1', email: 'ada@example.com' });
+    mockLockFacts({ has_sign_in: true, has_roles: true, has_entries: true });
 
-    renderTab(undefined);
+    renderTab({ personId: '' });
 
-    await waitFor(() => expect(screen.getByLabelText(/email address/i)).toBeInTheDocument());
-    expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('readonly');
+    await waitFor(() => expect(emailInput()).toBeInTheDocument());
+    expect(emailInput()).not.toHaveAttribute('readonly');
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('person_email_lock_facts', expect.anything());
   });
 });

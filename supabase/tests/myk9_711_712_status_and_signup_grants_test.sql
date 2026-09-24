@@ -315,6 +315,56 @@ begin
 end;
 $$;
 
+-- The editor's read of the same facts (person_email_lock_facts): answered for a
+-- person the caller may update, NULL for anyone else, never callable by anon,
+-- and the internal helper is callable by no client role.
+create function pg_temp.facts_as(caller uuid, p uuid) returns jsonb language plpgsql as $$
+declare v jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', caller::text, true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', caller, 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  v := public.person_email_lock_facts(p);
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+  return v;
+end;
+$$;
+
+select pg_temp.expect('lock facts for a manageable handler with entries',
+  pg_temp.facts_as('00000000-0000-0000-0000-000000712101', '00000000-0000-0000-0000-000000712019')::text,
+  '{"has_roles": false, "has_entries": true, "has_sign_in": false}');
+select pg_temp.expect('lock facts for a manageable co-owner with entries',
+  (pg_temp.facts_as('00000000-0000-0000-0000-000000712101', '00000000-0000-0000-0000-000000712018') ->> 'has_entries'),
+  'true');
+select pg_temp.expect('lock facts for a linked site admin (as a site admin)',
+  pg_temp.facts_as('00000000-0000-0000-0000-000000712103', '00000000-0000-0000-0000-000000712012')::text,
+  '{"has_roles": true, "has_entries": true, "has_sign_in": true}');
+select pg_temp.expect('lock facts for a no-entries person (as a site admin)',
+  pg_temp.facts_as('00000000-0000-0000-0000-000000712103', '00000000-0000-0000-0000-000000712016')::text,
+  '{"has_roles": false, "has_entries": false, "has_sign_in": false}');
+select pg_temp.expect('lock facts are NULL for a person the secretary cannot update',
+  coalesce(pg_temp.facts_as('00000000-0000-0000-0000-000000712101', '00000000-0000-0000-0000-000000712016')::text, 'null'),
+  'null');
+
+do $$
+begin
+  if has_function_privilege('anon', 'public.person_email_lock_facts(uuid)', 'EXECUTE') then
+    raise exception 'FAIL anon can execute person_email_lock_facts';
+  end if;
+  if not has_function_privilege('authenticated', 'public.person_email_lock_facts(uuid)', 'EXECUTE') then
+    raise exception 'FAIL authenticated cannot execute person_email_lock_facts';
+  end if;
+  if has_function_privilege('authenticated', 'public.person_email_lock_facts_unchecked(uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.person_email_lock_facts_unchecked(uuid)', 'EXECUTE') then
+    raise exception 'FAIL a client role can execute person_email_lock_facts_unchecked';
+  end if;
+  raise notice 'PASS person_email_lock_facts is authenticated-only and its internal helper is not client-callable';
+end;
+$$;
+
 -- ===========================================================================
 -- MYK9-711
 -- ===========================================================================

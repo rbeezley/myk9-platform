@@ -65,6 +65,12 @@
 -- working). Privileged callers are unaffected, so the MYK9-136 normalisation of
 -- linked rows still applies to them.
 --
+-- The person edit panel must not offer an edit this guard will refuse, so the
+-- facts the lock turns on (has_sign_in, has_roles, has_entries) live in ONE
+-- internal function, person_email_lock_facts_unchecked(), used by the guard,
+-- and are exposed to the editor through person_email_lock_facts(), which
+-- answers only for a person the caller may already update (NULL otherwise).
+--
 -- The entries check runs only when the email actually changes, for an unprivileged
 -- caller, and uses entries_handler_id_idx, dogs_owner_id_idx and
 -- dogs_co_owner_id_idx. Copied from the LATEST definition, 20260923154300;
@@ -132,6 +138,73 @@ revoke all on function public.people_protect_status() from public;
 revoke all on function public.people_protect_status() from anon;
 revoke all on function public.people_protect_status() from authenticated;
 
+-- The facts the email lock turns on, in ONE place: the guard below and the
+-- editor's read (person_email_lock_facts) both use this, and the client helper
+-- `decidePersonEmailLock` (apps/myk9show/src/services/database/users/
+-- personEmailLock.ts) states the same rule next to it. Internal: no client role
+-- can call it, since it answers for any person id.
+create or replace function public.person_email_lock_facts_unchecked(p_person_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'has_sign_in', exists (
+      select 1 from public.people p
+       where p.id = p_person_id and p.auth_user_id is not null
+    ),
+    'has_roles', exists (
+      select 1 from public.user_roles ur where ur.user_id = p_person_id
+    ),
+    'has_entries', exists (
+      select 1 from public.entries e
+       where e.handler_id = p_person_id and e.deleted_at is null
+    ) or exists (
+      select 1
+        from public.dogs d
+        join public.entries e on e.dog_id = d.id and e.deleted_at is null
+       where d.owner_id = p_person_id or d.co_owner_id = p_person_id
+    )
+  );
+$$;
+
+comment on function public.person_email_lock_facts_unchecked(uuid) is
+  'MYK9-710: has_sign_in / has_roles / has_entries for one person, the facts the people.email lock turns on. Internal; answers for any id, so no client role may call it.';
+
+revoke all on function public.person_email_lock_facts_unchecked(uuid) from public;
+revoke all on function public.person_email_lock_facts_unchecked(uuid) from anon;
+revoke all on function public.person_email_lock_facts_unchecked(uuid) from authenticated;
+
+-- The editor's read. Answers only for a person the caller could already update
+-- (own row, a manageable person, or anyone for a site admin), so it discloses
+-- nothing beyond what the edit panel is about to be refused on. NULL otherwise.
+create or replace function public.person_email_lock_facts(p_person_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.person_email_lock_facts_unchecked(p.id)
+    from public.people p
+   where p.id = p_person_id
+     and p.deleted_at is null
+     and (
+       p.auth_user_id = (select auth.uid())
+       or public.is_site_admin()
+       or public.can_manage_show_person(p.id)
+     );
+$$;
+
+comment on function public.person_email_lock_facts(uuid) is
+  'MYK9-710: the email-lock facts for the person edit panel, for a person the caller may update; NULL otherwise.';
+
+revoke all on function public.person_email_lock_facts(uuid) from public;
+revoke all on function public.person_email_lock_facts(uuid) from anon;
+grant execute on function public.person_email_lock_facts(uuid) to authenticated;
+
 create or replace function public.people_guard_identity_columns()
 returns trigger
 language plpgsql
@@ -140,6 +213,7 @@ set search_path = ''
 as $$
 declare
   v_email_changed boolean;
+  v_facts jsonb;
 begin
   v_email_changed :=
     lower(btrim(coalesce(new.email, ''))) is distinct from lower(btrim(coalesce(old.email, '')));
@@ -173,30 +247,20 @@ begin
             hint = 'people.auth_user_id is set at signup and changed only by site admins (MYK9-710).';
   end if;
 
-  if v_email_changed
-     and (
-       old.auth_user_id is not null
-       or exists (select 1 from public.user_roles ur where ur.user_id = old.id)
-     ) then
+  if not v_email_changed then
+    return new;
+  end if;
+
+  v_facts := public.person_email_lock_facts_unchecked(old.id);
+
+  if old.auth_user_id is not null or (v_facts ->> 'has_roles')::boolean then
     raise exception 'This person has (or had) a sign-in account, so only a site admin can change their email address.'
       using errcode = '42501',
             hint = 'people.email is the adoption key at signup for a person with an identity or roles (MYK9-710).';
   end if;
 
   -- MYK9-710 option C: a person with any live entry keeps their email.
-  if v_email_changed
-     and (
-       exists (
-         select 1 from public.entries e
-          where e.handler_id = old.id and e.deleted_at is null
-       )
-       or exists (
-         select 1
-           from public.dogs d
-           join public.entries e on e.dog_id = d.id and e.deleted_at is null
-          where d.owner_id = old.id or d.co_owner_id = old.id
-       )
-     ) then
+  if (v_facts ->> 'has_entries')::boolean then
     raise exception 'This person already has entries, so only a site admin can change their email address.'
       using errcode = '42501',
             hint = 'people.email is the adoption key at signup; once a person has entries it is site-admin-only (MYK9-710 option C).';

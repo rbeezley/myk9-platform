@@ -10,8 +10,8 @@ import { screen, fireEvent, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
-import { useAnnouncementStore } from '@/store/announcementStore';
-import { useShowStore } from '@/store/showStore';
+import { useAnnouncementStore as realAnnouncementStore } from '@/store/announcementStore';
+import { useShowStore as realShowStore } from '@/store/showStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 
 vi.mock('react-router-dom', async () => {
@@ -61,6 +61,11 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
   useMessageShowClassOptions: () => ({ data: [] }),
 }));
+
+// Both stores are mocked above with loose shapes; only the fields read here matter.
+type LooseStore = { setState: (state: Record<string, unknown>) => void };
+const useAnnouncementStore = realAnnouncementStore as unknown as LooseStore;
+const useShowStore = realShowStore as unknown as LooseStore;
 
 const HEARTLAND = 'club-heartland';
 const OTHER_CLUB = 'club-blue-sky';

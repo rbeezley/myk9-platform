@@ -51,6 +51,7 @@ export interface UseAtShowScoresheetResult {
   trialSportType: string | undefined;
   trialDate: string | undefined;
   trialNumber: string | undefined;
+  trialName: string | undefined;
   isLoading: boolean;
   error: string | null;
   loadedClassId: string | null;
@@ -79,6 +80,7 @@ export function useAtShowScoresheet({
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
   const [trialDate, setTrialDate] = useState<string | undefined>(undefined);
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
+  const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export function useAtShowScoresheet({
       setTrialSportType(undefined);
       setTrialDate(undefined);
       setTrialNumber(undefined);
+      setTrialName(undefined);
       setLoadedClassId(null);
       setLoadedEntryId(null);
 
@@ -155,6 +158,7 @@ export function useAtShowScoresheet({
         if (trial) {
           setTrialDate(trial.date || trial.trial_date);
           setTrialNumber(trial.trialNumber);
+          setTrialName(trial.name);
         }
 
         const rawEntry = allEntries.find(e => e.id === entryId);
@@ -257,6 +261,7 @@ export function useAtShowScoresheet({
     trialSportType,
     trialDate,
     trialNumber,
+    trialName,
     isLoading,
     error,
     loadedClassId,

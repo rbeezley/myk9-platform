@@ -12,6 +12,8 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 export interface ShowScheduleTimelineRow {
   trialId: string;
   trialDate: string;
+  /** trials.name — the display label (MYK9-704). */
+  trialName: string;
   trialNumber: string | null;
   trialPlannedStartTime: string | null;
   classId: string;
@@ -120,6 +122,7 @@ function mapClassToShowScheduleTimelineRow(
   return {
     trialId: trial.id,
     trialDate: trial.date,
+    trialName: trial.name,
     trialNumber: trial.trialNumber ?? null,
     trialPlannedStartTime: trial.plannedStartTime ?? null,
     classId: cls.id,
@@ -164,6 +167,7 @@ async function postgrestGetShowScheduleTimelineRows(
     .select(
       `
       id,
+      name,
       date,
       trial_number,
       planned_start_time,
@@ -223,6 +227,7 @@ async function postgrestGetShowScheduleTimelineRows(
       rows.push({
         trialId: trial.id,
         trialDate: trial.date,
+        trialName: trial.name,
         trialNumber: trial.trial_number,
         trialPlannedStartTime: trial.planned_start_time,
         classId: cls.id,

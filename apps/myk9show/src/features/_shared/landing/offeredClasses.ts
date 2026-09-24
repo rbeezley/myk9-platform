@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import type { Show, ShowTrial } from '@/types/show-types';
 import { buildClassDisambiguator, type ClassIdentity } from '../classLabel';
 
@@ -144,7 +145,7 @@ function groupTrial(trial: ShowTrial): OfferedClassesTrial | null {
 
   return {
     trialId: trial.id,
-    trialName: clean(trial.name) ?? clean(trial.trialNumber) ?? 'Trial',
+    trialName: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
     date: clean(trial.date),
     elements: [...byElement.entries()].map(([element, levels]) => ({
       element,

@@ -63,6 +63,7 @@ export function ScoresheetPage() {
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
   const [trialDate, setTrialDate] = useState<string | undefined>(undefined);
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
+  const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,6 +100,7 @@ export function ScoresheetPage() {
         if (trial) {
           setTrialDate(trial.date || trial.trial_date);
           setTrialNumber(trial.trialNumber);
+          setTrialName(trial.name);
         }
 
         // Find target entry from the list
@@ -276,7 +278,7 @@ export function ScoresheetPage() {
       )}
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber)}
+        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={handleSubmit}
         onBack={handleBack}

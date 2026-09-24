@@ -7,7 +7,7 @@ const baseProps: ReportProps = {
   organization: 'AKC',
   clubName: 'Twin Cities Dog Club',
   sortOrder: '',
-  trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Smith' },
+  trial: { date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1', judgeName: 'Dr. Smith' },
   entries: [],
   allClasses: [
     {

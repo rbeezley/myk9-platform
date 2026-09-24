@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import { getTrialTimezone } from '@/features/registries';
 import {
@@ -109,12 +110,11 @@ function trialLabel(
   trial: ShowMapTrialInput | undefined,
   cls: ShowMapClassInput | undefined
 ): string | undefined {
-  if (trial) {
-    return (
-      trial.name || trial.showName || (trial.trialNumber ? `Trial ${trial.trialNumber}` : undefined)
-    );
-  }
-  return cls?.trialName || (cls?.trialNumber ? `Trial ${cls.trialNumber}` : undefined);
+  const source = trial
+    ? { name: trial.name, trialNumber: trial.trialNumber }
+    : { name: cls?.trialName, trialNumber: cls?.trialNumber };
+  if (!source.name && !source.trialNumber) return trial?.showName || undefined;
+  return formatTrialLabel(source);
 }
 
 function dogEntryDisplayFor(

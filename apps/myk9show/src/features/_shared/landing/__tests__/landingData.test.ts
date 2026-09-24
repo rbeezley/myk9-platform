@@ -35,7 +35,8 @@ const trials = [
   {
     id: 'trial-2',
     showId: show.id,
-    trialNumber: 2,
+    name: 'Trial 2',
+    trialNumber: 'Trial 2',
     trialDate: '2026-10-11',
     judge: 'Alex Judge',
     maxTotalEntries: 75,
@@ -44,7 +45,8 @@ const trials = [
   {
     id: 'trial-1',
     showId: show.id,
-    trialNumber: 1,
+    name: 'Trial 1',
+    trialNumber: 'Trial 1',
     trialDate: '2026-10-10',
     judge: 'Alex Judge',
     maxTotalEntries: 50,
@@ -70,7 +72,7 @@ describe('buildLandingData', () => {
     });
     expect(data.trials.map(trial => trial.id)).toEqual(['trial-1', 'trial-2']);
     expect(data.judges).toEqual([
-      expect.objectContaining({ name: 'Alex Judge', trials: ['I', 'II'] }),
+      expect.objectContaining({ name: 'Alex Judge', trials: ['Trial 1', 'Trial 2'] }),
     ]);
     expect(data.journeySteps.map(step => step.label)).toEqual([
       'Entries open',
@@ -144,5 +146,64 @@ describe('buildLandingData', () => {
     const data = buildLandingData(show, withUndated[1], withUndated, 12);
 
     expect(data.trials.map(t => t.id)).toEqual(['dated', 'undated']);
+  });
+
+  // Codex P2 on MYK9-704: trial names are not unique, so de-duplicating a
+  // judge's assignments by label hid one of two same-named trials.
+  describe('judge assignments', () => {
+    const judgeTrial = (id: string, name: string, trialDate: string) =>
+      ({
+        id,
+        showId: show.id,
+        name,
+        trialNumber: name,
+        trialDate,
+        judge: 'Alex Judge',
+        registryId: 'AKC',
+      }) as unknown as Trial;
+
+    it('keeps two same-named trials on different dates, disambiguated by date', () => {
+      const sameName = [
+        judgeTrial('t-sat', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-sun', 'Trial 1', '2026-11-01'),
+      ];
+      const data = buildLandingData(show, sameName[0], sameName, 12);
+
+      expect(data.judges).toHaveLength(1);
+      expect(data.judges[0]?.trials).toEqual(['Trial 1 (Sat, Oct 31)', 'Trial 1 (Sun, Nov 1)']);
+    });
+
+    // INTENT (Richard, 2026-09-24): same name AND same day is a data-entry
+    // error with no public discriminator. Both trials stay listed, labelled
+    // identically: never collapsed, never given a synthetic suffix.
+    it('lists two distinct same-name, same-day trials twice with identical labels', () => {
+      const sameDay = [
+        judgeTrial('t-a', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-b', 'Trial 1', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, sameDay[0], sameDay, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Trial 1 (Sat, Oct 31)', 'Trial 1 (Sat, Oct 31)']);
+    });
+
+    it('lists a trial once when the judge is assigned to the same trial ID twice', () => {
+      const duplicated = [
+        judgeTrial('t-1', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-1', 'Trial 1', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, duplicated[0], duplicated, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Trial 1']);
+    });
+
+    it('keeps plain labels when the judge sits differently named trials', () => {
+      const distinct = [
+        judgeTrial('t-am', 'Saturday T 1', '2026-10-31'),
+        judgeTrial('t-pm', 'Saturday T 2', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, distinct[0], distinct, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Saturday T 1', 'Saturday T 2']);
+    });
   });
 });

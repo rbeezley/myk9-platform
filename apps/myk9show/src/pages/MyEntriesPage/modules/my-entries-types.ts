@@ -38,6 +38,8 @@ export interface EntryClass {
   fee: number;
   /** Trial date for this class row, distinct from the show start date. */
   trialDate?: Date | undefined;
+  /** trials.name — the display label (MYK9-704). */
+  trialName?: string | undefined;
   /** Trial number assigned by the show secretary/registry. */
   trialNumber?: string | undefined;
   /**

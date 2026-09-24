@@ -1,9 +1,10 @@
-import { renderHook } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { useGazetteLandingData, buildJourneySteps } from '../useGazetteLandingData';
+import { JudgesSection } from '../sections/JudgesSection';
 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
@@ -58,18 +59,70 @@ describe('useGazetteLandingData', () => {
     expect(result.current.fees[0].label).toBe('First entry');
   });
 
-  it('dedups judges across trials and lowercase-romans their trial labels', () => {
+  // Codex P2 on MYK9-704, last hop: the real trial props through the gazette
+  // hook into the rendered JudgesSection, so no gazette projection can drop
+  // one of two same-named trials.
+  it('renders both of a judge’s same-named trials, disambiguated by date', () => {
     const trials = [
-      { id: 't1', trialNumber: 1, trialDate: '2026-06-12', judge: 'Mrs. Beagles' },
-      { id: 't2', trialNumber: 3, trialDate: '2026-06-13', judge: 'Mrs. Beagles' },
-      { id: 't3', trialNumber: 5, trialDate: '2026-06-14', judge: 'Mr. Whitfield' },
+      {
+        id: 't-sat',
+        name: 'Trial 1',
+        trialNumber: 'Trial 1',
+        trialDate: '2026-10-31',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't-sun',
+        name: 'Trial 1',
+        trialNumber: 'Trial 1',
+        trialDate: '2026-11-01',
+        judge: 'Mrs. Beagles',
+      },
+    ] as never[];
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials), {
+      wrapper,
+    });
+
+    render(
+      React.createElement(JudgesSection, {
+        judges: result.current.judges,
+        volumeRoman: result.current.volumeRoman,
+      })
+    );
+
+    expect(screen.getByText('Trial 1 (Sat, Oct 31) · Trial 1 (Sun, Nov 1)')).toBeInTheDocument();
+  });
+
+  it('dedups judges across trials and labels them by trial name (MYK9-704)', () => {
+    const trials = [
+      {
+        id: 't1',
+        name: 'Trial 1',
+        trialNumber: 'Trial 1',
+        trialDate: '2026-06-12',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't2',
+        name: 'Trial 3',
+        trialNumber: 'Trial 3',
+        trialDate: '2026-06-13',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't3',
+        name: 'Trial 5',
+        trialNumber: 'Trial 5',
+        trialDate: '2026-06-14',
+        judge: 'Mr. Whitfield',
+      },
     ] as never[];
     const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials), {
       wrapper,
     });
     expect(result.current.judges).toHaveLength(2);
     const beagles = result.current.judges.find(j => j.name === 'Mrs. Beagles');
-    expect(beagles?.trials).toEqual(['i', 'iii']);
+    expect(beagles?.trials).toEqual(['Trial 1', 'Trial 3']);
   });
 
   it('derives entryLimit as the max of trial maxTotalEntries', () => {

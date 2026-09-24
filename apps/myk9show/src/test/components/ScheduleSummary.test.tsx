@@ -185,7 +185,8 @@ describe('ScheduleSummary', () => {
         trials: [
           {
             trialId: 'trial-1',
-            trialNumber: '1',
+            trialName: 'Trial 1',
+            trialNumber: 'Trial 1',
             plannedStartTime: null,
             elements: [
               {
@@ -201,7 +202,8 @@ describe('ScheduleSummary', () => {
           },
           {
             trialId: 'trial-2',
-            trialNumber: '2',
+            trialName: 'Trial 2',
+            trialNumber: 'Trial 2',
             plannedStartTime: null,
             elements: [
               {

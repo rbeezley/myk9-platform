@@ -52,6 +52,8 @@ export interface ClassInfo {
   section?: string;
   trialId?: string;
   trialDate?: string;
+  /** trials.name — the display label (MYK9-704); trialNumber is only its fallback. */
+  trialName?: string;
   trialNumber?: string;
   judgeName?: string;
   judgeNameB?: string;

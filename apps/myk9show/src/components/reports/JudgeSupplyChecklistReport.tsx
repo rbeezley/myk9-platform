@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { judgeKey, type TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
@@ -6,6 +7,7 @@ import { formatReportDate } from '@/lib/reports/reportUtils';
 interface JudgePage {
   trialId: string;
   trialNumber: string | null;
+  trialLabel: string;
   trialDate: string | null;
   judgeName: string;
   judgeKey: string;
@@ -16,10 +18,14 @@ function buildPages(
   supplies: TrialJudgeSupplyRow[],
   allTrials: NonNullable<ReportProps['allTrials']>
 ): JudgePage[] {
-  const trialMeta = new Map<string, { trialNumber: string | null; trialDate: string | null }>();
+  const trialMeta = new Map<
+    string,
+    { trialNumber: string | null; trialLabel: string; trialDate: string | null }
+  >();
   for (const trial of allTrials) {
     trialMeta.set(trial.id, {
       trialNumber: trial.trialNumber ?? null,
+      trialLabel: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
       trialDate: trial.date ?? null,
     });
   }
@@ -29,10 +35,15 @@ function buildPages(
     const key = `${row.trial_id}::${judgeKey(row)}`;
     let page = pages.get(key);
     if (!page) {
-      const meta = trialMeta.get(row.trial_id) ?? { trialNumber: null, trialDate: null };
+      const meta = trialMeta.get(row.trial_id) ?? {
+        trialNumber: null,
+        trialLabel: formatTrialLabel({}),
+        trialDate: null,
+      };
       page = {
         trialId: row.trial_id,
         trialNumber: meta.trialNumber,
+        trialLabel: meta.trialLabel,
         trialDate: meta.trialDate,
         judgeName: row.judge_name,
         judgeKey: judgeKey(row),
@@ -132,7 +143,7 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
 
           <div className="catalog-trial-section">
             <h2 className="catalog-trial-header">
-              {page.trialNumber ? `Trial ${page.trialNumber}` : 'Trial'}
+              {page.trialLabel}
               {page.trialDate ? ` — ${formatReportDate(page.trialDate)}` : ''}
             </h2>
             <p className="text-base font-semibold mb-3">Judge: {page.judgeName}</p>

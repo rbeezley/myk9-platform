@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatTrialLabel } from '@myk9/core';
 import type { TrialTimelineData, ElementSummary } from './schedule-timeline.types';
 import { formatStartTime } from './schedule-timeline.utils';
 import { StatusDot } from './StatusDot';
@@ -46,11 +47,7 @@ export function TrialSpine({ trial, showId, canEditSchedule = false }: TrialSpin
   const trialHref = getShowMapTrialHref(showId, trial.trialId);
   const trialLevels = trial.elements.flatMap(element => element.levels);
 
-  const trialLabel = trial.trialNumber
-    ? /^\d+$/.test(trial.trialNumber)
-      ? `Trial ${trial.trialNumber}`
-      : trial.trialNumber
-    : 'Trial';
+  const trialLabel = formatTrialLabel({ name: trial.trialName, trialNumber: trial.trialNumber });
 
   return (
     <div>

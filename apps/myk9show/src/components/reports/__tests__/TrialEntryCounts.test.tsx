@@ -6,7 +6,7 @@ const baseProps: ReportProps = {
   showName: 'Spring Scent Trial 2026',
   organization: 'AKC',
   sortOrder: '',
-  trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Smith' },
+  trial: { date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1', judgeName: 'Dr. Smith' },
   entries: [
     {
       id: 'e1',

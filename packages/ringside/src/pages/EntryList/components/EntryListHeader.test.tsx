@@ -105,6 +105,20 @@ describe('EntryListHeader', () => {
     expect(hb.getAttribute('data-current-page')).toBe('entries');
   });
 
+  // MYK9-704: wizard trials store the name in trial_number too.
+  it('labels the trial with its stored name, never prefixing "Trial "', () => {
+    renderHeader({
+      classInfo: {
+        ...baseClassInfo,
+        trialName: 'Saturday T 2',
+        trialNumber: 'Saturday T 2',
+      } as ClassInfo,
+    });
+    const header = document.querySelector('header')!;
+    expect(header.textContent).toContain('Saturday T 2');
+    expect(header.textContent).not.toMatch(/Trial Saturday|Trial Trial/);
+  });
+
   it('renders the class name in title case', () => {
     renderHeader();
     const heading = screen.getByRole('heading');

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { StatsEntry } from '@/components/analytics/analytics-utils';
-import { mapRowToStatsEntry, STATS_ENTRY_SELECT } from './statsEntryMapper';
+import { mapRowToStatsEntry, STATS_ENTRY_SELECT, type StatsTrialMeta } from './statsEntryMapper';
 
 async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
   const { data: entryData, error: entryError } = await supabase
@@ -17,16 +17,17 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
   const classIds = [...new Set(entryData.map(r => r.class_id as string))];
   const { data: classData, error: classError } = await supabase
     .from('classes')
-    .select('id, trial_id, trials!inner(trial_date:date, trial_number)')
+    .select('id, trial_id, trials!inner(trial_date:date, trial_number, name)')
     .in('id', classIds);
 
   if (classError) throw classError;
 
-  const classTrialMap = new Map<string, { trialDate: string; trialNumber: string }>();
+  const classTrialMap = new Map<string, StatsTrialMeta>();
   for (const cls of classData || []) {
     const trial = cls.trials as unknown as Record<string, unknown>;
     classTrialMap.set(cls.id as string, {
       trialDate: (trial?.trial_date as string) || '',
+      trialName: (trial?.name as string) || '',
       trialNumber: (trial?.trial_number as string) || '',
     });
   }

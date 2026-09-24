@@ -255,6 +255,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialSportType,
     trialDate,
     trialNumber,
+    trialName,
     isLoading,
     error,
     loadedClassId,
@@ -433,7 +434,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       {/* eslint-disable-next-line react-hooks/static-components */}
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber)}
+        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={submit}
         onBack={onBack}

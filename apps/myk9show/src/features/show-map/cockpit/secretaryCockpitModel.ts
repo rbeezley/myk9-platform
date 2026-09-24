@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import type {
   CockpitAttentionKind,
   CockpitFilter,
@@ -104,10 +105,9 @@ function formatTrialDate(date: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(parsed);
 }
 
-export function formatTrialIdentity(number: string): string {
-  const value = number.trim();
-  if (!value) return 'Trial';
-  return /^\d+[a-z]?$/i.test(value) ? `Trial ${value}` : value;
+/** Cockpit trial label: the trial's stored name (MYK9-704), never a prefixed number. */
+export function formatTrialIdentity(trial: Pick<SecretaryCockpitTrial, 'name' | 'number'>): string {
+  return formatTrialLabel({ name: trial.name, trialNumber: trial.number });
 }
 
 function sortedTrials(snapshot: SecretaryCockpitSnapshot): SecretaryCockpitTrial[] {
@@ -296,7 +296,7 @@ function preparationAttention(
           item.state === 'unknown' ? 'print history unavailable' : 'not confirmed printed';
         return isImminent
           ? `${item.label} ${status} · starts in ${minutesUntil} minutes`
-          : `${item.label} ${status} · next in schedule order for Trial ${trial.number}`;
+          : `${item.label} ${status} · next in schedule order for ${formatTrialIdentity(trial)}`;
       })(),
       destination: { kind: 'href' as const, href: item.printHref },
     }));
@@ -407,7 +407,7 @@ function buildTrialGroups(
         trialId: trial.id,
         number: trial.number,
         date: trial.date,
-        label: `${formatTrialIdentity(trial.number)} · ${formatTrialDate(trial.date)}`,
+        label: `${formatTrialIdentity(trial)} · ${formatTrialDate(trial.date)}`,
         classes: visibleClasses.map(cls =>
           toScheduledClass(cls, snapshot.timeZone, attentionCountByClass.get(cls.id) ?? 0)
         ),

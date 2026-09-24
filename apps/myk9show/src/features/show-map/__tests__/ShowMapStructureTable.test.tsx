@@ -22,8 +22,9 @@ const trial = {
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Spring Trial',
+  name: 'Trial 1',
   trialDate: '2026-05-11',
-  trialNumber: '1',
+  trialNumber: 'Trial 1',
   status: 'In Progress',
   _version: 1,
   _lastModified: new Date(),
@@ -175,7 +176,7 @@ describe('ShowMapStructureTable', () => {
     expect(screen.getByText('Jane Handler · Labrador Retriever')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
     expect(
-      screen.getByText('Spring Trial · 2026-05-11 · Ring 2 · Judge Judy · 09:30')
+      screen.getByText('Trial 1 · 2026-05-11 · Ring 2 · Judge Judy · 09:30')
     ).toBeInTheDocument();
   });
 
@@ -231,7 +232,7 @@ describe('ShowMapStructureTable', () => {
     expect(screen.getByText('All Exhibitors')).toBeInTheDocument();
     expect(screen.getByText('#12 Bella')).toBeInTheDocument();
     expect(screen.getAllByText('Exterior Advanced B').length).toBeGreaterThan(0);
-    expect(screen.getByText('Spring Trial · 2026-05-11')).toBeInTheDocument();
+    expect(screen.getByText('Trial 1 · 2026-05-11')).toBeInTheDocument();
   });
 
   it('links expanded entry dog and handler names to their detail pages', async () => {

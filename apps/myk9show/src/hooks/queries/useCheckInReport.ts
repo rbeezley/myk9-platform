@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { formatTrialLabel } from '@myk9/core';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
@@ -20,7 +21,9 @@ export interface CheckInEntryRow {
   section: string | null;
   trial_id: string;
   trial_date: string;
-  trial_number: number;
+  /** trials.name — the display label (MYK9-704). */
+  trial_name: string | null;
+  trial_number: string | null;
 }
 
 export interface CheckInClassEntry {
@@ -51,9 +54,10 @@ export function buildClassDisplayName(params: {
   level: string | null;
   section: string | null;
   trialDate: string;
-  trialNumber: number;
+  trialName: string | null;
+  trialNumber: string | null;
 }): string {
-  const { element, level, section, trialDate, trialNumber } = params;
+  const { element, level, section, trialDate, trialName, trialNumber } = params;
   const date = new Date(trialDate + 'T00:00:00');
   const dayAbbrev = DAY_ABBREVS[date.getDay()];
   const showSection = shouldShowSection({
@@ -62,7 +66,8 @@ export function buildClassDisplayName(params: {
     section: section ?? undefined,
   });
   const parts = [element, level, showSection ? section : null].filter(Boolean);
-  return `${dayAbbrev} T${trialNumber}: ${parts.join(' ')}`;
+  const trialLabel = formatTrialLabel({ name: trialName, trialNumber });
+  return `${dayAbbrev} ${trialLabel}: ${parts.join(' ')}`;
 }
 
 export function deriveSummaryStatus(statuses: string[]): 'none' | 'partial' | 'checked-in' {
@@ -108,6 +113,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
         level: row.level,
         section: row.section,
         trialDate: row.trial_date,
+        trialName: row.trial_name,
         trialNumber: row.trial_number,
       }),
       checkInStatus: status,

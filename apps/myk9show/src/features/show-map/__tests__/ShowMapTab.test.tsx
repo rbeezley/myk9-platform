@@ -82,8 +82,9 @@ const trial = {
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Spring Trial',
+  name: 'Trial 1',
   trialDate: '2026-05-11',
-  trialNumber: '1',
+  trialNumber: 'Trial 1',
   status: 'In Progress',
   _version: 1,
   _lastModified: new Date(),
@@ -195,7 +196,8 @@ describe('ShowMapTab', () => {
     const trials = Array.from({ length: 4 }, (_, trialIndex) => ({
       ...trial,
       id: `trial-${trialIndex}`,
-      trialNumber: String(trialIndex + 1),
+      name: `Trial ${trialIndex + 1}`,
+      trialNumber: `Trial ${trialIndex + 1}`,
     })) as SyncableTrial[];
 
     const classes = trials.flatMap(t =>
@@ -224,14 +226,16 @@ describe('ShowMapTab', () => {
       ...trial,
       id: 'trial-today',
       trialDate: '2026-05-17',
-      trialNumber: '1',
+      name: 'Trial 1',
+      trialNumber: 'Trial 1',
       timezone: 'America/New_York',
     } as SyncableTrial;
     const tomorrowTrial = {
       ...trial,
       id: 'trial-tomorrow',
       trialDate: '2026-05-18',
-      trialNumber: '2',
+      name: 'Trial 2',
+      trialNumber: 'Trial 2',
       timezone: 'America/New_York',
     } as SyncableTrial;
 

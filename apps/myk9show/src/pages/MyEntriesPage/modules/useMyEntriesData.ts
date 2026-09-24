@@ -217,6 +217,7 @@ export function useMyEntriesData({
     const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
+    const trialName = trialData?.name ?? classData?.trial?.name ?? undefined;
     const trialTimezone = resolveTrialTimezone(trialData, classData?.trial);
     const rawEntryStatus = entry.entry_status as string | null | undefined;
     const isShowCancelled = Boolean(show?.deleted_at);
@@ -254,6 +255,7 @@ export function useMyEntriesData({
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,
         trialDate,
+        trialName,
         trialNumber,
         trialTimezone,
         jumpHeight: (entry.jump_height as string) || undefined,

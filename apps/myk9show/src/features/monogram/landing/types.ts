@@ -17,9 +17,8 @@ export type MonogramTrial = LandingTrial;
 export interface MonogramJudge extends LandingJudge {
   /** Pre-derived 2-letter initials shown as the bronze portrait monogram. */
   initials: string;
-  /** Uppercase-roman trial numbers this judge is assigned to (e.g. ["I", "III"]).
-   *  Not yet surfaced in the JudgesSection UI; preserved so a future
-   *  "Trials I & III" credential line can read it without re-deriving. */
+  /** Labels (the stored trial name, MYK9-704) of the trials this judge is assigned to.
+   *  Not yet surfaced in the JudgesSection UI. */
   city: string | null;
   /** Trial-panel summary like "Containers · Interiors". */
   credential: string | null;

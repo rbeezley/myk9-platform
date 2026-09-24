@@ -40,7 +40,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 // Extracted hooks
 import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
-import { deriveTrialCompositeStatus, deriveTrialStatusKey } from '@myk9/core';
+import { deriveTrialCompositeStatus, deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 // The route is authentication-gated; management tabs are additionally scoped.
@@ -198,7 +198,10 @@ const TrialDetailsPage: React.FC = () => {
     if (parentShow) {
       crumbs.push({ label: parentShow.name, href: `/shows/${parentShow.id}` });
     }
-    const trialLabel = currentTrial?.type || currentTrial?.trialNumber || 'Trial';
+    const trialLabel = formatTrialLabel({
+      name: currentTrial?.name,
+      trialNumber: currentTrial?.trialNumber,
+    });
     const trialHref = showId ? `/shows/${showId}/trials/${trialId}` : `/trials/${trialId}`;
     crumbs.push({ label: trialLabel, href: trialHref });
     return crumbs;

@@ -59,7 +59,7 @@ export function JudgesSection({ judges, volumeRoman }: JudgesSectionProps) {
                   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                 }}
               >
-                Trials {judge.trials.join(' · ')}
+                {judge.trials.join(' · ')}
                 {judge.hall && <> · {judge.hall}</>}
               </div>
             )}

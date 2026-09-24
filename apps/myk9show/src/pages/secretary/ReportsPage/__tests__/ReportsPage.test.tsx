@@ -50,12 +50,13 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     trials: [
       {
         id: 'trial-1',
-        trial_number: 1,
+        name: 'Trial 1',
+        trial_number: 'Trial 1',
         event_number: '2026123401',
         date: '2026-04-12',
         registry_id: mockReportState.trialOneRegistryId,
       },
-      { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
+      { id: 'trial-2', name: 'Trial 2', trial_number: 'Trial 2', date: '2026-04-13' },
     ],
     classes: mockReportState.isLoading
       ? undefined

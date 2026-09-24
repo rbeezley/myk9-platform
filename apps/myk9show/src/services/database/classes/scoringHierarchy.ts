@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import { supabase } from '../supabaseClient';
 
 /**
@@ -35,19 +36,12 @@ interface TrialEmbed {
   shows: { id: string | null; name: string | null } | null;
 }
 
-/** Matches the breadcrumb's own labelling: "Trial 3" when numbered, else the name. */
+/** Breadcrumb trial label: the stored trial name, trial_number as-is as fallback (MYK9-704). */
 export function toTrialLabel(trial: {
   name?: string | null;
   trial_number?: string | number | null;
-}): string | undefined {
-  if (
-    trial.trial_number !== null &&
-    trial.trial_number !== undefined &&
-    trial.trial_number !== ''
-  ) {
-    return `Trial ${trial.trial_number}`;
-  }
-  return trial.name ?? undefined;
+}): string {
+  return formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
 }
 
 export async function fetchScoringHierarchy(classId: string): Promise<ScoringHierarchy | null> {

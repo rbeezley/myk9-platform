@@ -15,6 +15,7 @@ export interface StatsEntry {
   finalPlacement: number | null;
   organization?: string | undefined;
   trialDate?: string | undefined;
+  trialName?: string | undefined;
   trialNumber?: string | undefined;
 }
 
@@ -268,6 +269,7 @@ export interface ClassBreakdownEntry {
   classElement: string | null;
   classLevel: string | null;
   trialDate: string;
+  trialName: string;
   trialNumber: string;
   entryCount: number;
   scoredCount: number;
@@ -312,6 +314,7 @@ export function computeClassBreakdown(entries: StatsEntry[]): ClassBreakdownEntr
       classElement: first.classElement,
       classLevel: first.classLevel,
       trialDate: first.trialDate || '',
+      trialName: first.trialName || '',
       trialNumber: first.trialNumber || '',
       entryCount: classEntries.length,
       scoredCount,

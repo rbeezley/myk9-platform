@@ -2,8 +2,8 @@ import { render, screen } from '@/test/utils/testUtils';
 import { TrialClassFilters } from '@/components/entries/management/TrialClassFilters';
 
 const mockTrials = [
-  { id: 'trial-1', name: null, date: '2026-04-15', trial_number: 1 },
-  { id: 'trial-2', name: 'Specialty Trial', date: '2026-04-16', trial_number: 2 },
+  { id: 'trial-1', name: null, date: '2026-04-15', trial_number: 'Trial 1' },
+  { id: 'trial-2', name: 'Specialty Trial', date: '2026-04-16', trial_number: 'Specialty-2' },
 ];
 
 const mockClasses = [
@@ -81,7 +81,7 @@ describe('TrialClassFilters', () => {
     expect(screen.getByRole('option', { name: 'No trials' })).toBeInTheDocument();
   });
 
-  it('formats trial options as "Trial N · Mon D, YYYY"', () => {
+  it('formats trial options as "<name, else trial_number as-is> · Mon D, YYYY" (MYK9-704)', () => {
     render(<TrialClassFilters {...defaultProps} />);
 
     expect(screen.getByRole('option', { name: 'Trial 1 · Apr 15, 2026' })).toBeInTheDocument();

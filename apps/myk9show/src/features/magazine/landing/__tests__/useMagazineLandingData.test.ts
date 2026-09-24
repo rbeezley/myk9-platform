@@ -138,9 +138,27 @@ describe('useMagazineLandingData', () => {
 
   it('dedups judges across trials and assigns plate labels by order', () => {
     const allTrials = [
-      { id: 't1', trialNumber: 1, trialDate: '2026-06-12', judge: 'Mrs. Beagles' },
-      { id: 't2', trialNumber: 2, trialDate: '2026-06-12', judge: 'Mr. Whitfield' },
-      { id: 't3', trialNumber: 3, trialDate: '2026-06-13', judge: 'Mrs. Beagles' },
+      {
+        id: 't1',
+        name: 'Trial 1',
+        trialNumber: 'Trial 1',
+        trialDate: '2026-06-12',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't2',
+        name: 'Trial 2',
+        trialNumber: 'Trial 2',
+        trialDate: '2026-06-12',
+        judge: 'Mr. Whitfield',
+      },
+      {
+        id: 't3',
+        name: 'Trial 3',
+        trialNumber: 'Trial 3',
+        trialDate: '2026-06-13',
+        judge: 'Mrs. Beagles',
+      },
     ] as unknown as Trial[];
     const show = {
       id: 'show-1',
@@ -158,13 +176,13 @@ describe('useMagazineLandingData', () => {
       name: 'Mrs. Beagles',
       plateLabel: 'Plate I',
       initials: 'B',
-      trials: ['i', 'iii'],
+      trials: ['Trial 1', 'Trial 3'],
     });
     expect(result.current.judges[1]).toMatchObject({
       name: 'Mr. Whitfield',
       plateLabel: 'Plate II',
       initials: 'W',
-      trials: ['ii'],
+      trials: ['Trial 2'],
     });
   });
 

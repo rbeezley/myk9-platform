@@ -8,7 +8,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ChevronRight } from 'lucide-react';
 import { groupSectionedClasses, getClassIds, type ClassEntry } from '@myk9/ringside';
-import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -27,6 +26,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
+import { formatAtShowTrialHeading } from './atShowTrialHeading';
 
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
@@ -456,14 +456,9 @@ export const AtShowClassListPage: React.FC = () => {
       {!scopeToAssignedClasses &&
         groupedByTrial.map(({ trial, classes }) => {
           if (classes.length === 0) return null;
-          const trialNumber = trial.trialNumber ?? trial.trial_number;
-          const trialDate = trial.date ?? trial.trial_date;
           const isOpen = !collapsedTrialIds.has(trial.id);
-          const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
           const trialTimeZone = getTrialTimezone(trial);
-          const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
-            trialDateLabel ? ` · ${trialDateLabel}` : ''
-          }`;
+          const trialLabel = formatAtShowTrialHeading(trial);
           return (
             <Collapsible
               key={trial.id}

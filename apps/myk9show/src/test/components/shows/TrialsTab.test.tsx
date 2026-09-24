@@ -72,7 +72,8 @@ function makeTrial(overrides: Partial<Trial> & { id: string }): Trial {
     showId: 'show-1',
     showName: 'Test Show',
     trialDate: '2026-05-10',
-    trialNumber: '1',
+    name: 'Trial 1',
+    trialNumber: 'Trial 1',
     status: 'Upcoming',
     ...overrides,
   } as Trial;

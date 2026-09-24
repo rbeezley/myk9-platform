@@ -45,7 +45,6 @@ export function useGazetteLandingData(
       })),
       judges: shared.judges.map(judge => ({
         ...judge,
-        trials: judge.trials.map(trial => trial.toLowerCase()),
         hall: null,
         bio: null,
       })),

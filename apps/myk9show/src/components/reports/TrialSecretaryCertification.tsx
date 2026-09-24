@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { countQualified, formatReportDate } from '@/lib/reports/reportUtils';
 
@@ -30,7 +31,11 @@ export const TrialSecretaryCertification: React.FC<ReportProps> = ({
               <td className="form-label">Date of Trial:</td>
               <td className="form-value">{trialDate}</td>
               <td className="form-label">Trial Number:</td>
-              <td className="form-value">Trial {trial?.trialNumber ?? '___'}</td>
+              <td className="form-value">
+                {trial
+                  ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+                  : '___'}
+              </td>
             </tr>
           </tbody>
         </table>

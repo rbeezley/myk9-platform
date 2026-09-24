@@ -25,7 +25,7 @@ import {
   type ResultCardModel,
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
-import { formatTrialLabel } from './myEntriesUtils';
+import { formatTrialLabel } from '@myk9/core';
 import { canLeaveClass } from './leaveClassRow';
 import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
@@ -115,7 +115,9 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
 
   const when = [
     cls.trialDate ? formatWeekdayMonthDay(cls.trialDate) : null,
-    showTrialNumber && cls.trialNumber ? formatTrialLabel(cls.trialNumber) : null,
+    showTrialNumber && (cls.trialName || cls.trialNumber)
+      ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
+      : null,
   ].filter((part): part is string => Boolean(part));
 
   // All four terms live in `leaveClassRow.ts` so the rule is drivable without a

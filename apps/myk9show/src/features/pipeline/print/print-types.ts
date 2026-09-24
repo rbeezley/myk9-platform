@@ -21,6 +21,8 @@ export interface PrintClassInfo {
   section: string | null;
   judgeName: string | null;
   trialDate: string; // ISO date string
+  /** trials.name — the display label (MYK9-704). */
+  trialName: string | null;
   trialNumber: string;
   showName: string;
   timeLimitSeconds: number | null;

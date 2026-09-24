@@ -92,6 +92,7 @@ export async function buildReplicatedUserEntryRows(
       trial: trial
         ? {
             id: trial.id,
+            name: trial.name,
             trial_type: trial.trialType ?? null,
             date: trial.date ?? trial.trial_date ?? null,
             trial_number: trial.trialNumber ?? trial.trial_number ?? null,

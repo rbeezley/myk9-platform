@@ -5,7 +5,11 @@
  */
 
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
+
+const printTrialLabel = (classInfo: PrintClassInfo): string =>
+  formatTrialLabel({ name: classInfo.trialName, trialNumber: classInfo.trialNumber });
 import {
   formatReportDate,
   formatReportTime,
@@ -36,8 +40,8 @@ const InfoBox: React.FC<{ classInfo: PrintClassInfo }> = ({ classInfo }) => (
       </div>
     )}
     <div className="info-row">
-      <span className="info-label">Trial #:</span>
-      <span className="info-value">{classInfo.trialNumber}</span>
+      <span className="info-label">Trial:</span>
+      <span className="info-value">{printTrialLabel(classInfo)}</span>
     </div>
     {classInfo.level && (
       <div className="info-row">
@@ -289,7 +293,7 @@ export const BlankScoreSheet: React.FC<TemplateProps> = ({ classInfo, entries })
                       <strong>Trial Date:</strong> {formatReportDate(classInfo.trialDate)}
                     </div>
                     <div>
-                      <strong>Trial #:</strong> {classInfo.trialNumber}
+                      <strong>Trial:</strong> {printTrialLabel(classInfo)}
                     </div>
                     <div>
                       <strong>Judge:</strong> {classInfo.judgeName ?? 'TBD'}

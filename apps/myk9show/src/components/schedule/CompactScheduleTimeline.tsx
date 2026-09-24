@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Clock3, ExternalLink, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatTrialLabel } from '@myk9/core';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { StatusBadge } from '@/components/status';
@@ -34,7 +35,7 @@ function formatScheduleDate(date: string): string {
 }
 
 function trialLabel(trial: TrialTimelineData): string {
-  return trial.trialNumber ? `Trial ${trial.trialNumber}` : 'Trial';
+  return formatTrialLabel({ name: trial.trialName, trialNumber: trial.trialNumber });
 }
 
 function flattenTrialClasses(trial: TrialTimelineData): CompactClassRow[] {

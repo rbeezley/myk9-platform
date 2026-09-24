@@ -8,7 +8,12 @@ import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
-import { getClassDisplayStatus, type ClassStatusValue, type ClassDisplayStatus } from '@myk9/core';
+import {
+  formatTrialLabel,
+  getClassDisplayStatus,
+  type ClassStatusValue,
+  type ClassDisplayStatus,
+} from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -52,6 +57,12 @@ function formatTrialDate(dateStr: string): string {
   // Long weekday style ("Saturday, August 1, 2026") via the shared date module
   // (UX walk remediation 2.A); falls back to the raw string if unparseable.
   return formatEntryDate(dateStr, { style: 'long' }) || dateStr;
+}
+
+/** The class's trial label (MYK9-704), or '' when the class carries no trial at all. */
+function classTrialPart(cls: ClassInfo): string {
+  if (!cls.trialName && !cls.trialNumber) return '';
+  return formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber });
 }
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
@@ -130,7 +141,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       const key = `${cls.trialDate || ''}|${cls.trialNumber || ''}`;
       if (!groups.has(key)) {
         const datePart = cls.trialDate ? formatTrialDate(cls.trialDate) : '';
-        const trialPart = cls.trialName || (cls.trialNumber ? `Trial ${cls.trialNumber}` : '');
+        const trialPart = classTrialPart(cls);
         const label = [datePart, trialPart].filter(Boolean).join(' — ');
         groups.set(key, { label: label || 'Unassigned', classes: [] });
       }
@@ -154,10 +165,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     () =>
       filteredClasses.map(cls => ({
         ...cls,
-        trialLabel: [
-          cls.trialDate ? formatTrialDate(cls.trialDate) : '',
-          cls.trialName || (cls.trialNumber ? `Trial ${cls.trialNumber}` : ''),
-        ]
+        trialLabel: [cls.trialDate ? formatTrialDate(cls.trialDate) : '', classTrialPart(cls)]
           .filter(Boolean)
           .join(' \u2014 '),
       })),

@@ -299,6 +299,7 @@ export function buildClassInfo(
     ...(cls.actual_start_time != null && { actualStartTime: cls.actual_start_time }),
     ...(cls.actual_end_time != null && { actualEndTime: cls.actual_end_time }),
     ...(trialId != null && { trialId }),
+    ...(trial?.name && { trialName: trial.name }),
     ...(trialNumber != null && { trialNumber: String(trialNumber) }),
     ...(timeLimit != null && { timeLimit }),
     ...(timeLimit2 != null && { timeLimit2 }),

@@ -92,7 +92,7 @@ async function fetchEntryFormData(
   // 1. Fetch trials
   const { data: trialsRaw } = await supabase
     .from('trials')
-    .select('id, date, trial_number')
+    .select('id, name, date, trial_number')
     .eq('show_id', showId)
     .order('date')
     .order('trial_number');
@@ -101,6 +101,7 @@ async function fetchEntryFormData(
     .map(t => ({
       id: t.id,
       date: t.date ?? '',
+      name: t.name,
       trialNumber: t.trial_number ?? '',
     }))
     // MYK9-282: `.order('trial_number')` is lexicographic on a text column, so

@@ -16,6 +16,8 @@ export interface EntryFormSecretary {
 export interface EntryFormTrial {
   id: string;
   date: string;
+  /** trials.name — the display label (MYK9-704). */
+  name?: string;
   /**
    * MYK9-282: `trials.trial_number` is a TEXT column holding labels like
    * "Friday Trial 1". This was typed `number` and populated with

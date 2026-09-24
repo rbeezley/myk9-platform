@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import type { RingRole } from '@/types/volunteer';
@@ -17,7 +18,9 @@ export const StewardReport: React.FC<ReportProps> = ({
   allClasses = [],
 }) => {
   const displayName = clubName ?? showName;
-  const trialLabel = trial ? `Trial ${trial.trialNumber}` : '';
+  const trialLabel = trial
+    ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+    : '';
   const dateLabel = trial ? formatReportDate(trial.date) : '';
 
   return (

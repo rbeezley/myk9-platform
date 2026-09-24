@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 import type { ReportEntry } from '@/lib/reports/types';
 import { sortByPlacement, sortByArmband, formatReportTime } from '@/lib/reports/reportUtils';
@@ -29,6 +30,7 @@ export interface ResultLabelContext {
   showName: string;
   clubName?: string;
   /** Fallbacks used when an entry doesn't carry its own class/trial context. */
+  trialName?: string;
   trialNumber?: string;
   classElement?: string;
   classLevel?: string;
@@ -65,10 +67,16 @@ export function prepareResultLabelItems(
     const element = hasEntryClass ? (entry.classElement ?? '') : (ctx.classElement ?? '');
     const level = hasEntryClass ? (entry.classLevel ?? '') : (ctx.classLevel ?? '');
     const section = hasEntryClass ? (entry.classSection ?? '') : (ctx.classSection ?? '');
-    const trialNumber = entry.trialNumber || ctx.trialNumber || '';
+    const hasEntryTrial = !!(entry.trialName || entry.trialNumber);
+    const trial = hasEntryTrial
+      ? { name: entry.trialName, trialNumber: entry.trialNumber }
+      : { name: ctx.trialName, trialNumber: ctx.trialNumber };
 
     const classLine = [element, level, section].filter(Boolean).join(' ');
-    const trialClassLine = [trialNumber ? `Trial ${trialNumber}` : null, classLine]
+    const trialClassLine = [
+      trial.name || trial.trialNumber ? formatTrialLabel(trial) : null,
+      classLine,
+    ]
       .filter(Boolean)
       .join(' — ');
 

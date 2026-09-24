@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -164,7 +165,7 @@ export const TrialPipelineDetail: React.FC = () => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {trial.name ?? `Trial ${trial.trialNumber}`}
+              {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
             </h1>
             <p className="text-muted-foreground">
               {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()} &mdash;{' '}

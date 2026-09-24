@@ -25,7 +25,8 @@ function entry(over: Partial<ReportEntry>): ReportEntry {
 const ctx: ResultLabelContext = {
   showName: 'Spring Scent Trial 2026',
   clubName: 'Twin Cities Dog Club',
-  trialNumber: '1',
+  trialName: 'Trial 1',
+  trialNumber: 'Trial 1',
   classElement: 'Container',
   classLevel: 'Novice',
   classSection: 'A',
@@ -50,7 +51,8 @@ describe('prepareResultLabelItems', () => {
       [
         entry({
           id: 'e1',
-          trialNumber: '2',
+          trialName: 'Saturday T 2',
+          trialNumber: 'Saturday T 2',
           classElement: 'Interior',
           classLevel: 'Advanced',
           classSection: '',
@@ -59,7 +61,7 @@ describe('prepareResultLabelItems', () => {
       'placement',
       ctx
     );
-    expect(item.trialClassLine).toBe('Trial 2 — Interior Advanced');
+    expect(item.trialClassLine).toBe('Saturday T 2 — Interior Advanced');
   });
 
   it('shows a real placement but never a status-code placement (>= 9000)', () => {

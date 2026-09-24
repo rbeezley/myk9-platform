@@ -49,7 +49,7 @@ describe('fetchScoringHierarchy', () => {
       classId: 'class-1',
       className: 'Exterior Excellent',
       trialId: 'trial-1',
-      trialLabel: 'Trial 2',
+      trialLabel: 'Saturday',
       showId: 'show-1',
       showName: 'Spring Trial',
     });
@@ -102,12 +102,18 @@ describe('fetchScoringHierarchy', () => {
 });
 
 describe('toTrialLabel', () => {
-  it('prefers the trial number', () => {
-    expect(toTrialLabel({ name: 'Saturday', trial_number: 3 })).toBe('Trial 3');
+  // MYK9-704: the wizard copies the trial name into trial_number, so prefixing
+  // "Trial " to it rendered "Trial Saturday T 2". The name is the label.
+  it('uses the stored trial name as-is', () => {
+    expect(toTrialLabel({ name: 'Saturday T 2', trial_number: 'Saturday T 2' })).toBe(
+      'Saturday T 2'
+    );
+    expect(toTrialLabel({ name: 'Saturday', trial_number: 3 })).toBe('Saturday');
+    expect(toTrialLabel({ name: 'Saturday', trial_number: null })).toBe('Saturday');
   });
 
-  it('falls back to the name when unnumbered', () => {
-    expect(toTrialLabel({ name: 'Saturday', trial_number: null })).toBe('Saturday');
-    expect(toTrialLabel({ name: 'Saturday', trial_number: '' })).toBe('Saturday');
+  it('falls back to trial_number as-is, then the literal "Trial"', () => {
+    expect(toTrialLabel({ name: null, trial_number: 'Trial 1' })).toBe('Trial 1');
+    expect(toTrialLabel({ name: null, trial_number: null })).toBe('Trial');
   });
 });

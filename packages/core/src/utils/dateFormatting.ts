@@ -226,13 +226,15 @@ export function formatTime(
 }
 
 /**
- * Format a trial date string with optional trial number.
+ * Format a trial date string.
+ *
+ * Carries no trial label: a trial is labelled by its name via `formatTrialLabel`
+ * (MYK9-704), never by prefixing "Trial " to a number here.
  *
  * @param dateStr - Date string in YYYY-MM-DD format
- * @param trialNumber - Optional trial number to display
- * @returns Formatted date string like "Mon, Jan 15, 2024 • Trial 1"
+ * @returns Formatted date string like "Mon, Jan 15, 2024"
  */
-export function formatTrialDate(dateStr: string, trialNumber?: number): string {
+export function formatTrialDate(dateStr: string): string {
   // Parse date components manually to avoid timezone issues
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
@@ -266,6 +268,5 @@ export function formatTrialDate(dateStr: string, trialNumber?: number): string {
   const dayNumber = date.getDate();
   const yearNumber = date.getFullYear();
 
-  const baseDate = `${dayName}, ${monthName} ${dayNumber}, ${yearNumber}`;
-  return trialNumber ? `${baseDate} • Trial ${trialNumber}` : baseDate;
+  return `${dayName}, ${monthName} ${dayNumber}, ${yearNumber}`;
 }

@@ -9,3 +9,4 @@ export * from './errors';
 export * from './search';
 export * from './deviceDetection';
 export * from './passcodes';
+export * from './trialLabel';

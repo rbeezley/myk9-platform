@@ -44,7 +44,7 @@ const baseProps: ReportProps = {
       classId: 'c1',
     },
   ],
-  allTrials: [{ id: 't1', date: '2026-04-12', trialNumber: '1' }],
+  allTrials: [{ id: 't1', date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1' }],
   allClasses: [
     { id: 'c1', trialId: 't1', element: 'Buried', level: 'Novice', judgeName: 'Dr. Jane Smith' },
     { id: 'c2', trialId: 't1', element: 'Container', level: 'Novice', judgeName: 'Alice Brown' },

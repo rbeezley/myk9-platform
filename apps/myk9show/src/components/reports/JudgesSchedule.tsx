@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
@@ -48,7 +49,7 @@ export const JudgesSchedule: React.FC<ReportProps> = ({
         return (
           <div key={trial.id} className="catalog-trial-section">
             <h2 className="catalog-trial-header">
-              Trial {trial.trialNumber}
+              {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
               {trial.date ? ` — ${formatReportDate(trial.date)}` : ''}
             </h2>
             <table className="report-table">

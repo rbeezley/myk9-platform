@@ -8,7 +8,7 @@ import {
   classifyEntryRunStatus,
   isEntryComplete,
 } from './showMapStatus';
-import { deriveTrialStatusKey } from '@myk9/core';
+import { deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import {
   getShowMapClassHref,
@@ -276,13 +276,10 @@ export function buildShowMapTree({
     const trialNode: ShowMapNode = {
       id: getShowMapNodeId('trial', trial.id),
       type: 'trial',
-      label: trial.name || `Trial ${trial.trialNumber || trial.id.slice(-4)}`,
-      subtitle: [
-        formatEntryDate(trial.trialDate),
-        trial.trialNumber ? `Trial ${trial.trialNumber}` : undefined,
-      ]
-        .filter(Boolean)
-        .join(' · '),
+      // The label already carries the trial's name (MYK9-704); the subtitle is
+      // the date only, so a wizard trial never reads "Saturday T 2 · … · Trial Saturday T 2".
+      label: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
+      subtitle: formatEntryDate(trial.trialDate) || undefined,
       count: trialClasses.length,
       status: classifyTrialStatus(trialStatusKey),
       wrapUpStatus: trialWrapUpStatus,

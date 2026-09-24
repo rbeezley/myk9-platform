@@ -49,6 +49,8 @@ export interface ScoresheetClassInfo {
   level: string;
   section?: string;
   trialDate?: string;
+  /** trials.name — the display label (MYK9-704); trialNumber is only its fallback. */
+  trialName?: string;
   trialNumber?: string;
 }
 

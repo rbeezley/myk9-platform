@@ -181,7 +181,7 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
     },
     {
       id: 'show-add-new-trial',
-      label: 'Add a new trial',
+      label: 'Add Trial',
       href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
       ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
     },
@@ -210,7 +210,7 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
 function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
   const actions: AppAction[] = [];
   if (viewer.canCreateShows) {
-    actions.push({ id: 'create-show', label: 'Create a show', href: '/?wizard=true' });
+    actions.push({ id: 'create-show', label: 'Add Show', href: '/?wizard=true' });
   }
   if (viewer.isShowManagementStaff) {
     actions.push({

@@ -87,11 +87,10 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Class creation page                  | Add Classes                                       |
 | Dogs page, person profile            | Add Dog                                           |
 | Add-dog panel — title, save button   | Add Dog                                           |
+| Command menu                         | Add Dog / Add Show                                |
+| Header Actions menu — on a show      | Add Trial                                         |
+| Header Actions menu — off a show     | Add Show                                          |
 
 ### "New" as an adjective
 
 `new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.
-
-## Not yet done
-
-The command menu still says **Add New Dog**, **Add New Show**, **Create a show** and **Add a new trial** (`CommandPalette.tsx`, `features/actions/actionRegistry.ts`). They were left out of the MYK9-671 sweep because another open change was editing those files; sweep them to **Add Dog**, **Add Show** and **Add Trial** next.

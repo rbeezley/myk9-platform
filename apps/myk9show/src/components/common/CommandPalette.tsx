@@ -235,7 +235,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     const commands: CommandAction[] = [
       {
         id: 'add-dog',
-        title: 'Add New Dog',
+        title: 'Add Dog',
         icon: <Plus className="h-4 w-4" />,
         action: () =>
           startTransition(() => {
@@ -267,7 +267,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     if (canCreateShows) {
       commands.push({
         id: 'add-show',
-        title: 'Add New Show',
+        title: 'Add Show',
         icon: <Plus className="h-4 w-4" />,
         action: () =>
           startTransition(() => {

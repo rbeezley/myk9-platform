@@ -82,7 +82,7 @@ describe('parseActionRouteContext', () => {
       expect(parseActionRouteContext(path)).toEqual({ kind: 'global' });
     }
     expect(resolveActions(parseActionRouteContext('/shows/new'), secretary)).toEqual([
-      { id: 'create-show', label: 'Create a show', href: '/?wizard=true' },
+      { id: 'create-show', label: 'Add Show', href: '/?wizard=true' },
       { id: 'open-show-management', label: 'Open Show Management', href: '/secretary/dashboard' },
     ]);
   });
@@ -186,7 +186,7 @@ describe('resolveActions — club admin on a show', () => {
     expect(mailIn?.disabledReason).toBe('Trial secretary access only');
   });
 
-  it('greys Add a new trial for club admins, because trial setup is secretary-only', () => {
+  it('greys Add Trial for club admins, because trial setup is secretary-only', () => {
     const addTrial = actions.find(a => a.id === 'show-add-new-trial');
     expect(addTrial?.disabledReason).toBe('Trial secretary access only');
   });

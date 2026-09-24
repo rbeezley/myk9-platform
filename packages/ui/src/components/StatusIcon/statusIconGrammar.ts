@@ -134,7 +134,11 @@ export const ENTRY_STATUS_DESCRIPTORS = {
   completed: descriptor('completed', 'Completed', 'complete', 'text-success'),
   withdrawn: descriptor('withdrawn', 'Withdrawn', 'complete', 'text-muted-foreground'),
   not_accepted: descriptor('not_accepted', 'Not accepted', 'complete', 'text-destructive'),
-  scratched: descriptor('scratched', 'Scratched', 'complete', 'text-muted-foreground'),
+  // INTENT: a stored `scratched` is a PULL and reads "Pulled" everywhere; no
+  // rendered surface says "scratch" (docs/INTENT.md, "Say Which Act Happened",
+  // MYK9-623). The day-of `pulled` check-in state below shares the word; the
+  // My Shows row tells the two moments apart ("pulled at the show").
+  scratched: descriptor('scratched', 'Pulled', 'complete', 'text-muted-foreground'),
   absent: descriptor('absent', 'Absent', 'complete', 'text-muted-foreground'),
   moved: descriptor('moved', 'Moved', 'complete', 'text-muted-foreground'),
   'scratch-requested': descriptor(

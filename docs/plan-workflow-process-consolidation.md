@@ -102,6 +102,15 @@ Codex's 2026-09-05 process review found `ship-pr`, `cleanup`, `commit`, `harden`
 
 All four landed the same day (MYK9-410): #2054 (this phase), #2058 (`Review gate` commit status pinned to the PR head, now a required check), #2061 (harden: one confirmed high blocks PASS), #2063 (`pnpm qa:codex-review` wrapper, `pnpm qa:dist-fresh`, and an on-disk guard that found eight edge-function test files that had never run). #2056 separately cut CI wall clock from 17 to 8 minutes.
 
+## Phase 7 — Usage-based skills pruning — 2026-09-24 (MYK9-728)
+
+Phase 3 kept everything because it judged overlap by reading. This pass measured use instead: Claude Code transcripts since 2026-07-22, Codex session logs (a skill counted only when a command opened its `SKILL.md`), and every Claude and Codex scheduled task.
+
+- **Deleted (unused, covered elsewhere):** `frontend-design-shadcn`, `web-design-guidelines`, `vercel-react-best-practices`, `vercel-composition-patterns`, `UX-to-Prompt`, `codebase-design`, `improve-codebase-architecture`, `grilling`, and the `/impeccable-sweep` command.
+- **Merged:** `IA-Review` → `UX-Audit --ia` (`references/ia-review.md`); `launch-checklist` → `launch-readiness-triage` go-live mode (`references/go-live-gate.md`).
+- **Slimmed:** `ship-it` now stops at a hardened working tree and hands off to `ship-pr` (it had its own stale merge flow with a same-harness review gate, and its simplify/harden gates diffed an empty committed range). `ship-pr`'s Codex-only reviewer mechanics moved to `references/`. `qa-feature` now defers to `audit-pages` for accounts and the two-step sign-in (its copy had drifted to a hardcoded password and a one-step form).
+- **Kept on evidence:** `phase-review` (Codex opens it in ~250 sessions) and `supabase-postgres-best-practices` (the weekly Supabase audit routes to it).
+
 ## Execution notes
 
 - Order: Phase 1 alone delivers most of the value; Phases 2–4 can be separate sessions/PRs.

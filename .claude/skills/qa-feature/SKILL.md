@@ -66,23 +66,20 @@ Use the harness's in-app Browser for local app recording when it is available. I
 
 Do not use the Playwright MCP/test driver from the monorepo root for this live walk. The root config has dependency/version coupling that can fail before the app is even opened; this workflow records with Browser/`playwright-cli`, then writes and runs the project Playwright spec from `apps/myk9show`.
 
-Pull the credentials for the chosen role from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`.
-
-Browser flow:
-
-- Navigate to `http://localhost:5173/sign-in`
-- Fill the chosen role email and `Test123!`
-- Submit the form
-- Capture a snapshot before starting the walk
+Accounts and the sign-in flow are canonical in the `audit-pages` skill (§ Setup): the `@myk9t.com` role accounts, passwords from `.env.local` (never typed into reports or commands you paste back), and the **two-step** form — the password field does not exist until you submit the email step.
 
 `playwright-cli` flow:
 
+The passwords are in `apps/myk9show/.env.local`, which the shell does not load on its own. Export it in the same command as the fill, and name the role's real variable — `E2E_SECRETARY_PASSWORD`, `E2E_JUDGE_PASSWORD`, `E2E_ADMIN_PASSWORD`, `E2E_DEMO_EXHIBITOR_PASSWORD` or `E2E_CLUB_ADMIN_PASSWORD` (secretary shown):
+
 ```bash
 playwright-cli open http://localhost:5173/sign-in
-playwright-cli fill <email-ref> "<role-email>"
-playwright-cli fill <password-ref> "Test123!"
-playwright-cli click <submit-ref>
-playwright-cli snapshot
+playwright-cli fill <credential-input-ref> "secretary@myk9t.com"
+playwright-cli click <continue-button-ref>      # reveals the password step in place
+playwright-cli snapshot                          # get the password-input ref
+(set -a; . apps/myk9show/.env.local; set +a; playwright-cli fill <password-input-ref> "$E2E_SECRETARY_PASSWORD")
+playwright-cli click <sign-in-button-ref>
+playwright-cli snapshot                          # confirm you left /sign-in
 ```
 
 With `playwright-cli`, optionally save storage state so you can resume mid-recording without re-typing credentials:

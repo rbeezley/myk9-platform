@@ -517,7 +517,9 @@ unattended by collapsing those two pauses into pre-authorized safe defaults.
 The dispatcher reviews the output in the morning; the run never waits.
 
 This mode is **opt-in** — only run it when the dispatcher explicitly asks for an
-unattended sweep. It does not change the per-page pipeline; it changes the
+unattended sweep. The `/impeccable-sweep` command that launched it was retired on
+2026-09-24 (MYK9-728) after it went unused; round 2 ran page by page through
+`/impeccable-page`, which remains the entry point. It does not change the per-page pipeline; it changes the
 checkpoints and the cross-page sequencing.
 
 ### Pre-authorized defaults (these replace the human checkpoints)

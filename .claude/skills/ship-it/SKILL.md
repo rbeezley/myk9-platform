@@ -1,11 +1,13 @@
 ---
 name: ship-it
-description: Use when given a plan document path to autonomously implement, test, review, and merge a feature end-to-end with no human input until final merge confirmation.
+description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or opsx-orchestrate instead.
 ---
 
 # Ship It — Autonomous PR Pipeline
 
-Takes a plan path and ships it end-to-end: implement → test loop → commit → PR → self-review loop → merge → cleanup.
+Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
+
+This skill owns everything up to a hardened, green working tree. From there `ship-pr` owns the rest, so the review gate, merge and cleanup rules live in ONE place. Do not restate or shortcut them here.
 
 **Usage:** `/ship-it <path-to-plan.md>`
 
@@ -36,7 +38,7 @@ If not inside a worktree under `.claude/worktrees/`, invoke `superpowers:using-g
 **Then re-capture `BRANCH` and `WORKTREE`, and do not skip this.** Step 0 read
 them from wherever you started — usually the primary checkout on `main`. If a
 worktree was created just now, those variables still name the OLD checkout, and
-Step 8 resolves `$BRANCH` to decide what to `git worktree remove --force`. That
+`ship-pr` later resolves the branch to decide what to `git worktree remove --force`. That
 is a force-remove of somebody else's checkout, with their uncommitted work in
 it. Re-read after every worktree transition:
 
@@ -75,71 +77,34 @@ Then run tests scoped to changed files (same logic as `/commit` skill: full suit
 
 Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report if still failing.
 
-**CI note:** GHA billing is paused on this project — do not wait for CI checks.
-
 ---
 
-## Step 3a: SQL Compile-Check (conditional)
+## Changed files (used by Steps 3a–3c)
 
-If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a Supabase-compatible shadow database BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
-
-The most common failures this catches:
-
-- **`%ROWTYPE` against a function** — only resolves against relations/composites; functions that `RETURNS TABLE (...)` produce anonymous result rows, not registered types. Use `record` instead.
-- **Function/column references to objects that don't exist yet** in the migration sequence
-- **Missing `;` terminators, malformed DO blocks, plpgsql syntax errors**
-
-What this check does NOT catch — these still need the harden audit in Step 3c:
-
-- **Stale GRANT/REVOKE on a prior signature when a new overload is added.** A second `validate_passcode(text, text)` next to the existing `validate_passcode(text)` gets a new OID; a copy-pasted `GRANT EXECUTE ON FUNCTION validate_passcode(text)` succeeds (it targets the _old_ signature) and the new overload remains ungranted. The migration applies cleanly — the bug surfaces at call time. The harden prompt in Step 3c includes the signature-audit check; do not rely on the compile step alone.
-
-**Strategy:** use `supabase db reset --local`, which spins up the Supabase-flavored Postgres in Docker (with `auth.users`, `authenticated`/`anon`/`service_role` roles, `auth.*` helpers, `extensions` schema, `supabase_vault`, `pg_net`, `pg_cron`, etc.) and replays every migration in `supabase/migrations/` from scratch. A plain `createdb` + `psql` shadow DB does NOT work here — this repo's migrations reference Supabase cluster objects (`authenticated`, `anon`, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`) that don't exist in a vanilla Postgres cluster, and the check would fail before reaching the new migration.
+Nothing is committed yet, so a committed range (`origin/main...HEAD`) is empty here and would skip every conditional step. List the working tree against the merge base, plus untracked files:
 
 ```bash
-SQL_FILES=$(git diff --name-only origin/main...HEAD | grep -E '^supabase/migrations/.*\.sql$' || true)
-
-if [ -z "$SQL_FILES" ]; then
-  : # No migrations in diff — skip
-elif ! command -v supabase >/dev/null 2>&1; then
-  echo "WARN: SQL compile-check skipped — supabase CLI not found."
-  echo "      Install: brew install supabase/tap/supabase"
-  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
-  for f in $SQL_FILES; do echo "        - $f"; done
-elif ! docker info >/dev/null 2>&1; then
-  echo "WARN: SQL compile-check skipped — Docker not running (required by \`supabase db reset --local\`)."
-  echo "      Start Docker Desktop, then re-run."
-  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
-  for f in $SQL_FILES; do echo "        - $f"; done
-else
-  # supabase db reset --local: stops/starts the local stack, drops the shadow
-  # DB, replays every migration in supabase/migrations/ in order against a
-  # Supabase-flavored Postgres. Exits non-zero on the first migration that
-  # fails to apply.
-  #
-  # IMPORTANT: capture the reset's exit code BEFORE the tee pipeline. Without
-  # `pipefail` the shell uses the last pipeline element's exit code (tee, which
-  # virtually always succeeds), so a failed reset would silently fall through
-  # to the "passed" branch. Two-line form is more portable than `set -o pipefail`
-  # — works the same under bash, zsh, and `sh` posix mode.
-  mkdir -p .logs   # worktree root; this block runs from the repo root
-  supabase db reset --local --debug > .logs/ship-it-db-reset.log 2>&1
-  RESET_STATUS=$?
-  cat .logs/ship-it-db-reset.log
-  if [ $RESET_STATUS -ne 0 ]; then
-    echo "Compile-check FAILED (supabase db reset exit=$RESET_STATUS). Full log: .logs/ship-it-db-reset.log"
-    echo "Re-run interactively: supabase db reset --local --debug"
-    exit 1
-  fi
-  echo "SQL compile-check passed for migrations in diff:"
-  for f in $SQL_FILES; do echo "  ✓ $f"; done
-fi
+changed_files() {
+  { git diff --name-only "$(git merge-base origin/main HEAD)"; git ls-files --others --exclude-standard; } | sort -u
+}
 ```
 
-**Failure handling:** the full reset log is preserved at `.logs/ship-it-db-reset.log` so the operator can scan for the first ERROR line. The local Supabase stack stays running for interactive inspection (`supabase status` shows the connection string; `psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)"`). Stop the pipeline and report.
+## Step 3a: Migration audit (conditional)
 
-**No Docker / no Supabase CLI caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without Docker shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
+If `changed_files | grep -q '^supabase/migrations/'`:
 
-**Why not vanilla `psql + createdb`:** this repo's migrations depend on Supabase cluster objects (`authenticated`/`anon`/`service_role` roles, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`). Replaying them against a plain Postgres cluster fails at the first GRANT against `authenticated` or the first reference to `auth.users` — long before reaching the migration under review. `supabase db reset --local` is the only path that gives an honest signal on this codebase.
+1. Dispatch the `migration-auditor` agent on each new or changed migration file and fix what it finds.
+2. Run the database contract suite from the worktree root, and stop on a non-zero exit — fix the failure and re-run before Step 3b:
+
+   ```bash
+   mkdir -p .logs
+   (cd apps/myk9show && pnpm vitest run src/test/database/) > .logs/ship-it-db.log 2>&1
+   DB_STATUS=$?
+   echo "EXIT=$DB_STATUS"
+   [ "$DB_STATUS" -eq 0 ] || { echo "DB contract suite failed — see .logs/ship-it-db.log"; exit 1; }
+   ```
+
+3. There is no local Docker, so migrations are not replayed here; the behavioral SQL tests and the full replay run only in CI. Say so in the PR body rather than implying they ran.
 
 ---
 
@@ -150,7 +115,7 @@ fi
 ```bash
 # Files where /simplify has no surface to attack.
 SIMPLIFY_SKIP='\.(md|mdx|txt|sql|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^supabase/migrations/|^(pnpm-lock\.yaml|package-lock\.json)$'
-JS_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SIMPLIFY_SKIP" | wc -l | tr -d ' ')
+JS_FILES=$(changed_files | grep -vE "$SIMPLIFY_SKIP" | wc -l | tr -d ' ')
 ```
 
 - If `JS_FILES == 0` → skip Step 3b with note: "no JS/TS surface in diff, simplify skipped"
@@ -161,8 +126,6 @@ JS_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SIMPLIFY_SKIP" |
 Apply the auto-fixes it lands. Address any `critical` proposals before proceeding. For `high`/`medium` proposals, apply the obvious ones and skip the rest unless they're cheap.
 
 If any edits land, re-run the test loop (Step 3) to confirm nothing regressed.
-
-For diffs spanning architectural boundaries (10+ files across packages, new cross-cutting modules), additionally invoke `improve-codebase-architecture` for the wider structural view.
 
 ---
 
@@ -175,13 +138,13 @@ For diffs spanning architectural boundaries (10+ files across packages, new cros
 # Rationale per entry below this block.
 SKIP='\.(md|mdx|txt|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^(pnpm-lock\.yaml|package-lock\.json)$'
 
-NON_SKIP_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SKIP" | wc -l | tr -d ' ')
+NON_SKIP_FILES=$(changed_files | grep -vE "$SKIP" | wc -l | tr -d ' ')
 ```
 
 **Skip pattern rationale (keep these in sync if the codebase shape changes):**
 
 - `.md` / `.mdx` / `.txt` / `docs/` — prose, no executable surface
-- `.css` / `.scss` — visual; behavior-affecting style is rare and Step 5 review catches it
+- `.css` / `.scss` — visual; behavior-affecting style is rare and the review gate catches it
 - `.snap` / `__snapshots__/` — machine-generated test snapshots
 - `i18n/` / `locales/` — translation strings (data, not logic)
 - `fixtures/` / `__fixtures__/` — test data
@@ -209,7 +172,7 @@ If any harden auto-fixes landed, re-run the test loop (Step 3) before proceeding
 
 The default harden agents read files but don't model the relational schema as a whole. They miss a class of bugs where a write-path filter (added in this migration) has no symmetric read-path filter (already-existing query that doesn't yet know about the new filter). The canonical example: a backfill that excludes `deleted_at IS NOT NULL` shows, but the validation RPC or edge function still iterates them and authenticates against derived codes.
 
-When `git diff --name-only origin/main...HEAD | grep -q '^supabase/migrations/'` matches, prepend the following to the harden agents' security-pass prompt:
+When `changed_files | grep -q '^supabase/migrations/'` matches, prepend the following to the harden agents' security-pass prompt:
 
 ```
 SQL CROSS-CUT AUDIT — this diff modifies the database schema or functions.
@@ -246,209 +209,27 @@ Auto-fixes for findings of this class should add the symmetric filter at every r
 
 ---
 
-## Step 4: Commit and Open PR
+## Step 4: Ship through `ship-pr`
 
-Invoke `/commit` — it handles staging, typecheck, lint, tests, commit message, push.
+Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as Step 3b; skip it). It runs `/commit`, opens the PR (put one bullet per completed plan task in its Summary, and link the plan), asks `pnpm qa:review-tier` for the floor, runs the independent cross-harness review gate, merges from the main repo, closes out the Linear issue, and removes the worktree last.
 
-Then open the PR:
-
-```bash
-BASE_SHA=$(git rev-parse origin/main)
-HEAD_SHA=$(git rev-parse HEAD)
-
-gh pr create --title "<conventional-commit-style title>" --body "$(cat <<'EOF'
-## Summary
-- <bullet per plan task>
-
-## Test Plan
-- [ ] pnpm typecheck passes
-- [ ] pnpm lint passes
-- [ ] related tests pass
-
-🤖 Generated with [Claude Code](https://claude.ai/claude-code)
-EOF
-)"
-
-PR_NUMBER=$(gh pr view --json number -q '.number')
-```
-
-Note `$PR_NUMBER` and `$BASE_SHA` / `$HEAD_SHA` — needed for review.
+- The `/ship-it` request authorizes the push and PR creation. Merging still needs the user's explicit go-ahead, so `ship-pr` stops for final merge confirmation unless the user said to ship through completion.
+- A same-harness subagent is never the review gate. That rule, the review-round limit and the merge mechanics are `ship-pr`'s; follow them there.
 
 ---
 
-## Step 5: Self-Review via Subagent
+## Step 5: Report
 
-Spawn a code-review subagent using the Agent tool with `subagent_type: superpowers:code-reviewer`:
+`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped, say the PR is **pending**, not shipped.
 
-**Subagent prompt template:**
-
-```
-Review the following implementation.
-
-WHAT_WAS_IMPLEMENTED: <summary from plan>
-PLAN_OR_REQUIREMENTS: <plan file path>
-BASE_SHA: <base_sha>
-HEAD_SHA: <head_sha>
-DESCRIPTION: PR #<number> — <title>
-
-Repo path: /Users/richardbeezley/AI Projects/myk9-platform
-
-Run `gh pr diff <number>` to see the full diff.
-
-Check specifically for:
-1. TypeScript correctness — no `any`, correct exactOptionalPropertyTypes usage
-2. Test coverage — new logic has tests, no tests disabled
-3. Logic errors, edge cases, boundary conditions
-4. Security — RLS bypass, privilege escalation, unvalidated input, data integrity
-5. CLAUDE.md conventions — pnpm not npm, offline-first patterns, files under 500 lines
-
-Return EXACTLY one of:
-- APPROVED
-- A numbered list of issues, each with file:line and description, severity (critical/high/medium/low)
-```
-
-If subagent returns `APPROVED` → skip to Step 7.
-
----
-
-## Step 6: Fix Loop (until clean)
-
-Apply each finding (critical and high required; medium if straightforward):
-
-- Read file before editing
-- Minimal fix — do not refactor surrounding code
-
-Invoke `/commit` to push fixes.
-
-Re-spawn the review subagent (Step 5) with updated `HEAD_SHA`.
-
-Repeat until `APPROVED`. **Max 5 review rounds** — stop and escalate to user if not clean after 5.
-
----
-
-## Step 7: Squash-Merge — ALWAYS FROM MAIN REPO
-
-**CRITICAL: Never run `gh pr merge` from inside a feature worktree.**
-
-```bash
-# 1. Verify not already merged (squash-merges fool git log)
-gh pr view $PR_NUMBER --json state,mergedAt
-
-# 2. cd to MAIN REPO before merging
-cd "/Users/richardbeezley/AI Projects/myk9-platform"
-
-# 3. Merge. NO --delete-branch: its local half fails while a worktree still has
-#    the branch checked out, and `git branch -D` is denied by this repo's
-#    permission rules — which stalls an unattended run rather than failing it.
-#    branch-janitor reaps merged branches weekly.
-gh pr merge $PR_NUMBER --squash
-
-# 4. Confirm
-gh pr view $PR_NUMBER --json state,mergedAt
-```
-
-Do not proceed to Step 8 until `state == "MERGED"`.
-
----
-
-## Step 8: Cleanup — `git worktree remove` IS THE LAST COMMAND
-
-```bash
-# Already in main repo from Step 7
-git fetch --prune
-git checkout main
-git pull --ff-only
-
-# Identify worktree path. `git worktree list | awk '{print $1}'` TRUNCATES
-# at the first space, so a checkout under "AI Projects" resolves to
-# /Users/<you>/AI and the remove below targets a path that does not exist.
-# Porcelain output puts the full path on its own line.
-WORKTREE_PATH=$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '
-  /^worktree /   { p = substr($0, 10) }
-  $0 == "branch " b { print p; exit }
-')
-PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-
-# LAST COMMAND — nothing runs after this line. No `2>/dev/null || true`:
-# a swallowed failure reports the ship as complete with the worktree still
-# on disk, which is the one outcome this step exists to prevent.
-if [ -z "$WORKTREE_PATH" ]; then
-  echo "No worktree registered for $BRANCH — nothing to remove."
-elif [ "$WORKTREE_PATH" = "$PRIMARY" ]; then
-  # $BRANCH resolved to the primary checkout, which means it was never
-  # re-captured in Step 1 and names the branch you STARTED on. Removing a
-  # checkout on that evidence is how unrelated uncommitted work disappears.
-  echo "Refusing: \$BRANCH ($BRANCH) resolves to the primary checkout — Step 1 did not re-capture it." >&2
-  exit 1
-else
-  git worktree remove "$WORKTREE_PATH" --force
-fi
-```
-
----
-
-## Step 9: Handoff Doc
-
-Output this summary after cleanup. Include the shared-system follow-ups section ONLY if the merged diff contains changes that need a post-merge operator action — otherwise omit that section entirely.
-
-```bash
-# Compute post-merge follow-ups from the merged diff.
-# NOTE on `grep -c ... | wc -l` vs `grep -c ... || echo 0`:
-# `grep -c` with zero matches prints "0" but exits 1, so `|| echo 0` produces
-# "0\n0" and breaks any later numeric comparison. Pipe matched lines through
-# `wc -l` instead — always single-line, always 0 on empty input.
-MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep '^supabase/migrations/' | wc -l | tr -d ' ')
-FUNCTIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -E '^(supabase|apps/[^/]+/supabase)/functions/' | sed -E 's|.*/functions/([^/]+)/.*|\1|' | sort -u)
-```
-
-```
-## Ship It — Complete
-
-Plan:          <path>
-Branch:        <branch>
-PR:            #<number> — <title>
-Merged at:     <mergedAt>
-Review rounds: <N>
-
-Shipped:
-- <one bullet per completed plan task>
-
-[If MIGRATIONS_CHANGED > 0]
-Post-merge follow-ups (operator action required):
-- supabase db push --linked   # applies <N> new migration(s)
-
-[For each function in FUNCTIONS_CHANGED]
-- supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-  (touched: <relative path>)
-
-[If both apply, sequence matters: db push BEFORE functions deploy when the
-function calls a newly-created RPC or expects a new column.]
-```
-
-Both shared-system actions require explicit user confirmation per CLAUDE.md Auto Mode rules. The handoff lists them but does NOT run them — the operator decides timing.
+After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation. The frontend goes live only on the next Deploy myK9Show run.
 
 ---
 
 ## Rules
 
-- NEVER run `gh pr merge` outside `/Users/richardbeezley/AI Projects/myk9-platform`
-- NEVER remove the worktree before merge is confirmed AND main is updated
-- `git worktree remove` is ALWAYS the absolute last command — nothing after it
-- Before flagging any branch as unmerged, verify via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
-- Use `pnpm`, never `npm` or `npx`
-- Never add scope beyond the plan
-- Max 10 test-fix iterations, max 5 review rounds — escalate if limits hit
-- If SQL migrations are in the diff, the SQL compile-check (Step 3a) MUST run and pass — or skip with a logged warning if `supabase` CLI is missing or Docker is not running. Never commit a migration without at least the warning being surfaced.
-- Never run `supabase db push` or `supabase functions deploy` automatically — these are operator actions surfaced in the handoff doc per CLAUDE.md Auto Mode rules.
-
-## Edge Cases
-
-**CWD lost after worktree removal:** If any Bash call fails with "getcwd", "cannot open current directory", or "No such file or directory" referencing the worktree path, immediately run `cd "/Users/richardbeezley/AI Projects/myk9-platform"` before any other command.
-
-**Squash-merge false negative:** `git log origin/main..HEAD` shows commits after a squash-merge because SHAs differ. Always use `gh pr view --json state` to confirm merge status.
-
-**Pre-existing typecheck failures:** If typecheck fails on files this branch did NOT touch, stop and report — do not silently fix pre-existing breakage.
-
-**SQL compile-check left the local stack running:** Step 3a does not stop the Supabase local stack on failure — the operator may want to `psql` into it for inspection. To tear it down after debugging: `supabase stop`. The reset log lives at `.logs/ship-it-db-reset.log` and is overwritten on each run (no orphan accumulation).
-
-**Docker is installed but not running:** the Step 3a detection runs `docker info` which fails fast if the Docker daemon isn't reachable. The skill skips with a warning in that case. On macOS the typical fix is to launch Docker Desktop; on Linux it's `sudo systemctl start docker` (or `colima start` if using Colima).
+- Never add scope beyond the plan.
+- Max 10 test-fix iterations — escalate if hit.
+- If harden returns FAIL, stop before `ship-pr`.
+- Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically; point to the `deploy` skill.
+- Pre-existing typecheck failures in files this branch did not touch: stop and report, do not fix silently.

@@ -1,6 +1,6 @@
 ---
 name: hotspots
-description: Rank source files by git churn × size to find where premium attention pays off most ("hotspots" analysis). Use when asked for a hotspot list, churn ranking, "what files change most", "where's the tech debt concentrated", or "what should I refactor/review first". Complements code-quality-audit (static, no history) and improve-codebase-architecture (survey, no churn) — this one adds the git-history signal neither has.
+description: Rank source files by git churn × size to find where premium attention pays off most ("hotspots" analysis). Use when asked for a hotspot list, churn ranking, "what files change most", "where's the tech debt concentrated", or "what should I refactor/review first". Complements the `--static` mode (no history) and `--plan` mode (survey, no churn) — this one adds the git-history signal neither has.
 user-invocable: true
 argument-hint: [months] [path-glob]
 ---
@@ -12,7 +12,7 @@ Find where attention pays off most by combining two cheap, deterministic signals
 - **Churn = impact** — how often a file changes (straight from `git log`; objective, free, exact).
 - **Size = opportunity proxy** — line count as a stand-in for complexity (a complex file nobody touches is fine; the _product_ is what matters).
 
-The expensive judgment (what's actually wrong inside a file, and the fix) is deliberately deferred to `improve-codebase-architecture` / `/improve` on the top result — do NOT spend model tokens estimating what git already knows precisely.
+The expensive judgment (what's actually wrong inside a file, and the fix) is deliberately deferred to `codebase-health --plan` on the top result — do NOT spend model tokens estimating what git already knows precisely.
 
 ## Arguments
 
@@ -57,7 +57,7 @@ The expensive judgment (what's actually wrong inside a file, and the fix) is del
    - Look for **clustering**: do the top files share a surface/feature (e.g. the secretary show-detail pages)? A cluster usually means the real fix is _consolidation_, not N point-fixes — surface that explicitly. This aligns with the repo's "consolidate, don't duplicate" rule in `CLAUDE.md`.
    - For any UI/page finding, answer: "Does this duplicate an existing page? If so, why is duplication justified instead of a link?"
 
-7. **Offer the hand-off, don't auto-run it.** Recommend `/improve` (improve-codebase-architecture) on the rank-1 _live-debt_ file as the "premium attention on the high-value target" step. Run it only if the user asks.
+7. **Offer the hand-off, don't auto-run it.** Recommend `codebase-health --plan` scoped to the rank-1 _live-debt_ file as the "premium attention on the high-value target" step. Run it only if the user asks.
 
 ## What this is NOT
 

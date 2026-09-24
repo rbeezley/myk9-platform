@@ -25,7 +25,7 @@ Before starting, read:
 ## Setup
 
 1. Start the dev server if not running: `pnpm dev:show` (localhost:5173)
-2. Tools: `preview_start` / `preview_navigate` / `preview_console_logs` / `preview_network` / `preview_snapshot` / `preview_resize`
+2. Tools: the harness's in-app browser. In Claude Code: `preview_start` (opens the pane on the dev server), then `navigate`, `read_console_messages`, `read_network_requests`, `read_page`, `resize_window`, `find` / `form_input` / `computer`. In Codex: its browser-control skill's equivalents. `playwright-cli` works in either.
 3. Log in as the role you're auditing before walking that role's routes (see credentials below)
 
 **Credentials — canonical accounts only:**
@@ -46,12 +46,12 @@ canonical accounts).
 
 Passwords live in `.env.local` (all e2e accounts share one secret), not `.env`; CI reads them from secrets.
 
-**Two-step sign-in flow (SmartSignInPage).** The password field does not exist in the DOM until you advance past the email step, so log in with `preview_*` in this order:
+**Two-step sign-in flow (SmartSignInPage).** The password field does not exist in the DOM until you advance past the email step, so log in in this order:
 
-1. `preview_fill` the `credential-input` field with the email
-2. `preview_click` the Continue button (`continue-button`) — this reveals the password step in place
-3. `preview_fill` the `password-input` field (now visible) with the password
-4. `preview_click` the `sign-in-button` and wait for navigation off `/sign-in`
+1. Fill the `credential-input` field with the email
+2. Click the Continue button (`continue-button`) — this reveals the password step in place
+3. Fill the `password-input` field (now visible) with the password
+4. Click the `sign-in-button` and wait for navigation off `/sign-in`
 
 ## Known Noise (do not re-log)
 
@@ -67,11 +67,11 @@ Add new confirmed-pre-existing errors here as discovered.
 
 For each route:
 
-1. `preview_navigate` to the URL
-2. `preview_console_logs` — flag `error` entries (excluding known noise above); note `warning` entries as lower priority
-3. `preview_network` — flag any 4xx or 5xx responses
-4. `preview_snapshot` — confirm the page renders (not blank, not error boundary, **and data actually loaded** — a skeleton that never resolves is a bug)
-5. `preview_resize` to 375px width — confirm layout doesn't break at mobile
+1. Navigate to the URL
+2. Read console messages — flag `error` entries (excluding known noise above); note `warning` entries as lower priority
+3. Read network requests — flag any 4xx or 5xx responses
+4. Read the page (accessibility snapshot) — confirm the page renders (not blank, not error boundary, **and data actually loaded** — a skeleton that never resolves is a bug)
+5. Resize the viewport to 375px width — confirm layout doesn't break at mobile
 6. Check `docs/qa/e2e-suite-map.md` for the nearest existing spec and note whether this route is covered by `pr-smoke`, `nightly`, `feature-audit`, `manual-debug`, or no spec.
 
 **Fix inline** if the cause is obvious and isolated (wrong column name, missing null check, stale import).

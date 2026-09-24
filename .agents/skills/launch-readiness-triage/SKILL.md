@@ -1,6 +1,6 @@
 ---
 name: launch-readiness-triage
-description: Converts myK9 audit findings into daily P0/P1 response, Friday P0-P3 consolidation, remediation priorities, and evidence-based stability decisions. Use for daily critical-finding review, the Friday Weekly Quality Findings Review, scorecard reconciliation, or launch-readiness decisions.
+description: "Converts myK9 audit findings into daily P0/P1 response, Friday P0-P3 consolidation, remediation priorities, and evidence-based stability decisions, and runs the go-live gate review. Use for daily critical-finding review, the Friday Weekly Quality Findings Review, scorecard reconciliation, launch-readiness decisions, or 'are we ready to launch', 'go-live checklist', 'what's blocking launch', and before flipping the platform from pre-launch to real users."
 ---
 
 # Launch Readiness Triage
@@ -45,6 +45,13 @@ response. It does not require every P1 fix to finish that day.
 Do not let P3 polish displace launch risk. Do not treat a passing test alone as production
 readiness or a code merge alone as closure.
 
+## Go-live mode
+
+For "are we ready to launch" or a gate review before real users: read
+`references/go-live-gate.md` in full and walk every item with status and evidence. It reuses the
+sources above; it does not replace the stability decision below, which says whether the evidence
+has held long enough.
+
 ## Stability decision
 
 The stability window passes after four consecutive Friday cycles with:
@@ -70,4 +77,4 @@ Return: pilot confidence and trend; P0-P3 dashboard; P0/P1 details; transitions;
 table; approval inbox; stale/unowned work; automation coverage; scorecard/gate state; top actions;
 stability-window count; and verification limits. Save the reconciled baseline in automation memory.
 
-Example invocation: “Use `launch-readiness-triage` in Friday mode.”
+Example invocations: “Use `launch-readiness-triage` in Friday mode.” / “… in go-live mode.”

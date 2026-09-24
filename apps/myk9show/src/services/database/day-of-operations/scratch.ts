@@ -4,13 +4,10 @@
  * Database queries for pull operations during day-of-show:
  * - Finding pullable entries (eligibility)
  * - Getting pulled entries
- * - Pending pull request queues
  * - Updating refund status
  *
- * Status transitions (day-of pull, pull-request approve/deny) live in
- * `entries/lifecycle.ts` — this module re-exports them so existing callers
- * (`components/entries/PullManagementTab`, `components/entries/MoveUpRequestsTab`)
- * keep their import paths.
+ * Status transitions (day-of pull) live in `entries/lifecycle.ts`. There is no
+ * pull-request queue: a pull is the exhibitor's own act (MYK9-632, MYK9-609).
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
@@ -65,38 +62,6 @@ export const getPulledEntries = async (showId: string) => {
     return { data: [], error: dbError };
   }
 };
-
-/**
- * Get pending pull requests (entries requesting to be pulled)
- */
-export const getPendingPullRequests = async (showId: string) => {
-  const startTime = Date.now();
-
-  try {
-    const data = await getReplicatedDayOfEntries(showId, ['scratch-requested'], 'created-asc');
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'get_pending_pull_requests', duration);
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_pending_pull_requests');
-    logQuery('entries', 'get_pending_pull_requests', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-/**
- * Approve a pull request — re-exported from the lifecycle seam. Refund
- * processing is handled separately post-show via Entry Management.
- */
-export { approvePullRequest } from '../entries/lifecycle';
-
-/**
- * Deny a pull request — re-exported from the lifecycle seam.
- */
-export { denyPullRequest } from '../entries/lifecycle';
 
 /**
  * Update refund status for a pulled entry

@@ -3,11 +3,6 @@ import { createDatabaseError, supabase } from '@/services/database/supabaseClien
 import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
 
-export interface ReplicatedDayOfScratchOptions {
-  auditAction?: string | undefined;
-  fromStatus?: string | null | undefined;
-}
-
 /**
  * Which authorization path a check-in write takes:
  *  - `'replicated'`     → `ringside_update_entry` / direct UPDATE, authorized by
@@ -49,8 +44,7 @@ export async function updateSelfCheckInStatus(
 
 export async function updateReplicatedDayOfScratch(
   entryId: string,
-  reason: string,
-  options: ReplicatedDayOfScratchOptions = {}
+  reason: string
 ): Promise<string | null> {
   const mutationId = await replicatedEntriesTable.updateEntry(entryId, {
     entryStatus: 'scratched',
@@ -65,9 +59,8 @@ export async function updateReplicatedDayOfScratch(
 
   await logReplicatedEntryStatusChange({
     entryId,
-    fromStatus: options.fromStatus,
     toStatus: 'scratched',
-    action: options.auditAction ?? 'scratch_entry_day_of',
+    action: 'scratch_entry_day_of',
     reason,
     metadata: { checkInStatus: 'pulled' },
   });

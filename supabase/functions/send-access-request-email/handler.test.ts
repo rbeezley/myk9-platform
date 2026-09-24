@@ -193,7 +193,11 @@ describe('send-access-request-email', () => {
     const fetchImpl = okFetch();
 
     await expect(
-      run(fetchImpl, { kind: 'new_club', requestId: REQUEST_ID, event: 'submitted' }, 'auth-someone-else')
+      run(
+        fetchImpl,
+        { kind: 'new_club', requestId: REQUEST_ID, event: 'submitted' },
+        'auth-someone-else'
+      )
     ).rejects.toMatchObject({ status: 403 });
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(store.emailLog).toEqual([]);
@@ -203,7 +207,11 @@ describe('send-access-request-email', () => {
     store.requests.role_requests = clubRoutedRequest();
     const fetchImpl = okFetch();
 
-    await run(fetchImpl, { kind: 'secretary', requestId: REQUEST_ID, event: 'submitted' }, REQUESTER_AUTH);
+    await run(
+      fetchImpl,
+      { kind: 'secretary', requestId: REQUEST_ID, event: 'submitted' },
+      REQUESTER_AUTH
+    );
 
     const emails = sentTo(fetchImpl);
     expect(emails.map(email => email.to)).toEqual(['club1-admin@example.test']);
@@ -221,7 +229,11 @@ describe('send-access-request-email', () => {
     });
     const fetchImpl = okFetch();
 
-    await run(fetchImpl, { kind: 'membership', requestId: REQUEST_ID, event: 'submitted' }, REQUESTER_AUTH);
+    await run(
+      fetchImpl,
+      { kind: 'membership', requestId: REQUEST_ID, event: 'submitted' },
+      REQUESTER_AUTH
+    );
 
     expect(sentTo(fetchImpl).map(email => email.to)).toEqual(['club2-admin@example.test']);
     expect(store.emailLog[0].email_type).toBe('access_request_membership_submitted');
@@ -231,7 +243,11 @@ describe('send-access-request-email', () => {
     store.requests.role_requests = clubRoutedRequest({ club_id: null });
 
     await expect(
-      run(okFetch(), { kind: 'secretary', requestId: REQUEST_ID, event: 'submitted' }, REQUESTER_AUTH)
+      run(
+        okFetch(),
+        { kind: 'secretary', requestId: REQUEST_ID, event: 'submitted' },
+        REQUESTER_AUTH
+      )
     ).rejects.toMatchObject({ status: 404 });
   });
 
@@ -243,7 +259,11 @@ describe('send-access-request-email', () => {
     const fetchImpl = okFetch();
 
     await expect(
-      run(fetchImpl, { kind: 'secretary', requestId: REQUEST_ID, event: 'decision' }, REQUESTER_AUTH)
+      run(
+        fetchImpl,
+        { kind: 'secretary', requestId: REQUEST_ID, event: 'decision' },
+        REQUESTER_AUTH
+      )
     ).rejects.toMatchObject({ status: 403 });
     expect(fetchImpl).not.toHaveBeenCalled();
 
@@ -268,7 +288,11 @@ describe('send-access-request-email', () => {
     });
     const fetchImpl = okFetch();
 
-    await run(fetchImpl, { kind: 'new_club', requestId: REQUEST_ID, event: 'decision' }, REVIEWER_AUTH);
+    await run(
+      fetchImpl,
+      { kind: 'new_club', requestId: REQUEST_ID, event: 'decision' },
+      REVIEWER_AUTH
+    );
 
     const [email] = sentTo(fetchImpl);
     expect(email.subject).toBe('Your club is ready: Heartland Dog Club of Omaha');
@@ -283,7 +307,11 @@ describe('send-access-request-email', () => {
       reviewer_note: 'Membership is limited to county residents.',
     });
     const withNote = okFetch();
-    await run(withNote, { kind: 'membership', requestId: REQUEST_ID, event: 'decision' }, REVIEWER_AUTH);
+    await run(
+      withNote,
+      { kind: 'membership', requestId: REQUEST_ID, event: 'decision' },
+      REVIEWER_AUTH
+    );
     expect(sentTo(withNote)[0].html).toContain('Membership is limited to county residents.');
 
     store.emailLog = [];
@@ -292,7 +320,11 @@ describe('send-access-request-email', () => {
       reviewed_by: 'person-reviewer',
     });
     const withoutNote = okFetch();
-    await run(withoutNote, { kind: 'new_club', requestId: REQUEST_ID, event: 'decision' }, REVIEWER_AUTH);
+    await run(
+      withoutNote,
+      { kind: 'new_club', requestId: REQUEST_ID, event: 'decision' },
+      REVIEWER_AUTH
+    );
     const [email] = sentTo(withoutNote);
     expect(email.to).toBe('rita@example.test');
     expect(email.html).toContain('could not approve it as submitted');
@@ -303,7 +335,11 @@ describe('send-access-request-email', () => {
     store.requests.club_access_requests = newClubRequest();
     const fetchImpl = okFetch();
 
-    await run(fetchImpl, { kind: 'new_club', requestId: REQUEST_ID, event: 'submitted' }, REQUESTER_AUTH);
+    await run(
+      fetchImpl,
+      { kind: 'new_club', requestId: REQUEST_ID, event: 'submitted' },
+      REQUESTER_AUTH
+    );
     const second = await run(
       fetchImpl,
       { kind: 'new_club', requestId: REQUEST_ID, event: 'submitted' },
@@ -355,10 +391,18 @@ describe('send-access-request-email', () => {
 
   it('rejects an unknown kind or a malformed id before reading anything', async () => {
     await expect(
-      run(okFetch(), { kind: 'club_admin', requestId: REQUEST_ID, event: 'submitted' }, REQUESTER_AUTH)
+      run(
+        okFetch(),
+        { kind: 'club_admin', requestId: REQUEST_ID, event: 'submitted' },
+        REQUESTER_AUTH
+      )
     ).rejects.toMatchObject({ status: 400 });
     await expect(
-      run(okFetch(), { kind: 'new_club', requestId: 'not-a-uuid', event: 'submitted' }, REQUESTER_AUTH)
+      run(
+        okFetch(),
+        { kind: 'new_club', requestId: 'not-a-uuid', event: 'submitted' },
+        REQUESTER_AUTH
+      )
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -384,7 +428,11 @@ describe('send-access-request-email', () => {
     store.requests.club_membership_requests = clubRoutedRequest({ reviewed_by: 'person-reviewer' });
 
     await expect(
-      run(okFetch(), { kind: 'membership', requestId: REQUEST_ID, event: 'decision' }, REVIEWER_AUTH)
+      run(
+        okFetch(),
+        { kind: 'membership', requestId: REQUEST_ID, event: 'decision' },
+        REVIEWER_AUTH
+      )
     ).rejects.toMatchObject({ status: 409 });
   });
 

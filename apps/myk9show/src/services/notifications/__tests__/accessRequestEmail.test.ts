@@ -35,7 +35,9 @@ describe('notifyAccessRequestEmail', () => {
   it('logs and resolves when the function answers with an error', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('Email service not configured') });
 
-    await expect(notifyAccessRequestEmail('secretary', 'request-2', 'submitted')).resolves.toBeUndefined();
+    await expect(
+      notifyAccessRequestEmail('secretary', 'request-2', 'submitted')
+    ).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalledWith(
       'Access request email could not be sent',
       'access-requests',
@@ -46,7 +48,9 @@ describe('notifyAccessRequestEmail', () => {
   it('logs and resolves when the call itself throws', async () => {
     invoke.mockRejectedValue(new Error('offline'));
 
-    await expect(notifyAccessRequestEmail('new_club', 'request-3', 'submitted')).resolves.toBeUndefined();
+    await expect(
+      notifyAccessRequestEmail('new_club', 'request-3', 'submitted')
+    ).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalledTimes(1);
   });
 });

@@ -147,7 +147,11 @@ describe('ClubMembersPage membership requests', () => {
       expect(approveClubMembershipRequest).toHaveBeenCalledWith('membership-request-1')
     );
     await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('membership', 'membership-request-1', 'decision')
+      expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
+        'membership',
+        'membership-request-1',
+        'decision'
+      )
     );
     expect(notificationSuccess).toHaveBeenCalledWith(
       'Request approved. They are now on the member list.'
@@ -170,7 +174,11 @@ describe('ClubMembersPage membership requests', () => {
       )
     );
     await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('membership', 'membership-request-1', 'decision')
+      expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
+        'membership',
+        'membership-request-1',
+        'decision'
+      )
     );
   });
 

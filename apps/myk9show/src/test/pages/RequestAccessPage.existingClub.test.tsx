@@ -140,7 +140,11 @@ describe('RequestAccessPage — existing club', () => {
       expect(submitClubMembershipRequest).toHaveBeenCalledWith({ clubId: 'club-1', note: '' })
     );
     expect(await screen.findByText('Request sent')).toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('membership', 'membership-1', 'submitted');
+    expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
+      'membership',
+      'membership-1',
+      'submitted'
+    );
   });
 
   it('shows an existing pending request instead of another submit button', async () => {

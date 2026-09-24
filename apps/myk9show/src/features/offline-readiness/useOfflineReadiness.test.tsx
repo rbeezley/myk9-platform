@@ -23,28 +23,30 @@ function renderHook<T>(callback: () => T) {
   };
 }
 
-const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
-  tables: {
-    trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
-    classes: {
-      metaByTrial: new Map<string, unknown>(),
-      rowsByTrial: new Map<string, Array<{ id: string }>>(),
+const { tables, rbacCache, syncSpy, settleSpy, refreshSpy, authState, replicationState } =
+  vi.hoisted(() => ({
+    tables: {
+      trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+      classes: {
+        metaByTrial: new Map<string, unknown>(),
+        rowsByTrial: new Map<string, Array<{ id: string }>>(),
+      },
+      entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+      shows: { row: null as { id: string } | null },
+      judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
     },
-    entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
-    shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
-  },
-  rbacCache: { entry: null as { cachedAt: string } | null },
-  syncSpy: vi.fn(async () => {}),
-  refreshSpy: vi.fn(async () => {}),
-  authState: {
-    userId: 'user-1' as string | undefined,
-    isAnonymous: false,
-    isJudge: false,
-    databaseUserId: 'person-1' as string | undefined,
-  },
-  replicationState: { lastSyncAt: null as number | null },
-}));
+    rbacCache: { entry: null as { cachedAt: string } | null },
+    syncSpy: vi.fn(async () => {}),
+    settleSpy: vi.fn(async () => {}),
+    refreshSpy: vi.fn(async () => {}),
+    authState: {
+      userId: 'user-1' as string | undefined,
+      isAnonymous: false,
+      isJudge: false,
+      databaseUserId: 'person-1' as string | undefined,
+    },
+    replicationState: { lastSyncAt: null as number | null },
+  }));
 
 vi.mock('@/hooks/useOptionalReplicationSync', () => ({
   useOptionalReplicationSync: () => ({ status: { lastSyncAt: replicationState.lastSyncAt } }),
@@ -92,6 +94,7 @@ vi.mock('@/context/rbacPermissionsCache', () => ({
 
 vi.mock('@/features/at-show/atShowDataAdapter', () => ({
   syncAtShowData: syncSpy,
+  settleAtShowSync: settleSpy,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -330,6 +333,32 @@ describe('useOfflineReadiness', () => {
     expect(replicatedEntriesTable.updateSyncMetadata).toHaveBeenCalledWith(
       expect.objectContaining({ lastIncrementalSyncAt: 0, scopes: {} })
     );
+  });
+
+  // The page's own mount-time syncAtShowData is usually still running when the
+  // badge is clicked. Rewinding under it cleared the expected-row counts it had
+  // just written, and syncAtShowData then handed back that same pre-rewind
+  // operation, so nothing restored them and the badge stayed red for good.
+  it('settles an in-flight at-show sync BEFORE rewinding, then syncs afresh', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(1);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    const { replicatedEntriesTable } = await import('@/services/replication');
+    const rewind = vi.mocked(replicatedEntriesTable.updateSyncMetadata);
+    expect(settleSpy).toHaveBeenCalledWith('show-1');
+    expect(rewind).toHaveBeenCalled();
+    const settledAt = settleSpy.mock.invocationCallOrder[0]!;
+    expect(settledAt).toBeLessThan(rewind.mock.invocationCallOrder[0]!);
+    expect(rewind.mock.invocationCallOrder[0]!).toBeLessThan(syncSpy.mock.invocationCallOrder[0]!);
   });
 
   it('is ready for a judge whose assignment table is hydrated but genuinely empty', async () => {

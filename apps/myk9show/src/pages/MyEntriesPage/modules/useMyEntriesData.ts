@@ -198,6 +198,8 @@ export function useMyEntriesData({
   const stateIdentityRef = useRef<string | null>(currentIdentity);
   /** The `user.id::personId` the rows in `entries` were loaded for. */
   const loadedIdentityRef = useRef<string | null>(null);
+  /** Source of the last COMPLETED read for this identity, or 'error'; null while none has. */
+  const lastReadOutcomeRef = useRef<UserEntriesSource | 'error' | null>(null);
 
   // Suppress prior-account rows in the render that observes a new identity;
   // the effect below then starts the new read. The generation fences every
@@ -207,6 +209,7 @@ export function useMyEntriesData({
     requestGenerationRef.current += 1;
     stateIdentityRef.current = null;
     loadedIdentityRef.current = null;
+    lastReadOutcomeRef.current = null;
   }
 
   /**
@@ -418,6 +421,7 @@ export function useMyEntriesData({
         // here made that sentence false and emptied the page on a transient
         // reload failure, which is exactly the "poor connectivity feels like
         // user failure" state PRODUCT.md forbids. Only the flag changes.
+        lastReadOutcomeRef.current = 'error';
         setIsError(true);
         return;
       }
@@ -427,6 +431,7 @@ export function useMyEntriesData({
       const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
       setSource(rowSource);
+      lastReadOutcomeRef.current = rowSource;
       // Money math runs on the same raw, ungrouped rows My Payments uses —
       // see the `balanceSummary` doc comment above — and through the same one
       // gate, so an unconfirmed read yields `kind: 'unknown'` here exactly as
@@ -445,6 +450,7 @@ export function useMyEntriesData({
       // Same contract as the `error` branch above: preserve the last good read.
       // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
       // positive claim about what the exhibitor owes, not an absence of data.
+      lastReadOutcomeRef.current = 'error';
       setIsError(true);
     } finally {
       if (isCurrentRequest()) setIsLoading(false);
@@ -464,6 +470,25 @@ export function useMyEntriesData({
       },
     });
   }, [loadMyEntries, user?.id]);
+
+  // A cold offline boot reads the replica under the CACHED person id while the
+  // authoritative lookup is unresolved (MYK9-601). When signal returns, that
+  // lookup confirms the SAME id, so the identity key above never changes and
+  // nothing re-reads: My Shows stayed on the offline read until a manual
+  // reload (offline-cold-boot.spec.ts, "react-query data returns…"). Re-read
+  // once on confirmation, but only when the read we hold was not confirmed by
+  // the server — an online boot's first read confirms itself, and one still in
+  // flight (null) will too.
+  const identityConfirmed = entryPersonIdentityState === 'resolved';
+  const wasIdentityConfirmedRef = useRef(identityConfirmed);
+  useEffect(() => {
+    const becameConfirmed = identityConfirmed && !wasIdentityConfirmedRef.current;
+    wasIdentityConfirmedRef.current = identityConfirmed;
+    const lastRead = lastReadOutcomeRef.current;
+    if (becameConfirmed && lastRead !== null && !lastRead.startsWith('confirmed')) {
+      void loadMyEntries();
+    }
+  }, [identityConfirmed, loadMyEntries]);
 
   /**
    * Refreshes entries data

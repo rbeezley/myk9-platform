@@ -10,7 +10,7 @@ import {
 import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { settleAtShowSync, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -218,6 +218,12 @@ export function useOfflineReadiness(showId: string | undefined) {
       // the badge falsely green. Rewinding re-fetches without clearing rows.
       const missing = readiness?.missing ?? [];
       const REWIND = { lastIncrementalSyncAt: 0, scopes: {} };
+      // The page's own mount-time sync is usually still running when this is
+      // clicked. Rewinding under it clears the expected-row counts it just
+      // wrote, and syncAtShowData below would then hand back that same
+      // pre-rewind operation, so nothing restores them: the badge stays
+      // "Couldn't save" for good (offline-cold-boot.spec.ts, first test).
+      await settleAtShowSync(showId);
       await Promise.all([
         missing.includes('trials') ? replicatedTrialsTable.updateSyncMetadata(REWIND) : null,
         missing.includes('entries') ? replicatedEntriesTable.updateSyncMetadata(REWIND) : null,

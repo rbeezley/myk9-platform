@@ -65,6 +65,21 @@ export function syncAtShowData(showId: string): Promise<void> {
 }
 
 /**
+ * Resolves once any at-show sync ALREADY running for this show has settled,
+ * success or failure; immediately when none is. A caller that rewinds sync
+ * watermarks must await this first: `syncAtShowData` hands back an in-flight
+ * operation, and one that started before the rewind neither honours it nor
+ * re-writes the metadata the rewind cleared (offline readiness prime, where
+ * the page's own mount-time sync is usually still running).
+ */
+export function settleAtShowSync(showId: string): Promise<void> {
+  const existing = atShowSyncsInFlight.get(showId);
+  return existing ? existing.then(noop, noop) : Promise.resolve();
+}
+
+function noop() {}
+
+/**
  * Pull only the authoritative replica path named by relevant Broadcast signals.
  * Legacy/unscoped signals retain the complete-sync fallback during rolling deploys.
  */

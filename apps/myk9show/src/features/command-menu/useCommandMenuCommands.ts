@@ -50,6 +50,7 @@ export function useCommandMenuCommands(): CommandMenuCommands {
         // palette adapter already honours both. Spreading conditionally keeps
         // `href: undefined` out of the object, which `exactOptionalPropertyTypes`
         // rejects and which would also make the adapter prefer a missing href.
+        ...(action.aliases ? { aliases: action.aliases } : {}),
         ...(action.href !== undefined ? { href: action.href } : {}),
         ...(action.run ? { run: action.run } : {}),
       }));

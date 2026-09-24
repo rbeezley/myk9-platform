@@ -50,6 +50,11 @@ export interface AppAction {
   /** Renders a divider above this item. */
   separatorBefore?: boolean;
   destructive?: boolean;
+  /**
+   * Search-only synonyms for the command palette, never displayed. For words a
+   * user will type that the label deliberately does not carry (MYK9-672).
+   */
+  aliases?: readonly string[];
 }
 
 export type ActionRouteContext =
@@ -150,6 +155,9 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
   const entryForSomeoneElse: AppAction = {
     id: 'show-add-mail-in-entry',
     label: 'Add entry for someone else',
+    // The reasons the label leaves out stay findable: "mail-in" is still the
+    // domain noun secretaries, guides and entry blanks use (MYK9-672).
+    aliases: ['mail-in', 'paper', 'phone', 'walk-up', 'on behalf'],
     href: buildSecretaryRegistrationPath(showId),
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };

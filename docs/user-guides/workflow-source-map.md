@@ -140,7 +140,7 @@ tab they land on, never the redirect:
 
 **Outcome:** Secretary creates a show with trials, classes, judges, and entry dates, and publishes it.
 **Canonical route:** `/secretary/create-show/wizard` _(source-map re-verified 2026-09-01)_
-**Entry point:** Secretary Dashboard → Create Show
+**Entry point:** Secretary Dashboard → Add Show
 **Alternate route:** `/shows/new` redirects here for callers using the conventional creation URL.
 **Note:** Source-map entry re-verified 2026-09-01 after adding the `/shows/new` redirect; the guide-facing show-creation flow is unchanged.
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`

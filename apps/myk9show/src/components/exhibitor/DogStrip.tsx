@@ -64,12 +64,10 @@ export const DogStrip: React.FC<DogStripProps> = ({
           className="ml-auto inline-flex min-h-[44px] flex-shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border px-3 text-xs font-medium text-muted-foreground hover:bg-accent active:scale-[0.98] transition-all duration-state focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <PawPrint className="h-4 w-4" />
-          {/* "Add Dog", not "New Dog". /dogs already branches on audience —
-              exhibitors get "Add Dog", staff get "New Dog" (BrowseDogsPage),
-              the same per-audience split as the "My Dogs" / "Dogs" sidebar
-              label. This strip renders only on My Shows, an exhibitor surface,
-              so it was showing the staff word and giving one action two names
-              for the same person (F7). */}
+          {/* "Add Dog", the one creation verb for every role
+              (docs/reference/ui-vocabulary.md, MYK9-671). This strip once said
+              "New Dog", the staff word, and gave one action two names for the
+              same person (F7). */}
           Add Dog
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowLeft, CheckCircle, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { countLabel } from '@/utils/pluralize';
 
 interface ReviewStepActionsProps {
   errorCount: number;
@@ -36,7 +37,8 @@ export function ReviewStepActions({
               <div className="flex-1">
                 <div className="font-medium text-success text-sm">Show Configuration Complete</div>
                 <p className="text-xs text-success mt-0.5">
-                  "{showName}" ready with {trialCount} trials and {totalClasses} classes
+                  "{showName}" ready with {countLabel(trialCount, 'trial')} and{' '}
+                  {countLabel(totalClasses, 'class', 'classes')}
                 </p>
               </div>
             </div>
@@ -50,7 +52,9 @@ export function ReviewStepActions({
               <div className="flex-1">
                 <div className="font-medium text-warning text-sm">Incomplete Judge Assignments</div>
                 <p className="text-xs text-warning mt-0.5">
-                  {totalClasses - classesWithJudges} of {totalClasses} classes need judges
+                  {totalClasses - classesWithJudges} of{' '}
+                  {countLabel(totalClasses, 'class', 'classes')}{' '}
+                  {totalClasses - classesWithJudges === 1 ? 'needs a judge' : 'need judges'}
                 </p>
               </div>
             </div>

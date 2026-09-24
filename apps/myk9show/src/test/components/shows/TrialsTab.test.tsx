@@ -221,7 +221,7 @@ describe('TrialsTab', () => {
 
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    expect(screen.getByText('New Trial')).toBeInTheDocument();
+    expect(screen.getByText('Add Trial')).toBeInTheDocument();
   });
 
   it('hides Add Trial button when user lacks permissions', () => {
@@ -230,7 +230,7 @@ describe('TrialsTab', () => {
 
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    expect(screen.queryByText('New Trial')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Trial')).not.toBeInTheDocument();
   });
 
   it('renders ViewToggle', () => {

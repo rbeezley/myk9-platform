@@ -53,7 +53,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   remainingIssueCount = 0,
 }) => {
   const isLastStep = currentStep === totalSteps - 1;
-  const defaultNextLabel = isLastStep ? 'Create Show' : 'Next';
+  const defaultNextLabel = isLastStep ? 'Add Show' : 'Next';
   const defaultBackLabel = 'Back';
 
   return (

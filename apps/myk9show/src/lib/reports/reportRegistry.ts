@@ -127,7 +127,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'high-in-trial',
-    name: 'High in Trial',
+    name: 'AKC High in Trial',
     phase: 'after',
     // Trial-scoped by rule, not by convenience: Chapter 6 §8 awards HIT per difficulty
     // level across the elements a TRIAL offers, so a class-scoped view cannot compute it.
@@ -349,7 +349,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'trial-secretary-report',
-    name: 'Trial Secretary Report',
+    name: 'AKC Trial Secretary Report',
     phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
@@ -360,7 +360,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'judges-certification',
-    name: "Judge's Certification Report",
+    name: "AKC Judge's Certification Report",
     phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
@@ -371,7 +371,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'trial-chairman-report',
-    name: 'Trial Chairman Report',
+    name: 'AKC Trial Chairman Report',
     phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
@@ -483,7 +483,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'trial-secretary-certification',
-    name: 'Trial Secretary Certification',
+    name: 'AKC Trial Secretary Certification',
     phase: 'after',
     scopes: ['trial'],
     sortOptions: [],

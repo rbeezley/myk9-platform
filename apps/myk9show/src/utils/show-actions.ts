@@ -51,7 +51,7 @@ export function getTabQuickActions(
       if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
         actions.push({
           id: 'create_show',
-          label: 'New Show',
+          label: 'Add Show',
           icon: 'Plus',
           variant: 'default',
           permission: PERMISSIONS.SHOW_CREATE,
@@ -75,7 +75,7 @@ export function getTabQuickActions(
       if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
         actions.push({
           id: 'create_show',
-          label: 'New Show',
+          label: 'Add Show',
           icon: 'Plus',
           variant: 'default',
           permission: PERMISSIONS.SHOW_CREATE,

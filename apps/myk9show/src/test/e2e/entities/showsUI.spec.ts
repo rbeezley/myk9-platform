@@ -30,7 +30,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
   test('browse loads with toolbar, view toggle, tabs', async ({ page }) => {
     await page.goto('/shows');
     await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible();
     await expect(page.getByPlaceholder('Search shows or locations')).toBeVisible();
 
     // Filter chips — scope to the FilterChips region so a chip label (e.g.
@@ -71,13 +71,13 @@ test.describe('Shows UI — Create wizard (secretary)', () => {
     await signInAsSecretary(page);
   });
 
-  test('New Show button opens the wizard at step 1', async ({ page }) => {
+  test('Add Show button opens the wizard at step 1', async ({ page }) => {
     await page.goto('/shows');
     await Promise.all([
       page.waitForURL(/\/secretary\/create-show\/wizard/),
-      page.getByRole('button', { name: 'New Show' }).click(),
+      page.getByRole('button', { name: 'Add Show', exact: true }).click(),
     ]);
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     // Clone is owned by the wizard, not a second Calendar-page dialog.
     await expect(page.getByRole('button', { name: 'Select a past show to clone' })).toBeVisible();
     // Required fields are surfaced inline.

@@ -81,7 +81,7 @@ export const APP_SHORTCUTS: readonly AppShortcutMeta[] = [
     category: 'navigation',
     commandId: 'nav-clubs',
   },
-  { id: 'create-dog', label: 'Create Dog', keys: 'C D', category: 'actions', commandId: 'add-dog' },
+  { id: 'create-dog', label: 'Add Dog', keys: 'C D', category: 'actions', commandId: 'add-dog' },
   {
     id: 'create-person',
     label: 'Create Person',
@@ -89,7 +89,7 @@ export const APP_SHORTCUTS: readonly AppShortcutMeta[] = [
     category: 'actions',
     commandId: 'add-person',
   },
-  { id: 'create-show', label: 'New Show', keys: 'C S', category: 'actions', commandId: 'add-show' },
+  { id: 'create-show', label: 'Add Show', keys: 'C S', category: 'actions', commandId: 'add-show' },
 ];
 
 /** Look up a registered shortcut's key string by the id of the

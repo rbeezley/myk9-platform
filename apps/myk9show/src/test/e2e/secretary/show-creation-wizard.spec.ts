@@ -8,7 +8,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
 
     await expect(page).toHaveURL(/\/secretary\/create-show\/wizard/);
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible({
       timeout: 15000,
     });
   });

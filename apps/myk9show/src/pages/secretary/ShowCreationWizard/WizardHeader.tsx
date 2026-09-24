@@ -10,7 +10,7 @@ interface WizardHeaderProps {
 }
 
 /**
- * Sticky header with a back button and Secretary / Create Show breadcrumb.
+ * Sticky header with a back button and Secretary / Add Show breadcrumb.
  *
  * The scrollport it sticks against is the DOCUMENT (MYK9-510,
  * docs/adr/011-app-shell-document-scrollport.md), so the offset is the full
@@ -60,7 +60,7 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({ editMode, onClose })
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Secretary</span>
             <span>/</span>
-            <span>Create Show</span>
+            <span>Add Show</span>
             <span>/</span>
             <span className="text-foreground font-medium">
               {getEditModeTitle(editMode) ?? 'Wizard'}

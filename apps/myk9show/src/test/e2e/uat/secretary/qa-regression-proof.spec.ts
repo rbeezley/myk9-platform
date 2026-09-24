@@ -66,7 +66,7 @@ test.describe('Secretary QA regression proof', () => {
   test('wizard route exposes complete style options and stable date ranges', async ({ page }) => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
 
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible({
       timeout: 15000,
     });
     await expect(page).toHaveURL(/\/secretary\/create-show\/wizard/);

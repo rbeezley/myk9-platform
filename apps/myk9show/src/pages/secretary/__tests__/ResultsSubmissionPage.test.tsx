@@ -253,7 +253,7 @@ describe('ResultsSubmissionPage', () => {
     // The checklist says what to do next, naming the real surfaces.
     const checklist = screen.getByTestId('submission-checklist');
     expect(checklist).toHaveTextContent(
-      /Delete this class, then add it again: go to Classes, choose Add Classes, then on Create Classes pick the AKC template under Select Template and tick the class under Choose Classes/
+      /Delete this class, then add it again: go to Classes, choose Add Classes, then pick the AKC template under Select Template and tick the class under Choose Classes/
     );
     // Stated once. The verdict row names the blocker, the class-setup row
     // carries the remedy, and the details row is suppressed so one fact does

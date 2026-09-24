@@ -58,7 +58,7 @@ vi.mock('@/hooks/useUserClubIds', () => ({
 }));
 
 vi.mock('../CloneFromShowCombobox', () => ({
-  CloneFromShowCombobox: () => null,
+  CloneFromShowCombobox: () => <div data-testid="clone-from-show" />,
 }));
 
 import { ShowDetailsStep } from '../ShowDetailsStep';
@@ -92,6 +92,19 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     const lockedForm = screen.getByTestId('clone-locked-show-details');
     expect(lockedForm).toHaveAttribute('inert');
     expect(lockedForm).toHaveAttribute('aria-busy', 'true');
+  });
+
+  // MYK9-604: a clone replaces the draft's organization with the source show's. On an
+  // existing show (add-trials / add-classes) that would send a foreign organization to a
+  // show whose organization is fixed, so cloning is a create-only starting point.
+  it('offers clone-from-show when creating a show', () => {
+    render(<ShowDetailsStep mode="create" />);
+    expect(screen.getByTestId('clone-from-show')).toBeInTheDocument();
+  });
+
+  it.each(['add-trials', 'add-classes'] as const)('does not offer clone in %s mode', mode => {
+    render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
+    expect(screen.queryByTestId('clone-from-show')).not.toBeInTheDocument();
   });
 
   it('preserves the current wizard route when handing off complete club creation', () => {

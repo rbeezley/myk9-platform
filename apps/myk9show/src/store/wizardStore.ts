@@ -295,9 +295,14 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           };
         }),
 
+      // Cancels a pending clone or dismisses a failed one; the draft is never touched.
       cancelCloneHydration: generation =>
         set(state => {
-          if (state.cloneGeneration !== generation || state.cloneHydration.status !== 'hydrating') {
+          const { status } = state.cloneHydration;
+          if (
+            state.cloneGeneration !== generation ||
+            (status !== 'hydrating' && status !== 'failed')
+          ) {
             return state;
           }
           return {

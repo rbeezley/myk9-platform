@@ -41,6 +41,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   const [search, setSearch] = useState('');
   const clonedShowName = cloneHydration.sourceShowName;
   const cloneFailed = cloneHydration.status === 'failed';
+  // Only an applied clone has changed the draft; a pending or failed one is dismissed, not reset.
+  const cloneApplied = cloneHydration.status === 'ready';
   const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
   const { templates } = useTemplates();
@@ -230,13 +232,15 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={
-                  cloneHydration.status === 'hydrating' ? handleCancelClone : handleStartFresh
-                }
+                onClick={cloneApplied ? handleStartFresh : handleCancelClone}
                 className="h-8 gap-1.5 text-muted-foreground hover:text-foreground px-2"
               >
                 <X className="h-3.5 w-3.5" />
-                {cloneHydration.status === 'hydrating' ? 'Cancel clone' : 'Start fresh'}
+                {cloneApplied
+                  ? 'Start fresh'
+                  : cloneFailed
+                    ? 'Choose another show'
+                    : 'Cancel clone'}
               </Button>
             </div>
           ) : (
@@ -302,8 +306,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         <div className="mt-3 pl-11" role="alert">
           <p className="text-xs text-destructive">
             {cloneHydration.failureReason === 'load-failed'
-              ? 'We could not load the cloned classes. Your current draft is unchanged; retry the clone or start fresh.'
-              : 'The clone is still loading. Your current draft is unchanged; retry the clone or start fresh.'}
+              ? 'We could not load the cloned classes. Your current draft is unchanged; retry the clone or choose another show.'
+              : 'The clone is still loading. Your current draft is unchanged; retry the clone or choose another show.'}
           </p>
           <Button type="button" variant="ghost" size="sm" onClick={handleRetryClone}>
             Retry clone

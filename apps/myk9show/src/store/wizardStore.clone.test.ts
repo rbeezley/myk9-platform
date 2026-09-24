@@ -111,6 +111,20 @@ describe('wizard store clone hydration', () => {
     expect(useWizardStore.getState().cloneHydration.status).toBe('idle');
   });
 
+  it('dismisses a failed clone back to the picker without discarding the draft', () => {
+    useWizardStore.getState().updateShowData({ name: 'Existing draft' });
+    const generation = useWizardStore.getState().beginCloneHydration('source-1', 'Cloned show');
+    useWizardStore.getState().failCloneHydration(generation);
+    useWizardStore.getState().cancelCloneHydration(generation);
+
+    expect(useWizardStore.getState().show.name).toBe('Existing draft');
+    expect(useWizardStore.getState().cloneHydration).toEqual({
+      status: 'idle',
+      sourceShowId: null,
+      sourceShowName: null,
+    });
+  });
+
   it("defaults a cloned trial's missing trial type from the cloned organization, as addTrial does", () => {
     const generation = useWizardStore.getState().beginCloneHydration('source-1', 'Cloned show');
     const legacy = snapshot('source-1', 'Cloned show');

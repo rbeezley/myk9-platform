@@ -50,12 +50,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     mode,
     selectedClassCount: trials.reduce((count, trial) => count + trial.classes.length, 0),
   });
-  const organizationHint =
-    mode === 'add-trials' || mode === 'add-classes'
-      ? 'This is an existing show. Its sanctioning organization cannot change in this wizard; create a separate show instead.'
-      : !organizationEditable
-        ? 'To change the organization, clear all selected classes first.'
-        : undefined;
+  const isExistingShow = mode === 'add-trials' || mode === 'add-classes';
+  const organizationHint = isExistingShow
+    ? 'This is an existing show. Its sanctioning organization cannot change in this wizard; create a separate show instead.'
+    : !organizationEditable
+      ? 'To change the organization, clear all selected classes first.'
+      : undefined;
 
   const handleUpdateShow = (patch: Parameters<typeof updateShowData>[0]) => {
     if ('organization' in patch && !organizationEditable) return;
@@ -155,8 +155,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   return (
     <div className={className}>
       <div className="space-y-8">
-        {/* Clone from previous show — optional, prefills every group below */}
-        <CloneFromShowCombobox clubId={show.clubId || undefined} />
+        {/* Clone from previous show — optional, prefills every group below. Create-only: a
+            clone replaces the organization, which an existing show cannot change. */}
+        {!isExistingShow && <CloneFromShowCombobox clubId={show.clubId || undefined} />}
 
         <div
           data-testid="clone-locked-show-details"
@@ -167,9 +168,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
             show={show}
             onUpdate={handleUpdateShow}
             organizationDisabled={!organizationEditable}
-            organizationValue={
-              mode === 'add-trials' || mode === 'add-classes' ? persistedOrganization : undefined
-            }
+            organizationValue={isExistingShow ? persistedOrganization : undefined}
             organizationHint={organizationHint}
             clubField={
               <HostClubField

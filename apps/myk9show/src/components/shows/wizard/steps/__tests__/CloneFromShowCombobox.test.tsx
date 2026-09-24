@@ -432,10 +432,15 @@ describe('CloneFromShowCombobox', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/could not load.*classes/i);
     expect(mockFailCloneHydration).toHaveBeenCalledWith(1);
     expect(screen.getByRole('button', { name: /retry clone/i })).toBeVisible();
+    // Resetting the draft is not the only way out of a failed clone (MYK9-604 review).
+    expect(screen.queryByRole('button', { name: /start fresh/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /start fresh/i }));
+    await user.click(screen.getByRole('button', { name: /choose another show/i }));
     rerender(<CloneFromShowCombobox />);
+    expect(mockCancelCloneHydration).toHaveBeenCalledWith(1);
+    expect(mockResetWizard).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /select a past show to clone/i })).toBeVisible();
   });
 
   it('does not apply a pending snapshot after Cancel clone', async () => {

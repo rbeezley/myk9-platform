@@ -21,7 +21,7 @@ import {
   Users,
   DollarSign,
 } from 'lucide-react';
-import { hasCurrentEntryCounts, type EntryCountState } from './entryCountState';
+import { estimateJudgingMinutes, type EntryCountState } from './entryCountState';
 
 interface ClassSelectionGridProps {
   template: ClassTemplate;
@@ -127,7 +127,10 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
 
   const allFilteredSelected =
     filteredClasses.length > 0 && filteredClasses.every(cls => isClassSelected(cls));
-  const showJudgeTimeEstimate = hasCurrentEntryCounts(entryCountState);
+  const estimatedJudgingMinutes = estimateJudgingMinutes(
+    entryCountState,
+    template.defaults?.judgingTimeEstimate
+  );
 
   return (
     <div className="space-y-6">
@@ -154,7 +157,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-green-500" />
-              <span>{template.defaults?.judgingTimeEstimate || 'N/A'} min per class</span>
+              <span>{template.defaults?.judgingTimeEstimate || 'N/A'} min per run</span>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-purple-500" />
@@ -476,10 +479,9 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 <span className="font-medium">
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
-                {showJudgeTimeEstimate && (
+                {estimatedJudgingMinutes !== null && (
                   <div className="text-sm text-muted-foreground">
-                    Estimated judging time based on current entries:{' '}
-                    {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)}{' '}
+                    Estimated judging time based on current entries: {estimatedJudgingMinutes}{' '}
                     minutes
                   </div>
                 )}

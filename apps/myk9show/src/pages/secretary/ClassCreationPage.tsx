@@ -24,7 +24,7 @@ import {
 // Import our new components
 import { OrganizationSelector } from '@/components/templates/secretary/OrganizationSelector';
 import { ClassSelectionGrid } from '@/components/templates/secretary/ClassSelectionGrid';
-import { hasCurrentEntryCounts } from '@/components/templates/secretary/entryCountState';
+import { estimateJudgingMinutes } from '@/components/templates/secretary/entryCountState';
 import { ClassBatchActions } from '@/components/templates/secretary/ClassBatchActions';
 import { FieldOverrideForm } from '@/components/templates/secretary/FieldOverrideForm';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
@@ -114,7 +114,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     existingClasses,
     selectedClassDefinitions,
   ]);
-  const showJudgeTimeEstimate = hasCurrentEntryCounts(entryCountState);
+  const estimatedJudgingMinutes = estimateJudgingMinutes(
+    entryCountState,
+    selectedTemplate?.defaults?.judgingTimeEstimate
+  );
   const manageClassesHref =
     showId && effectiveTrialId
       ? `/shows/${showId}/classes/${effectiveTrialId}`
@@ -547,11 +550,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                     </div>
                     <div className="text-sm text-muted-foreground">Classes</div>
                   </div>
-                  {showJudgeTimeEstimate && (
+                  {estimatedJudgingMinutes !== null && (
                     <div className="text-center">
                       <div className="text-2xl font-bold text-teal-600">
-                        {selectedClassDefinitions.length *
-                          (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
+                        {estimatedJudgingMinutes} min
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Estimated judging time based on current entries

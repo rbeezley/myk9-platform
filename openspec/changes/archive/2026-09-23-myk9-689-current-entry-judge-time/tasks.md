@@ -11,4 +11,4 @@
 ## 3. Delivery
 
 - [x] 3.1 Validate the OpenSpec artifacts and implementation against MYK9-689.
-- [ ] 3.2 Commit, push, open a PR, resolve adversarial review findings, and verify required CI.
+- [x] 3.2 Commit, push, open a PR, resolve adversarial review findings, and verify required CI.

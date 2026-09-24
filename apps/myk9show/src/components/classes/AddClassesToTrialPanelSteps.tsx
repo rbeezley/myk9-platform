@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Clock, CheckCircle, AlertCircle, User } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, User } from 'lucide-react';
 
 // --- Template Selection Step ---
 
@@ -151,9 +151,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   judgeAssignments,
   availableJudges,
 }) => {
-  const estimatedTime =
-    selectedClasses.length * (selectedTemplate.defaults?.judgingTimeEstimate || 15);
-
   const classesByElement = selectedClasses.reduce(
     (acc, cls) => {
       if (!acc[cls.element]) acc[cls.element] = [];
@@ -177,17 +174,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </div>
         </div>
 
-        <div className="myk9-summary-card">
-          <div className="myk9-summary-icon myk9-summary-icon-time">
-            <Clock className="h-6 w-6" />
-          </div>
-          <div className="myk9-summary-content">
-            <div className="myk9-summary-number">{estimatedTime} min</div>
-            <div className="myk9-summary-label">Est. Judging Time</div>
-            <div className="myk9-summary-note">Setup time not included</div>
-          </div>
-        </div>
-
+        {/* No judging-time card: classes already in the trial are disabled in the
+            selector, so every class confirmed here is new and has no entries yet, and
+            the estimate is entries x minutes per run (MYK9-689). */}
         <div className="myk9-summary-card">
           <div className="myk9-summary-icon myk9-summary-icon-template">
             <FileText className="h-6 w-6" />

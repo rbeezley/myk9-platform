@@ -10,10 +10,11 @@ import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandl
  *  - READ  — the person themself and site admins only (RLS). Everyone else,
  *            show managers included, reads zero rows. An absent row therefore
  *            means "none stored OR not yours to see", never "definitely none".
- *  - WRITE — `set_person_private_details()`: the person, a site admin, or a
- *            manager of a show the person is entered in. It returns nothing, so
- *            a manager can set a mail-in junior's date of birth without ever
- *            being able to read it back.
+ *  - WRITE — `update_person_details()`, the one person-save RPC, called by
+ *            `updateUser` (reads.ts): the person, a site admin, or a manager of
+ *            a show the person is entered in. It writes the `people` columns and
+ *            these in one transaction and never returns them, so a manager can
+ *            set a mail-in junior's date of birth without reading it back.
  *  - The junior yes/no a manager needs comes from `entry_handler_junior_flags()`
  *    (see juniorHandlerProfiles.ts), never from the date.
  */
@@ -23,7 +24,7 @@ export interface PersonPrivateDetails {
 }
 
 /**
- * The patch `set_person_private_details()` accepts. Only the keys present are
+ * The private half of the patch `update_person_details()` accepts. Only the keys present are
  * touched:
  *  - `date_of_birth`: 'YYYY-MM-DD' sets it, null clears it.
  *  - `junior_handler_numbers`: merged key by key; a blank string removes that
@@ -32,10 +33,6 @@ export interface PersonPrivateDetails {
 export interface PersonPrivatePatch {
   date_of_birth?: string | null;
   junior_handler_numbers?: Record<string, string>;
-}
-
-export function hasPersonPrivatePatch(patch: PersonPrivatePatch): boolean {
-  return patch.date_of_birth !== undefined || patch.junior_handler_numbers !== undefined;
 }
 
 /** The stored values for the rows the caller may read (their own, or all for a site admin). */
@@ -59,24 +56,4 @@ export async function loadPersonPrivateDetails(
     }
   }
   return byPersonId;
-}
-
-/** Write a person's date of birth / junior handler numbers. Never returns them. */
-export async function savePersonPrivateDetails(
-  personId: string,
-  patch: PersonPrivatePatch
-): Promise<void> {
-  if (!hasPersonPrivatePatch(patch)) return;
-  // A plain record, not the interface: PostgREST's `Json` wants an index signature.
-  const details: Record<string, string | null | Record<string, string>> = {
-    ...(patch.date_of_birth !== undefined && { date_of_birth: patch.date_of_birth || null }),
-    ...(patch.junior_handler_numbers !== undefined && {
-      junior_handler_numbers: patch.junior_handler_numbers,
-    }),
-  };
-  const { error } = await supabase.rpc('set_person_private_details', {
-    p_person_id: personId,
-    p_details: details,
-  });
-  if (error) throw error;
 }

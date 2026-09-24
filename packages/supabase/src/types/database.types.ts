@@ -13617,10 +13617,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      set_person_private_details: {
-        Args: { p_details: Json; p_person_id: string }
-        Returns: undefined
-      }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
@@ -13747,6 +13743,15 @@ export type Database = {
           p_jump_height: string
         }
         Returns: number
+      }
+      update_person_details: {
+        Args: {
+          p_people?: Json
+          p_person_id: string
+          p_private?: Json
+          p_require_unlinked?: boolean
+        }
+        Returns: Json
       }
       upsert_ringside_session: {
         Args: {

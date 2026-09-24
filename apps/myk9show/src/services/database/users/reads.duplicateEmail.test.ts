@@ -12,10 +12,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock only the supabase client; keep the real createDatabaseError / logQuery so
 // the message- and code-propagation path is exercised end to end.
-const { from } = vi.hoisted(() => ({ from: vi.fn() }));
+const { from, rpc } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
 vi.mock('../supabaseClient', async importOriginal => {
   const actual = await importOriginal<typeof import('../supabaseClient')>();
-  return { ...actual, supabase: { from } };
+  return { ...actual, supabase: { from, rpc } };
 });
 
 // The guard itself is MYK9-136's concern. Stub only its entry point so each
@@ -30,16 +30,8 @@ vi.mock('./signInEmailGuard', async importOriginal => {
 import { updateUser } from './reads';
 import { SIGN_IN_EMAIL_LOCKED_CODE, SIGN_IN_EMAIL_LOCKED_MESSAGE } from './signInEmailGuard';
 
-/** people.update(...).eq(...).is(...).select().single() */
-const updateChain = (result: { data: unknown; error: unknown }) => {
-  const chain: Record<string, unknown> = {};
-  chain.update = vi.fn(() => chain);
-  chain.eq = vi.fn(() => chain);
-  chain.is = vi.fn(() => chain);
-  chain.select = vi.fn(() => chain);
-  chain.single = vi.fn(() => Promise.resolve(result));
-  return chain;
-};
+/** The one save RPC (MYK9-664), answering with `result`. */
+const saveAnswers = (result: { data: unknown; error: unknown }) => rpc.mockResolvedValue(result);
 
 /** What Postgres actually returns when `people_email_unique` is violated. */
 const DUPLICATE_EMAIL_ERROR = {
@@ -58,7 +50,7 @@ describe('updateUser — duplicate email copy (MYK9-175)', () => {
     // An unlinked person: the one path that can still reach a 23505 here, since
     // MYK9-136 refuses the edit outright when an auth identity exists.
     checkSignInEmailChange.mockResolvedValue({ allowed: true, reason: 'no-identity' });
-    from.mockReturnValue(updateChain({ data: null, error: DUPLICATE_EMAIL_ERROR }));
+    saveAnswers({ data: null, error: DUPLICATE_EMAIL_ERROR });
 
     const { error } = await updateUser('p1', { email: 'ada@example.com' });
 
@@ -84,16 +76,15 @@ describe('updateUser — duplicate email copy (MYK9-175)', () => {
     expect(error?.code).toBe(SIGN_IN_EMAIL_LOCKED_CODE);
     // Refused before any write.
     expect(from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('passes a non-conflict failure through untranslated', async () => {
     checkSignInEmailChange.mockResolvedValue({ allowed: true, reason: 'no-identity' });
-    from.mockReturnValue(
-      updateChain({
-        data: null,
-        error: { code: '42501', message: 'permission denied for table people' },
-      })
-    );
+    saveAnswers({
+      data: null,
+      error: { code: '42501', message: 'permission denied for table people' },
+    });
 
     const { error } = await updateUser('p1', { email: 'ada@example.com' });
 

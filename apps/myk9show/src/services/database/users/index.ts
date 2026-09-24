@@ -32,11 +32,7 @@ export {
 export type { SignInEmailChangeDecision, PersonIdentitySnapshot } from './signInEmailGuard';
 
 export type { PersonUpdate } from './reads';
-export {
-  loadPersonPrivateDetails,
-  savePersonPrivateDetails,
-  hasPersonPrivatePatch,
-} from './personPrivate';
+export { loadPersonPrivateDetails } from './personPrivate';
 export type { PersonPrivateDetails, PersonPrivatePatch } from './personPrivate';
 
 export { decidePersonEmailLock, fetchPersonEmailLockFacts } from './personEmailLock';

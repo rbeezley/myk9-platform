@@ -337,7 +337,7 @@ export function juniorHandlerNumbersForSave(
 }
 
 /**
- * MYK9-664: the numbers as a MERGE patch for `set_person_private_details()`,
+ * MYK9-664: the numbers as a MERGE patch for `update_person_details()`,
  * which sets each present key and removes a key whose value is blank.
  *
  *  - `clearBlanks: true` — the caller can see what is stored (the person's own

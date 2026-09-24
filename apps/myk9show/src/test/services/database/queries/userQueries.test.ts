@@ -420,6 +420,14 @@ describe('User Queries', () => {
   });
 
   describe('updateUser', () => {
+    /**
+     * MYK9-664: a profile save is ONE call to `update_person_details`, so the
+     * people columns and the private details commit together or not at all.
+     */
+    function rpcAnswers(data: unknown, error: unknown = null) {
+      mockSupabase.rpc.mockResolvedValue({ data, error } as never);
+    }
+
     it('should update user successfully', async () => {
       const userId = 'user-123';
       const updates: DbUserUpdate = {
@@ -432,12 +440,8 @@ describe('User Queries', () => {
         ...updates,
         last_name: 'User',
         email: 'user@example.com',
-        updated_at: new Date().toISOString(),
       };
-
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({ data: mockUpdatedUser, error: null })
-      );
+      rpcAnswers(mockUpdatedUser);
 
       const result = await updateUser(userId, updates);
 
@@ -445,22 +449,76 @@ describe('User Queries', () => {
       expect(result.error).toBeNull();
     });
 
-    it('should handle update of non-existent user', async () => {
-      const userId = 'non-existent';
-      const updates: DbUserUpdate = { first_name: 'New Name' };
+    it('makes exactly one RPC call carrying the people columns AND the private details', async () => {
+      rpcAnswers({ id: 'user-123', first_name: 'Chris' });
 
-      const mockError = {
-        message: 'No rows updated',
-        code: 'PGRST116',
-      };
+      await updateUser('user-123', {
+        first_name: 'Chris',
+        phone: '555',
+        date_of_birth: '2012-04-02',
+        junior_handler_numbers: { AKC: 'KID-1' },
+      });
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('update_person_details', {
+        p_person_id: 'user-123',
+        p_people: { first_name: 'Chris', phone: '555' },
+        p_private: { date_of_birth: '2012-04-02', junior_handler_numbers: { AKC: 'KID-1' } },
+        p_require_unlinked: false,
+      });
+      // No second request: nothing writes `people` directly.
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
 
-      const result = await updateUser(userId, updates);
+    it('surfaces a refused save to the caller, with its code', async () => {
+      rpcAnswers(null, { message: 'Permission denied', code: '42501' });
+
+      const result = await updateUser('user-123', {
+        phone: '555',
+        date_of_birth: '2012-04-02',
+      });
 
       expect(result.data).toBeNull();
+      expect(result.error!.code).toBe('42501');
+    });
+
+    it('sends an empty date of birth as null, which clears it', async () => {
+      rpcAnswers({ id: 'user-123' });
+      await updateUser('user-123', { date_of_birth: '' });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'update_person_details',
+        expect.objectContaining({ p_private: { date_of_birth: null } })
+      );
+    });
+
+    it('never sends updated_at (the trigger stamps it)', async () => {
+      rpcAnswers({ id: 'user-123' });
+      await updateUser('user-123', { phone: '1', updated_at: '2020-01-01' });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'update_person_details',
+        expect.objectContaining({ p_people: { phone: '1' } })
+      );
+    });
+
+    it('changes account status through its own single-column write, never the save RPC', async () => {
+      const chain = createChainableQuery({
+        data: { id: 'user-123', status: 'suspended' },
+        error: null,
+      });
+      mockSupabase.from.mockReturnValue(chain);
+
+      const result = await updateUser('user-123', { status: 'suspended' });
+
+      expect(result.error).toBeNull();
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(chain.update).toHaveBeenCalledWith({ status: 'suspended' });
+    });
+
+    it('refuses status mixed into a profile save rather than splitting the write', async () => {
+      const result = await updateUser('user-123', { status: 'suspended', phone: '1' });
       expect(result.error).toBeDefined();
-      expect(result.error!.code).toBe('PGRST116');
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
     // MYK9-136. Nothing syncs people.email to auth.users.email, so an email
@@ -488,13 +546,15 @@ describe('User Queries', () => {
         expect(result.data).toBeNull();
         expect(result.error).toBeDefined();
         expect(result.error!.message).toMatch(/signs in with/i);
+        expect(mockSupabase.rpc).not.toHaveBeenCalled();
       });
 
       it('lets an unchanged email through, so ordinary saves still work', async () => {
         const updated = { id: 'user-123', ...linkedPerson, first_name: 'Updated' };
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: linkedPerson, error: null }))
-          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({ data: linkedPerson, error: null })
+        );
+        rpcAnswers(updated);
 
         const result = await updateUser('user-123', {
           email: 'handler@example.com',
@@ -508,9 +568,8 @@ describe('User Queries', () => {
       it('still allows an email change for a person with no sign-in account', async () => {
         const unlinked = { auth_user_id: null, email: 'old@example.com' };
         const updated = { id: 'user-123', email: 'corrected@example.com' };
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
-          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: unlinked, error: null }));
+        rpcAnswers(updated);
 
         const result = await updateUser('user-123', { email: 'corrected@example.com' });
 
@@ -519,18 +578,19 @@ describe('User Queries', () => {
       });
 
       // Reading the linkage and writing the row are separate requests, so a
-      // signup can adopt the person in between. Restating the condition as a
-      // filter makes Postgres re-check it at write time.
-      it('restates the unlinked condition on the write when the address changes', async () => {
+      // signup can adopt the person in between. The RPC re-checks the condition
+      // at write time.
+      it('asks the write to require the row still be unlinked when the address changes', async () => {
         const unlinked = { auth_user_id: null, email: 'old@example.com' };
-        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
-          .mockReturnValueOnce(writeChain);
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: unlinked, error: null }));
+        rpcAnswers({ id: 'user-123' });
 
         await updateUser('user-123', { email: 'corrected@example.com' });
 
-        expect(writeChain.is).toHaveBeenCalledWith('auth_user_id', null);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith(
+          'update_person_details',
+          expect.objectContaining({ p_require_unlinked: true })
+        );
       });
 
       // "Unchanged" is decided on the normalized value, so a padded or
@@ -540,10 +600,8 @@ describe('User Queries', () => {
       // stops a later signup from being adopted.
       it('does not write a padded variant of the same address', async () => {
         const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
-        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
-          .mockReturnValueOnce(writeChain);
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: linked, error: null }));
+        rpcAnswers({ id: 'user-123' });
 
         const result = await updateUser('user-123', {
           email: '  Handler@Example.com  ',
@@ -551,34 +609,29 @@ describe('User Queries', () => {
         });
 
         expect(result.error).toBeNull();
-        const written = (writeChain.update as unknown as { mock: { calls: unknown[][] } }).mock
-          .calls[0][0] as Record<string, unknown>;
-        expect(written).not.toHaveProperty('email');
-        expect(written.first_name).toBe('Updated');
+        const args = mockSupabase.rpc.mock.calls[0]![1] as { p_people: Record<string, unknown> };
+        expect(args.p_people).not.toHaveProperty('email');
+        expect(args.p_people.first_name).toBe('Updated');
       });
 
       it('does not constrain the write when the address is unchanged', async () => {
         const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
-        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
-          .mockReturnValueOnce(writeChain);
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: linked, error: null }));
+        rpcAnswers({ id: 'user-123' });
 
         await updateUser('user-123', { email: 'handler@example.com', phone: '555' });
 
-        expect(writeChain.is).not.toHaveBeenCalled();
+        expect(mockSupabase.rpc).toHaveBeenCalledWith(
+          'update_person_details',
+          expect.objectContaining({ p_require_unlinked: false })
+        );
       });
 
       it('reports the refusal when the person is adopted mid-write', async () => {
         const unlinked = { auth_user_id: null, email: 'old@example.com' };
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
-          .mockReturnValueOnce(
-            createChainableQuery({
-              data: null,
-              error: { message: 'No rows updated', code: 'PGRST116' },
-            })
-          );
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: unlinked, error: null }));
+        // The function matched no row under the unlinked condition and wrote nothing.
+        rpcAnswers(null);
 
         const result = await updateUser('user-123', { email: 'corrected@example.com' });
 
@@ -586,19 +639,16 @@ describe('User Queries', () => {
         expect(result.error!.message).toMatch(/signs in with/i);
       });
 
-      // Only the no-rows code means "adopted mid-write". Any other failure has
+      // Only the no-row answer means "adopted mid-write". Any other failure has
       // its own cause and must keep its own message — a duplicate address here
       // read as a sign-in lock would send the operator hunting the wrong thing.
       it('keeps an unrelated write failure intact', async () => {
         const unlinked = { auth_user_id: null, email: 'old@example.com' };
-        mockSupabase.from
-          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
-          .mockReturnValueOnce(
-            createChainableQuery({
-              data: null,
-              error: { message: 'duplicate key value violates people_email_unique', code: '23505' },
-            })
-          );
+        mockSupabase.from.mockReturnValue(createChainableQuery({ data: unlinked, error: null }));
+        rpcAnswers(null, {
+          message: 'duplicate key value violates people_email_unique',
+          code: '23505',
+        });
 
         const result = await updateUser('user-123', { email: 'taken@example.com' });
 
@@ -611,12 +661,11 @@ describe('User Queries', () => {
       });
 
       it('does not look up the identity when the update carries no email', async () => {
-        const chain = createChainableQuery({ data: { id: 'user-123' }, error: null });
-        mockSupabase.from.mockReturnValue(chain);
+        rpcAnswers({ id: 'user-123' });
 
         await updateUser('user-123', { first_name: 'Updated' });
 
-        expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+        expect(mockSupabase.from).not.toHaveBeenCalled();
       });
     });
   });

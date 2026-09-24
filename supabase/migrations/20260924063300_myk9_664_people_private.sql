@@ -29,8 +29,10 @@
 --
 -- Access, restated in one place:
 --   read   people_private: RLS — the person's own linked, non-deleted row, or site admin.
---   write  set_person_private_details(): self, site admin, or a manager of a show the
---          person is entered in (can_manage_show_person). Returns nothing, ever.
+--   write  update_person_details(): the one person-save path. Self, site admin, or a
+--          manager of a show the person is entered in (can_manage_show_person). Writes
+--          the people columns and the private details in one transaction; never
+--          returns the private values.
 --   derived entry_handler_junior_flags(): per entry, to managers of that entry's show
 --          (and site admins). Returns a boolean, never the date.
 --   anon   nothing.
@@ -66,7 +68,7 @@ CREATE TABLE public.people_private (
 COMMENT ON TABLE public.people_private IS
   'MYK9-664: a person''s date of birth and registry-issued junior handler numbers. '
   'Readable only by the person and site admins (RLS). Written only through '
-  'set_person_private_details(). Show managers see a derived junior flag via '
+  'update_person_details(). Show managers see a derived junior flag via '
   'entry_handler_junior_flags(), never the values.';
 
 CREATE TRIGGER update_people_private_updated_at
@@ -116,26 +118,61 @@ CREATE POLICY people_private_select ON public.people_private
   );
 
 -- ---------------------------------------------------------------------------
--- 4. The write path.
+-- 4. The write path: ONE function for a person save, so the `people` columns and
+--    the private details commit together or not at all.
 --
--- p_details is a patch; only the keys present are touched:
+-- Authorization is restated, because a definer function bypasses RLS. It is the
+-- `people_update` policy's predicate, copied from its latest definition
+-- (20260728130000_consolidate_identity_registration_rls.sql):
+--     auth_user_id = auth.uid() OR can_manage_show_person(id) OR is_site_admin()
+-- and the same rule governs the private details (decision a: a manager of a show the
+-- person is entered in may SET them). The person must exist and not be soft-deleted.
+--
+-- p_people: only the columns the app's editors send. Any other key is REFUSED
+-- (22023), never silently dropped, so a caller that grows a field finds out. Never
+-- auth_user_id, status or deleted_at: identity is MYK9-710's, status is MYK9-712's
+-- site-admin path, deletion has its own RPC. `email` passes through, so the MYK9-710
+-- guard (people_authz_guard_identity_columns, keyed on the `role` GUC, which a definer
+-- function does not change) and the sign-in email invariant still fire here.
+--
+-- p_private is a patch; only the keys present are touched:
 --   date_of_birth           'YYYY-MM-DD' sets it, null clears it.
 --   junior_handler_numbers  an object merged key by key into the stored map. A string
 --                           sets that registry's number (trimmed); null or a blank
 --                           string removes it. Keys outside AKC/UKC/ASCA fail the CHECK.
 -- Merge, not replace, because a manager cannot see what is stored: a form that shows
 -- them one blank input per registry must not wipe the numbers it never displayed.
+--
+-- p_require_unlinked: the client's email-change race guard (services/database/users/
+-- reads.ts). An email change is only offered for an unlinked person; if a signup
+-- adopted the row between the client's check and this write, the UPDATE matches no
+-- row, NOTHING is written (private details included), and NULL is returned.
+--
+-- Returns the updated `people` row as jsonb (which no longer carries any PII), or
+-- NULL for the race above. Never returns the private values.
 -- ---------------------------------------------------------------------------
-CREATE FUNCTION public.set_person_private_details(p_person_id uuid, p_details jsonb)
-RETURNS void
+CREATE FUNCTION public.update_person_details(
+  p_person_id uuid,
+  p_people jsonb DEFAULT '{}'::jsonb,
+  p_private jsonb DEFAULT '{}'::jsonb,
+  p_require_unlinked boolean DEFAULT false
+)
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := (SELECT auth.uid());
+  v_people jsonb := coalesce(p_people, '{}'::jsonb);
+  v_private jsonb := coalesce(p_private, '{}'::jsonb);
+  v_editable text[] := ARRAY[
+    'first_name', 'last_name', 'email', 'phone', 'street_address', 'city', 'state',
+    'zip_code', 'country', 'profile_image'
+  ];
+  v_unknown text;
+  v_row jsonb;
   v_dob date;
-  v_set_dob boolean := false;
   v_numbers jsonb;
   v_patch jsonb;
   v_key text;
@@ -145,11 +182,25 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '42501';
   END IF;
 
-  IF p_details IS NULL OR jsonb_typeof(p_details) <> 'object' THEN
-    RAISE EXCEPTION 'p_details must be a JSON object' USING ERRCODE = '22023';
+  IF jsonb_typeof(v_people) <> 'object' OR jsonb_typeof(v_private) <> 'object' THEN
+    RAISE EXCEPTION 'p_people and p_private must be JSON objects' USING ERRCODE = '22023';
   END IF;
 
-  -- Restated: the person exists and is not soft-deleted, for every caller.
+  SELECT string_agg(k, ', ') INTO v_unknown
+  FROM jsonb_object_keys(v_people) AS k
+  WHERE k <> ALL (v_editable);
+  IF v_unknown IS NOT NULL THEN
+    RAISE EXCEPTION 'These person fields cannot be changed here: %', v_unknown
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT string_agg(k, ', ') INTO v_unknown
+  FROM jsonb_object_keys(v_private) AS k
+  WHERE k NOT IN ('date_of_birth', 'junior_handler_numbers');
+  IF v_unknown IS NOT NULL THEN
+    RAISE EXCEPTION 'Unknown private detail: %', v_unknown USING ERRCODE = '22023';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM public.people p WHERE p.id = p_person_id AND p.deleted_at IS NULL
   ) THEN
@@ -159,21 +210,21 @@ BEGIN
   IF NOT (
     EXISTS (
       SELECT 1 FROM public.people p
-      WHERE p.id = p_person_id AND p.auth_user_id = v_uid AND p.deleted_at IS NULL
+      WHERE p.id = p_person_id AND p.auth_user_id = v_uid
     )
-    OR public.is_site_admin()
     OR public.can_manage_show_person(p_person_id)
+    OR public.is_site_admin()
   ) THEN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
-  IF p_details ? 'date_of_birth' THEN
-    v_set_dob := true;
-    IF jsonb_typeof(p_details -> 'date_of_birth') = 'null' THEN
+  -- Validate the private patch BEFORE writing anything.
+  IF v_private ? 'date_of_birth' THEN
+    IF jsonb_typeof(v_private -> 'date_of_birth') = 'null' THEN
       v_dob := NULL;
-    ELSIF jsonb_typeof(p_details -> 'date_of_birth') = 'string' THEN
+    ELSIF jsonb_typeof(v_private -> 'date_of_birth') = 'string' THEN
       BEGIN
-        v_dob := (p_details ->> 'date_of_birth')::date;
+        v_dob := (v_private ->> 'date_of_birth')::date;
       EXCEPTION WHEN others THEN
         RAISE EXCEPTION 'date_of_birth must be a date' USING ERRCODE = '22023';
       END;
@@ -185,47 +236,72 @@ BEGIN
     END IF;
   END IF;
 
-  v_patch := p_details -> 'junior_handler_numbers';
+  v_patch := v_private -> 'junior_handler_numbers';
   IF v_patch IS NOT NULL AND jsonb_typeof(v_patch) NOT IN ('object', 'null') THEN
     RAISE EXCEPTION 'junior_handler_numbers must be an object' USING ERRCODE = '22023';
   END IF;
 
-  INSERT INTO public.people_private (person_id)
-  VALUES (p_person_id)
-  ON CONFLICT (person_id) DO NOTHING;
+  -- The people row first: the race guard decides whether anything is written.
+  UPDATE public.people p
+  SET first_name = CASE WHEN v_people ? 'first_name' THEN v_people ->> 'first_name' ELSE p.first_name END,
+      last_name = CASE WHEN v_people ? 'last_name' THEN v_people ->> 'last_name' ELSE p.last_name END,
+      email = CASE WHEN v_people ? 'email' THEN v_people ->> 'email' ELSE p.email END,
+      phone = CASE WHEN v_people ? 'phone' THEN v_people ->> 'phone' ELSE p.phone END,
+      street_address = CASE WHEN v_people ? 'street_address' THEN v_people ->> 'street_address' ELSE p.street_address END,
+      city = CASE WHEN v_people ? 'city' THEN v_people ->> 'city' ELSE p.city END,
+      state = CASE WHEN v_people ? 'state' THEN v_people ->> 'state' ELSE p.state END,
+      zip_code = CASE WHEN v_people ? 'zip_code' THEN v_people ->> 'zip_code' ELSE p.zip_code END,
+      country = CASE WHEN v_people ? 'country' THEN v_people ->> 'country' ELSE p.country END,
+      profile_image = CASE WHEN v_people ? 'profile_image' THEN v_people ->> 'profile_image' ELSE p.profile_image END
+  WHERE p.id = p_person_id
+    AND p.deleted_at IS NULL
+    AND (NOT coalesce(p_require_unlinked, false) OR p.auth_user_id IS NULL)
+  RETURNING to_jsonb(p) INTO v_row;
 
-  SELECT pp.junior_handler_numbers INTO v_numbers
-  FROM public.people_private pp
-  WHERE pp.person_id = p_person_id
-  FOR UPDATE;
-
-  IF v_patch IS NOT NULL AND jsonb_typeof(v_patch) = 'object' THEN
-    FOR v_key, v_value IN SELECT key, value FROM jsonb_each(v_patch) LOOP
-      IF jsonb_typeof(v_value) = 'null' OR btrim(v_value #>> '{}') = '' THEN
-        v_numbers := v_numbers - v_key;
-      ELSIF jsonb_typeof(v_value) = 'string' THEN
-        v_numbers := v_numbers || jsonb_build_object(v_key, btrim(v_value #>> '{}'));
-      ELSE
-        RAISE EXCEPTION 'junior handler numbers must be strings' USING ERRCODE = '22023';
-      END IF;
-    END LOOP;
+  IF v_row IS NULL THEN
+    RETURN NULL;
   END IF;
 
-  UPDATE public.people_private pp
-  SET date_of_birth = CASE WHEN v_set_dob THEN v_dob ELSE pp.date_of_birth END,
-      junior_handler_numbers = v_numbers
-  WHERE pp.person_id = p_person_id;
+  IF v_private <> '{}'::jsonb THEN
+    INSERT INTO public.people_private (person_id)
+    VALUES (p_person_id)
+    ON CONFLICT (person_id) DO NOTHING;
+
+    SELECT pp.junior_handler_numbers INTO v_numbers
+    FROM public.people_private pp
+    WHERE pp.person_id = p_person_id
+    FOR UPDATE;
+
+    IF v_patch IS NOT NULL AND jsonb_typeof(v_patch) = 'object' THEN
+      FOR v_key, v_value IN SELECT key, value FROM jsonb_each(v_patch) LOOP
+        IF jsonb_typeof(v_value) = 'null' OR btrim(v_value #>> '{}') = '' THEN
+          v_numbers := v_numbers - v_key;
+        ELSIF jsonb_typeof(v_value) = 'string' THEN
+          v_numbers := v_numbers || jsonb_build_object(v_key, btrim(v_value #>> '{}'));
+        ELSE
+          RAISE EXCEPTION 'junior handler numbers must be strings' USING ERRCODE = '22023';
+        END IF;
+      END LOOP;
+    END IF;
+
+    UPDATE public.people_private pp
+    SET date_of_birth = CASE WHEN v_private ? 'date_of_birth' THEN v_dob ELSE pp.date_of_birth END,
+        junior_handler_numbers = v_numbers
+    WHERE pp.person_id = p_person_id;
+  END IF;
+
+  RETURN v_row;
 END;
 $$;
 
-COMMENT ON FUNCTION public.set_person_private_details(uuid, jsonb) IS
-  'MYK9-664: write a person''s date of birth / junior handler numbers (patch semantics). '
-  'Self, site admin, or a manager of a show the person is entered in. Returns nothing.';
+COMMENT ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean) IS
+  'MYK9-664: the one person-save path. Updates whitelisted people columns and the '
+  'people_private patch atomically, under the people_update predicate. Returns the '
+  'people row, or NULL when p_require_unlinked and the row has since been linked.';
 
-REVOKE ALL ON FUNCTION public.set_person_private_details(uuid, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.set_person_private_details(uuid, jsonb) FROM anon;
-GRANT EXECUTE ON FUNCTION public.set_person_private_details(uuid, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.set_person_private_details(uuid, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean) FROM anon;
+GRANT EXECUTE ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 5. The derived flag.
@@ -338,7 +414,7 @@ BEGIN
      OR has_table_privilege('authenticated', 'public.people_private', 'DELETE') THEN
     RAISE EXCEPTION 'authenticated may only SELECT people_private; writes go through the RPC';
   END IF;
-  IF has_function_privilege('anon', 'public.set_person_private_details(uuid, jsonb)', 'EXECUTE')
+  IF has_function_privilege('anon', 'public.update_person_details(uuid, jsonb, jsonb, boolean)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.entry_handler_junior_flags(uuid[])', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon can execute a MYK9-664 function; it must not';
   END IF;

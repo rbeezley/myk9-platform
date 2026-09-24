@@ -1,7 +1,7 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
-import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+import type { DbUser, DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
 import {
   checkSignInEmailChange,
@@ -10,7 +10,8 @@ import {
 } from './signInEmailGuard';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
-import { savePersonPrivateDetails, type PersonPrivatePatch } from './personPrivate';
+import type { PersonPrivatePatch } from './personPrivate';
+import type { Json } from '@myk9/supabase';
 
 /**
  * A person update: the `people` columns plus, optionally, the MYK9-664 private
@@ -153,21 +154,52 @@ export const createUser = async (userData: DbUserInsert) => {
   }
 };
 
+/**
+ * The account-status write (suspend / reinstate). Site-admin only, enforced by
+ * `people_protect_status` (MYK9-712); kept apart from the profile save so that
+ * save can be one atomic RPC with a column whitelist that excludes status.
+ */
+async function updatePersonStatus(id: string, status: string, startTime: number) {
+  const { data, error } = await supabase
+    .from('people')
+    .update({ status })
+    .eq('id', id)
+    .select(PEOPLE_MAPPER_COLUMNS)
+    .single();
+  logQuery('user', 'update', Date.now() - startTime, error?.message);
+  if (error) throw createDatabaseError(error, 'user', 'update');
+  // Narrower than the full row on purpose (the mapper columns); callers map it.
+  return { data: data as unknown as DbUser, error: null };
+}
+
 // Update user
 export const updateUser = async (id: string, updates: PersonUpdate) => {
   const startTime = Date.now();
 
   try {
+    // Account status is its own site-admin action (MYK9-712, the suspend /
+    // reinstate dialog), guarded by `people_protect_status`, and is never part of
+    // a profile save. It keeps its own single-column write.
+    const { status, ...rest } = updates;
+    // The people trigger stamps updated_at; the save RPC does not accept it.
+    delete rest.updated_at;
+    if (status !== undefined) {
+      if (Object.keys(rest).length > 0) {
+        throw new Error(
+          'Account status must be changed on its own, not as part of a profile save.'
+        );
+      }
+      return await updatePersonStatus(id, status, startTime);
+    }
+
     // MYK9-664: the date of birth and junior numbers are not `people` columns.
-    // Split them off before the UPDATE and write them after it succeeds, through
-    // the RPC that lets a show manager set them without reading them back.
     const {
       date_of_birth: dateOfBirth,
       junior_handler_numbers: juniorHandlerNumbers,
       ...peopleUpdates
-    } = updates;
+    } = rest;
     const privatePatch: PersonPrivatePatch = {
-      ...(dateOfBirth !== undefined && { date_of_birth: dateOfBirth }),
+      ...(dateOfBirth !== undefined && { date_of_birth: dateOfBirth || null }),
       ...(juniorHandlerNumbers !== undefined && { junior_handler_numbers: juniorHandlerNumbers }),
     };
 
@@ -176,7 +208,7 @@ export const updateUser = async (id: string, updates: PersonUpdate) => {
     // path to `people.email` funnels through here (three mappers plus the show
     // wizard's direct call), so this is the one place the check belongs.
     let requireUnlinked = false;
-    const payload: DbUserUpdate = { ...peopleUpdates };
+    const payload: Record<string, unknown> = { ...peopleUpdates };
     if (peopleUpdates.email !== undefined) {
       const decision = await checkSignInEmailChange(id, peopleUpdates.email);
       if (!decision.allowed) {
@@ -194,47 +226,46 @@ export const updateUser = async (id: string, updates: PersonUpdate) => {
       }
     }
 
-    let query = supabase
-      .from('people')
-      .update({
-        ...payload,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
+    // ONE call, one transaction (MYK9-664): the people columns and the private
+    // details commit together or not at all, so a refused or dropped save never
+    // leaves half a change behind. The function restates the `people_update`
+    // policy and refuses any column outside the editors' whitelist.
+    //
     // Reading the linkage and writing the row are two requests, so a signup
-    // could adopt this person in between — `handle_new_user()` links on the
-    // OLD address, and we would then overwrite the email of an identity that
-    // was unlinked when we looked. Restating the condition as a filter hands
-    // it to Postgres to evaluate at write time. Only the changing-address case
-    // needs it: an unchanged email cannot create drift, and filtering there
-    // would fail every ordinary save by a person who can sign in.
-    if (requireUnlinked) {
-      query = query.is('auth_user_id', null);
-    }
-
-    const { data, error } = await query.select().single();
+    // could adopt this person in between — `handle_new_user()` links on the OLD
+    // address, and we would then overwrite the email of an identity that was
+    // unlinked when we looked. `p_require_unlinked` hands that condition to
+    // Postgres to evaluate at write time; the function then writes nothing and
+    // returns NULL. Only the changing-address case needs it: an unchanged email
+    // cannot create drift, and filtering there would fail every ordinary save by
+    // a person who can sign in.
+    const { data, error } = await supabase.rpc('update_person_details', {
+      p_person_id: id,
+      p_people: payload as Json,
+      p_private: privatePatch as Json,
+      p_require_unlinked: requireUnlinked,
+    });
 
     const duration = Date.now() - startTime;
     logQuery('user', 'update', duration, error?.message);
 
     if (error) {
-      // The filter matched nothing: the row existed and was unlinked a moment
-      // ago, so it has just been adopted. Report the refusal, not a bare
-      // "no rows" from a filter the caller never asked for. Narrow to that one
-      // code — any other failure here (a duplicate address, say) is its own
-      // error and must keep its own message.
-      if (requireUnlinked && error.code === 'PGRST116') {
+      throw createDatabaseError(error, 'user', 'update');
+    }
+    if (data === null || data === undefined) {
+      // The row existed and was unlinked a moment ago, so it has just been
+      // adopted. Report the refusal, not a bare "nothing updated".
+      if (requireUnlinked) {
         throw Object.assign(new Error(SIGN_IN_EMAIL_LOCKED_MESSAGE), {
           code: SIGN_IN_EMAIL_LOCKED_CODE,
         });
       }
-      throw createDatabaseError(error, 'user', 'update');
+      throw createDatabaseError(new Error('Person not updated'), 'user', 'update');
     }
+    // The function returns `to_jsonb(people row)`; the generated type says Json.
+    const person = data as unknown as DbUser;
 
-    await savePersonPrivateDetails(id, privatePatch);
-
-    return { data, error: null };
+    return { data: person, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     // MYK9-175: mirror the insert path. A `people_email_unique` collision has

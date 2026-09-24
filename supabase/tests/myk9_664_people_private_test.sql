@@ -237,29 +237,32 @@ select pg_temp.expect('secretary A cannot insert into people_private directly',
 -- ---------------------------------------------------------------------------
 -- 2. Secretary A CAN set them for a mail-in handler entered in show A, write-only.
 -- ---------------------------------------------------------------------------
-select pg_temp.expect('the write RPC returns nothing',
-  (select prorettype::regtype::text from pg_proc
-    where oid = 'public.set_person_private_details(uuid, jsonb)'::regprocedure),
-  'void');
+select pg_temp.expect('the save RPC returns the people row, which carries no private value',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select (r ? 'first_name')::text || ' ' || (r ? 'date_of_birth')::text
+         || ' ' || (r ? 'junior_handler_numbers')::text
+       from public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
+         '{"date_of_birth":"2011-06-14"}') as r$s$),
+  'true false false');
 select pg_temp.expect('secretary A sets a mail-in junior''s date of birth and AKC number',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
-       '{"date_of_birth":"2011-06-15","junior_handler_numbers":{"AKC":" J-15 "}}')$s$),
-  '');
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
+       '{"date_of_birth":"2011-06-15","junior_handler_numbers":{"AKC":" J-15 "}}') is not null$s$),
+  'true');
 select pg_temp.expect('secretary A adds a UKC number without wiping the AKC one (merge)',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
-       '{"junior_handler_numbers":{"UKC":"U-15"}}')$s$),
-  '');
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
+       '{"junior_handler_numbers":{"UKC":"U-15"}}') is not null$s$),
+  'true');
 select pg_temp.expect('the stored values are exactly what was set (checked as owner)',
   (select date_of_birth::text || ' ' || junior_handler_numbers::text
      from public.people_private where person_id = '00000000-0000-0000-0000-000000664015'),
   '2011-06-15 {"AKC": "J-15", "UKC": "U-15"}');
 select pg_temp.expect('a blank number removes that key and nothing else',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
-       '{"junior_handler_numbers":{"UKC":""}}')$s$),
-  '');
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
+       '{"junior_handler_numbers":{"UKC":""}}') is not null$s$),
+  'true');
 select pg_temp.expect('after removal only AKC remains and the date is untouched',
   (select date_of_birth::text || ' ' || junior_handler_numbers::text
      from public.people_private where person_id = '00000000-0000-0000-0000-000000664015'),
@@ -270,17 +273,17 @@ select pg_temp.expect('having set it, secretary A still cannot read it back',
   '0');
 select pg_temp.expect('an unregistered registry key is refused by the CHECK',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
        '{"junior_handler_numbers":{"FCI":"X"}}')$s$),
   'err:23514');
 select pg_temp.expect('a future date of birth is refused',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
        jsonb_build_object('date_of_birth', (current_date + 1)::text))$s$),
   'err:22023');
 select pg_temp.expect('secretary A cannot set the values of someone entered nowhere',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664018',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664018', '{}',
        '{"date_of_birth":"2000-01-01"}')$s$),
   'err:42501');
 select pg_temp.expect('the outsider''s stored date is untouched',
@@ -322,7 +325,7 @@ select pg_temp.expect('secretary B gets no flag for show A''s entries',
   '0');
 select pg_temp.expect('secretary B cannot set the values of show A''s entrant',
   pg_temp.q('00000000-0000-0000-0000-000000664102',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
        '{"date_of_birth":"1990-01-01"}')$s$),
   'err:42501');
 select pg_temp.expect('secretary B reads no people_private row',
@@ -345,14 +348,14 @@ select pg_temp.expect('the person reads no one else''s row',
   '0');
 select pg_temp.expect('the person can set their own values',
   pg_temp.q('00000000-0000-0000-0000-000000664104',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664014',
-       '{"date_of_birth":"1981-05-05"}')$s$),
-  '');
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664014', '{}',
+       '{"date_of_birth":"1981-05-05"}') is not null$s$),
+  'true');
 select pg_temp.expect('the person can clear their own date of birth',
   pg_temp.q('00000000-0000-0000-0000-000000664104',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664014',
-       '{"date_of_birth":null}')$s$),
-  '');
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664014', '{}',
+       '{"date_of_birth":null}') is not null$s$),
+  'true');
 select pg_temp.expect('after clearing, the date is null and the number survives',
   pg_temp.q('00000000-0000-0000-0000-000000664104',
     $s$select coalesce(date_of_birth::text, 'null') || ' ' || (junior_handler_numbers ->> 'AKC')
@@ -360,7 +363,7 @@ select pg_temp.expect('after clearing, the date is null and the number survives'
   'null SELF-1');
 select pg_temp.expect('the person cannot set someone else''s values',
   pg_temp.q('00000000-0000-0000-0000-000000664104',
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664016',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016', '{}',
        '{"date_of_birth":"2015-01-01"}')$s$),
   'err:42501');
 select pg_temp.expect('an exhibitor gets no flag for entries they do not manage',
@@ -393,7 +396,7 @@ select pg_temp.expect('anon cannot select people_private',
   'err:42501');
 select pg_temp.expect('anon cannot call the write RPC',
   pg_temp.q(null,
-    $s$select public.set_person_private_details('00000000-0000-0000-0000-000000664015',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664015', '{}',
        '{"date_of_birth":"1990-01-01"}')$s$),
   'err:42501');
 select pg_temp.expect('anon cannot call the flag RPC',
@@ -403,6 +406,92 @@ select pg_temp.expect('anon cannot call the flag RPC',
   'err:42501');
 select pg_temp.expect('anon cannot call the pure helper either',
   pg_temp.q(null, $s$select public.handler_is_junior(date '2010-01-01', date '2026-01-01', 'AKC')$s$),
+  'err:42501');
+
+-- ---------------------------------------------------------------------------
+-- 8. The save is ONE atomic call: people columns and private details together.
+-- ---------------------------------------------------------------------------
+select pg_temp.expect('secretary B''s combined save on show A''s entrant is refused',
+  pg_temp.q('00000000-0000-0000-0000-000000664102',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"phone":"555-0000"}', '{"date_of_birth":"1970-02-02"}') is not null$s$),
+  'err:42501');
+select pg_temp.expect('...and leaves the people row unchanged',
+  (select coalesce(phone, 'null') from public.people where id = '00000000-0000-0000-0000-000000664016'),
+  'null');
+select pg_temp.expect('secretary A''s combined save updates both parts',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"phone":"555-0101","city":"Topeka"}', '{"date_of_birth":"1970-03-03"}') is not null$s$),
+  'true');
+select pg_temp.expect('both parts landed (checked as owner)',
+  (select p.phone || ' ' || p.city || ' ' || pp.date_of_birth::text
+     from public.people p join public.people_private pp on pp.person_id = p.id
+    where p.id = '00000000-0000-0000-0000-000000664016'),
+  '555-0101 Topeka 1970-03-03');
+select pg_temp.expect('a combined save whose PRIVATE part fails writes nothing',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"phone":"555-0202"}', '{"junior_handler_numbers":{"FCI":"X"}}') is not null$s$),
+  'err:23514');
+select pg_temp.expect('...the phone from that failed save did not stick',
+  (select phone from public.people where id = '00000000-0000-0000-0000-000000664016'),
+  '555-0101');
+select pg_temp.expect('the require-unlinked race on a linked row updates nothing and says so',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664014',
+       '{"phone":"555-0303"}', '{"date_of_birth":"1990-09-09"}', true)::text$s$),
+  'null');
+select pg_temp.expect('...neither the phone nor the date moved',
+  (select coalesce(p.phone, 'null') || ' ' || coalesce(pp.date_of_birth::text, 'null')
+     from public.people p left join public.people_private pp on pp.person_id = p.id
+    where p.id = '00000000-0000-0000-0000-000000664014'),
+  'null null');
+select pg_temp.expect('positive control: the same save without the race flag goes through',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664014',
+       '{"phone":"555-0303"}', '{}') is not null$s$),
+  'true');
+select pg_temp.expect('status is not a column this function changes',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"status":"suspended"}', '{}') is not null$s$),
+  'err:22023');
+select pg_temp.expect('auth_user_id is not a column this function changes',
+  pg_temp.q('00000000-0000-0000-0000-000000664103',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"auth_user_id":"00000000-0000-0000-0000-000000664103"}', '{}') is not null$s$),
+  'err:22023');
+select pg_temp.expect('deleted_at is not a column this function changes',
+  pg_temp.q('00000000-0000-0000-0000-000000664103',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       jsonb_build_object('deleted_at', now()), '{}') is not null$s$),
+  'err:22023');
+select pg_temp.expect('an unknown key is refused, not dropped',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"bio":"hello"}', '{}') is not null$s$),
+  'err:22023');
+select pg_temp.expect('the refused keys changed nothing',
+  (select status || ' ' || coalesce(auth_user_id::text, 'null') || ' ' || coalesce(deleted_at::text, 'null')
+     from public.people where id = '00000000-0000-0000-0000-000000664016'),
+  'active null null');
+select pg_temp.expect('MYK9-710 guard still fires inside the definer: no email change on a linked person',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664014',
+       '{"email":"attacker@example.test"}', '{}') is not null$s$),
+  'err:42501');
+-- Since MYK9-710 option C an entered person's email is site-admin-only, so the
+-- positive control for the email path is a site admin through the same function.
+select pg_temp.expect('positive control: a site admin can set a mail-in person''s email here',
+  pg_temp.q('00000000-0000-0000-0000-000000664103',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"email":"myk9-664-adult@example.test"}', '{}') is not null$s$),
+  'true');
+select pg_temp.expect('anon cannot call the save RPC',
+  pg_temp.q(null,
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
+       '{"phone":"1"}', '{}') is not null$s$),
   'err:42501');
 
 rollback;

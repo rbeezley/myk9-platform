@@ -12,6 +12,8 @@ This map classifies current Playwright specs into operational suites for the pro
 
 ## Recommended Commands
 
+Both `pnpm test:e2e <paths/flags>` and `pnpm test:e2e:clean <paths/flags>` pass everything after the script name to `playwright test`, so a path runs only that path (MYK9-628; `src/test/ci/e2eScriptArgs.test.ts` keeps it that way). `test:e2e` additionally runs the `posttest:e2e` cleanup hook afterwards; `test:e2e:clean` skips it, which is why the commands below use it.
+
 ### Suite Map Drift
 
 Run after adding, deleting, moving, or reclassifying E2E specs:

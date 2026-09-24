@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ClassCard } from './ClassCard';
+import { ClassCard, type ClassCardProps } from './ClassCard';
 
-const defaultProps = {
+const defaultProps: ClassCardProps = {
   className: 'Novice A Buried',
   status: 'In Progress',
   entryCount: 12,

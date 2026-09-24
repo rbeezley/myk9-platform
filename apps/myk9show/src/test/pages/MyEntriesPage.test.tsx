@@ -1491,7 +1491,14 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?waitlistOffer=waitlist-1');
 
     const focusedOffer = await screen.findByRole('region', { name: /waitlist offer for Juni/i });
-    expect(focusedOffer).toHaveFocus();
+    // WAIT for focus; do not assert it on arrival (MYK9-605). The section
+    // commits outside `act` once the entries read resolves, and the focus
+    // effect in WaitListSection runs in a later task, so `findByRole` can return
+    // the region before it is focused: measured 1 in 6 concurrent coverage runs
+    // with focus still on <body> at find time, focused a few ms later. The
+    // offer's "expired" state is the fixture's `status`, not a clock: no
+    // `offerExpiresAt` is set, so nothing here can expire mid-test.
+    await waitFor(() => expect(focusedOffer).toHaveFocus());
     expect(focusedOffer).toHaveClass('ring-2');
     await user.click(waitlistChip());
     expect(waitlistChip()).toHaveFocus();

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useEntriesPanelGroups, useRemoveEntryLine } from './useEntriesPanelData';
 import type { ClassSelectionData } from '@/types/show-registration-types';
@@ -25,8 +25,24 @@ vi.mock('sonner', () => ({ toast: { error: toastError } }));
 // (`useClassStoreCompat`) is a PostgREST read and returns nothing here — the
 // cold/offline secretary late-entry case — while the replicated
 // `trialClasses` slice holds the class.
-const trialClassesMock = vi.hoisted(() => ({ current: {} as Record<string, unknown[]> }));
-const queryClassesMock = vi.hoisted(() => ({ current: [] as unknown[] }));
+// Written from inside tests, so reset from a factory before every test: CI
+// shuffles test order within a file (MYK9-669).
+const { trialClassesMock, queryClassesMock, resetClassMocks } = vi.hoisted(() => {
+  const trialDefaults = () => ({ current: {} as Record<string, unknown[]> });
+  const queryDefaults = () => ({ current: [] as unknown[] });
+  const trialClassesMock = trialDefaults();
+  const queryClassesMock = queryDefaults();
+  return {
+    trialClassesMock,
+    queryClassesMock,
+    resetClassMocks: (): void => {
+      Object.assign(trialClassesMock, trialDefaults());
+      Object.assign(queryClassesMock, queryDefaults());
+    },
+  };
+});
+
+beforeEach(resetClassMocks);
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [{ id: 'dog-1', name: 'Rex', callName: 'Rex' }] }),

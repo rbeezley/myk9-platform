@@ -127,3 +127,81 @@ export function auditSkillTrees(
   }
   return problems;
 }
+
+export interface InventoryRow {
+  name: string;
+  origin: string;
+  reason: string;
+  /**
+   * Origin cell starts with `local-only`: the skill is installed on some
+   * machines and deliberately never committed (gitignored in every tree,
+   * reinstalled from `skills-lock.json`). Its directory may or may not exist.
+   */
+  localOnly: boolean;
+}
+
+/**
+ * Rows of `docs/agents/skills-inventory.md`: `| \`name\` | origin | reason |`.
+ * Split on pipes and trim: Prettier pads table cells to column width, so a
+ * fixed-space regex would reject every formatted row (Codex review of #2110).
+ */
+export function parseInventory(markdown: string): InventoryRow[] {
+  return markdown
+    .split('\n')
+    .filter(line => /^\|\s*`[^`]+`\s*\|/.test(line))
+    .map(line =>
+      line
+        .split('|')
+        .slice(1, -1)
+        .map(cell => cell.trim())
+    )
+    .filter(cells => cells.length === 3 && cells.every(Boolean))
+    .map(([name, origin, reason]) => ({
+      name: name!.replace(/^`|`$/g, ''),
+      origin: origin!,
+      reason: reason!,
+      localOnly: /^local-only\b/i.test(origin!),
+    }));
+}
+
+/**
+ * The inventory contract, as a pure function of what is on disk:
+ *
+ * - every real (non-symlink) `.agents/skills` directory has a row;
+ * - every row that is not local-only has a directory;
+ * - a local-only row is exempt from the second rule, because its directory
+ *   exists only where someone installed it. MYK9-598: `impeccable` made the
+ *   audit red on the one machine that runs local checks and green on CI, and
+ *   neither "row" nor "no row" was green in both places. The exemption holds
+ *   only while git ignores the name in EVERY skill tree, so it cannot excuse a
+ *   committed skill that lost its directory.
+ *
+ * `isIgnored` answers for a repo-relative path; the repo test backs it with
+ * `git check-ignore`, so the answer is git's own, re-includes and all.
+ */
+export function auditInventory(
+  rows: readonly InventoryRow[],
+  onDisk: readonly string[],
+  isIgnored: (path: string) => boolean,
+  trees: readonly string[] = SKILL_TREES
+): string[] {
+  const problems: string[] = [];
+  const listed = new Set(rows.map(r => r.name));
+  for (const name of [...onDisk].sort()) {
+    if (!listed.has(name)) problems.push(`${name}: real directory with no inventory row`);
+  }
+  for (const row of rows) {
+    if (!row.localOnly) {
+      if (!onDisk.includes(row.name)) {
+        problems.push(`${row.name}: inventory row with no real .agents/skills directory`);
+      }
+      continue;
+    }
+    const missing = trees.filter(t => !isIgnored(`${t}/${row.name}`));
+    if (missing.length > 0) {
+      const paths = missing.map(t => `${t}/${row.name}`).join(', ');
+      problems.push(`${row.name}: local-only row but git does not ignore ${paths}`);
+    }
+  }
+  return problems;
+}

@@ -101,18 +101,22 @@ const SIBLING_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: false } a
 describe('resolveActions — secretary on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, secretary);
 
-  it('puts Show Details last and links to the canonical show page', () => {
+  it('puts Edit show details last and opens the edit panel where the secretary stands', () => {
+    // MYK9-736: the hero's Edit button moved here. Search-only where the shell
+    // is mounted, so the panel opens over the section the secretary is on and
+    // closing it leaves them there.
     const last = actions[actions.length - 1];
     expect(last?.id).toBe('show-settings');
-    expect(last?.label).toBe('Show Details');
-    expect(last?.href).toBe(`/shows/${SHOW_ID}`);
+    expect(last?.label).toBe('Edit show details');
+    expect(last?.href).toBe('?edit=true');
     expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
   });
 
-  it('sends Show Details to the same canonical page from a sibling route', () => {
+  it('sends Edit show details to the show page from a sibling route, where the panel lives', () => {
     const siblingActions = resolveActions(SIBLING_CONTEXT, secretary);
     const details = siblingActions.find(action => action.id === 'show-settings');
-    expect(details?.href).toBe(`/shows/${SHOW_ID}`);
+    expect(details?.label).toBe('Edit show details');
+    expect(details?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
   });
 
   it('runs the premium flow as a command, never as a hash link', () => {
@@ -145,7 +149,7 @@ describe('resolveActions — secretary on a show', () => {
       `/shows/${SHOW_ID}/show-day`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       undefined, // the premium flow is a command, not a place
-      `/shows/${SHOW_ID}`,
+      '?edit=true', // the edit panel, over the current section
     ]);
   });
 

@@ -79,20 +79,34 @@ describe('DetailHero', () => {
     expect(container.querySelector('[class*="sm:w-auto"]')).toBeNull();
   });
 
-  it('keeps header actions in document flow through tablet widths', () => {
+  it('keeps header actions in document flow at every width, so they wrap instead of overlapping (MYK9-736)', () => {
     const { container } = render(
       <DetailHero
         cover={<div>Aug 1</div>}
         name="Heartland Scent Work Classic"
         headerActions={<button type="button">Published show</button>}
+        secondaryActions={<button type="button">Share</button>}
       />
     );
 
+    const heading = screen.getByRole('heading', { name: /heartland scent work classic/i });
     const actionContainer = screen.getByRole('button', { name: /published show/i }).parentElement;
+    const classes = (actionContainer?.className ?? '').split(/\s+/);
 
-    expect(actionContainer?.className).toContain('lg:absolute');
-    expect(actionContainer?.className).not.toContain('sm:absolute');
-    expect(container.querySelector('[class*="lg:pr-44"]')).toBeTruthy();
+    // An absolutely positioned cluster (it used to be `lg:absolute lg:right-6
+    // lg:top-6`) takes no space, so from 1024px it sat on top of the side
+    // actions and, with a long title, the title itself.
+    expect(classes.filter(c => /(^|:)(absolute|fixed)$/.test(c))).toEqual([]);
+    expect(classes).toContain('flex-wrap');
+    // In the title's own column, so the column's width bounds it and it wraps
+    // under the title rather than reaching into the side actions.
+    const titleColumn = heading.closest('.min-w-0.flex-1');
+    expect(titleColumn).not.toBeNull();
+    expect(titleColumn?.contains(actionContainer ?? null)).toBe(true);
+    const sideActions = screen.getByRole('button', { name: 'Share' }).closest('.items-end');
+    expect(sideActions?.contains(actionContainer ?? null)).toBe(false);
+    // Nothing reserves room for an overlay any more.
+    expect(container.querySelector('[class*="pr-44"]')).toBeNull();
     expect(container.querySelector('[class*="flex-col"][class*="sm:flex-row"]')).toBeTruthy();
   });
 

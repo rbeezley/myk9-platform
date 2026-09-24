@@ -53,14 +53,18 @@ export interface ListControlsProps {
 /**
  * ListControls — the single, standard toolbar for core browse pages.
  *
- * One compact row: a small search box, inline filter chips, and the view-mode
+ * One compact row: the search box, inline filter chips, and the view-mode
  * toggle pinned to the right; the result count sits just beneath. Adopting this
  * everywhere (Dogs, People, Clubs, Shows) means the user learns search +
  * filter + view-switch exactly once.
  *
- * INTENT: search stays compact on desktop so filter chips get room to breathe,
- * but uses full width on phones so the toolbar does not clip. PR #791 fixed the
- * old Tailwind emission-order issue that made `w-full sm:w-NN` unsafe.
+ * INTENT: from `sm` up the search box takes the row space the chips and view
+ * toggle leave free, between 13rem and 30rem (MYK9-736: a fixed 13rem box cut
+ * off ordinary queries). `flex-1` has a zero basis, so the row wraps exactly as
+ * it did at the 13rem minimum and the chips and toggle are never pushed off;
+ * the box only grows into what is left. On phones it is full width so the
+ * toolbar does not clip. PR #791 fixed the old Tailwind emission-order issue
+ * that made `w-full sm:w-NN` unsafe.
  */
 export function ListControls({
   search,
@@ -97,7 +101,7 @@ export function ListControls({
             value={search}
             onChange={onSearchChange}
             placeholder={searchPlaceholder}
-            className="w-full shrink-0 sm:w-52"
+            className="w-full shrink-0 sm:w-auto sm:min-w-52 sm:max-w-[30rem] sm:flex-1"
           />
         )}
 

@@ -85,7 +85,7 @@ The **Shows** page lists every show your club is hosting or has hosted. Shows ar
 | **Results**  | Verify and release results, then submit them to the registry                                                              |
 | **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime** |
 
-The **Actions** menu in the top bar takes you to **Show Details**. The existing **Edit** action remains available on the show page to authorized managers; this does not expand your permissions.
+The **Actions** menu in the top bar has **Edit show details**, which opens the show's edit panel. It appears only for shows you manage; it does not expand your permissions.
 
 **Three jobs stay with the trial secretary:**
 

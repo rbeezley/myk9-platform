@@ -344,6 +344,7 @@ export function WorkflowStepContent({
               selectedDogs={registrationData.selectedDogs}
               onSelectionChange={onDogSelectionChange}
               offlineFirst={offlineFirstCreate}
+              showRegistryId={showRegistryId}
             />
           ) : (
             <DogSelectionStep

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -249,18 +249,15 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
-  it('shows Edit in the side action slot for managers and opens the existing edit panel', () => {
+  it('carries no hero Edit button: editing is the header Actions menu item (MYK9-736)', () => {
+    // The hero's Edit sat under the status pill at ordinary desktop widths.
+    // "Edit show details" in the Actions menu lands `?edit=true`, which the
+    // tests below prove opens the same panel.
     renderShell();
 
-    const headerActions = screen.getByTestId('detail-hero-header-actions');
-    expect(headerActions).not.toHaveTextContent('Edit');
-
-    const sideActions = screen.getByTestId('detail-hero-side-actions');
-    const editButton = within(sideActions).getByRole('button', { name: 'Edit' });
-    expect(editButton).toBeInTheDocument();
-    fireEvent.click(editButton);
-
-    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+    expect(screen.getByTestId('detail-hero-header-actions')).not.toHaveTextContent('Edit');
+    expect(screen.queryByTestId('detail-hero-side-actions')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^edit$/i })).toBeNull();
   });
 
   it('gives the status control the host club required for publishing', () => {
@@ -404,9 +401,9 @@ describe('ShowManagementShell', () => {
   });
 
   it('no longer carries its own overflow menu', () => {
-    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show Details
-    // to the header Actions menu, Copy link and Preview to the Overview landing
-    // card, Delete into the Show Edit panel, and editing remains on this page.
+    // MYK9-630: the `...` menu is deleted. Its five items moved -- editing to
+    // the header Actions menu ("Edit show details", MYK9-736), Copy link and
+    // Preview to the Overview landing card, Delete into the Show Edit panel.
     renderShell();
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /preview as exhibitor/i })).toBeNull();

@@ -361,7 +361,7 @@ describe('resolveByContent', () => {
     expect(got).toMatchObject({ status: 'current', note: 'content matches deploy (2 files)' });
   });
 
-  it('a date-current row whose bundled _shared file changed is stale', async () => {
+  it('a date-current row whose bundled _shared file differs is differs', async () => {
     const root = repo(SOURCE);
     const [got] = await resolveByContent(
       [row('current')],
@@ -372,10 +372,28 @@ describe('resolveByContent', () => {
       }),
       identity
     );
-    expect(got).toMatchObject({ status: 'stale', note: 'content differs: _shared/h.ts' });
+    expect(got).toMatchObject({
+      status: 'differs',
+      note: 'deploy and source differ, direction unknown: _shared/h.ts',
+    });
   });
 
-  it('formatting-only differences are current under Prettier and stale byte-for-byte', async () => {
+  it('a mismatch is differs even when dates said stale: content cannot tell which copy is newer', async () => {
+    // Codex review round 5: the deploy may carry a live-only hotfix, so a
+    // mismatch must never be reported as "source changed after the deploy".
+    const root = repo(SOURCE);
+    const hotfixed = deploying({
+      'fn/index.ts': "import { h } from '../_shared/h.ts';\nh();\nconsole.log('hotfix');\n",
+      '_shared/h.ts': SOURCE['supabase/functions/_shared/h.ts'],
+    });
+    for (const dated of ['stale', 'sub-day', 'unknown', 'current'] as const) {
+      const [got] = await resolveByContent([row(dated)], root, hotfixed, identity);
+      expect(got!.status).toBe('differs');
+    }
+    expect(ACTIONABLE.has('differs')).toBe(true);
+  });
+
+  it('formatting-only differences are current under Prettier and differ byte-for-byte', async () => {
     const root = repo(SOURCE);
     const reformatted = deploying({
       'fn/index.ts': 'import { h } from "../_shared/h.ts"\nh()\n',
@@ -389,7 +407,7 @@ describe('resolveByContent', () => {
     );
     expect(pretty!.status).toBe('current');
     const [bytes] = await resolveByContent([row('unknown')], root, reformatted, identity);
-    expect(bytes!.status).toBe('stale');
+    expect(bytes!.status).toBe('differs');
   });
 
   it('a deployed file missing from source is a difference', async () => {
@@ -404,8 +422,8 @@ describe('resolveByContent', () => {
       identity
     );
     expect(got).toMatchObject({
-      status: 'stale',
-      note: 'content differs: _shared/gone.ts (not in source)',
+      status: 'differs',
+      note: 'deploy and source differ, direction unknown: _shared/gone.ts (not in source)',
     });
   });
 

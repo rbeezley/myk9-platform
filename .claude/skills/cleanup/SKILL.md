@@ -142,26 +142,29 @@ pnpm -s qa:edge-function-drift --content  # downloads each deploy and compares i
 
 Exit 0 means every function is current; exit 1 means at least one row below needs a decision; exit 2 means the check could not run, including a `--content` download that failed (`check-failed` rows). Report the non-`current` rows.
 
-- **`stale`:** the source changed after the deploy. With `--content` this is proof: the note names the files whose deployed copy differs from source after both are Prettier-formatted, including `_shared` files.
-- **`unknown`:** dates cannot decide. This clone is **shallow** (`git rev-parse --is-shallow-repository`), and `git log -- <dir>` for a file untouched since the graft boundary returns the BOUNDARY's date, not the real edit date. The real edit is at or before the boundary, so a deploy newer than the boundary is reported `current`; a deploy older than it is `unknown`, never `stale`. On 2026-09-15 the hand-run version of this check called 20 of 45 functions stale for this reason alone (MYK9-597). Settle an `unknown` with `--content`, which compares what is deployed with source. `git fetch --unshallow` also makes the dates meaningful, but it is a large fetch: offer it, and do not run it unprompted.
-- **`sub-day`:** a squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch. Treat it as ordering noise unless `--content` says `stale`.
+- **`stale`** (date mode only): the source's dating commit is newer than the deploy. It is a candidate for a closer look, not proof of anything. Run `--content` to see whether the copies actually differ.
+- **`differs`** (`--content` only): the deployed copy and source are not the same after both are Prettier-formatted. The note names the files, including `_shared` ones. It does **not** say which copy is newer. The deploy may carry a live-only change the repo never received, so `differs` is never a reason to deploy on its own.
+- **`unknown`:** dates cannot decide. This clone is **shallow** (`git rev-parse --is-shallow-repository`), and `git log -- <dir>` for a file untouched since the graft boundary returns the BOUNDARY's date, not the real edit date. The real edit is at or before the boundary, so a deploy newer than the boundary is reported `current`; a deploy older than it is `unknown`, never `stale`. On 2026-09-15 the hand-run version of this check called 20 of 45 functions stale for this reason alone (MYK9-597). Run `--content` to see whether the copies differ. `git fetch --unshallow` also makes the dates meaningful, but it is a large fetch: offer it, and do not run it unprompted.
+- **`sub-day`:** a squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch. Treat it as ordering noise unless `--content` says `differs`.
 - **`never-deployed`:** a source function with no deployed slug.
 - **`orphan-deploy`:** a deployed slug with no source dir in either function dir. It is live code that nothing in the repo maintains. Ask whether to restore its source or delete the deploy; deleting is a shared-system write.
 - **`dual-location`:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug, so do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
 
 Calibration, for a date-mode flag you confirm by hand:
 
-- **A date is not a behavioural change.** Dates come from the function's own dir, so a sibling test or a comment moves them and a `_shared` edit does not. Commits listed in `.git-blame-ignore-revs` (the one-time Prettier pass, #2121) are skipped. `--content` is the confirmation. Prefer it over reading a diff.
+- **A date is not a behavioural change.** Dates come from the function's own dir, so a sibling test or a comment moves them and a `_shared` edit does not. Commits listed in `.git-blame-ignore-revs` (the one-time Prettier pass, #2121) are skipped. `--content` shows whether the copies differ. Prefer it over reading a diff.
 - **An all-insertions diff is a moved path or a history floor, not a change.** `git show <last-commit> -- <dir>/index.ts` on a graft-boundary commit or a rename shows the whole file as added (e.g. `index.ts | 273 +++`), which looks like a large edit. It says nothing about behaviour. Compare content instead.
 
-- For each stale/never-deployed function, report it and include the deploy command. Root functions deploy from the repo root; Stripe/cron functions need `--workdir apps/myk9show`:
-  ```bash
-  # root function
-  supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-  # apps/myk9show function
-  supabase functions deploy <name> --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-  ```
-- **Deploying is a shared-system write — always ask before running it** (never auto-deploy). Editing a `_shared/*` helper restales every function that imports it; redeploy those importers, not just directly-changed function dirs.
+**Report; do not propose a deploy.** List every non-`current` row with its note. For `stale`, `differs` and `unknown` rows, do not offer a deploy command in the report.
+
+**Before any deploy, confirm the direction by hand**, one function at a time:
+
+1. Download the deploy into a scratch workdir, never into the repo: `supabase functions download <name> --project-ref sojmvhhwsjxmfistvzbe --use-api --workdir "$SCRATCH"`.
+2. Diff each file `--content` named against source: `diff -u "$SCRATCH/supabase/functions/<file>" <source dir>/<file>`.
+3. For each line only the deploy has, `git log -S '<that line>' -- <source dir>` to find it in history. Found and later removed means the repo moved on and the deploy is behind. Not found anywhere means the line exists only in production, which is a **live-only change**.
+4. **Never deploy over a live-only change.** Report it, get the change into the repo first, and deploy only after the repo carries it.
+
+Deploying is a shared-system write: ask each time, never auto-deploy. Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--project-ref sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
 
 ## Output Format
 
@@ -186,7 +189,7 @@ If issues need user input, list them at the end:
 Action needed:
   1. 2 uncommitted files -- commit or discard?
   2. Migration 110 not yet pushed -- push now?
-  3. send-email source (06-23) newer than deployed (05-03) -- deploy now?
+  3. send-email: deploy differs from source (_shared/http/cors.ts) -- confirm direction before any deploy?
 ```
 
 ## Rules

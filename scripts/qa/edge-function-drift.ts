@@ -25,9 +25,14 @@
  * does, because a download carries every `_shared` file the function bundles.
  * Both modes only READ the project: nothing here deploys.
  *
+ * `stale` exists only in date mode: the source's dating commit is newer than
+ * the deploy. `--content` never says `stale`. A mismatch there is `differs`,
+ * because two copies that are not the same say nothing about which one is
+ * newer: the deploy may carry a live-only change the repo lacks.
+ *
  * Exit 0: every function is current (sub-day gaps are ordering noise).
- * Exit 1: at least one stale, unknown, never-deployed, orphan-deploy or
- *         dual-location row.
+ * Exit 1: at least one stale, differs, unknown, never-deployed, orphan-deploy
+ *         or dual-location row.
  * Exit 2: the check itself could not run, including any `--content` download
  *         that failed (a row it could not compare is `check-failed`, never
  *         left at its dated status).
@@ -47,6 +52,7 @@ export type DriftStatus =
   | 'current'
   | 'sub-day'
   | 'stale'
+  | 'differs'
   | 'unknown'
   | 'never-deployed'
   | 'orphan-deploy'
@@ -197,6 +203,7 @@ export function classify(
 
 export const ACTIONABLE: ReadonlySet<DriftStatus> = new Set([
   'stale',
+  'differs',
   'unknown',
   'never-deployed',
   'orphan-deploy',
@@ -312,8 +319,8 @@ function filesUnder(dir: string, prefix = ''): string[] {
 /**
  * `current` is content-checked too: a date is taken from the function's own
  * dir, so an edit to a `_shared` file it imports never moves it. On 2026-09-24
- * dates alone called 23 functions current and content showed several of those
- * bundling `_shared` code older than main.
+ * dates alone called 23 functions current and content showed some of those
+ * bundling `_shared` code that differs from main.
  */
 const CONTENT_CHECKED: ReadonlySet<DriftStatus> = new Set([
   'current',
@@ -343,8 +350,10 @@ export const prettierNormalizer: Normalizer = async (text, filepath) => {
 };
 
 /**
- * The authoritative answer when dates cannot give one: download what is
+ * Whether the deploy matches source, which dates cannot say: download what is
  * deployed and compare it, file by file, with the source dir it deploys from.
+ * A match is `current`; a mismatch is `differs`, never `stale`, because it
+ * says nothing about which copy is newer.
  * Every downloaded file (the function's own and each `_shared` file it
  * bundles) must match the repo copy once both are formatted; source-only files
  * such as tests are never bundled, so they are not compared. Never-deployed
@@ -394,7 +403,11 @@ export async function resolveByContent(
       out.push(
         differing.length === 0
           ? { ...row, status: 'current', note: `content matches deploy (${files.length} files)` }
-          : { ...row, status: 'stale', note: `content differs: ${differing.join(', ')}` }
+          : {
+              ...row,
+              status: 'differs',
+              note: `deploy and source differ, direction unknown: ${differing.join(', ')}`,
+            }
       );
     } finally {
       rmSync(scratch, { recursive: true, force: true });

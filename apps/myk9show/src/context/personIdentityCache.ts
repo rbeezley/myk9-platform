@@ -6,8 +6,15 @@
  * stale profile or suspension data authoritative.
  */
 
-/** Keep the pairing for exactly one day; profile identity is authoritative. */
-export const PERSON_IDENTITY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+import { RBAC_CACHE_TTL_MS } from './rbacPermissionsCache';
+
+/**
+ * Exactly as long as the cached roles it pairs with (LESSONS
+ * offline-identity-pairing): a shorter pairing left a cold offline boot at a
+ * show with roles but no personId, so every account entries read stayed
+ * disabled. An authoritative lookup still overwrites or clears it.
+ */
+export const PERSON_IDENTITY_CACHE_TTL_MS = RBAC_CACHE_TTL_MS;
 
 const KEY_PREFIX = 'myk9show:person-identity-cache:';
 

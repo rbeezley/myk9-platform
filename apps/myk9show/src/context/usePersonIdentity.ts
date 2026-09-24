@@ -25,8 +25,7 @@ export function usePersonIdentity(userId: string | undefined): {
 } {
   const {
     data: userProfile,
-    isSuccess: userProfileLookupSucceeded,
-    isError: userProfileLookupFailed,
+    dataUpdatedAt: userProfileUpdatedAt,
     isPlaceholderData,
   } = useQuery<PersonProfile | null>({
     queryKey: ['userProfile', userId],
@@ -63,16 +62,18 @@ export function usePersonIdentity(userId: string | undefined): {
     [userId]
   );
   const authoritativeUserProfile = isPlaceholderData ? undefined : userProfile;
-  const authoritativeLookupSucceeded = userProfileLookupSucceeded && !isPlaceholderData;
+  // Keyed on "a lookup for this user has ever succeeded", not on the current
+  // isSuccess: a failed background refetch sets status 'error' but keeps the
+  // confirmed data, and must not demote a confirmed identity to unresolved.
+  // dataUpdatedAt is per query key, so a userId change still starts at 0.
+  const authoritativeLookupSucceeded = userProfileUpdatedAt > 0 && !isPlaceholderData;
   const personIdentityState: PersonIdentityState = !userId
     ? 'unresolved'
     : authoritativeLookupSucceeded
       ? authoritativeUserProfile?.id
         ? 'resolved'
         : 'missing'
-      : userProfileLookupFailed
-        ? 'unresolved'
-        : 'unresolved';
+      : 'unresolved';
   const personId =
     personIdentityState === 'missing'
       ? null
@@ -89,6 +90,8 @@ export function usePersonIdentity(userId: string | undefined): {
     previousAuthedUserIdRef.current = userId;
   }, [userId]);
 
+  // Re-save on every successful lookup (dataUpdatedAt), so cachedAt tracks the
+  // last confirmation rather than the first one of this session.
   useEffect(() => {
     if (!userId || !authoritativeLookupSucceeded) return;
     if (authoritativeUserProfile?.id) {
@@ -96,7 +99,7 @@ export function usePersonIdentity(userId: string | undefined): {
     } else {
       clearPersonIdentityCache(userId);
     }
-  }, [userId, authoritativeUserProfile?.id, authoritativeLookupSucceeded]);
+  }, [userId, authoritativeUserProfile?.id, authoritativeLookupSucceeded, userProfileUpdatedAt]);
 
   return {
     userProfile: authoritativeUserProfile,

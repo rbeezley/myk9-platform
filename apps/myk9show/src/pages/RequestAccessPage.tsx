@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
 import type { Club } from '@/types/club-types';
-import { RequestShowAccessCard } from '@/components/clubs/ClubDetails/RequestShowAccessCard';
+import { ExistingClubRequestPanel } from '@/features/club-requests/ExistingClubRequestPanel';
+import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,12 +45,14 @@ const RequestAccessPage: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await submitNewClubAccessRequest({
+      const requestId = await submitNewClubAccessRequest({
         clubName: trimmedName,
         website: website.trim(),
         note: note.trim(),
       });
       setSubmitted(true);
+      // After the request is saved; an email problem never undoes it.
+      void notifyAccessRequestEmail('new_club', requestId);
     } catch {
       setError("We couldn't send your request. Please try again.");
     } finally {
@@ -96,7 +99,8 @@ const RequestAccessPage: React.FC = () => {
                 <UserRound className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Join an existing club</CardTitle>
                 <CardDescription>
-                  Find the club and ask to become its show secretary.
+                  Ask a club that already uses myK9Show to add you as a member, or to give you
+                  secretary access for its shows.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -177,8 +181,8 @@ const RequestAccessPage: React.FC = () => {
               <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
               <h2 className="text-xl font-semibold">Request sent</h2>
               <p className="text-base text-muted-foreground">
-                We received your club request. We will review it and contact you using the email on
-                your account.
+                We received your club request and sent a confirmation to the email on your
+                account. We will email you again when it has been reviewed.
               </p>
               <Button asChild className="min-h-11">
                 <Link to="/exhibitor/entries">Return to My Shows</Link>
@@ -193,7 +197,7 @@ const RequestAccessPage: React.FC = () => {
               <CardTitle>{selectedClub ? selectedClub.name : 'Find your club'}</CardTitle>
               <CardDescription>
                 {selectedClub
-                  ? 'Ask this club to appoint you as a secretary. The club must approve the request.'
+                  ? 'The club’s admins review every request. Nothing changes until they approve it.'
                   : 'Search by club name, city, or state. Select your club to continue.'}
               </CardDescription>
             </CardHeader>
@@ -259,7 +263,7 @@ const RequestAccessPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <RequestShowAccessCard club={selectedClub} />
+                  <ExistingClubRequestPanel key={selectedClub.id} club={selectedClub} />
                   <Button
                     type="button"
                     variant="outline"

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
+import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 import {
   getPendingClubAccessRequests,
   reviewClubAccessRequest,
@@ -51,6 +52,8 @@ function ReviewCard({
       notifications.success(
         decision === 'approved' ? 'Club request approved' : 'Club request denied'
       );
+      // After the decision is saved; an email problem never undoes it.
+      void notifyAccessRequestEmail('new_club', request.id);
       await onReviewed();
     } catch (error) {
       logger.error(

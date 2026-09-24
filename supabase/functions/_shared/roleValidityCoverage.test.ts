@@ -13,6 +13,7 @@ const ROLE_VALIDITY_PATHS = [
   '../push-trigger-support-message/index.ts',
   '../generate-premium/index.ts',
   '../send-email/authz.ts',
+  '../send-access-request-email/records.ts',
   '../send-results/authz.ts',
   '../push-trigger-announcement/index.ts',
   '../ask-myk9show/index.ts',

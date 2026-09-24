@@ -46,6 +46,8 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
+import { useClubMembershipRequests } from './useClubMembershipRequests';
+import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import {
@@ -271,10 +273,12 @@ const ClubMembersPage: React.FC = () => {
     },
   });
 
-  // MYK9-571: role-request state/mutations, extracted to useClubShowAccessRequests.
+  // MYK9-571 / MYK9-685: request state and mutations live in their own hooks.
+  const membershipRequests = useClubMembershipRequests(clubId, reportMutationFailure);
   const { clubMembersTabs, roleRequestsTabProps } = useClubShowAccessRequests(
     clubId,
-    reportMutationFailure
+    reportMutationFailure,
+    membershipRequests.pendingCount
   );
 
   // Handlers
@@ -513,6 +517,7 @@ const ClubMembersPage: React.FC = () => {
                     Everything else on this roster is current.
                   </p>
                 )}
+                <ClubShowAccessRequests {...membershipRequests.listProps} />
                 {/* Search */}
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

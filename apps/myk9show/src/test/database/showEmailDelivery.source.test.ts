@@ -17,6 +17,7 @@ const classifiedProductionResendWriters = {
   'supabase/functions/_shared/trialPacket/email.ts': 'show-owned',
   'supabase/functions/push-trigger-support-message/index.ts': 'platform-support',
   'supabase/functions/push-trigger-waitlist/index.ts': 'show-owned',
+  'supabase/functions/send-access-request-email/handler.ts': 'platform-account',
   'supabase/functions/send-auth-email/delivery.ts': 'platform-account',
   'supabase/functions/send-confirmation-email/index.ts': 'show-owned',
   'supabase/functions/send-email/index.ts': 'mixed-entry-decision-and-platform',

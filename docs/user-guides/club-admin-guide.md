@@ -33,7 +33,7 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 
 ### If you requested a new club
 
-When a site admin approves your new-club request, myK9Show automatically gives you three club-scoped records for that club:
+When a site admin approves your new-club request, myK9Show emails you and automatically gives you three club-scoped records for that club:
 
 - an active **Club Admin** role;
 - an active club membership, so you appear in the **Members** roster; and
@@ -115,6 +115,8 @@ When you grant an active member show access, they can manage any of your club's 
 ![Members page — member row showing the Show Manager badge confirming active show access](../screenshots/C-03.png)
 
 The member's row now shows a **Show Manager** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
+
+**When someone asks for access:** an exhibitor can ask your club for secretary access from **Request additional access**. Every active club admin of your club receives an email with their name, email address, and reason. The request appears on the **Show Access** tab of the Members page, which shows a count badge while requests are waiting. Click **Approve** to appoint them, or **Deny** to decline, optionally with a reason. The requester is emailed either way, and your reason is included in the email.
 
 **To revoke access:** open the same **⋮** menu and click **Revoke Show Access**. The person loses management access immediately — they remain a club member.
 
@@ -223,6 +225,8 @@ The **Members** page lists everyone with club-level access: Club Admins and Secr
 2. The **Members** tab lists accounts with club access and their role.
 
 ![Club Members page — member list with name, Show Manager badge, type, status, and action menu](../screenshots/C-06.png)
+
+**Membership requests:** exhibitors can ask to join your club from **Request additional access**. Every active club admin of your club receives an email about each request. Waiting requests appear at the top of the **Members** tab under **Membership requests**, and the tab shows a count badge. **Approve** adds the person to the member list as an active member, without show access. **Deny** declines, with an optional reason. The requester is emailed either way, and your reason is included. A denied person cannot send the same request again, but you can still add them yourself at any time.
 
 **Add a member:**
 

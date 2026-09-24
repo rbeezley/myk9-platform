@@ -13,127 +13,58 @@
  * and reflects its own status back — pending ("Under review") or a standing
  * denial (rendered as unavailable, not as a re-askable button).
  *
- * Self-contained by design: it owns its own auth/scope check, its own query
- * for "do I already have a request in flight", and its own submit mutation,
- * so wiring it into MembersTab required no changes to useClubDetailsState or
- * ClubDetails/index.tsx beyond passing the club it already has.
+ * The eligibility check, status query and submit live in
+ * useClubSecretaryRequest (MYK9-685), shared with the Request additional
+ * access page, which renders every state inline instead of this compact
+ * button-and-dialog form.
  */
 import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { FormField } from '@/components/common/FormField';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
-import {
-  getMyClubSecretaryRequestStatus,
-  submitClubSecretaryRequest,
-  RoleRequestAlreadyPendingError,
-  RoleRequestStandingDenialError,
-} from '@/services/database/role-requests';
-import { logger } from '@/services/LoggingService';
-import { notifications } from '@/lib/notifications';
-import { hasClubAdminScope, hasClubSecretaryScope } from './clubPermissions';
+import { useClubSecretaryRequest } from '@/features/club-requests/useClubSecretaryRequest';
 
 interface RequestShowAccessCardProps {
   club: Club;
 }
 
 export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ club }) => {
-  const queryClient = useQueryClient();
-  const { userWithRoles } = useAuthContext();
   const [showDialog, setShowDialog] = useState(false);
   const [note, setNote] = useState('');
-  const [unavailable, setUnavailable] = useState(false);
+  const request = useClubSecretaryRequest(club);
+  const { state } = request;
 
-  const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
-  const alreadyClubAdmin = hasClubAdminScope(userWithRoles?.scopes, club.id);
-  const alreadySecretary = hasClubSecretaryScope(userWithRoles?.scopes, club.id);
-  // Someone who can already appoint themselves, or who is already appointed,
-  // has nothing to ask for. Site admins can appoint via /admin too, so the
-  // card would be a confusing second door for them.
-  const eligibleToAsk =
-    Boolean(userWithRoles) && !isSiteAdmin && !alreadyClubAdmin && !alreadySecretary;
-
-  const statusQuery = useQuery({
-    queryKey: ['my-club-secretary-request', club.id, userWithRoles?.id],
-    // MYK9-571 round 2 (P2-1): pass the auth user id we already have instead
-    // of a fresh supabase.auth.getUser() round-trip inside the service call
-    // — that round-trip discarded its own error and returned null on no
-    // user, which read as "no prior request" and re-showed the Request
-    // button to someone the query had no real identity for. `enabled` below
-    // gates this on the id actually being present.
-    queryFn: () => getMyClubSecretaryRequestStatus(club.id, userWithRoles!.id),
-    enabled: eligibleToAsk && Boolean(userWithRoles?.id),
-  });
-  const requestStatus = statusQuery.data?.status ?? null;
-  const reviewerNote = statusQuery.data?.reviewerNote ?? null;
-
-  const submitMutation = useMutation({
-    mutationFn: (requesterNote: string) =>
-      submitClubSecretaryRequest({ clubId: club.id, note: requesterNote }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-club-secretary-request', club.id] });
-      setShowDialog(false);
-      setNote('');
-      notifications.success('Request sent. The club can review it from Members > Show Access.');
-    },
-    onError: error => {
-      if (error instanceof RoleRequestAlreadyPendingError) {
-        // The server's own unique index caught a race (two tabs, double
-        // click). Not a failure from the requester's point of view.
-        queryClient.invalidateQueries({ queryKey: ['my-club-secretary-request', club.id] });
-        setShowDialog(false);
-        setNote('');
-        notifications.info('You already have a request under review for this club.');
-        return;
-      }
-      if (error instanceof RoleRequestStandingDenialError) {
-        setShowDialog(false);
-        setUnavailable(true);
-        notifications.error(error.message);
-        return;
-      }
-      notifications.error("We couldn't send that request. Please try again.");
-      logger.error('Failed to submit club secretary request', 'clubs', {
-        clubId: club.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    },
-  });
-
-  if (!eligibleToAsk) return null;
-
-  // MYK9-571 round 2 (P3-3): the status query is disabled (not loading, not
-  // errored) when there is no auth user id, so without this check an
-  // eligible user with a missing id would fall straight through to the
-  // Request button below — failing OPEN on a caller the query never even
-  // ran for.
-  if (!userWithRoles?.id) return null;
-
-  // An approval can arrive before the auth context's own scopes refresh (a
-  // 5-minute poll) catch up, so alreadySecretary above may still be false
-  // here. Treat 'approved' the same way: nothing actionable, no re-askable
-  // button.
-  if (requestStatus === 'approved') return null;
+  // Nothing actionable to show: signed out, already holds access (site admin,
+  // this club's admin, already appointed), approved before scopes refresh, or
+  // still loading — a control that appears only to vanish reads as broken.
+  if (
+    state.kind === 'signed-out' ||
+    state.kind === 'has-access' ||
+    state.kind === 'approved' ||
+    state.kind === 'loading'
+  ) {
+    return null;
+  }
 
   // A standing denial (guardrail): show nothing actionable, just a quiet
   // note — including the club's own reason, when they gave one. Do not
   // re-expose a button whose submit the server will refuse.
-  if (unavailable || requestStatus === 'denied') {
+  if (state.kind === 'denied') {
     return (
       <p className="text-sm text-muted-foreground">
         Show access request not available for this club right now.
-        {reviewerNote && <span className="block italic">&ldquo;{reviewerNote}&rdquo;</span>}
+        {state.reviewerNote && (
+          <span className="block italic">&ldquo;{state.reviewerNote}&rdquo;</span>
+        )}
       </p>
     );
   }
 
-  if (requestStatus === 'pending') {
+  if (state.kind === 'pending') {
     return (
       <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
         Show access request under review
@@ -142,21 +73,14 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
   }
 
   // A failed status check fails CLOSED: showing the button on an unknown
-  // status could re-offer a request the server would refuse (e.g. a standing
-  // denial the query just couldn't confirm).
-  if (statusQuery.isError) {
+  // status could re-offer a request the server would refuse.
+  if (state.kind === 'error') {
     return (
       <p className="text-sm text-muted-foreground">
         We couldn&apos;t check show access request status right now.
       </p>
     );
   }
-
-  // MYK9-571 round 2 (P3-3): render nothing while the status is still
-  // loading rather than a disabled button that can vanish the instant data
-  // arrives (into "Under review", the denied message, or nothing at all) —
-  // a control that appears only to disappear reads as broken, not loading.
-  if (statusQuery.isLoading) return null;
 
   return (
     <>
@@ -165,7 +89,10 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
         Request show access
       </Button>
 
-      <Dialog open={showDialog} onOpenChange={next => !next && setShowDialog(false)}>
+      <Dialog
+        open={showDialog && !request.justSubmitted}
+        onOpenChange={next => !next && setShowDialog(false)}
+      >
         <DialogContent className="sm:max-w-md">
           <div className="flex items-center gap-3 pb-2">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -190,6 +117,11 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
                 rows={3}
               />
             </FormField>
+            {request.submitError && (
+              <p className="text-sm text-destructive" role="alert">
+                {request.submitError}
+              </p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
@@ -199,10 +131,10 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
                 Cancel
               </Button>
               <Button
-                onClick={() => submitMutation.mutate(note.trim())}
-                disabled={!note.trim() || submitMutation.isPending}
+                onClick={() => request.submit(note.trim())}
+                disabled={!note.trim() || request.isSubmitting}
               >
-                {submitMutation.isPending ? 'Sending...' : 'Send request'}
+                {request.isSubmitting ? 'Sending...' : 'Send request'}
               </Button>
             </div>
           </div>

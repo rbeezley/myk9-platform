@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
 import RequestAccessPage from '@/pages/RequestAccessPage';
 import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
+import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 
 const mockBrowse = vi.hoisted(() => ({
   data: {
@@ -22,8 +23,8 @@ vi.mock('@/services/database/club-access-requests', () => ({
   submitNewClubAccessRequest: vi.fn(),
 }));
 
-vi.mock('@/components/clubs/ClubDetails/RequestShowAccessCard', () => ({
-  RequestShowAccessCard: () => <button type="button">Request show access</button>,
+vi.mock('@/services/notifications/accessRequestEmail', () => ({
+  notifyAccessRequestEmail: vi.fn(async () => undefined),
 }));
 
 describe('RequestAccessPage', () => {
@@ -66,7 +67,9 @@ describe('RequestAccessPage', () => {
       });
     });
     expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
+    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1');
   });
+
 
   it('lets an exhibitor search for an existing club from the page', () => {
     mockBrowse.data = {

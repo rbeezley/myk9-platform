@@ -74,7 +74,9 @@ export function describeForceDeleteAudit(audit: unknown): string[] | undefined {
   const paidIds = stringList(a.paid_entry_ids);
   const unrefunded = stringList(a.paid_payment_intent_ids);
 
-  const lines = [`Force-deleted over the paid/scored guard by ${actor}. The override issued no refund.`];
+  const lines = [
+    `Force-deleted over the paid/scored guard by ${actor}. The override issued no refund.`,
+  ];
   if (entryIds.length > 0) {
     lines.push(
       `Entries removed (${entryIds.length}, ${paidIds.length} paid): ${entryIds.join(', ')}`

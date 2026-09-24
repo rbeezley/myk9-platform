@@ -6,7 +6,11 @@ import {
   SEEDED_EXHIBITOR_DOG_COUNT,
   SEEDED_EXHIBITOR_DOG_NAMES,
 } from './seedRoster';
-const REGISTRATION_SHOW_ID = 'a1090000-0000-0000-0010-100000000001';
+import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+// The demo show, whose entry window the lean seed keeps open (seed-demo.sql
+// section 2). This was MYK9-109 Load Show 1 until MYK9-558 made the load
+// fixture opt-in.
+const REGISTRATION_SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 
 for (const viewport of [
   { width: 1440, height: 900 },
@@ -26,9 +30,9 @@ for (const viewport of [
     // timeout failed two of three viewports at this line under `--workers=2`
     // while all three passed serially. 30s, not the 15s siblings use, because
     // the measured worst case is larger than that: 41s wall for the cold test
-    // including sign-in, of which this paint is the tail. The picker renders all
-    // ~260 rows unvirtualised and the search box only mounts after them, so this
-    // wait scales with the roster.
+    // including sign-in, of which this paint is the tail. The picker renders
+    // every row unvirtualised (~260 with the opt-in MYK9-109 load fixture) and
+    // the search box only mounts after them, so this wait scales with the roster.
     await expect(search).toBeVisible({ timeout: 30000 });
     const dogs = page.getByRole('checkbox', { name: /^Select / });
     // MYK9-545: this used to pin `toHaveCount(252)`. Staging is shared and the
@@ -59,8 +63,8 @@ for (const viewport of [
         page.getByRole('checkbox', { name: `Select ${seededName}`, exact: true }).first()
       ).toBeAttached();
     }
-    // The MYK9-109 load fixture repeats call names (three dogs answer to
-    // "Birch"), so the aria-label of `.last()` can resolve to several
+    // The opt-in MYK9-109 load fixture, when applied, repeats call names (three
+    // dogs answer to "Birch"), so the aria-label of `.last()` can resolve to several
     // checkboxes and every later name-based locator would break strict mode.
     // Take the LAST label that is unique in the roster: still far down the
     // list, but addressable.

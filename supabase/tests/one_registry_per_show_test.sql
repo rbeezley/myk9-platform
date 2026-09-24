@@ -5,8 +5,8 @@
 -- Scent Work alongside AKC Obedience is normal. A cross-registry cluster is two shows.
 --
 -- Enforced by `trg_enforce_show_registry_on_trial` (20260915163500), which compares each
--- written trial's registry_id against `public.derive_registry_id(shows.organization)` — the
--- projection `sync_trial_registry_from_show` (20260701120000) already established.
+-- written trial's registry_id against `public.derive_registry_id(shows.organization)`. MYK9-604
+-- also prevents changing a persisted show's organization instead of restamping its children.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 --
@@ -260,62 +260,31 @@ update public.trials
  where id = '00000000-0000-0000-0000-000000490021';
 
 -- ---------------------------------------------------------------------------
--- The show-organization cascade still works THROUGH the new guard.
---
--- sync_trial_registry_from_show() UPDATEs registry_id on every child trial, which now fires
--- the enforcement trigger. It writes exactly the value the guard derives, so the cascade must
--- pass — if the two derivations ever drift, changing a show's organization would start
--- raising MK490 on its own cascade, and this is where that shows up.
+-- A populated show's organization is now immutable. An empty show remains editable.
 -- ---------------------------------------------------------------------------
 do $$
 declare
-  v_registries text;
-begin
-  update public.shows
-     set organization = 'UKC'
-   where id = '00000000-0000-0000-0000-000000490010';
-
-  select string_agg(distinct registry_id, ',' order by registry_id) into v_registries
-  from public.trials
-  where show_id = '00000000-0000-0000-0000-000000490010';
-
-  if v_registries <> 'UKC' then
-    raise exception 'FAIL cascade: trials read % after the show became UKC, expected UKC', v_registries;
-  end if;
-  raise notice 'PASS cascade: a show organization change re-registers its trials';
-end;
-$$;
-
--- After the cascade the show is a UKC show, so an AKC trial is now the mismatch. The rule is
--- relative to the show, not to a privileged default registry.
-do $$
+  v_state text;
 begin
   begin
-    insert into public.trials (id, show_id, name, date, registry_id)
-    values ('00000000-0000-0000-0000-000000490025', '00000000-0000-0000-0000-000000490010',
-            'MYK9-490 AKC Trial On A UKC Show', current_date, 'AKC');
-    raise exception 'FAIL insert: an AKC trial was accepted onto a now-UKC show';
-  exception
-    when sqlstate 'MK490' then
-      raise notice 'PASS insert: the rule follows the show, not a default registry';
+    update public.shows
+       set organization = 'UKC'
+     where id = '00000000-0000-0000-0000-000000490010';
+    raise exception 'FAIL organization: a populated show changed organization';
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate;
+    if v_state <> '23514' then
+      raise exception 'FAIL organization: expected SQLSTATE 23514, got %', v_state;
+    end if;
   end;
+  raise notice 'PASS organization: a populated show rejects registry changes';
 end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- THE CASCADE MUST ALSO WORK FOR A NON-SUPERUSER.
+-- THE INVARIANT MUST ALSO WORK FOR A NON-SUPERUSER.
 --
--- This is the case the rest of this file cannot see, because psql runs as superuser and a
--- superuser passes every privilege check. `sync_trial_registry_from_show()` is SECURITY
--- INVOKER, so its NESTED call to `derive_registry_id()` is checked against the CALLER's role.
--- A trigger fires its own function regardless of EXECUTE, but a nested call is not exempt —
--- so revoking EXECUTE on the helper from `authenticated` turns a secretary's ordinary
--- organization edit into `42501 permission denied for function derive_registry_id`, failing
--- the whole UPDATE. Run this against the migration WITHOUT its
--- `GRANT EXECUTE ... TO authenticated` and it fails here and nowhere else.
---
--- `enforce_show_registry_on_trial()` is SECURITY DEFINER, so its own nested call is fine.
--- That asymmetry is why only one of the two callers needed the grant.
+-- A club admin may still edit an empty show, but cannot relabel one with existing trials.
 -- ---------------------------------------------------------------------------
 insert into public.people (id, first_name, last_name, auth_user_id)
 values ('00000000-0000-0000-0000-000000490031', 'MYK9-490', 'Club Admin',
@@ -327,24 +296,23 @@ select '00000000-0000-0000-0000-000000490031', id,
        '00000000-0000-0000-0000-000000490041'
 from public.roles where name = 'club_admin';
 
--- A second AKC show for this case: show ...010 has already been flipped to UKC above, so
--- editing it again would be a no-op and the AFTER UPDATE guard would return before cascading.
 insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
-values ('00000000-0000-0000-0000-000000490013', 'MYK9-490 Secretary Edit Show', 'AKC',
-        current_date, current_date + 1, '00000000-0000-0000-0000-000000490001', 'published');
+values
+  ('00000000-0000-0000-0000-000000490013', 'MYK9-490 Secretary Populated Show', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000490001', 'published'),
+  ('00000000-0000-0000-0000-000000490014', 'MYK9-490 Secretary Empty Show', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000490001', 'published');
 
 insert into public.trials (id, show_id, name, date, registry_id)
-values
-  ('00000000-0000-0000-0000-000000490027', '00000000-0000-0000-0000-000000490013',
-   'MYK9-490 Secretary Trial A', current_date, 'AKC'),
-  ('00000000-0000-0000-0000-000000490028', '00000000-0000-0000-0000-000000490013',
-   'MYK9-490 Secretary Trial B', current_date + 1, 'AKC');
+values ('00000000-0000-0000-0000-000000490027', '00000000-0000-0000-0000-000000490013',
+        'MYK9-490 Secretary Trial', current_date, 'AKC');
 
 set local role authenticated;
 
 do $$
 declare
-  v_registries text;
+  v_state text;
+  v_organization text;
 begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000490041', true);
   perform set_config(
@@ -353,36 +321,31 @@ begin
     true
   );
 
-  -- The helper itself must be callable as authenticated. Asserted separately from the UPDATE
-  -- so a 42501 is attributed to the privilege, not to RLS.
-  begin
-    if public.derive_registry_id('UKC') <> 'UKC' then
-      raise exception 'FAIL authenticated: derive_registry_id returned the wrong value';
-    end if;
-  exception
-    when insufficient_privilege then
-      raise exception 'FAIL authenticated: derive_registry_id is not EXECUTE-able by authenticated (SQLSTATE 42501) — the sync trigger nested-calls it as the caller';
-  end;
-
-  -- The real path: a club admin edits the show's organization. The AFTER UPDATE trigger
-  -- cascades to both trials, through the enforcement trigger, all as `authenticated`.
+  -- A real secretary must be blocked from changing a populated show's organization.
   begin
     update public.shows
        set organization = 'UKC'
      where id = '00000000-0000-0000-0000-000000490013';
-  exception
-    when insufficient_privilege then
-      raise exception 'FAIL authenticated: the organization edit died on a privilege check (SQLSTATE 42501) inside the registry cascade';
+    raise exception 'FAIL authenticated: a populated show changed organization';
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate;
+    if v_state <> '23514' then
+      raise exception 'FAIL authenticated: expected SQLSTATE 23514, got %', v_state;
+    end if;
   end;
 
-  select string_agg(distinct registry_id, ',' order by registry_id) into v_registries
-  from public.trials
-  where show_id = '00000000-0000-0000-0000-000000490013';
+  update public.shows
+     set organization = 'UKC'
+   where id = '00000000-0000-0000-0000-000000490014';
 
-  if v_registries is distinct from 'UKC' then
-    raise exception 'FAIL authenticated: trials read % after the edit, expected UKC', coalesce(v_registries, '(none)');
+  select organization into v_organization
+  from public.shows
+  where id = '00000000-0000-0000-0000-000000490014';
+
+  if v_organization is distinct from 'UKC' then
+    raise exception 'FAIL authenticated: an empty show organization did not change to UKC';
   end if;
-  raise notice 'PASS authenticated: a club admin can change a show organization and the cascade runs';
+  raise notice 'PASS authenticated: populated-show changes are blocked and empty-show edits work';
 end;
 $$;
 

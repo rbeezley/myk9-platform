@@ -39,6 +39,8 @@ import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreati
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
+const NO_RETAINED_CLASSES: readonly never[] = [];
+
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -71,6 +73,7 @@ const ShowCreationWizardPage: React.FC = () => {
     goToStep,
     resetWizard,
     loadDraft,
+    cloneHydration,
     show,
     trials,
     lastSaved,
@@ -130,6 +133,8 @@ const ShowCreationWizardPage: React.FC = () => {
     [trials, persistedNameSources]
   );
   const { classes: existingClasses } = useClassStoreCompat();
+  // Add-classes mode loads the show's stored classes into the draft; validation retains them.
+  const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
@@ -223,12 +228,13 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Navigation handlers
   const handleBack = useCallback(() => {
+    if (cloneHydration.status === 'hydrating') return;
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     } else {
       handleClose();
     }
-  }, [currentStep, setCurrentStep, handleClose]);
+  }, [cloneHydration.status, currentStep, setCurrentStep, handleClose]);
 
   // Scroll the validation banner into view. scrollIntoView is a no-op stub in
   // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
@@ -241,10 +247,17 @@ const ShowCreationWizardPage: React.FC = () => {
   }, []);
 
   const handleNext = useCallback(async () => {
+    if (cloneHydration.status === 'hydrating') return;
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
-    const messages = getValidationMessagesForStep(currentStep, show, trials, trialView);
+    const messages = getValidationMessagesForStep(
+      currentStep,
+      show,
+      trials,
+      trialView,
+      retainedClasses
+    );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
       // view. Next stays enabled (see canGoNext) so this click actually fires
@@ -282,19 +295,27 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   }, [
     currentStep,
+    cloneHydration.status,
     markStepCompleted,
     setCurrentStep,
     show,
     trials,
     trialView,
+    retainedClasses,
     scrollBannerIntoView,
   ]);
 
   // Step navigation validation
-  const canGoBack = !isLoading;
+  const canGoBack = !isLoading && cloneHydration.status !== 'hydrating';
 
   // Get validation messages for current step
-  const validationMessages = getValidationMessagesForStep(currentStep, show, trials, trialView);
+  const validationMessages = getValidationMessagesForStep(
+    currentStep,
+    show,
+    trials,
+    trialView,
+    retainedClasses
+  );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
   // gated on validation: a disabled Next just sits there doing nothing when the
@@ -303,7 +324,7 @@ const ShowCreationWizardPage: React.FC = () => {
   // validation banner + inline "N items remaining" hint. Decoupled from
   // completedSteps to avoid auto-advance from markStepCompleted side effects
   // during re-renders.
-  const canGoNext = !isLoading;
+  const canGoNext = !isLoading && cloneHydration.status !== 'hydrating';
 
   // First-mount scroll: on the first failed Next the banner mounts on the
   // triggered render, so handleNext defers the scroll here. Guarded by the ref
@@ -438,6 +459,11 @@ const ShowCreationWizardPage: React.FC = () => {
                       editMode?.mode === 'add-trials' ? trialsReadError : undefined
                     }
                     onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
+                    persistedOrganization={
+                      editModeResolution.state === 'resolved'
+                        ? editModeResolution.show.organization
+                        : undefined
+                    }
                   />
                 )}
               </div>

@@ -3,10 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 
-const mockUpdateShowData = vi.fn();
-const mockAddJudgeToShow = vi.fn();
-const mockAddTrial = vi.fn();
 const mockResetWizard = vi.fn();
+const mockBeginCloneHydration = vi.fn();
+const mockFailCloneHydration = vi.fn();
+const mockCancelCloneHydration = vi.fn();
+const mockCompleteCloneHydration = vi.fn();
+const mockCloneHydration = {
+  status: 'idle' as 'idle' | 'hydrating' | 'ready' | 'failed',
+  sourceShowId: null as string | null,
+  sourceShowName: null as string | null,
+  failureReason: undefined as 'load-failed' | undefined,
+};
 const mockGetClassesByTrialId = vi.hoisted(() => vi.fn());
 
 const mockShows: Show[] = [
@@ -64,10 +71,13 @@ let mockShowsQueryState: { data: Show[]; isLoading: boolean; isError: boolean } 
 
 vi.mock('@/store/wizardStore', () => ({
   useWizardStore: vi.fn(() => ({
-    updateShowData: mockUpdateShowData,
-    addJudgeToShow: mockAddJudgeToShow,
-    addTrial: mockAddTrial,
     resetWizard: mockResetWizard,
+    beginCloneHydration: mockBeginCloneHydration,
+    failCloneHydration: mockFailCloneHydration,
+    cancelCloneHydration: mockCancelCloneHydration,
+    completeCloneHydration: mockCompleteCloneHydration,
+    cloneHydration: mockCloneHydration,
+    cloneGeneration: 1,
   })),
 }));
 
@@ -121,9 +131,9 @@ vi.mock('@/services/database/classes', () => ({
 
 import { CloneFromShowCombobox } from '../CloneFromShowCombobox';
 
-async function selectSourceShow() {
+async function selectSourceShow(options: { waitForCompletion?: boolean } = {}) {
   const user = userEvent.setup();
-  render(<CloneFromShowCombobox />);
+  const rendered = render(<CloneFromShowCombobox />);
 
   await user.click(screen.getByRole('button', { name: /select a past show to clone/i }));
   const list =
@@ -131,12 +141,54 @@ async function selectSourceShow() {
     document.body;
   await user.click(within(list as HTMLElement).getByText('Heartland Spring Trial'));
 
-  return user;
+  if (options.waitForCompletion !== false) {
+    await waitFor(() => expect(mockCloneHydration.status).not.toBe('hydrating'));
+    rendered.rerender(<CloneFromShowCombobox />);
+  }
+
+  return { user, rerender: rendered.rerender };
 }
 
 describe('CloneFromShowCombobox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.assign(mockCloneHydration, {
+      status: 'idle',
+      sourceShowId: null,
+      sourceShowName: null,
+      failureReason: undefined,
+    });
+    mockResetWizard.mockImplementation(() => {
+      Object.assign(mockCloneHydration, {
+        status: 'idle',
+        sourceShowId: null,
+        sourceShowName: null,
+        failureReason: undefined,
+      });
+    });
+    mockBeginCloneHydration.mockImplementation((sourceShowId, sourceShowName) => {
+      Object.assign(mockCloneHydration, { status: 'hydrating', sourceShowId, sourceShowName });
+      return 1;
+    });
+    mockFailCloneHydration.mockImplementation(() => {
+      Object.assign(mockCloneHydration, { status: 'failed', failureReason: 'load-failed' });
+    });
+    mockCancelCloneHydration.mockImplementation(() => {
+      Object.assign(mockCloneHydration, {
+        status: 'idle',
+        sourceShowId: null,
+        sourceShowName: null,
+        failureReason: undefined,
+      });
+    });
+    mockCompleteCloneHydration.mockImplementation((_generation, snapshot) => {
+      if (mockCloneHydration.status !== 'hydrating') return;
+      Object.assign(mockCloneHydration, {
+        status: 'ready',
+        sourceShowId: snapshot.sourceShowId,
+        sourceShowName: snapshot.sourceShowName,
+      });
+    });
     mockShowsQueryState = { data: mockShows, isLoading: false, isError: false };
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null });
   });
@@ -144,65 +196,84 @@ describe('CloneFromShowCombobox', () => {
   it('prefills non-date show fields and leaves all date fields blank', async () => {
     await selectSourceShow();
 
-    expect(mockResetWizard).toHaveBeenCalledTimes(1);
-    expect(mockUpdateShowData).toHaveBeenCalledWith({
-      name: 'Heartland Spring Trial',
-      organization: 'UKC',
-      location: 'Heartland Arena\nTulsa, OK',
-      clubId: 'club-1',
-      preEntryFee: 28,
-      dayOfShowFee: 35,
-      startingArmbandNumber: 250,
-      acceptCheckPayments: true,
-      acceptCashPayments: true,
-      startDate: '',
-      endDate: '',
-      entryOpenDate: '',
-      entryCloseDate: '',
-    });
+    expect(mockResetWizard).not.toHaveBeenCalled();
+    expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        show: expect.objectContaining({
+          name: 'Heartland Spring Trial',
+          organization: 'UKC',
+          location: 'Heartland Arena\nTulsa, OK',
+          clubId: 'club-1',
+          preEntryFee: 28,
+          dayOfShowFee: 35,
+          startingArmbandNumber: 250,
+          acceptCheckPayments: true,
+          acceptCashPayments: true,
+          startDate: '',
+          endDate: '',
+          entryOpenDate: '',
+          entryCloseDate: '',
+        }),
+      })
+    );
   });
 
   it('copies assigned judges when the person record is available', async () => {
     await selectSourceShow();
 
-    expect(mockAddJudgeToShow).toHaveBeenCalledWith('judge-1', {
-      name: 'Alex Judge',
-      email: 'alex@example.com',
-      phone: '555-0101',
-      certifications: ['UKC'],
-      notes: '',
-    });
+    expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        judgeDetails: {
+          'judge-1': {
+            name: 'Alex Judge',
+            email: 'alex@example.com',
+            phone: '555-0101',
+            certifications: ['UKC'],
+            notes: '',
+          },
+        },
+      })
+    );
   });
 
   it('copies production-shaped trial and class structure while clearing trial date and event number', async () => {
     await selectSourceShow();
 
     await waitFor(() =>
-      expect(mockAddTrial).toHaveBeenCalledWith({
-        nameOverride: 'Friday Trial 1',
-        dateTime: '',
-        eventNumber: '',
-        trialType: 'Nosework',
-        classes: [
-          {
-            templateId: 'tmpl-nosework',
-            customizations: {
-              className: 'Novice Containers',
-              element: 'Containers',
-              level: 'Novice',
-              section: 'B',
-              entryFee: 28,
-              hidesUsed: '2',
-              distractionsUsed: '1',
-              itemsUsed: 'Furniture, Cabinets',
-              timeLimit1: '3:00',
-              timeLimit2: '2:00',
-              timeLimit3: '',
+      expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          trials: [
+            {
+              nameOverride: 'Friday Trial 1',
+              dateTime: '',
+              eventNumber: '',
+              trialType: 'Nosework',
+              classes: [
+                {
+                  templateId: 'tmpl-nosework',
+                  customizations: {
+                    className: 'Novice Containers',
+                    element: 'Containers',
+                    level: 'Novice',
+                    section: 'B',
+                    entryFee: 28,
+                    hidesUsed: '2',
+                    distractionsUsed: '1',
+                    itemsUsed: 'Furniture, Cabinets',
+                    timeLimit1: '3:00',
+                    timeLimit2: '2:00',
+                    timeLimit3: '',
+                  },
+                  judgeId: 'judge-1',
+                },
+              ],
             },
-            judgeId: 'judge-1',
-          },
-        ],
-      })
+          ],
+        })
+      )
     );
   });
 
@@ -237,23 +308,26 @@ describe('CloneFromShowCombobox', () => {
 
     await selectSourceShow();
 
-    await waitFor(() =>
-      expect(mockAddTrial).toHaveBeenCalledWith(
-        expect.objectContaining({
-          classes: [
-            expect.objectContaining({
-              customizations: expect.objectContaining({
-                hidesUsed: undefined,
-                distractionsUsed: undefined,
-                itemsUsed: undefined,
-                timeLimit1: undefined,
-                timeLimit2: undefined,
-                timeLimit3: undefined,
+    expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        trials: [
+          expect.objectContaining({
+            classes: [
+              expect.objectContaining({
+                customizations: expect.objectContaining({
+                  hidesUsed: undefined,
+                  distractionsUsed: undefined,
+                  itemsUsed: undefined,
+                  timeLimit1: undefined,
+                  timeLimit2: undefined,
+                  timeLimit3: undefined,
+                }),
               }),
-            }),
-          ],
-        })
-      )
+            ],
+          }),
+        ],
+      })
     );
   });
 
@@ -286,76 +360,46 @@ describe('CloneFromShowCombobox', () => {
     await selectSourceShow();
 
     await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
-    expect(mockAddTrial).toHaveBeenCalledWith({
-      nameOverride: 'Friday Trial 1',
-      dateTime: '',
-      eventNumber: '',
-      trialType: 'Nosework',
-      classes: [
-        {
-          templateId: 'tmpl-nosework',
-          customizations: {
-            className: 'Novice Containers',
-            element: 'Containers',
-            level: 'Novice',
-            section: 'B',
-            entryFee: 28,
-          },
-          judgeId: 'judge-1',
-        },
-      ],
-    });
+    expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        trials: [
+          expect.objectContaining({
+            nameOverride: 'Friday Trial 1',
+            dateTime: '',
+            eventNumber: '',
+            trialType: 'Nosework',
+            classes: [
+              expect.objectContaining({
+                templateId: 'tmpl-nosework',
+                customizations: expect.objectContaining({ className: 'Novice Containers' }),
+                judgeId: 'judge-1',
+              }),
+            ],
+          }),
+        ],
+      })
+    );
   });
 
-  it('does not append hydrated trials after start fresh cancels the selection', async () => {
+  // The clone's status and recovery actions belong to CloneStatusBanner
+  // (CloneStatusBanner.test.tsx); the picker steps aside while a clone is in any state.
+  it('hides itself while a clone is loading so only the status banner is shown', async () => {
     const sourceTrial = mockShows[0]!.trials[0]!;
-    let resolveClasses: (value: {
-      data: Array<Record<string, unknown>>;
-      error: null;
-    }) => void = () => {};
-    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
-      resolve => {
-        resolveClasses = resolve;
-      }
-    );
     mockShowsQueryState = {
-      data: [
-        {
-          ...mockShows[0]!,
-          trials: [{ ...sourceTrial, classes: [] }],
-        } as Show,
-      ],
+      data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
       isLoading: false,
       isError: false,
     };
-    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
+    mockGetClassesByTrialId.mockReturnValueOnce(new Promise(() => {}));
 
-    const user = await selectSourceShow();
-    await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
-
-    await user.click(screen.getByRole('button', { name: /start fresh/i }));
-    resolveClasses({
-      data: [
-        {
-          id: 'class-1',
-          name: 'Novice Containers',
-          element: 'Containers',
-          level: 'Novice',
-          entry_fee: 28,
-        },
-      ],
-      error: null,
-    });
+    const { rerender } = await selectSourceShow({ waitForCompletion: false });
+    rerender(<CloneFromShowCombobox />);
     await flushPromises();
 
-    expect(mockAddTrial).not.toHaveBeenCalled();
-  });
-
-  it('start fresh clears copied fields and selected judges', async () => {
-    const user = await selectSourceShow();
-    await user.click(screen.getByRole('button', { name: /start fresh/i }));
-
-    expect(mockResetWizard).toHaveBeenCalledTimes(2);
+    expect(mockBeginCloneHydration).toHaveBeenCalledWith('show-1', 'Heartland Spring Trial');
+    expect(screen.queryByRole('button', { name: /select a past show/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /cancel clone|start fresh/i })).toBeNull();
   });
 
   it('renders nothing when there are no prior shows to clone', () => {

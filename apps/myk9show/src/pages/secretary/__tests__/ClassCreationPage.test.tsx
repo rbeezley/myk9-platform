@@ -41,7 +41,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'secretary-1' } }),
 }));
 
-const template = createMockTemplate();
+// A distinctive minutes-per-run value, so an estimate assertion cannot match any other number on the page.
+const template = createMockTemplate({
+  defaults: { entryFees: { preEntry: 25, dayOfShow: 35 }, judgingTimeEstimate: 7 },
+});
 
 async function chooseTemplate(
   user: ReturnType<typeof render>['user'],
@@ -113,7 +116,7 @@ describe('ClassCreationPage', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('uses current counts only to gate the unchanged review judge-time estimate', async () => {
+  it("multiplies minutes per run by the selected classes' expected entries", async () => {
     const selectedClass = template.classDefinitions[0]!;
     mockClassStoreState.classes = [
       {
@@ -154,12 +157,15 @@ describe('ClassCreationPage', () => {
     expect(
       screen.getByText(/estimated judging time based on current entries/i)
     ).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
+    // Two expected entries in the selected class (the withdrawn one and the
+    // unselected class's three do not count) at 7 minutes per run.
+    expect(screen.getByText('14 min')).toBeInTheDocument();
 
     mockClassStoreState.entries = [{ classId: 'class-1', status: 'Qualified' }];
     view.rerender(<ClassCreationPage trialId="trial-1" />);
 
-    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('7 min')).toBeInTheDocument();
+    expect(screen.queryByText('14 min')).not.toBeInTheDocument();
   });
 
   it('hides the estimate when cached entry counts become stale', async () => {

@@ -2,6 +2,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useWizardStore } from '@/store/wizardStore';
 
 const mockUpdateShowData = vi.fn();
 
@@ -27,6 +28,8 @@ vi.mock('@/store/wizardStore', () => ({
       acceptCashPayments: false,
       style: 'monogram',
     },
+    trials: [],
+    cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
     updateShowData: mockUpdateShowData,
     addJudgeToShow: vi.fn(),
     removeJudgeFromShow: vi.fn(),
@@ -55,7 +58,12 @@ vi.mock('@/hooks/useUserClubIds', () => ({
 }));
 
 vi.mock('../CloneFromShowCombobox', () => ({
-  CloneFromShowCombobox: () => null,
+  CloneFromShowCombobox: () => <div data-testid="clone-from-show" />,
+}));
+
+// Its own behaviour is covered in CloneStatusBanner.test.tsx; here only its placement.
+vi.mock('../CloneStatusBanner', () => ({
+  CloneStatusBanner: () => <div data-testid="clone-status-banner" />,
 }));
 
 import { ShowDetailsStep } from '../ShowDetailsStep';
@@ -71,6 +79,39 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     // The old standalone "Payment Methods" heading is gone — the accept-check /
     // accept-cash checkboxes now live under the Fees & Payments group.
     expect(screen.queryByText('Payment Methods')).not.toBeInTheDocument();
+  });
+
+  it('locks show-detail editing while a clone snapshot is loading', () => {
+    const currentState = useWizardStore();
+    vi.mocked(useWizardStore).mockReturnValueOnce({
+      ...currentState,
+      cloneHydration: {
+        status: 'hydrating',
+        sourceShowId: 'source-1',
+        sourceShowName: 'Cloned show',
+      },
+    });
+
+    render(<ShowDetailsStep />);
+
+    const lockedForm = screen.getByTestId('clone-locked-show-details');
+    expect(lockedForm).toHaveAttribute('inert');
+    expect(lockedForm).toHaveAttribute('aria-busy', 'true');
+  });
+
+  // MYK9-604: a clone replaces the draft's organization with the source show's. On an
+  // existing show (add-trials / add-classes) that would send a foreign organization to a
+  // show whose organization is fixed, so cloning is a create-only starting point.
+  it('offers clone-from-show, with its status banner beside the picker, when creating', () => {
+    render(<ShowDetailsStep mode="create" />);
+    expect(screen.getByTestId('clone-from-show')).toBeInTheDocument();
+    expect(screen.getByTestId('clone-status-banner')).toBeInTheDocument();
+  });
+
+  it.each(['add-trials', 'add-classes'] as const)('does not offer clone in %s mode', mode => {
+    render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
+    expect(screen.queryByTestId('clone-from-show')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('clone-status-banner')).not.toBeInTheDocument();
   });
 
   it('preserves the current wizard route when handing off complete club creation', () => {
@@ -193,4 +234,18 @@ describe('ShowDetailsStep — Step-1 grouping', () => {
     expect(within(basics as HTMLElement).getByText('Host Club')).toBeInTheDocument();
     expect(within(basics as HTMLElement).getByLabelText(/show name/i)).toBeInTheDocument();
   });
+
+  it.each(['add-trials', 'add-classes'] as const)(
+    'keeps the persisted organization locked in %s mode even when the child snapshot is empty',
+    mode => {
+      render(<ShowDetailsStep mode={mode} persistedOrganization="UKC" />);
+
+      const organization = screen.getByRole('combobox', { name: /organization/i });
+      expect(organization).toBeDisabled();
+      expect(organization).toHaveTextContent('UKC');
+      expect(screen.getByTestId('organization-guidance')).toHaveTextContent(
+        /create a separate show/i
+      );
+    }
+  );
 });

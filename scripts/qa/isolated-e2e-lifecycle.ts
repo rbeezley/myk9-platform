@@ -250,6 +250,15 @@ function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEn
     [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-demo.sql'],
     jobEnv
   );
+  // The MYK9-109 load fixture is opt-in since MYK9-558, so a staging reseed
+  // stays lean. This local, throwaway database keeps the full fixture the
+  // isolated suite has always run against (asserted below).
+  runCommand(
+    'Load fixture seed',
+    'psql',
+    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-load-fixture.sql'],
+    jobEnv
+  );
   seedIsolatedAccounts(local, jobEnv);
   runPostSeedAssertions(local, jobEnv);
 }

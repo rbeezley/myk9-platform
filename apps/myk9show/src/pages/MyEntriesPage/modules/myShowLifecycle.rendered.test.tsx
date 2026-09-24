@@ -20,6 +20,7 @@ import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtur
 import { groupEntriesByShow } from './groupEntriesByShow';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import { countUpcomingClassesByDog, getPartiallyScoredState } from './myEntriesStats.helpers';
+import { TAB_PREDICATES } from './entryTabDefs';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 function renderRows(rows: MyEntry[]) {
@@ -174,8 +175,21 @@ describe('My Shows lifecycle — a result recorded as withdrawn', () => {
     ).toBeInTheDocument();
   });
 
-  // Codex round 1: a WD the judge recorded AS a result (`is_scored` true) is a
-  // result, not a lifecycle withdrawal — the chip must agree with the row.
+  // A WD result is a ROW-level outcome, never a lifecycle: the server's
+  // accounting (`isExpectedEntry` / `isAccountedFor`) still expects an unscored
+  // WD row and does not count it accounted for, so My Shows must not file the
+  // order as done while the class is incomplete everywhere else (Codex round 2).
+  it('keeps an unscored WD in Upcoming, with one class outstanding', () => {
+    const orders = toOrders([
+      mapleRow('maple-wd', 'Container Novice', 'confirmed', { resultStatus: 'withdrawn' }),
+    ]);
+
+    expect(TAB_PREDICATES.upcoming(orders[0]!, NOW)).toBe(true);
+    expect(countUpcomingClassesByDog(orders, NOW)['dog-maple']).toBe(1);
+  });
+
+  // A WD the judge recorded AS a result (`is_scored` true) is a result; the
+  // chip must agree with the row.
   it('keeps a SCORED WD result in the scored lifecycle', () => {
     renderRows([
       mapleRow('maple-wd-scored', 'Container Novice', 'confirmed', {

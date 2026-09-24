@@ -18,9 +18,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { EntryStatus } from '@/types/show-registration-types';
 import { MyShowsList } from './MyShowsList';
+import { MyShowsListHeading } from './MyShowsListHeading';
 import { LeaveClassDialog } from './LeaveClassDialog';
-import type { LeaveClassDialogState, MyEntry } from './my-entries-types';
+import { orderMatchesStatusFilter } from './statusFilterPredicate';
+import type { EntryStatusFilter, LeaveClassDialogState, MyEntry } from './my-entries-types';
 
 const mocks = vi.hoisted(() => ({
   withdrawEntry: vi.fn(),
@@ -63,31 +66,50 @@ const FALL = mapleIn('show-fall', 'Fall Classic', 'e-b', 'Interior Advanced');
 function pulled(row: MyEntry): MyEntry {
   return {
     ...row,
+    entryStatus: EntryStatus.SCRATCHED,
+    entryStatusKind: 'scratched',
     classes: row.classes.map(cls => ({
       ...cls,
+      entryStatus: EntryStatus.SCRATCHED,
       status: 'scratched' as const,
       entryStatusKind: 'scratched' as const,
     })),
   };
 }
 
-/** The page's wiring: the list opens the dialog, a success refreshes the rows. */
-function Harness() {
-  const [rows, setRows] = useState<MyEntry[]>([HEARTLAND, FALL]);
+/**
+ * The page's wiring: the always-mounted list heading, the list filtered by
+ * status the way `useMyEntriesFilters` filters it (and not rendered at all when
+ * nothing matches, as the page renders its empty state instead), the dialog,
+ * and a refresh on success.
+ */
+function Harness({
+  initialRows = [HEARTLAND, FALL],
+  status = 'any',
+}: {
+  initialRows?: MyEntry[];
+  status?: EntryStatusFilter;
+}) {
+  const [rows, setRows] = useState<MyEntry[]>(initialRows);
   const [dialog, setDialog] = useState<LeaveClassDialogState>({ open: false, target: null });
+  const filtered = toOrders(rows).filter(order => orderMatchesStatusFilter(order, status));
   return (
     <>
-      <MyShowsList
-        filteredEntries={toOrders(rows)}
-        source="confirmed"
-        seenResultReleaseKeys={new Set<string>()}
-        now={NOW}
-        onCheckInDay={vi.fn()}
-        onOpenCheckIn={vi.fn()}
-        onOpenEdit={vi.fn()}
-        onOpenReceipts={vi.fn()}
-        onLeaveClass={target => setDialog({ open: true, target })}
-      />
+      <MyShowsListHeading />
+      {filtered.length > 0 && (
+        <MyShowsList
+          filteredEntries={filtered}
+          selectedStatus={status}
+          source="confirmed"
+          seenResultReleaseKeys={new Set<string>()}
+          now={NOW}
+          onCheckInDay={vi.fn()}
+          onOpenCheckIn={vi.fn()}
+          onOpenEdit={vi.fn()}
+          onOpenReceipts={vi.fn()}
+          onLeaveClass={target => setDialog({ open: true, target })}
+        />
+      )}
       <LeaveClassDialog
         dialog={dialog}
         onClose={() => setDialog({ open: false, target: null })}
@@ -165,5 +187,27 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
 
     await waitFor(() => expect(control).toHaveFocus());
     expect(mocks.withdrawEntry).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the list heading when a filter removes the card', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialRows={[FALL]} status="accepted" />);
+
+    const fall = screen.getByRole('region', { name: 'Fall Classic' });
+    await user.click(within(fall).getByRole('button', { name: /^Leave class/ }));
+    const dialog = within(await screen.findByRole('alertdialog'));
+    await user.click(dialog.getByRole('button', { name: /^pull$/i }));
+    await user.click(dialog.getByRole('button', { name: /pull entry/i }));
+
+    // The pulled order no longer matches Accepted, so the card — and the list —
+    // are gone, taking the card's anchor with them.
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Fall Classic' })).not.toBeInTheDocument()
+    );
+    expect(anchors()).toHaveLength(0);
+
+    const heading = screen.getByRole('heading', { name: /All entries/ });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
   });
 });

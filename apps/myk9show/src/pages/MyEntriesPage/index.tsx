@@ -44,8 +44,7 @@ import {
   EntryFilterStrip,
   MyEntriesOverview,
   type OverviewDog,
-  ALL_ENTRIES_LABEL,
-  ALL_ENTRIES_SCOPE_NOTE,
+  MyShowsListHeading,
 } from './modules';
 import {
   getMyEntriesPresentation,
@@ -416,22 +415,8 @@ const MyEntriesPage: React.FC = () => {
                   {/* The scope note distinguishes this all-time count from the
                     "Current entries" stat card above, which is scoped to
                     upcoming/in-review only. */}
-                  {/* A real heading, not a styled <p>. This and "My Dogs" were
-                    the page's two section labels and neither was reachable by
-                    heading navigation, so a screen-reader user had exactly one
-                    landmark (the h1) for the whole surface. Styling unchanged. */}
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
-                    {ALL_ENTRIES_LABEL}
-                    {/* The count badge that used to sit here is gone. The
-                      "All" chip immediately below carries it — and carries it
-                      SCOPED to the active status filter, so the two disagreed
-                      on sight: this badge read 190 while the chip read 187.
-                      What survives is the part the chips cannot say: the unit
-                      these numbers count, and that past shows are included. */}
-                    <span className="normal-case tracking-normal font-normal text-muted-foreground">
-                      {ALL_ENTRIES_SCOPE_NOTE}
-                    </span>
-                  </h2>
+                  {/* Also the focus fallback after leaving a class (MYK9-658). */}
+                  <MyShowsListHeading />
 
                   {/* Inbound scope from My Payments' Receipt link. Sits above
                     the filters, not inside the list: it describes the whole

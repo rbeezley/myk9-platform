@@ -29,13 +29,17 @@ import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligib
 import { logger } from '@/services/LoggingService';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import type { LeaveClassDialogState } from './my-entries-types';
-import { dogCardAnchorId } from './dogCardAnchor';
+import { dogCardAnchorId, settleFocusAfterLeave } from './dogCardAnchor';
 
 export interface LeaveClassDialogProps {
   dialog: LeaveClassDialogState;
   onClose: () => void;
-  /** Re-read the entries after a successful write, exactly as the sheet does. */
-  onUpdate: () => void;
+  /**
+   * Re-read the entries after a successful write, exactly as the sheet does.
+   * Awaited when it returns a promise, so focus is settled against the
+   * REFRESHED list (MYK9-658).
+   */
+  onUpdate: () => void | Promise<void>;
 }
 
 export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
@@ -77,6 +81,12 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   // primitive asks where to put focus. Every close that is not a landed leave
   // — Escape, "Keep my entry" — keeps the primitive's own restore to the
   // still-mounted trigger.
+  //
+  // The card does NOT always survive: under a status filter, leaving the last
+  // matching class removes the card (or the whole list) on refresh, taking
+  // the focused anchor with it. So once the refresh lands,
+  // `settleFocusAfterLeave` re-homes focus that fell to `<body>` onto the
+  // anchor if it still exists, else the always-mounted list heading.
   const landedAnchorRef = React.useRef<string | null>(null);
   const finalFocus = React.useCallback((): HTMLElement | boolean => {
     const anchorId = landedAnchorRef.current;
@@ -126,9 +136,11 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       );
       savingRef.current = false;
       setIsSaving(false);
-      landedAnchorRef.current = dogCardAnchorId(target.dogCardId);
+      const anchorId = dogCardAnchorId(target.dogCardId);
+      landedAnchorRef.current = anchorId;
       onClose();
-      onUpdate();
+      const settle = () => settleFocusAfterLeave(anchorId);
+      void Promise.resolve(onUpdate()).then(settle, settle);
     } catch (err) {
       // Same reasoning as the refusal branch: an unexpected throw is the case
       // where a retry is most likely to help, so the chooser stays open.

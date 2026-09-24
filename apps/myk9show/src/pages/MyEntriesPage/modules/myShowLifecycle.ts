@@ -10,10 +10,10 @@
  * PENDING), so a terminal absent class counted as expected and unscored and
  * the chip read "Partially scored" with nothing left to run.
  *
- * Everything here keys on the LOSSLESS `entryStatusKind` instead, plus the
- * one recorded outcome that settles a row without a lifecycle change:
- * `result_status = 'withdrawn'` (the WD result), which no predicate read
- * before, so the row fell through to the check-in day math.
+ * The lifecycle keys on the LOSSLESS `entryStatusKind` instead, and on nothing
+ * else, so it matches the server's accounting. A recorded WD result, which no
+ * predicate read before, is a ROW-level outcome (`isSettledByOutcome`): the row
+ * shows its WD badge and offers no check-in, and the class stays expected.
  *
  * @module MyEntriesPage/modules/myShowLifecycle
  */
@@ -60,7 +60,10 @@ export type LifecycleClass = Pick<
  *    swallowed it.
  *  - `paid`, the other override, classifies as `accepted` and is not settled.
  *
- * An unscored WD result settles an otherwise live row as a withdrawal.
+ * Entry status ONLY. A WD result (`result_status = 'withdrawn'`) is never a
+ * lifecycle here: the server's accounting still expects that row and does not
+ * count it accounted for, so it stays in the chip's and the stats' denominator.
+ * It is a ROW-level outcome instead — see `isSettledByOutcome`.
  *
  * Deliberately blind to `check_in_status = 'pulled'`: that is a DAY-OF state
  * with its own row kind, chip and "change" link. `isExpectedClass` below is
@@ -72,11 +75,6 @@ export function settledLifecycleKind(cls: LifecycleClass): SettledLifecycleKind 
     if (kind === 'not_accepted' && cls.entryStatus === EntryStatus.PENDING) return undefined;
     return kind as SettledLifecycleKind;
   }
-  // Only an UNSCORED WD settles the lifecycle. A WD the judge recorded as the
-  // result (`is_scored` true) is a result, and the results view reads it as one;
-  // treating it as a withdrawal put "Withdrawn" on the chip over a WD result
-  // row (Codex round 1).
-  if (cls.resultStatus === 'withdrawn' && cls.isScored !== true) return 'withdrawn';
   return undefined;
 }
 

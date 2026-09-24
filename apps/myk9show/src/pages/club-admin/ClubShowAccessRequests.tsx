@@ -6,6 +6,9 @@
  * lets the club admin Approve (grant_club_secretary, via
  * approve_club_role_request) or Deny (deny_club_role_request) them.
  *
+ * Also renders pending MEMBERSHIP requests on the Members tab (MYK9-685),
+ * with its own copy; approving one adds the person to the roster only.
+ *
  * INTENT: a request is an ask, never a grant. Approve here calls the same
  * grant_club_secretary path — and gets the same permission_audit_log row —
  * as appointing someone directly from this tab's "Appoint Secretary" button.
@@ -26,16 +29,41 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Inbox, Check, X } from 'lucide-react';
-import type { RoleRequest } from '@/services/database/role-requests';
 import { formatDistanceToNow } from 'date-fns';
 
+/** What the list needs from a request; secretary and membership asks both fit. */
+export interface PendingClubRequest {
+  id: string;
+  requesterName: string;
+  requesterEmail: string | null;
+  requesterNote: string | null;
+  createdAt: string;
+}
+
+/** Copy that differs between the Show Access (secretary) and Members (membership) lists. */
+export interface PendingClubRequestsCopy {
+  heading: string;
+  unavailableMessage: string;
+  denyDescription: string;
+  denyFieldId: string;
+}
+
+const SHOW_ACCESS_COPY: PendingClubRequestsCopy = {
+  heading: 'Pending requests',
+  unavailableMessage: "We couldn't load pending show-access requests.",
+  denyDescription:
+    'They will not be appointed as a secretary from this request. They can still be appointed directly at any time, and — unless you appoint them — cannot resubmit this exact request again.',
+  denyFieldId: 'deny-request-note',
+};
+
 interface ClubShowAccessRequestsProps {
-  requests: RoleRequest[];
+  requests: PendingClubRequest[];
   unavailable: boolean;
   onRetry: () => void;
   onApprove: (requestId: string) => void;
   onDeny: (requestId: string, note?: string) => void;
   isSaving: boolean;
+  copy?: PendingClubRequestsCopy;
 }
 
 export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
@@ -45,8 +73,9 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
   onApprove,
   onDeny,
   isSaving,
+  copy = SHOW_ACCESS_COPY,
 }) => {
-  const [pendingDeny, setPendingDeny] = useState<RoleRequest | null>(null);
+  const [pendingDeny, setPendingDeny] = useState<PendingClubRequest | null>(null);
   const [isDenyOpen, setIsDenyOpen] = useState(false);
   const [denyNote, setDenyNote] = useState('');
 
@@ -69,7 +98,7 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
         role="status"
         className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
       >
-        We couldn&apos;t load pending show-access requests.{' '}
+        {copy.unavailableMessage}{' '}
         <button type="button" onClick={onRetry} className="underline underline-offset-2">
           Try again
         </button>
@@ -83,7 +112,7 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Inbox className="h-4 w-4 text-muted-foreground" />
-        <h4 className="text-sm font-semibold text-foreground">Pending requests</h4>
+        <h4 className="text-sm font-semibold text-foreground">{copy.heading}</h4>
         <Badge className="bg-primary/10 text-primary border-primary/20">{requests.length}</Badge>
       </div>
       <ul className="divide-y divide-border rounded-lg border border-border">
@@ -140,18 +169,14 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Deny {pendingDeny?.requesterName}&apos;s request?</AlertDialogTitle>
-            <AlertDialogDescription>
-              They will not be appointed as a secretary from this request. They can still be
-              appointed directly at any time, and — unless you appoint them — cannot resubmit this
-              exact request again.
-            </AlertDialogDescription>
+            <AlertDialogDescription>{copy.denyDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <FormField
             label="Reason (shown to the requester; kept in myK9’s records)"
-            fieldId="deny-request-note"
+            fieldId={copy.denyFieldId}
           >
             <Textarea
-              id="deny-request-note"
+              id={copy.denyFieldId}
               placeholder="Optional — helps them understand what to do differently."
               value={denyNote}
               onChange={e => setDenyNote(e.target.value)}

@@ -255,6 +255,23 @@ When the request is approved, the person who submitted it becomes an active memb
 
 ---
 
+## Section 13 — Join an Existing Club or Ask for Secretary Access
+
+If your club already uses myK9Show, you can ask it for either of two things. They are separate requests, and the club's admins decide each one.
+
+1. Open **Request additional access** from your account or exhibitor home page.
+2. Choose **Find an existing club**, search for the club, and select it.
+3. Choose what you are asking for:
+   - **Ask to join as a member** — puts you on the club's member list. Membership does **not** let you set up or run shows. A message to the club is optional.
+   - **Ask for secretary access** — asks the club to let you set up and run its shows. Tell the club why you are asking; this is required.
+4. Click **Send request**. The page shows **Request sent**, and from then on shows **Your request is under review** instead of another send button.
+
+Nothing changes on your account until the club approves. The club's admins see your name, email address, and reason, and review the request on their **Club Members** page. Coming back to this page later shows the current status: under review, approved, or not approved, with the club's note if they wrote one.
+
+If the club denies a request, you cannot send the same request again from this page. Contact the club directly if you think it should be reconsidered.
+
+---
+
 ## Still need help?
 
 - [KB: enter-a-show](#) — step-by-step for the registration wizard

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
 import type { Club } from '@/types/club-types';
-import { RequestShowAccessCard } from '@/components/clubs/ClubDetails/RequestShowAccessCard';
+import { ExistingClubRequestPanel } from '@/features/club-requests/ExistingClubRequestPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -96,7 +96,8 @@ const RequestAccessPage: React.FC = () => {
                 <UserRound className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Join an existing club</CardTitle>
                 <CardDescription>
-                  Find the club and ask to become its show secretary.
+                  Ask a club that already uses myK9Show to add you as a member, or to give you
+                  secretary access for its shows.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -193,7 +194,7 @@ const RequestAccessPage: React.FC = () => {
               <CardTitle>{selectedClub ? selectedClub.name : 'Find your club'}</CardTitle>
               <CardDescription>
                 {selectedClub
-                  ? 'Ask this club to appoint you as a secretary. The club must approve the request.'
+                  ? 'The club’s admins review every request. Nothing changes until they approve it.'
                   : 'Search by club name, city, or state. Select your club to continue.'}
               </CardDescription>
             </CardHeader>
@@ -259,7 +260,7 @@ const RequestAccessPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <RequestShowAccessCard club={selectedClub} />
+                  <ExistingClubRequestPanel key={selectedClub.id} club={selectedClub} />
                   <Button
                     type="button"
                     variant="outline"

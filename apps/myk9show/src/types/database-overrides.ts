@@ -153,6 +153,51 @@ type UpdateShowStyle = {
   Returns: number;
 };
 
+/**
+ * Club membership requests (MYK9-685) —
+ * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
+ * Hand-declared until the next `supabase gen types` picks them up, the same way
+ * `update_show_style` is. NULL `p_requester_note` / `p_note` mean "no note"
+ * (the SQL stores `NULLIF(btrim(...), '')`); `list_club_membership_requests`
+ * returns only pending rows, and `requester_email` is `people.email`, which is
+ * nullable. `get_my_club_membership_request_status` returns exactly one row:
+ * one `state`, and a `reviewer_note` only for 'denied'.
+ */
+type ClubMembershipRequestFunctions = {
+  submit_club_membership_request: {
+    Args: { p_club_id: string; p_requester_note?: string | null };
+    Returns: string | null;
+  };
+  get_my_club_membership_request_status: {
+    Args: { p_club_id: string };
+    Returns: {
+      state: 'member' | 'suspended' | 'pending' | 'denied' | 'none';
+      reviewer_note: string | null;
+    }[];
+  };
+  list_club_membership_requests: {
+    Args: { p_club_id: string };
+    Returns: {
+      id: string;
+      club_id: string;
+      person_id: string;
+      status: string;
+      requester_note: string | null;
+      created_at: string;
+      requester_name: string;
+      requester_email: string | null;
+    }[];
+  };
+  approve_club_membership_request: {
+    Args: { p_request_id: string; p_note?: string | null };
+    Returns: undefined;
+  };
+  deny_club_membership_request: {
+    Args: { p_request_id: string; p_note?: string | null };
+    Returns: undefined;
+  };
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -168,6 +213,6 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
-    };
+    } & ClubMembershipRequestFunctions;
   };
 };

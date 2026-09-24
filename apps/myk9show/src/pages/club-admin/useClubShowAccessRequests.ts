@@ -20,7 +20,9 @@ import { notifications } from '@/lib/notifications';
 
 export function useClubShowAccessRequests(
   clubId: string | undefined,
-  reportMutationFailure: (what: string, error: unknown) => void
+  reportMutationFailure: (what: string, error: unknown) => void,
+  /** Pending membership requests (MYK9-685), badged on the Members tab. */
+  pendingMembershipCount = 0
 ) {
   const queryClient = useQueryClient();
 
@@ -31,6 +33,8 @@ export function useClubShowAccessRequests(
     queryKey: ['club-role-requests', clubId],
     queryFn: () => listClubRoleRequests(clubId!),
     enabled: !!clubId,
+    // An inbox: requests arrive while the admin is elsewhere.
+    refetchOnMount: 'always',
   });
 
   // Defense in depth (MYK9-571 round 3, P3-5): the RPC's own WHERE clause
@@ -49,7 +53,12 @@ export function useClubShowAccessRequests(
   // a module-level constant) because `badge` varies with live data.
   const clubMembersTabs: PrimaryTabDef[] = useMemo(
     () => [
-      { id: 'members', label: 'Members', icon: Users },
+      {
+        id: 'members',
+        label: 'Members',
+        icon: Users,
+        ...(pendingMembershipCount > 0 ? { badge: pendingMembershipCount } : {}),
+      },
       { id: 'officers', label: 'Officers', icon: Shield },
       // Separate from Members on purpose: an appointed secretary need not be a member, so
       // this tab can list people the roster structurally cannot.
@@ -60,7 +69,7 @@ export function useClubShowAccessRequests(
         ...(pendingRoleRequests.length > 0 ? { badge: pendingRoleRequests.length } : {}),
       },
     ],
-    [pendingRoleRequests.length]
+    [pendingRoleRequests.length, pendingMembershipCount]
   );
 
   // Approving routes through grant_club_secretary (same permission_audit_log

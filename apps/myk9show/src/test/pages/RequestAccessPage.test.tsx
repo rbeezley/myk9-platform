@@ -22,10 +22,6 @@ vi.mock('@/services/database/club-access-requests', () => ({
   submitNewClubAccessRequest: vi.fn(),
 }));
 
-vi.mock('@/components/clubs/ClubDetails/RequestShowAccessCard', () => ({
-  RequestShowAccessCard: () => <button type="button">Request show access</button>,
-}));
-
 describe('RequestAccessPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();

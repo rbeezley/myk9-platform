@@ -395,4 +395,42 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       expect(guard!.index).toBeLessThan(classDelete.index);
     }
   });
+
+  it('scopes every destructive statement to seeded ids, so a hand-created UAT show survives a reseed (MYK9-558)', () => {
+    // The seed-reset skill's guardrail rests on this: a club's own UAT show on
+    // staging (the Oct 10 show, and any after it) is outside every scope below,
+    // so a reseed cannot touch it. A DELETE keyed on anything but the seed's own
+    // id-spaces -- a status, a name pattern, a date, or no WHERE at all -- would
+    // reach it. "Wipe staging" is the site-admin dashboard delete path, never a
+    // wider statement here.
+    const SEEDED_ID_PREFIXES = ['dededede-', 'dec1a55e-', 'a1090000-', 'ee110000-'];
+    expect(seed, 'the seed must never TRUNCATE').not.toMatch(/\bTRUNCATE\b/i);
+
+    const deletes = statements(/\bDELETE FROM public\.\w+\b[^;]*;/g);
+    expect(deletes.length).toBeGreaterThan(20);
+    for (const del of deletes) {
+      const table = /DELETE FROM (public\.\w+)/.exec(del.text)![1];
+      expect(del.text, `${table} delete has no WHERE`).toMatch(/\bWHERE\b/);
+      const ids = uuidsIn(del.text);
+      expect(ids.length, `${table} delete names no seeded id: ${del.text}`).toBeGreaterThan(0);
+      for (const id of ids) {
+        expect(
+          SEEDED_ID_PREFIXES.some(prefix => id.startsWith(prefix)),
+          `${table} delete is scoped by ${id}, which is not a seeded id-space`
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('keeps the opt-in load fixture free of destructive statements; seed-demo.sql owns every delete', () => {
+    // supabase/seed-load-fixture.sql is applied AFTER this file for a load
+    // rehearsal, and a plain rerun of this file is what removes it. Any delete
+    // it carried would run outside the scope pinned above.
+    const loadFixture = stripSqlComments(
+      readFileSync(join(repoRoot, 'supabase/seed-load-fixture.sql'), 'utf8')
+    );
+    expect(loadFixture).not.toMatch(/\bDELETE\b/i);
+    expect(loadFixture).not.toMatch(/\bTRUNCATE\b/i);
+    expect(loadFixture).not.toMatch(/\bDROP\b/i);
+  });
 });

@@ -15,7 +15,7 @@ const template = createMockTemplate({
       displayOrder: 1,
     },
   ],
-  defaults: { judgingTimeEstimate: 15 },
+  defaults: { judgingTimeEstimate: 7 },
 });
 
 const selectedClass = template.classDefinitions[0]!;
@@ -47,19 +47,38 @@ describe('ClassSelectionGrid judge-time estimate', () => {
     expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
   });
 
-  it('shows the unchanged calculation and current-entry wording for populated counts', () => {
+  it('multiplies minutes per run by the current entry count', () => {
     renderGrid({ status: 'ready', count: 3 });
 
-    expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/21\s+minutes/)).toBeInTheDocument();
     expect(
       screen.getByText(/estimated judging time based on current entries/i)
     ).toBeInTheDocument();
   });
 
-  it('hides and restores the unchanged calculation as current counts change', () => {
+  it('shows per-run minutes, not per-class minutes, in the template summary', () => {
+    renderGrid({ status: 'ready', count: 3 });
+
+    expect(screen.getByText('7 min per run')).toBeInTheDocument();
+    expect(screen.queryByText(/min per class/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the estimate when the template has no minutes-per-run value', () => {
+    render(
+      <ClassSelectionGrid
+        template={{ ...template, defaults: {} }}
+        selectedClasses={[selectedClass]}
+        onSelectionChange={() => undefined}
+        entryCountState={{ status: 'ready', count: 3 }}
+      />
+    );
+
+    expect(screen.queryByText(/estimated judging time/i)).not.toBeInTheDocument();
+  });
+
+  it('recalculates the estimate as current counts change', () => {
     const view = renderGrid({ status: 'ready', count: 1 });
-    expect(screen.getByText(/based on current entries/i)).toBeInTheDocument();
-    expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/7\s+minutes/)).toBeInTheDocument();
 
     view.rerender(
       <ClassSelectionGrid
@@ -77,11 +96,10 @@ describe('ClassSelectionGrid judge-time estimate', () => {
         template={template}
         selectedClasses={[selectedClass]}
         onSelectionChange={() => undefined}
-        entryCountState={{ status: 'ready', count: 2 }}
+        entryCountState={{ status: 'ready', count: 4 }}
       />
     );
 
-    expect(screen.getByText(/based on current entries/i)).toBeInTheDocument();
-    expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/28\s+minutes/)).toBeInTheDocument();
   });
 });

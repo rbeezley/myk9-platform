@@ -199,17 +199,28 @@ jobs:
             -v ON_ERROR_STOP=1 \
             -f supabase/seed-demo.sql
 
+      # The MYK9-109 load fixture is opt-in since MYK9-558: seed-demo.sql alone
+      # yields the lean set, so the rehearsal applies the fixture on top of it.
+      - name: Apply load fixture
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          psql \
+            "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:${LOAD_TEST_ADMIN_DB_PORT}/postgres" \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/seed-load-fixture.sql
+
       - name: Verify canonical postcondition
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # Keep this 516/504 contract aligned with src/test/load/loadFixture.ts.
+          # Keep this 517/504 contract aligned with src/test/load/loadFixture.ts.
           counts="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:${LOAD_TEST_ADMIN_DB_PORT}/postgres" \
             -X -v ON_ERROR_STOP=1 -At -F '|' \
             -c "SELECT count(*), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%'), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%' AND is_scored) FROM public.entries WHERE show_id = 'dededede-0000-0000-0000-000000000010'::uuid;")"
-          [[ "$counts" == "516|504|0" ]] || {
+          [[ "$counts" == "517|504|0" ]] || {
             echo "Canonical fixture postcondition failed: $counts" >&2
             exit 1
           }
@@ -539,12 +550,14 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # Keep this 516/504 contract aligned with src/test/load/loadFixture.ts.
+          # The restore is seed-demo.sql alone, which removes the load fixture
+          # (MYK9-558): 13 hand-authored entries, no generated ones. Keep the
+          # 13 aligned with PRIMARY_LOAD_SHOW in src/test/load/loadFixture.ts.
           counts="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:${LOAD_TEST_ADMIN_DB_PORT}/postgres" \
             -X -v ON_ERROR_STOP=1 -At -F '|' \
             -c "SELECT count(*), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%'), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%' AND is_scored) FROM public.entries WHERE show_id = 'dededede-0000-0000-0000-000000000010'::uuid;")"
-          [[ "$counts" == "516|504|0" ]] || {
+          [[ "$counts" == "13|0|0" ]] || {
             echo "Canonical cleanup postcondition failed: $counts" >&2
             exit 1
           }

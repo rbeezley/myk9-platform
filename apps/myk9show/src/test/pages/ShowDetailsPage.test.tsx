@@ -8,6 +8,9 @@ import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
+const updateShowMutationMock = vi.hoisted(() => vi.fn());
+const saveShowDraftStyleMock = vi.hoisted(() => vi.fn());
+const showStoreState = vi.hoisted(() => ({ shows: [] as Array<Record<string, unknown>> }));
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
@@ -57,6 +60,16 @@ const mockAuthContext = {
 };
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
+}));
+vi.mock('@/features/entitlement/useEntitlement', () => ({
+  useEntitlement: () => ({
+    canAuthorizePremium: true,
+    isTrusted: true,
+    effective: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useShowManageScope', () => ({
@@ -152,17 +165,26 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
     isPlaceholderData: false,
     isError: false,
   }),
-  useUpdateShowMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateShowMutation: () => ({ mutateAsync: updateShowMutationMock, isPending: false }),
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
     lists: () => ['shows', 'list'],
+    byClub: (clubId: string) => ['shows', 'club', clubId],
+    byStatus: (status: string) => ['shows', 'status', status],
+    upcoming: () => ['shows', 'upcoming'],
+    withEntryCounts: () => ['shows', 'withEntryCounts'],
   },
+}));
+
+vi.mock('@/features/premium/showStylePersistence', () => ({
+  saveShowDraftStyle: (input: { show: Record<string, unknown>; style: string; ownerId: string }) =>
+    saveShowDraftStyleMock(input),
 }));
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
     const state = {
-      shows: mockShow ? [mockShow] : [],
+      shows: showStoreState.shows,
       updateShow: updateShowLocallyMock,
     };
     return selector ? selector(state) : state;
@@ -311,7 +333,7 @@ function PageLocationProbe() {
 
 function renderPage(showId = 'show-1', subPath = '', query = '') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[`/shows/${showId}${subPath}${query}`]}>
         <PageLocationProbe />
@@ -331,6 +353,7 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return { ...rendered, queryClient: qc };
 }
 
 function seedOwnedEntry(overrides: Partial<(typeof mockShowEntries)[number]> = {}): void {
@@ -437,6 +460,9 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
+    updateShowMutationMock.mockReset();
+    saveShowDraftStyleMock.mockReset();
+    showStoreState.shows = [];
     notificationsSuccessMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
@@ -445,6 +471,8 @@ describe('ShowDetailsPage', () => {
         id,
       })
     );
+    updateShowMutationMock.mockResolvedValue({ ...mockShow });
+    saveShowDraftStyleMock.mockResolvedValue(undefined);
     showEditPanelMock.impl = () => null;
   });
 
@@ -1035,6 +1063,67 @@ describe('ShowDetailsPage', () => {
     await waitFor(() => {
       expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
     });
+  });
+
+  it('keeps the acknowledged preview local without rewriting cold-query readers', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    mockShow = { ...mockShow, style: 'monogram' };
+
+    const { queryClient } = renderPage('show-1', '', '?preview=public');
+    queryClient.setQueryData(['shows', 'detail', 'show-1'], mockShow);
+    queryClient.setQueryData(['shows', 'list'], [mockShow]);
+    queryClient.setQueryData(['shows', 'club', 'club-1'], [mockShow]);
+    queryClient.setQueryData(['shows', 'status', 'Upcoming'], [mockShow]);
+    queryClient.setQueryData(['shows', 'upcoming'], [mockShow]);
+    queryClient.setQueryData(['shows', 'withEntryCounts'], [mockShow]);
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
+    expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+    expect(saveShowDraftStyleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: 'user-1', style: 'heritage' })
+    );
+    expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
+      style: 'monogram',
+    });
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'club', 'club-1'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>([
+        'shows',
+        'status',
+        'Upcoming',
+      ])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
+  });
+
+  it('keeps warm React Query readers untouched until normal sync completes', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    mockShow = { ...mockShow, style: 'monogram' };
+
+    const { queryClient } = renderPage('show-1', '', '?preview=public');
+    queryClient.setQueryData(['shows', 'detail', 'show-1'], mockShow);
+    queryClient.setQueryData(['shows', 'list'], [mockShow]);
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
+    expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+    expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
+      style: 'monogram',
+    });
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'monogram' })]);
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

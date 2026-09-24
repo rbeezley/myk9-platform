@@ -8,8 +8,12 @@
  * toast. Every unit test passed; the page-level composition was the broken part,
  * which is exactly what a browser walk sees and a component test cannot.
  *
- * NON-DESTRUCTIVE BY CONSTRUCTION. `Load 02` and `Load 03` each carry 8 paid
- * entries, so `soft_delete_dog` raises MK002 and nothing is deleted. The walk
+ * NON-DESTRUCTIVE BY CONSTRUCTION. `Ranger` and `Scout` (seed-demo.sql
+ * section 5) each carry paid lean-seed entries, so `soft_delete_dog` raises
+ * MK002 and nothing is deleted. They were the MYK9-109 load dogs `Load 02` /
+ * `Load 03` until MYK9-558 made that fixture opt-in;
+ * seedDemoStagingConsumersContract.test.ts pins both the paid entries and the
+ * shared search term. The walk
  * stops at Close and never ticks the acknowledgement or presses "Delete anyway"
  * — the override is covered by unit tests and a CI-only SQL test instead.
  * If you re-point this at other dogs, verify they are genuinely blocked first,
@@ -19,7 +23,12 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/testUsers';
 
 /** Dogs verified to carry paid entries, so the delete is always refused. */
-const BLOCKED_DOGS = ['Load 02', 'Load 03'] as const;
+const BLOCKED_DOGS = ['Ranger', 'Scout'] as const;
+/**
+ * ONE filter that shows both (see selectBlockedDogs): their breeds are
+ * German Shepherd Dog and Australian Shepherd.
+ */
+const BLOCKED_DOGS_SEARCH = 'Shepherd';
 
 async function gotoDogsTable(page: Page) {
   await page.goto('/dogs', { waitUntil: 'networkidle' });
@@ -38,9 +47,9 @@ async function gotoDogsTable(page: Page) {
  */
 async function selectBlockedDogs(page: Page) {
   const search = page.getByPlaceholder('Search dogs by name, breed, or owner...');
-  await search.fill('Load 0');
+  await search.fill(BLOCKED_DOGS_SEARCH);
   for (const name of BLOCKED_DOGS) {
-    const box = page.getByRole('checkbox', { name: `Select ${name}` });
+    const box = page.getByRole('checkbox', { name: `Select ${name}`, exact: true });
     await expect(box).toBeVisible();
     await box.check();
   }
@@ -129,17 +138,21 @@ test.describe('bulk delete of dogs the server refuses', () => {
 
     // Still there without a refresh...
     const search = page.getByPlaceholder('Search dogs by name, breed, or owner...');
-    await search.fill('Load 0');
+    await search.fill(BLOCKED_DOGS_SEARCH);
     for (const name of BLOCKED_DOGS) {
-      await expect(page.getByRole('checkbox', { name: `Select ${name}` })).toBeVisible();
+      await expect(
+        page.getByRole('checkbox', { name: `Select ${name}`, exact: true })
+      ).toBeVisible();
     }
 
     // ...and still there after one, which is where the old rollback diverged.
     await gotoDogsTable(page);
     const searchAfter = page.getByPlaceholder('Search dogs by name, breed, or owner...');
-    await searchAfter.fill('Load 0');
+    await searchAfter.fill(BLOCKED_DOGS_SEARCH);
     for (const name of BLOCKED_DOGS) {
-      await expect(page.getByRole('checkbox', { name: `Select ${name}` })).toBeVisible();
+      await expect(
+        page.getByRole('checkbox', { name: `Select ${name}`, exact: true })
+      ).toBeVisible();
     }
   });
 });

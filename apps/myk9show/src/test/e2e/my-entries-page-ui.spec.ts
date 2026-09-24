@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
+import { installExhibitorFixture } from './helpers/exhibitorFixture';
 
 /**
  * E2E Tests for My Shows Page UI/UX Improvements
@@ -14,8 +15,12 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * - Receipt button only for paid entries
  */
 
-// Helper function to login — delegates to the shared SmartSignInPage flow.
+// Sign in against a hermetic dataset. The fixture must be installed first:
+// the onboarding redirect fires on the first authenticated render, and these
+// specs assert on layout and filters, not on what staging happens to hold
+// (docs/plan-hermetic-e2e-fixtures.md).
 async function login(page: Page) {
+  await installExhibitorFixture(page);
   await signInAsExhibitor(page, '/exhibitor/entries');
 }
 
@@ -340,8 +345,8 @@ test.describe('My Shows Page - Current Status', () => {
 });
 
 // Empty-state behavior is covered at the component layer in
-// FirstRunZeroState.test.tsx; this canonical E2E exhibitor fixture intentionally
-// has entries and no no-entry browser fixture is provisioned.
+// FirstRunZeroState.test.tsx; the default hermetic fixture intentionally has
+// entries (exhibitorFixtureSmoke.spec.ts covers the deliberate zero state).
 test.describe('My Shows Page - Context-Aware Messaging', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);

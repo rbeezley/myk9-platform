@@ -105,6 +105,13 @@ describe('isolated E2E migration chain', () => {
     expect(isolatedAccountSeed).toContain('onboarding_completed_at');
   });
 
+  it('applies the opt-in load fixture after the lean demo seed (MYK9-558)', () => {
+    const lean = lifecycleSource.indexOf("'-f', 'supabase/seed-demo.sql'");
+    const fixture = lifecycleSource.indexOf("'-f', 'supabase/seed-load-fixture.sql'");
+    expect(lean).toBeGreaterThan(-1);
+    expect(fixture).toBeGreaterThan(lean);
+  });
+
   it('requires the canonical 514-entry load fixture after every isolated reset', () => {
     expect(lifecycleSource).toContain(
       `(SELECT count(*) FROM public.entries WHERE show_id = '\${DEMO_SHOW_ID}')`

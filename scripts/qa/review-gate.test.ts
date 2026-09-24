@@ -94,6 +94,103 @@ function comment(
 }
 
 describe('evaluateReviewGate', () => {
+  it('passes docs-only changes without any review comment', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['docs/qa/findings.md'],
+    });
+
+    expect(result.state).toBe('success');
+    expect(result.description).toContain('documentation');
+  });
+
+  it('passes a dependency-only PR with the dependencies label and no review comment', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['packages/replication/package.json', 'pnpm-lock.yaml'],
+      labels: ['dependencies'],
+      dependencyManifestsVerified: true,
+    });
+
+    expect(result.state).toBe('success');
+    expect(result.description).toContain('dependency-only');
+  });
+
+  it('requires review for a labeled dependency set whose manifests did not verify', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['apps/myk9show/package.json', 'pnpm-lock.yaml'],
+      labels: ['dependencies'],
+      dependencyManifestsVerified: false,
+    });
+
+    expect(result.state).toBe('failure');
+    expect(result.description).toMatch(/no independent review recorded/);
+  });
+
+  it('requires review for a small edit to an existing guard test', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['apps/myk9show/src/test/database/anonEntriesGrantContract.test.ts'],
+      addedFiles: [],
+      additions: 1,
+      deletions: 1,
+    });
+
+    expect(result.state).toBe('failure');
+    expect(result.description).toMatch(/no independent review recorded/);
+  });
+
+  it('passes a small non-protected app fix without a review comment', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['apps/myk9show/src/components/ShowCard.tsx'],
+      additions: 42,
+      deletions: 18,
+    });
+
+    expect(result.state).toBe('success');
+    expect(result.description).toContain('small-app-change');
+  });
+
+  it('still requires review for protected or incomplete changes even with the dependencies label', () => {
+    const protectedChange = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['packages/replication/src/replicatedEntriesTable.ts'],
+      labels: ['dependencies'],
+    });
+    const incompleteChange = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [],
+      changedFiles: ['packages/replication/package.json', 'pnpm-lock.yaml'],
+      labels: ['dependencies'],
+      fileListUnusable: true,
+    });
+
+    expect(protectedChange.state).toBe('failure');
+    expect(incompleteChange.state).toBe('failure');
+  });
+
+  it('does not let optional review hide a current-head finding', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: ['packages/replication/package.json', 'pnpm-lock.yaml'],
+      labels: ['dependencies'],
+      comments: [
+        comment(`Review gate: adversarial reviewed abc1234..${H9} — 1 finding unaddressed`),
+      ],
+    });
+
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('is not clean');
+  });
+
   it('fails with no review recorded at all', () => {
     const r = evaluateReviewGate({ headSha: HEAD, comments: [], changedFiles: [] });
     expect(r.state).toBe('failure');
@@ -171,7 +268,7 @@ describe('evaluateReviewGate', () => {
     expect(r.evidence).toBeUndefined();
   });
 
-  it('ignores a human-fallback attempt from an untrusted author — falls through to the generic message', () => {
+  it('does not treat an untrusted human-fallback attempt as evidence on optional docs', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
       changedFiles: ['docs/operations/scheduled-task-walks.md'],
@@ -184,8 +281,9 @@ describe('evaluateReviewGate', () => {
         ),
       ],
     });
-    expect(r.state).toBe('failure');
-    expect(r.description).toMatch(/no independent review recorded/);
+    expect(r.state).toBe('success');
+    expect(r.description).toMatch(/review optional \(documentation\)/);
+    expect(r.evidence).toBeUndefined();
   });
 
   it('fails when the review did not actually run, even if a line was posted', () => {
@@ -478,6 +576,12 @@ describe('workflow wiring', () => {
 
   it('re-evaluates on every push', () => {
     expect(workflow).toMatch(/pull_request_target:\n\s+types: \[[^\]]*synchronize[^\]]*\]/);
+  });
+
+  it('re-evaluates when the dependency label is added or removed', () => {
+    expect(workflow).toMatch(
+      /pull_request_target:\n\s+types: \[[^\]]*labeled[^\]]*unlabeled[^\]]*\]/
+    );
   });
 });
 
@@ -1516,6 +1620,7 @@ describe('runCli’s changed-file fetch', () => {
     const fields = (view[view.indexOf('--json') + 1] ?? '').split(',');
     expect(fields).not.toContain('files');
     expect(fields).toContain('changedFiles');
+    expect(fields).toEqual(expect.arrayContaining(['labels', 'additions', 'deletions']));
   });
 
   it('fetches every page of the REST files endpoint', () => {
@@ -1618,6 +1723,34 @@ describe('runCli threads BOTH halves of the short-list invariant to the evaluato
     expect(capture({ declared: 420, fetched: docs(420) }).fileListUnusable).toBe(false);
     // An absent `changedFiles` is a broken assumption, not a normal case.
     expect(capture({ fetched: docs(3) }).fileListUnusable).toBe(true);
+  });
+
+  it('passes dependency labels and aggregate diff size to the evaluator', () => {
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({
+          headRefOid: HEAD,
+          isDraft: false,
+          changedFiles: 2,
+          additions: 17,
+          deletions: 9,
+          labels: [{ name: 'dependencies' }],
+        });
+      }
+      if (args.some(a => a.includes('/pulls/')))
+        return 'packages/replication/package.json\npnpm-lock.yaml\n';
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    let seen: EvaluateReviewGateInput | undefined;
+    runCli(env, ['--dry-run'], run, input => {
+      seen = input;
+      return { state: 'failure', description: 'captured' };
+    });
+
+    expect(seen?.labels).toEqual(['dependencies']);
+    expect(seen?.additions).toBe(17);
+    expect(seen?.deletions).toBe(9);
   });
 });
 

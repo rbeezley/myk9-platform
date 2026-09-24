@@ -1,6 +1,7 @@
 /**
- * Review gate — a commit status on a PR's head that is green ONLY when
- * accepted review evidence has been recorded against THAT SHA.
+ * Review gate — a commit status on a PR's head that is green when accepted
+ * review evidence is recorded against THAT SHA, or when a bounded low-risk
+ * path is eligible to skip review. CI remains a separate required check.
  *
  * Why a status, and why pinned to the SHA: on 2026-09-05 PR #2040 was
  * squash-merged while its Codex review was still running; the review then
@@ -40,10 +41,12 @@ import { pathToFileURL } from 'node:url';
 import {
   meetsFloor,
   MIGRATION_LENS,
+  optionalReviewReason,
   requiredTier,
   touchesMigration,
   type Tier,
 } from './review-tier.ts';
+import { fetchAddedFiles, verifyDependencyManifests } from './optional-review-inputs.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -408,6 +411,12 @@ export interface EvaluateReviewGateInput {
   headSha: string;
   comments: readonly GateComment[];
   changedFiles: readonly string[];
+  labels?: readonly string[];
+  additions?: number;
+  deletions?: number;
+  /** See OptionalReviewInput in review-tier.ts; both fail closed when absent. */
+  addedFiles?: readonly string[];
+  dependencyManifestsVerified?: boolean;
   /**
    * True when the changed-file list is empty, disagrees with GitHub's own
    * `changedFiles` count, or hit the 3000-file cap, and may therefore be
@@ -467,6 +476,16 @@ function resolveFloor(input: {
     : requiredTier(input.changedFiles);
 }
 
+function optionalReasonFor(input: EvaluateReviewGateInput): string | undefined {
+  const fileListUnusable =
+    input.fileListUnusable === true ||
+    fileListIsUnusable(
+      input.changedFiles.length,
+      input.declaredFileCount ?? input.changedFiles.length
+    );
+  return optionalReviewReason({ ...input, fileListUnusable });
+}
+
 export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
@@ -498,6 +517,13 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
         description:
           `human-fallback is retired for ${short}: use the owner override — ` +
           `"override, floor was <floor>", "Override reason:", "Deferred re-review:"`,
+      };
+    }
+    const optionalReason = tiersEnabled ? optionalReasonFor(input) : undefined;
+    if (optionalReason) {
+      return {
+        state: 'success',
+        description: `review optional (${optionalReason}); CI remains required`,
       };
     }
     return {
@@ -532,6 +558,14 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
         ? `override of ${short} must name a Deferred re-review: <ISSUE-ID>`
         : `${latest.reviewer} review of ${short} is not clean: ${latest.verdict}`;
     return { state: 'failure', description: why, evidence: latest };
+  }
+  const optionalReason = tiersEnabled ? optionalReasonFor(input) : undefined;
+  if (optionalReason && latest.reviewer !== 'owner') {
+    return {
+      state: 'success',
+      description: `review optional (${optionalReason}); clean voluntary review recorded`,
+      evidence: latest,
+    };
   }
   // Only a CONFIRMED override (association, full contract — already verified
   // by `accepted` above) is exempt from the floor. Originally this exempted
@@ -705,7 +739,11 @@ function gh(args: string[]): string {
 
 interface PrView {
   headRefOid: string;
+  baseRefOid?: string;
   isDraft: boolean;
+  labels?: Array<{ name: string }>;
+  additions?: number;
+  deletions?: number;
   statusCheckRollup?: StatusCheck[];
   /**
    * GitHub's own count of the files this PR touches. Used only to CHECK the
@@ -758,7 +796,7 @@ export function runCli(
       '--repo',
       repo,
       '--json',
-      'headRefOid,isDraft,statusCheckRollup,changedFiles',
+      'headRefOid,baseRefOid,isDraft,statusCheckRollup,changedFiles,labels,additions,deletions',
     ])
   ) as PrView;
   if (view.isDraft) {
@@ -815,9 +853,20 @@ export function runCli(
         `repos/${repo}/issues/${prNumber}/comments?per_page=100`,
       ])
     );
+    const labels = view.labels?.map(label => label.name) ?? [];
     result = evaluate({
       headSha: view.headRefOid,
       changedFiles,
+      labels,
+      addedFiles: fetchAddedFiles(run, repo, prNumber),
+      dependencyManifestsVerified: verifyDependencyManifests(run, repo, {
+        changedFiles,
+        labels,
+        baseSha: view.baseRefOid,
+        headSha: view.headRefOid,
+      }),
+      additions: view.additions,
+      deletions: view.deletions,
       declaredFileCount: view.changedFiles,
       fileListUnusable,
       comments: comments.map(c => ({

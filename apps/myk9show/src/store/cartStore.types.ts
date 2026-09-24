@@ -108,6 +108,18 @@ export interface CheckoutResult {
   waitlisted: WaitlistEntryResult[];
 }
 
+/**
+ * A cart line the server removed on load because its class can no longer be
+ * bought online (MYK9-656). Kept so the exhibitor is told what left and why.
+ */
+export interface DroppedCartItem {
+  itemId: string;
+  dogName: string | null;
+  className: string | null;
+  /** One sentence, e.g. "This class was cancelled" or "This class is full". */
+  reason: string;
+}
+
 // Cart state interface
 export interface CartState {
   // Data
@@ -130,6 +142,14 @@ export interface CartState {
 
   // Expiration tracking
   expirationWarning: boolean;
+
+  /**
+   * Lines the server removed from a loaded cart (MYK9-656). Accumulates across
+   * loads and is persisted until dismissed: the lines are already gone, so a
+   * reload must not also lose the explanation.
+   */
+  droppedClosedClassItems: DroppedCartItem[];
+  dismissDroppedClosedClassItems: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

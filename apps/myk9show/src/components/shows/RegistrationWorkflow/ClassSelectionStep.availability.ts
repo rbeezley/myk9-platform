@@ -112,6 +112,16 @@ export interface ClassEntryWindow {
 
 const ENTERABLE: ClassEntryWindow = { enterable: true, reason: null };
 
+/**
+ * The sentence for each way a class closes. Shared with the saved-cart
+ * re-check (MYK9-656), which reports the server's verdict in the same words.
+ */
+export const CLASS_CLOSED_REASON = {
+  cancelled: 'This class was cancelled',
+  started: 'This class has started',
+  finished: 'This class has finished',
+} as const;
+
 export function getClassEntryWindow(params: {
   status: string | null | undefined;
   /**
@@ -132,7 +142,7 @@ export function getClassEntryWindow(params: {
   // The carve-out below exists for late entries into a class that IS running;
   // it has nothing to offer here. (Assumed product rule, recorded on MYK9-516.)
   if (normalized === CLASS_STATUS.CANCELLED) {
-    return { enterable: false, reason: 'This class was cancelled' };
+    return { enterable: false, reason: CLASS_CLOSED_REASON.cancelled };
   }
 
   if (isStaff) return ENTERABLE;
@@ -141,10 +151,10 @@ export function getClassEntryWindow(params: {
   // 'upcoming' because no score has landed yet, which is precisely when an
   // exhibitor is most likely to be entering a class whose dogs are in the ring.
   if (normalized === CLASS_STATUS.IN_PROGRESS || hasStarted) {
-    return { enterable: false, reason: 'This class has started' };
+    return { enterable: false, reason: CLASS_CLOSED_REASON.started };
   }
   if (normalized === CLASS_STATUS.COMPLETED) {
-    return { enterable: false, reason: 'This class has finished' };
+    return { enterable: false, reason: CLASS_CLOSED_REASON.finished };
   }
   return ENTERABLE;
 }

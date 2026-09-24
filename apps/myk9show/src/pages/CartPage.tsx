@@ -30,6 +30,7 @@ import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import {
@@ -535,6 +536,9 @@ export default function CartPage() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Classes a saved cart lost because they closed or filled (MYK9-656) */}
+        <ClosedClassRemovedNotice className="mb-6" />
 
         {/* Error Alert */}
         {error && (

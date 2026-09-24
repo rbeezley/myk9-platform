@@ -39,24 +39,43 @@
 # instance of it (e.g. "wizard-step-circle-1") will read as MISSING. Read
 # the referencing file before deleting anything this script flags.
 #
-# Exit codes: 0 = no missing references; 1 = at least one MISSING; 2 =
-# could not run (no e2e dir, or zero statically-resolvable AND zero
-# dynamic references found at all — nothing to check).
+# Those concrete instances are exempted by the sidecar allowlist
+# scripts/qa/e2e-testid-audit.allowlist: one tab-separated row per id,
+#   <id> TAB <producer path, repo-relative> TAB <template> TAB <reason>
+# where <template> is the exact template text the producer interpolates,
+# e.g. result-${opt.value}. A row is honoured only while it is true: the
+# producer file exists, contains "data-testid" and the template text
+# verbatim, the id matches the template (each ${...} = one or more
+# characters), some e2e file still references the id, and the id is not
+# already statically present. Any row that fails one of those is reported
+# as STALE ALLOWLIST and fails the run, so an exemption cannot outlive the
+# code it describes.
+#
+# Exit codes: 0 = no missing references and no stale allowlist rows; 1 =
+# at least one MISSING or STALE ALLOWLIST; 2 = could not run (no e2e dir,
+# or zero statically-resolvable AND zero dynamic references found at all —
+# nothing to check).
 #
 # --self-test builds a small fixture tree covering: a present attribute,
 # an id present only in a // comment, an id present only in a /* */
 # comment (both must be MISSING), a package-defined id, a constant-map
 # id (present), a dynamic getByTestId template literal, and a dynamic
 # data-testid CSS-selector template literal (both must be skipped, never
-# MISSING). Exits 0 only if every case matches.
+# MISSING); then runs the whole audit against a second fixture to prove an
+# honoured allowlist row passes and each stale-row shape fails. Exits 0
+# only if every case matches.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Overridden by --self-test to point at its fixture tree.
+AUDIT_ALLOWLIST="$SCRIPT_DIR/e2e-testid-audit.allowlist"
+AUDIT_PRODUCER_ROOT="$REPO_ROOT"
+
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  sed -n '2,51p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,66p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -148,6 +167,51 @@ extract_references() {
   ' "${files[@]}"
 }
 
+# --- allowlist ---------------------------------------------------------------
+# Args: allowlist file, producer root, referenced-ids file, present-ids file.
+# Prints "ALLOW\t<id>" for every honoured row and
+# "STALE\t<line>\t<id>\t<why>" for every row that no longer holds.
+check_allowlist() {
+  local allowlist="$1" root="$2" ref_ids="$3" present_ids="$4"
+  [[ -f "$allowlist" ]] || return 0
+  perl -e '
+    my ($allowlist, $root, $ref_ids, $present_ids) = @ARGV;
+    my (%ref, %present);
+    for ([$ref_ids, \%ref], [$present_ids, \%present]) {
+      my ($path, $set) = @$_;
+      open(my $fh, "<", $path) or die "cannot read $path";
+      while (<$fh>) { chomp; $set->{$_} = 1; }
+    }
+    open(my $fh, "<", $allowlist) or die "cannot read $allowlist";
+    my $n = 0;
+    while (my $line = <$fh>) {
+      $n++;
+      chomp $line;
+      next if $line =~ /^\s*(#|$)/;
+      my @f = split /\t/, $line, -1;
+      my $id = $f[0] // "";
+      my $stale = sub { print "STALE\t$n\t$id\t$_[0]\n"; };
+      if (@f != 4 || grep { $_ eq "" } @f) {
+        $stale->("expected 4 non-empty tab-separated fields: id, producer, template, reason");
+        next;
+      }
+      my (undef, $producer, $template) = @f;
+      my $path = "$root/$producer";
+      my $src;
+      if (open(my $pf, "<", $path)) { local $/; $src = <$pf>; close $pf; }
+      if (!defined $src) { $stale->("producer $producer does not exist"); next; }
+      if (index($src, "data-testid") < 0) { $stale->("producer $producer has no data-testid"); next; }
+      if (index($src, $template) < 0) { $stale->("producer $producer no longer contains template $template"); next; }
+      if ($template !~ /\$\{/) { $stale->("template $template has no \${...} interpolation"); next; }
+      my $re = join "", map { /^\$\{/ ? ".+" : quotemeta($_) } split /(\$\{[^}]*\})/, $template;
+      if ($id !~ /^$re$/) { $stale->("id does not match template $template"); next; }
+      if (!$ref{$id}) { $stale->("no e2e file references this id any more"); next; }
+      if ($present{$id}) { $stale->("id is statically present; the row is redundant"); next; }
+      print "ALLOW\t$id\n";
+    }
+  ' "$allowlist" "$root" "$ref_ids" "$present_ids"
+}
+
 # --- core run ---------------------------------------------------------------
 run_audit() {
   local e2e_dir="$1"
@@ -177,7 +241,17 @@ run_audit() {
   fi
 
   awk -F'\t' '$1=="REF"{print $2}' "$refs_file" | sort -u > "$ref_ids_file"
-  comm -23 "$ref_ids_file" "$present_file" > "$missing_ids_file"
+
+  local allow_output allowed_count stale_output stale_count=0
+  allow_output=$(check_allowlist "$AUDIT_ALLOWLIST" "$AUDIT_PRODUCER_ROOT" "$ref_ids_file" "$present_file")
+  allowed_count=$(printf '%s\n' "$allow_output" | awk -F'\t' '$1=="ALLOW"' | wc -l | tr -d ' ')
+  stale_output=$(printf '%s\n' "$allow_output" | awk -F'\t' '
+    $1=="STALE" { print "STALE ALLOWLIST: line " $2 " \"" $3 "\": " $4 }
+  ')
+
+  # Honoured allowlist ids count as present.
+  printf '%s\n' "$allow_output" | awk -F'\t' '$1=="ALLOW"{print $2}' \
+    | cat - "$present_file" | sort -u | comm -23 "$ref_ids_file" - > "$missing_ids_file"
 
   local missing_output missing_count=0
   missing_output=$(awk -F'\t' '
@@ -189,11 +263,15 @@ run_audit() {
     echo "$missing_output"
     missing_count=$(printf '%s\n' "$missing_output" | wc -l | tr -d ' ')
   fi
+  if [[ -n "$stale_output" ]]; then
+    echo "$stale_output"
+    stale_count=$(printf '%s\n' "$stale_output" | wc -l | tr -d ' ')
+  fi
 
   echo "---"
-  echo "e2e-testid-audit: checked $total_refs distinct (file, testid) reference(s); $dynamic_count dynamic/unresolvable reference(s) skipped; $missing_count missing"
+  echo "e2e-testid-audit: checked $total_refs distinct (file, testid) reference(s); $dynamic_count dynamic/unresolvable reference(s) skipped; $allowed_count allowlisted; $missing_count missing; $stale_count stale allowlist row(s)"
 
-  [[ "$missing_count" -eq 0 ]]
+  [[ "$missing_count" -eq 0 && "$stale_count" -eq 0 ]]
 }
 
 # --- self-test ---------------------------------------------------------------
@@ -291,6 +369,73 @@ run_self_test() {
   check "data-testid CSS-selector template literal is not a static REF" "$r"
 
   rm -f "$present_file" "$refs_file"
+
+  # Allowlist: a second, otherwise-clean fixture run through the whole audit.
+  local atmp aapp ae2e allow out rc
+  atmp="$tmp/allow"
+  aapp="$atmp/app/src"
+  ae2e="$aapp/test/e2e"
+  allow="$atmp/allowlist"
+  mkdir -p "$aapp/components" "$ae2e"
+  cat > "$aapp/components/Chips.tsx" <<'EOF'
+export const Chips = ({ v }: { v: string }) => <button data-testid={`chip-${v}`}>x</button>;
+export const Plain = () => <div data-testid="plain-id">x</div>;
+export const Row = ({ k }: { k: string }) => <div data-testid={`plain-${k}`}>x</div>;
+EOF
+  cat > "$ae2e/allow.spec.ts" <<'EOF'
+import { test } from '@playwright/test';
+test('allow', async ({ page }) => {
+  await page.getByTestId('chip-A').click();
+  await page.getByTestId('plain-id').click();
+});
+EOF
+
+  # run_one <allowlist body>: runs the audit in a subshell, sets $out and $rc.
+  run_one() {
+    printf '%b' "$1" > "$allow"
+    set +e
+    out=$(AUDIT_ALLOWLIST="$allow" AUDIT_PRODUCER_ROOT="$atmp" run_audit "$ae2e" "$aapp" 2>&1)
+    rc=$?
+    set -e
+  }
+  local producer="app/src/components/Chips.tsx"
+
+  run_one ""
+  [[ "$rc" -eq 1 && "$out" == *'MISSING: "chip-A"'* ]] && r=0 || r=1
+  check "interpolated id with no allowlist row is MISSING" "$r"
+
+  run_one "# comment\n\nchip-A\t$producer\tchip-\${v}\tdynamic chip\n"
+  [[ "$rc" -eq 0 && "$out" == *"1 allowlisted"* ]] && r=0 || r=1
+  check "honoured allowlist row exempts the id and the run passes" "$r"
+
+  run_one "chip-A\t$producer\tchip-\${v}\tok\nchip-Z\t$producer\tchip-\${v}\tunreferenced\n"
+  [[ "$rc" -eq 1 && "$out" == *'STALE ALLOWLIST: line 2 "chip-Z": no e2e file references'* ]] && r=0 || r=1
+  check "row for an id no e2e file references is STALE" "$r"
+
+  run_one "chip-A\t$producer\tpill-\${v}\twrong template\n"
+  [[ "$rc" -eq 1 && "$out" == *"no longer contains template"* ]] && r=0 || r=1
+  check "row whose template is gone from the producer is STALE" "$r"
+
+  run_one "chip-A\tapp/src/components/Gone.tsx\tchip-\${v}\tmoved\n"
+  [[ "$rc" -eq 1 && "$out" == *"does not exist"* ]] && r=0 || r=1
+  check "row whose producer file is gone is STALE" "$r"
+
+  run_one "chip-A\t$producer\tplain-id\tno interpolation\n"
+  [[ "$rc" -eq 1 && "$out" == *"has no \${...} interpolation"* ]] && r=0 || r=1
+  check "row whose template has no interpolation is STALE" "$r"
+
+  run_one "plain-id\t$producer\tchip-\${v}\tmismatch\nchip-A\t$producer\tchip-\${v}\tok\n"
+  [[ "$rc" -eq 1 && "$out" == *'"plain-id": id does not match template'* ]] && r=0 || r=1
+  check "row whose id does not match its template is STALE" "$r"
+
+  run_one "chip-A\t$producer\tchip-\${v}\tok\nplain-id\t$producer\tplain-\${k}\tredundant\n"
+  [[ "$rc" -eq 1 && "$out" == *'"plain-id": id is statically present'* ]] && r=0 || r=1
+  check "row for a statically present id is STALE (redundant)" "$r"
+
+  run_one "chip-A\t$producer\tchip-\${v}\n"
+  [[ "$rc" -eq 1 && "$out" == *"expected 4 non-empty"* ]] && r=0 || r=1
+  check "row missing its reason is STALE" "$r"
+
   [[ "$ok" -eq 1 ]]
 }
 

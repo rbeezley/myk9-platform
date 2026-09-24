@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
+import { useReportData } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
@@ -26,22 +26,11 @@ import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPri
 import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
+import { useHostedReportData } from './useHostedReportData';
+import { resolvePrintReadiness } from './reportReadinessCopy';
+import { ReportPrintStatus } from './ReportPrintStatus';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
-
-/**
- * What to say when Print is pressed on data that is not current. Each names the
- * situation and what will clear it, because "the report is still loading" was
- * wrong in three of these four cases.
- */
-const PRINT_BLOCKED_MESSAGE: Record<ReportDataState, string> = {
-  loading: 'Still loading this show. Print once the preview finishes.',
-  unavailable:
-    'No connection, so the entries could not be checked. Reconnect before printing, or the report may be missing dogs.',
-  stale: 'Still loading the trial you just picked. Print once the preview catches up.',
-  error: 'The entries could not be loaded. Use Try again below, then print.',
-  ready: '',
-};
 
 export interface InitialReportScope {
   trialId: string;
@@ -70,56 +59,6 @@ export function resolveInitialReportScope(params: URLSearchParams): InitialRepor
     classId: nonEmptyParam(params, 'classId') ?? 'all',
     dogId: nonEmptyParam(params, 'dogId') ?? 'all',
   };
-}
-
-function ReportPrintStatus({
-  hasDescriptor,
-  isChecking,
-  isUnavailable,
-  state,
-}: {
-  hasDescriptor: boolean;
-  isChecking: boolean;
-  isUnavailable: boolean;
-  state: ReturnType<typeof derivePaperworkPrintState> | null;
-}) {
-  if (!hasDescriptor) return null;
-  const label = isChecking
-    ? isUnavailable
-      ? 'Print status unavailable'
-      : 'Checking print status…'
-    : state?.state === 'current'
-      ? 'Printed'
-      : state?.state === 'stale'
-        ? 'Stale'
-        : 'Not confirmed printed';
-
-  return (
-    <div
-      className="mb-1 mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
-      data-testid="report-print-status"
-    >
-      <div className="font-medium">{label}</div>
-      {isChecking && (
-        <div className="mt-1 text-muted-foreground">
-          {isUnavailable
-            ? 'Reload before recording this report as printed.'
-            : 'Checking the replicated print record…'}
-        </div>
-      )}
-      {state?.record && (
-        <div className="mt-1 text-muted-foreground">
-          Printed by {state.record.printedByName} on{' '}
-          {new Date(state.record.printedAt).toLocaleString()}
-        </div>
-      )}
-      {state?.state === 'stale' && (
-        <div className="mt-1 text-muted-foreground">
-          The report data changed after that print. Review and print the current version.
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function ReportsPage() {
@@ -157,6 +96,15 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
+  // MYK9-280: the page owns the hosted fetch; MYK9-721: Print and the preview
+  // gate on the same readiness for it as for the report rows.
+  const hosted = useHostedReportData({
+    reportType,
+    showId: show?.id,
+    trialId: trialId !== 'all' ? trialId : undefined,
+    dogId: dogId !== 'all' ? dogId : undefined,
+  });
+  const printReadiness = resolvePrintReadiness(dataState, hosted.hostedState);
   // During a paused/loading or cold-replica report-trials query, retain the
   // show detail's already-loaded trials for timezone and registry scope. The
   // show detail and report query share the same show, so a non-empty detail row
@@ -268,8 +216,8 @@ export default function ReportsPage() {
     // trials/classes/entries, so gating it here would refuse to print a sheet
     // that is on screen and correct, citing data it does not use. Result labels
     // are NOT exempt -- they are handed trials/classes/entries as props.
-    if (reportType !== 'armband-labels' && !isReady) {
-      toast(PRINT_BLOCKED_MESSAGE[dataState]);
+    if (reportType !== 'armband-labels' && printReadiness.blockedMessage) {
+      toast(printReadiness.blockedMessage);
       return;
     }
     if (!printIframe(iframeRef)) {
@@ -478,11 +426,15 @@ export default function ReportsPage() {
               isLoading={isLoading}
               isError={isError}
               dataState={dataState}
+              hosted={hosted}
               hasDownloadAction={Boolean(officialPdfAction)}
               downloadBlockedReason={
                 officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined
               }
-              onRetry={refetch}
+              onRetry={() => {
+                refetch();
+                hosted.refetch();
+              }}
               iframeRef={iframeRef}
             />
           </div>

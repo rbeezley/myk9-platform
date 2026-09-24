@@ -13,7 +13,11 @@ export interface DeletedEntity {
   name: string;
   context?: string | undefined;
   deleted_at: string | null;
+  /** Who deleted it, as display text (name and/or email). */
   deleted_by_email?: string | null;
+  /** Extra audit lines under the row — today only a force-deleted dog's
+   *  entries and stranded payments (MYK9-608). */
+  details?: string[] | undefined;
 }
 
 /** Entity selected for restore/delete confirmation */
@@ -40,5 +44,8 @@ export interface EntitySectionConfig {
    */
   recordHref?: (item: DeletedEntity) => string | undefined;
   restore: (id: string, restoredBy?: string) => Promise<unknown>;
+  /** A warning to show instead of the plain success toast, from the restore
+   *  result — e.g. placements a dog restore could not give back (MYK9-607). */
+  describeRestore?: (result: unknown) => string | null;
   hardDelete: (id: string) => Promise<unknown>;
 }

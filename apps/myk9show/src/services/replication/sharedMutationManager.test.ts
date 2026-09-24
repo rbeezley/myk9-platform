@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   getSession: vi.fn(),
   createSessionBoundSupabaseClient: vi.fn(),
+  // Deliberately NOT reset (MYK9-669): written once, by the singleton's
+  // constructor on the file's first import of `./sharedMutationManager`, and
+  // read by every test afterwards. The import is cached, so a reset would null
+  // it for good. The two mocks above are reset in `beforeEach`.
   managerOptions: null as Record<string, unknown> | null,
 }));
 

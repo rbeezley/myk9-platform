@@ -249,12 +249,3 @@ export const signInAsExhibitor = (page: Page, returnTo = '/', options?: SignInOp
     returnTo,
     options
   );
-
-/**
- * Sign out the current user.
- */
-export async function signOut(page: import('@playwright/test').Page) {
-  await page.click('[data-testid="user-menu"], button:has-text("Account menu")');
-  await page.click('text="Sign Out"');
-  await page.waitForURL(/\/(sign-in|$)/);
-}

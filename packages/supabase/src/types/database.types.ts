@@ -7796,8 +7796,11 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
+          premium_publish_version: number
           published_premium_at: string | null
+          published_premium_path: string | null
           published_premium_url: string | null
+          published_premium_version: number | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -7860,8 +7863,11 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee?: number | null
+          premium_publish_version?: number
           published_premium_at?: string | null
+          published_premium_path?: string | null
           published_premium_url?: string | null
+          published_premium_version?: number | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -7924,8 +7930,11 @@ export type Database = {
           name?: string
           organization?: string
           pre_entry_fee?: number | null
+          premium_publish_version?: number
           published_premium_at?: string | null
+          published_premium_path?: string | null
           published_premium_url?: string | null
+          published_premium_version?: number | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -12166,6 +12175,14 @@ export type Database = {
           missing_secret: string
         }[]
       }
+      begin_or_reconcile_premium_publish: {
+        Args: {
+          p_prior_path?: string
+          p_prior_version?: number
+          p_show_id: string
+        }
+        Returns: Json
+      }
       can_accept_online_entry_payment: {
         Args: { p_club_id: string; p_livemode?: boolean }
         Returns: boolean
@@ -12377,6 +12394,27 @@ export type Database = {
         Returns: undefined
       }
       derive_registry_id: { Args: { p_organization: string }; Returns: string }
+      dog_force_delete_audit: {
+        Args: { p_deleted_at: string; p_dog_id: string }
+        Returns: {
+          action_type: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          record_id: string | null
+          record_type: string | null
+          trial_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "activity_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       emergency_packet_input: {
         Args: { p_show_id: string; p_trial_date?: string }
         Returns: Json
@@ -12409,6 +12447,7 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: undefined
       }
+      entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       evaluate_entry_capacity: {
         Args: {
           p_allow_override?: boolean
@@ -12655,36 +12694,15 @@ export type Database = {
         Args: never
         Returns: {
           breed: string
-          breeder_id: string | null
           call_name: string
-          co_owner_id: string | null
-          color: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          deceased: boolean | null
-          deceased_date: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          height: string | null
+          deleted_at: string
+          deleted_by: string
+          deleted_by_email: string
+          deleted_by_name: string
+          force_delete_audit: Json
           id: string
-          image_url: string | null
-          license_key: string | null
-          microchip_number: string | null
-          name: string | null
-          owner_id: string | null
-          sex: string | null
-          spayed_neutered: boolean | null
-          status: string | null
-          updated_at: string | null
-          version: number
-          weight: string | null
+          name: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "dogs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       get_deleted_people: {
         Args: never
@@ -12770,8 +12788,11 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
+          premium_publish_version: number
           published_premium_at: string | null
+          published_premium_path: string | null
           published_premium_url: string | null
+          published_premium_version: number | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -13160,7 +13181,6 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
-      entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       manageable_show_ids: { Args: never; Returns: string[] }
       move_up_entry: {
         Args: {
@@ -13184,6 +13204,12 @@ export type Database = {
         Args: { raw: string }
         Returns: string
       }
+      official_show_ids: { Args: never; Returns: string[] }
+      person_email_lock_facts: { Args: { p_person_id: string }; Returns: Json }
+      person_email_lock_facts_unchecked: {
+        Args: { p_person_id: string }
+        Returns: Json
+      }
       promote_waitlist_entry: {
         Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
         Returns: string
@@ -13199,6 +13225,17 @@ export type Database = {
       prune_premium_generation_attempts: { Args: never; Returns: number }
       prune_stale_ringside_sessions: { Args: never; Returns: number }
       public_schema_create_acl_probe: { Args: never; Returns: Json }
+      publish_premium_artifact: {
+        Args: {
+          p_experience_content: Json
+          p_experience_style: string
+          p_public_url: string
+          p_publish_version: number
+          p_show_id: string
+          p_storage_path: string
+        }
+        Returns: Json
+      }
       recalculate_class_placements: {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
@@ -13405,41 +13442,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      restore_dog: {
-        Args: { p_dog_id: string }
-        Returns: {
-          breed: string
-          breeder_id: string | null
-          call_name: string
-          co_owner_id: string | null
-          color: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          deceased: boolean | null
-          deceased_date: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          height: string | null
-          id: string
-          image_url: string | null
-          license_key: string | null
-          microchip_number: string | null
-          name: string | null
-          owner_id: string | null
-          sex: string | null
-          spayed_neutered: boolean | null
-          status: string | null
-          updated_at: string | null
-          version: number
-          weight: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "dogs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
+      restore_dog: { Args: { p_dog_id: string }; Returns: Json }
       restore_person: {
         Args: { p_person_id: string }
         Returns: {
@@ -13515,8 +13518,11 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
+          premium_publish_version: number
           published_premium_at: string | null
+          published_premium_path: string | null
           published_premium_url: string | null
+          published_premium_version: number | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -13684,6 +13690,10 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_signup_role_requests: {
+        Args: { p_intended_roles: Json }
+        Returns: undefined
+      }
       support_triage_send_operator_reply: {
         Args: {
           p_body: string
@@ -13753,6 +13763,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_show_style: {
+        Args: { p_show_id: string; p_style: string }
+        Returns: number
+      }
       upsert_ringside_session: {
         Args: {
           p_favorited_armbands?: string[]
@@ -13820,6 +13834,8 @@ export type Database = {
           created_at: string | null
           file_size_limit: number | null
           id: string
+          lifecycle_configuration: Json | null
+          lifecycle_configuration_generation: string | null
           name: string
           owner: string | null
           owner_id: string | null
@@ -13834,6 +13850,8 @@ export type Database = {
           created_at?: string | null
           file_size_limit?: number | null
           id: string
+          lifecycle_configuration?: Json | null
+          lifecycle_configuration_generation?: string | null
           name: string
           owner?: string | null
           owner_id?: string | null
@@ -13848,6 +13866,8 @@ export type Database = {
           created_at?: string | null
           file_size_limit?: number | null
           id?: string
+          lifecycle_configuration?: Json | null
+          lifecycle_configuration_generation?: string | null
           name?: string
           owner?: string | null
           owner_id?: string | null
@@ -14162,7 +14182,7 @@ export type Database = {
         Returns: string
       }
       get_size_by_bucket: {
-        Args: never
+        Args: { delete_markers?: string; noncurrent_versions?: string }
         Returns: {
           bucket_id: string
           size: number
@@ -14176,6 +14196,7 @@ export type Database = {
           next_key_token?: string
           next_upload_token?: string
           prefix_param: string
+          raw_prefix_param?: string
         }
         Returns: {
           created_at: string
@@ -14186,28 +14207,38 @@ export type Database = {
       list_objects_with_delimiter: {
         Args: {
           _bucket_id: string
+          delete_markers?: string
           delimiter_param: string
           max_keys?: number
           next_token?: string
+          next_token_archived_at?: string
+          next_token_version?: string
+          noncurrent_versions?: string
           prefix_param: string
           sort_order?: string
           start_after?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       operation: { Args: never; Returns: string }
       search: {
         Args: {
           bucketname: string
+          delete_markers?: string
           levels?: number
           limits?: number
+          noncurrent_versions?: string
           offsets?: number
           prefix: string
           search?: string
@@ -14215,16 +14246,22 @@ export type Database = {
           sortorder?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       search_by_timestamp: {
         Args: {
+          delete_markers?: string
+          noncurrent_versions?: string
           p_bucket_id: string
           p_level: number
           p_limit: number
@@ -14233,36 +14270,50 @@ export type Database = {
           p_sort_column_after: string
           p_sort_order: string
           p_start_after: string
+          p_start_after_version?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           key: string
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       search_v2: {
         Args: {
           bucket_name: string
+          delete_markers?: string
           levels?: number
           limits?: number
+          noncurrent_versions?: string
           prefix: string
           sort_column?: string
           sort_column_after?: string
           sort_order?: string
           start_after?: string
+          start_after_archived_at?: string
+          start_after_is_continuation?: boolean
+          start_after_version?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           key: string
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
     }

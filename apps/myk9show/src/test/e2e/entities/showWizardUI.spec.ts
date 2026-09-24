@@ -30,7 +30,7 @@ test.describe('Show Wizard UI — Step 1 (secretary)', () => {
   test('opens at Step 1 with required-field labels and disabled Next', async ({ page }) => {
     await page.goto('/secretary/create-show/wizard');
 
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
     await expect(page.getByText('Entry Period *', { exact: true })).toBeVisible();

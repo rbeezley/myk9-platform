@@ -124,11 +124,10 @@ if "%1"=="-h" goto :help
 if "%1"=="unit" goto :unit_tests
 if "%1"=="integration" goto :integration_tests
 if "%1"=="security" goto :security_tests
-if "%1"=="e2e" goto :e2e_tests
 if "%1"=="" goto :all_tests
 
 echo Unknown category: %1
-echo Available categories: unit, integration, security, e2e
+echo Available categories: unit, integration, security
 exit /b 1
 
 :help
@@ -138,7 +137,6 @@ echo Categories:
 echo   unit        - Run unit tests only
 echo   integration - Run integration tests only
 echo   security    - Run security tests only
-echo   e2e         - Run E2E tests only
 echo   (no args)   - Run all tests
 echo.
 exit /b 0
@@ -162,12 +160,6 @@ echo Running Security Tests Only...
 call :run_test_suite "Payment Security Tests" "src/test/security/phase3-5-payment-security.test.ts" "security"
 goto :generate_report
 
-:e2e_tests
-call :check_prerequisites
-echo Running E2E Tests Only...
-call :run_test_suite "Payment E2E Tests" "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts" "e2e"
-goto :generate_report
-
 :all_tests
 call :check_prerequisites
 
@@ -186,10 +178,6 @@ call :run_test_suite "Payment Integration Tests" "src/test/integration/phase3-5-
 REM 3. Security Tests
 echo Phase 3: Security Tests
 call :run_test_suite "Payment Security Tests" "src/test/security/phase3-5-payment-security.test.ts" "security"
-
-REM 4. E2E Tests
-echo Phase 4: End-to-End Tests
-call :run_test_suite "Payment E2E Tests" "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts" "e2e"
 
 goto :generate_report
 

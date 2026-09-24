@@ -273,8 +273,9 @@ Details in §3.6.
 
 #### Bonus — a broken e2e assertion
 
-[`test/e2e/cross-browser/functionality.spec.ts:178`](../apps/myk9show/src/test/e2e/cross-browser/functionality.spec.ts:178)
-navigates to `/admin/template-management`. That route has never existed; the real path is
+**Resolved: MYK9-617 deleted the whole spec** (it named 56 test ids the app does not have).
+`test/e2e/cross-browser/functionality.spec.ts:178`
+navigated to `/admin/template-management`. That route has never existed; the real path is
 `/admin/templates`. The spec is either passing vacuously or asserting against a 404. Fix or
 delete it in Phase 6 — and check whether the surrounding cross-browser spec has other
 stale paths.
@@ -333,8 +334,8 @@ Performance`, and template-store memory blocks (8 surviving tests) exercise the 
 
 **Fix or delete:**
 
-- `test/e2e/cross-browser/functionality.spec.ts:178` — navigates to the nonexistent
-  `/admin/template-management` (§4.0 Bonus). Audit the surrounding spec for other stale paths.
+- ~~`test/e2e/cross-browser/functionality.spec.ts:178`~~ — deleted with the whole spec by
+  MYK9-617 (§4.0 Bonus).
 
 **Keep, must stay green — these prove the read path survived:**
 

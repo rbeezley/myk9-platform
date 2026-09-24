@@ -368,12 +368,9 @@ describe('useEntryListData — subscription lifecycle', () => {
     });
     const deps = makeDeps({ subscribeToReplicationChanges });
 
-    const { result } = renderHook(
-      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
-      {
-        wrapper: makeWrapper(),
-      }
-    );
+    renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
+      wrapper: makeWrapper(),
+    });
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalledTimes(1));
 
     // Fire a change — fetch should be invalidated + refetched after the

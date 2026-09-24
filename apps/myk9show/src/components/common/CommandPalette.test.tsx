@@ -10,13 +10,19 @@ import {
 } from '@/features/command-menu/commandMenuContextStore';
 import type { CommandMenuContext } from '@/features/command-menu/commandMenuTypes';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
+import { resolveActions } from '@/features/actions/actionRegistry';
+
+const currentActions = vi.hoisted(() => ({
+  value: { route: { kind: 'global' }, actions: [] } as { route: unknown; actions: unknown[] },
+}));
 
 vi.mock('@/features/actions/useCurrentActions', () => ({
   // The registry -> palette contract has its own test
   // (features/command-menu/__tests__/commandMenuRegistryActions.test.tsx).
   // Stubbed here so this file's per-test useAuthContext mocks do not each have
-  // to carry the show-management RBAC the registry reads.
-  useCurrentActions: () => ({ route: { kind: 'global' }, actions: [] }),
+  // to carry the show-management RBAC the registry reads. A test that needs
+  // show actions sets `currentActions.value` from the real `resolveActions`.
+  useCurrentActions: () => currentActions.value,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -87,6 +93,46 @@ beforeEach(() => {
 afterEach(() => {
   // Reset the real zustand context store between tests.
   useCommandMenuContextStore.setState({ context: null, token: 0 });
+  currentActions.value = { route: { kind: 'global' }, actions: [] };
+});
+
+describe('CommandPalette show-action aliases (MYK9-672)', () => {
+  function renderOnShowPage() {
+    mockAuth([UserRole.SECRETARY]);
+    currentActions.value = {
+      route: { kind: 'show', showId: 'show-1', shellMounted: true },
+      actions: resolveActions(
+        { kind: 'show', showId: 'show-1', shellMounted: true },
+        {
+          canManageShow: true,
+          canOperateShow: true,
+          canCreateShows: true,
+          isShowManagementStaff: true,
+        }
+      ),
+    };
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+  }
+
+  it.each(['mail', 'paper', 'phone', 'walk-up'])(
+    'typing "%s" finds the on-behalf entry action',
+    term => {
+      renderOnShowPage();
+      fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+        target: { value: term },
+      });
+
+      expect(screen.getByRole('option', { name: /add entry for someone else/i })).toBeVisible();
+    }
+  );
+
+  it('keeps the visible label free of the aliases', () => {
+    renderOnShowPage();
+
+    const option = screen.getByRole('option', { name: /add entry for someone else/i });
+    expect(option).toHaveTextContent('Add entry for someone else');
+    expect(option).not.toHaveTextContent(/mail|paper|phone|walk-up|on behalf/i);
+  });
 });
 
 describe('CommandPalette role scoping', () => {
@@ -98,7 +144,7 @@ describe('CommandPalette role scoping', () => {
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.getByText('Add New Dog')).toBeInTheDocument();
+    expect(screen.getByText('Add Dog')).toBeInTheDocument();
   });
 
   it('keeps staff-authorized people and creation commands available', () => {
@@ -109,7 +155,7 @@ describe('CommandPalette role scoping', () => {
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Alice Handler')).toBeInTheDocument();
     expect(screen.getByText('Add New User')).toBeInTheDocument();
-    expect(screen.getByText('Add New Show')).toBeInTheDocument();
+    expect(screen.getByText('Add Show')).toBeInTheDocument();
   });
 
   it('treats mixed exhibitor and staff sessions as staff when permissions allow it', () => {
@@ -173,7 +219,7 @@ describe('CommandPalette Entry Management context', () => {
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    const actionTitles = ['Add New Dog', 'Add New User', 'Add New Show'];
+    const actionTitles = ['Add Dog', 'Add New User', 'Add Show'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -320,7 +366,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
 
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
   it('secretary without USER_CREATE/SHOW_CREATE: browses people but cannot create users/shows', () => {
@@ -329,7 +375,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
 
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
   it('site admin: sees every gated surface', () => {

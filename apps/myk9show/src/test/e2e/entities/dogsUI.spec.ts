@@ -9,7 +9,7 @@ import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
  * (add AKC/UKC, edit), and owner change.
  *
  * Strategy:
- *   - Create Dog A and Dog B with timestamped names so runs never collide.
+ *   - Add Dog A and Dog B with timestamped names so runs never collide.
  *   - Tests run serially so state persists across them.
  *   - Delete only Dog B at the end; Dog A remains as ongoing test data.
  *
@@ -166,8 +166,8 @@ test.describe('Dogs UI — Browse (secretary)', () => {
   test('browse page loads with dog cards and filter toolbar', async ({ page }) => {
     await gotoDogsBrowse(page);
 
-    // "New Dog" button visible for secretary
-    await expect(page.getByRole('button', { name: 'New Dog' })).toBeVisible();
+    // "Add Dog" button visible for secretary
+    await expect(page.getByRole('button', { name: 'Add Dog', exact: true })).toBeVisible();
 
     // Filter chips visible — scope to the FilterChips region so a chip label
     // (e.g. "Breed") doesn't collide with the table's "Breed" column header.
@@ -217,10 +217,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await signInAsSecretary(page);
   });
 
-  test('Create Dog A — panel opens, fills, submits, lands on detail page', async ({ page }) => {
+  test('Add Dog A — panel opens, fills, submits, lands on detail page', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'New Dog' }).click();
-    await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     // Fill Essential tab — Sex and Owner are base-ui Selects, targeted by
     // accessible name so a naming regression fails here (MYK9-88).
@@ -237,7 +237,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
       { timeout: 15000 }
     );
 
-    await page.getByRole('button', { name: 'Create Dog' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 
     // Should navigate directly to the new dog's detail page (our post-create redirect fix)
@@ -245,10 +245,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await expect(page.getByRole('heading', { name: DOG_A_NAME })).toBeVisible();
   });
 
-  test('Create Dog B — panel submits and lands on detail page', async ({ page }) => {
+  test('Add Dog B — panel submits and lands on detail page', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'New Dog' }).click();
-    await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     await page.getByLabel('Call Name').fill(DOG_B_NAME);
     await selectByAccessibleName(page, /^Sex/, /Female/i);
@@ -260,7 +260,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
       r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
       { timeout: 15000 }
     );
-    await page.getByRole('button', { name: 'Create Dog' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/, { timeout: 10000 });
@@ -299,7 +299,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
   test('exhibitor creates, edits, and deletes their own dog', async ({ page }) => {
     await gotoMyDogsBrowse(page);
     await page.getByRole('button', { name: 'Add Dog' }).click();
-    await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     await page.getByLabel('Call Name').fill(EXHIBITOR_DOG_NAME);
     await selectByAccessibleName(page, /^Sex/, /^Female/i);
@@ -309,7 +309,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
       r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
       { timeout: 15000 }
     );
-    await page.getByRole('button', { name: 'Create Dog' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/, { timeout: 10000 });

@@ -71,7 +71,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'typecheck',
-    command: 'turbo typecheck && pnpm run typecheck:scripts',
+    command: 'pnpm run typecheck:scripts && turbo typecheck',
   },
   {
     pkgDir: '.',
@@ -116,6 +116,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     command: 'vitest run scripts/backup --sequence.shuffle',
   },
   { pkgDir: '.', script: 'qa:e2e-map:check', command: 'node scripts/check-e2e-suite-map.js' },
+  { pkgDir: '.', script: 'qa:e2e-testid-audit', command: 'bash scripts/qa/e2e-testid-audit.sh' },
   {
     pkgDir: '.',
     script: 'qa:sql:behavioral:test',
@@ -181,6 +182,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     command: 'vitest run scripts/qa/check-dist-fresh.test.ts',
   },
   { pkgDir: '.', script: 'qa:inflight:test', command: 'vitest run scripts/qa/inflight.test.ts' },
+  {
+    pkgDir: '.',
+    script: 'qa:edge-function-drift:test',
+    command: 'vitest run scripts/qa/edge-function-drift.test.ts',
+  },
   {
     pkgDir: '.',
     script: 'qa:primary-checkout:test',

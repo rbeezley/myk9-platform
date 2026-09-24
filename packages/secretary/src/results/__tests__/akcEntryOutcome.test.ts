@@ -6,8 +6,8 @@
 //   entry_status     no-status | draft | submitted | paid | confirmed |
 //                    checked-in | at-gate | in-ring | competing | completed |
 //                    withdrawn | scratched | absent | moved | not_accepted |
-//                    pending-payment | promotion-expired | scratch-requested |
-//                    scratch_requested | move-up-requested | move_up_requested
+//                    pending-payment | promotion-expired | move-up-requested |
+//                    move_up_requested
 //   check_in_status  no-status | checked-in | conflict | pulled | at-gate |
 //                    come-to-gate | in-ring | completed
 //   result_status    pending | qualified | nq | absent | excused | withdrawn
@@ -131,14 +131,6 @@ describe('classifyAKCEntryOutcome', () => {
       expect(codesFor(entry)).toEqual({ actionCode: 'WHLD', resultCode: 'EXO' });
     });
 
-    it('does NOT treat a pending scratch REQUEST as a scratch', () => {
-      // The dog is still entered until a secretary approves the request.
-      for (const status of ['scratch-requested', 'scratch_requested']) {
-        const entry = makeEntry({ entryStatus: status, resultStatus: 'qualified' });
-        expect(classifyAKCEntryOutcome(entry)).toBe('qualified');
-      }
-    });
-
     it('outranks a result that was recorded before the withdrawal', () => {
       const entry = makeEntry({
         entryStatus: 'withdrawn',
@@ -196,7 +188,7 @@ describe('classifyAKCEntryOutcome', () => {
     });
 
     it('keeps an entry that merely has a pending request against it', () => {
-      for (const entryStatus of ['scratch-requested', 'move-up-requested', 'move_up_requested']) {
+      for (const entryStatus of ['move-up-requested', 'move_up_requested']) {
         const entry = makeEntry({ entryStatus, resultStatus: 'qualified' });
         expect(classifyAKCEntryOutcome(entry)).toBe('qualified');
       }

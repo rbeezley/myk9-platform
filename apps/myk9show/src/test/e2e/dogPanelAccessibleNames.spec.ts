@@ -39,7 +39,7 @@ for (const vp of VIEWPORTS) {
         .getByRole('button', { name: /Add Dog/i })
         .first()
         .click();
-      await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
       const sex = page.getByRole('combobox', { name: /^Sex/ });
       await expect(sex).toMatchAriaSnapshot(`- combobox "Sex (required)"`);

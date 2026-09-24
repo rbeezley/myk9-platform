@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -10,7 +11,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { auditSkillTrees, listSkillNames, SKILL_TREES } from './skillTrees';
+import {
+  auditInventory,
+  auditSkillTrees,
+  listSkillNames,
+  parseInventory,
+  SKILL_TREES,
+} from './skillTrees';
 
 /**
  * The skill trees Claude Code and Codex read must be ONE source. Before
@@ -138,40 +145,42 @@ describe('auditSkillTrees on fixtures', () => {
   });
 });
 
-describe('third-party skills are inventoried', () => {
-  const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
-  // | `name` | origin | reason |  -- split on pipes and trim: Prettier pads
-  // table cells to column width, so a fixed-space regex would reject every
-  // formatted row (Codex review of #2110).
-  const rows = inventory
-    .split('\n')
-    .filter(line => /^\|\s*`[^`]+`\s*\|/.test(line))
-    .map(line =>
-      line
-        .split('|')
-        .slice(1, -1)
-        .map(cell => cell.trim())
-    )
-    .filter(cells => cells.length === 3 && cells.every(Boolean))
-    .map(([name, origin, reason]) => ({
-      name: name!.replace(/^`|`$/g, ''),
-      origin: origin!,
-      reason: reason!,
-    }));
-  const onDisk = readdirSync(resolve(repoRoot, '.agents/skills'), { withFileTypes: true })
+/** git's own answer, so re-includes and tracked-despite-ignored files count. */
+function gitIgnores(root: string): (path: string) => boolean {
+  return path => {
+    try {
+      execFileSync('git', ['check-ignore', '-q', path], { cwd: root, stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+}
+
+function realSkillDirs(root: string): string[] {
+  return readdirSync(resolve(root, '.agents/skills'), { withFileTypes: true })
     .filter(d => d.isDirectory() && !d.isSymbolicLink())
     .map(d => d.name);
+}
+
+describe('third-party skills are inventoried', () => {
+  const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
+  const rows = parseInventory(inventory);
+  const onDisk = realSkillDirs(repoRoot);
 
   it('every real (non-symlink) .agents/skills entry has a row, and every row has a directory', () => {
-    const listed = new Set(rows.map(r => r.name));
-    expect(onDisk.filter(n => !listed.has(n)).sort()).toEqual([]);
-    expect(
-      rows
-        .map(r => r.name)
-        .filter(n => !onDisk.includes(n))
-        .sort()
-    ).toEqual([]);
+    expect(auditInventory(rows, onDisk, gitIgnores(repoRoot))).toEqual([]);
     expect(onDisk.length).toBeGreaterThan(5); // vacuity guard
+  });
+
+  it('holds whether or not a local-only skill is installed here (MYK9-598)', () => {
+    // CI never has `impeccable`; the machine that runs local checks does.
+    // Both worlds must be green, so audit each regardless of this checkout.
+    const localOnly = rows.filter(r => r.localOnly).map(r => r.name);
+    expect(localOnly).toContain('impeccable'); // positive control
+    const shared = onDisk.filter(n => !localOnly.includes(n));
+    expect(auditInventory(rows, shared, gitIgnores(repoRoot))).toEqual([]);
+    expect(auditInventory(rows, [...shared, ...localOnly], gitIgnores(repoRoot))).toEqual([]);
   });
 
   it('every third-party row names a repo file that routes to it, and that file exists and mentions it', () => {
@@ -183,5 +192,83 @@ describe('third-party skills are inventoried', () => {
         new RegExp(`(skills/${row.name}\\b|\`${row.name}\`|/${row.name}\\b)`)
       );
     }
+  });
+});
+
+describe('auditInventory on fixtures', () => {
+  const TABLE = [
+    '| Skill | Origin | Why |',
+    '| ----- | ------ | --- |',
+    '| `kept`       | ours                        | routed from `x.md` |',
+    '| `vendored`   | Local-only, upstream/vendor | routed from `y.md` |',
+  ].join('\n');
+  const rows = parseInventory(TABLE);
+  const allIgnored = new Set(SKILL_TREES.map(t => `${t}/vendored`));
+  const ignores = (set: ReadonlySet<string>) => (p: string) => set.has(p);
+
+  it('parses padded rows and marks local-only by the origin cell', () => {
+    expect(rows.map(r => [r.name, r.localOnly])).toEqual([
+      ['kept', false],
+      ['vendored', true],
+    ]);
+  });
+
+  it('the MYK9-598 table: green with and without the local-only directory', () => {
+    expect(auditInventory(rows, ['kept'], ignores(allIgnored))).toEqual([]);
+    expect(auditInventory(rows, ['kept', 'vendored'], ignores(allIgnored))).toEqual([]);
+  });
+
+  it('still requires a row for every real directory', () => {
+    expect(auditInventory(rows, ['kept', 'stray'], ignores(allIgnored))).toEqual([
+      'stray: real directory with no inventory row',
+    ]);
+  });
+
+  it('still requires a directory for every row that is not local-only', () => {
+    expect(auditInventory(rows, [], ignores(allIgnored))).toEqual([
+      'kept: inventory row with no real .agents/skills directory',
+    ]);
+  });
+
+  it('refuses a local-only row that some tree does not ignore', () => {
+    const partial = new Set([...allIgnored].filter(p => !p.startsWith('.codex/')));
+    expect(auditInventory(rows, ['kept'], ignores(partial))).toEqual([
+      'vendored: local-only row but git does not ignore .codex/skills/vendored',
+    ]);
+  });
+
+  describe('against git check-ignore', () => {
+    let root = '';
+    afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+    it('a force-added local-only skill is tracked, so it is not ignored and fails', () => {
+      root = mkdtempSync(join(tmpdir(), 'skill inventory '));
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+      git('init', '-q');
+      writeFileSync(join(root, '.gitignore'), SKILL_TREES.map(t => `${t}/vendored`).join('\n'));
+      expect(auditInventory(rows, ['kept'], gitIgnores(root))).toEqual([]);
+
+      mkdirSync(join(root, '.agents/skills/vendored'), { recursive: true });
+      writeFileSync(join(root, '.agents/skills/vendored/SKILL.md'), '# vendored\n');
+      expect(auditInventory(rows, ['kept', 'vendored'], gitIgnores(root))).toEqual([]);
+
+      git('add', '-f', '.agents/skills/vendored/SKILL.md');
+      expect(auditInventory(rows, ['kept', 'vendored'], gitIgnores(root))).toEqual([
+        'vendored: local-only row but git does not ignore .agents/skills/vendored',
+      ]);
+    });
+
+    it('a later re-include cancels the ignore', () => {
+      root = mkdtempSync(join(tmpdir(), 'skill inventory '));
+      execFileSync('git', ['init', '-q'], { cwd: root, stdio: 'ignore' });
+      writeFileSync(
+        join(root, '.gitignore'),
+        [...SKILL_TREES.map(t => `${t}/vendored`), '!.claude/skills/vendored'].join('\n')
+      );
+      expect(auditInventory(rows, ['kept'], gitIgnores(root))).toEqual([
+        'vendored: local-only row but git does not ignore .claude/skills/vendored',
+      ]);
+    });
   });
 });

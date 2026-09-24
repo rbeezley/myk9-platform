@@ -46,7 +46,6 @@ test.describe('Secretary show management UI', () => {
 
     // MYK9-630 phase 2: one row of six tabs, and the five standalone page links
     // above it are gone. Setup is a tab now, not an unlinked route.
-    await expect(page.getByTestId('canonical-show-management-nav')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Show Desk' })).toHaveCount(0);
     await expect(page.getByRole('tab', { name: /^Setup/ })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^Show Day/ })).toBeVisible();

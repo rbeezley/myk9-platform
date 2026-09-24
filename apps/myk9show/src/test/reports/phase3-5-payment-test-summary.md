@@ -73,7 +73,9 @@ Comprehensive test suite for payment processing functionality in the myK9Show ap
 
 ### 2. E2E Tests (`phase3-5-comprehensive-payment.spec.ts`)
 
-**Location**: `src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts`
+> **Deleted (MYK9-617, 2026-09).** This spec asserted payment UI that never shipped (208 of its test ids exist nowhere in the app) and no CI job ran it. Real payment journeys are tracked in MYK9-42.
+
+**Location (historical)**: `src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts`
 **Total Test Cases**: 25+
 **Coverage Areas**:
 
@@ -355,9 +357,7 @@ npm run test -- src/test/security/phase3-5-payment-security.test.ts
 
 ### E2E Tests
 
-```bash
-npm run test:e2e -- src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts
-```
+Deleted by MYK9-617; see the note under E2E Tests above.
 
 ### All Payment Tests
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { findRecoverableCart } from '@/store/cartStore.pickCart';
 
 /**
  * exhibitor-ux-remediation (cart-integrity): a READ-ONLY item count for the
@@ -13,29 +13,20 @@ import { supabase } from '@/lib/supabase';
  * `addItem` calls to the wrong cart (Codex review PR #1217). Reading the count
  * directly keeps the badge accurate without ever writing the store, so it
  * cannot race the entry-building flow.
+ *
+ * The cart it counts is chosen by `findRecoverableCart`, the same lookup
+ * `/cart` and the wizard opener use (MYK9-650): `status IN ('active','expired')`
+ * with NO `expires_at` filter, and the newest cart WITH items rather than the
+ * newest cart. A lapsed draft still surfaces the badge, and a newer empty cart
+ * can no longer read the badge as 0 over an older cart's drafted items.
  */
 export function useActiveCartItemCount(exhibitorId: string | undefined): number {
   const { data } = useQuery({
     queryKey: ['active-cart-item-count', exhibitorId],
     queryFn: async (): Promise<number> => {
-      // Mirror CartPage's `loadActiveCart` recovery predicate exactly:
-      // `status IN ('active','expired')` and NO `expires_at > now` filter. A
-      // cart from a prior session often has a lapsed hold (expired status or a
-      // past expires_at) that /cart transparently recovers and extends — the
-      // audit's week-old draft is exactly that case. Filtering those out here
-      // would hide the badge for the very carts this affordance exists to
-      // surface.
-      const { data, error } = await supabase
-        .from('entry_carts')
-        .select('id, entry_cart_items(count)')
-        .eq('exhibitor_id', exhibitorId as string)
-        .in('status', ['active', 'expired'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      const items = (data?.entry_cart_items ?? []) as Array<{ count: number }>;
-      return items[0]?.count ?? 0;
+      const result = await findRecoverableCart({ exhibitorId: exhibitorId as string });
+      if (result.kind === 'error') throw result.error;
+      return result.kind === 'found' ? result.cart.itemCount : 0;
     },
     enabled: !!exhibitorId,
     staleTime: 30_000,

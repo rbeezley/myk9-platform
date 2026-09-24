@@ -101,8 +101,6 @@ describe('recoverable show access codes — migration contract', () => {
       'at-gate',
       'in-ring',
       'competing',
-      'scratch-requested',
-      'scratch_requested',
       'move-up-requested',
       'move_up_requested',
     ]) {

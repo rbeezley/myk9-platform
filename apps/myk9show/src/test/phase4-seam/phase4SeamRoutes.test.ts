@@ -65,57 +65,47 @@ describe('extractEqFilter', () => {
   it('reads eq filters and bare values', () => {
     expect(extractEqFilter(`${REST}/entries?id=eq.abc`, 'id')).toBe('abc');
     expect(
-      extractEqFilter(`${REST}/entries?id=eq.abc&entry_status=eq.scratch-requested`, 'entry_status')
-    ).toBe('scratch-requested');
+      extractEqFilter(`${REST}/entries?id=eq.abc&entry_status=eq.move-up-requested`, 'entry_status')
+    ).toBe('move-up-requested');
     expect(extractEqFilter(`${REST}/entries?id=eq.abc`, 'missing')).toBeNull();
   });
 });
 
-describe('Seam 1: scratch / pull request', () => {
-  it('exhibitor request -> secretary sees -> secretary approve -> both agree', () => {
+describe('Seam 1: pull (no approval step — MYK9-632, MYK9-609)', () => {
+  it('a pull writes scratched + pulled directly and reads back one row', () => {
     const state = createPhase4SeamState();
     const audit: AuditEntry[] = [];
     const id = PHASE4_IDS.entryScratch;
 
-    // Exhibitor requests a pull (the PATCH seam uses `.single()`).
-    const reqResp = run(state, audit, {
+    // pullEntry: one PATCH, read back with `.single()`.
+    const resp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}`,
-      postData: { entry_status: 'scratch-requested', special_requests: 'Dog injured' },
-      headers: OBJ,
-    });
-    expect(reqResp.status).toBe(200);
-    expect((reqResp.body as { id: string }).id).toBe(id); // single object, not array
-    expect(state.entries[id].entry_status).toBe('scratch-requested');
-    expect(state.entries[id].special_requests).toBe('Dog injured');
-
-    // Secretary approves (guarded by entry_status=eq.scratch-requested, `.single()`).
-    const apprResp = run(state, audit, {
-      method: 'PATCH',
-      url: `${REST}/entries?id=eq.${id}&entry_status=eq.scratch-requested`,
       postData: { entry_status: 'scratched', check_in_status: 'pulled' },
       headers: OBJ,
     });
-    expect(apprResp.status).toBe(200);
+    expect(resp.status).toBe(200);
+    expect((resp.body as { id: string }).id).toBe(id); // single object, not array
     expect(state.entries[id].entry_status).toBe('scratched');
     expect(state.entries[id].check_in_status).toBe('pulled');
+    expect(audit[0].seam).toBe('scratch');
 
     assertNoSharedWrites(audit);
     assertNoUnhandledAppDataMutations(audit);
   });
 
-  it('approve on a guard miss returns PGRST116/406 (data:null), state unchanged', () => {
+  it('a guarded PATCH that misses returns PGRST116/406 (data:null), state unchanged', () => {
     const state = createPhase4SeamState();
     const audit: AuditEntry[] = [];
-    const id = PHASE4_IDS.entryScratch; // still 'confirmed', not 'scratch-requested'
+    const id = PHASE4_IDS.entryScratch; // 'confirmed', so the guard below misses
     const resp = run(state, audit, {
       method: 'PATCH',
-      url: `${REST}/entries?id=eq.${id}&entry_status=eq.scratch-requested`,
+      url: `${REST}/entries?id=eq.${id}&entry_status=eq.withdrawn`,
       postData: { entry_status: 'scratched', check_in_status: 'pulled' },
-      headers: OBJ, // approvePullRequest reads back with `.single()`
+      headers: OBJ,
     });
-    // `.single()` + zero rows -> 406 PGRST116, which approvePullRequest THROWS
-    // on (race loser sees an error, not a silent success).
+    // `.single()` + zero rows -> 406 PGRST116 (race loser sees an error, not a
+    // silent success).
     expect(resp.status).toBe(406);
     expect((resp.body as { code: string }).code).toBe('PGRST116');
     expect(state.entries[id].entry_status).toBe('confirmed'); // unchanged
@@ -127,7 +117,7 @@ describe('Seam 1: scratch / pull request', () => {
     const resp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.not-a-fixture`,
-      postData: { entry_status: 'scratch-requested' },
+      postData: { entry_status: 'scratched' },
     });
     expect(resp.status).toBe(500);
   });
@@ -458,7 +448,7 @@ describe('Write safety guarantees', () => {
     run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${PHASE4_IDS.entryScratch}`,
-      postData: { entry_status: 'scratch-requested' },
+      postData: { entry_status: 'scratched' },
     });
     expect(audit[0].elapsedMs).toBeGreaterThanOrEqual(0);
     expect(audit[0].seam).toBe('scratch');

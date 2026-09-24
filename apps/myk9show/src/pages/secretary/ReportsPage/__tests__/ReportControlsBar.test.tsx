@@ -141,9 +141,11 @@ describe('ReportControlsBar', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Official PDF needs a quick review');
     expect(screen.getByText('Official PDF needs a quick review')).toBeInTheDocument();
     // Scope to the alert: the report-type trigger now also shows the human label
-    // "Trial Secretary Report" (F5), so a document-wide /Trial Secretary/ query
-    // would match two nodes.
+    // "AKC Trial Secretary Report" (F5), so a document-wide /Trial Secretary/
+    // query would match two nodes.
     expect(screen.getByRole('status')).toHaveTextContent(/Trial Secretary/);
+    // MYK9-661: the trigger names the registry whose paperwork this is.
+    expect(screen.getByText('AKC Trial Secretary Report')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /download official pdf/i }));
     expect(onClick).toHaveBeenCalledTimes(1);

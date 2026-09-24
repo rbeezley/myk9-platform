@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -355,8 +355,15 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
       const mounted = screen.queryByTestId('section-entries');
       expect(probe !== null || mounted !== null).toBe(true);
     });
-    // Let a redirect settle before reading the verdict.
+    // Let a redirect settle before reading the verdict. The probe appearing is
+    // NOT enough: on the first render in the file the lazy `ShowDetailsPage`
+    // resolves outside `act`, so the section route commits at `/entries` and its
+    // `<Navigate>` effect runs in a LATER task. A `waitFor` fired by that commit
+    // read 'held' for a row that redirects a few ms later (MYK9-707: the
+    // cross-club row failed only when shuffled first; measured 3/4 'held' before
+    // this flush and 'redirected' after it). `act` drains React's pending work.
     await waitFor(() => expect(screen.queryByTestId('production-show-details')).not.toBeNull());
+    await act(async () => {});
 
     if (screen.queryByTestId('section-entries')) return 'mounted';
     const path = screen.getByTestId('production-show-details-location').textContent ?? '';

@@ -31,6 +31,7 @@ import {
 import { toDbRoles, useRbacAdminActions, useRbacLifecycle } from './useRbacLifecycle';
 import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCacheBoundary';
 import { useClearQueryCacheOnAccountChange } from '@/hooks/useClearQueryCacheOnAccountChange';
+import { useNotifyAccountBoundary } from '@/hooks/useNotifyAccountBoundary';
 import { usePersonIdentity } from './usePersonIdentity';
 
 export type { AuthContextType, PersonIdentityState, UserRoleWithDetails } from './authContextTypes';
@@ -76,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authReady: !auth.loading,
     userId: auth.user?.id ?? null,
   });
+
+  // Device-local state (the persisted cart first) outlived sign-out the same
+  // way; subscribers to the account boundary reset themselves (MYK9-651).
+  useNotifyAccountBoundary({ authReady: !auth.loading, userId: auth.user?.id ?? null });
 
   // Mock user state for development testing
   const [currentMockUser, setCurrentMockUser] = useState<string | null>(() => {

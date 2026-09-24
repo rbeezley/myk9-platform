@@ -171,7 +171,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           {canManage && (
             <Button size="sm" onClick={openWizard} className="gap-1.5">
               <Plus className="h-4 w-4" />
-              New Trial
+              Add Trial
             </Button>
           )}
         </div>
@@ -182,7 +182,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           icon={Calendar}
           title="No Trials"
           description="No trials have been created for this show yet."
-          action={canManage ? { label: 'New Trial', onClick: openWizard, icon: Plus } : null}
+          action={canManage ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null}
         />
       ) : filteredTrials.length === 0 && trials.length > 0 ? (
         <EmptyState

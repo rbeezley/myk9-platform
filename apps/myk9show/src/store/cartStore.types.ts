@@ -137,7 +137,12 @@ export interface CartState {
    * visits to /cart (refresh, new tab). The store is in-memory only. */
   loadActiveCart: (
     exhibitorId: string,
-    options?: { showId?: string; recoveryEntryIds?: string[] }
+    options?: {
+      showId?: string;
+      recoveryEntryIds?: string[];
+      /** The calling opener's token; its writes are dropped once false (MYK9-655). */
+      isCurrent?: () => boolean;
+    }
   ) => Promise<CartWithDetails | null>;
   /**
    * Recover-or-create this exhibitor's cart for a show as ONE coalesced unit.
@@ -145,7 +150,11 @@ export interface CartState {
    * and never resolves without either a cart or a message (MYK9-581).
    */
   ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  createCart: (
+    showId: string,
+    exhibitorId: string,
+    options?: { isCurrent?: () => boolean }
+  ) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateItem: (itemId: string, updates: Partial<NewCartItem>) => Promise<boolean>;
@@ -173,5 +182,9 @@ export interface CartState {
 
   // State management
   setError: (error: string | null) => void;
+  /**
+   * Empty the store AND its persisted recovery ids, and drop every cart write
+   * still in flight. Called when the signed-in user changes (MYK9-651).
+   */
   reset: () => void;
 }

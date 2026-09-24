@@ -196,6 +196,15 @@ jobs:
       - name: E2E suite map drift
         run: pnpm qa:e2e-map:check
 
+      # Every data-testid an e2e spec or helper names must exist in the app or
+      # a package (MYK9-617). 592 dangling references had accumulated in suites
+      # nothing ran; ids the app builds by interpolation live in the sidecar
+      # allowlist, which the audit re-verifies against the producer each run.
+      - name: E2E test-id audit
+        run: |
+          pnpm qa:e2e-testid-audit --self-test
+          pnpm qa:e2e-testid-audit
+
       - name: Behavioral SQL harness contract
         run: pnpm qa:sql:behavioral:test
 
@@ -259,6 +268,7 @@ jobs:
           pnpm qa:claude-review:test
           pnpm qa:dist-fresh:test
           pnpm qa:inflight:test
+          pnpm qa:edge-function-drift:test
           pnpm qa:primary-checkout:test
           pnpm qa:ci-concurrency:test
           pnpm qa:shared-rules:test

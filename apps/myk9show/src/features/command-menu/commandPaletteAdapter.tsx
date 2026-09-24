@@ -43,7 +43,7 @@ export function adaptCommandMenuCommand(
         }
         onOpenChange(false);
       }),
-    keywords: [command.label, command.sublabel ?? ''].filter(Boolean),
+    keywords: [command.label, command.sublabel ?? '', ...(command.aliases ?? [])].filter(Boolean),
     category,
   };
 }

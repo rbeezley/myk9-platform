@@ -86,10 +86,10 @@ describe('buildAKCSubmissionReadiness', () => {
       // The remedy, in secretary vocabulary — the class edit form shows these
       // three fields read-only, so "check the class setup" would go nowhere.
       // Names the real gesture, surface by surface: Classes -> Add Classes ->
-      // Create Classes -> Select Template -> Choose Classes.
+      // Select Template -> Choose Classes.
       expect(result.details).toContain('Delete this class, then add it again: go to Classes');
       expect(result.details).toContain('choose Add Classes');
-      expect(result.details).toContain('on Create Classes pick the AKC template');
+      expect(result.details).toContain('then pick the AKC template');
       expect(result.details).toContain('under Select Template');
       expect(result.details).toContain('tick the class under Choose Classes');
       expect(result.details).toContain('move those entries to another class first');

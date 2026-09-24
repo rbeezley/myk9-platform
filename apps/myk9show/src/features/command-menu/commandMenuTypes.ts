@@ -32,6 +32,8 @@ export interface CommandMenuCommand {
   group: CommandMenuGroup;
   label: string;
   sublabel?: string;
+  /** Search-only synonyms; matched by the palette, never rendered (MYK9-672). */
+  aliases?: readonly string[];
   icon?: ReactNode;
   /** Present for navigation-style commands. */
   href?: string;

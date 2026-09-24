@@ -16,9 +16,9 @@ const REGRESSION_SPECS = [
   '**/uat/secretary/disposable-entry.spec.ts',
   '**/uat/secretary/evidence.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
-  // payment/* specs are excluded: both are aspirational mock-based suites
-  // asserting features that don't exist (PayPal, chargebacks, payment plans)
-  // and fail unconditionally. Real payment journeys are tracked in MYK9-42.
+  // The payment/* specs were aspirational mock-based suites asserting features
+  // that don't exist (PayPal, chargebacks, payment plans); MYK9-617 deleted
+  // them. Real payment journeys are tracked in MYK9-42.
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
   // Offline cold boot (MYK9-200 AC 1 / MYK9-203 AC 2). Secretary-authed, so it
@@ -121,7 +121,7 @@ const REGRESSION_SPECS = [
 // secretary critical-path UAT suite, and the exhibitor My Shows page. Verified
 // green under this config before promotion (2026-07-16; My Shows 2026-08-20).
 // atShowOfflineScoring stays regression-only (depends on staging seed data);
-// payment specs are excluded entirely (see REGRESSION_SPECS).
+// there are no payment specs (MYK9-617 deleted them; see REGRESSION_SPECS).
 //
 // sign-in-fits-one-screen.spec.ts is here for the same reason one layer out:
 // the sign-in card overflowed a 1440x760 laptop by 73px once Google and Apple

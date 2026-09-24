@@ -81,8 +81,8 @@ test.describe('At-show judge scoring authorization', () => {
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).evaluate(button => {
-      button.click();
-      button.click();
+      (button as HTMLElement).click();
+      (button as HTMLElement).click();
     });
 
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });

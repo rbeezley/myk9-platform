@@ -7,7 +7,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * Walks the secretary's trial-management flows:
  *   - Add Trial via the show-creation wizard at `?mode=add-trials`
  *       * Drives the wizard end-to-end: trial config → class selection
- *         → review → "Create Show (Unpublished)".
+ *         → review → "Add Show".
  *       * Verifies the new trial row lands in `trials` with the event
  *         number we entered.
  *   - Edit trial via the TrialEditPanel
@@ -363,7 +363,7 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     }, labelTestEventNumber);
   });
 
-  test('Review step shows "Add Trials" label (not "Create Show") in add-trials mode', async ({
+  test('Review step shows "Add Trials" label (not "Add Show") in add-trials mode', async ({
     page,
   }) => {
     labelTestEventNumber = `LABEL-TEST-${RUN_ID}`;

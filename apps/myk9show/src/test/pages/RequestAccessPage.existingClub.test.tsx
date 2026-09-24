@@ -127,7 +127,12 @@ describe('RequestAccessPage — existing club', () => {
     const user = await chooseClub();
 
     await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
-    await user.click(await screen.findByRole('button', { name: 'Send request' }));
+    const send = await screen.findByRole('button', { name: 'Send request' });
+    vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
+      state: 'pending',
+      reviewerNote: null,
+    });
+    await user.click(send);
 
     await waitFor(() =>
       expect(submitClubMembershipRequest).toHaveBeenCalledWith({ clubId: 'club-1', note: '' })

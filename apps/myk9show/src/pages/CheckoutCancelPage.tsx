@@ -24,6 +24,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useCartStore, useCartItems } from '@/store/cartStore';
+import { readTrustedRecoveryInfo } from '@/store/cartStore.recoveryInfo';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useCancelledCheckoutSession } from './CheckoutCancelPage.session';
 
@@ -33,8 +35,11 @@ export default function CheckoutCancelPage() {
   // A real Stripe cancel returns via a full document load, so `cart` is null
   // here and only the persisted recovery ids survive. Reading them is what
   // makes the entry-amendment button reachable in the normal flow instead of
-  // only after an in-app navigation.
-  const recoveryShowId = useCartStore(state => state.cartRecoveryInfo?.showId ?? null);
+  // only after an in-app navigation. They outlive the session, so they count
+  // only when they name the signed-in exhibitor (MYK9-651).
+  const { profile } = useExhibitorProfile();
+  const recoveryInfo = useCartStore(state => state.cartRecoveryInfo);
+  const recoveryShowId = readTrustedRecoveryInfo(recoveryInfo, profile?.id)?.showId ?? null;
   const returnShowId = cart?.show_id ?? recoveryShowId;
   const items = useCartItems();
   const itemCount = items.length;

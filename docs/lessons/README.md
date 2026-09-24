@@ -45,7 +45,7 @@ Shuffled fast runs are NOT enough for a **timeout**-class flake — those need s
 
 ## git-branch-delete-denied
 
-`git branch -D`/`-d` and `git checkout -- <path>` are DENIED by permission rules here. Interactively that is a prompt; in a scheduled/unattended run it is a silent stall. Discard changes with `git apply -R` or `git restore`, merge with `gh pr merge --squash` WITHOUT `--delete-branch` (its local half fails anyway while a worktree holds the branch), and leave local branches for `branch-janitor` to report.
+`git branch -D`/`-d`, `git update-ref -d` (the ref-level spelling of the same delete, closed 2026-09-24) and `git checkout -- <path>` are DENIED by permission rules here. Interactively that is a prompt; in a scheduled/unattended run it is a silent stall. Discard changes with `git apply -R` or `git restore`, merge with `gh pr merge --squash` WITHOUT `--delete-branch` (its local half fails anyway while a worktree holds the branch), and leave local branches for `branch-janitor` to report.
 
 ## functions-deploy-workdir
 

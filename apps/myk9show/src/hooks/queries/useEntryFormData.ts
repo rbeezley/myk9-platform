@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { readinessOf, type ReadinessQuery } from './reportReadiness';
 import { groupEntriesByDog } from '@/lib/reports/entryFormUtils';
 import {
   resolveDogIdentityForOrganization,
@@ -36,6 +37,19 @@ function buildSecretary(person: Record<string, unknown>): EntryFormSecretary {
   };
 }
 
+/**
+ * MYK9-721: these reads are online-only PostgREST (there is no entry-form
+ * replica), and they used to discard `error`. Offline or on a failed request
+ * every one of them returned `data: null`, which assembled into a VALID, EMPTY
+ * entry form -- a blank page with nothing to say it was blank because the
+ * question was never answered. The reads the form is built from now throw, so
+ * the failure surfaces as `isError`. Registrations, pedigree, people and the
+ * secretary stay ancillary: a failure there leaves a field blank, not the form.
+ */
+function throwIfUnread(error: unknown): void {
+  if (error) throw error;
+}
+
 export interface UseEntryFormDataOptions {
   showId: string;
   trialId?: string | undefined;
@@ -55,6 +69,8 @@ export interface UseEntryFormDataResult {
   } | null;
   isLoading: boolean;
   isError: boolean;
+  /** For the Reports page's one readiness rule (`resolveReportReadiness`). */
+  readiness: ReadinessQuery;
 }
 
 async function fetchEntryFormData(
@@ -72,11 +88,12 @@ async function fetchEntryFormData(
     experiencePublishedContent?: ShowExperienceSnapshot | null;
   } | null;
 }> {
-  const { data: showRaw } = await supabase
+  const { data: showRaw, error: showError } = await supabase
     .from('shows')
     .select('experience_is_published, experience_published_content')
     .eq('id', showId)
     .maybeSingle();
+  throwIfUnread(showError);
 
   const show = showRaw
     ? {
@@ -90,12 +107,13 @@ async function fetchEntryFormData(
     : null;
 
   // 1. Fetch trials
-  const { data: trialsRaw } = await supabase
+  const { data: trialsRaw, error: trialsError } = await supabase
     .from('trials')
     .select('id, name, date, trial_number')
     .eq('show_id', showId)
     .order('date')
     .order('trial_number');
+  throwIfUnread(trialsError);
 
   const trials: EntryFormTrial[] = (trialsRaw ?? [])
     .map(t => ({
@@ -116,10 +134,11 @@ async function fetchEntryFormData(
   const trialIds = trialId ? [trialId] : trials.map(t => t.id);
 
   // 2. Fetch classes
-  const { data: classesRaw } = await supabase
+  const { data: classesRaw, error: classesError } = await supabase
     .from('classes')
     .select('id, trial_id, element, level')
     .in('trial_id', trialIds);
+  throwIfUnread(classesError);
 
   const classes: EntryFormClass[] = (classesRaw ?? []).map(c => ({
     id: c.id,
@@ -141,7 +160,8 @@ async function fetchEntryFormData(
   if (trialId) entriesQuery = entriesQuery.eq('trial_id', trialId);
   if (dogId) entriesQuery = entriesQuery.eq('dog_id', dogId);
 
-  const { data: entriesRaw } = await entriesQuery;
+  const { data: entriesRaw, error: entriesError } = await entriesQuery;
+  throwIfUnread(entriesError);
 
   if (!entriesRaw || entriesRaw.length === 0) {
     return { dogs: [], secretary: null, trials, classes, show };
@@ -169,27 +189,30 @@ async function fetchEntryFormData(
   const dogIds = [...entriesByDog.keys()].filter(Boolean);
 
   // 4. Fetch dogs, registrations, pedigree in parallel
-  const [{ data: dogsRaw }, { data: regsRaw }, { data: pedigreeRaw }] = await Promise.all([
-    supabase
-      .from('dogs')
-      .select('id, call_name, sex, date_of_birth, owner_id, breeder_id')
-      .in('id', dogIds),
-    supabase
-      .from('dog_registrations')
-      // `id` and `created_at` are the resolver's tiebreak fields: a dog may hold
-      // both an `AKC` and an `AKC (American Kennel Club)` row (the UNIQUE
-      // constraint is exact-string), and both normalize to AKC. Without them the
-      // comparator ties and the printed number could vary between runs.
-      .select(
-        'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed'
-      )
-      .in('dog_id', dogIds),
-    supabase
-      .from('pedigree_ancestors')
-      .select('dog_id, position, registered_name')
-      .in('dog_id', dogIds)
-      .in('position', ['sire', 'dam']),
-  ]);
+  const [{ data: dogsRaw, error: dogsError }, { data: regsRaw }, { data: pedigreeRaw }] =
+    await Promise.all([
+      supabase
+        .from('dogs')
+        .select('id, call_name, sex, date_of_birth, owner_id, breeder_id')
+        .in('id', dogIds),
+      supabase
+        .from('dog_registrations')
+        // `id` and `created_at` are the resolver's tiebreak fields: a dog may hold
+        // both an `AKC` and an `AKC (American Kennel Club)` row (the UNIQUE
+        // constraint is exact-string), and both normalize to AKC. Without them the
+        // comparator ties and the printed number could vary between runs.
+        .select(
+          'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed'
+        )
+        .in('dog_id', dogIds),
+      supabase
+        .from('pedigree_ancestors')
+        .select('dog_id, position, registered_name')
+        .in('dog_id', dogIds)
+        .in('position', ['sire', 'dam']),
+    ]);
+
+  throwIfUnread(dogsError);
 
   // 5. Fetch people (owners + breeders)
   const ownerIds = new Set<string>();
@@ -387,6 +410,10 @@ export function useEntryFormData({
       fetchEntryFormData(showId, trialId, dogId, preferredRegistrationOrganization ?? 'AKC'),
     enabled: enabled && !!showId,
     ...cacheStrategies.moderate,
+    // Deliberately the default 'online' mode: these are network reads with no
+    // replica behind them, so offline they PAUSE rather than fail. A paused
+    // read with no rows reads as `unavailable` (Print blocked, offline copy);
+    // a paused refetch over settled rows stays printable.
   });
 
   return {
@@ -397,5 +424,6 @@ export function useEntryFormData({
     show: query.data?.show ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
+    readiness: readinessOf(query),
   };
 }

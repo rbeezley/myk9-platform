@@ -191,6 +191,7 @@ vi.mock('@/hooks/queries/useEntryFormData', () => ({
     show: null,
     isLoading: false,
     isError: false,
+    readiness: { hasData: true, isPlaceholderData: false, fetchStatus: 'idle', isError: false },
   }),
 }));
 

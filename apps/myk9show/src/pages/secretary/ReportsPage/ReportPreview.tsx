@@ -13,8 +13,9 @@ import {
   mapReportTrialFields,
 } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
-import { useHostedReportData } from './useHostedReportData';
+import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
+import { buildPages, selectionHasEntries } from './reportPreviewPages';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 
@@ -38,6 +39,11 @@ export interface ReportPreviewProps {
    */
   dataState: ReportDataState;
   /**
+   * Entry-form / judge-supply rows, fetched by the page (MYK9-280) and gated by
+   * the same readiness rule as the report rows (MYK9-721).
+   */
+  hosted?: HostedReportData;
+  /**
    * Whether a download button EXISTS for this report and trial, regardless of
    * whether it is currently pressable.
    *
@@ -56,51 +62,6 @@ export interface ReportPreviewProps {
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
-interface PageData {
-  trial: DbTrial;
-  classData: DbClass;
-  entries: DbEntry[];
-}
-
-function buildPages(
-  trialId: string,
-  classId: string,
-  trials: DbTrial[] | null | undefined,
-  classes: DbClass[] | null | undefined,
-  entries: DbEntry[] | null | undefined
-): PageData[] {
-  if (!trials || !classes || !entries) return [];
-
-  const isAll = trialId === 'all' || classId === 'all';
-
-  // Pre-index entries by class_id for O(1) lookups
-  const entriesByClass = new Map<string, DbEntry[]>();
-  for (const e of entries) {
-    const key = e.class_id ?? '';
-    if (!entriesByClass.has(key)) entriesByClass.set(key, []);
-    entriesByClass.get(key)!.push(e);
-  }
-
-  if (isAll) {
-    const pages: PageData[] = [];
-    for (const trial of trials) {
-      const trialClasses = classes.filter(c => c.trial_id === trial.id);
-      for (const classData of trialClasses) {
-        const classEntries = entriesByClass.get(classData.id) ?? [];
-        pages.push({ trial, classData, entries: classEntries });
-      }
-    }
-    return pages;
-  }
-
-  const trial = trials.find(t => t.id === trialId);
-  const classData = classes.find(c => c.id === classId);
-  if (!trial || !classData) return [];
-
-  const classEntries = entriesByClass.get(classId) ?? [];
-  return [{ trial, classData, entries: classEntries }];
-}
-
 export function ReportPreview({
   reportType,
   show,
@@ -114,6 +75,7 @@ export function ReportPreview({
   isLoading,
   isError,
   dataState,
+  hosted = NO_HOSTED_REPORT_DATA,
   hasDownloadAction = false,
   downloadBlockedReason,
   onRetry,
@@ -182,14 +144,13 @@ export function ReportPreview({
     return () => URL.revokeObjectURL(url);
   }, [pdfResult, report, iframeRef]);
 
-  // MYK9-280: resolved HERE, where the providers live, because the report
-  // components are rendered into a detached tree by renderToStaticMarkup.
-  const { entryFormData, judgeSupplies, isHostedDataPending } = useHostedReportData({
-    reportType,
-    showId: show?.id,
-    trialId: trialId !== 'all' ? trialId : undefined,
-    dogId: dogId !== 'all' ? dogId : undefined,
-  });
+  // MYK9-280: resolved by the page, where the providers live, because the
+  // report components are rendered into a detached tree by renderToStaticMarkup.
+  const { entryFormData, judgeSupplies, hostedState } = hosted;
+  // MYK9-721: an online refetch means the rows on screen are being replaced.
+  // The frame stays mounted (so it keeps its ref and scroll) but hidden, so the
+  // previous answer is never shown as if it were current.
+  const isRefreshing = dataState === 'refreshing' || hostedState === 'refreshing';
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -199,8 +160,8 @@ export function ReportPreview({
     // Rendered by the PDF pipeline above instead — never build markup for it.
     if (report.buildPdf) return;
     // Markup is written into the iframe once per change. Building it before the
-    // hosted fetch resolves would bake the empty state in permanently.
-    if (isHostedDataPending) return;
+    // hosted fetch settles would bake the empty state in permanently.
+    if (hostedState !== 'ready') return;
 
     const renderingMode = getReportRenderingMode(report);
 
@@ -301,7 +262,7 @@ export function ReportPreview({
     // hosted fetch resolved — a permanently blank entry form.
     entryFormData,
     judgeSupplies,
-    isHostedDataPending,
+    hostedState,
   ]);
 
   // Checked FIRST. With no show there is no showId, so the trials query is
@@ -344,7 +305,24 @@ export function ReportPreview({
     );
   }
 
-  if (isLoading) {
+  if (hostedState === 'unavailable') {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <p className="font-medium">This report's details could not be checked.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          There is no connection right now, and this report needs details that are not stored on
+          this device. That is different from there being nothing to print. Reconnect and this will
+          fill in.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || hostedState === 'loading' || hostedState === 'stale') {
     return (
       <div
         role="status"
@@ -356,7 +334,7 @@ export function ReportPreview({
     );
   }
 
-  if (isError) {
+  if (isError || hostedState === 'error') {
     return (
       <div
         role="status"
@@ -364,6 +342,10 @@ export function ReportPreview({
         className="flex flex-col items-center justify-center gap-3 p-8 text-center text-destructive"
       >
         <p>We could not load the report data.</p>
+        <p className="max-w-prose text-sm">
+          If you are offline, this show may not be downloaded to this device yet. Connect once to
+          download it, and it will print offline after that.
+        </p>
         {onRetry && (
           <Button type="button" variant="outline" onClick={onRetry}>
             Try again
@@ -401,33 +383,16 @@ export function ReportPreview({
   const pages =
     renderingMode === 'class' ? buildPages(trialId, classId, trials, classes, entries) : [];
 
-  const hasEntries =
-    renderingMode === 'show'
-      ? (() => {
-          const targetIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
-          const shouldFilterClass = report?.scopes.includes('class') && classId !== 'all';
-          const classIds = new Set(
-            (classes ?? [])
-              .filter(
-                c =>
-                  targetIds.includes(c.trial_id ?? '') && (!shouldFilterClass || c.id === classId)
-              )
-              .map(c => c.id)
-          );
-          return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
-        })()
-      : renderingMode === 'trial'
-        ? (() => {
-            const targetTrials =
-              trialId === 'all' ? (trials ?? []) : (trials ?? []).filter(t => t.id === trialId);
-            const classIds = new Set(
-              (classes ?? [])
-                .filter(c => targetTrials.some(t => t.id === c.trial_id))
-                .map(c => c.id)
-            );
-            return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
-          })()
-        : pages.some(p => p.entries.length > 0);
+  const hasEntries = selectionHasEntries({
+    renderingMode,
+    report,
+    trialId,
+    classId,
+    trials,
+    classes,
+    entries,
+    pages,
+  });
 
   // `rendersWithoutEntries` reports are about the trial's classes, not its entries, so
   // the generic empty state would suppress the very explanation they exist to give.
@@ -466,15 +431,26 @@ export function ReportPreview({
     <div
       className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-2"
       aria-label="Report preview scroll area"
+      aria-busy={isRefreshing}
       role="region"
       tabIndex={0}
     >
+      {isRefreshing && (
+        <p role="status" aria-live="polite" className="p-2 text-sm text-muted-foreground">
+          Updating the report with the latest changes…
+        </p>
+      )}
       <div className="min-w-[8.5in]">
         <iframe
           ref={iframeRef}
           title="Report Preview"
           className="bg-white shadow-lg"
-          style={{ width: '8.5in', minHeight: '11in', border: 'none' }}
+          style={{
+            width: '8.5in',
+            minHeight: '11in',
+            border: 'none',
+            visibility: isRefreshing ? 'hidden' : 'visible',
+          }}
         />
       </div>
     </div>

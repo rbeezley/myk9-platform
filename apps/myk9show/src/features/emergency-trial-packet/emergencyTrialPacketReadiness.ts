@@ -18,6 +18,8 @@ export function emergencyPacketReadinessCopy(
       return 'Reconnect before preparing the packet so no classes or entries are missing.';
     case 'stale':
       return 'Still loading the complete show data. Prepare the packet when this finishes.';
+    case 'refreshing':
+      return 'The show data just changed and is updating. Prepare the packet when this finishes.';
     case 'error':
       return 'The complete show data could not be loaded. Reload Show Desk before preparing the packet.';
     case 'ready':

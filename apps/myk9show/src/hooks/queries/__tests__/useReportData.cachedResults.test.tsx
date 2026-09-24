@@ -13,7 +13,10 @@ import type { Show } from '@/types/show-types';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), from: vi.fn() }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { sync: vi.fn().mockRejectedValue(new Error('offline')) },
+  replicatedEntriesTable: {
+    sync: vi.fn().mockRejectedValue(new Error('offline')),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/database/_shared/read-shape', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/_shared/read-shape')>()),

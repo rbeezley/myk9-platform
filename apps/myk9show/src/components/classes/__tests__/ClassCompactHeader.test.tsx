@@ -38,24 +38,37 @@ function makeTrial(overrides: Partial<Trial> = {}): Trial {
 
 describe('ClassCompactHeader', () => {
   it('renders class name from element and level', () => {
-    render(<ClassCompactHeader classData={makeClassData()} />);
+    render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Container Novice');
   });
 
   it('renders status badge with correct variant', () => {
     const { container, rerender } = render(
-      <ClassCompactHeader classData={makeClassData({ status: 'In Progress' })} />
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ status: 'In Progress' })}
+      />
     );
     expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(
       container.querySelector('[data-family="class"][data-shape="in-progress"]')
     ).not.toBeNull();
 
-    rerender(<ClassCompactHeader classData={makeClassData({ status: 'Completed' })} />);
+    rerender(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ status: 'Completed' })}
+      />
+    );
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(container.querySelector('[data-family="class"][data-shape="complete"]')).not.toBeNull();
 
-    rerender(<ClassCompactHeader classData={makeClassData({ status: 'Scheduled' })} />);
+    rerender(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ status: 'Scheduled' })}
+      />
+    );
     expect(screen.getByText('Not started')).toBeInTheDocument();
     expect(
       container.querySelector('[data-family="class"][data-shape="not-started"]')
@@ -63,28 +76,45 @@ describe('ClassCompactHeader', () => {
   });
 
   it('renders section label for Novice level', () => {
-    render(<ClassCompactHeader classData={makeClassData({ level: 'Novice', section: 'A' })} />);
+    render(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ level: 'Novice', section: 'A' })}
+      />
+    );
     expect(screen.getByText('Section A')).toBeInTheDocument();
   });
 
   it('hides section label for non-Novice levels', () => {
     const { rerender } = render(
-      <ClassCompactHeader classData={makeClassData({ level: 'Advanced', section: 'A' })} />
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ level: 'Advanced', section: 'A' })}
+      />
     );
     expect(screen.queryByText('Section A')).not.toBeInTheDocument();
 
     rerender(
-      <ClassCompactHeader classData={makeClassData({ level: 'Excellent', section: 'A' })} />
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ level: 'Excellent', section: 'A' })}
+      />
     );
     expect(screen.queryByText('Section A')).not.toBeInTheDocument();
 
-    rerender(<ClassCompactHeader classData={makeClassData({ level: 'Master', section: 'A' })} />);
+    rerender(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ level: 'Master', section: 'A' })}
+      />
+    );
     expect(screen.queryByText('Section A')).not.toBeInTheDocument();
   });
 
   it('hides section label for Detective element', () => {
     render(
       <ClassCompactHeader
+        parentShow={undefined}
         classData={makeClassData({ element: 'Detective', level: undefined, section: 'A' })}
       />
     );
@@ -92,7 +122,13 @@ describe('ClassCompactHeader', () => {
   });
 
   it('renders metadata strip with all fields', () => {
-    render(<ClassCompactHeader classData={makeClassData()} parentTrial={makeTrial()} />);
+    render(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData()}
+        parentTrial={makeTrial()}
+      />
+    );
 
     expect(screen.getByText('Judge')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
@@ -126,7 +162,7 @@ describe('ClassCompactHeader', () => {
     };
 
     // Should not crash
-    const { container } = render(<ClassCompactHeader classData={minimal} />);
+    const { container } = render(<ClassCompactHeader parentShow={undefined} classData={minimal} />);
     expect(container).toBeTruthy();
 
     // Missing values should show a dash
@@ -141,19 +177,22 @@ describe('ClassCompactHeader', () => {
         <button>More</button>
       </div>
     );
-    render(<ClassCompactHeader classData={makeClassData()} actions={actions} />);
+    render(
+      <ClassCompactHeader parentShow={undefined} classData={makeClassData()} actions={actions} />
+    );
     expect(screen.getByText('Edit')).toBeInTheDocument();
     expect(screen.getByText('More')).toBeInTheDocument();
   });
 
   it('does NOT render Enter Scores button', () => {
-    render(<ClassCompactHeader classData={makeClassData()} />);
+    render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
     expect(screen.queryByText('Enter Scores')).not.toBeInTheDocument();
   });
 
   it('renders officials in metadata strip when assigned', () => {
     render(
       <ClassCompactHeader
+        parentShow={undefined}
         classData={makeClassData({
           gateSteward: 'Alice Johnson',
           tableSteward: 'Bob Williams',
@@ -167,7 +206,7 @@ describe('ClassCompactHeader', () => {
   });
 
   it('does not render steward fields when not assigned', () => {
-    render(<ClassCompactHeader classData={makeClassData()} />);
+    render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
     expect(screen.queryByText('Gate Steward')).not.toBeInTheDocument();
     expect(screen.queryByText('Table Steward')).not.toBeInTheDocument();
   });
@@ -175,6 +214,7 @@ describe('ClassCompactHeader', () => {
   it('falls back to trial number when trialType is missing', () => {
     render(
       <ClassCompactHeader
+        parentShow={undefined}
         classData={makeClassData()}
         parentTrial={makeTrial({ trialType: undefined, trialNumber: '3' })}
       />
@@ -183,7 +223,7 @@ describe('ClassCompactHeader', () => {
   });
 
   it('shows dash for trial when no parentTrial is provided', () => {
-    render(<ClassCompactHeader classData={makeClassData()} />);
+    render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
     // The Trial metadata field should show a dash
     const trialLabel = screen.getByText('Trial');
     const trialValue = trialLabel.closest('[data-testid="metadata-item"]');

@@ -4,6 +4,7 @@ import type { ClassData } from './types/classTypes';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
 import { StatusBadge } from '@/components/status';
+import { useClassEntryFee, type ClassFeeShow } from './useClassEntryFee';
 
 // --- Metadata item sub-component ---
 
@@ -37,6 +38,8 @@ function formatClassDate(dateStr: string | undefined): string {
 interface ClassCompactHeaderProps {
   classData: ClassData;
   parentTrial?: Trial | undefined;
+  /** Required so the page cannot drop it: the fee shown depends on the show (MYK9-724 F52). */
+  parentShow: ClassFeeShow | undefined;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -44,9 +47,11 @@ interface ClassCompactHeaderProps {
 export function ClassCompactHeader({
   classData,
   parentTrial,
+  parentShow,
   actions,
   className,
 }: ClassCompactHeaderProps) {
+  const entryFee = useClassEntryFee(parentShow, classData.entryFee);
   // Build class display name from element + level (hides level for Detective)
   const className_ = formatClassTitle(classData) || 'Class';
 
@@ -61,7 +66,7 @@ export function ClassCompactHeader({
     { label: 'Date', value: formatClassDate(classData.trialDate) },
     {
       label: 'Entry Fee',
-      value: classData.entryFee != null ? formatFee(classData.entryFee) : '\u2014',
+      value: entryFee != null ? formatFee(entryFee) : '\u2014',
     },
     {
       label: 'Max Entries',

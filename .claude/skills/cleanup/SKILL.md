@@ -122,32 +122,25 @@ git branch --merged main | grep -v '^\*\|main' | head -10
 - `supabase/functions/` (root) — e.g. `send-email`, `validate-passcode`, `push-trigger-*`, `admin-*`
 - `apps/myk9show/supabase/functions/` (Stripe/cron) — e.g. `stripe-*`, `cron-*`
 
-Step 1 — list every source function with its last-commit date (both dirs, excluding `_shared`):
+Run the check (read-only; it never deploys). It lists both dirs, excludes `_shared`, reads the deployed list with `supabase functions list -o json`, and prints one status per function:
 
 ```bash
-for dir in supabase/functions apps/myk9show/supabase/functions; do
-  [ -d "$dir" ] || continue
-  for fn in "$dir"/*/; do
-    name=$(basename "$fn")
-    case "$name" in _*) continue;; esac
-    echo "$name | $(git log -1 --format=%cI -- "$fn" 2>/dev/null) | $dir"
-  done
-done | sort
+pnpm -s qa:edge-function-drift            # dates only, seconds
+pnpm -s qa:edge-function-drift --content  # downloads each deploy and compares it with source, minutes
 ```
 
-Step 2 — list deployed functions with their `UPDATED_AT`:
+Exit 0 means every function is current; exit 1 means at least one row below needs a decision; exit 2 means the check could not run. Report the non-`current` rows.
 
-```bash
-source supabase/.env && supabase functions list --project-ref sojmvhhwsjxmfistvzbe 2>/dev/null
-```
+- **`stale`:** the source changed after the deploy. With `--content` this is proof: the note names the files whose deployed copy differs from source after both are Prettier-formatted, including `_shared` files.
+- **`unknown`:** dates cannot decide. This clone is **shallow** (`git rev-parse --is-shallow-repository`), and `git log -- <dir>` for a file untouched since the graft boundary returns the BOUNDARY's date, not the real edit date. The real edit is at or before the boundary, so a deploy newer than the boundary is reported `current`; a deploy older than it is `unknown`, never `stale`. On 2026-09-15 the hand-run version of this check called 20 of 45 functions stale for this reason alone (MYK9-597). Settle an `unknown` with `--content`, which compares what is deployed with source. `git fetch --unshallow` also makes the dates meaningful, but it is a large fetch: offer it, and do not run it unprompted.
+- **`sub-day`:** a squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch. Treat it as ordering noise unless `--content` says `stale`.
+- **`never-deployed`:** a source function with no deployed slug.
+- **`dual-location`:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug, so do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
 
-Step 3 — reason over the two lists and flag:
+Calibration, for a date-mode flag you confirm by hand:
 
-- **Stale deploy:** a function whose source last-commit (Step 1) is _newer_ than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses. Two calibration rules before you act on a flag:
-  - **Flags are candidates, not proof.** `git log -- <dir>` dates any file touch in the dir — a comment, a sibling test, a formatting sweep — not just deployable change. Confirm a real behavioral diff before deploying: `git show <last-commit> -- <dir>/index.ts` (did the entry file substantively change?), or `supabase functions download <name>` into a temp dir and diff against source.
-  - **Sub-day gaps are usually false positives.** A squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch — so source-newer-by-an-hour usually means the deploy already contains it. Treat weeks/months gaps as real drift; treat sub-day gaps as ordering noise unless a diff proves otherwise.
-- **Never deployed:** a source function absent from the deployed list.
-- **Dual-location fork:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
+- **A date is not a behavioural change.** Dates come from the function's own dir, so a sibling test or a comment moves them and a `_shared` edit does not. Commits listed in `.git-blame-ignore-revs` (the one-time Prettier pass, #2121) are skipped. `--content` is the confirmation. Prefer it over reading a diff.
+- **An all-insertions diff is a moved path or a history floor, not a change.** `git show <last-commit> -- <dir>/index.ts` on a graft-boundary commit or a rename shows the whole file as added (e.g. `index.ts | 273 +++`), which looks like a large edit. It says nothing about behaviour. Compare content instead.
 
 - For each stale/never-deployed function, report it and include the deploy command. Root functions deploy from the repo root; Stripe/cron functions need `--workdir apps/myk9show`:
   ```bash

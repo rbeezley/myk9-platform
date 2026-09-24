@@ -13,7 +13,7 @@ export function VenueLocateNotice({
     <div className="mb-2 flex items-start justify-between gap-2 text-sm text-warning" role="status">
       <p>{notice.message}</p>
       {notice.canRetry && (
-        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={onRetry}>
+        <Button type="button" variant="outline" size="touch" className="shrink-0" onClick={onRetry}>
           Try again
         </Button>
       )}

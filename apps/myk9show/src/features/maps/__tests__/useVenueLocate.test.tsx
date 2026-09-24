@@ -109,6 +109,8 @@ describe('VenueLocateNotice', () => {
     );
 
     expect(screen.getByRole('status')).toHaveTextContent('The map search isn’t responding.');
+    // 44px floor for a form control (docs/INTENT.md); `touch` is the shared 44/48px size.
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveClass('min-h-11');
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });

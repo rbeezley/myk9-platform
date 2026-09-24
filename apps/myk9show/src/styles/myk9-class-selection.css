@@ -906,10 +906,6 @@
   background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
 }
 
-.myk9-summary-icon-time {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-}
-
 .myk9-summary-icon-template {
   background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
 }
@@ -942,15 +938,6 @@
   text-transform: uppercase;
   letter-spacing: 0.02em;
   color: var(--muted-foreground);
-}
-
-.myk9-summary-note {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--muted-foreground);
-  opacity: 0.8;
-  margin-top: 2px;
-  font-style: italic;
 }
 
 /* Confirmation Classes Section */

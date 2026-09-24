@@ -181,3 +181,17 @@ describe('ClassSelectionStep — a retained cloned class names itself on screen'
     );
   });
 });
+
+describe('ClassSelectionStep — no judging-time estimate before entries exist (MYK9-689)', () => {
+  it('shows the configuration summary without an estimated judging time', async () => {
+    mockUseWizardStore.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector(wizardStateWithRetainedCustomClass())
+    );
+
+    render(<ClassSelectionStep trialView={trialView()} />);
+
+    // Positive control: the summary card that used to carry the estimate renders.
+    expect(await screen.findByText('Configuration Summary')).toBeInTheDocument();
+    expect(screen.queryByText(/est\. judging time/i)).not.toBeInTheDocument();
+  });
+});

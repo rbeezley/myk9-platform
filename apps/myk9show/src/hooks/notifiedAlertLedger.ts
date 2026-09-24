@@ -14,13 +14,19 @@
  * - it never repeats after that;
  * - another account on the same browser has its own record.
  *
- * Records older than 30 days are pruned, and every storage access is wrapped:
- * when storage is missing, blocked or full, the ledger still dedupes in memory
- * for the life of the page, which is the old behaviour.
+ * One window, `ALERT_WINDOW_MS` (30 days), governs both ends. Records older
+ * than it are pruned, and the monitor only raises an alert whose event falls
+ * inside it (`isWithinAlertWindow`). A record is stamped no earlier than its
+ * event, so by the time it is pruned the event is outside the window and can
+ * never re-fire.
+ *
+ * Every storage access is wrapped: when storage is missing, blocked or full,
+ * the ledger still dedupes in memory for the life of the page, which is the
+ * old behaviour.
  */
 
 const STORAGE_PREFIX = 'myk9-notified-alerts:v1';
-export const NOTIFIED_ALERT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const ALERT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /** Hard cap so a pathological session cannot grow the record without bound. */
 const MAX_RECORDS = 2000;
 
@@ -29,8 +35,31 @@ type Records = Record<string, number>;
 export interface NotifiedAlertLedger {
   /** True when this alert key has already been delivered to this user. */
   has(key: string): boolean;
-  /** Record the alert key as delivered. */
-  mark(key: string): void;
+  /**
+   * Record the alert key as delivered. `eventAtMs` stamps the record no
+   * earlier than the event itself, so its prune can never precede the
+   * event leaving the alert window.
+   */
+  mark(key: string, eventAtMs?: number): void;
+}
+
+/**
+ * Parse an event timestamp (ISO timestamp, or a `YYYY-MM-DD` trial date, read
+ * as UTC midnight). Returns null when absent or unparseable.
+ */
+export function eventTimeMs(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * True when the event happened inside the alert window. An event with no
+ * usable time is treated as outside it: with nothing to age it by, a pruned
+ * record could otherwise re-fire it.
+ */
+export function isWithinAlertWindow(eventAtMs: number | null, now: number = Date.now()): boolean {
+  return eventAtMs !== null && now - eventAtMs < ALERT_WINDOW_MS;
 }
 
 export function notifiedAlertStorageKey(userId: string): string {
@@ -64,7 +93,7 @@ function readRecords(storageKey: string): Records {
 
 function prune(records: Records, now: number): Records {
   const kept = Object.entries(records)
-    .filter(([, at]) => now - at < NOTIFIED_ALERT_TTL_MS)
+    .filter(([, at]) => now - at < ALERT_WINDOW_MS)
     .sort(([, a], [, b]) => b - a)
     .slice(0, MAX_RECORDS);
   return Object.fromEntries(kept);
@@ -107,11 +136,12 @@ export function createNotifiedAlertLedger(
       }
       return false;
     },
-    mark(key) {
+    mark(key, eventAtMs) {
       memory.add(key);
       if (!storageKey) return;
       const at = now();
-      writeRecords(storageKey, prune({ ...readRecords(storageKey), [key]: at }, at));
+      const stamp = Math.max(at, eventAtMs ?? at);
+      writeRecords(storageKey, prune({ ...readRecords(storageKey), [key]: stamp }, at));
     },
   };
 }

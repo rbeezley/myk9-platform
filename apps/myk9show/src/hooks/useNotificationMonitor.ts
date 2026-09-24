@@ -23,6 +23,8 @@ import {
 import {
   alertKey,
   createNotifiedAlertLedger,
+  eventTimeMs,
+  isWithinAlertWindow,
   type NotifiedAlertLedger,
 } from '@/hooks/notifiedAlertLedger';
 import { detectConflicts } from '@/utils/conflictDetection';
@@ -51,6 +53,20 @@ interface ClassRow {
   status: string | null;
   is_scoring_finalized: boolean;
   results_released_at: string | null;
+  trial?: { show_id: string; date: string | null } | null;
+}
+
+/** When the class ran: its trial date. Classes carry no date of their own. */
+function classDayMs(classRow: ClassRow): number | null {
+  return eventTimeMs(classRow.trial?.date);
+}
+
+/**
+ * When results were posted: the release time. `classes` has no finalized
+ * timestamp, so an unreleased finalized class falls back to its trial date.
+ */
+function resultsPostedMs(classRow: ClassRow): number | null {
+  return eventTimeMs(classRow.results_released_at) ?? classDayMs(classRow);
 }
 
 interface NotificationSnapshot {
@@ -82,18 +98,22 @@ function buildResultsActionUrl(
 }
 
 /**
- * Deliver the alert unless this user has already had it, and record it only
- * when delivery accepted it: an alert suppressed (notifications off, handler in
- * the ring) must not be marked as seen, or it would never arrive (MYK9-735).
+ * Deliver the alert once per user (MYK9-735):
+ * - only when its event is inside the alert window, the same window the
+ *   ledger prunes by, so a pruned record can never re-fire;
+ * - never when this user already had it;
+ * - recorded only when delivery accepted it, so an alert suppressed
+ *   (notifications off, handler in the ring) still arrives later.
  */
 function deliverOnce(
   ledger: NotifiedAlertLedger,
   key: string,
+  eventAtMs: number | null,
   deliver: (payload: NotificationPayload) => boolean,
   build: () => NotificationPayload
 ): void {
-  if (ledger.has(key)) return;
-  if (deliver(build())) ledger.mark(key);
+  if (!isWithinAlertWindow(eventAtMs) || ledger.has(key)) return;
+  if (deliver(build())) ledger.mark(key, eventAtMs ?? undefined);
 }
 
 export function useNotificationMonitor(): void {
@@ -143,7 +163,7 @@ export function useNotificationMonitor(): void {
         .from('classes')
         .select(
           `id, name, status, is_scoring_finalized, results_released_at,
-         trial:trials!inner(show_id)`
+         trial:trials!inner(show_id, date)`
         )
         .in('trial.show_id', showIds);
       if (classError) throw classError;
@@ -201,44 +221,47 @@ export function useNotificationMonitor(): void {
   // client sender as well would double-notify a backgrounded-but-alive app.
   // In-app delivery (toast + voice) stays here.
 
-  const notifyUpcomingDogs = useCallback((classId: string, inRingEntryId: string) => {
-    const context = classContextRef.current.get(classId);
-    if (!context) return;
+  const notifyUpcomingDogs = useCallback(
+    (classId: string, inRingEntryId: string, classDay: number | null) => {
+      const context = classContextRef.current.get(classId);
+      if (!context) return;
 
-    if (!context.entries.some(entry => entry.id === inRingEntryId)) return;
+      if (!context.entries.some(entry => entry.id === inRingEntryId)) return;
 
-    const leadDogs = preferencesRef.current.leadDogs;
-    const allClasses = [...classContextRef.current.values()];
-    // Watched = owned dogs UNION favorited armbands, deduped to one entry each.
-    // `dogsAhead` is the index into the shared run queue — in-ring, scored and
-    // pulled dogs already excluded — so it is the same number the entry-list
-    // pill shows for this dog.
-    const upcoming = watchedUpcomingEntries(context.entries, leadDogs, watchSetRef.current);
+      const leadDogs = preferencesRef.current.leadDogs;
+      const allClasses = [...classContextRef.current.values()];
+      // Watched = owned dogs UNION favorited armbands, deduped to one entry each.
+      // `dogsAhead` is the index into the shared run queue — in-ring, scored and
+      // pulled dogs already excluded — so it is the same number the entry-list
+      // pill shows for this dog.
+      const upcoming = watchedUpcomingEntries(context.entries, leadDogs, watchSetRef.current);
 
-    for (const { entry, dogsAhead } of upcoming) {
-      const now = Date.now();
-      const lastAlerted = lastYourTurnAlert.current.get(entry.id);
-      if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
-      // The first snapshot after a load sees whoever is in the ring as "new";
-      // the ledger stops a reload repeating the alert for the same in-ring dog.
-      const key = alertKey.yourTurn(classId, inRingEntryId, entry.id);
-      if (ledgerRef.current.has(key)) continue;
-      lastYourTurnAlert.current.set(entry.id, now);
+      for (const { entry, dogsAhead } of upcoming) {
+        const now = Date.now();
+        const lastAlerted = lastYourTurnAlert.current.get(entry.id);
+        if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
+        // The first snapshot after a load sees whoever is in the ring as "new";
+        // the ledger stops a reload repeating the alert for the same in-ring dog.
+        const key = alertKey.yourTurn(classId, inRingEntryId, entry.id);
+        if (ledgerRef.current.has(key)) continue;
+        lastYourTurnAlert.current.set(entry.id, now);
 
-      deliverOnce(ledgerRef.current, key, deliverRef.current, () => {
-        const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
-        const notification = buildYourTurnPayload({
-          dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
-          className: context.className,
-          dogsAhead,
-          armband: entry.registrationData?.armband ?? null,
-          ...(conflicts.length > 0 ? { conflicts } : {}),
+        deliverOnce(ledgerRef.current, key, classDay, deliverRef.current, () => {
+          const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
+          const notification = buildYourTurnPayload({
+            dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
+            className: context.className,
+            dogsAhead,
+            armband: entry.registrationData?.armband ?? null,
+            ...(conflicts.length > 0 ? { conflicts } : {}),
+          });
+          notification.actionUrl = `/classes/${context.classId}`;
+          return notification;
         });
-        notification.actionUrl = `/classes/${context.classId}`;
-        return notification;
-      });
-    }
-  }, []);
+      }
+    },
+    []
+  );
 
   const processSnapshot = useCallback(
     (snapshot: NotificationSnapshot) => {
@@ -303,13 +326,13 @@ export function useNotificationMonitor(): void {
         const userEntries = context.entries.filter(entry => userDogIdsRef.current.has(entry.dogId));
 
         const ledgerNow = ledgerRef.current;
-        const startingKey = alertKey.classStarting(classId);
-        if (
-          classRow.status === 'In Progress' &&
-          userEntries.length > 0 &&
-          !ledgerNow.has(startingKey)
-        ) {
-          deliverOnce(ledgerNow, startingKey, deliverRef.current, () => {
+        const classDay = classDayMs(classRow);
+        // Class-starting and each check-in reminder are separate once-per-user
+        // alerts: an entry added (or reset to no-status) after the class-starting
+        // alert still gets its own reminder.
+        if (classRow.status === 'In Progress' && userEntries.length > 0) {
+          const startingKey = alertKey.classStarting(classId);
+          deliverOnce(ledgerNow, startingKey, classDay, deliverRef.current, () => {
             const starting = buildClassStartingPayload({ className: context.className });
             starting.actionUrl = `/classes/${classId}`;
             return starting;
@@ -320,6 +343,7 @@ export function useNotificationMonitor(): void {
             deliverOnce(
               ledgerNow,
               alertKey.checkInReminder(classId, entry.id),
+              classDay,
               deliverRef.current,
               () => {
                 const reminder = buildCheckInReminderPayload({
@@ -334,7 +358,9 @@ export function useNotificationMonitor(): void {
         }
 
         if (classRow.is_scoring_finalized && userEntries.length > 0) {
-          deliverOnce(ledgerNow, alertKey.resultsPosted(classId), deliverRef.current, () => {
+          const resultsKey = alertKey.resultsPosted(classId);
+          const postedAt = resultsPostedMs(classRow);
+          deliverOnce(ledgerNow, resultsKey, postedAt, deliverRef.current, () => {
             const results = buildResultsPostedPayload({
               dogName: userEntries
                 .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')
@@ -355,7 +381,7 @@ export function useNotificationMonitor(): void {
         if (inRingEntry) {
           nextInRingEntryByClass.set(classId, inRingEntry.id);
           if (lastInRingEntryByClassRef.current.get(classId) !== inRingEntry.id) {
-            notifyUpcomingDogs(classId, inRingEntry.id);
+            notifyUpcomingDogs(classId, inRingEntry.id, classDay);
           }
         }
       }

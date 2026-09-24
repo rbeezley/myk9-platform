@@ -1,7 +1,9 @@
 import {
-  NOTIFIED_ALERT_TTL_MS,
+  ALERT_WINDOW_MS,
   alertKey,
   createNotifiedAlertLedger,
+  eventTimeMs,
+  isWithinAlertWindow,
   notifiedAlertStorageKey,
 } from './notifiedAlertLedger';
 
@@ -26,11 +28,25 @@ describe('notifiedAlertLedger', () => {
     const fresh = createNotifiedAlertLedger('user-a', () => start + 20 * DAY_MS);
     fresh.mark('recent');
 
-    const later = createNotifiedAlertLedger('user-a', () => start + NOTIFIED_ALERT_TTL_MS + 1);
+    const later = createNotifiedAlertLedger('user-a', () => start + ALERT_WINDOW_MS + 1);
 
     expect(Object.keys(stored('user-a'))).toEqual(['recent']);
     expect(later.has('old')).toBe(false);
     expect(later.has('recent')).toBe(true);
+  });
+
+  it('stamps a record no earlier than its event, so it outlives the event in the window', () => {
+    const start = 1_000_000_000_000;
+    createNotifiedAlertLedger('user-a', () => start).mark('k', start + 5 * DAY_MS);
+
+    const justPastMarkWindow = start + ALERT_WINDOW_MS + DAY_MS;
+    expect(createNotifiedAlertLedger('user-a', () => justPastMarkWindow).has('k')).toBe(true);
+  });
+
+  it('treats an event with no usable time as outside the window', () => {
+    expect(isWithinAlertWindow(eventTimeMs(null))).toBe(false);
+    expect(isWithinAlertWindow(eventTimeMs('not-a-date'))).toBe(false);
+    expect(isWithinAlertWindow(eventTimeMs(new Date().toISOString()))).toBe(true);
   });
 
   it('persists nothing without a user id', () => {

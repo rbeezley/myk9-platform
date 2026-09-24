@@ -11,6 +11,12 @@ import {
   buildYourTurnPayload,
 } from '@myk9/notifications';
 import { useNotificationMonitor } from '../useNotificationMonitor';
+import {
+  classRow,
+  daysAgoIso,
+  entry,
+  type NotificationSnapshot,
+} from './notificationMonitorFixtures';
 
 const {
   mockDeliver,
@@ -46,11 +52,6 @@ const {
     mockAuth: { userId: 'auth-user-1' },
   };
 });
-
-interface NotificationSnapshot {
-  classes: Array<Record<string, unknown>>;
-  entries: Array<Record<string, unknown>>;
-}
 
 let showChangeHandler: ShowChangeListener | undefined;
 
@@ -99,32 +100,6 @@ vi.mock('@/features/at-show/dogFavoritesSync', () => ({
   useFavoriteArmbandsByShow: () => new Map<string, ReadonlySet<number>>(),
 }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
-
-function entry(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'owned-entry',
-    dog_id: 'dog-1',
-    class_id: 'class-1',
-    show_id: 'show-1',
-    check_in_status: 'checked-in',
-    armband: '27',
-    is_scored: false,
-    result_status: null,
-    dog_call_name: 'Ditto',
-    ...overrides,
-  };
-}
-
-function classRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'class-1',
-    name: 'Container Novice A',
-    status: 'Pending',
-    is_scoring_finalized: false,
-    results_released_at: null,
-    ...overrides,
-  };
-}
 
 async function emitShowChange() {
   await act(async () => {
@@ -253,7 +228,7 @@ describe('useNotificationMonitor', () => {
           classRow({
             status: 'Complete',
             is_scoring_finalized: true,
-            results_released_at: '2026-06-19T16:00:00.000Z',
+            results_released_at: daysAgoIso(1),
           }),
         ],
         entries: [entry({ is_scored: true, result_status: 'qualified' })],
@@ -302,153 +277,5 @@ describe('useNotificationMonitor', () => {
       await Promise.resolve();
     });
     expect(mockRefetch).toHaveBeenCalledTimes(2);
-  });
-
-  // MYK9-735: the dedupe used to live in refs, so every page load re-fired
-  // alerts for a state that had held for weeks ("Results posted" on sign-in).
-  describe('alerts once per user, not once per page load', () => {
-    function deliveredTypes(): string[] {
-      return mockDeliver.mock.calls.map(([payload]) => (payload as { type: string }).type);
-    }
-
-    function countOf(type: string): number {
-      return deliveredTypes().filter(t => t === type).length;
-    }
-
-    function loadSnapshot(snapshot: NotificationSnapshot) {
-      mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
-    }
-
-    const finalized: NotificationSnapshot = {
-      classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
-      entries: [entry({ is_scored: true })],
-    };
-
-    const starting: NotificationSnapshot = {
-      classes: [classRow({ status: 'In Progress' })],
-      entries: [entry({ check_in_status: 'no-status' })],
-    };
-
-    const inRing: NotificationSnapshot = {
-      classes: [classRow({ status: 'In Progress' })],
-      entries: [
-        entry({
-          id: 'in-ring-entry',
-          dog_id: 'other-dog',
-          check_in_status: 'in-ring',
-          dog_call_name: 'Scout',
-        }),
-        entry(),
-      ],
-    };
-
-    it('delivers results for an already-finalized class on the first load only', () => {
-      loadSnapshot(finalized);
-
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('results_posted')).toBe(1);
-
-      mockDeliver.mockClear();
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(mockDeliver).not.toHaveBeenCalled();
-    });
-
-    it('delivers results for a class finalized while mounted', () => {
-      loadSnapshot({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
-      const { rerender } = renderHook(() => useNotificationMonitor());
-      expect(countOf('results_posted')).toBe(0);
-
-      loadSnapshot(finalized);
-      rerender();
-
-      expect(countOf('results_posted')).toBe(1);
-    });
-
-    it('delivers class-starting and check-in for an in-progress class on the first load only', () => {
-      loadSnapshot(starting);
-
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('class_starting')).toBe(1);
-      expect(countOf('check_in_reminder')).toBe(1);
-
-      mockDeliver.mockClear();
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(mockDeliver).not.toHaveBeenCalled();
-    });
-
-    it('delivers class-starting and check-in for a class that starts while mounted', () => {
-      loadSnapshot({ classes: [classRow()], entries: [entry({ check_in_status: 'no-status' })] });
-      const { rerender } = renderHook(() => useNotificationMonitor());
-      expect(mockDeliver).not.toHaveBeenCalled();
-
-      loadSnapshot(starting);
-      rerender();
-
-      expect(countOf('class_starting')).toBe(1);
-      expect(countOf('check_in_reminder')).toBe(1);
-    });
-
-    it('delivers dogs-ahead for the current in-ring dog on the first load only', () => {
-      loadSnapshot(inRing);
-
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('your_turn')).toBe(1);
-
-      mockDeliver.mockClear();
-      act(() => vi.advanceTimersByTime(60_001));
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('your_turn')).toBe(0);
-    });
-
-    it('keeps the record per user, so another account on the same browser is alerted', () => {
-      loadSnapshot(finalized);
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('results_posted')).toBe(1);
-
-      mockDeliver.mockClear();
-      mockAuth.userId = 'auth-user-2';
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('results_posted')).toBe(1);
-    });
-
-    it('does not record an alert that delivery suppressed', () => {
-      loadSnapshot(finalized);
-      mockDeliver.mockReturnValue(false);
-      renderHook(() => useNotificationMonitor()).unmount();
-
-      mockDeliver.mockReset();
-      mockDeliver.mockReturnValue(true);
-      renderHook(() => useNotificationMonitor()).unmount();
-      expect(countOf('results_posted')).toBe(1);
-    });
-
-    it('still dedupes in memory when storage throws', async () => {
-      const realStorage = window.localStorage;
-      const throwing = {
-        getItem: () => {
-          throw new Error('SecurityError');
-        },
-        setItem: () => {
-          throw new Error('QuotaExceededError');
-        },
-        removeItem: () => {
-          throw new Error('SecurityError');
-        },
-      };
-      try {
-        window.localStorage = throwing as unknown as Storage;
-        mockRefetch.mockResolvedValue({ data: finalized });
-        loadSnapshot(finalized);
-
-        renderHook(() => useNotificationMonitor());
-        expect(countOf('results_posted')).toBe(1);
-
-        await emitShowChange();
-        expect(mockRefetch).toHaveBeenCalledOnce();
-        expect(countOf('results_posted')).toBe(1);
-      } finally {
-        window.localStorage = realStorage;
-      }
-    });
   });
 });

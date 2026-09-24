@@ -30,3 +30,6 @@ export {
   SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
 } from './signInEmailGuard';
 export type { SignInEmailChangeDecision, PersonIdentitySnapshot } from './signInEmailGuard';
+
+export { decidePersonEmailLock, fetchPersonEmailLockFacts } from './personEmailLock';
+export type { PersonEmailLock, PersonEmailLockFacts } from './personEmailLock';

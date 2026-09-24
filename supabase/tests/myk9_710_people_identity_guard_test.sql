@@ -260,11 +260,13 @@ select pg_temp.expect('site admin can reinstate the secretary',
 -- What must keep working.
 -- ---------------------------------------------------------------------------
 
--- A secretary edits a mail-in person who never had a login: name, phone, email.
-select pg_temp.expect('secretary can edit a mail-in person''s name, phone and email',
+-- A secretary edits a mail-in person who never had a login: name and phone.
+-- (Their email is frozen once they have entries: MYK9-710 option C, tested in
+-- myk9_711_712_status_and_signup_grants_test.sql.)
+select pg_temp.expect('secretary can edit a mail-in person''s name and phone',
   pg_temp.run_as('00000000-0000-0000-0000-000000710101',
     $s$update public.people
-          set first_name = 'Edited', phone = '555-0100', email = 'myk9-710-mailin-new@example.test'
+          set first_name = 'Edited', phone = '555-0100'
         where id = '00000000-0000-0000-0000-000000710014'$s$),
   'ok:1');
 
@@ -278,13 +280,8 @@ select pg_temp.expect('re-saving an unchanged email and link on a linked person 
         where id = '00000000-0000-0000-0000-000000710012'$s$),
   'ok:1');
 
--- Mail-in adoption at signup: the secretary corrects a mail-in exhibitor's
--- address, and that exhibitor then signs up at it and is adopted.
-select pg_temp.expect('secretary can correct a mail-in exhibitor''s email before signup',
-  pg_temp.run_as('00000000-0000-0000-0000-000000710101',
-    $s$update public.people set email = 'myk9-710-latecomer-new@example.test'
-        where id = '00000000-0000-0000-0000-000000710016'$s$),
-  'ok:1');
+-- Mail-in adoption at signup: a mail-in exhibitor with entries signs up at the
+-- address they were created with and is adopted.
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -292,7 +289,7 @@ insert into auth.users (
   is_super_admin, is_sso_user, is_anonymous
 )
 values ('00000000-0000-0000-0000-000000710106', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'myk9-710-latecomer-new@example.test', '', now(), now(), now(),
+  'authenticated', 'authenticated', 'myk9-710-latecomer@example.test', '', now(), now(), now(),
   '{}', '{}', false, false, false);
 
 do $$

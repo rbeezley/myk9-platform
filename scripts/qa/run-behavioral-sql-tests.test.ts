@@ -87,6 +87,7 @@ const launchCriticalSqlTests = [
   'submit_entries_day_of_show_flag_test.sql',
   'sign_in_email_invariant_test.sql',
   'myk9_710_people_identity_guard_test.sql',
+  'myk9_711_712_status_and_signup_grants_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',
   'support_ticket_creation_atomicity_test.sql',

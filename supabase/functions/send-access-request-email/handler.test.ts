@@ -24,8 +24,10 @@ function fakeClient(store: Store): AccessRequestEmailClient {
       const filters: Array<[string, unknown]> = [];
       let op: 'select' | 'insert' | 'update' = 'select';
       let payload: Row = {};
+      let columns = '';
       const builder = {
-        select() {
+        select(selected: string) {
+          if (op === 'select') columns = selected;
           return builder;
         },
         eq(column: string, value: unknown) {
@@ -78,7 +80,17 @@ function fakeClient(store: Store): AccessRequestEmailClient {
             resolve({ data: null, error: null });
             return;
           }
-          // user_roles recipient lookup
+          // user_roles recipient lookup. user_roles has TWO foreign keys to
+          // people (user_id and granted_by), so PostgREST rejects an embed that
+          // does not name one (PGRST201). Model that, or the fake passes a
+          // query production refuses.
+          if (table === 'user_roles' && /(^|[\s,])people!inner\(/.test(columns)) {
+            resolve({
+              data: null,
+              error: { code: 'PGRST201', message: 'more than one relationship was found' },
+            });
+            return;
+          }
           const roleName = filters.find(([column]) => column === 'roles.name')?.[1];
           const clubId = filters.find(([column]) => column === 'club_id')?.[1];
           const data = store.userRoles.filter(

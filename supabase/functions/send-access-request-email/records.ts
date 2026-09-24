@@ -176,7 +176,10 @@ export async function roleHolderRecipients(
 ): Promise<Person[]> {
   let query = client
     .from('user_roles')
-    .select('is_active, expires_at, people!inner(first_name,last_name,email), roles!inner(name)')
+    // user_roles has two FKs to people (user_id, granted_by): name the holder's.
+    .select(
+      'is_active, expires_at, people!user_roles_user_id_fkey!inner(first_name,last_name,email), roles!inner(name)'
+    )
     .eq('roles.name', roleName);
   if (clubId) query = query.eq('club_id', clubId);
 

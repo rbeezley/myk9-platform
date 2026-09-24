@@ -5,7 +5,6 @@ import {
   getPendingClubAccessRequests,
   reviewClubAccessRequest,
 } from '@/services/database/club-access-requests';
-import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 
 const mocks = vi.hoisted(() => ({
   requests: vi.fn(),
@@ -20,10 +19,6 @@ vi.mock('@/services/database/club-access-requests', () => ({
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsQuery: () => ({ data: mocks.clubs() }),
-}));
-
-vi.mock('@/services/notifications/accessRequestEmail', () => ({
-  notifyAccessRequestEmail: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -90,10 +85,6 @@ describe('ClubAccessRequestsSection', () => {
         reviewNote: null,
       })
     );
-    // MYK9-681: the approval email goes out only after the decision saved.
-    await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1', 'decision')
-    );
   });
 
   it('denies a request with an optional review note', async () => {
@@ -110,17 +101,5 @@ describe('ClubAccessRequestsSection', () => {
         reviewNote: 'Please contact support first.',
       })
     );
-    await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1', 'decision')
-    );
-  });
-
-  it('sends no email when the review itself fails', async () => {
-    vi.mocked(reviewClubAccessRequest).mockRejectedValue(new Error('denied by server'));
-    const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
-    await user.click(await screen.findByRole('button', { name: /deny request/i }));
-
-    await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
-    expect(notifyAccessRequestEmail).not.toHaveBeenCalled();
   });
 });

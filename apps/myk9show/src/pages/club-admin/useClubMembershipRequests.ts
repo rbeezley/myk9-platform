@@ -1,6 +1,6 @@
 /**
  * Members tab state for club membership requests (MYK9-685): the pending
- * list, approve/deny, and the requester's decision email (MYK9-681).
+ * list and approve/deny.
  * Approving adds the person to the roster only — no secretary access.
  */
 import { useMemo } from 'react';
@@ -10,7 +10,6 @@ import {
   denyClubMembershipRequest,
   listClubMembershipRequests,
 } from '@/services/database/club-membership-requests';
-import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 import { notifications } from '@/lib/notifications';
 import type { PendingClubRequestsCopy } from './ClubShowAccessRequests';
 
@@ -37,8 +36,7 @@ export function useClubMembershipRequests(
 
   const approveMutation = useMutation({
     mutationFn: (requestId: string) => approveClubMembershipRequest(requestId),
-    onSuccess: (_data, requestId) => {
-      void notifyAccessRequestEmail('membership', requestId, 'decision');
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-membership-requests', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       notifications.success('Request approved. They are now on the member list.');
@@ -50,8 +48,7 @@ export function useClubMembershipRequests(
   const denyMutation = useMutation({
     mutationFn: ({ requestId, note }: { requestId: string; note?: string }) =>
       denyClubMembershipRequest(requestId, note ?? null),
-    onSuccess: (_data, { requestId }) => {
-      void notifyAccessRequestEmail('membership', requestId, 'decision');
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-membership-requests', clubId] });
       notifications.success('Request denied.');
     },

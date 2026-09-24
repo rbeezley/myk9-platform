@@ -34,7 +34,6 @@ export function useClubMembershipRequest(club: Pick<Club, 'id' | 'name'>): ClubR
       };
     },
     submitRequest: note => submitClubMembershipRequest({ clubId: club.id, note }),
-    emailKind: 'membership',
     successMessage: 'Request sent. The club can review it from Club Members.',
     logContext: { clubId: club.id, request: 'membership' },
   });

@@ -20,7 +20,6 @@ import {
   getMyClubMembershipRequestStatus,
   submitClubMembershipRequest,
 } from '@/services/database/club-membership-requests';
-import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 
 vi.mock('@/services/database/role-requests', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/role-requests')>()),
@@ -32,10 +31,6 @@ vi.mock('@/services/database/club-membership-requests', async importOriginal => 
   ...(await importOriginal<typeof import('@/services/database/club-membership-requests')>()),
   getMyClubMembershipRequestStatus: vi.fn(),
   submitClubMembershipRequest: vi.fn(),
-}));
-
-vi.mock('@/services/notifications/accessRequestEmail', () => ({
-  notifyAccessRequestEmail: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/services/database/club-access-requests', () => ({
@@ -126,7 +121,6 @@ describe('RequestAccessPage — existing club', () => {
     expect(await screen.findByText('Request sent')).toBeInTheDocument();
     expect(screen.getByText(/review it from their Club Members page/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('secretary', 'request-1', 'submitted');
   });
 
   it('submits a membership request without requiring a message', async () => {
@@ -140,11 +134,6 @@ describe('RequestAccessPage — existing club', () => {
       expect(submitClubMembershipRequest).toHaveBeenCalledWith({ clubId: 'club-1', note: '' })
     );
     expect(await screen.findByText('Request sent')).toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
-      'membership',
-      'membership-1',
-      'submitted'
-    );
   });
 
   it('shows an existing pending request instead of another submit button', async () => {
@@ -238,6 +227,5 @@ describe('RequestAccessPage — existing club', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't send that request/i);
     expect(screen.getByRole('button', { name: 'Send request' })).toBeEnabled();
-    expect(notifyAccessRequestEmail).not.toHaveBeenCalled();
   });
 });

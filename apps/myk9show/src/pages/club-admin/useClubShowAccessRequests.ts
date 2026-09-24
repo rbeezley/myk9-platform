@@ -17,7 +17,6 @@ import {
   listClubRoleRequests,
 } from '@/services/database/role-requests';
 import { notifications } from '@/lib/notifications';
-import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 
 export function useClubShowAccessRequests(
   clubId: string | undefined,
@@ -76,8 +75,7 @@ export function useClubShowAccessRequests(
   // appointee list need invalidating.
   const approveRoleRequestMutation = useMutation({
     mutationFn: (requestId: string) => approveClubRoleRequest(requestId),
-    onSuccess: (_data, requestId) => {
-      void notifyAccessRequestEmail('secretary', requestId, 'decision');
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
       notifications.success('Request approved. They can now run this club’s shows.');
@@ -89,8 +87,7 @@ export function useClubShowAccessRequests(
   const denyRoleRequestMutation = useMutation({
     mutationFn: ({ requestId, note }: { requestId: string; note?: string }) =>
       denyClubRoleRequest(requestId, note ?? null),
-    onSuccess: (_data, { requestId }) => {
-      void notifyAccessRequestEmail('secretary', requestId, 'decision');
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
       notifications.success('Request denied.');
     },

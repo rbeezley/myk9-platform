@@ -172,7 +172,7 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
             <AlertDialogDescription>{copy.denyDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <FormField
-            label="Reason (shown to the requester and included in their email)"
+            label="Reason (shown to the requester; kept in myK9’s records)"
             fieldId={copy.denyFieldId}
           >
             <Textarea

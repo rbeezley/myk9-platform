@@ -251,8 +251,6 @@ If your club is not already in myK9Show, you can ask the myK9Show team to set it
 3. Enter the club name and send the request.
 4. Wait for a site admin to review the request.
 
-myK9Show emails you a confirmation as soon as the request is sent, and emails you again when a site admin approves or denies it. If the request is denied, the email includes the reviewer's note when one was entered. The myK9Show site admins are emailed that a new request is waiting.
-
 When the request is approved, the person who submitted it becomes an active member, **Club Admin**, and the club's **Secretary/show manager** for that club. Those permissions apply only to the new club. They can then create and run that club's shows using the same account.
 
 ---
@@ -268,7 +266,7 @@ If your club already uses myK9Show, you can ask it for either of two things. The
    - **Ask for secretary access** — asks the club to let you set up and run its shows. Tell the club why you are asking; this is required.
 4. Click **Send request**. The page shows **Request sent**, and from then on shows **Your request is under review** instead of another send button.
 
-Nothing changes on your account until the club approves. The club's admins receive an email with your name, email address, and reason, and review the request on their **Club Members** page. When they approve or deny it, myK9Show emails you, including their note if they wrote one. Coming back to the page later shows the current status: under review, approved, or not approved.
+Nothing changes on your account until the club approves. The club's admins see your name, email address, and reason, and review the request on their **Club Members** page. Coming back to this page later shows the current status: under review, approved, or not approved, with the club's note if they wrote one.
 
 If the club denies a request, you cannot send the same request again from this page. Contact the club directly if you think it should be reconsidered.
 

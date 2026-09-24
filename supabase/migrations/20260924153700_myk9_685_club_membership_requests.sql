@@ -1,7 +1,6 @@
--- MYK9-685 / MYK9-681: club membership requests, and a once-only guard for
--- access-request notification emails.
+-- MYK9-685: club membership requests.
 --
--- 1. public.club_membership_requests — an exhibitor asks an existing club to
+-- public.club_membership_requests — an exhibitor asks an existing club to
 --    add them to its roster as an ordinary member. Same rule as the
 --    club-routed secretary request (20260915231500): a request is an ask and
 --    never grants anything. Only the club's admin (or a site admin) approving
@@ -18,12 +17,6 @@
 --    through list_club_membership_requests(p_club_id), which checks
 --    is_club_admin(p_club_id) against a NOT NULL argument — never a bare
 --    policy arm on a nullable column (the MYK9-571 round-1 P0).
---
--- 2. email_log_access_request_once_idx — send-access-request-email claims a
---    (email_type, related_id, recipient) row BEFORE it calls the provider, so
---    a retried call, a double click or a refresh can never send the same
---    access-request email twice. Scoped to the access_request_* email types
---    only: support notifications legitimately send many emails per ticket.
 
 BEGIN;
 
@@ -322,6 +315,8 @@ DECLARE
   v_person_id uuid;
   v_status text;
   v_reviewer_person_id uuid;
+  v_member_status text;
+  v_written_status text;
 BEGIN
   SELECT club_id, person_id, status
   INTO v_club_id, v_person_id, v_status
@@ -353,26 +348,38 @@ BEGIN
     RAISE EXCEPTION 'Reviewer profile was not found' USING ERRCODE = '42501';
   END IF;
 
-  -- A suspension that landed while the ask was pending is not lifted by it:
-  -- the admin lifts a suspension from the member list, deliberately.
-  IF EXISTS (
-    SELECT 1 FROM public.club_members
-    WHERE club_id = v_club_id
-      AND person_id = v_person_id
-      AND membership_status = 'suspended'
-  ) THEN
+  -- Lock the roster row (when one exists) before reading its status, so a
+  -- suspension committed by another transaction cannot slip in between this
+  -- check and the write below. A suspension is never lifted by a join ask:
+  -- the admin lifts it from the member list, deliberately.
+  SELECT membership_status INTO v_member_status
+  FROM public.club_members
+  WHERE club_id = v_club_id
+    AND person_id = v_person_id
+  FOR UPDATE;
+
+  IF v_member_status = 'suspended' THEN
     RAISE EXCEPTION 'This person''s membership is suspended. Lift the suspension from the member list instead.'
       USING ERRCODE = '23514';
   END IF;
 
   -- Reactivating an existing lapsed/resigned row keeps its type, dues and
-  -- notes (same rule as the founder grant in 20260919205500). Only those two
-  -- statuses are reactivated here; suspended was refused above.
+  -- notes (same rule as the founder grant in 20260919205500); an already
+  -- active row (added directly while the ask was pending) is confirmed as is.
+  -- If no row existed to lock, a concurrent insert can still race this one,
+  -- so the ON CONFLICT arm re-checks the status and RETURNING proves an
+  -- active row was actually written before the ask is marked approved.
   INSERT INTO public.club_members (club_id, person_id, membership_status)
   VALUES (v_club_id, v_person_id, 'active')
   ON CONFLICT (club_id, person_id) DO UPDATE
     SET membership_status = 'active'
-    WHERE public.club_members.membership_status IN ('lapsed', 'resigned');
+    WHERE public.club_members.membership_status IN ('lapsed', 'resigned', 'active')
+  RETURNING membership_status INTO v_written_status;
+
+  IF v_written_status IS DISTINCT FROM 'active' THEN
+    RAISE EXCEPTION 'The member list changed while this request was being approved. Refresh and try again.'
+      USING ERRCODE = '23514';
+  END IF;
 
   UPDATE public.club_membership_requests
   SET status = 'approved',
@@ -443,14 +450,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.deny_club_membership_request(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.deny_club_membership_request(uuid, text) TO authenticated;
-
--- ============================================================================
--- 6. Once-only access-request emails (MYK9-681).
--- ============================================================================
-
-CREATE UNIQUE INDEX email_log_access_request_once_idx
-  ON public.email_log (email_type, related_id, lower(recipient_email))
-  WHERE email_type LIKE 'access_request_%';
 
 NOTIFY pgrst, 'reload schema';
 

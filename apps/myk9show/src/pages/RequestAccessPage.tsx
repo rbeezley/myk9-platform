@@ -5,7 +5,6 @@ import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
 import type { Club } from '@/types/club-types';
 import { ExistingClubRequestPanel } from '@/features/club-requests/ExistingClubRequestPanel';
-import { notifyAccessRequestEmail } from '@/services/notifications/accessRequestEmail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,14 +44,12 @@ const RequestAccessPage: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const requestId = await submitNewClubAccessRequest({
+      await submitNewClubAccessRequest({
         clubName: trimmedName,
         website: website.trim(),
         note: note.trim(),
       });
       setSubmitted(true);
-      // After the request is saved; an email problem never undoes it.
-      void notifyAccessRequestEmail('new_club', requestId, 'submitted');
     } catch {
       setError("We couldn't send your request. Please try again.");
     } finally {
@@ -181,8 +178,8 @@ const RequestAccessPage: React.FC = () => {
               <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
               <h2 className="text-xl font-semibold">Request sent</h2>
               <p className="text-base text-muted-foreground">
-                We received your club request. A myK9Show administrator will review it, and we will
-                email the address on your account when it has been reviewed.
+                We received your club request. We will review it and contact you using the email on
+                your account.
               </p>
               <Button asChild className="min-h-11">
                 <Link to="/exhibitor/entries">Return to My Shows</Link>

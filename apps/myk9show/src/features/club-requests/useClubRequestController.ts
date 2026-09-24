@@ -1,16 +1,12 @@
 /**
  * The shared engine behind both club-routed asks (MYK9-685): read my latest
- * request, submit a new one, and announce it by email (MYK9-681). The two
+ * request and submit a new one. The two
  * public hooks differ only in which RPCs they call and what "already has it"
  * means, so each passes those in.
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RoleRequestStatus } from '@/services/database/role-requests';
-import {
-  notifyAccessRequestEmail,
-  type AccessRequestEmailKind,
-} from '@/services/notifications/accessRequestEmail';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import {
@@ -34,7 +30,6 @@ interface Options {
   preState: ClubRequestState | null;
   fetchStatus: () => Promise<MyClubRequestStatus | null>;
   submitRequest: (note: string) => Promise<string>;
-  emailKind: AccessRequestEmailKind;
   successMessage: string;
   logContext: Record<string, unknown>;
 }
@@ -56,12 +51,10 @@ export function useClubRequestController(options: Options): ClubRequestControlle
   const submitMutation = useMutation({
     mutationFn: options.submitRequest,
     onMutate: () => setSubmitError(null),
-    onSuccess: requestId => {
+    onSuccess: () => {
       setJustSubmitted(true);
       void refreshStatus();
       notifications.success(options.successMessage);
-      // After the commit, never before: an email failure cannot undo the ask.
-      void notifyAccessRequestEmail(options.emailKind, requestId, 'submitted');
     },
     onError: error => {
       const failure = classifySubmitError(error);

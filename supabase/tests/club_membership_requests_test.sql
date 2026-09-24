@@ -1,5 +1,5 @@
--- Behavioral test for club membership requests (MYK9-685) and the
--- once-only access-request email guard (MYK9-681). All fixtures roll back.
+-- Behavioral test for club membership requests (MYK9-685). All fixtures roll
+-- back.
 --
 -- Covers:
 --   1. A requester submits a membership ask; a duplicate pending ask returns
@@ -15,11 +15,13 @@
 --   6. A denial keeps its note, reads back as 'denied', and blocks a
 --      resubmission (MK571).
 --   7. anon cannot execute the submit RPC.
---   8. email_log_access_request_once_idx rejects a second claim for the same
---      (email_type, related_id, recipient), case-insensitively, and does not
---      touch other email types.
 --   9. A suspended member cannot ask to rejoin, and approving an ask that was
 --      pending when the suspension landed does not lift the suspension.
+--  10. Approval checks that the roster upsert actually wrote an active row:
+--      when the write is skipped (standing in for a concurrent suspension
+--      that makes ON CONFLICT ... WHERE match nothing), approval raises and
+--      the request stays pending. A member the club added directly while the
+--      ask was pending is still approved (the active row is confirmed).
 --
 -- People are inserted before auth.users so handle_new_user adopts each one
 -- by email (same order as club_routed_role_requests_test.sql).
@@ -38,7 +40,9 @@ VALUES
   ('00000000-0000-0000-0000-000000000d13', 'Oscar', 'Outside', 'myk9-685-oscar@example.test'),
   ('00000000-0000-0000-0000-000000000d15', 'Dana', 'Denied', 'myk9-685-dana@example.test'),
   ('00000000-0000-0000-0000-000000000d16', 'Other', 'Admin', 'myk9-685-other-admin@example.test'),
-  ('00000000-0000-0000-0000-000000000d17', 'Sam', 'Suspended', 'myk9-685-sam@example.test');
+  ('00000000-0000-0000-0000-000000000d17', 'Sam', 'Suspended', 'myk9-685-sam@example.test'),
+  ('00000000-0000-0000-0000-000000000d18', 'Lee', 'Lapsed', 'myk9-685-lee@example.test'),
+  ('00000000-0000-0000-0000-000000000d19', 'Ann', 'Added', 'myk9-685-ann@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -63,6 +67,12 @@ VALUES
    now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000000d07', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-685-sam@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d08', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-lee@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d09', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-ann@example.test', '', now(),
    now(), now(), '{}', '{}', false, false, false);
 
 DO $$
@@ -77,7 +87,9 @@ BEGIN
     '00000000-0000-0000-0000-000000000d13',
     '00000000-0000-0000-0000-000000000d15',
     '00000000-0000-0000-0000-000000000d16',
-    '00000000-0000-0000-0000-000000000d17'
+    '00000000-0000-0000-0000-000000000d17',
+    '00000000-0000-0000-0000-000000000d18',
+    '00000000-0000-0000-0000-000000000d19'
   ]::uuid[])
     AND auth_user_id IS NULL;
 
@@ -487,6 +499,86 @@ $$;
 RESET ROLE;
 
 -- ============================================================================
+-- 10. Approval confirms the roster write.
+-- ============================================================================
+
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES ('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d18', 'lapsed');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d08', true);
+DO $$ BEGIN
+  PERFORM public.submit_club_membership_request('00000000-0000-0000-0000-000000000d21', NULL);
+END $$;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d09', true);
+DO $$ BEGIN
+  PERFORM public.submit_club_membership_request('00000000-0000-0000-0000-000000000d21', NULL);
+END $$;
+RESET ROLE;
+
+SELECT set_config('myk9_685.lee_request_id',
+  (SELECT id::text FROM public.club_membership_requests
+   WHERE person_id = '00000000-0000-0000-0000-000000000d18' AND status = 'pending'), true);
+SELECT set_config('myk9_685.ann_request_id',
+  (SELECT id::text FROM public.club_membership_requests
+   WHERE person_id = '00000000-0000-0000-0000-000000000d19' AND status = 'pending'), true);
+
+-- Stand-in for the interleaving: a BEFORE UPDATE trigger that drops the write,
+-- exactly what ON CONFLICT ... DO UPDATE ... WHERE does when a concurrent
+-- transaction has changed the row to a status the WHERE excludes.
+CREATE FUNCTION pg_temp.myk9_685_skip_update() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$;
+CREATE TRIGGER myk9_685_skip_lee BEFORE UPDATE ON public.club_members
+  FOR EACH ROW WHEN (OLD.person_id = '00000000-0000-0000-0000-000000000d18')
+  EXECUTE FUNCTION pg_temp.myk9_685_skip_update();
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d01', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.approve_club_membership_request(
+      current_setting('myk9_685.lee_request_id')::uuid, NULL
+    );
+    RAISE EXCEPTION 'FAIL approval succeeded although no active roster row was written';
+  EXCEPTION WHEN SQLSTATE '23514' THEN
+    RAISE NOTICE 'PASS approval raises when the roster write did not land (23514)';
+  END;
+END;
+$$;
+
+RESET ROLE;
+DROP TRIGGER myk9_685_skip_lee ON public.club_members;
+
+DO $$
+BEGIN
+  IF (SELECT status FROM public.club_membership_requests
+      WHERE id = current_setting('myk9_685.lee_request_id')::uuid) <> 'pending' THEN
+    RAISE EXCEPTION 'FAIL the request was marked reviewed although the roster write failed';
+  END IF;
+  RAISE NOTICE 'PASS the request stays pending when the roster write did not land';
+END;
+$$;
+
+-- Ann is added to the roster directly while her ask is pending: approval
+-- confirms the existing active row and succeeds.
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES ('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d19', 'active');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d01', true);
+DO $$
+BEGIN
+  PERFORM public.approve_club_membership_request(
+    current_setting('myk9_685.ann_request_id')::uuid, NULL
+  );
+  RAISE NOTICE 'PASS an ask from someone already added directly is approved';
+END;
+$$;
+RESET ROLE;
+
+-- ============================================================================
 -- 7. anon cannot execute the submit RPC.
 -- ============================================================================
 
@@ -504,31 +596,5 @@ END;
 $$;
 
 RESET ROLE;
-
--- ============================================================================
--- 8. Once-only access-request email claims.
--- ============================================================================
-
-DO $$
-DECLARE
-  v_related uuid := gen_random_uuid();
-BEGIN
-  INSERT INTO public.email_log (recipient_email, email_type, related_id, status)
-  VALUES ('Mary@Example.test', 'access_request_membership_submitted', v_related, 'queued');
-
-  BEGIN
-    INSERT INTO public.email_log (recipient_email, email_type, related_id, status)
-    VALUES ('mary@example.test', 'access_request_membership_submitted', v_related, 'queued');
-    RAISE EXCEPTION 'FAIL a second access-request email claim was accepted';
-  EXCEPTION WHEN unique_violation THEN
-    RAISE NOTICE 'PASS a second claim for the same access-request email is rejected';
-  END;
-
-  INSERT INTO public.email_log (recipient_email, email_type, related_id, status)
-  VALUES ('mary@example.test', 'support_notification', v_related, 'sent'),
-         ('mary@example.test', 'support_notification', v_related, 'sent');
-  RAISE NOTICE 'PASS other email types are not constrained by the once-only index';
-END;
-$$;
 
 ROLLBACK;

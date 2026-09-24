@@ -12,7 +12,6 @@ const helperPaths = [
 const callerPaths = [
   'supabase/functions/send-confirmation-email/index.ts',
   'supabase/functions/send-email/index.ts',
-  'supabase/functions/send-access-request-email/handler.ts',
   'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
   'supabase/functions/send-registration-email/index.ts',
   'supabase/functions/send-results/index.ts',

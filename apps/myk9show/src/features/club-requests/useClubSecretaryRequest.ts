@@ -52,7 +52,6 @@ export function useClubSecretaryRequest(club: Pick<Club, 'id' | 'name'>): ClubRe
     // The AUTH uid, never databaseUserId: role_requests.auth_user_id is auth.users.id.
     fetchStatus: () => getMyClubSecretaryRequestStatus(club.id, authUserId!),
     submitRequest: note => submitClubSecretaryRequest({ clubId: club.id, note }),
-    emailKind: 'secretary',
     successMessage: 'Request sent. The club can review it from Members > Show Access.',
     logContext: { clubId: club.id, request: 'secretary' },
   });

@@ -1,7 +1,6 @@
 /**
  * MYK9-685 — a club admin reviews membership requests on the same Members tab
- * that holds the roster; approving adds the person to the list, and the
- * requester's decision email (MYK9-681) goes out only after the decision saved.
+ * that holds the roster; approving adds the person to the list.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
@@ -17,12 +16,10 @@ const {
   listClubMembershipRequests,
   approveClubMembershipRequest,
   denyClubMembershipRequest,
-  notifyAccessRequestEmail,
 } = vi.hoisted(() => ({
   listClubMembershipRequests: vi.fn(),
   approveClubMembershipRequest: vi.fn(),
   denyClubMembershipRequest: vi.fn(),
-  notifyAccessRequestEmail: vi.fn(async () => undefined),
   getClubShowManagers: vi.fn(),
   countUpcomingClubShows: vi.fn(),
   setClubShowManagerAccess: vi.fn(),
@@ -93,8 +90,6 @@ vi.mock('@/services/database/role-requests', () => ({
   denyClubRoleRequest: vi.fn(),
 }));
 
-vi.mock('@/services/notifications/accessRequestEmail', () => ({ notifyAccessRequestEmail }));
-
 vi.mock('@/services/database/clubs', () => ({
   countUpcomingClubShows,
 }));
@@ -136,7 +131,7 @@ describe('ClubMembersPage membership requests', () => {
     expect(listClubMembershipRequests).toHaveBeenCalledWith('club-1');
   });
 
-  it('approves a membership request and then emails the requester', async () => {
+  it('approves a membership request', async () => {
     const user = userEvent.setup();
     render(<ClubMembersPage />);
 
@@ -145,13 +140,6 @@ describe('ClubMembersPage membership requests', () => {
 
     await waitFor(() =>
       expect(approveClubMembershipRequest).toHaveBeenCalledWith('membership-request-1')
-    );
-    await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
-        'membership',
-        'membership-request-1',
-        'decision'
-      )
     );
     expect(notificationSuccess).toHaveBeenCalledWith(
       'Request approved. They are now on the member list.'
@@ -173,16 +161,9 @@ describe('ClubMembersPage membership requests', () => {
         'Members must live in the county.'
       )
     );
-    await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith(
-        'membership',
-        'membership-request-1',
-        'decision'
-      )
-    );
   });
 
-  it('sends no email when the approval is rejected', async () => {
+  it('reports a rejected approval', async () => {
     approveClubMembershipRequest.mockRejectedValue(new Error('forbidden'));
     const user = userEvent.setup();
     render(<ClubMembersPage />);
@@ -191,6 +172,5 @@ describe('ClubMembersPage membership requests', () => {
     await user.click(screen.getByRole('button', { name: /approve/i }));
 
     await waitFor(() => expect(notificationError).toHaveBeenCalled());
-    expect(notifyAccessRequestEmail).not.toHaveBeenCalled();
   });
 });

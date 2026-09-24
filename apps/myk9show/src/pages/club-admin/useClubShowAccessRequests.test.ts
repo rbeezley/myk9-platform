@@ -11,16 +11,9 @@ import type { RoleRequest } from '@/services/database/role-requests';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 
 const listClubRoleRequestsMock = vi.hoisted(() => vi.fn());
-const notifyMock = vi.hoisted(() => vi.fn(async () => undefined));
-vi.mock('@/services/notifications/accessRequestEmail', () => ({
-  notifyAccessRequestEmail: notifyMock,
-}));
-vi.mock('@/lib/notifications', () => ({
-  notifications: { success: vi.fn(), error: vi.fn() },
-}));
 vi.mock('@/services/database/role-requests', () => ({
-  approveClubRoleRequest: vi.fn(async () => undefined),
-  denyClubRoleRequest: vi.fn(async () => undefined),
+  approveClubRoleRequest: vi.fn(),
+  denyClubRoleRequest: vi.fn(),
   listClubRoleRequests: (...args: unknown[]) => listClubRoleRequestsMock(...args),
 }));
 
@@ -77,20 +70,5 @@ describe('useClubShowAccessRequests', () => {
 
     expect(result.current.roleRequestsTabProps.pendingRequests[0]?.id).toBe('request-1');
     expect(result.current.clubMembersTabs.find(tab => tab.id === 'show-access')?.badge).toBe(1);
-  });
-
-  it('emails the requester after a club admin approves or denies (MYK9-681)', async () => {
-    listClubRoleRequestsMock.mockResolvedValue([baseRequest({ id: 'request-1' })]);
-    const { result } = renderTheHook();
-
-    result.current.roleRequestsTabProps.onApproveRequest('request-1');
-    await waitFor(() =>
-      expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-1', 'decision')
-    );
-
-    result.current.roleRequestsTabProps.onDenyRequest('request-2', 'Not this season.');
-    await waitFor(() =>
-      expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-2', 'decision')
-    );
   });
 });

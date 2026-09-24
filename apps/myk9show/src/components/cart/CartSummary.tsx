@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import { CART_CLASS_CHECK_BLOCKS_CHECKOUT } from '@/store/cartStore.classClosure';
 import { calculatePlatformFeeCents, formatCartCurrency } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
@@ -68,9 +67,6 @@ export function CartSummary({
 }: CartSummaryProps) {
   const navigate = useNavigate();
   const cart = useCartStore(state => state.cart);
-  // MYK9-656: the saved cart's classes could not be re-checked, so its lines
-  // may include a class that has since closed. Visible, but not payable.
-  const classCheckFailed = useCartStore(state => state.classCheckFailed) === true;
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
   const getItemCount = useCartStore(state => state.getItemCount);
   const feeRates = usePlatformFeeRates();
@@ -317,10 +313,8 @@ export function CartSummary({
             entriesClosed ||
             blockedCount > 0 ||
             capacityUnknown ||
-            isExpired ||
-            classCheckFailed
+            isExpired
           }
-          aria-describedby={classCheckFailed ? 'cart-class-check-blocked' : undefined}
           // The label is the longest in the app ("Pay $1,234.50 and confirm
           // entries", plus a wait-list suffix at its fullest) and it renders in
           // the narrow order-summary column. `lg` is `h-11 px-8` under a base
@@ -381,11 +375,6 @@ export function CartSummary({
             </>
           )}
         </Button>
-        {classCheckFailed && (
-          <p id="cart-class-check-blocked" className="text-sm text-muted-foreground">
-            {CART_CLASS_CHECK_BLOCKS_CHECKOUT}
-          </p>
-        )}
         {capacityFailed && onRetryCapacity && (
           <Button variant="outline" onClick={onRetryCapacity} className="min-h-11 w-full">
             <RefreshCw className="h-4 w-4 mr-2" />

@@ -46,11 +46,6 @@ import {
 import { captureCartWriteGuard, guardedSet, invalidateCartWrites } from './cartStore.session';
 import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
 import { findRecoverableCart } from './cartStore.pickCart';
-import {
-  CART_CLASS_CHECK_FAILED_MESSAGE,
-  dropItemsInClosedClasses,
-  mergeDroppedItems,
-} from './cartStore.classClosure';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -75,8 +70,6 @@ export const useCartStore = create<CartState>()(
         error: null,
         lastSyncedAt: null,
         expirationWarning: false,
-        droppedClosedClassItems: [],
-        classCheckFailed: false,
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -315,18 +308,6 @@ export const useCartStore = create<CartState>()(
             showId: cartData.show_id,
             items,
           });
-          // A recovered draft may be months old: drop classes that closed since.
-          // When the check cannot be read the cart stays on screen, unchecked,
-          // and `classCheckFailed` blocks checkout until a reload succeeds.
-          let closure: Awaited<ReturnType<typeof dropItemsInClosedClasses>>;
-          let classCheckFailed = false;
-          try {
-            closure = await dropItemsInClosedClasses({ cartId: cartData.id, items });
-          } catch {
-            classCheckFailed = true;
-            closure = { items, dropped: [] };
-          }
-          items = closure.items;
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);
           const cartWithDetails: CartWithDetails = {
@@ -345,12 +326,6 @@ export const useCartStore = create<CartState>()(
             isLoading: false,
             lastSyncedAt: new Date().toISOString(),
             expirationWarning: false,
-            droppedClosedClassItems: mergeDroppedItems(
-              get().droppedClosedClassItems,
-              closure.dropped
-            ),
-            classCheckFailed,
-            ...(classCheckFailed ? { error: CART_CLASS_CHECK_FAILED_MESSAGE } : {}),
           });
 
           return cartWithDetails;
@@ -1003,8 +978,6 @@ export const useCartStore = create<CartState>()(
 
         setError: (error: string | null) => set({ error }),
 
-        dismissDroppedClosedClassItems: () => set({ droppedClosedClassItems: [] }),
-
         reset: () => {
           // Drop every write still in flight (MYK9-651) and forget in-flight
           // openers, so a user signing back in starts fresh rather than joining
@@ -1022,8 +995,6 @@ export const useCartStore = create<CartState>()(
             error: null,
             lastSyncedAt: null,
             expirationWarning: false,
-            droppedClosedClassItems: [],
-            classCheckFailed: false,
           });
         },
       }),

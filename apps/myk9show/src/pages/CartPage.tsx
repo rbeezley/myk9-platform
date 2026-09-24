@@ -5,7 +5,7 @@
  * modify entries, and proceed to checkout.
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
@@ -30,7 +30,6 @@ import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
-import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import {
@@ -60,7 +59,6 @@ export default function CartPage() {
   const isCartLoading = useCartStore(state => state.isLoading);
   const loadInitiated = useCartStore(state => state.loadInitiated);
   const error = useCartStore(state => state.error);
-  const classCheckFailed = useCartStore(state => state.classCheckFailed) === true;
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
   const setError = useCartStore(state => state.setError);
@@ -159,25 +157,20 @@ export default function CartPage() {
   // Hydrate the active cart on direct visits (refresh, deep link, new tab) —
   // the store is in-memory only, so without this the page always shows empty
   // unless the same tab just populated it (2026-06-10 walkthrough finding).
-  // One load for mount and for Try again, so a retry reads the same cart.
-  const profileId = profile?.id;
-  const reloadCart = useCallback(() => {
-    if (!profileId) return;
-    const cartLoadOptions: {
-      showId?: string;
-      recoveryEntryIds?: string[];
-    } = { recoveryEntryIds };
-
-    if (recoveryShowId) {
-      cartLoadOptions.showId = recoveryShowId;
-    }
-
-    void loadActiveCart(profileId, cartLoadOptions);
-  }, [profileId, loadActiveCart, recoveryShowId, recoveryEntryIds]);
-
   useEffect(() => {
-    reloadCart();
-  }, [reloadCart]);
+    if (profile?.id) {
+      const cartLoadOptions: {
+        showId?: string;
+        recoveryEntryIds?: string[];
+      } = { recoveryEntryIds };
+
+      if (recoveryShowId) {
+        cartLoadOptions.showId = recoveryShowId;
+      }
+
+      loadActiveCart(profile.id, cartLoadOptions);
+    }
+  }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
 
   const handleRemoveItem = async (itemId: string) => {
     const removed = items.find(item => item.id === itemId);
@@ -451,8 +444,6 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
-          {/* Emptied by the closed-class check: say why (MYK9-656) */}
-          <ClosedClassRemovedNotice />
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
                 1.08:1 on --background, so the circle was a void in both themes
@@ -545,22 +536,11 @@ export default function CartPage() {
           </Alert>
         )}
 
-        {/* Classes a saved cart lost because they closed (MYK9-656) */}
-        <ClosedClassRemovedNotice className="mb-6" />
-
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between gap-4">
-              <span>{error}</span>
-              {/* MYK9-656: the class re-check failed; the cart is still here. */}
-              {classCheckFailed && (
-                <Button variant="outline" size="sm" onClick={reloadCart} className="min-h-11">
-                  Try again
-                </Button>
-              )}
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 

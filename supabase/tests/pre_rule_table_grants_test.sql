@@ -53,6 +53,7 @@ BEGIN
     ('classes','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_access_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_members','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('club_membership_requests','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_officers','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_premium_templates','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_stripe_accounts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -226,7 +227,7 @@ BEGIN
     AND c.relname NOT IN (
       'achievements','activity_log','allergies','analytics_events','announcement_reads',
       'announcements','armbands','calendar_feed_tokens','chatbot_feedback','chatbot_query_log',
-      'class_visibility_overrides','classes','club_access_requests','club_members',
+      'class_visibility_overrides','classes','club_access_requests','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_stripe_accounts','clubs','dog_favorites',
       'dog_registrations','dogs','email_log','enrollments','entries','entry_cart_items',
       'entry_carts','entry_payment_links','entry_status_history','entry_submissions',

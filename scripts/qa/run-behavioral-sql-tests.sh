@@ -52,6 +52,7 @@ TEST_FILES=(
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
   "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"
+  "$TEST_DIR/club_membership_requests_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/entry_requires_dog_registration_test.sql"
   "$TEST_DIR/emergency_packet_handler_identity_test.sql"

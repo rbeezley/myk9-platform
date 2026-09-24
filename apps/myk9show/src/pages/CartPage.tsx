@@ -5,7 +5,7 @@
  * modify entries, and proceed to checkout.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
@@ -60,6 +60,7 @@ export default function CartPage() {
   const isCartLoading = useCartStore(state => state.isLoading);
   const loadInitiated = useCartStore(state => state.loadInitiated);
   const error = useCartStore(state => state.error);
+  const classCheckFailed = useCartStore(state => state.classCheckFailed) === true;
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
   const setError = useCartStore(state => state.setError);
@@ -158,20 +159,25 @@ export default function CartPage() {
   // Hydrate the active cart on direct visits (refresh, deep link, new tab) —
   // the store is in-memory only, so without this the page always shows empty
   // unless the same tab just populated it (2026-06-10 walkthrough finding).
-  useEffect(() => {
-    if (profile?.id) {
-      const cartLoadOptions: {
-        showId?: string;
-        recoveryEntryIds?: string[];
-      } = { recoveryEntryIds };
+  // One load for mount and for Try again, so a retry reads the same cart.
+  const profileId = profile?.id;
+  const reloadCart = useCallback(() => {
+    if (!profileId) return;
+    const cartLoadOptions: {
+      showId?: string;
+      recoveryEntryIds?: string[];
+    } = { recoveryEntryIds };
 
-      if (recoveryShowId) {
-        cartLoadOptions.showId = recoveryShowId;
-      }
-
-      loadActiveCart(profile.id, cartLoadOptions);
+    if (recoveryShowId) {
+      cartLoadOptions.showId = recoveryShowId;
     }
-  }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
+
+    void loadActiveCart(profileId, cartLoadOptions);
+  }, [profileId, loadActiveCart, recoveryShowId, recoveryEntryIds]);
+
+  useEffect(() => {
+    reloadCart();
+  }, [reloadCart]);
 
   const handleRemoveItem = async (itemId: string) => {
     const removed = items.find(item => item.id === itemId);
@@ -546,7 +552,15 @@ export default function CartPage() {
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="flex items-center justify-between gap-4">
+              <span>{error}</span>
+              {/* MYK9-656: the class re-check failed; the cart is still here. */}
+              {classCheckFailed && (
+                <Button variant="outline" size="sm" onClick={reloadCart} className="min-h-11">
+                  Try again
+                </Button>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 

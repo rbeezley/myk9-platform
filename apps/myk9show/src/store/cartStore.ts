@@ -76,6 +76,7 @@ export const useCartStore = create<CartState>()(
         lastSyncedAt: null,
         expirationWarning: false,
         droppedClosedClassItems: [],
+        classCheckFailed: false,
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -315,14 +316,15 @@ export const useCartStore = create<CartState>()(
             items,
           });
           // A recovered draft may be months old: drop classes that closed since.
+          // When the check cannot be read the cart stays on screen, unchecked,
+          // and `classCheckFailed` blocks checkout until a reload succeeds.
           let closure: Awaited<ReturnType<typeof dropItemsInClosedClasses>>;
+          let classCheckFailed = false;
           try {
             closure = await dropItemsInClosedClasses({ cartId: cartData.id, items });
           } catch {
-            // Unchecked lines must not reach checkout, and /cart must not sit
-            // on its loading skeleton: settle with a message and no cart.
-            write({ cart: null, isLoading: false, error: CART_CLASS_CHECK_FAILED_MESSAGE });
-            return null;
+            classCheckFailed = true;
+            closure = { items, dropped: [] };
           }
           items = closure.items;
 
@@ -347,6 +349,8 @@ export const useCartStore = create<CartState>()(
               get().droppedClosedClassItems,
               closure.dropped
             ),
+            classCheckFailed,
+            ...(classCheckFailed ? { error: CART_CLASS_CHECK_FAILED_MESSAGE } : {}),
           });
 
           return cartWithDetails;
@@ -1019,6 +1023,7 @@ export const useCartStore = create<CartState>()(
             lastSyncedAt: null,
             expirationWarning: false,
             droppedClosedClassItems: [],
+            classCheckFailed: false,
           });
         },
       }),

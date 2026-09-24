@@ -139,7 +139,7 @@ describe('recovered cart items in closed classes (MYK9-656)', () => {
     expect(dropped).toHaveLength(4);
   });
 
-  it('settles with a message, and no unchecked cart, when the class check cannot be read', async () => {
+  it('keeps the cart on screen but blocks checkout when the class check cannot be read', async () => {
     seedDraft();
     holder.db.hold(q => q.table === 'classes', {
       data: null,
@@ -148,12 +148,15 @@ describe('recovered cart items in closed classes (MYK9-656)', () => {
 
     const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
 
-    expect(cart).toBeNull();
+    // MYK9-656: never "your cart is empty" over items that still exist. The
+    // lines stay, unchecked, and classCheckFailed holds checkout shut.
+    expect(cart?.id).toBe('cart-draft');
     expect(useCartStore.getState()).toMatchObject({
-      cart: null,
       isLoading: false,
+      classCheckFailed: true,
       error: CART_CLASS_CHECK_FAILED_MESSAGE,
     });
+    expect(useCartStore.getState().cart?.id).toBe('cart-draft');
   });
 
   it('fails closed when the checkout session cannot be severed after a removal', async () => {
@@ -171,12 +174,15 @@ describe('recovered cart items in closed classes (MYK9-656)', () => {
 
     const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
 
-    expect(cart).toBeNull();
+    // MYK9-656: never "your cart is empty" over items that still exist. The
+    // lines stay, unchecked, and classCheckFailed holds checkout shut.
+    expect(cart?.id).toBe('cart-draft');
     expect(useCartStore.getState()).toMatchObject({
-      cart: null,
       isLoading: false,
+      classCheckFailed: true,
       error: CART_CLASS_CHECK_FAILED_MESSAGE,
     });
+    expect(useCartStore.getState().cart?.id).toBe('cart-draft');
   });
 
   it('says nothing when every class is still open', async () => {

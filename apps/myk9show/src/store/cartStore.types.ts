@@ -149,6 +149,12 @@ export interface CartState {
    * the wizard to /cart does not silently lose the explanation.
    */
   droppedClosedClassItems: DroppedCartItem[];
+  /**
+   * The last load could not re-check the cart's classes (MYK9-656). The cart
+   * stays on screen but its lines are unchecked, so checkout is blocked until
+   * a reload succeeds.
+   */
+  classCheckFailed: boolean;
   dismissDroppedClosedClassItems: () => void;
 
   // Actions

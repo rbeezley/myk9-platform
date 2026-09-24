@@ -40,6 +40,10 @@ import type { CartItemWithDetails, DroppedCartItem } from './cartStore.types';
 export const CART_CLASS_CHECK_FAILED_MESSAGE =
   'We could not check the classes in your saved cart. Please try again.';
 
+/** Why checkout is blocked while the classes are unchecked; read beside the button. */
+export const CART_CLASS_CHECK_BLOCKS_CHECKOUT =
+  'Checkout is paused: we could not check whether the classes in this cart are still open.';
+
 interface ClassStatusRow {
   id: string;
   name: string | null;

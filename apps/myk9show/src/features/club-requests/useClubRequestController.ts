@@ -31,6 +31,10 @@ interface Options {
 export function useClubRequestController(options: Options): ClubRequestController {
   const queryClient = useQueryClient();
   const [justSubmitted, setJustSubmitted] = useState(false);
+  // When the last successful submit landed. Until a status read completes
+  // after it, the server's answer can predate the ask, so the page holds the
+  // ask as pending; after that, the server's answer always wins.
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
   const [deniedThisSession, setDeniedThisSession] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -52,6 +56,7 @@ export function useClubRequestController(options: Options): ClubRequestControlle
     onMutate: () => setSubmitError(null),
     onSuccess: () => {
       setJustSubmitted(true);
+      setSubmittedAt(Date.now());
       void refreshStatus();
       notifications.success(options.successMessage);
     },
@@ -101,7 +106,11 @@ export function useClubRequestController(options: Options): ClubRequestControlle
 
   // Between a successful submit and the status refetch, the server already
   // holds the ask: show it as pending rather than re-offering the form.
-  if (justSubmitted && state.kind === 'available') state = { kind: 'pending' };
+  const postSubmitReadDone =
+    submittedAt !== null && statusQuery.dataUpdatedAt >= submittedAt && !statusQuery.isFetching;
+  if (submittedAt !== null && !postSubmitReadDone && state.kind === 'available') {
+    state = { kind: 'pending' };
+  }
 
   // A cached 'available' is the one answer that offers a submit; while it is
   // being re-read (return, focus) it may already be stale, so show loading.

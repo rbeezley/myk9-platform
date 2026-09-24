@@ -198,4 +198,35 @@ describe('request reads refetch when their surface is opened again', () => {
     await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
     expect(second.result.current.state.kind).toBe('pending');
   });
+
+  it('stops holding a submitted request as pending once a later read says otherwise', async () => {
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: 'available' })
+      .mockResolvedValueOnce({ kind: 'pending' })
+      .mockResolvedValue({ kind: 'available' });
+    const submitRequest = vi.fn().mockResolvedValue('request-1');
+    const client = appLikeClient();
+    const { first } = mountTwice(client, () =>
+      useClubRequestController({
+        queryKey: ['my-request', 'club-after-submit'],
+        preState: null,
+        fetchStatus,
+        submitRequest,
+        successMessage: 'sent',
+        logContext: {},
+      })
+    );
+
+    await waitFor(() => expect(first.result.current.state.kind).toBe('available'));
+    act(() => first.result.current.submit('Please add me.'));
+    // The post-submit read returns pending.
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(first.result.current.state.kind).toBe('pending'));
+
+    // Later the membership is removed and the server says a new ask is open.
+    act(() => first.result.current.retry());
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(first.result.current.state.kind).toBe('available'));
+  });
 });

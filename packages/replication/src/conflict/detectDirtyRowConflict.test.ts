@@ -84,6 +84,28 @@ describe('detectDirtyRowConflict', () => {
     expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
   });
 
+  it('keeps sub-millisecond differences that Date.parse would truncate', () => {
+    // Postgres timestamptz carries microseconds; two distinct values inside
+    // one millisecond are still different values.
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574001Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574999+00:00' },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
+  });
+
+  it('treats trailing fractional zeros and a zone offset as the same instant', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.5Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T16:19:38.500000-05:00' },
+    });
+
+    expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
   it('does not treat a zone-less or date-only string as an instant', () => {
     // Without a zone the instant depends on the device's timezone, so these
     // are compared as text, exactly as before.

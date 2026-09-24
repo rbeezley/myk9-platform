@@ -20,7 +20,8 @@
 --
 -- Comparison is column-typed, not textual: both sides go through the entries
 -- row type, so '2026-09-24T21:19:38.574Z' in the payload equals the stored
--- timestamptz that PostgREST spells '...+00:00'.
+-- timestamptz that PostgREST spells '...+00:00'. The row is re-read FOR UPDATE
+-- for the check, so the version returned is the version of the row compared.
 --
 -- Ordering is unchanged where it matters: authorization (step 4) still runs
 -- before any version is disclosed or any counter moves. The allow-list filter
@@ -65,6 +66,8 @@ DECLARE
   v_updated_id uuid;
   v_new_version integer;
   v_already_applied boolean;
+  v_current_row jsonb;
+  v_requested_row jsonb;
   v_containment public.ringside_containment;
   v_runorder_checkin_cols constant text[] := ARRAY[
     'run_order', 'check_in_status', 'is_in_ring',
@@ -185,17 +188,31 @@ BEGIN
     -- lost) is not a conflict. When every requested field already holds the
     -- requested value, the write would change nothing: report the current
     -- version and write nothing. A key the row does not have never matches.
+    --
+    -- The row is re-read FOR UPDATE: the comparison and the version returned
+    -- must describe the same row state, and no other writer may move it in
+    -- between. Returning the step-1 version after a concurrent write would
+    -- hand the caller a stale OCC token for its next queued write.
     IF v_allowed_fields IS NOT NULL THEN
+      SELECT to_jsonb(e), e.version
+        INTO v_current_row, v_current_version
+        FROM public.entries e
+       WHERE e.id = p_entry_id
+         FOR UPDATE;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Entry % not found', p_entry_id USING errcode = 'P0002';
+      END IF;
+
+      v_requested_row := to_jsonb(jsonb_populate_record(NULL::public.entries, v_allowed_fields));
+
       SELECT NOT EXISTS (
         SELECT 1
           FROM jsonb_object_keys(v_allowed_fields) AS k
-         WHERE NOT (to_jsonb(cur) ? k)
-            OR (to_jsonb(cur) -> k) IS DISTINCT FROM (to_jsonb(req) -> k)
+         WHERE NOT (v_current_row ? k)
+            OR (v_current_row -> k) IS DISTINCT FROM (v_requested_row -> k)
       )
-        INTO v_already_applied
-        FROM public.entries cur,
-             jsonb_populate_record(NULL::public.entries, v_allowed_fields) req
-       WHERE cur.id = p_entry_id;
+        INTO v_already_applied;
 
       IF v_already_applied THEN
         RETURN v_current_version;

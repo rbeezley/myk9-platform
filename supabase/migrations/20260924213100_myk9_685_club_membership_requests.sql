@@ -75,6 +75,30 @@ CREATE POLICY club_membership_requests_select_own_or_site_admin
   );
 
 -- ============================================================================
+-- 1b. One lock per (club, person). submit, approve and deny all take it
+--     before reading anything they decide on, so a review can never slip
+--     between a submit's standing-denial check and its insert (Codex P2).
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.lock_club_membership_request_pair(
+  p_club_id uuid,
+  p_person_id uuid
+)
+RETURNS void
+LANGUAGE sql
+SET search_path = ''
+AS $$
+  SELECT pg_advisory_xact_lock(
+    hashtext('club_membership_requests:' || p_club_id::text || ':' || p_person_id::text)
+  );
+$$;
+
+COMMENT ON FUNCTION public.lock_club_membership_request_pair(uuid, uuid) IS
+  'MYK9-685: transaction-scoped lock shared by submit/approve/deny_club_membership_request for one (club, person). Internal; no client grant.';
+
+REVOKE ALL ON FUNCTION public.lock_club_membership_request_pair(uuid, uuid) FROM PUBLIC, anon, authenticated;
+
+-- ============================================================================
 -- 2. submit_club_membership_request
 -- ============================================================================
 
@@ -115,6 +139,11 @@ BEGIN
   IF v_person_id IS NULL THEN
     RAISE EXCEPTION 'No person profile found for this user' USING ERRCODE = '42501';
   END IF;
+
+  -- Every check below reads after this lock, so a concurrent approve or deny
+  -- of this person's ask at this club has either committed (and is seen) or
+  -- not started.
+  PERFORM public.lock_club_membership_request_pair(p_club_id, v_person_id);
 
   IF EXISTS (
     SELECT 1 FROM public.club_members
@@ -354,6 +383,8 @@ BEGIN
     RAISE EXCEPTION 'Pending membership request was not found' USING ERRCODE = 'P0002';
   END IF;
 
+  PERFORM public.lock_club_membership_request_pair(v_club_id, v_person_id);
+
   PERFORM 1 FROM public.club_membership_requests
   WHERE id = p_request_id AND status = 'pending'
   FOR UPDATE;
@@ -426,11 +457,12 @@ SET search_path = ''
 AS $$
 DECLARE
   v_club_id uuid;
+  v_person_id uuid;
   v_status text;
   v_reviewer_person_id uuid;
 BEGIN
-  SELECT club_id, status
-  INTO v_club_id, v_status
+  SELECT club_id, person_id, status
+  INTO v_club_id, v_person_id, v_status
   FROM public.club_membership_requests
   WHERE id = p_request_id;
 
@@ -443,6 +475,8 @@ BEGIN
   IF v_status IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'Pending membership request was not found' USING ERRCODE = 'P0002';
   END IF;
+
+  PERFORM public.lock_club_membership_request_pair(v_club_id, v_person_id);
 
   PERFORM 1 FROM public.club_membership_requests
   WHERE id = p_request_id AND status = 'pending'

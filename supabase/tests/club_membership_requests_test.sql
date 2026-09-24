@@ -28,6 +28,10 @@
 --      an ask pending), and 'none' again for a former member whose old ask
 --      was approved -- the case a client used to infer, wrongly, for a
 --      suspended member.
+--  12. submit, approve and deny each take the shared (club, person) lock
+--      before deciding, so a review cannot interleave with a resubmission
+--      (proved by pg_locks for pairs no earlier statement touched; the
+--      two-session interleaving itself is reproduced outside this runner).
 --
 -- People are inserted before auth.users so handle_new_user adopts each one
 -- by email (same order as club_routed_role_requests_test.sql).
@@ -48,7 +52,10 @@ VALUES
   ('00000000-0000-0000-0000-000000000d16', 'Other', 'Admin', 'myk9-685-other-admin@example.test'),
   ('00000000-0000-0000-0000-000000000d17', 'Sam', 'Suspended', 'myk9-685-sam@example.test'),
   ('00000000-0000-0000-0000-000000000d18', 'Lee', 'Lapsed', 'myk9-685-lee@example.test'),
-  ('00000000-0000-0000-0000-000000000d19', 'Ann', 'Added', 'myk9-685-ann@example.test');
+  ('00000000-0000-0000-0000-000000000d19', 'Ann', 'Added', 'myk9-685-ann@example.test'),
+  ('00000000-0000-0000-0000-000000000d1a', 'Pat', 'Pair', 'myk9-685-pat@example.test'),
+  ('00000000-0000-0000-0000-000000000d1b', 'Dee', 'Denied', 'myk9-685-dee@example.test'),
+  ('00000000-0000-0000-0000-000000000d1c', 'Abe', 'Approved', 'myk9-685-abe@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -79,6 +86,15 @@ VALUES
    now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000000d09', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-685-ann@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d0a', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-pat@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d0b', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-dee@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d0c', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-abe@example.test', '', now(),
    now(), now(), '{}', '{}', false, false, false);
 
 DO $$
@@ -95,7 +111,10 @@ BEGIN
     '00000000-0000-0000-0000-000000000d16',
     '00000000-0000-0000-0000-000000000d17',
     '00000000-0000-0000-0000-000000000d18',
-    '00000000-0000-0000-0000-000000000d19'
+    '00000000-0000-0000-0000-000000000d19',
+    '00000000-0000-0000-0000-000000000d1a',
+    '00000000-0000-0000-0000-000000000d1b',
+    '00000000-0000-0000-0000-000000000d1c'
   ]::uuid[])
     AND auth_user_id IS NULL;
 
@@ -644,6 +663,77 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS the status RPC returns one state: none, member, suspended, pending, none after lapse';
+END;
+$$;
+
+-- ============================================================================
+-- 12. The shared (club, person) lock.
+-- ============================================================================
+
+-- True when THIS backend holds the pair's advisory lock. A bigint advisory key
+-- shows in pg_locks as classid = high 32 bits, objid = low 32 bits, objsubid 1.
+CREATE FUNCTION pg_temp.myk9_685_pair_locked(p_club uuid, p_person uuid) RETURNS boolean
+LANGUAGE sql AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM pg_locks l
+    WHERE l.locktype = 'advisory'
+      AND l.pid = pg_backend_pid()
+      AND l.objsubid = 1
+      AND ((l.classid::bigint << 32) | l.objid::bigint)
+          = hashtext('club_membership_requests:' || p_club::text || ':' || p_person::text)::bigint
+  );
+$$;
+
+-- Dee's and Abe's asks are inserted directly, so no function has locked
+-- their pairs yet.
+INSERT INTO public.club_membership_requests (club_id, person_id, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1b',
+   '00000000-0000-0000-0000-000000000d0b'),
+  ('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1c',
+   '00000000-0000-0000-0000-000000000d0c');
+
+SELECT set_config('myk9_685.dee_request_id',
+  (SELECT id::text FROM public.club_membership_requests
+   WHERE person_id = '00000000-0000-0000-0000-000000000d1b'), true);
+SELECT set_config('myk9_685.abe_request_id',
+  (SELECT id::text FROM public.club_membership_requests
+   WHERE person_id = '00000000-0000-0000-0000-000000000d1c'), true);
+
+DO $$
+BEGIN
+  IF pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1a')
+     OR pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1b')
+     OR pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1c') THEN
+    RAISE EXCEPTION 'FIXTURE a pair lock was already held before the calls under test';
+  END IF;
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d0a', true);
+DO $$ BEGIN
+  PERFORM public.submit_club_membership_request('00000000-0000-0000-0000-000000000d21', NULL);
+END $$;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d01', true);
+DO $$ BEGIN
+  PERFORM public.deny_club_membership_request(current_setting('myk9_685.dee_request_id')::uuid, NULL);
+  PERFORM public.approve_club_membership_request(current_setting('myk9_685.abe_request_id')::uuid, NULL);
+END $$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF NOT pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1a') THEN
+    RAISE EXCEPTION 'FAIL submit did not take the (club, person) lock';
+  END IF;
+  IF NOT pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1b') THEN
+    RAISE EXCEPTION 'FAIL deny did not take the (club, person) lock';
+  END IF;
+  IF NOT pg_temp.myk9_685_pair_locked('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d1c') THEN
+    RAISE EXCEPTION 'FAIL approve did not take the (club, person) lock';
+  END IF;
+  RAISE NOTICE 'PASS submit, deny and approve all take the shared (club, person) lock';
 END;
 $$;
 

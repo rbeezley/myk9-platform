@@ -200,7 +200,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -225,7 +225,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -252,7 +252,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -279,7 +279,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -306,7 +306,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -332,7 +332,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
 
     renderPanel();
@@ -352,7 +352,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -412,7 +412,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     classOptionsHookMock.mockReturnValue({
       data: undefined,
@@ -521,7 +521,7 @@ describe('MessageCenterPanel', () => {
       },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     const { useMessageStore } = await import('@/store/messageStore');
     (useMessageStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({

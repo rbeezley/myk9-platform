@@ -20,12 +20,16 @@ interface ComposeShowSource extends MessageShowScope {
  * - `show_announcements` INSERT (20260917163900, MYK9-636): the same club arm,
  *   plus a judge assigned to the show.
  *
- * So the list is the club-scoped `selectMessageShows` set — never the raw show
- * store, which also holds every show loaded for public browsing — plus, for a
- * judge, the shows in their current context (the announcement subscription:
- * the show selected in Mission Control and today's shows). The client has no
- * judge-assignment set to scope that arm further; the server's judge arm is the
- * boundary there, as it was before this change.
+ * A secretary, club admin or site admin gets the club-scoped
+ * `selectMessageShows` set — never the raw show store, which also holds every
+ * show loaded for public browsing.
+ *
+ * Every other role, judges included, keeps the list the composer has always
+ * built: the announcement subscription's shows (the show selected in Mission
+ * Control and today's shows), else the whole show store. The client holds no
+ * judge-assignment set to scope the judge arm with, so narrowing it here would
+ * only take away shows a judge can post to; the server's judge arm stays the
+ * boundary. Judge scoping is tracked separately.
  */
 export function selectComposeShows(
   shows: readonly ComposeShowSource[] | null | undefined,
@@ -33,24 +37,29 @@ export function selectComposeShows(
   userWithRoles: UserWithRoles | null | undefined,
   hasRole: (role: UserRole) => boolean
 ): ComposeShowOption[] {
-  const options: ComposeShowOption[] = selectMessageShows(shows, userWithRoles, hasRole).map(
-    show => ({ id: show.id, name: show.name })
-  );
-  if (!hasRole(UserRole.JUDGE)) return options;
+  const isScopedStaff =
+    hasRole(UserRole.SECRETARY) || hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SITE_ADMIN);
+  if (isScopedStaff) {
+    return selectMessageShows(shows, userWithRoles, hasRole).map(show => ({
+      id: show.id,
+      name: show.name,
+    }));
+  }
+  return selectContextShows(shows ?? [], contextShowIds);
+}
 
-  const namesById = new Map((shows ?? []).map(show => [show.id, show.name]));
-  const offered = new Set(options.map(option => option.id));
-  contextShowIds.forEach((showId, index) => {
-    if (offered.has(showId)) return;
-    offered.add(showId);
-    options.push({
-      id: showId,
-      name:
-        namesById.get(showId) ??
-        (contextShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
-    });
-  });
-  return options;
+/** The composer's list before MYK9-641, kept for roles it does not scope. */
+function selectContextShows(
+  shows: readonly ComposeShowSource[],
+  contextShowIds: readonly string[]
+): ComposeShowOption[] {
+  if (contextShowIds.length === 0) return shows.map(show => ({ id: show.id, name: show.name }));
+  const namesById = new Map(shows.map(show => [show.id, show.name]));
+  return contextShowIds.map((showId, index) => ({
+    id: showId,
+    name:
+      namesById.get(showId) ?? (contextShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
+  }));
 }
 
 const ROUTE_SHOW_PATTERNS = [

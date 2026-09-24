@@ -177,6 +177,45 @@ describe('MessageCenterPanel compose show scope (MYK9-641)', () => {
     );
   });
 
+  // MYK9-641 scopes secretaries, club admins and site admins only. A judge keeps
+  // exactly the pre-641 list (the subscription, else the show store), so a
+  // judge assigned to a future show that is only in the store can still reach it.
+  it('gives a judge the same show list as before, including a future assigned show', () => {
+    authContext = {
+      user: { id: 'judge-1', email: 'judge@test.com' },
+      userWithRoles: { id: 'judge-1', roles: ['judge'], scopes: [], user_metadata: {} },
+      isSecretary: false,
+      isAdmin: false,
+      hasRole: (role: string) => role === 'judge',
+    };
+
+    const dialog = openCompose('/judge/dashboard');
+    fireEvent.click(within(dialog).getByRole('combobox'));
+
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      'Heartland Scent Work Classic',
+      'Heartland UKC Nosework Trial',
+      'Blue Sky Scent Work Weekend',
+      'ZZ Audit - Publish Path Probe',
+    ]);
+  });
+
+  it("opens a judge's composer on the show page they are on", () => {
+    authContext = {
+      user: { id: 'judge-1', email: 'judge@test.com' },
+      userWithRoles: { id: 'judge-1', roles: ['judge'], scopes: [], user_metadata: {} },
+      isSecretary: false,
+      isAdmin: false,
+      hasRole: (role: string) => role === 'judge',
+    };
+
+    const dialog = openCompose('/shows/blue-sky-weekend');
+
+    expect(within(dialog).getByTestId('message-show-composer')).toHaveTextContent(
+      'Composer for blue-sky-weekend'
+    );
+  });
+
   it('lets a site admin pick any show', () => {
     authContext = {
       user: { id: 'admin-1', email: 'admin@test.com' },

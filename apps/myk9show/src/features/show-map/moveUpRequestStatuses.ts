@@ -1,10 +1,5 @@
 /** SQL mirror: statuses fulfilled on the move-up destination. */
-export const MOVE_UP_REQUEST_STATUSES = [
-  'move-up-requested',
-  'move_up_requested',
-  'scratch-requested',
-  'scratch_requested',
-] as const;
+export const MOVE_UP_REQUEST_STATUSES = ['move-up-requested', 'move_up_requested'] as const;
 
 export const MOVE_UP_REQUEST_FULFILLED_STATUS = 'confirmed';
 

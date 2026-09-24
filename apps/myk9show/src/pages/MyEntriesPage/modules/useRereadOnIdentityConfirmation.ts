@@ -38,6 +38,8 @@ export function useRereadOnIdentityConfirmation({
   const lastOutcomeRef = useRef<EntriesReadOutcome | null>(null);
   /** Confirmation arrived while a read was in flight: judge that read when it lands. */
   const pendingRef = useRef(false);
+  /** Whether the CURRENT read has landed. A newer read supersedes an older one. */
+  const currentReadLandedRef = useRef(false);
   const wasConfirmedRef = useRef(identityConfirmed);
   const reloadRef = useRef(reload);
 
@@ -48,6 +50,7 @@ export function useRereadOnIdentityConfirmation({
   useEffect(() => {
     lastOutcomeRef.current = null;
     pendingRef.current = false;
+    currentReadLandedRef.current = false;
   }, [identityKey]);
 
   useEffect(() => {
@@ -58,21 +61,30 @@ export function useRereadOnIdentityConfirmation({
     const becameConfirmed = identityConfirmed && !wasConfirmedRef.current;
     wasConfirmedRef.current = identityConfirmed;
     if (!becameConfirmed) return;
-    const last = lastOutcomeRef.current;
-    if (last === null) {
+    // Judge the read in flight, not the last one that landed: an earlier
+    // confirmed read says nothing about a refresh still running (round-2
+    // review of #2434).
+    if (!currentReadLandedRef.current) {
       pendingRef.current = true;
-    } else if (!isServerConfirmed(last)) {
-      void reloadRef.current();
+      return;
     }
+    const last = lastOutcomeRef.current;
+    if (last !== null && !isServerConfirmed(last)) void reloadRef.current();
   }, [identityConfirmed]);
+
+  /** Call when a read starts; it supersedes any read still in flight. */
+  const recordStart = useCallback(() => {
+    currentReadLandedRef.current = false;
+  }, []);
 
   /** Call once per completed read that is still the current one. */
   const recordOutcome = useCallback((outcome: EntriesReadOutcome) => {
     lastOutcomeRef.current = outcome;
+    currentReadLandedRef.current = true;
     if (!pendingRef.current) return;
     pendingRef.current = false;
     if (!isServerConfirmed(outcome)) void reloadRef.current();
   }, []);
 
-  return { recordOutcome };
+  return { recordStart, recordOutcome };
 }

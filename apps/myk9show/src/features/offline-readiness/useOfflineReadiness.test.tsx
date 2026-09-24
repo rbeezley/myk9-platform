@@ -23,28 +23,30 @@ function renderHook<T>(callback: () => T) {
   };
 }
 
-const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
-  tables: {
-    trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
-    classes: {
-      metaByTrial: new Map<string, unknown>(),
-      rowsByTrial: new Map<string, Array<{ id: string }>>(),
+const { tables, rbacCache, syncSpy, settleSpy, refreshSpy, authState, replicationState } =
+  vi.hoisted(() => ({
+    tables: {
+      trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+      classes: {
+        metaByTrial: new Map<string, unknown>(),
+        rowsByTrial: new Map<string, Array<{ id: string }>>(),
+      },
+      entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+      shows: { row: null as { id: string } | null },
+      judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
     },
-    entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
-    shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
-  },
-  rbacCache: { entry: null as { cachedAt: string } | null },
-  syncSpy: vi.fn(async () => {}),
-  refreshSpy: vi.fn(async () => {}),
-  authState: {
-    userId: 'user-1' as string | undefined,
-    isAnonymous: false,
-    isJudge: false,
-    databaseUserId: 'person-1' as string | undefined,
-  },
-  replicationState: { lastSyncAt: null as number | null },
-}));
+    rbacCache: { entry: null as { cachedAt: string } | null },
+    syncSpy: vi.fn(async () => {}),
+    settleSpy: vi.fn(async () => {}),
+    refreshSpy: vi.fn(async () => {}),
+    authState: {
+      userId: 'user-1' as string | undefined,
+      isAnonymous: false,
+      isJudge: false,
+      databaseUserId: 'person-1' as string | undefined,
+    },
+    replicationState: { lastSyncAt: null as number | null },
+  }));
 
 vi.mock('@/hooks/useOptionalReplicationSync', () => ({
   useOptionalReplicationSync: () => ({ status: { lastSyncAt: replicationState.lastSyncAt } }),
@@ -92,6 +94,7 @@ vi.mock('@/context/rbacPermissionsCache', () => ({
 
 vi.mock('@/features/at-show/atShowDataAdapter', () => ({
   syncAtShowData: syncSpy,
+  settleAtShowSync: settleSpy,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -311,51 +314,63 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
-  it('rewinds an evicted scope watermark so prime() actually restores the rows', async () => {
+  // Every sync compares local rows with a fresh server count and forces a full
+  // re-fetch when rows are missing (syncReplicatedTable partialReplica, pinned
+  // in packages/replication). Rewinding the scoped watermarks here only raced
+  // other syncs, and as first written wiped the expected-row counts readiness
+  // is judged by, leaving the badge red for good (MYK9-738).
+  it('does not rewind trials, entries or classes watermarks — the sync engine re-fetches missing rows', async () => {
     primeAllSignals();
     tables.entries.rows = rows(1); // metadata claims 3 — quota eviction
+    tables.classes.rowsByTrial.set('trial-2', []);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries', 'classes']);
+    });
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    const { replicatedEntriesTable, replicatedClassesTable, replicatedTrialsTable } =
+      await import('@/services/replication');
+    expect(replicatedEntriesTable.updateSyncMetadata).not.toHaveBeenCalled();
+    expect(replicatedClassesTable.updateSyncMetadata).not.toHaveBeenCalled();
+    expect(replicatedTrialsTable.updateSyncMetadata).not.toHaveBeenCalled();
+    expect(syncSpy).toHaveBeenCalledWith('show-1');
+  });
+
+  // The page's own mount-time syncAtShowData is usually still running when the
+  // badge is clicked, and syncAtShowData hands it back to a new caller. Prime
+  // must wait it out, or its "retry" is the old sync and reports that sync's
+  // failure (MYK9-738). A deferred settle proves the AWAIT, not just the order.
+  it('waits out an in-flight at-show sync before starting its own', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(1);
+    let releaseInFlight!: () => void;
+    settleSpy.mockImplementationOnce(
+      () => new Promise<void>(resolve => (releaseInFlight = resolve))
+    );
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
     await waitFor(() => {
       expect(result.current.readiness?.missing).toEqual(['entries']);
     });
 
-    await act(async () => {
-      await result.current.prime();
+    let priming!: Promise<void>;
+    act(() => {
+      priming = result.current.prime();
     });
-
-    const { replicatedEntriesTable } = await import('@/services/replication');
-    // An incremental sync would not restore unchanged evicted rows, and would
-    // then rewrite totalRows DOWN to the reduced count — a false green.
-    expect(replicatedEntriesTable.updateSyncMetadata).toHaveBeenCalledWith(
-      { lastIncrementalSyncAt: 0 },
-      { scopeValue: 'show-1' }
-    );
-  });
-
-  // A whole-map rewind wiped every scope's expectedRemoteRows, and a sync
-  // already in flight (the page's mount-time syncAtShowData) never wrote them
-  // back, so the badge stayed red for good (MYK9-738). Each short scope is now
-  // rewound on its own, which keeps its counts (pinned against the real cache
-  // in packages/replication ReplicatedTableCache.scopedRewind.test.ts).
-  it('rewinds each short class scope on its own and never wipes the scope map', async () => {
-    primeAllSignals();
-    tables.classes.rowsByTrial.set('trial-2', []); // metadata claims 1
-
-    const { result } = renderHook(() => useOfflineReadiness('show-1'));
-    await waitFor(() => {
-      expect(result.current.readiness?.missing).toEqual(['classes']);
-    });
+    await waitFor(() => expect(settleSpy).toHaveBeenCalledWith('show-1'));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(syncSpy).not.toHaveBeenCalled();
 
     await act(async () => {
-      await result.current.prime();
+      releaseInFlight();
+      await priming;
     });
-
-    const { replicatedClassesTable } = await import('@/services/replication');
-    const rewind = vi.mocked(replicatedClassesTable.updateSyncMetadata);
-    expect(rewind).toHaveBeenCalledWith({ lastIncrementalSyncAt: 0 }, { scopeValue: 'trial-1' });
-    expect(rewind).toHaveBeenCalledWith({ lastIncrementalSyncAt: 0 }, { scopeValue: 'trial-2' });
-    for (const [updates] of rewind.mock.calls) expect(updates).not.toHaveProperty('scopes');
+    expect(syncSpy).toHaveBeenCalledWith('show-1');
   });
 
   it('is ready for a judge whose assignment table is hydrated but genuinely empty', async () => {

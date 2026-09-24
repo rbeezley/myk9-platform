@@ -101,6 +101,15 @@ test.describe('Secretary Class Creation Workflow', () => {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
       );
       expect(overflow).toBeLessThanOrEqual(1);
+
+      // The wizard's primary action stays on the right of Previous at every
+      // width, wrapped or not (review of #2434: an earlier wrap fix left it
+      // under Previous on a phone).
+      const previous = (await page.getByRole('button', { name: 'Previous' }).boundingBox())!;
+      const next = (await page.getByRole('button', { name: /^Next$/ }).boundingBox())!;
+      expect(next.x, 'Next sits to the right of Previous').toBeGreaterThan(
+        previous.x + previous.width
+      );
     });
   }
 });

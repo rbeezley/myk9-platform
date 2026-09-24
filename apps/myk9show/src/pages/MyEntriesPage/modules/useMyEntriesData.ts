@@ -206,6 +206,7 @@ export function useMyEntriesData({
   const readSeqRef = useRef(0);
   /** Set below once the re-read hook exists; loadMyEntries is declared first. */
   const recordOutcomeRef = useRef<(outcome: EntriesReadOutcome) => void>(() => {});
+  const recordStartRef = useRef<() => void>(() => {});
 
   // Suppress prior-account rows in the render that observes a new identity;
   // the effect below then starts the new read. The generation fences every
@@ -419,6 +420,7 @@ export function useMyEntriesData({
       return;
     }
 
+    recordStartRef.current();
     try {
       const { data, error, source: rowSource } = await getUserEntries(personId);
 
@@ -481,14 +483,15 @@ export function useMyEntriesData({
     });
   }, [loadMyEntries, user?.id]);
 
-  const { recordOutcome } = useRereadOnIdentityConfirmation({
+  const { recordStart, recordOutcome } = useRereadOnIdentityConfirmation({
     identityKey: currentIdentity,
     identityConfirmed: entryPersonIdentityState === 'resolved',
     reload: loadMyEntries,
   });
   useEffect(() => {
+    recordStartRef.current = recordStart;
     recordOutcomeRef.current = recordOutcome;
-  }, [recordOutcome]);
+  }, [recordStart, recordOutcome]);
 
   /**
    * Refreshes entries data

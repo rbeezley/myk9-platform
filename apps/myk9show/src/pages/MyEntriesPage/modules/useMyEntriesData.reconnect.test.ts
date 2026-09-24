@@ -116,6 +116,31 @@ describe('useMyEntriesData — confirming a cached identity re-reads an unconfir
     expect(getUserEntries).toHaveBeenCalledTimes(1);
   });
 
+  // Round-2 review of #2434: an earlier CONFIRMED read landed, then a refresh
+  // is in flight when the identity confirms. The refresh is the read to judge.
+  it('judges the read in flight at confirmation, not an earlier confirmed one', async () => {
+    const refresh = deferred<ReadResult>();
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ source: 'confirmed', data: [], error: null })
+      .mockReturnValueOnce(refresh.promise)
+      .mockResolvedValue({ source: 'confirmed', data: [], error: null });
+    const { result, rerender } = renderData();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let refreshing!: Promise<void>;
+    act(() => {
+      refreshing = result.current.refreshEntries();
+    });
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue(auth('resolved'));
+    rerender();
+    await act(async () => {
+      refresh.resolve({ source: 'replica-after-error', data: [], error: null });
+      await refreshing;
+    });
+
+    await waitFor(() => expect(getUserEntries).toHaveBeenCalledTimes(3));
+  });
+
   it('never lets an older read overwrite a newer one', async () => {
     const slow = deferred<ReadResult>();
     (getUserEntries as ReturnType<typeof vi.fn>)

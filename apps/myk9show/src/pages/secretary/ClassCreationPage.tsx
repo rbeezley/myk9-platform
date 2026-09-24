@@ -347,7 +347,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           <Separator orientation="vertical" className="h-6" />
           <div>
             <h1 className="text-2xl font-bold">Add Classes</h1>
-            <p className="min-w-0 break-all text-muted-foreground">
+            <p className="break-all text-muted-foreground">
               {effectiveTrialId ? `Trial: ${effectiveTrialId}` : 'No trial selected'}
             </p>
           </div>
@@ -614,9 +614,11 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       {/* Navigation */}
       {currentStep !== 'complete' && (
         <Card className="mt-6">
-          {/* Wraps on a phone: Previous, the template summary and Next do not
-              fit one 340px row (classCreation.spec.ts, 390x844). The primary
-              action carries ml-auto so it stays on the right when it wraps. */}
+          {/* The template summary always takes its own first line, so Previous
+              and Next share the second and justify-between keeps them left and
+              right. Not a viewport breakpoint: the row's width is the content
+              column's, which the sidebar narrows to ~480px at 768 wide
+              (classCreation.spec.ts runs 390, 768 and 1440). */}
           <CardContent className="flex flex-wrap justify-between items-center gap-3 py-4">
             <Button
               variant="outline"
@@ -627,14 +629,14 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               Previous
             </Button>
 
-            <div className="min-w-0 text-sm text-muted-foreground">
+            <div className="order-first basis-full text-sm text-muted-foreground">
               {selectedTemplate && `Template: ${selectedTemplate.templateName}`}
               {selectedClassDefinitions.length > 0 &&
                 ` • ${selectedClassDefinitions.length} classes selected`}
             </div>
 
             {currentStep === 'review' ? (
-              <div className="ml-auto flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1">
                 <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
                   {isCreating ? (
                     <>
@@ -655,7 +657,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 )}
               </div>
             ) : (
-              <Button onClick={handleNext} className="ml-auto">
+              <Button onClick={handleNext}>
                 Next
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

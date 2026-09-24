@@ -60,11 +60,11 @@ describe('ReviewStep completion actions', () => {
     const user = userEvent.setup();
     render(<ReviewStep trialView={trialView} onCreateShow={onCreateShow} />);
 
-    expect(screen.getByRole('button', { name: /^create show$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^add show$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /publish/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save as draft/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /^create show$/i }));
+    await user.click(screen.getByRole('button', { name: /^add show$/i }));
 
     expect(onCreateShow).toHaveBeenCalledTimes(1);
   });

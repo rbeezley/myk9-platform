@@ -20,8 +20,9 @@
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
-import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isAccountedFor } from '@/features/_shared/entryAccounting';
 import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
+import { isExpectedClass, isOutstandingClass } from './myShowLifecycle';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 /**
@@ -77,51 +78,26 @@ export function isPastShowEntry(
 }
 
 /**
- * Is this individual class row scored? Reads `entryStatusKind` — the display
- * classifier that folds `check_in_status` into `entry_status` — because a row
- * can sit at `entry_status='confirmed'` with `check_in_status='completed'` and
- * still be scored, which keying on `entryStatus` alone would miss.
- */
-/**
- * Class rows the exhibitor still has to run, via the CANONICAL accounting rules
- * (`@/features/_shared/entryAccounting`) rather than a local variant.
+ * Class rows the exhibitor still has to run, through THE My Shows lifecycle
+ * predicate (`./myShowLifecycle`, MYK9-624) — the same one the dog chip and
+ * class rows use.
  *
- * That file carries an explicit warning, and MYK9-118 as the precedent: a
- * surface that reports outstanding scoring work with its own slightly different
- * rule is how a page ends up disagreeing with the server about whether a class
- * is finished. Reading them buys three behaviours a hand-rolled status check
- * kept getting wrong:
- *
- *  - `absent` / `excused` settle a run WITHOUT a score, so `is_scored` stays
- *    false on a run that is nonetheless over;
- *  - an explicit `is_scored: false` outranks a stale `completed` status, which
- *    is what every score-reset path leaves behind (usePaperScoring.clearEntry,
- *    useClassResults, useAtShowEntryListActions all clear the result fields but
- *    not `check_in_status`);
- *  - scratched / withdrawn / cancelled rows are not expected to run at all.
+ * That predicate keeps the canonical accounting rules
+ * (`@/features/_shared/entryAccounting`, MYK9-118): `absent` / `excused`
+ * results settle a run without a score, an explicit `is_scored: false`
+ * outranks a stale `completed` status, and withdrawn / pulled / moved /
+ * declined / absent rows are not expected to run at all. What it changes is
+ * the INPUT: the lossless `entryStatusKind`, never the lossy UI enum, which
+ * has no `absent` member and folded a terminal absent class into "still to
+ * run". A moved row (the source of a move-up) is excluded by its kind.
  */
 function outstandingClasses(classes: EntryClass[]): EntryClass[] {
-  return expectedClasses(classes).filter(cls => !isAccountedFor(cls));
-}
-
-/**
- * The source row of a move-up, superseded by the destination row that now
- * carries the run. `isExpectedEntry` does NOT exclude these — it only knows
- * scratched, withdrawn, cancelled and pulled — so a moved row would sit in
- * `outstandingClasses` forever, keeping the order in Upcoming and advertising
- * a class that no longer exists as "still to run".
- */
-function isSupersededClass(cls: EntryClass): boolean {
-  return (
-    cls.status === 'moved' ||
-    cls.entryStatusKind === 'moved' ||
-    cls.entryStatus === EntryStatus.MOVED
-  );
+  return classes.filter(isOutstandingClass);
 }
 
 /** Class rows the show expects to put in the ring, settled or not. */
 function expectedClasses(classes: EntryClass[]): EntryClass[] {
-  return classes.filter(cls => isExpectedEntry(cls) && !isSupersededClass(cls));
+  return classes.filter(isExpectedClass);
 }
 
 /**

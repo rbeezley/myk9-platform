@@ -3,13 +3,14 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { deriveShowMoneyState, refundNotesByDog, UNKNOWN_SHOW_MONEY_STATE } from './showMoneyState';
 import type { EntryClass, MyEntry } from './my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
 const SHOW_DATE = new Date('2026-10-24T00:00:00');
 const PAST_SHOW_DATE = new Date('2026-09-05T00:00:00');
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     entryStatus: EntryStatus.ACCEPTED,
     classId: 'class-1',
@@ -20,7 +21,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     paymentMethod: 'online',
     ...overrides,
-  };
+  });
 }
 
 function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {

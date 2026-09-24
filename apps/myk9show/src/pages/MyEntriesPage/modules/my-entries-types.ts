@@ -21,7 +21,7 @@ export interface EntryClass {
   /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
   entryStatus?: EntryStatus | undefined;
   /** Canonical kind retained beside the lossy UI enum for honest display copy. */
-  entryStatusKind?: EntryStatusKind | undefined;
+  entryStatusKind: EntryStatusKind;
   /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
   classId?: string | undefined;
   /**
@@ -300,8 +300,13 @@ export interface LeaveClassTarget {
    */
   classWhen?: string | undefined;
   dogName: string;
-  /** Focus goes back to this dog's card heading once the write lands. */
   dogId: string;
+  /**
+   * `MyShowDog.id` of the card the control sits in — unique per rendered card,
+   * unlike `dogId`, which one dog entered in two shows shares. Focus goes to
+   * that card's anchor once the write lands (MYK9-658, `dogCardAnchor.ts`).
+   */
+  dogCardId: string;
   /** Resolves the show's withdrawal rulebook. */
   showId: string;
 }

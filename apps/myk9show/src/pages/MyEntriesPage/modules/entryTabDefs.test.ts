@@ -14,7 +14,16 @@ function entry(overrides: Partial<MyEntry> = {}): MyEntry {
     location: { venue: 'Fairgrounds', city: 'Tulsa', state: 'OK' },
     dogName: 'Cooper',
     dogId: 'dog-1',
-    classes: [{ id: 'entry-1', name: 'Novice', number: '101', fee: 60, status: 'entered' }],
+    classes: [
+      {
+        id: 'entry-1',
+        name: 'Novice',
+        number: '101',
+        fee: 60,
+        status: 'entered',
+        entryStatusKind: 'accepted',
+      },
+    ],
     dogs: [],
     totalFee: 60,
     entryStatus: EntryStatus.ACCEPTED,

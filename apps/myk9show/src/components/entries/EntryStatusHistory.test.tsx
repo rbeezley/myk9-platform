@@ -74,7 +74,8 @@ describe('EntryStatusHistory', () => {
     await user.click(screen.getByRole('button', { name: /view entry status history/i }));
 
     expect(screen.getByText('Submitted → Accepted')).toBeInTheDocument();
-    expect(screen.getByText('Accepted → Scratched')).toBeInTheDocument();
+    // MYK9-623: a stored `scratched` is a pull, and the grammar word is Pulled.
+    expect(screen.getByText('Accepted → Pulled')).toBeInTheDocument();
     expect(container.querySelectorAll('[data-family="entry"][data-shape]')).toHaveLength(2);
     expect(screen.getByText(/Sam Secretary/)).toBeInTheDocument();
     expect(screen.getByText(/Staff member not recorded/)).toBeInTheDocument();

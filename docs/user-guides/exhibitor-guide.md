@@ -203,15 +203,22 @@ Tap the result badge to open the full class results page.
 
 ---
 
-## Section 9 — Withdraw an Entry
+## Section 9 — Leave a Class: Withdraw or Pull
 
-Self-serve withdrawal is not available. To withdraw from a class:
+Leaving a class is one of two different acts, and the app records which one you chose:
 
-1. On your entry card, tap **Message the show team**.
-2. Let the secretary know which class you need to withdraw from.
-3. The secretary will pull your entry and handle any applicable refund per the club's policy.
+- **Withdraw** — only for a reason the show's rulebook recognises (for AKC and UKC: your dog is in season, or the judge changed). The show secretary confirms any refund under the premium's rules.
+- **Pull** — any other reason: you have decided not to run. Refunds for a pull are at the club's discretion.
 
-Refund terms are in the show's entry agreement.
+To leave a class:
+
+1. On **My Shows**, find the class on your dog's card and tap **Leave class…**.
+2. Choose **Withdraw** (and pick the reason) or **Pull**.
+3. Confirm with **Withdraw entry** or **Pull entry**. **Keep my entry** closes without changing anything.
+
+The class then reads **withdrawn** or **pulled** on your card. A dog pulled from the ring on the day by the show team reads **pulled at the show** instead.
+
+Neither act moves money on its own. Refund terms are in the show's entry agreement.
 
 ---
 

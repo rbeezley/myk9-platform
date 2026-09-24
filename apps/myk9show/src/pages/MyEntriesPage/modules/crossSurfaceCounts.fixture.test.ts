@@ -33,18 +33,19 @@ import {
   buildSubmittedEntryProjection,
   type SubmittedEntryProjectionRow,
 } from '@/features/exhibitor-entry/submittedEntryProjection';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date(2026, 5, 2, 20, 0, 0); // Tue Jun 2 2026, 20:00 local
 
 function makeClass(id: string): EntryClass {
-  return {
+  return withFixtureKind({
     id,
     classId: id,
     name: `Class ${id}`,
     number: id,
     fee: 25,
     status: 'entered',
-  };
+  });
 }
 
 function makeDogGroup(dogId: string, dogName: string, classIds: string[]): MyEntryDogGroup {

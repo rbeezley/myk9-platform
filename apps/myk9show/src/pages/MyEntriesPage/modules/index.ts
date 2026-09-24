@@ -37,6 +37,7 @@ export {
 export { resolveWaitlistSurface } from './waitlistSurface';
 export type { WaitlistSurface, WaitlistSurfaceInput } from './waitlistSurface';
 export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
+export { MyShowsListHeading } from './MyShowsListHeading';
 export { buildScopedPaymentFacts } from './scopedPaymentFacts';
 export type { ScopedPaymentFacts, ScopedPaymentFactRow } from './scopedPaymentFacts';
 

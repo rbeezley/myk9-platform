@@ -6,6 +6,7 @@ import {
   buildResultCardVisibility,
   isQualifyingResult,
 } from './resultCardModel';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
   return {
@@ -30,7 +31,7 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'entry-1',
     name: 'Container Novice A',
     number: '101',
@@ -44,7 +45,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     resultsReleasedAt: '2026-09-14T20:00:00.000Z',
     dogImageUrl: 'https://example.test/ditto.jpg',
     ...overrides,
-  };
+  });
 }
 
 describe('isQualifyingResult', () => {

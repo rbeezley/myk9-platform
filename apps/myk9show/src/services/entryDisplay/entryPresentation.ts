@@ -71,26 +71,6 @@ const RAW_WORDING = new Map<string, VoicedWording>([
       },
     },
   ],
-  // MYK9-632: RAW_WORDING outranks KIND_WORDING, so these four strings were the
-  // ones actually rendered for a pull REQUEST — the stored value keeps both of
-  // its spellings, the word a person reads is Pull.
-  // MYK9-609: nothing writes this status any more and there is no approval
-  // queue — a pull is the exhibitor's own act. A legacy row still renders, and
-  // its hints name what each side can actually do.
-  [
-    'scratch-requested',
-    {
-      secretary: { line: 'Pull requested', hint: 'Pull the entry, or leave it entered' },
-      exhibitor: { line: 'Pull requested', hint: 'You can pull it yourself from My Entries' },
-    },
-  ],
-  [
-    'scratch_requested',
-    {
-      secretary: { line: 'Pull requested', hint: 'Pull the entry, or leave it entered' },
-      exhibitor: { line: 'Pull requested', hint: 'You can pull it yourself from My Entries' },
-    },
-  ],
   [
     'pending-payment',
     {

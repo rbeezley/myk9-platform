@@ -90,12 +90,7 @@ describe('evaluateWithdrawEligibility', () => {
     // entries_entry_status_check admits both; the live column holds the
     // hyphenated form. An unpaid exhibitor awaiting a decision must still be
     // able to withdraw.
-    for (const entryStatus of [
-      'move-up-requested',
-      'move_up_requested',
-      'scratch-requested',
-      'scratch_requested',
-    ]) {
+    for (const entryStatus of ['move-up-requested', 'move_up_requested']) {
       expect(evaluateWithdrawEligibility({ ...pending, entryStatus }).allowed, entryStatus).toBe(
         true
       );

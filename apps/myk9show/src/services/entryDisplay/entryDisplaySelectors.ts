@@ -84,8 +84,6 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'pending':
     case 'draft':
     case 'no-status':
-    case 'scratch-requested':
-    case 'scratch_requested': // underscore form still permitted by the CHECK constraint
     case 'pending-payment':
       return 'pending';
     case 'waitlisted':

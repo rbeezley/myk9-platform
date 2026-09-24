@@ -40,20 +40,12 @@ describe('deriveEntryPresentation — context-aware wording', () => {
     expect(exh.actionHint).toBe('Contact the show secretary to re-enter');
   });
 
-  it('renders a legacy pull request with hints each side can act on (MYK9-609)', () => {
-    expect(present('scratch-requested', secretary)).toEqual({
-      kind: 'pending',
-      // MYK9-632: the stored value keeps both spellings; the word is Pull.
-      statusLine: 'Pull requested',
-      actionHint: 'Pull the entry, or leave it entered',
-    });
-    expect(present('scratch-requested', exhibitor).actionHint).toBe(
-      'You can pull it yourself from My Entries'
-    );
-    // Underscore spelling (still permitted by the CHECK constraint) is identical.
-    expect(present('scratch_requested', secretary)).toEqual(
-      present('scratch-requested', secretary)
-    );
+  it('renders a retired scratch-request value without crashing or borrowing wording (MYK9-719)', () => {
+    for (const raw of ['scratch-requested', 'scratch_requested']) {
+      const sec = present(raw, secretary);
+      expect(sec.kind).toBe('unknown');
+      expect(sec.statusLine ?? '').not.toMatch(/pull requested|scratch/i);
+    }
   });
 
   it('surfaces the move-up approval queue to the secretary', () => {
@@ -112,27 +104,6 @@ describe('deriveEntryPresentation — kind-level lines', () => {
     expect(present(raw, exhibitor).statusLine).toBe(exh);
   });
 
-  // MYK9-632: RAW_WORDING outranks KIND_WORDING, so these four strings — not the
-  // `scratched` kind entry above — are what a pull REQUEST actually rendered.
-  // Both stored spellings are admitted by entries_entry_status_check and both
-  // reach this table, so both are asserted.
-  it.each(['scratch-requested', 'scratch_requested'])(
-    'renders %s as a PULL request on both sides, never a "scratch"',
-    raw => {
-      const sec = present(raw, secretary);
-      const exh = present(raw, exhibitor);
-
-      expect(sec.statusLine).toBe('Pull requested');
-      expect(sec.actionHint).toBe('Pull the entry, or leave it entered');
-      expect(exh.statusLine).toBe('Pull requested');
-      expect(exh.actionHint).toBe('You can pull it yourself from My Entries');
-
-      for (const text of [sec.statusLine, sec.actionHint, exh.statusLine, exh.actionHint]) {
-        expect(text ?? '').not.toMatch(/scratch/i);
-      }
-    }
-  );
-
   it('offers the waitlisted exhibitor the notify reassurance as its one hint', () => {
     expect(present('waitlisted', exhibitor).actionHint).toBe("You'll be notified if a spot opens");
     expect(present('waitlisted', secretary).actionHint).toBeNull();
@@ -182,8 +153,8 @@ describe('deriveEntryPresentation — refund composition', () => {
   });
 
   it('never emits more than one action hint', () => {
-    // Pending+Refunded on a scratch request: the refund hint wins; still exactly one.
-    const result = present('scratch-requested', secretary, { paymentStatus: 'refunded' });
+    // Pending+Refunded: the refund hint wins; still exactly one.
+    const result = present('submitted', secretary, { paymentStatus: 'refunded' });
     expect(result.actionHint).toBe('Refunded — confirm withdrawal or keep entry');
   });
 });

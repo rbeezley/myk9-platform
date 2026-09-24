@@ -20,6 +20,7 @@ import {
   watchedUpcomingEntries,
   type NotificationWatchSet,
 } from '@/hooks/notificationWatchSet';
+import { alertKey, createNotifiedAlertLedger } from '@/hooks/notifiedAlertLedger';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
@@ -146,9 +147,12 @@ export function useNotificationMonitor(): void {
     refetchInterval: 30_000,
   });
 
+  // Once-ever dedupe, per signed-in user, that survives a reload (MYK9-735).
+  // The snapshot reports STATE, so without it every load re-announced a class
+  // finalized or started long ago.
+  const authUserId = userWithRoles?.id ?? null;
+  const ledger = useMemo(() => createNotifiedAlertLedger(authUserId), [authUserId]);
   const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
-  const notifiedClassStarting = useRef<Set<string>>(new Set());
-  const notifiedResultsPosted = useRef<Set<string>>(new Set());
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
   const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
@@ -158,7 +162,9 @@ export function useNotificationMonitor(): void {
   const preferencesRef = useRef(preferences);
   const userDogIdsRef = useRef(userDogIds);
   const watchSetRef = useRef(watchSet);
+  const ledgerRef = useRef(ledger);
   useLayoutEffect(() => {
+    ledgerRef.current = ledger;
     deliverRef.current = deliver;
     preferencesRef.current = preferences;
     userDogIdsRef.current = userDogIds;
@@ -193,6 +199,11 @@ export function useNotificationMonitor(): void {
       const now = Date.now();
       const lastAlerted = lastYourTurnAlert.current.get(entry.id);
       if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
+      // The first snapshot after a load sees whoever is in the ring as "new";
+      // the ledger stops a reload repeating the alert for the same in-ring dog.
+      const key = alertKey.yourTurn(classId, inRingEntryId, entry.id);
+      if (ledgerRef.current.has(key)) continue;
+      ledgerRef.current.mark(key);
       lastYourTurnAlert.current.set(entry.id, now);
 
       const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
@@ -270,18 +281,25 @@ export function useNotificationMonitor(): void {
         if (!classRow) continue;
         const userEntries = context.entries.filter(entry => userDogIdsRef.current.has(entry.dogId));
 
+        const ledgerNow = ledgerRef.current;
+        const startingKey = alertKey.classStarting(classId);
         if (
           classRow.status === 'In Progress' &&
-          !notifiedClassStarting.current.has(classId) &&
-          userEntries.length > 0
+          userEntries.length > 0 &&
+          !ledgerNow.has(startingKey)
         ) {
-          notifiedClassStarting.current.add(classId);
+          ledgerNow.mark(startingKey);
           const starting = buildClassStartingPayload({ className: context.className });
           starting.actionUrl = `/classes/${classId}`;
           deliverRef.current(starting);
 
           for (const entry of userEntries) {
-            if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
+            const reminderKey = alertKey.checkInReminder(classId, entry.id);
+            if (
+              (!entry.checkInStatus || entry.checkInStatus === 'no-status') &&
+              !ledgerNow.has(reminderKey)
+            ) {
+              ledgerNow.mark(reminderKey);
               const reminder = buildCheckInReminderPayload({
                 dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
                 className: context.className,
@@ -292,12 +310,9 @@ export function useNotificationMonitor(): void {
           }
         }
 
-        if (
-          classRow.is_scoring_finalized &&
-          !notifiedResultsPosted.current.has(classId) &&
-          userEntries.length > 0
-        ) {
-          notifiedResultsPosted.current.add(classId);
+        const resultsKey = alertKey.resultsPosted(classId);
+        if (classRow.is_scoring_finalized && userEntries.length > 0 && !ledgerNow.has(resultsKey)) {
+          ledgerNow.mark(resultsKey);
           const results = buildResultsPostedPayload({
             dogName: userEntries
               .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')

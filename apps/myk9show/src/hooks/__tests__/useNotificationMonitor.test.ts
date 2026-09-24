@@ -19,6 +19,7 @@ const {
   mockUseQueryResult,
   mockRefetch,
   mockUnsubscribe,
+  mockAuth,
 } = vi.hoisted(() => {
   const mockDeliver = vi.fn();
   const mockPreferences = {
@@ -42,6 +43,7 @@ const {
     mockUseQueryResult,
     mockRefetch,
     mockUnsubscribe: vi.fn(),
+    mockAuth: { userId: 'auth-user-1' },
   };
 });
 
@@ -75,8 +77,8 @@ vi.mock('@/store/showStore', () => ({
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { databaseUserId: 'user-1', id: 'auth-user-1' },
-    user: { id: 'auth-user-1' },
+    userWithRoles: { databaseUserId: 'user-1', id: mockAuth.userId },
+    user: { id: mockAuth.userId },
   }),
 }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
@@ -91,6 +93,10 @@ vi.mock('@myk9/notifications', () => ({
   buildClassStartingPayload: vi.fn(() => ({ id: '2', type: 'class_starting' })),
   buildCheckInReminderPayload: vi.fn(() => ({ id: '3', type: 'check_in_reminder' })),
   buildResultsPostedPayload: vi.fn(() => ({ id: '4', type: 'results_posted' })),
+}));
+// The favorites query would otherwise read the snapshot `useQuery` mock above.
+vi.mock('@/features/at-show/dogFavoritesSync', () => ({
+  useFavoriteArmbandsByShow: () => new Map<string, ReadonlySet<number>>(),
 }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
 
@@ -134,6 +140,7 @@ describe('useNotificationMonitor', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mockPreferences.enabled = true;
+    mockAuth.userId = 'auth-user-1';
     mockUseShowDayData.mockReturnValue({ activeShows: [{ showId: 'show-1' }] });
     mockUseQueryResult.mockReturnValue({ data: null, refetch: mockRefetch });
     mockRefetch.mockResolvedValue({ data: null });
@@ -294,5 +301,142 @@ describe('useNotificationMonitor', () => {
       await Promise.resolve();
     });
     expect(mockRefetch).toHaveBeenCalledTimes(2);
+  });
+
+  // MYK9-735: the dedupe used to live in refs, so every page load re-fired
+  // alerts for a state that had held for weeks ("Results posted" on sign-in).
+  describe('alerts once per user, not once per page load', () => {
+    function deliveredTypes(): string[] {
+      return mockDeliver.mock.calls.map(([payload]) => (payload as { type: string }).type);
+    }
+
+    function countOf(type: string): number {
+      return deliveredTypes().filter(t => t === type).length;
+    }
+
+    function loadSnapshot(snapshot: NotificationSnapshot) {
+      mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
+    }
+
+    const finalized: NotificationSnapshot = {
+      classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+      entries: [entry({ is_scored: true })],
+    };
+
+    const starting: NotificationSnapshot = {
+      classes: [classRow({ status: 'In Progress' })],
+      entries: [entry({ check_in_status: 'no-status' })],
+    };
+
+    const inRing: NotificationSnapshot = {
+      classes: [classRow({ status: 'In Progress' })],
+      entries: [
+        entry({
+          id: 'in-ring-entry',
+          dog_id: 'other-dog',
+          check_in_status: 'in-ring',
+          dog_call_name: 'Scout',
+        }),
+        entry(),
+      ],
+    };
+
+    it('delivers results for an already-finalized class on the first load only', () => {
+      loadSnapshot(finalized);
+
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('results_posted')).toBe(1);
+
+      mockDeliver.mockClear();
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(mockDeliver).not.toHaveBeenCalled();
+    });
+
+    it('delivers results for a class finalized while mounted', () => {
+      loadSnapshot({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
+      const { rerender } = renderHook(() => useNotificationMonitor());
+      expect(countOf('results_posted')).toBe(0);
+
+      loadSnapshot(finalized);
+      rerender();
+
+      expect(countOf('results_posted')).toBe(1);
+    });
+
+    it('delivers class-starting and check-in for an in-progress class on the first load only', () => {
+      loadSnapshot(starting);
+
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('class_starting')).toBe(1);
+      expect(countOf('check_in_reminder')).toBe(1);
+
+      mockDeliver.mockClear();
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(mockDeliver).not.toHaveBeenCalled();
+    });
+
+    it('delivers class-starting and check-in for a class that starts while mounted', () => {
+      loadSnapshot({ classes: [classRow()], entries: [entry({ check_in_status: 'no-status' })] });
+      const { rerender } = renderHook(() => useNotificationMonitor());
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      loadSnapshot(starting);
+      rerender();
+
+      expect(countOf('class_starting')).toBe(1);
+      expect(countOf('check_in_reminder')).toBe(1);
+    });
+
+    it('delivers dogs-ahead for the current in-ring dog on the first load only', () => {
+      loadSnapshot(inRing);
+
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('your_turn')).toBe(1);
+
+      mockDeliver.mockClear();
+      act(() => vi.advanceTimersByTime(60_001));
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('your_turn')).toBe(0);
+    });
+
+    it('keeps the record per user, so another account on the same browser is alerted', () => {
+      loadSnapshot(finalized);
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('results_posted')).toBe(1);
+
+      mockDeliver.mockClear();
+      mockAuth.userId = 'auth-user-2';
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('results_posted')).toBe(1);
+    });
+
+    it('still dedupes in memory when storage throws', async () => {
+      const realStorage = window.localStorage;
+      const throwing = {
+        getItem: () => {
+          throw new Error('SecurityError');
+        },
+        setItem: () => {
+          throw new Error('QuotaExceededError');
+        },
+        removeItem: () => {
+          throw new Error('SecurityError');
+        },
+      };
+      try {
+        window.localStorage = throwing as unknown as Storage;
+        mockRefetch.mockResolvedValue({ data: finalized });
+        loadSnapshot(finalized);
+
+        renderHook(() => useNotificationMonitor());
+        expect(countOf('results_posted')).toBe(1);
+
+        await emitShowChange();
+        expect(mockRefetch).toHaveBeenCalledOnce();
+        expect(countOf('results_posted')).toBe(1);
+      } finally {
+        window.localStorage = realStorage;
+      }
+    });
   });
 });

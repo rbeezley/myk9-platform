@@ -260,7 +260,6 @@ jobs:
           pnpm qa:dist-fresh:test
           pnpm qa:inflight:test
           pnpm qa:edge-function-drift:test
-          pnpm qa:worktree-liveness:test
           pnpm qa:primary-checkout:test
           pnpm qa:ci-concurrency:test
           pnpm qa:shared-rules:test

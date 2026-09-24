@@ -62,7 +62,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   }) => {
     await signInAsSecretary(page, '/secretary/create-show/wizard');
 
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();

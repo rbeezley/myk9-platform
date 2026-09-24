@@ -19,7 +19,7 @@ interface ReviewStepProps {
   isLoading?: boolean;
   onCreateShow?: () => void;
   onBack?: () => void;
-  /** Override for the create button label. Defaults to "Create Show". */
+  /** Override for the create button label. Defaults to "Add Show". */
   submitLabel?: string;
   /**
    * True when the show's existing officials could not be READ. The wizard draft
@@ -38,7 +38,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   isLoading = false,
   onCreateShow,
   onBack,
-  submitLabel = 'Create Show',
+  submitLabel = 'Add Show',
   officialsUnknown = false,
   trialView,
 }) => {

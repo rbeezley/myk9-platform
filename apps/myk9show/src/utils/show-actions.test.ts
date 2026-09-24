@@ -28,7 +28,7 @@ function userWith(permissions: string[]): UserWithRoles {
 const SHOW = {} as Show;
 
 describe('getTabQuickActions navigation', () => {
-  it('routes "New Show" through the injected navigator', () => {
+  it('routes "Add Show" through the injected navigator', () => {
     const navigate = vi.fn();
     const actions = getTabQuickActions('all', userWith([PERMISSIONS.SHOW_CREATE]), navigate);
 

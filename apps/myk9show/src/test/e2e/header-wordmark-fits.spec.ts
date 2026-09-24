@@ -21,7 +21,7 @@ const NARROW_WIDTH = 320;
 // wordmark to "myK9S..." at every phone width with nothing red.
 //
 // A GLOBAL route, not a show. For a secretary the button renders here from
-// role alone ("Create a show", "Open Show Management"), and the trigger is the
+// role alone ("Add Show", "Open Show Management"), and the trigger is the
 // same component at the same width on every route. This case used to open the
 // seeded show `dededede-…0010`; when staging was emptied on 2026-09-20 that
 // show vanished, the page fell to "We couldn't load this show", the button

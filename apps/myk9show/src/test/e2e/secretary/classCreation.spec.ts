@@ -18,7 +18,7 @@ test.describe('Secretary Class Creation Workflow', () => {
   });
 
   test('opens template selection and validates before proceeding', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Create Classes' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add Classes' })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByText(`Trial: ${TRIAL_ID}`)).toBeVisible();

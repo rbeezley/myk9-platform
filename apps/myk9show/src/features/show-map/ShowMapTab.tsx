@@ -257,7 +257,7 @@ function ShowMapTabView({
                   navigateTo(`/secretary/create-show/wizard?showId=${show.id}&mode=add-trials`)
                 }
               >
-                New Trial
+                Add Trial
               </Button>
             )}
           </div>

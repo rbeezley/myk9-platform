@@ -43,13 +43,15 @@ test.describe('Show management workflow', () => {
   test('secretary can reach the canonical show wizard from the browse page', async ({ page }) => {
     await signInAsSecretary(page, '/shows');
 
-    await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await Promise.all([
       page.waitForURL(/\/secretary\/create-show\/wizard/),
-      page.getByRole('button', { name: 'New Show' }).click(),
+      page.getByRole('button', { name: 'Add Show', exact: true }).click(),
     ]);
 
-    await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
@@ -104,25 +106,25 @@ test.describe('Show management workflow', () => {
 
     await page.goto(`/shows/${showId}?tab=trials`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('tab', { name: /^Trials/ }).click();
-    const newTrialButton = page.getByRole('button', { name: 'New Trial' }).first();
-    await expect(newTrialButton).toBeVisible({ timeout: 15000 });
+    const addTrialButton = page.getByRole('button', { name: 'Add Trial', exact: true }).first();
+    await expect(addTrialButton).toBeVisible({ timeout: 15000 });
     await Promise.all([
       page.waitForURL(
         new RegExp(`/secretary/create-show/wizard\\?showId=${showId}&mode=add-trials`)
       ),
-      newTrialButton.click(),
+      addTrialButton.click(),
     ]);
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
 
     await page.goto(`/shows/${showId}?tab=classes`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('tab', { name: /^Classes/ }).click();
-    const newClassButton = page.getByRole('button', { name: 'New Class' }).first();
-    await expect(newClassButton).toBeVisible({ timeout: 15000 });
+    const addClassesButton = page.getByRole('button', { name: 'Add Classes', exact: true }).first();
+    await expect(addClassesButton).toBeVisible({ timeout: 15000 });
     await Promise.all([
       page.waitForURL(
         new RegExp(`/secretary/create-show/wizard\\?showId=${showId}&mode=add-classes`)
       ),
-      newClassButton.click(),
+      addClassesButton.click(),
     ]);
     await expect(page.getByRole('heading', { name: /Classes \(\d+\)/ })).toBeVisible();
   });

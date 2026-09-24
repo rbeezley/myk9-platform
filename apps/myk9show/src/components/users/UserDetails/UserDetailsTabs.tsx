@@ -113,10 +113,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
               className="ml-auto"
               variant="default"
               size="sm"
-              aria-label="Add New Dog"
+              aria-label="Add Dog"
             >
               <Plus size={16} className="inline-block align-middle" />
-              Add New Dog
+              Add Dog
             </Button>
           </div>
 

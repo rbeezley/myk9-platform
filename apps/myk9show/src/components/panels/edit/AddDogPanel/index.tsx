@@ -55,7 +55,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary
-  // clicking "Add New Dog" from a Person profile), pre-fill the owner so they
+  // clicking "Add Dog" from a Person profile), pre-fill the owner so they
   // don't have to scroll a global picker. Was previously gated to EXHIBITOR
   // only; that misses the more common secretary-on-behalf-of flow.
   const initialFormData = useMemo<DogFormData>(
@@ -183,13 +183,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     <EditPanelWrapper<DogFormData>
       open={open}
       onClose={onClose}
-      title="Add New Dog"
+      title="Add Dog"
       initialData={initialFormData}
       schema={addDogSchema}
       onSave={handleSave}
       forceHasChanges
       size="xl"
-      saveLabel={isSaving ? 'Creating...' : 'Create Dog'}
+      saveLabel={isSaving ? 'Adding...' : 'Add Dog'}
       enableAutoSave={false}
       showUnsavedWarning={true}
       variant={variant}

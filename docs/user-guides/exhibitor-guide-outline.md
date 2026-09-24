@@ -112,7 +112,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 2. Click **Add Dog**.
 3. Fill in: call name (required), gender (required), date of birth (required).
 4. Under Additional: enter the AKC or UKC registration number, registered name, and breed.
-5. Click **Create Dog** → the dog appears in your list.
+5. Click **Add Dog** → the dog appears in your list.
 6. You can now enter this dog in a show.
 
 **Screenshots:** My Dogs list; Add Dog form.

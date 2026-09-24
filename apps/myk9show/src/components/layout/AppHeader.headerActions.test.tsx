@@ -228,7 +228,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add entry for my dog',
       'Open Entries',
       'Open Show Day',
-      'Add a new trial',
+      'Add Trial',
       'Generate & publish premium',
       'Show Details',
     ]);
@@ -249,7 +249,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'href',
       '/shows/show-1/entries'
     );
-    expect(within(menu).getByText('Add a new trial').closest('a')).toHaveAttribute(
+    expect(within(menu).getByText('Add Trial').closest('a')).toHaveAttribute(
       'href',
       '/secretary/create-show/wizard?showId=show-1&mode=add-trials'
     );
@@ -297,7 +297,7 @@ describe('AppHeader Actions menu — off a show route', () => {
       within(menu)
         .getAllByRole('menuitem')
         .map(item => item.textContent?.trim())
-    ).toEqual(['Create a show', 'Open Show Management']);
+    ).toEqual(['Add Show', 'Open Show Management']);
   });
 });
 

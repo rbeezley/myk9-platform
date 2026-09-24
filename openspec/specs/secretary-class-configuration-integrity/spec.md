@@ -16,9 +16,9 @@ The show-creation Classes step SHALL display every selected cloned class, includ
 - **THEN** the Classes step shows that retained class and allows it to be deselected while preserving other class customizations
 - **AND** Review updates its class and judge-assignment counts to exclude the removed class
 
-### Requirement: Create Classes template selection is operable
+### Requirement: Add Classes template selection is operable
 
-The existing Create Classes route SHALL allow a template card to be selected without a browser runtime error, by pointer or keyboard, and SHALL expose its selected state to assistive technology.
+The existing Add Classes route SHALL allow a template card to be selected without a browser runtime error, by pointer or keyboard, and SHALL expose its selected state to assistive technology.
 
 #### Scenario: Secretary advances from template to class selection
 

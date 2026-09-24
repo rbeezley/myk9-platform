@@ -344,7 +344,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           </Button>
           <Separator orientation="vertical" className="h-6" />
           <div>
-            <h1 className="text-2xl font-bold">Create Classes</h1>
+            <h1 className="text-2xl font-bold">Add Classes</h1>
             <p className="text-muted-foreground">
               {effectiveTrialId ? `Trial: ${effectiveTrialId}` : 'No trial selected'}
             </p>
@@ -639,7 +639,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                   ) : (
                     <>
                       <Save className="h-4 w-4 mr-2" />
-                      Create Classes
+                      Add Classes
                     </>
                   )}
                 </Button>

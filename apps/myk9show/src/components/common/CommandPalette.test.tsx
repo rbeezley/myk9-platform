@@ -144,7 +144,7 @@ describe('CommandPalette role scoping', () => {
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.getByText('Add New Dog')).toBeInTheDocument();
+    expect(screen.getByText('Add Dog')).toBeInTheDocument();
   });
 
   it('keeps staff-authorized people and creation commands available', () => {
@@ -155,7 +155,7 @@ describe('CommandPalette role scoping', () => {
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Alice Handler')).toBeInTheDocument();
     expect(screen.getByText('Add New User')).toBeInTheDocument();
-    expect(screen.getByText('Add New Show')).toBeInTheDocument();
+    expect(screen.getByText('Add Show')).toBeInTheDocument();
   });
 
   it('treats mixed exhibitor and staff sessions as staff when permissions allow it', () => {
@@ -219,7 +219,7 @@ describe('CommandPalette Entry Management context', () => {
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    const actionTitles = ['Add New Dog', 'Add New User', 'Add New Show'];
+    const actionTitles = ['Add Dog', 'Add New User', 'Add Show'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -366,7 +366,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
 
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
   it('secretary without USER_CREATE/SHOW_CREATE: browses people but cannot create users/shows', () => {
@@ -375,7 +375,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
 
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
   it('site admin: sees every gated surface', () => {

@@ -12,7 +12,7 @@ import type { EditMode, EditModeType } from './show-creation-wizard-types';
 /**
  * Title for the header breadcrumb / sidebar heading in edit mode.
  * Returns `undefined` for a fresh create so callers can supply their own
- * default (the header uses "Wizard", the sidebar uses "Create New Show").
+ * default (the header uses "Wizard", the sidebar uses "Add Show").
  */
 export function getEditModeTitle(editMode: EditMode | undefined): string | undefined {
   if (!editMode) return undefined;
@@ -30,5 +30,5 @@ export function getEditModeTitle(editMode: EditMode | undefined): string | undef
 export function getSubmitLabel(mode: EditModeType | undefined): string {
   if (mode === 'add-trials') return 'Add Trials';
   if (mode === 'add-classes') return 'Add Classes';
-  return 'Create Show';
+  return 'Add Show';
 }

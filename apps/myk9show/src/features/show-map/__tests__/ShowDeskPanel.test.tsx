@@ -55,7 +55,7 @@ const trial = fromAny<SyncableTrial, unknown>({
   showName: 'Spring Trial',
   name: 'Friday AM',
   trialDate: '2026-06-12',
-  trialNumber: '1',
+  trialNumber: 'Friday AM',
   timezone: 'America/New_York',
   order: '1',
   status: 'In Progress',
@@ -98,8 +98,8 @@ describe('ShowDeskPanel cockpit', () => {
 
     const filters = screen.getByLabelText('Schedule filters');
     expect(within(filters).getByRole('button', { name: 'In progress' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Trial 1 · June 12/i })).toBeInTheDocument();
-    expect(screen.getAllByText('Focused Class · Trial 1')).not.toHaveLength(0);
+    expect(screen.getByRole('button', { name: /Friday AM · June 12/i })).toBeInTheDocument();
+    expect(screen.getAllByText('Focused Class · Friday AM')).not.toHaveLength(0);
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
 
     await user.click(screen.getByText('Container Novice'));
@@ -156,7 +156,7 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
-    const trialTrigger = screen.getByRole('button', { name: /Trial 1 · June 12/i });
+    const trialTrigger = screen.getByRole('button', { name: /Friday AM · June 12/i });
     expect(trialTrigger).toHaveTextContent('2 Classes · 1 in progress · Focused');
     await user.click(trialTrigger);
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();

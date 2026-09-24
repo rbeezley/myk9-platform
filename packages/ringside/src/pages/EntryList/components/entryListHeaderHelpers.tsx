@@ -27,7 +27,7 @@ import {
   Trophy,
   Settings,
 } from 'lucide-react';
-import { formatTrialDate } from '@myk9/core';
+import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import { getStatusDescriptor } from '@myk9/ui';
 
 // ============================================================================
@@ -215,13 +215,20 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
 
 interface TrialInfoProps {
   trialDate?: string | null;
+  trialName?: string | null;
   trialNumber?: string | null;
   judgeName?: string | null;
 }
 
-export const TrialInfo: React.FC<TrialInfoProps> = ({ trialDate, trialNumber, judgeName }) => {
+export const TrialInfo: React.FC<TrialInfoProps> = ({
+  trialDate,
+  trialName,
+  trialNumber,
+  judgeName,
+}) => {
   const showDate = trialDate && trialDate !== '';
-  const showNumber = trialNumber && trialNumber !== '' && trialNumber !== '0';
+  const labelNumber = trialNumber !== '0' ? trialNumber : undefined;
+  const showNumber = Boolean(trialName || labelNumber);
   const showJudge = judgeName && judgeName !== '' && judgeName !== 'TBD';
 
   // Build items array for clean separator handling
@@ -237,7 +244,7 @@ export const TrialInfo: React.FC<TrialInfoProps> = ({ trialDate, trialNumber, ju
   if (showNumber) {
     items.push(
       <span key="number" className="trial-number-text">
-        Trial {trialNumber}
+        {formatTrialLabel({ name: trialName, trialNumber: labelNumber })}
       </span>
     );
   }

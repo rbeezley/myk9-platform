@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Users } from 'lucide-react';
+import { formatTrialLabel } from '@myk9/core';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
@@ -201,7 +202,7 @@ export default function VolunteerSchedulingPage() {
             <SelectItem value="all">All Trials</SelectItem>
             {showTrials.map(t => (
               <SelectItem key={t.id} value={t.id}>
-                Trial {t.trialNumber} — {t.trialDate}
+                {formatTrialLabel({ name: t.name, trialNumber: t.trialNumber })} — {t.trialDate}
               </SelectItem>
             ))}
           </SelectContent>
@@ -241,7 +242,8 @@ export default function VolunteerSchedulingPage() {
           return (
             <section key={trialId}>
               <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Trial {trial?.trialNumber ?? '?'} — {trial?.trialDate ?? ''}
+                {formatTrialLabel({ name: trial?.name, trialNumber: trial?.trialNumber })} —{' '}
+                {trial?.trialDate ?? ''}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {trialClasses.map(cls => (

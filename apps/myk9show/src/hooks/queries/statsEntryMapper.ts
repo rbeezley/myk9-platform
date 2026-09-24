@@ -6,7 +6,7 @@ import type { StatsEntry } from '@/components/analytics/analytics-utils';
  */
 export function mapRowToStatsEntry(
   row: Record<string, unknown>,
-  trialMeta?: { trialDate: string; trialNumber: string }
+  trialMeta?: StatsTrialMeta
 ): StatsEntry {
   return {
     id: row.id as string,
@@ -24,8 +24,15 @@ export function mapRowToStatsEntry(
     totalFaults: row.total_faults as number | null,
     finalPlacement: row.final_placement as number | null,
     trialDate: trialMeta?.trialDate || '',
+    trialName: trialMeta?.trialName || '',
     trialNumber: trialMeta?.trialNumber || '',
   };
+}
+
+export interface StatsTrialMeta {
+  trialDate: string;
+  trialName: string;
+  trialNumber: string;
 }
 
 /** The select fragment used when querying authenticated entry-result views for stats. */

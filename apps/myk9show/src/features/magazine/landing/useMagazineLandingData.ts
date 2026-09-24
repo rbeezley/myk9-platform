@@ -57,7 +57,6 @@ export function useMagazineLandingData(
       })),
       judges: shared.judges.map((judge, index) => ({
         ...judge,
-        trials: judge.trials.map(trial => trial.toLowerCase()),
         plateLabel: PLATE_LABELS[index] ?? `Plate ${index + 1}`,
         initials: deriveJudgeInitials(judge.name),
         portraitUrl: null,

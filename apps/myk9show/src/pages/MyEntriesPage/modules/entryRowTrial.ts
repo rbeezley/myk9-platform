@@ -13,6 +13,7 @@ import { getTrialTimezone } from '@/features/registries';
 
 export interface EntryRowTrial {
   id?: string;
+  name?: string | null;
   trial_type?: string;
   date?: string;
   trial_number?: string | null;

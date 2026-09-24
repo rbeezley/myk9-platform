@@ -120,6 +120,9 @@ export {
   type EntryStatus,
 } from './constants/check-in-status';
 
+// Trial display label (MYK9-704)
+export { formatTrialLabel, TRIAL_LABEL_FALLBACK, type TrialLabelSource } from './utils/trialLabel';
+
 // Legacy passcode derivation
 export { generatePasscodesFromShowId, type ShowPasscodes } from './utils/passcodes';
 

@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { formatTrialLabel } from '@myk9/core';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -183,7 +184,13 @@ export const TrialManagementDialogs = forwardRef<
       >
         <div className="py-2 text-foreground space-y-3">
           <p>
-            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>
+            Are you sure you want to delete{' '}
+            <b>
+              {formatTrialLabel({
+                name: currentTrial?.name,
+                trialNumber: currentTrial?.trialNumber,
+              })}
+            </b>
             ?
           </p>
           <p className="text-muted-foreground text-sm">

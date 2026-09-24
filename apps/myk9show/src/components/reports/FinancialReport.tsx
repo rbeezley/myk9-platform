@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatFee } from '@/utils/format';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
@@ -105,7 +106,14 @@ export const FinancialReport: React.FC<ReportProps> = ({
                   <tr key={line.entry.id}>
                     <td>{line.entry.callName}</td>
                     <td>{formatArmbandDisplay(line.entry.armband)}</td>
-                    <td>{line.entry.trialNumber ?? '—'}</td>
+                    <td>
+                      {line.entry.trialName || line.entry.trialNumber
+                        ? formatTrialLabel({
+                            name: line.entry.trialName,
+                            trialNumber: line.entry.trialNumber,
+                          })
+                        : '—'}
+                    </td>
                     <td>{formatStatus(line.entry.paymentStatus)}</td>
                     <td>{line.paymentLabel}</td>
                     <td>{formatFee(line.gross)}</td>

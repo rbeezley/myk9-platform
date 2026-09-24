@@ -9,6 +9,7 @@
 
 import React, { useState } from 'react';
 import { ArrowLeft, ClipboardCheck, X, RotateCcw } from 'lucide-react';
+import { formatTrialLabel } from '@myk9/core';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -23,6 +24,20 @@ const RESULT_LABELS: Record<string, string> = {
   ABS: 'Absent',
   EX: 'Excused',
 };
+
+/** Header title: trial date + the trial's label (MYK9-704), falling back to the sport name. */
+function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
+  if (!classInfo.trialDate) return 'AKC Scent Work';
+  const formatted = new Date(classInfo.trialDate + 'T00:00:00').toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const { trialName, trialNumber } = classInfo;
+  return trialName || trialNumber
+    ? `${formatted} — ${formatTrialLabel({ name: trialName, trialNumber })}`
+    : formatted;
+}
 
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -96,16 +111,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const progressPct = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) * 100 : 100;
 
-  // Build header title from trial date + number, fallback to sport name
-  const headerTitle = (() => {
-    if (!classInfo.trialDate) return 'AKC Scent Work';
-    const formatted = new Date(classInfo.trialDate + 'T00:00:00').toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return classInfo.trialNumber ? `${formatted} — Trial ${classInfo.trialNumber}` : formatted;
-  })();
+  const headerTitle = buildHeaderTitle(classInfo);
 
   return (
     <>

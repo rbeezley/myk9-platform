@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { buildClassGrid, sortEntryFormDogs } from '@/lib/reports/entryFormUtils';
 import { formatReportDate } from '@/lib/reports/reportUtils';
@@ -209,7 +210,7 @@ function ClassGrid({
                   "Friday Trial 1" — prefixing produced "Trial Friday Trial 1" on
                   paperwork an exhibitor signs.
                 */}
-                {trial.trialNumber}
+                {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
                 <br />
                 {formatReportDate(trial.date)}
               </td>

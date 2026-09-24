@@ -19,7 +19,7 @@ function JudgeCard({ judge }: { judge: HeritageJudge }) {
           className="text-xs italic"
           style={{ color: 'var(--hl-quill)', fontFamily: "'EB Garamond', Georgia, serif" }}
         >
-          Trials {judge.trials.join(' · ')}
+          {judge.trials.join(' · ')}
         </p>
       )}
       <HeritageHeading level={3}>{judge.name}</HeritageHeading>

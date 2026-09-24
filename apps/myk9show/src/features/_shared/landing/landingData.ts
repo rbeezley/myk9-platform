@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
@@ -6,6 +7,8 @@ import { formatFee } from '@/utils/format';
 
 export interface LandingTrial {
   id: string;
+  /** trials.name — the display label (MYK9-704). */
+  name?: string;
   trialNumber: number | string;
   date: string | null;
   judgeName?: string;
@@ -187,6 +190,7 @@ export function buildLandingData(
     })
     .map<LandingTrial>(trial => ({
       id: trial.id,
+      ...(trial.name ? { name: trial.name } : {}),
       trialNumber: trial.trialNumber ?? '',
       date: trial.trialDate ?? null,
       ...(trial.judge ? { judgeName: trial.judge } : {}),
@@ -195,7 +199,7 @@ export function buildLandingData(
   const judgeMap = new Map<string, string[]>();
   for (const trial of trials) {
     if (!trial.judgeName) continue;
-    const label = toRoman(trial.trialNumber);
+    const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber });
     const labels = judgeMap.get(trial.judgeName) ?? [];
     if (label && !labels.includes(label)) labels.push(label);
     judgeMap.set(trial.judgeName, labels);

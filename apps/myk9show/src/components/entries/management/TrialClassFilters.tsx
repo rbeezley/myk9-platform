@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 
 interface TrialClassFiltersProps {
   trials: Array<{
@@ -17,8 +18,8 @@ interface TrialClassFiltersProps {
   disabled?: boolean;
 }
 
-function formatTrialLabel(trial: TrialClassFiltersProps['trials'][number]): string {
-  const label = trial.name ?? `Trial ${trial.trial_number ?? '?'}`;
+function formatTrialOptionLabel(trial: TrialClassFiltersProps['trials'][number]): string {
+  const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
   if (trial.date) {
     const date = new Date(trial.date + 'T00:00:00');
     const formatted = date.toLocaleDateString('en-US', {
@@ -65,7 +66,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
             <option value="">All Trials</option>
             {trials.map(trial => (
               <option key={trial.id} value={trial.id}>
-                {formatTrialLabel(trial)}
+                {formatTrialOptionLabel(trial)}
               </option>
             ))}
           </>

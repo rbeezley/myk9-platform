@@ -23,7 +23,6 @@ export interface GazetteTrial extends LandingTrial {
 }
 
 export interface GazetteJudge extends LandingJudge {
-  /** Roman-numeral trial labels this judge sits, e.g. ["i", "iii", "v"]. */
   /** Optional hall identifier, e.g. "Hall A". */
   hall?: string | null;
   /** Short bio paragraph, italic-supported. */

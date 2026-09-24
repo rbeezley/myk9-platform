@@ -3,7 +3,6 @@ import React from 'react';
 import { render, screen } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
-  formatTrialLabel,
   getContextualStatusMessage,
   getEntryStatusBadge,
   getPaymentStatusBadge,
@@ -132,20 +131,6 @@ describe('getEntryStatusBadge — preserved status kind', () => {
 
     expect(screen.getByText('Declined')).toBeInTheDocument();
     expect(screen.queryByText('Not accepted')).not.toBeInTheDocument();
-  });
-});
-
-describe('formatTrialLabel', () => {
-  it('prefixes a bare numeric trial number', () => {
-    expect(formatTrialLabel('2')).toBe('Trial 2');
-  });
-
-  it('does not stutter when the value is already a trial label', () => {
-    expect(formatTrialLabel('Saturday Trial')).toBe('Saturday Trial');
-  });
-
-  it('does not stutter on a differently-cased "trial" in the label', () => {
-    expect(formatTrialLabel('AM TRIAL')).toBe('AM TRIAL');
   });
 });
 

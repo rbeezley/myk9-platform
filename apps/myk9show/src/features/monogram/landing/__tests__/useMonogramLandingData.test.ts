@@ -43,7 +43,8 @@ function makeTrial(overrides: TrialOverrides = {}): Trial {
   const { trialNumber = '1', ...rest } = overrides;
   return {
     id: 't1',
-    trialNumber: String(trialNumber),
+    name: `Trial ${trialNumber}`,
+    trialNumber: `Trial ${trialNumber}`,
     trialDate: '2026-06-12',
     ...rest,
   } as Trial;
@@ -92,7 +93,7 @@ describe('useMonogramLandingData', () => {
     expect(result.current.judges[1]?.initials).toBe('MW');
   });
 
-  it('accumulates uppercase-roman trial numbers per judge across multiple trials', () => {
+  it('accumulates trial labels (the stored name, MYK9-704) per judge across multiple trials', () => {
     const show = makeShow();
     const trials: Trial[] = [
       makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
@@ -105,8 +106,8 @@ describe('useMonogramLandingData', () => {
     const beagles = result.current.judges.find(j => j.name === 'Catherine Beagles');
     const whitfield = result.current.judges.find(j => j.name === 'Marcus Whitfield');
 
-    expect(beagles?.trials).toEqual(['I', 'III', 'IV']);
-    expect(whitfield?.trials).toEqual(['II']);
+    expect(beagles?.trials).toEqual(['Trial 1', 'Trial 3', 'Trial 4']);
+    expect(whitfield?.trials).toEqual(['Trial 2']);
   });
 
   it('does not duplicate trial numbers when same trial appears twice for a judge', () => {
@@ -116,7 +117,7 @@ describe('useMonogramLandingData', () => {
       makeTrial({ id: 't1-dup', trialNumber: 1, judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
-    expect(result.current.judges[0]?.trials).toEqual(['I']);
+    expect(result.current.judges[0]?.trials).toEqual(['Trial 1']);
   });
 
   it('skips trials with no judge assigned when deriving the judges list', () => {

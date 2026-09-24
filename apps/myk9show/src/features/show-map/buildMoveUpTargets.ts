@@ -7,6 +7,7 @@
  * applies the canonical same-element + strictly-higher-level rule from
  * `@/utils/moveUpEligibility` so all three surfaces agree.
  */
+import { formatTrialLabel } from '@myk9/core';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import type { BuildShowMapTreeInput } from './showMapTypes';
@@ -31,7 +32,12 @@ export function buildMoveUpTargets(
     .map(cls => ({
       id: cls.id,
       label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),
-      detail: [cls.trialDate, cls.trialNumber ? `Trial ${cls.trialNumber}` : undefined]
+      detail: [
+        cls.trialDate,
+        cls.trialName || cls.trialNumber
+          ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
+          : undefined,
+      ]
         .filter(Boolean)
         .join(' · '),
     }))

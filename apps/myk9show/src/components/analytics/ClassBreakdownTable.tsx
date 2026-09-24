@@ -1,4 +1,5 @@
 import { ListChecks } from 'lucide-react';
+import { formatTrialLabel } from '@myk9/core';
 import { Card } from '@/components/ui/card';
 import { formatMonthDay } from '@/lib/format/dates';
 import { msToDisplay } from '@/lib/timeUtils';
@@ -39,8 +40,10 @@ export function ClassBreakdownTable({ classes }: ClassBreakdownTableProps) {
               <tr key={cls.classId} className="border-b last:border-0 hover:bg-muted/30">
                 <td className="px-4 py-2 whitespace-nowrap">
                   <span className="text-muted-foreground">{formatMonthDay(cls.trialDate)}</span>
-                  {cls.trialNumber && (
-                    <span className="ml-1.5 text-xs text-muted-foreground">#{cls.trialNumber}</span>
+                  {(cls.trialName || cls.trialNumber) && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      {formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })}
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-2 font-medium">{cls.className}</td>

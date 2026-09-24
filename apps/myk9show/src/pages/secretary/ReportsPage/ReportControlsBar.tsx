@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { formatTrialLabel } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
@@ -25,10 +26,10 @@ import { AlertTriangle, Download } from 'lucide-react';
 // stays impossible even in the degenerate case where every human field is blank.
 function formatTrialOptionLabel(trial: {
   name: string;
-  trial_number: number;
+  trial_number: string;
   date: string;
 }): string {
-  const base = trial.name?.trim() || `Trial ${trial.trial_number}`;
+  const base = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
   return trial.date ? `${base} · ${trial.date}` : base;
 }
 
@@ -54,7 +55,7 @@ function formatDogOptionLabel(dog: {
 type TrialReportOption = {
   id: string;
   name: string;
-  trial_number: number;
+  trial_number: string;
   date: string;
   registry_id?: string | null;
 };

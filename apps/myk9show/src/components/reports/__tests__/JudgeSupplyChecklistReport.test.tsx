@@ -48,8 +48,8 @@ function baseProps(over: Partial<ReportProps> = {}): ReportProps {
     entries: [],
     sortOrder: '',
     allTrials: [
-      { id: 't1', date: '2026-06-12', trialNumber: '1' },
-      { id: 't2', date: '2026-06-13', trialNumber: '2' },
+      { id: 't1', date: '2026-06-12', name: 'Trial 1', trialNumber: 'Trial 1' },
+      { id: 't2', date: '2026-06-13', name: 'Trial 2', trialNumber: 'Trial 2' },
     ],
     ...over,
   };

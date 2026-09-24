@@ -106,8 +106,9 @@ function seed() {
     organization: 'AKC Scent Work',
   } as never);
   vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
-    { id: 'trial-1', trialNumber: 1, date: '2026-06-01' },
-    { id: 'trial-2', trialNumber: 2, date: '2026-06-02' },
+    // Real stored shape: the wizard copies the trial name into trial_number.
+    { id: 'trial-1', name: 'Trial 1', trialNumber: 'Trial 1', date: '2026-06-01' },
+    { id: 'trial-2', name: 'Trial 2', trialNumber: 'Trial 2', date: '2026-06-02' },
   ] as never);
   vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation(
     (async (trialId: string) => CLASSES_BY_TRIAL[trialId] ?? []) as never
@@ -427,5 +428,27 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       JSON.parse(window.localStorage.getItem('at-show-collapsed-trials:show-1') as string)
     ).toContain('trial-2');
+  });
+
+  // MYK9-704: the wizard copies the trial NAME into trial_number, so the real
+  // stored shape is name === trial_number === 'Saturday T 2'. The header must
+  // print that label verbatim, never "Trial Saturday T 2".
+  it('labels a trial header with the stored trial name, never prefixing "Trial "', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+      { id: 'trial-1', name: 'Trial 1', trialNumber: 'Trial 1', date: '2026-06-01' },
+      { id: 'trial-2', name: 'Saturday T 2', trialNumber: 'Saturday T 2', date: '2026-06-02' },
+    ] as never);
+
+    renderPage();
+    expect(await screen.findByText(/Exterior Master/)).toBeInTheDocument();
+
+    const labels = Array.from(
+      document.querySelectorAll('[data-testid^="at-show-trial-"] button > span.truncate')
+    ).map(node => node.textContent);
+    expect(labels).toEqual([
+      expect.stringMatching(/^Trial 1 · /),
+      expect.stringMatching(/^Saturday T 2 · /),
+    ]);
+    expect(document.body.textContent).not.toMatch(/Trial Trial|Trial Saturday/);
   });
 });

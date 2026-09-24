@@ -4,6 +4,8 @@ import type { ClassStatusValue } from '@myk9/core';
 export interface TimelineClassRow {
   trialId: string;
   trialDate: string;
+  /** trials.name — the display label (MYK9-704). */
+  trialName?: string | null | undefined;
   trialNumber: string | null;
   trialPlannedStartTime: string | null;
   classId: string;
@@ -64,6 +66,7 @@ export interface LevelDetail {
 /** A single trial's timeline data */
 export interface TrialTimelineData {
   trialId: string;
+  trialName?: string | null | undefined;
   trialNumber: string | null;
   plannedStartTime: string | null;
   elements: ElementSummary[];

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
@@ -29,6 +30,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
   const trialMap = new Map<
     string,
     {
+      trialName: string;
       trialNumber: string;
       trialDate: string;
       classes: Map<
@@ -41,6 +43,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
     const trialKey = entry.trialId ?? 'unknown';
     if (!trialMap.has(trialKey)) {
       trialMap.set(trialKey, {
+        trialName: entry.trialName ?? '',
         trialNumber: entry.trialNumber ?? '',
         trialDate: entry.trialDate ?? '',
         classes: new Map(),
@@ -66,7 +69,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
       {[...trialMap.entries()].map(([trialId, trial]) => (
         <div key={trialId} className="catalog-trial-section">
           <h2 className="catalog-trial-header">
-            Trial {trial.trialNumber}
+            {formatTrialLabel({ name: trial.trialName, trialNumber: trial.trialNumber })}
             {trial.trialDate ? ` — ${formatReportDate(trial.trialDate)}` : ''}
           </h2>
 

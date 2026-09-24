@@ -1,10 +1,12 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import { formatReportDate, isValidSection } from '@/lib/reports/reportUtils';
 
 interface TrialInfoBoxProps {
   trial?:
     | {
         date: string;
+        name?: string;
         trialNumber: string;
         judgeName: string;
       }
@@ -35,10 +37,12 @@ export const TrialInfoBox: React.FC<TrialInfoBoxProps> = ({ trial, classData }) 
           <span className="info-value">{classData.element}</span>
         </div>
       )}
-      {trial?.trialNumber && (
+      {trial && (trial.name || trial.trialNumber) && (
         <div className="info-row">
-          <span className="info-label">Trial #:</span>
-          <span className="info-value">{trial.trialNumber}</span>
+          <span className="info-label">Trial:</span>
+          <span className="info-value">
+            {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
+          </span>
         </div>
       )}
       {classData?.level && (

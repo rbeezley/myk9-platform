@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
@@ -10,7 +11,9 @@ export const AKCJudgeReport: React.FC<ReportProps> = ({
 }) => {
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
-  const trialNumber = trial?.trialNumber ?? '___';
+  const trialLabel = trial
+    ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+    : '___';
 
   // Collect elements judged by this judge
   const judgedElements = [
@@ -42,7 +45,7 @@ export const AKCJudgeReport: React.FC<ReportProps> = ({
               <span>☐ Match</span>
             </td>
             <td className="form-label">Event Number(s):</td>
-            <td className="form-value">Trial {trialNumber}</td>
+            <td className="form-value">{trialLabel}</td>
           </tr>
           <tr>
             <td className="form-label">Event Date(s):</td>

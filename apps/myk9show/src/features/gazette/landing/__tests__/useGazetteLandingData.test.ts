@@ -58,18 +58,36 @@ describe('useGazetteLandingData', () => {
     expect(result.current.fees[0].label).toBe('First entry');
   });
 
-  it('dedups judges across trials and lowercase-romans their trial labels', () => {
+  it('dedups judges across trials and labels them by trial name (MYK9-704)', () => {
     const trials = [
-      { id: 't1', trialNumber: 1, trialDate: '2026-06-12', judge: 'Mrs. Beagles' },
-      { id: 't2', trialNumber: 3, trialDate: '2026-06-13', judge: 'Mrs. Beagles' },
-      { id: 't3', trialNumber: 5, trialDate: '2026-06-14', judge: 'Mr. Whitfield' },
+      {
+        id: 't1',
+        name: 'Trial 1',
+        trialNumber: 'Trial 1',
+        trialDate: '2026-06-12',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't2',
+        name: 'Trial 3',
+        trialNumber: 'Trial 3',
+        trialDate: '2026-06-13',
+        judge: 'Mrs. Beagles',
+      },
+      {
+        id: 't3',
+        name: 'Trial 5',
+        trialNumber: 'Trial 5',
+        trialDate: '2026-06-14',
+        judge: 'Mr. Whitfield',
+      },
     ] as never[];
     const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials), {
       wrapper,
     });
     expect(result.current.judges).toHaveLength(2);
     const beagles = result.current.judges.find(j => j.name === 'Mrs. Beagles');
-    expect(beagles?.trials).toEqual(['i', 'iii']);
+    expect(beagles?.trials).toEqual(['Trial 1', 'Trial 3']);
   });
 
   it('derives entryLimit as the max of trial maxTotalEntries', () => {

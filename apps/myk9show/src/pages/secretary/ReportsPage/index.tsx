@@ -182,7 +182,7 @@ export default function ReportsPage() {
       (resolvedTrials as Array<Record<string, unknown>>).map(t => ({
         id: t.id as string,
         name: (t.name ?? '') as string,
-        trial_number: Number(t.trial_number ?? t.trialNumber ?? 0),
+        trial_number: String(t.trial_number ?? t.trialNumber ?? ''),
         date: (t.date ?? t.trialDate ?? '') as string,
         registry_id: (t.registry_id ?? t.registryId ?? null) as string | null,
       })),

@@ -201,7 +201,7 @@ export function SecretaryCockpitFocusedClass({
     <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
       <div className="border-b p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-          Focused Class · {formatTrialIdentity(trial.number)}
+          Focused Class · {formatTrialIdentity(trial)}
         </div>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>

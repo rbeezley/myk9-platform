@@ -22,7 +22,8 @@ describe('groupEntriesByExhibitor', () => {
       section: string | null;
       trial_id: string;
       trial_date: string;
-      trial_number: number;
+      trial_name: string | null;
+      trial_number: string | null;
     }> = {}
   ) => ({
     id: 'entry-1',
@@ -40,7 +41,8 @@ describe('groupEntriesByExhibitor', () => {
     section: null,
     trial_id: 'trial-1',
     trial_date: '2026-04-12',
-    trial_number: 1,
+    trial_name: 'Trial 1',
+    trial_number: 'Trial 1',
     ...overrides,
   });
 
@@ -99,9 +101,10 @@ describe('buildClassDisplayName', () => {
       level: 'Novice',
       section: null,
       trialDate: '2026-04-12',
-      trialNumber: 1,
+      trialName: 'Trial 1',
+      trialNumber: 'Trial 1',
     });
-    expect(result).toBe('Sun T1: Buried Novice');
+    expect(result).toBe('Sun Trial 1: Buried Novice');
   });
   it('includes section for Novice level', () => {
     const result = buildClassDisplayName({
@@ -109,9 +112,10 @@ describe('buildClassDisplayName', () => {
       level: 'Novice',
       section: 'A',
       trialDate: '2026-04-12',
-      trialNumber: 1,
+      trialName: 'Trial 1',
+      trialNumber: 'Trial 1',
     });
-    expect(result).toBe('Sun T1: Buried Novice A');
+    expect(result).toBe('Sun Trial 1: Buried Novice A');
   });
   it('omits section for non-Novice levels', () => {
     const result = buildClassDisplayName({
@@ -119,9 +123,10 @@ describe('buildClassDisplayName', () => {
       level: 'Advanced',
       section: 'A',
       trialDate: '2026-04-12',
-      trialNumber: 1,
+      trialName: 'Trial 1',
+      trialNumber: 'Trial 1',
     });
-    expect(result).toBe('Sun T1: Buried Advanced');
+    expect(result).toBe('Sun Trial 1: Buried Advanced');
   });
   it('omits section for Detective element', () => {
     const result = buildClassDisplayName({
@@ -129,8 +134,22 @@ describe('buildClassDisplayName', () => {
       level: 'Novice',
       section: 'A',
       trialDate: '2026-04-12',
-      trialNumber: 1,
+      trialName: 'Trial 1',
+      trialNumber: 'Trial 1',
     });
-    expect(result).toBe('Sun T1: Detective Novice');
+    expect(result).toBe('Sun Trial 1: Detective Novice');
+  });
+  // MYK9-704: wizard trials store the name in trial_number; the old parse read
+  // 'Saturday T 2' as NaN and labelled every such trial "T1".
+  it('labels the trial with its stored name, never a parsed number', () => {
+    const result = buildClassDisplayName({
+      element: 'Buried',
+      level: 'Advanced',
+      section: null,
+      trialDate: '2026-04-11',
+      trialName: 'Saturday T 2',
+      trialNumber: 'Saturday T 2',
+    });
+    expect(result).toBe('Sat Saturday T 2: Buried Advanced');
   });
 });

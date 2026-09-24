@@ -19,7 +19,7 @@ import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import { cn } from '@myk9/ui';
-import { formatTrialDate } from '@myk9/core';
+import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import type { ComponentType } from 'react';
 import type { ClassInfo } from '../hooks/useEntryListData';
 import {
@@ -41,6 +41,17 @@ function handleClassInfoKeyDown(event: React.KeyboardEvent, onToggle: () => void
   if (event.key !== 'Enter' && event.key !== ' ') return;
   event.preventDefault();
   onToggle();
+}
+
+/** "<trial date> • <trial label>" (MYK9-704): the label is the trial's name, never "Trial <n>". */
+function buildTrialInfoText(classInfo: ClassInfo | null): string {
+  const parts: string[] = [];
+  if (classInfo?.trialDate) parts.push(formatTrialDate(classInfo.trialDate));
+  const trialNumber = classInfo?.trialNumber !== '0' ? classInfo?.trialNumber : undefined;
+  if (classInfo?.trialName || trialNumber) {
+    parts.push(formatTrialLabel({ name: classInfo?.trialName, trialNumber }));
+  }
+  return parts.join(' • ');
 }
 
 function getClassInfoA11yProps(
@@ -137,15 +148,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
     }
   }, [closeInfoPopup, showActionsMenu, showInfoPopup]);
 
-  // Build trial info string
-  const trialInfoParts: string[] = [];
-  if (classInfo?.trialDate) {
-    trialInfoParts.push(formatTrialDate(classInfo.trialDate));
-  }
-  if (classInfo?.trialNumber && classInfo.trialNumber !== '0') {
-    trialInfoParts.push(`Trial ${classInfo.trialNumber}`);
-  }
-  const trialInfoText = trialInfoParts.join(' • ');
+  const trialInfoText = buildTrialInfoText(classInfo);
 
   // Check if there's extra info to show in popup
   const statusBadge = getStatusBadge(classInfo?.classStatus);

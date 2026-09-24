@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { StatsEntry } from '@/components/analytics/analytics-utils';
-import { mapRowToStatsEntry, STATS_ENTRY_SELECT } from './statsEntryMapper';
+import { mapRowToStatsEntry, STATS_ENTRY_SELECT, type StatsTrialMeta } from './statsEntryMapper';
 
 async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<StatsEntry[]> {
   // Use direct show_id on judge_assignments (no deep path filter needed)
@@ -13,7 +13,7 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
       class_id,
       classes!inner(
         trial_id,
-        trials!inner(trial_date:date, trial_number)
+        trials!inner(trial_date:date, trial_number, name)
       )
     `
     )
@@ -23,7 +23,7 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
   if (assignError) throw assignError;
   if (!assignments || assignments.length === 0) return [];
 
-  const classTrialMap = new Map<string, { trialDate: string; trialNumber: string }>();
+  const classTrialMap = new Map<string, StatsTrialMeta>();
   const classIds: string[] = [];
   for (const a of assignments) {
     const classId = a.class_id as string;
@@ -32,6 +32,7 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
     const trial = cls.trials as Record<string, unknown>;
     classTrialMap.set(classId, {
       trialDate: (trial.trial_date as string) || '',
+      trialName: (trial.name as string) || '',
       trialNumber: (trial.trial_number as string) || '',
     });
   }

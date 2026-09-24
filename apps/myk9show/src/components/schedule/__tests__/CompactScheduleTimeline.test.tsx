@@ -11,7 +11,8 @@ const mockData: DayTimelineData[] = [
     trials: [
       {
         trialId: 'trial-1',
-        trialNumber: '1',
+        trialName: 'Trial 1',
+        trialNumber: 'Trial 1',
         plannedStartTime: '08:00:00',
         elements: [
           {
@@ -38,7 +39,8 @@ const mockData: DayTimelineData[] = [
       },
       {
         trialId: 'trial-2',
-        trialNumber: '2',
+        trialName: 'Trial 2',
+        trialNumber: 'Trial 2',
         plannedStartTime: '13:00:00',
         elements: [
           {

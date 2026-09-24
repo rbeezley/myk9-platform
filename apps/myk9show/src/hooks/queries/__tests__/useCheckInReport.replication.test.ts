@@ -91,8 +91,8 @@ describe('fetchReplicatedCheckInEntries', () => {
       )
     );
     replicationMocks.getTrialsByShow.mockResolvedValue([
-      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
-      { id: 'trial-2', date: '2026-04-13', trialNumber: '2' },
+      { id: 'trial-1', date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1' },
+      { id: 'trial-2', date: '2026-04-13', name: 'Trial 2', trialNumber: 'Trial 2' },
     ]);
     replicationMocks.getArmbandsByShow.mockResolvedValue([
       {
@@ -130,7 +130,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         section: 'A',
         trial_id: 'trial-1',
         trial_date: '2026-04-12',
-        trial_number: 1,
+        trial_name: 'Trial 1',
+        trial_number: 'Trial 1',
       },
       {
         id: 'entry-2',
@@ -148,7 +149,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         section: 'B',
         trial_id: 'trial-2',
         trial_date: '2026-04-13',
-        trial_number: 2,
+        trial_name: 'Trial 2',
+        trial_number: 'Trial 2',
       },
     ]);
   });
@@ -172,7 +174,7 @@ describe('fetchReplicatedCheckInEntries', () => {
       level: 'Novice',
     });
     replicationMocks.getTrialsByShow.mockResolvedValue([
-      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+      { id: 'trial-1', date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1' },
     ]);
     replicationMocks.getArmbandsByShow.mockResolvedValue([
       {

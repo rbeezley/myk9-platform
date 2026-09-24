@@ -501,13 +501,15 @@ export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): Sc
 export function toScoresheetClassInfo(
   info: ClassInfo,
   trialDate?: string,
-  trialNumber?: string
+  trialNumber?: string,
+  trialName?: string
 ): ScoresheetClassInfo {
   return {
     element: info.element || '',
     level: info.level || '',
     ...(trialDate && { trialDate }),
     ...(trialNumber && { trialNumber }),
+    ...(trialName && { trialName }),
   };
 }
 

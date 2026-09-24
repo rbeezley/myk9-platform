@@ -10,7 +10,8 @@ function makeClassEntry(overrides: Partial<ClassBreakdownEntry> = {}): ClassBrea
     classElement: 'Containers',
     classLevel: 'Novice',
     trialDate: '2026-04-01',
-    trialNumber: '1',
+    trialName: 'Trial 1',
+    trialNumber: 'Trial 1',
     entryCount: 5,
     scoredCount: 4,
     qualifiedCount: 3,
@@ -40,13 +41,19 @@ describe('ClassBreakdownTable', () => {
     expect(screen.getByText('Interiors Excellent')).toBeInTheDocument();
   });
 
-  it('displays trial date and trial number', () => {
-    const classes = [makeClassEntry({ trialDate: '2026-04-01', trialNumber: '2' })];
+  it('displays trial date and the stored trial name (MYK9-704)', () => {
+    const classes = [
+      makeClassEntry({
+        trialDate: '2026-04-01',
+        trialName: 'Saturday T 2',
+        trialNumber: 'Saturday T 2',
+      }),
+    ];
 
     render(<ClassBreakdownTable classes={classes} />);
 
     expect(screen.getByText('Apr 1')).toBeInTheDocument();
-    expect(screen.getByText('#2')).toBeInTheDocument();
+    expect(screen.getByText('Saturday T 2')).toBeInTheDocument();
   });
 
   it('formats Q rate as percentage', () => {

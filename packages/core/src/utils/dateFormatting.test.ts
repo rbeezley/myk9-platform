@@ -251,12 +251,6 @@ describe('formatTrialDate', () => {
     expect(result).not.toContain('Trial');
   });
 
-  it('should format date with trial number', () => {
-    const result = formatTrialDate('2024-01-15', 1);
-    expect(result).toContain('Trial 1');
-    expect(result).toContain('•');
-  });
-
   it('should return original for invalid format', () => {
     expect(formatTrialDate('invalid')).toBe('invalid');
   });

@@ -339,6 +339,7 @@ describe('trialQueries (replication)', () => {
         {
           trialId: 'trial-1',
           trialDate: '2026-05-01',
+          trialName: 'Scent Work Trial 1',
           trialNumber: '1',
           trialPlannedStartTime: '08:30',
           classId: 'class-1',

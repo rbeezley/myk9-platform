@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
@@ -26,7 +27,9 @@ export const TrialEntryCounts: React.FC<ReportProps> = ({
   const uniquePeople = new Set(entries.map(e => e.handler)).size;
   const uniqueDogs = new Set(entries.map(e => e.registrationNumber ?? e.callName)).size;
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
-  const trialLabel = trial ? `Trial ${trial.trialNumber}` : 'Trial';
+  const trialLabel = trial
+    ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+    : 'Trial';
   const trialDate = trial ? formatReportDate(trial.date) : '';
 
   return (

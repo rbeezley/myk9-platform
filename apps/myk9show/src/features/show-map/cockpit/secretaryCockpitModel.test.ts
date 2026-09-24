@@ -27,9 +27,9 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
     timeZone: 'America/Chicago',
     now: NOW,
     trials: [
-      { id: 'trial-1', date: '2026-07-20', number: '1', order: 0 },
-      { id: 'trial-2', date: '2026-07-20', number: '2', order: 1 },
-      { id: 'trial-3', date: '2026-07-21', number: '3', order: 2 },
+      { id: 'trial-1', date: '2026-07-20', name: 'Trial 1', number: 'Trial 1', order: 0 },
+      { id: 'trial-2', date: '2026-07-20', name: 'Trial 2', number: 'Trial 2', order: 1 },
+      { id: 'trial-3', date: '2026-07-21', name: 'Trial 3', number: 'Trial 3', order: 2 },
     ],
     classes: [
       makeClass({

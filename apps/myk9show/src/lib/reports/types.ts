@@ -66,6 +66,8 @@ export interface ReportEntry {
   classLevel?: string;
   classSection?: string;
   trialId?: string;
+  /** trials.name — the display label (MYK9-704). */
+  trialName?: string;
   trialNumber?: string;
   trialDate?: string;
   judgeName?: string;
@@ -161,6 +163,8 @@ export interface ReportProps {
   showName: string;
   trial?: {
     date: string;
+    /** trials.name — the display label (MYK9-704). */
+    name?: string;
     trialNumber: string;
     judgeName: string;
     eventNumber?: string;
@@ -195,6 +199,7 @@ export interface ReportProps {
   allTrials?: Array<{
     id: string;
     date: string;
+    name?: string;
     trialNumber: string;
     registryId?: string;
     judgeName?: string;

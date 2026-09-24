@@ -35,7 +35,8 @@ const trials = [
   {
     id: 'trial-2',
     showId: show.id,
-    trialNumber: 2,
+    name: 'Trial 2',
+    trialNumber: 'Trial 2',
     trialDate: '2026-10-11',
     judge: 'Alex Judge',
     maxTotalEntries: 75,
@@ -44,7 +45,8 @@ const trials = [
   {
     id: 'trial-1',
     showId: show.id,
-    trialNumber: 1,
+    name: 'Trial 1',
+    trialNumber: 'Trial 1',
     trialDate: '2026-10-10',
     judge: 'Alex Judge',
     maxTotalEntries: 50,
@@ -70,7 +72,7 @@ describe('buildLandingData', () => {
     });
     expect(data.trials.map(trial => trial.id)).toEqual(['trial-1', 'trial-2']);
     expect(data.judges).toEqual([
-      expect.objectContaining({ name: 'Alex Judge', trials: ['I', 'II'] }),
+      expect.objectContaining({ name: 'Alex Judge', trials: ['Trial 1', 'Trial 2'] }),
     ]);
     expect(data.journeySteps.map(step => step.label)).toEqual([
       'Entries open',

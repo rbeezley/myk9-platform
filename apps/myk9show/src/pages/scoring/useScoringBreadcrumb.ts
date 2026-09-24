@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -61,9 +62,7 @@ export function useScoringBreadcrumb(classId: string | undefined): ScoringBreadc
         const show = showId ? await replicatedShowsTable.get(showId) : null;
 
         const trialLabel = trial
-          ? trial.trialNumber
-            ? `Trial ${trial.trialNumber}`
-            : trial.name
+          ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
           : undefined;
 
         setData({

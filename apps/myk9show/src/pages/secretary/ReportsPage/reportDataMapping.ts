@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
@@ -149,6 +150,7 @@ function mapReportEntry(
     ...(trial
       ? {
           trialId: trial.id,
+          trialName: trial.name,
           trialNumber: String(trial.trial_number ?? ''),
           trialDate: trial.date ?? '',
         }
@@ -240,9 +242,10 @@ export function readTrialRegistryId(trial: DbTrial): string {
 
 export function mapReportTrialFields(
   trial: DbTrial
-): Pick<NonNullable<ReportProps['trial']>, 'date' | 'eventNumber' | 'registryId' | 'trialNumber'> {
+): Omit<NonNullable<ReportProps['trial']>, 'judgeName'> {
   return {
     date: trial.date ?? '',
+    name: trial.name,
     ...(trial.event_number ? { eventNumber: trial.event_number } : {}),
     registryId: readTrialRegistryId(trial),
     trialNumber: String(trial.trial_number ?? ''),
@@ -371,7 +374,7 @@ export function buildEmergencyPacketData(input: {
     trials: trials.map(trial => ({
       id: trial.id,
       date: trial.date ?? '',
-      name: trial.name ?? `Trial ${trial.trial_number ?? ''}`.trim(),
+      name: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
       trialNumber: String(trial.trial_number ?? ''),
       registryId: readTrialRegistryId(trial),
     })),

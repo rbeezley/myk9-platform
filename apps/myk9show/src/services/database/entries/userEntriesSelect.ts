@@ -71,6 +71,7 @@ const USER_ENTRIES_SELECT_BASE = `
         class_number,
         trial:trial_id (
           id,
+          name,
           trial_type,
           date,
           trial_number,
@@ -79,6 +80,7 @@ const USER_ENTRIES_SELECT_BASE = `
       ),
       trial:trial_id (
         id,
+        name,
         trial_type,
         date,
         trial_number,

@@ -9,7 +9,7 @@ interface JudgesSectionProps {
 }
 
 function JudgeCard({ judge }: { judge: MagazineJudge }) {
-  const trialLabel = judge.trials.length ? `Trials ${judge.trials.join(' · ')}` : null;
+  const trialLabel = judge.trials.length ? judge.trials.join(' · ') : null;
 
   return (
     <article className="flex flex-col text-left">

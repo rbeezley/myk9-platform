@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate, isQualified } from '@/lib/reports/reportUtils';
 
@@ -32,7 +33,8 @@ export const JudgesCertification: React.FC<ReportProps> = ({
         {(clubName ?? showName) && <p className="report-subtitle">{clubName ?? showName}</p>}
         {trial && (
           <p className="report-subtitle">
-            {formatReportDate(trial.date)} · Trial {trial.trialNumber}
+            {formatReportDate(trial.date)} ·{' '}
+            {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
           </p>
         )}
       </div>

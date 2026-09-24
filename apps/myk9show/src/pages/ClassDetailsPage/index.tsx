@@ -7,6 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { formatTrialLabel } from '@myk9/core';
 import { ClipboardList, LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
@@ -225,7 +226,10 @@ const ClassDetailsPage: React.FC = () => {
       crumbs.push({ label: parentShow.name, href: `/shows/${parentShow.id}` });
     }
     if (parentTrial) {
-      const trialLabel = parentTrial.type || parentTrial.trialNumber || 'Trial';
+      const trialLabel = formatTrialLabel({
+        name: parentTrial.name,
+        trialNumber: parentTrial.trialNumber,
+      });
       crumbs.push({ label: trialLabel, href: `/trials/${parentTrial.id}` });
     }
     const classLabel = currentClass ? formatClassTitle(currentClass) || 'Class' : 'Class';

@@ -9,7 +9,7 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
+import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
@@ -144,7 +144,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       filteredTrials.map(trial => ({
         id: trial.id,
         trialDate: trial.trialDate,
-        name: trial.name || `Trial ${trial.trialNumber}`,
+        name: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
         trialNumber: trial.trialNumber,
         trialType: trial.trialType,
         trialTypeLabel: trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
@@ -250,7 +250,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                       {/* Row 1: Name + status badge */}
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-semibold text-card-foreground truncate">
-                          {trial.name || `Trial ${trial.trialNumber}`}
+                          {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
                         </h3>
                         <StatusBadge
                           family="trial"

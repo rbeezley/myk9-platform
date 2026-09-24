@@ -22,8 +22,8 @@ const PHASE_LABELS: Record<ReportPhase, string> = {
 };
 
 const mockTrials = [
-  { id: 'trial-1', name: 'Friday Trial 1', trial_number: 1, date: '2026-04-12' },
-  { id: 'trial-2', name: 'Friday Trial 2', trial_number: 2, date: '2026-04-12' },
+  { id: 'trial-1', name: 'Friday Trial 1', trial_number: 'Trial 1', date: '2026-04-12' },
+  { id: 'trial-2', name: 'Friday Trial 2', trial_number: 'Trial 2', date: '2026-04-12' },
 ];
 
 const mockClasses = [
@@ -210,7 +210,7 @@ describe('ReportControlsBar', () => {
       {
         id: '874be7e4-b187-4c11-9a3b-0000000000aa',
         name: 'Friday Trial 1',
-        trial_number: 1,
+        trial_number: 'Trial 1',
         date: '2026-04-12',
       },
     ];
@@ -328,7 +328,7 @@ describe('ReportControlsBar', () => {
     const trialUuid = '874be7e4-b187-4c11-9a3b-0000000000aa';
     const classUuid = '10e39f5f-ef3d-4673-b62c-0000000000bb';
     const triggerTrials = [
-      { id: trialUuid, name: 'Friday Trial 1', trial_number: 1, date: '2026-04-12' },
+      { id: trialUuid, name: 'Friday Trial 1', trial_number: 'Trial 1', date: '2026-04-12' },
     ];
     const triggerClasses = [
       {
@@ -382,7 +382,12 @@ describe('ReportControlsBar', () => {
           reportType="result-catalog"
           trials={[
             ...triggerTrials,
-            { id: 'trial-other', name: 'Saturday Trial PM', trial_number: 2, date: '2026-04-13' },
+            {
+              id: 'trial-other',
+              name: 'Saturday Trial PM',
+              trial_number: 'Trial 2',
+              date: '2026-04-13',
+            },
           ]}
           classes={triggerClasses}
           trialId="trial-other"
@@ -570,14 +575,14 @@ describe('ReportControlsBar', () => {
       {
         id: 'trial-1',
         name: 'Friday Trial 1',
-        trial_number: 1,
+        trial_number: 'Trial 1',
         date: '2026-04-12',
         registry_id: 'AKC',
       },
       {
         id: 'trial-2',
         name: 'Friday Trial 2',
-        trial_number: 2,
+        trial_number: 'Trial 2',
         date: '2026-04-12',
         registry_id: 'AKC',
       },

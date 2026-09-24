@@ -6,7 +6,6 @@ import {
   type ReplicatedArmband,
   type ReplicatedClass,
   type ReplicatedEntry,
-  type ReplicatedTrial,
 } from '@/services/replication';
 import type { CheckInEntryRow } from './useCheckInReport';
 
@@ -68,13 +67,6 @@ function armbandNumberForEntry(
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function trialNumber(trial: ReplicatedTrial | null) {
-  const value = trial?.trialNumber ?? trial?.trial_number;
-  if (!value) return 1;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? 1 : parsed;
-}
-
 async function getClassForEntry(
   entry: ReplicatedEntry,
   cache: Map<string, Promise<ReplicatedClass | null>>
@@ -121,7 +113,8 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
         section: cls?.section ?? null,
         trial_id: trialId,
         trial_date: trial?.date ?? trial?.trial_date ?? '',
-        trial_number: trialNumber(trial),
+        trial_name: trial?.name ?? null,
+        trial_number: trial?.trialNumber ?? trial?.trial_number ?? null,
       };
     })
   );

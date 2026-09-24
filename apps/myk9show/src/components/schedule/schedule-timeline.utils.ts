@@ -226,6 +226,7 @@ export function groupByDay(rows: TimelineClassRow[]): DayTimelineData[] {
 
         return {
           trialId,
+          trialName: firstRow.trialName,
           trialNumber: firstRow.trialNumber,
           plannedStartTime: firstRow.trialPlannedStartTime,
           elements,

@@ -92,7 +92,7 @@ describe('MonogramLandingPage — entry CTA count (MYK9-565)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -107,7 +107,7 @@ describe('MonogramLandingPage — entry CTA count (MYK9-565)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -122,7 +122,7 @@ describe('MonogramLandingPage — entry CTA count (MYK9-565)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -181,7 +181,7 @@ describe('MonogramLandingPage — sticky-bar spacer sits at the end of the docum
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 

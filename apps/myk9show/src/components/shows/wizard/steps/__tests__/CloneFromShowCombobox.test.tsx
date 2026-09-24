@@ -278,7 +278,7 @@ describe('CloneFromShowCombobox', () => {
   });
 
   it('leaves scent-work rule fields undefined when the source class has none set', async () => {
-    const sourceTrial = mockShows[0]!.trials[0]!;
+    const sourceTrial = mockShows[0]!.trials![0]!;
     const sourceClass = sourceTrial.classes![0]!;
     mockShowsQueryState = {
       data: [
@@ -332,7 +332,7 @@ describe('CloneFromShowCombobox', () => {
   });
 
   it('hydrates missing classes from the class service before cloning', async () => {
-    const sourceTrial = mockShows[0]!.trials[0]!;
+    const sourceTrial = mockShows[0]!.trials![0]!;
     mockShowsQueryState = {
       data: [
         {
@@ -385,7 +385,7 @@ describe('CloneFromShowCombobox', () => {
   // The clone's status and recovery actions belong to CloneStatusBanner
   // (CloneStatusBanner.test.tsx); the picker steps aside while a clone is in any state.
   it('hides itself while a clone is loading so only the status banner is shown', async () => {
-    const sourceTrial = mockShows[0]!.trials[0]!;
+    const sourceTrial = mockShows[0]!.trials![0]!;
     mockShowsQueryState = {
       data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
       isLoading: false,

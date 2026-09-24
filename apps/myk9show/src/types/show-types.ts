@@ -107,8 +107,12 @@ export interface Show {
   assignedJudges: ShowJudgeAssignment[];
   // Show statistics
   stats: ShowStat[];
-  // Associated trials
-  trials: ShowTrial[];
+  // Associated trials. Present ONLY when a DB-joined read embedded them
+  // (`mapDatabaseToShow`); absent on every show from `useShowStore` (see
+  // `StoreShow`). Absent means "not loaded on this object", never "this show
+  // has no trials": resolve trials from `useTrialStore`, and the entry-window
+  // zone from `useEntryWindowTimezone` (MYK9-676).
+  trials?: ShowTrial[] | undefined;
   // Entry limits
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
@@ -187,3 +191,16 @@ export interface ShowInput {
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }
+
+/**
+ * A show as `useShowStore` holds it: the replicated `shows` row, with NO
+ * `trials`. Trials live in `useTrialStore` (replication-backed); resolve them
+ * there, or the entry-window zone through `useEntryWindowTimezone`.
+ *
+ * The store used to carry `trials: []` that nothing ever filled (MYK9-676), so
+ * every reader saw "no trials" as fact and the entry-close guard ran in the
+ * America/New_York fallback for every show. `Show.trials` is optional for the
+ * same reason: a show without it has not been loaded with its trials, which is
+ * not the same as a show that has none.
+ */
+export type StoreShow = Omit<Show, 'trials'>;

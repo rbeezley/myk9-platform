@@ -41,6 +41,8 @@ For every `Replicated*Table` that queues INSERT mutations, the `data` object pas
 
 ### Notable exception: entry legacy path
 
+> **Update (MYK9-676):** `OfflineEntryCreator.ts` has been deleted. It had no production caller, so the risk described below no longer applies.
+
 `OfflineEntryCreator.ts` uses `generateId()` from `apps/myk9show/src/utils/idUtils.ts`, which produces a `timestamp36-random6` string (e.g. `lx7abc-k3m9pq`), not a UUID. This is structurally the same safety property — the same stable client-generated string is resent on retry — but the format may cause Postgres to reject it if the `entries.id` column is typed `uuid`. If it does, the error is not a duplicate-key violation but a type-cast error (different Postgres code). This path is separately risky regardless of retry idempotency and is worth a quick schema check, but it is out of scope for this plan.
 
 ---

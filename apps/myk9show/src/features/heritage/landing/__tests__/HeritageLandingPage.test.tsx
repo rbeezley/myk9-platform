@@ -68,7 +68,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -83,7 +83,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -98,7 +98,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 

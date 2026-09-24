@@ -415,6 +415,11 @@ function AuthorizedShowManagementShell({
             };
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
+              // Save the edits first. Publication can fail before it ever asks
+              // for the premium (reservation denied, RPC unavailable, or a
+              // lost-response retry that reconciles as already committed), and
+              // none of those may discard what the secretary just typed.
+              await persistShowChanges();
               try {
                 const premium = applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,
@@ -428,10 +433,7 @@ function AuthorizedShowManagementShell({
                     inkSaver: Boolean(publishableShowData.inkSaver),
                   }),
                   inkSaver: Boolean(publishableShowData.inkSaver),
-                  createPremium: async () => {
-                    await persistShowChanges();
-                    return premium;
-                  },
+                  createPremium: async () => premium,
                 });
               } catch (error) {
                 const classified = classifyPremiumPublishError(error, 'experience-snapshot');

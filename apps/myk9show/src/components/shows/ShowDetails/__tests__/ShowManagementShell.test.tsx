@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,6 +6,22 @@ import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManag
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
+import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
+
+const saveHarness = vi.hoisted(() => ({
+  updateShow: vi.fn(),
+  runPublish: vi.fn(),
+  persistJudges: vi.fn(),
+  payload: undefined as Record<string, unknown> | undefined,
+}));
+
+vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
+  premiumPublishDraftKey: () => 'draft-key',
+  runPremiumPublishOperation: saveHarness.runPublish,
+}));
+vi.mock('@/services/database/judges', () => ({
+  persistShowJudgeAssignments: saveHarness.persistJudges,
+}));
 
 const manageScope = vi.hoisted(() => ({
   status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
@@ -88,15 +104,26 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
     open,
     onClose,
     onRequestDelete,
+    onSave,
   }: {
     open: boolean;
     onClose: () => void;
     onRequestDelete?: () => void;
+    onSave?: (data: Record<string, unknown>) => Promise<void>;
   }) =>
     open ? (
       <div data-testid="edit-panel-open">
         <button type="button" data-testid="edit-panel-close" onClick={onClose}>
           Close
+        </button>
+        <button
+          type="button"
+          data-testid="edit-panel-save"
+          onClick={() => {
+            void onSave?.(saveHarness.payload ?? {}).catch(() => undefined);
+          }}
+        >
+          Save
         </button>
         {onRequestDelete && (
           <button type="button" data-testid="edit-panel-delete-row" onClick={onRequestDelete}>
@@ -111,8 +138,8 @@ vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab" />,
 }));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (s: { updateShow: () => void }) => unknown) =>
-    selector({ updateShow: vi.fn() }),
+  useShowStore: (selector: (s: { updateShow: typeof saveHarness.updateShow }) => unknown) =>
+    selector({ updateShow: saveHarness.updateShow }),
 }));
 
 function makeShow(): Show {
@@ -429,6 +456,35 @@ describe('ShowManagementShell', () => {
     // router params now, which is also why this is assertable at all -- seeded
     // from `window.location.search`, it would only measure the runner's own URL.
     renderShell({}, '/shows/show-1?edit=true');
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+});
+
+describe('Save & Publish keeps the show edits when publication cannot start', () => {
+  it('persists the form changes even when the publish reservation fails', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    // Reservation fails (e.g. the RPC is not deployed yet), so the operation
+    // rejects before it would ever call createPremium.
+    saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
+    saveHarness.payload = {
+      name: 'Renamed Show',
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() =>
+      expect(saveHarness.updateShow).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ name: 'Renamed Show' })
+      )
+    );
+    // Publication did not complete, so the panel stays open with its error.
+    expect(saveHarness.runPublish).toHaveBeenCalled();
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 });

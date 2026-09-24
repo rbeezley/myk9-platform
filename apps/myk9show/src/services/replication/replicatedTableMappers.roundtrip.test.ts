@@ -276,6 +276,32 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     expect(withNeither).not.toHaveProperty('call_name');
   });
 
+  it('shows: a rebuilt conflict payload never carries RPC-owned publication fields', () => {
+    // guard_premium_publication_state (MYK9-694) rejects any non-RPC change to
+    // these columns. updateShow already strips them; a conflict rebuild that
+    // restored them from a stale local row would leave the edit unable to sync.
+    const domain = rowToShow({
+      id: 'show-pub',
+      name: 'Published Classic',
+      organization: 'AKC',
+      start_date: '2026-08-01',
+      end_date: '2026-08-02',
+      status: 'published',
+      experience_is_published: true,
+      experience_published_at: '2026-07-01T00:00:00Z',
+      experience_published_style: 'heritage',
+      experience_published_content: { outputs: { premiumUrl: 'stale' } },
+    } as never);
+
+    const rebuilt = new TestableShowsTable().publicRebuildUpdatePayload(domain);
+
+    expect(rebuilt).toMatchObject({ id: 'show-pub', name: 'Published Classic' });
+    expect(rebuilt).not.toHaveProperty('experience_is_published');
+    expect(rebuilt).not.toHaveProperty('experience_published_at');
+    expect(rebuilt).not.toHaveProperty('experience_published_style');
+    expect(rebuilt).not.toHaveProperty('experience_published_content');
+  });
+
   it('shows: maps optional fields, defaults, and round-trips core identity fields', () => {
     const row = {
       id: 'show-1',

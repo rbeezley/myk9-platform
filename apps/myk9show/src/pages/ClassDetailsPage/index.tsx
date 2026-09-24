@@ -341,6 +341,7 @@ const ClassDetailsPage: React.FC = () => {
         <ClassCompactHeader
           classData={currentClass}
           parentTrial={parentTrial}
+          parentShow={parentShow}
           actions={headerActions}
         />
 

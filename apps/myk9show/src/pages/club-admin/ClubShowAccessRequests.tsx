@@ -50,7 +50,7 @@ export interface PendingClubRequestsCopy {
 
 const SHOW_ACCESS_COPY: PendingClubRequestsCopy = {
   heading: 'Pending requests',
-  unavailableMessage: 'We couldn’t load pending show-access requests.',
+  unavailableMessage: "We couldn't load pending show-access requests.",
   denyDescription:
     'They will not be appointed as a secretary from this request. They can still be appointed directly at any time, and — unless you appoint them — cannot resubmit this exact request again.',
   denyFieldId: 'deny-request-note',

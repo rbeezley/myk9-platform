@@ -16,7 +16,7 @@ import type { PendingClubRequestsCopy } from './ClubShowAccessRequests';
 
 const MEMBERSHIP_REQUESTS_COPY: PendingClubRequestsCopy = {
   heading: 'Membership requests',
-  unavailableMessage: 'We couldn’t load pending membership requests.',
+  unavailableMessage: "We couldn't load pending membership requests.",
   denyDescription:
     'They will not be added to the member list from this request, and cannot resubmit it. You can still add them yourself at any time.',
   denyFieldId: 'deny-membership-request-note',

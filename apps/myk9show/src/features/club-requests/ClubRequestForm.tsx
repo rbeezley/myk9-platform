@@ -112,8 +112,8 @@ export const ClubRequestForm: React.FC<ClubRequestFormProps> = ({
           title={controller.justSubmitted ? 'Request sent' : 'Your request is under review'}
         >
           <p className="text-sm text-muted-foreground">
-            {clubName}&apos;s admins will review it from their Club Members page. Come back to
-            this page to see their decision. You do not need to send it again.
+            {clubName}&apos;s admins will review it from their Club Members page. Come back to this
+            page to see their decision. You do not need to send it again.
           </p>
         </StatusBox>
       );

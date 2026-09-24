@@ -382,118 +382,24 @@ describe('CloneFromShowCombobox', () => {
     );
   });
 
-  it('shows a cancelable loading state until the atomic clone snapshot is ready', async () => {
+  // The clone's status and recovery actions belong to CloneStatusBanner
+  // (CloneStatusBanner.test.tsx); the picker steps aside while a clone is in any state.
+  it('hides itself while a clone is loading so only the status banner is shown', async () => {
     const sourceTrial = mockShows[0]!.trials[0]!;
-    let resolveClasses: (value: {
-      data: Array<Record<string, unknown>>;
-      error: null;
-    }) => void = () => {};
-    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
-      resolve => {
-        resolveClasses = resolve;
-      }
-    );
     mockShowsQueryState = {
       data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
       isLoading: false,
       isError: false,
     };
-    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
+    mockGetClassesByTrialId.mockReturnValueOnce(new Promise(() => {}));
 
     const { rerender } = await selectSourceShow({ waitForCompletion: false });
     rerender(<CloneFromShowCombobox />);
-
-    expect(mockBeginCloneHydration).toHaveBeenCalledWith('show-1', 'Heartland Spring Trial');
-    expect(screen.getByRole('status')).toHaveTextContent(/loading the complete show/i);
-    expect(screen.getByRole('button', { name: /cancel clone/i })).toBeVisible();
-    resolveClasses({ data: [], error: null });
-    await waitFor(() =>
-      expect(mockCompleteCloneHydration).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining({
-          sourceShowId: 'show-1',
-          sourceShowName: 'Heartland Spring Trial',
-        })
-      )
-    );
-  });
-
-  it('fails closed and offers retry when clone class hydration fails', async () => {
-    const sourceTrial = mockShows[0]!.trials[0]!;
-    mockShowsQueryState = {
-      data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
-      isLoading: false,
-      isError: false,
-    };
-    mockGetClassesByTrialId.mockResolvedValueOnce({ data: [], error: new Error('offline') });
-
-    const { user, rerender } = await selectSourceShow();
-
-    expect(screen.getByRole('alert')).toHaveTextContent(/could not load.*classes/i);
-    expect(mockFailCloneHydration).toHaveBeenCalledWith(1);
-    expect(screen.getByRole('button', { name: /retry clone/i })).toBeVisible();
-    // Resetting the draft is not the only way out of a failed clone (MYK9-604 review).
-    expect(screen.queryByRole('button', { name: /start fresh/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /choose another show/i }));
-    rerender(<CloneFromShowCombobox />);
-    expect(mockCancelCloneHydration).toHaveBeenCalledWith(1);
-    expect(mockResetWizard).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /select a past show to clone/i })).toBeVisible();
-  });
-
-  it('does not apply a pending snapshot after Cancel clone', async () => {
-    const sourceTrial = mockShows[0]!.trials[0]!;
-    let resolveClasses: (value: {
-      data: Array<Record<string, unknown>>;
-      error: null;
-    }) => void = () => {};
-    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
-      resolve => {
-        resolveClasses = resolve;
-      }
-    );
-    mockShowsQueryState = {
-      data: [
-        {
-          ...mockShows[0]!,
-          trials: [{ ...sourceTrial, classes: [] }],
-        } as Show,
-      ],
-      isLoading: false,
-      isError: false,
-    };
-    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
-
-    const { user, rerender } = await selectSourceShow({ waitForCompletion: false });
-    rerender(<CloneFromShowCombobox />);
-    await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
-
-    await user.click(screen.getByRole('button', { name: /cancel clone/i }));
-    resolveClasses({
-      data: [
-        {
-          id: 'class-1',
-          name: 'Novice Containers',
-          element: 'Containers',
-          level: 'Novice',
-          entry_fee: 28,
-        },
-      ],
-      error: null,
-    });
     await flushPromises();
 
-    expect(mockCancelCloneHydration).toHaveBeenCalledWith(1);
-    expect(mockCloneHydration.status).toBe('idle');
-  });
-
-  it('start fresh clears copied fields and selected judges', async () => {
-    const { user } = await selectSourceShow();
-    await user.click(screen.getByRole('button', { name: /start fresh/i }));
-
-    expect(mockResetWizard).toHaveBeenCalledTimes(1);
+    expect(mockBeginCloneHydration).toHaveBeenCalledWith('show-1', 'Heartland Spring Trial');
+    expect(screen.queryByRole('button', { name: /select a past show/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /cancel clone|start fresh/i })).toBeNull();
   });
 
   it('renders nothing when there are no prior shows to clone', () => {

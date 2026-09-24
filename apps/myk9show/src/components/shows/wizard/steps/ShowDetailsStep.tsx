@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
+import { CloneStatusBanner } from './CloneStatusBanner';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -157,7 +158,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
       <div className="space-y-8">
         {/* Clone from previous show — optional, prefills every group below. Create-only: a
             clone replaces the organization, which an existing show cannot change. */}
-        {!isExistingShow && <CloneFromShowCombobox clubId={show.clubId || undefined} />}
+        {!isExistingShow && (
+          <>
+            <CloneFromShowCombobox clubId={show.clubId || undefined} />
+            {/* Sibling, not child: the clone's status and recovery never depend on the
+                picker's show-list query. */}
+            <CloneStatusBanner />
+          </>
+        )}
 
         <div
           data-testid="clone-locked-show-details"

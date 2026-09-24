@@ -61,6 +61,11 @@ vi.mock('../CloneFromShowCombobox', () => ({
   CloneFromShowCombobox: () => <div data-testid="clone-from-show" />,
 }));
 
+// Its own behaviour is covered in CloneStatusBanner.test.tsx; here only its placement.
+vi.mock('../CloneStatusBanner', () => ({
+  CloneStatusBanner: () => <div data-testid="clone-status-banner" />,
+}));
+
 import { ShowDetailsStep } from '../ShowDetailsStep';
 
 describe('ShowDetailsStep — Payment Methods section', () => {
@@ -97,14 +102,16 @@ describe('ShowDetailsStep — Payment Methods section', () => {
   // MYK9-604: a clone replaces the draft's organization with the source show's. On an
   // existing show (add-trials / add-classes) that would send a foreign organization to a
   // show whose organization is fixed, so cloning is a create-only starting point.
-  it('offers clone-from-show when creating a show', () => {
+  it('offers clone-from-show, with its status banner beside the picker, when creating', () => {
     render(<ShowDetailsStep mode="create" />);
     expect(screen.getByTestId('clone-from-show')).toBeInTheDocument();
+    expect(screen.getByTestId('clone-status-banner')).toBeInTheDocument();
   });
 
   it.each(['add-trials', 'add-classes'] as const)('does not offer clone in %s mode', mode => {
     render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
     expect(screen.queryByTestId('clone-from-show')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('clone-status-banner')).not.toBeInTheDocument();
   });
 
   it('preserves the current wizard route when handing off complete club creation', () => {

@@ -1,26 +1,23 @@
 /**
  * CloneFromShowCombobox — lightweight combobox at the top of step 1.
  *
- * Lists the secretary's past shows (filtered to their clubs). Selecting one
- * prefills all wizard form fields via updateShowData / addJudgeToShow so the
- * secretary can edit from a known baseline instead of starting from scratch.
- * Selecting "Start fresh" resets show data back to the wizard's empty defaults.
+ * Lists the secretary's past shows (filtered to their clubs). Picking one starts a clone
+ * (useCloneFromShow), which prefills the wizard once every source class has loaded. This
+ * component only picks: the clone's status and its recovery actions (cancel, retry, choose
+ * another, start fresh) live in CloneStatusBanner, which does not depend on this list query.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Copy, ChevronsUpDown, Check, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Copy, ChevronsUpDown } from 'lucide-react';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
-import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
-import { useTemplates } from '@/hooks/useTemplates';
-import { getClassesByTrialId } from '@/services/database/classes';
-import type { Class, Show } from '@/types/show-types';
-import type { ClassTemplate } from '@/types/template.types';
+import type { Show } from '@/types/show-types';
+import { useCloneFromShow } from './useCloneFromShow';
 
 interface CloneFromShowComboboxProps {
   /** Optional: restrict to this clubId (pre-selected club context) */
@@ -28,32 +25,11 @@ interface CloneFromShowComboboxProps {
 }
 
 export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ clubId }) => {
-  const {
-    cloneHydration,
-    cloneGeneration,
-    beginCloneHydration,
-    failCloneHydration,
-    cancelCloneHydration,
-    completeCloneHydration,
-    resetWizard,
-  } = useWizardStore();
+  const { cloneHydration } = useWizardStore();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const clonedShowName = cloneHydration.sourceShowName;
-  const cloneFailed = cloneHydration.status === 'failed';
-  // Only an applied clone has changed the draft; a pending or failed one is dismissed, not reset.
-  const cloneApplied = cloneHydration.status === 'ready';
-  const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
-  const { templates } = useTemplates();
-
-  useEffect(() => {
-    const generation = cloneGeneration;
-    const wasHydrating = cloneHydration.status === 'hydrating';
-    return () => {
-      if (wasHydrating) cancelCloneHydration(generation);
-    };
-  }, [cancelCloneHydration, cloneGeneration, cloneHydration.status]);
+  const startClone = useCloneFromShow();
 
   // Determine which club IDs this user has secretary/admin access to
   const userClubIds = useUserClubIds();
@@ -86,114 +62,14 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     );
   }, [candidateShows, search]);
 
-  const handleSelect = async (show: Show) => {
-    const generation = beginCloneHydration(show.id, show.name);
+  const handleSelect = (show: Show) => {
     setOpen(false);
     setSearch('');
-
-    let sourceTrials: Show['trials'];
-    try {
-      sourceTrials = await getCloneSourceTrials(show);
-    } catch {
-      failCloneHydration(generation);
-      return;
-    }
-
-    const judges = (show.assignedJudges || []).map(assignment => {
-      const person = people.find(candidate => candidate.id === assignment.judgeId);
-      return {
-        judgeId: assignment.judgeId,
-        details: {
-          name: person
-            ? `${person.firstName} ${person.lastName}`
-            : assignment.judgeName || 'Unknown Judge',
-          email: person?.email || '',
-          phone: person?.phone || '',
-          certifications: person?.judgeQualifications?.map(q => q.organization) || [],
-          notes: '',
-        },
-      };
-    });
-
-    const trials = sourceTrials.map(trial => {
-      const sourceClasses = trial.classes || [];
-      // Wizard state stores one template id per class. Normal trial data is single-sport, and
-      // customizations preserve the visible class details if the template cannot be recovered.
-      const template = resolveCloneTemplate({
-        templates,
-        organization: show.organization,
-        trialType: trial.trialType,
-        classes: sourceClasses,
-      });
-
-      return {
-        nameOverride: trial.name || 'Trial',
-        dateTime: '',
-        eventNumber: '',
-        trialType: trial.trialType,
-        classes: sourceClasses.map(cls => {
-          const judgeId =
-            (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
-              ?.judgeId || undefined;
-
-          return {
-            templateId: cls.templateId || template?.id || '',
-            customizations: {
-              className: cls.name,
-              element: cls.element,
-              level: cls.level,
-              section: cls.section,
-              entryFee: cls.entryFee,
-              hidesUsed: cls.hidesUsed,
-              distractionsUsed: cls.distractionsUsed,
-              itemsUsed: cls.itemsUsed,
-              timeLimit1: cls.timeLimit1,
-              timeLimit2: cls.timeLimit2,
-              timeLimit3: cls.timeLimit3,
-            },
-            ...(judgeId ? { judgeId } : {}),
-          };
-        }),
-      };
-    });
-
-    completeCloneHydration(generation, {
-      sourceShowId: show.id,
-      sourceShowName: show.name,
-      show: {
-        name: show.name,
-        organization: show.organization as 'AKC' | 'UKC' | 'Other',
-        location: show.location || '',
-        clubId: show.clubId || '',
-        preEntryFee: parseFloat(show.preEntryFee) || 0,
-        dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
-        startingArmbandNumber: show.startingArmbandNumber ?? 100,
-        acceptCheckPayments: show.acceptCheckPayments ?? false,
-        acceptCashPayments: show.acceptCashPayments ?? false,
-        judgeIds: judges.map(judge => judge.judgeId),
-        // Dates are intentionally left blank so the secretary fills them in.
-        startDate: '',
-        endDate: '',
-        entryOpenDate: '',
-        entryCloseDate: '',
-      },
-      judgeDetails: Object.fromEntries(judges.map(({ judgeId, details }) => [judgeId, details])),
-      trials,
-    });
+    void startClone(show);
   };
 
-  const handleStartFresh = () => {
-    resetWizard();
-  };
-
-  const handleCancelClone = () => {
-    cancelCloneHydration(cloneGeneration);
-  };
-
-  const handleRetryClone = () => {
-    const sourceShow = candidateShows.find(show => show.id === cloneHydration.sourceShowId);
-    if (sourceShow) void handleSelect(sourceShow);
-  };
+  // A clone is loading, failed or applied: CloneStatusBanner owns the UI until it is dismissed.
+  if (cloneHydration.status !== 'idle') return null;
 
   if (isError) {
     return (
@@ -222,233 +98,62 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
             fresh.
           </p>
 
-          {clonedShowName ? (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-sm text-primary font-medium">
-                <Check className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate max-w-[240px]">{clonedShowName}</span>
-              </div>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={cloneApplied ? handleStartFresh : handleCancelClone}
-                className="h-8 gap-1.5 text-muted-foreground hover:text-foreground px-2"
+                className="h-9 gap-2 bg-background/60 border-border hover:bg-background/80 text-sm"
+                aria-expanded={open}
               >
-                <X className="h-3.5 w-3.5" />
-                {cloneApplied
-                  ? 'Start fresh'
-                  : cloneFailed
-                    ? 'Choose another show'
-                    : 'Cancel clone'}
+                Select a past show to clone
+                <ChevronsUpDown className="h-4 w-4 opacity-50 ml-auto" />
               </Button>
-            </div>
-          ) : (
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 gap-2 bg-background/60 border-border hover:bg-background/80 text-sm"
-                  aria-expanded={open}
-                >
-                  Select a past show to clone
-                  <ChevronsUpDown className="h-4 w-4 opacity-50 ml-auto" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="start">
-                <div className="p-3 border-b">
-                  <Input
-                    placeholder="Search shows..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="h-8"
-                    autoFocus
-                  />
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {isLoading && (
-                    <div className="p-4 text-sm text-muted-foreground text-center">
-                      Loading shows...
-                    </div>
-                  )}
-                  {!isLoading && filteredShows.length === 0 && (
-                    <div className="p-4 text-sm text-muted-foreground text-center">
-                      No matching shows found.
-                    </div>
-                  )}
-                  {filteredShows.map(show => (
-                    <button
-                      key={show.id}
-                      type="button"
-                      onClick={() => void handleSelect(show)}
-                      className="w-full px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground transition-colors duration-150 flex flex-col gap-0.5"
-                    >
-                      <span className="text-sm font-medium leading-tight truncate">
-                        {show.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {show.organization}
-                        {show.startDate ? ` · ${formatShortCalendarDate(show.startDate)}` : ''}
-                        {show.location ? ` · ${show.location.split('\n')[0].split(',')[0]}` : ''}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start">
+              <div className="p-3 border-b">
+                <Input
+                  placeholder="Search shows..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="h-8"
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {isLoading && (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    Loading shows...
+                  </div>
+                )}
+                {!isLoading && filteredShows.length === 0 && (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No matching shows found.
+                  </div>
+                )}
+                {filteredShows.map(show => (
+                  <button
+                    key={show.id}
+                    type="button"
+                    onClick={() => handleSelect(show)}
+                    className="w-full px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground transition-colors duration-150 flex flex-col gap-0.5"
+                  >
+                    <span className="text-sm font-medium leading-tight truncate">{show.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {show.organization}
+                      {show.startDate ? ` · ${formatShortCalendarDate(show.startDate)}` : ''}
+                      {show.location ? ` · ${show.location.split('\n')[0].split(',')[0]}` : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
-      {/* Subtle note that dates are excluded */}
-      {cloneFailed && (
-        <div className="mt-3 pl-11" role="alert">
-          <p className="text-xs text-destructive">
-            {cloneHydration.failureReason === 'load-failed'
-              ? 'We could not load the cloned classes. Your current draft is unchanged; retry the clone or choose another show.'
-              : 'The clone is still loading. Your current draft is unchanged; retry the clone or choose another show.'}
-          </p>
-          <Button type="button" variant="ghost" size="sm" onClick={handleRetryClone}>
-            Retry clone
-          </Button>
-        </div>
-      )}
-      {cloneHydration.status === 'hydrating' && (
-        <p className="mt-3 pl-11 text-xs text-muted-foreground" role="status" aria-live="polite">
-          Loading the complete show before applying the clone. Editing is paused until it finishes.
-        </p>
-      )}
-      {clonedShowName && !cloneFailed && (
-        <p className="text-xs text-muted-foreground mt-3 pl-11">
-          Show dates and entry period dates were left blank. Fill them in below.
-        </p>
-      )}
     </div>
   );
 };
-
-async function getCloneSourceTrials(show: Show): Promise<Show['trials']> {
-  if (!show.trials?.length) return [];
-
-  return await Promise.all(
-    show.trials.map(async trial => {
-      if (trial.classes?.length) return trial;
-
-      // Show-list reads can come from a cold replicated class store. Hydrate the selected
-      // trial lazily so clone preserves class structure without widening every list query.
-      const { data, error } = await getClassesByTrialId(trial.id);
-      if (error) throw error;
-      if (data.length === 0) return trial;
-
-      return {
-        ...trial,
-        classes: data.map(mapFetchedClassToShowClass),
-      };
-    })
-  );
-}
-
-function mapFetchedClassToShowClass(value: Record<string, unknown>): Class {
-  const name = optionalString(value.name) || optionalString(value.className) || 'Unnamed Class';
-  const entryFee = optionalNumber(value.entry_fee ?? value.entryFee);
-
-  return {
-    id: optionalString(value.id) || name,
-    templateId: optionalString(value.template_id ?? value.templateId),
-    name,
-    description: optionalString(value.description),
-    entryFee,
-    level: optionalString(value.level),
-    element: optionalString(value.element),
-    section: optionalString(value.section),
-    hidesUsed: optionalString(value.hides_used ?? value.hidesUsed),
-    distractionsUsed: optionalString(value.distractions_used ?? value.distractionsUsed),
-    itemsUsed: optionalString(value.items_used ?? value.itemsUsed),
-    timeLimit1: optionalString(value.time_limit1 ?? value.timeLimit1),
-    timeLimit2: optionalString(value.time_limit2 ?? value.timeLimit2),
-    timeLimit3: optionalString(value.time_limit3 ?? value.timeLimit3),
-  };
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value : undefined;
-}
-
-function optionalNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  return undefined;
-}
-
-function resolveCloneTemplate(args: {
-  templates: ClassTemplate[];
-  organization: string;
-  trialType?: string | undefined;
-  classes: Class[];
-}): ClassTemplate | undefined {
-  const normalizedOrganization = normalizeText(args.organization);
-  const normalizedTrialType = normalizeText(args.trialType);
-  const sourceClasses = args.classes.filter(cls => cls.name || cls.element || cls.level);
-
-  const candidates = args.templates.filter(template => {
-    if (!template.isActive) return false;
-
-    const templateOrganization = normalizeText(template.organization);
-    const organizationMatches =
-      templateOrganization === normalizedOrganization ||
-      normalizedOrganization.includes(templateOrganization) ||
-      templateOrganization.includes(normalizedOrganization);
-    if (!organizationMatches) return false;
-
-    if (!normalizedTrialType) return true;
-
-    const templateTrialType = normalizeText(template.trialType);
-    return (
-      templateTrialType === normalizedTrialType ||
-      templateTrialType.includes(normalizedTrialType) ||
-      normalizedTrialType.includes(templateTrialType)
-    );
-  });
-
-  const best = candidates
-    .map(template => ({ template, score: scoreTemplateMatch(template, sourceClasses) }))
-    .sort((a, b) => b.score - a.score)[0];
-
-  if (!best) return undefined;
-  if (sourceClasses.length > 0 && best.score === 0) return undefined;
-  return best.template;
-}
-
-function scoreTemplateMatch(template: ClassTemplate, sourceClasses: Class[]): number {
-  if (sourceClasses.length === 0) return 0;
-
-  return sourceClasses.reduce((score, cls) => {
-    const normalizedClassName = normalizeText(cls.name);
-    const normalizedElement = normalizeText(cls.element);
-    const normalizedLevel = normalizeText(cls.level);
-
-    const hasMatchingClass = template.classDefinitions.some(def => {
-      const classNameMatches =
-        normalizedClassName !== '' && normalizeText(def.className) === normalizedClassName;
-      const elementMatches =
-        normalizedElement !== '' && normalizeText(def.element) === normalizedElement;
-      const levelMatches = normalizedLevel === '' || normalizeText(def.level) === normalizedLevel;
-
-      return classNameMatches || (elementMatches && levelMatches);
-    });
-
-    return hasMatchingClass ? score + 1 : score;
-  }, 0);
-}
-
-function normalizeText(value: unknown): string {
-  return String(value || '')
-    .toLowerCase()
-    .trim();
-}
 
 export default CloneFromShowCombobox;

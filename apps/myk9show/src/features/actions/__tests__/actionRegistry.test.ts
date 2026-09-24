@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  mergeSearchOnlyHref,
   parseActionRouteContext,
   resolveActions,
   type ActionViewer,
@@ -224,5 +225,25 @@ describe('resolveActions — role-wide list', () => {
   it('omits create-a-show for staff who cannot create shows', () => {
     const actions = resolveActions({ kind: 'global' }, { ...secretary, canCreateShows: false });
     expect(actions.map(a => a.id)).toEqual(['open-show-management']);
+  });
+});
+
+describe('mergeSearchOnlyHref', () => {
+  it("adds a search-only action's params to the viewer's current ones", () => {
+    expect(mergeSearchOnlyHref('?edit=true', '?queue=needs-review&q=rex')).toBe(
+      '?queue=needs-review&q=rex&edit=true'
+    );
+  });
+
+  it('lets the action win a key it shares with the current URL', () => {
+    expect(mergeSearchOnlyHref('?edit=true', '?edit=false&q=rex')).toBe('?edit=true&q=rex');
+  });
+
+  it('leaves an absolute href alone', () => {
+    expect(mergeSearchOnlyHref('/shows/s1?edit=true', '?q=rex')).toBe('/shows/s1?edit=true');
+  });
+
+  it('works with no current search', () => {
+    expect(mergeSearchOnlyHref('?edit=true', '')).toBe('?edit=true');
   });
 });

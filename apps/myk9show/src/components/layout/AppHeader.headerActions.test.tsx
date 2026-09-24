@@ -456,6 +456,35 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
     await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('?edit=true'));
     expect(screen.getByTestId('probe-pathname')).toHaveTextContent('/shows/show-1/entries');
   });
+
+  it("keeps the section's own filters when it opens the edit panel", async () => {
+    // Entry Management keeps its queue, search and selection in the query
+    // string. A bare `?edit=true` link replaced all of it, so closing the panel
+    // put the secretary back on an unfiltered list (Codex review, MYK9-736).
+    const user = userEvent.setup();
+    render(
+      <>
+        <AppHeader />
+        <LocationProbe />
+      </>,
+      { initialRoute: `${ENTRY_MANAGEMENT_ROUTE}?queue=needs-review&q=rex` }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    const editLink = within(menu).getByTestId('header-action-show-settings');
+    expect(editLink).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?queue=needs-review&q=rex&edit=true'
+    );
+    await user.click(editLink);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('probe-search')).toHaveTextContent(
+        '?queue=needs-review&q=rex&edit=true'
+      )
+    );
+  });
 });
 
 describe('the premium item says what the Premium List card says', () => {

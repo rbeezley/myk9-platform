@@ -146,6 +146,20 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
   return { kind: 'global' };
 }
 
+/**
+ * A search-only href (`?edit=true`) resolved against the viewer's current
+ * query string: the action's params are added to the ones already there, and
+ * win a shared key. A bare `?edit=true` link replaced the whole query, so
+ * Entry Management lost its queue, search and selection behind the edit panel
+ * (MYK9-736 Codex review). Absolute hrefs pass through untouched.
+ */
+export function mergeSearchOnlyHref(href: string, currentSearch: string): string {
+  if (!href.startsWith('?')) return href;
+  const merged = new URLSearchParams(currentSearch);
+  new URLSearchParams(href).forEach((value, key) => merged.set(key, value));
+  return `?${merged.toString()}`;
+}
+
 function buildShowActions(
   showId: string,
   shellMounted: boolean,

@@ -33,6 +33,7 @@ import {
   type SupportEscalationPayload,
 } from '../_shared/askq/supportMode.ts';
 import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
+import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -89,6 +90,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  // Set once a log row is reserved, so the catch can record what failed on it.
+  let markReservedRow: ((marker: string) => Promise<unknown>) | null = null;
 
   try {
     const authHeader = req.headers.get('authorization');
@@ -181,6 +184,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const logRow = { id: reservation.logId };
+    markReservedRow = async marker =>
+      await serviceClient
+        .from('chatbot_query_log')
+        .update({ tools_used: [marker], response_time_ms: Date.now() - startTime })
+        .eq('id', reservation.logId);
     const { remaining, limit } = reservation;
     const supportQuestionEscalation = effectiveSupportMode
       ? getSupportEscalationForQuestion(message)
@@ -431,8 +439,13 @@ Deno.serve(async (req: Request) => {
       send('done', {});
     });
   } catch (error) {
-    console.error('ask-myk9show error:', (error as Error).message);
-    return jsonResponse({ error: 'Internal server error' }, 500);
+    // MYK9-684: one bare 500 hid every cause, and the reserved row stayed at
+    // tools_used {} / response_time_ms 0 with nothing to say what went wrong.
+    const failure = classifyAskQFailure(error);
+    console.error('ask-myk9show error:', failure.logMarker, (error as Error).message);
+    // Best effort: a failed audit write must not mask the answer to the client.
+    await markReservedRow?.(failure.logMarker).catch(() => undefined);
+    return jsonResponse(failure.body, failure.httpStatus);
   }
 });
 

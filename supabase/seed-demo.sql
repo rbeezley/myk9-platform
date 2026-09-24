@@ -188,6 +188,136 @@ END $$;
 --   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
 
 -- ---------------------------------------------------------------------------
+-- Sign-in account exhibitor profiles (MYK9-708)
+--
+--   Every sign-in account needs one exhibitor_profiles row with onboarding
+--   completed, or the app misroutes it:
+--     - ExhibitorOnboardingChecker sends the demo exhibitor to /onboarding;
+--     - useCurrentPersonId reads exhibitor_profiles.person_id, so without a row
+--       the secretary's mail-in wizard blocks on "same owner";
+--     - section 15 (waitlist) needs the exhibitor's profile id.
+--
+--   Nothing else guarantees the row. The handle_new_user trigger inserts one
+--   only when the auth user is CREATED (sign-up), not on a password sign-in, so
+--   an account that outlives a wipe of exhibitor_profiles (2026-09-20) stays
+--   without one for good.
+--
+--   The account list is the sign-in set in
+--   apps/myk9show/scripts/setup-e2e-test-users.ts (CANONICAL_TEST_USERS, minus
+--   the load-secretary fixtures, which seed-load-fixture.sql owns):
+--     required -- the four accounts the preflight above already requires;
+--     optional -- the accounts that script marks optional (sections 10d/10e
+--                 treat clubadmin/chairman the same way). Where the secret was
+--                 never configured the account does not exist; it is skipped
+--                 with a NOTICE and the seed completes.
+--
+--   Rows are keyed by email through public.people, never by a fixed id (the
+--   nightly isolated database carries different ids). The insert is
+--   ON CONFLICT (auth_user_id) DO NOTHING -- exhibitor_profiles_auth_user_id_key
+--   is the table's one unique key -- and the follow-up UPDATE only fills a NULL
+--   onboarding_completed_at, so an existing profile keeps its subscription and
+--   Stripe customer. This block deletes nothing.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_email text;
+  v_count int;
+  v_person_id uuid;
+  v_auth_user_id uuid;
+BEGIN
+  FOREACH v_email IN ARRAY ARRAY[
+    -- required (preflight accounts)
+    'exhibitor@myk9t.com', 'secretary@myk9t.com',
+    'testadmin@myk9t.com', 'judge@myk9t.com',
+    -- optional (setup-e2e-test-users.ts `optional: true`)
+    'clubadmin@myk9t.com', 'chairman@myk9t.com', 'exhibitor2@myk9t.com'
+  ] LOOP
+    -- The person must exist once and carry a link to a live auth user:
+    -- exhibitor_profiles.auth_user_id is NOT NULL and references auth.users.
+    SELECT count(*) INTO v_count
+    FROM public.people p
+    WHERE lower(p.email) = v_email
+      AND p.auth_user_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id);
+
+    IF v_count <> 1 THEN
+      RAISE NOTICE 'seed-demo exhibitor profiles: skipped % (% people with a live auth link)', v_email, v_count;
+      CONTINUE;
+    END IF;
+
+    SELECT p.id, p.auth_user_id INTO v_person_id, v_auth_user_id
+    FROM public.people p
+    WHERE lower(p.email) = v_email
+      AND p.auth_user_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id);
+
+    INSERT INTO public.exhibitor_profiles (person_id, auth_user_id, onboarding_completed_at)
+    VALUES (v_person_id, v_auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'))
+    ON CONFLICT (auth_user_id) DO NOTHING;
+
+    UPDATE public.exhibitor_profiles ep
+    SET onboarding_completed_at = ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
+    WHERE ep.auth_user_id = v_auth_user_id
+      AND ep.person_id = v_person_id
+      AND ep.onboarding_completed_at IS NULL;
+  END LOOP;
+END $$;
+
+-- Postcondition (MYK9-708): abort the reseed unless every required account, and
+-- every optional account that exists, holds EXACTLY ONE exhibitor profile -- the
+-- one keyed by its auth user, pointing at its own person, onboarding complete.
+-- ON CONFLICT DO NOTHING above is silent when the conflicting row belongs to a
+-- different person; this is where that surfaces.
+DO $$
+DECLARE
+  v_email text;
+  v_required boolean;
+  v_people int;
+  v_profiles int;
+  v_good int;
+BEGIN
+  FOREACH v_email IN ARRAY ARRAY[
+    'exhibitor@myk9t.com', 'secretary@myk9t.com',
+    'testadmin@myk9t.com', 'judge@myk9t.com',
+    'clubadmin@myk9t.com', 'chairman@myk9t.com', 'exhibitor2@myk9t.com'
+  ] LOOP
+    v_required := v_email IN (
+      'exhibitor@myk9t.com', 'secretary@myk9t.com',
+      'testadmin@myk9t.com', 'judge@myk9t.com'
+    );
+
+    SELECT count(*) INTO v_people
+    FROM public.people p
+    WHERE lower(p.email) = v_email
+      AND p.auth_user_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id);
+
+    IF v_people = 0 AND NOT v_required THEN
+      CONTINUE;
+    END IF;
+    IF v_people <> 1 THEN
+      RAISE EXCEPTION 'seed-demo postcondition: % must resolve to exactly 1 person with a live auth link to hold an exhibitor profile (found %)', v_email, v_people;
+    END IF;
+
+    SELECT count(*),
+           count(*) FILTER (WHERE ep.person_id = p.id
+                              AND ep.auth_user_id = p.auth_user_id
+                              AND ep.onboarding_completed_at IS NOT NULL)
+    INTO v_profiles, v_good
+    FROM public.people p
+    JOIN public.exhibitor_profiles ep
+      ON ep.auth_user_id = p.auth_user_id OR ep.person_id = p.id
+    WHERE lower(p.email) = v_email
+      AND p.auth_user_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id);
+
+    IF v_profiles <> 1 OR v_good <> 1 THEN
+      RAISE EXCEPTION 'seed-demo postcondition: % must hold exactly 1 exhibitor profile with onboarding completed (found % profiles, % valid)', v_email, v_profiles, v_good;
+    END IF;
+  END LOOP;
+END $$;
+
+-- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
 -- ---------------------------------------------------------------------------
 -- The load-secretary accounts are optional and provisioned separately by
@@ -2019,9 +2149,11 @@ WHERE id       = 'dededede-0000-0000-0000-000000000056'
 -- ---------------------------------------------------------------------------
 -- 15. GAP FIXTURE #6 (waitlist entry, screenshot S-10)
 --     Juniper (043) waitlisted for Interior Advanced (032) at position 1.
---     exhibitor_id references exhibitor_profiles, which only exists after the
---     exhibitor signs in (auto-created by trigger on first auth). Skips silently
---     with a NOTICE if the profile is not yet present.
+--     exhibitor_id references exhibitor_profiles. A sign-in does NOT create
+--     that row (the handle_new_user trigger fires only on auth sign-up); the
+--     "Sign-in account exhibitor profiles" block near the top of this file
+--     creates it and its postcondition aborts the reseed if it is missing, so
+--     the NOTICE below is a defensive guard, not an expected path (MYK9-708).
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -2034,7 +2166,7 @@ BEGIN
   LIMIT  1;
 
   IF v_exhibitor_id IS NULL THEN
-    RAISE NOTICE 'Section 15 skipped: exhibitor_profile for exhibitor@myk9t.com not found (sign-in once to create it)';
+    RAISE NOTICE 'Section 15 skipped: exhibitor_profile for exhibitor@myk9t.com not found (the MYK9-708 profile block should have created it)';
     RETURN;
   END IF;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -9,7 +9,8 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { geocodeAddress } from './geocode';
+import { useVenueLocate } from './useVenueLocate';
+import { VenueLocateNotice } from './VenueLocateNotice';
 import { normalizePinValue, type VenuePinValue } from './normalizePinValue';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from './tiles';
 
@@ -66,59 +67,55 @@ function ClickToPlace({ onChange }: { onChange: (v: VenuePinValue) => void }) {
  * placed manually, or skipped entirely.
  */
 export function VenuePinMap({ value, onChange, address, className }: VenuePinMapProps) {
-  const [isLocating, setIsLocating] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
 
-  // Mirror the latest pin and address so a slow geocode can detect it was
-  // superseded — by a manual click/drag, or by an address edit — mid-flight.
-  const latestValueRef = useRef<VenuePinValue | null>(value);
-  const latestAddressRef = useRef(address);
-  useEffect(() => {
-    latestValueRef.current = value;
-  }, [value]);
-  useEffect(() => {
-    latestAddressRef.current = address;
-  }, [address]);
+  const handleLocated = useCallback(
+    (pin: VenuePinValue) => {
+      onChange(pin);
+      setFlyTarget({ ...pin, nonce: Date.now() });
+    },
+    [onChange]
+  );
+  const { isLocating, notice, locate, clearNotice } = useVenueLocate({
+    address,
+    value,
+    onLocated: handleLocated,
+  });
 
-  const handleLocate = useCallback(async () => {
-    setNotice(null);
-    setIsLocating(true);
-    const valueAtRequest = latestValueRef.current;
-    const addressAtRequest = address;
-    const result = await geocodeAddress(address);
-    setIsLocating(false);
-    if (latestValueRef.current !== valueAtRequest) return;
-    if (latestAddressRef.current !== addressAtRequest) return;
-    if (result) {
-      const normalized = normalizePinValue(result.lat, result.lng);
-      onChange(normalized);
-      setFlyTarget({ ...normalized, nonce: Date.now() });
-    } else {
-      setNotice("Couldn't find that address — click the map to place the pin manually.");
-    }
-  }, [address, onChange]);
+  // A pin placed by hand answers the failure notice (MYK9-686 manual fallback).
+  const placeManually = useCallback(
+    (pin: VenuePinValue) => {
+      clearNotice();
+      onChange(pin);
+    },
+    [clearNotice, onChange]
+  );
 
   const handleDragEnd = useCallback(
     (event: L.DragEndEvent) => {
       const position = (event.target as L.Marker).getLatLng();
-      onChange(normalizePinValue(position.lat, position.lng));
+      placeManually(normalizePinValue(position.lat, position.lng));
     },
-    [onChange]
+    [placeManually]
   );
 
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
+        {/* MYK9-686: a missing pin is stated, never silent — exhibitors see no map without it. */}
+        <p
+          className={
+            value || !address.trim() ? 'text-sm text-muted-foreground' : 'text-sm text-warning'
+          }
+        >
           {value
             ? 'Drag the pin to fine-tune the venue location.'
-            : 'Locate the address or click the map to place the venue pin.'}
+            : 'No map pin yet — locate the address or click the map to place it.'}
         </p>
         <Button
           type="button"
           variant="outline"
-          onClick={handleLocate}
+          onClick={locate}
           disabled={isLocating || !address.trim()}
         >
           {isLocating ? (
@@ -129,11 +126,7 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
           Locate address
         </Button>
       </div>
-      {notice && (
-        <p className="mb-2 text-sm text-warning" role="status">
-          {notice}
-        </p>
-      )}
+      {notice && <VenueLocateNotice notice={notice} onRetry={locate} />}
       <div className="overflow-hidden rounded-lg border border-border">
         <MapContainer
           center={value ? [value.lat, value.lng] : US_CENTER}
@@ -143,7 +136,7 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
         >
           <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
           <FlyToTarget target={flyTarget} />
-          <ClickToPlace onChange={onChange} />
+          <ClickToPlace onChange={placeManually} />
           {value && (
             <Marker
               position={[value.lat, value.lng]}

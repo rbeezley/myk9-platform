@@ -6,7 +6,6 @@
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
 import { useEntryStore } from '@/store/entryStore';
-import { useDogStore } from '@/store/dogStore';
 
 export interface CascadingDeleteResult {
   showId: string;
@@ -32,7 +31,6 @@ export function previewCascadingDelete(showId: string, showName: string): Cascad
   const trialStore = useTrialStore.getState();
   const classStore = useClassStore.getState();
   const entryStore = useEntryStore.getState();
-  const dogStore = useDogStore.getState();
 
   // Find all trials for this show
   const trialsToDelete = trialStore.trials.filter(trial => trial.showId === showId);
@@ -58,14 +56,14 @@ export function previewCascadingDelete(showId: string, showName: string): Cascad
       name: c.className || c.trial || 'Unnamed Class',
       trialName: trialsToDelete.find(t => t.id === c.trialId)?.name || 'Unknown Trial',
     })),
-    entriesToDelete: entriesToDelete.map(e => {
-      const dog = dogStore.dogs.find(d => d.id === e.dogId);
-      return {
-        id: e.id,
-        dogName: dog?.name || 'Unknown Dog',
-        className: classesToDelete.find(c => c.id === e.classId)?.className || 'Unknown Class',
-      };
-    }),
+    // The replicated entry carries its dog's call name. The old lookup read
+    // `useDogStore().dogs`, a deprecated array nothing fills, so every entry
+    // read "Unknown Dog" (MYK9-724 F51).
+    entriesToDelete: entriesToDelete.map(e => ({
+      id: e.id,
+      dogName: e.dogCallName || 'Unknown Dog',
+      className: classesToDelete.find(c => c.id === e.classId)?.className || 'Unknown Class',
+    })),
     totalToDelete: trialsToDelete.length + classesToDelete.length + entriesToDelete.length,
   };
 }

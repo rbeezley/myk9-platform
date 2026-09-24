@@ -24,6 +24,7 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   submitted: 'default',
   not_yet_open: 'default',
   setup_incomplete: 'default',
+  window_unknown: 'default',
 };
 
 export interface ShowExhibitorViewProps {

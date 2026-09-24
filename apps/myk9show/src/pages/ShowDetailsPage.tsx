@@ -33,7 +33,7 @@ import {
   resolveResultsTabCount,
 } from './ShowDetailsPage.tabDefs';
 import { useShowResults } from '@/hooks/queries/useShowResults';
-import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { getEntryStatus, isEntryWindowNotOpen } from '@/utils/entryStatusUtils';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { features } from '@/config/features';
 
@@ -504,7 +504,7 @@ const ShowDetailsPage: React.FC = () => {
         landingTrials={landingTrials}
         offeredClasses={publicShowClasses}
         hasEntryClassInventory={hasEntryClassInventory}
-        entryNotYetOpen={entryStatus.status === 'not_yet_open'}
+        entryWindowNotOpen={isEntryWindowNotOpen(entryStatus.status)}
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
         styleMode={canManageShow ? 'manager-draft-preview' : 'public'}

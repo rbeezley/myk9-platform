@@ -116,23 +116,4 @@ describe('updateReplicatedCheckInStatus', () => {
     );
     expect(updateCheckInStatus).not.toHaveBeenCalled();
   });
-
-  it('can label a replicated day-of scratch as pull approval for audit history', async () => {
-    await expect(
-      updateReplicatedDayOfScratch('entry-1', 'Pull approved', {
-        auditAction: 'approve_scratch_request',
-        fromStatus: 'scratch-requested',
-      })
-    ).resolves.toBe('mutation-1');
-
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        changes: { entryStatus: { from: 'scratch-requested', to: 'scratched' } },
-        metadata: expect.objectContaining({
-          action: 'approve_scratch_request',
-          checkInStatus: 'pulled',
-        }),
-      })
-    );
-  });
 });

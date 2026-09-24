@@ -95,16 +95,15 @@ These appear as badges on entries, not as toast messages.
 
 ## Secretary — Show Day
 
-| String                                                           | Where                | Trigger                     | User action                                         | Support checks                                            |
-| ---------------------------------------------------------------- | -------------------- | --------------------------- | --------------------------------------------------- | --------------------------------------------------------- |
-| "Entry moved up"                                                 | Show desk            | Move-up completed           | No action needed                                    | —                                                         |
-| "Entry marked pulled"                                            | Show desk            | Entry pulled from run order | Check if exhibitor expected this                    | Check `entries.status`                                    |
-| "Move-up undone"                                                 | Show desk            | Move-up reversed            | No action needed                                    | —                                                         |
-| "Failed to approve pull request" / "Failed to deny pull request" | Pull tab             | Mutation failure            | Retry                                               | Check network; then Supabase                              |
-| "Target class is full. Consider adding to waitlist."             | Move-up tab          | Class at capacity           | Add to waitlist instead, or increase class capacity | Check `classes.max_entries`                               |
-| "Spot offered, but the in-app notification couldn't be sent."    | Waitlist             | Push notification failed    | Offer was sent; notification did not arrive         | Email or call the exhibitor directly; push is best-effort |
-| "Add a title and message before sending"                         | Announcement compose | Empty message               | Fill in both fields                                 | —                                                         |
-| "No exhibitors are entered in that class yet"                    | Announcement compose | Sending to an empty class   | Select a different class or send to all             | —                                                         |
+| String                                                        | Where                | Trigger                     | User action                                         | Support checks                                            |
+| ------------------------------------------------------------- | -------------------- | --------------------------- | --------------------------------------------------- | --------------------------------------------------------- |
+| "Entry moved up"                                              | Show desk            | Move-up completed           | No action needed                                    | —                                                         |
+| "Entry marked pulled"                                         | Show desk            | Entry pulled from run order | Check if exhibitor expected this                    | Check `entries.status`                                    |
+| "Move-up undone"                                              | Show desk            | Move-up reversed            | No action needed                                    | —                                                         |
+| "Target class is full. Consider adding to waitlist."          | Move-up tab          | Class at capacity           | Add to waitlist instead, or increase class capacity | Check `classes.max_entries`                               |
+| "Spot offered, but the in-app notification couldn't be sent." | Waitlist             | Push notification failed    | Offer was sent; notification did not arrive         | Email or call the exhibitor directly; push is best-effort |
+| "Add a title and message before sending"                      | Announcement compose | Empty message               | Fill in both fields                                 | —                                                         |
+| "No exhibitors are entered in that class yet"                 | Announcement compose | Sending to an empty class   | Select a different class or send to all             | —                                                         |
 
 ---
 

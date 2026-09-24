@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Show } from '@/types/show-types';
+import type { StoreShow as Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { mockShows } from '@/mockData/mockShows';
 import { shouldUseMockData } from '@/config/dataSource';
@@ -60,7 +60,6 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     coverImageUrl: replicated.coverImageUrl || '',
     accentColor: replicated.accentColor || '',
     assignedJudges: [], // Populated by judge_assignments subscription
-    trials: [], // Local-only: managed by trialStore
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
@@ -99,7 +98,6 @@ function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): 
     clubAddress: existing.clubAddress || '',
     clubEmail: existing.clubEmail || '',
     // assignedJudges populated by judge_assignments subscription — don't preserve stale local data
-    trials: existing.trials || [],
     stats: existing.stats || [],
   };
 }
@@ -282,7 +280,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         clubAddress: showData.clubAddress || '',
         clubEmail: showData.clubEmail || '',
         assignedJudges: showData.assignedJudges || [],
-        trials: showData.trials || [],
         stats: [],
       };
 
@@ -461,7 +458,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if ('accentColor' in updates) definedUpdates.accentColor = updates.accentColor as string;
       if (updates.assignedJudges !== undefined)
         definedUpdates.assignedJudges = updates.assignedJudges;
-      if (updates.trials !== undefined) definedUpdates.trials = updates.trials;
       // Style is owned by Preview's update_show_style RPC; a generic settings
       // save must not optimistically persist its stale form snapshot.
       if (updates.isNationals !== undefined) definedUpdates.isNationals = updates.isNationals;

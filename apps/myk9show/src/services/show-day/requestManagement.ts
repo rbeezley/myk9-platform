@@ -1,7 +1,6 @@
 import { moveUpShowMapEntry } from '@/features/show-map/showMapActionMutations';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedEntriesTable } from '@/services/replication';
-import { updateReplicatedDayOfScratch } from './checkInStatus';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
 
 interface ActionResult {
@@ -33,10 +32,6 @@ async function requireRequestStatus(
   }
 
   return entry;
-}
-
-function readPullReason(entry: ReplicatedEntry): string {
-  return entry.specialRequests ?? entry.special_requests ?? 'Pull approved';
 }
 
 export async function approveMoveUpRequestReplicated(
@@ -74,46 +69,6 @@ export async function denyMoveUpRequestReplicated(
       fromStatus: 'move-up-requested',
       toStatus: 'confirmed',
       action: 'deny_move_up_request',
-      reason,
-    });
-    return { error: null };
-  } catch (error) {
-    return { error: toError(error) };
-  }
-}
-
-export async function approvePullRequestReplicated(entryId: string): Promise<ActionResult> {
-  try {
-    const entry = await requireRequestStatus(entryId, 'scratch-requested');
-    await updateReplicatedDayOfScratch(entryId, readPullReason(entry), {
-      auditAction: 'approve_scratch_request',
-      fromStatus: 'scratch-requested',
-    });
-    return { error: null };
-  } catch (error) {
-    return { error: toError(error) };
-  }
-}
-
-export async function denyPullRequestReplicated(
-  entryId: string,
-  reason?: string
-): Promise<ActionResult> {
-  const note = reason ? `Pull denied: ${reason}` : 'Pull request denied';
-
-  try {
-    await requireRequestStatus(entryId, 'scratch-requested');
-    await replicatedEntriesTable.updateEntry(entryId, {
-      entryStatus: 'confirmed',
-      entry_status: 'confirmed',
-      specialRequests: note,
-      special_requests: note,
-    });
-    await logReplicatedEntryStatusChange({
-      entryId,
-      fromStatus: 'scratch-requested',
-      toStatus: 'confirmed',
-      action: 'deny_scratch_request',
       reason,
     });
     return { error: null };

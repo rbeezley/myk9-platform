@@ -23,7 +23,7 @@ interface HeadlineLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryNotYetOpen?: boolean | undefined;
+  entryWindowNotOpen?: boolean | undefined;
 }
 
 function formatTimezoneName(timezone: string): string {
@@ -397,7 +397,7 @@ export function HeadlineLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryNotYetOpen,
+  entryWindowNotOpen,
 }: HeadlineLandingPageProps) {
   useEffect(() => {
     ensureHeadlineFontsLoaded();
@@ -407,9 +407,9 @@ export function HeadlineLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryNotYetOpen` matters as much as closed: a show whose entries open
+  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
 
   return (
     <div data-headline className="hd-shell">

@@ -1447,11 +1447,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * `detail` payload exists for.
    *
    * Deliberately a SIBLING of `callWithdrawRpc` rather than a shared helper: its
-   * argument shape is jsonb, not a scalar column. The `as never` casts here stay
-   * only until this RPC reaches the generated types (its migration has not been
-   * pushed yet); the withdrawal call is typed through
-   * `src/types/database-overrides.ts`. Either way `null` means "no precondition"
-   * and is never coalesced to 0, which is a real version.
+   * argument shape is jsonb, not a scalar column. Typed, not cast (MYK9-611):
+   * `src/types/database-overrides.ts` widens `p_expected_version` to
+   * `number | null`, because `null` means "no precondition" and is never
+   * coalesced to 0, which is a real version.
    */
   private async callUpdateOwnEntryRpc(
     entryId: string,
@@ -1465,14 +1464,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // edited from here.
     const attempt = async (version: number | null) => {
       try {
-        return await supabase.rpc(
-          UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC as never,
-          {
-            p_entry_id: entryId,
-            p_jump_height: jumpHeight,
-            p_expected_version: version,
-          } as never
-        );
+        return await supabase.rpc(UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC, {
+          p_entry_id: entryId,
+          p_jump_height: jumpHeight,
+          p_expected_version: version,
+        });
       } catch (thrown) {
         return { data: null, error: (thrown ?? {}) as { code?: string } };
       }

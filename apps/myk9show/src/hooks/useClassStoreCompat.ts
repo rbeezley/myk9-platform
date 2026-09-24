@@ -19,7 +19,6 @@ import {
   useClassStatisticsQuery,
   useEntriesQuery,
   useEntriesByClassQuery,
-  useCreateEntryMutation,
   useUpdateEntryMutation,
   useDeleteEntryMutation,
 } from '@/hooks/queries/useClassesDatabase';
@@ -29,7 +28,6 @@ import {
   mapClassInputToUpdate,
   mapDatabaseToClass,
   mapDatabaseClassesArray,
-  mapEntryInputToInsert,
   mapEntryInputToUpdate,
   mapDatabaseToEntry,
   mapDatabaseEntriesArray,
@@ -40,7 +38,6 @@ import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompa
 import {
   validateClassInput,
   validateClassUpdate,
-  validateEntryInput,
   addClassesFromTemplateHelper,
 } from '@/hooks/classStoreCompatHelpers';
 
@@ -59,7 +56,6 @@ export const useClassStoreCompat = (showId?: string) => {
   const updateClassMutation = useUpdateClassMutation();
   const deleteClassMutation = useDeleteClassMutation();
 
-  const createEntryMutation = useCreateEntryMutation();
   const updateEntryMutation = useUpdateEntryMutation();
   const deleteEntryMutation = useDeleteEntryMutation();
 
@@ -85,7 +81,6 @@ export const useClassStoreCompat = (showId?: string) => {
     createClassMutation.isPending,
     updateClassMutation.isPending,
     deleteClassMutation.isPending,
-    createEntryMutation.isPending,
     updateEntryMutation.isPending,
     deleteEntryMutation.isPending
   );
@@ -98,7 +93,6 @@ export const useClassStoreCompat = (showId?: string) => {
         createClassMutation.error,
         updateClassMutation.error,
         deleteClassMutation.error,
-        createEntryMutation.error,
         updateEntryMutation.error,
         deleteEntryMutation.error
       ),
@@ -108,7 +102,6 @@ export const useClassStoreCompat = (showId?: string) => {
       createClassMutation.error,
       updateClassMutation.error,
       deleteClassMutation.error,
-      createEntryMutation.error,
       updateEntryMutation.error,
       deleteEntryMutation.error,
     ]
@@ -147,13 +140,6 @@ export const useClassStoreCompat = (showId?: string) => {
   };
 
   // ===== ENTRY OPERATIONS =====
-
-  const addEntry = async (entryData: EntryInput): Promise<SyncableEntryData> => {
-    validateEntryInput(entryData);
-    const dbData = mapEntryInputToInsert(entryData);
-    const result = await createEntryMutation.mutateAsync(dbData);
-    return mapDatabaseToEntry(result);
-  };
 
   const updateEntry = async (
     id: string,
@@ -224,7 +210,6 @@ export const useClassStoreCompat = (showId?: string) => {
     getClassesByTrialId,
 
     // Entry Operations (compatible with classStore API)
-    addEntry,
     updateEntry,
     deleteEntry,
     getEntryById,
@@ -267,7 +252,6 @@ export const useClassStoreCompat = (showId?: string) => {
     isCreatingClass: createClassMutation.isPending,
     isUpdatingClass: updateClassMutation.isPending,
     isDeletingClass: deleteClassMutation.isPending,
-    isCreatingEntry: createEntryMutation.isPending,
     isUpdatingEntry: updateEntryMutation.isPending,
     isDeletingEntry: deleteEntryMutation.isPending,
 

@@ -49,8 +49,9 @@ const ARTIFACT_DIR = '../../docs/audits/2026-06-ux-journeys/artifacts';
 
 /** Pre-set every seam into a representative state so one sync renders them all. */
 function seamStates(state: Phase4SeamState): Phase4SeamState {
-  state.entries[PHASE4_IDS.entryScratch].entry_status = 'scratch-requested';
-  state.entries[PHASE4_IDS.entryScratch].special_requests = 'Dog is unwell — please pull.';
+  // A pre-show pull: the exhibitor's own act, no approval step (MYK9-632).
+  state.entries[PHASE4_IDS.entryScratch].entry_status = 'scratched';
+  state.entries[PHASE4_IDS.entryScratch].special_requests = 'Dog is unwell.';
   state.entries[PHASE4_IDS.entryQuestion].entry_status = 'scratched';
   state.entries[PHASE4_IDS.entryQuestion].check_in_status = 'pulled';
   state.entries[PHASE4_IDS.entryWithdraw].entry_status = 'withdrawn';

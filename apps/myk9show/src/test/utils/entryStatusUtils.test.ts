@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getEntryStatus,
   getEntryStatusBadgeStyle,
+  isEntryWindowNotOpen,
   userHasEntriesForShow,
   type EntryStatus,
 } from '@/utils/entryStatusUtils';
@@ -52,9 +53,18 @@ describe('entryStatusUtils', () => {
 
         expect(() => getEntryStatus(show)).not.toThrow();
         expect(getEntryStatus(show)).toMatchObject({
+          // Its own status, not `not_yet_open` (MYK9-649): consumers branch on
+          // the enum, and an unknown window is not a window that opens later.
+          status: 'window_unknown',
           label: 'Entry status unavailable',
           canEnter: false,
         });
+      });
+
+      it('treats an empty-string date (the store mapper default) as no window', () => {
+        vi.setSystemTime(new Date(2024, 0, 15, 12));
+        const show = createMockShow({ entryOpenDate: '', entryCloseDate: '' });
+        expect(getEntryStatus(show).status).toBe('window_unknown');
       });
 
       it('still says nothing about the window for a user who already entered', () => {
@@ -145,7 +155,7 @@ describe('entryStatusUtils', () => {
         const show = createMockShow({ entryOpenDate: '2024-01-01' });
         const result = getEntryStatusWithMockedWindow(show, true);
 
-        expect(result.status).toBe('not_yet_open');
+        expect(result.status).toBe('window_unknown');
         expect(result.label).toBe('Entry status unavailable');
         expect(result.description).toBe('Entry window is not available yet');
 
@@ -426,6 +436,13 @@ describe('entryStatusUtils', () => {
       expect(result.variant).toBe('outline');
     });
 
+    it('should return muted outline styling for window_unknown status', () => {
+      const result = getEntryStatusBadgeStyle('window_unknown');
+
+      expect(result.className).toContain('muted');
+      expect(result.variant).toBe('outline');
+    });
+
     it('should return muted outline styling for setup_incomplete status', () => {
       const result = getEntryStatusBadgeStyle('setup_incomplete');
 
@@ -512,6 +529,20 @@ describe('entryStatusUtils', () => {
           },
         ])
       ).toBe(false);
+    });
+  });
+
+  describe('isEntryWindowNotOpen (the public landing Enter gate, MYK9-649)', () => {
+    it.each([
+      ['not_yet_open', true],
+      ['window_unknown', true],
+      ['accepting', false],
+      ['closing_soon', false],
+      ['closed', false],
+      ['submitted', false],
+      ['setup_incomplete', false],
+    ] as const)('%s -> %s', (status, expected) => {
+      expect(isEntryWindowNotOpen(status)).toBe(expected);
     });
   });
 });

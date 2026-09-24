@@ -106,7 +106,7 @@ describe('index.css does not shadow v2 tokens', () => {
     beforeAll(() => {
       const rootMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
       expect(rootMatch).not.toBeNull();
-      rootBody = rootMatch![1];
+      rootBody = rootMatch![1]!;
     });
 
     for (const token of v2OwnedTokens) {
@@ -123,7 +123,7 @@ describe('index.css does not shadow v2 tokens', () => {
     beforeAll(() => {
       const darkMatch = css.match(/\.dark\s*\{([\s\S]*?)\n\}/);
       expect(darkMatch).not.toBeNull();
-      darkBody = darkMatch![1];
+      darkBody = darkMatch![1]!;
     });
 
     for (const token of v2OwnedTokens) {

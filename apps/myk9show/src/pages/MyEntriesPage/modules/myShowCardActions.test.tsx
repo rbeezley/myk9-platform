@@ -197,6 +197,8 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       classWhen: expect.any(String),
       dogName: 'Juni',
       dogId: 'dog-juni',
+      // MYK9-658: the card's own id, unique per rendered card.
+      dogCardId: 'e-juni',
       showId: 'show-flint',
     });
   });

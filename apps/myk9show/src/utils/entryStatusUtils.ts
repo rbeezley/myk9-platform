@@ -9,6 +9,7 @@ import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDispl
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 
 export type EntryStatus =
+  | 'window_unknown' // No entry window set (or today cannot be resolved): says nothing about when entries open
   | 'not_yet_open' // Before entry open date
   | 'accepting' // Currently accepting entries
   | 'closing_soon' // Closing within 7 days
@@ -62,8 +63,13 @@ export function getEntryStatus(
     // "Entries open <date>" here — this path runs
     // before the userHasEntries check, so the show may already be entered,
     // and this branch has no evidence either way about the entry window.
+    //
+    // Its own status (MYK9-649). This used to return `not_yet_open`, and every
+    // consumer that branches on the enum rather than the label -- the public
+    // landing's Enter gate, the badge icon, the browse filters -- treated a
+    // window nobody set as a window that opens later.
     return {
-      status: 'not_yet_open',
+      status: 'window_unknown',
       label: 'Entry status unavailable',
       description: 'Entry window is not available yet',
       canEnter: false,
@@ -143,6 +149,33 @@ export function getEntryStatus(
 }
 
 /**
+ * Whether the public landing must withhold its Enter CTA because entries are
+ * not open YET: the window has not opened, or nobody set one (MYK9-649).
+ * `closed` is false on purpose: the landing's countdown judges closing in the
+ * show's own zone. `setup_incomplete` is gated separately by class inventory.
+ */
+export function isEntryWindowNotOpen(status: EntryStatus): boolean {
+  switch (status) {
+    case 'not_yet_open':
+    case 'window_unknown':
+      return true;
+    case 'accepting':
+    case 'closing_soon':
+    case 'closed':
+    case 'submitted':
+    case 'setup_incomplete':
+      return false;
+    default:
+      return unknownStatusNotOpen(status);
+  }
+}
+
+function unknownStatusNotOpen(status: never): boolean {
+  void status;
+  return true;
+}
+
+/**
  * Get badge styling based on entry status
  */
 export function getEntryStatusBadgeStyle(status: EntryStatus): {
@@ -172,16 +205,26 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
       };
     case 'not_yet_open':
     case 'setup_incomplete':
+    case 'window_unknown':
       return {
         className: 'bg-muted/30 text-muted-foreground border-muted/10 border',
         variant: 'outline',
       };
     default:
-      return {
-        className: 'bg-muted text-muted-foreground',
-        variant: 'secondary',
-      };
+      return unknownStatusBadgeStyle(status);
   }
+}
+
+/**
+ * `never` makes a new `EntryStatus` member a compile error in the switch above
+ * instead of a silent fall-through; the body still covers a bad value at runtime.
+ */
+function unknownStatusBadgeStyle(status: never): {
+  className: string;
+  variant: 'secondary';
+} {
+  void status;
+  return { className: 'bg-muted text-muted-foreground', variant: 'secondary' };
 }
 
 /**

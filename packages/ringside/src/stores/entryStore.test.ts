@@ -11,7 +11,7 @@
  * - State updates and reactivity
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useEntryStore } from './entryStore';
 import type { Entry, EntryStatus } from './entryStore';
 

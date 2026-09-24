@@ -38,7 +38,6 @@ if [[ "$SKIP_VITEST" != 'true' ]]; then
   echo '=== Nightly health: deterministic Vitest ==='
   pnpm --dir apps/myk9show exec vitest run \
     src/test/unit/entryStore.multiClass.test.ts \
-    src/test/services/entries/entryLimitChecker.waitlists.test.ts \
     src/test/services/APIErrorInterceptor.registrationRecovery.test.ts \
     src/hooks/useInfiniteScroll.performanceCaching.test.ts
 fi

@@ -83,30 +83,3 @@ export interface ClassWithCapacity {
   level: string | null;
   section: string | null;
 }
-
-export interface PullRecord {
-  id: string;
-  class_id: string | null;
-  trial_id: string | null;
-  entry_status: string | null;
-  entry_fee: number | null;
-  created_at: string | null;
-  special_requests: string | null;
-  handler: string | null;
-  armband: string | null;
-  payment_status: string | null;
-  updated_at: string | null;
-  pull_reason?: string | null;
-  pulled_at?: string | null;
-  pull_timing: 'before_close' | 'after_close' | null;
-  dog: {
-    id: string;
-    name: string;
-    call_name: string | null;
-  } | null;
-  class: {
-    id: string;
-    name: string;
-    class_number: string | null;
-  } | null;
-}

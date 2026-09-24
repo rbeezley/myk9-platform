@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useWizardStore } from '@/store/wizardStore';
 import { useUserStore } from '@/store/userStore';
 import { useTemplates } from '@/hooks/useTemplates';
-import type { Show } from '@/types/show-types';
+import type { Show, ShowTrial } from '@/types/show-types';
 import { buildCloneSnapshot, getCloneSourceTrials } from './cloneFromShow';
 
 /**
@@ -18,7 +18,7 @@ export function useCloneFromShow(): (show: Show) => Promise<void> {
   return useCallback(
     async (show: Show) => {
       const generation = beginCloneHydration(show.id, show.name);
-      let sourceTrials: Show['trials'];
+      let sourceTrials: ShowTrial[];
       try {
         sourceTrials = await getCloneSourceTrials(show);
       } catch {

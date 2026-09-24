@@ -1,9 +1,15 @@
 // @vitest-environment node
 import type { Browser } from '@playwright/test';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assessGeneratorShard, startLoadGeneratorSampler } from './loadGeneratorSampler';
 
-const host = vi.hoisted(() => ({ busy: false, total: 0, idle: 0 }));
+// Mutated by tests and by the `cpus()` mock on every sample, so reset from a
+// factory before every test: CI shuffles test order within a file (MYK9-669).
+const { host, resetHost } = vi.hoisted(() => {
+  const defaults = () => ({ busy: false, total: 0, idle: 0 });
+  const host = defaults();
+  return { host, resetHost: (): void => void Object.assign(host, defaults()) };
+});
 vi.mock('node:os', () => ({
   cpus: () => {
     host.total += 100;
@@ -15,6 +21,7 @@ vi.mock('node:os', () => ({
   loadavg: () => [0, 0, 0],
 }));
 
+beforeEach(resetHost);
 afterEach(() => vi.useRealTimers());
 
 function probeBrowser() {

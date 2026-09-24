@@ -41,6 +41,13 @@
 --      constructed at all: the AFTER-INSERT constraint trigger
 --      trg_enforce_club_id_for_scoped_roles rejects a secretary, trial_secretary
 --      or club_admin row with a NULL club_id.)
+--   9. MYK9-668: a club-scoped chairman and a club-scoped steward read their
+--      club's enrollments only through the official arm (neither role is in
+--      entry_enrollment_select_show_ids()), and none of another club's.
+--  10. MYK9-668: for every persona in this file, official_show_ids() returns
+--      exactly the fixture shows is_show_official(show_id) admits -- all three
+--      arms (site admin; club-scoped secretary/chairman/steward; show-scoped
+--      steward). Red before 20260924051700: the function does not exist.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated local database;
 -- every fixture rolls back.
@@ -58,7 +65,8 @@ values
   ('00000000-0000-0000-0000-000000663802', 'site_admin', 'MYK9-663 fixture', true),
   ('00000000-0000-0000-0000-000000663803', 'club_admin', 'MYK9-663 fixture', true),
   ('00000000-0000-0000-0000-000000663804', 'steward', 'MYK9-663 fixture', true),
-  ('00000000-0000-0000-0000-000000663805', 'exhibitor', 'MYK9-663 fixture', true)
+  ('00000000-0000-0000-0000-000000663805', 'exhibitor', 'MYK9-663 fixture', true),
+  ('00000000-0000-0000-0000-000000663806', 'chairman', 'MYK9-668 fixture', true)
 on conflict (name) do nothing;
 
 insert into public.clubs (id, name)
@@ -96,7 +104,23 @@ values
   ('00000000-0000-0000-0000-000000663057', 'Show Pinned', 'Secretary',
    '00000000-0000-0000-0000-000000663157'),
   ('00000000-0000-0000-0000-000000663058', 'Show Pinned', 'Club Admin',
-   '00000000-0000-0000-0000-000000663158');
+   '00000000-0000-0000-0000-000000663158'),
+  ('00000000-0000-0000-0000-000000663059', 'Club A', 'Chairman',
+   '00000000-0000-0000-0000-000000663159'),
+  ('00000000-0000-0000-0000-000000663060', 'Club A', 'Steward',
+   '00000000-0000-0000-0000-000000663160');
+
+-- MYK9-668: the club-scoped arm of is_show_official for the two roles that
+-- reach enrollments ONLY through it (chairman and steward are not managers).
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000663059', id, '00000000-0000-0000-0000-000000663001',
+  true, '00000000-0000-0000-0000-000000663159'
+from public.roles where name = 'chairman';
+
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000663060', id, '00000000-0000-0000-0000-000000663001',
+  true, '00000000-0000-0000-0000-000000663160'
+from public.roles where name = 'steward';
 
 -- Club-scoped appointments (ur.show_id IS NULL), the shape
 -- is_trial_secretary()/is_club_admin() require -- see
@@ -405,5 +429,89 @@ END;
 $$;
 
 RESET ROLE;
+
+-- 9. MYK9-668: club-scoped chairman and steward read their club only, through
+--    the official arm alone.
+DO $$
+DECLARE
+  persona uuid;
+  own_club integer;
+  other_club integer;
+BEGIN
+  FOREACH persona IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000663159'::uuid,
+    '00000000-0000-0000-0000-000000663160'::uuid
+  ] LOOP
+    PERFORM set_config('request.jwt.claim.sub', persona::text, true);
+    PERFORM set_config('request.jwt.claims',
+      jsonb_build_object('sub', persona, 'role', 'authenticated', 'app_metadata', '{}'::jsonb)::text,
+      true);
+    PERFORM set_config('role', 'authenticated', true);
+    SELECT count(*) INTO own_club FROM public.enrollments
+     WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
+                       '00000000-0000-0000-0000-000000663013');
+    SELECT count(*) INTO other_club FROM public.enrollments
+     WHERE show_id = '00000000-0000-0000-0000-000000663012';
+    RESET ROLE;
+    IF own_club <> 3 OR other_club <> 0 THEN
+      RAISE EXCEPTION 'FAIL club-scoped official % sees % of own club''s 3 and % of Club B''s',
+        persona, own_club, other_club;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS club-scoped chairman and steward read their own club only';
+END;
+$$;
+
+-- 10. MYK9-668: official_show_ids() is the exact set form of is_show_official().
+--     Compared per persona over the three fixture shows, from the functions
+--     themselves, so no other policy arm can mask a dropped arm.
+DO $$
+DECLARE
+  persona uuid;
+  by_predicate uuid[];
+  by_set uuid[];
+  fixture_shows uuid[] := ARRAY[
+    '00000000-0000-0000-0000-000000663011'::uuid,
+    '00000000-0000-0000-0000-000000663012'::uuid,
+    '00000000-0000-0000-0000-000000663013'::uuid
+  ];
+  steward_saw_show_b boolean := false;
+BEGIN
+  FOREACH persona IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000663151'::uuid,  -- club-scoped secretary
+    '00000000-0000-0000-0000-000000663152'::uuid,  -- site admin
+    '00000000-0000-0000-0000-000000663153'::uuid,  -- club admin (not an official)
+    '00000000-0000-0000-0000-000000663154'::uuid,  -- SHOW-scoped steward
+    '00000000-0000-0000-0000-000000663155'::uuid,  -- exhibitor
+    '00000000-0000-0000-0000-000000663157'::uuid,  -- show-pinned secretary
+    '00000000-0000-0000-0000-000000663158'::uuid,  -- show-pinned club admin
+    '00000000-0000-0000-0000-000000663159'::uuid,  -- club-scoped chairman
+    '00000000-0000-0000-0000-000000663160'::uuid   -- club-scoped steward
+  ] LOOP
+    PERFORM set_config('request.jwt.claim.sub', persona::text, true);
+    PERFORM set_config('request.jwt.claims',
+      jsonb_build_object('sub', persona, 'role', 'authenticated')::text, true);
+
+    SELECT coalesce(array_agg(x ORDER BY x), '{}') INTO by_predicate
+      FROM unnest(fixture_shows) AS x WHERE public.is_show_official(x);
+    SELECT coalesce(array_agg(x ORDER BY x), '{}') INTO by_set
+      FROM unnest(fixture_shows) AS x WHERE x IN (SELECT public.official_show_ids());
+
+    IF by_predicate IS DISTINCT FROM by_set THEN
+      RAISE EXCEPTION 'FAIL official_show_ids() diverges for %: is_show_official % vs set %',
+        persona, by_predicate, by_set;
+    END IF;
+    IF persona = '00000000-0000-0000-0000-000000663154'::uuid THEN
+      steward_saw_show_b := by_set = ARRAY['00000000-0000-0000-0000-000000663012'::uuid];
+    END IF;
+  END LOOP;
+
+  -- The arm an inversion is most likely to drop, asserted positively.
+  IF NOT steward_saw_show_b THEN
+    RAISE EXCEPTION 'FAIL show-scoped steward arm missing from official_show_ids()';
+  END IF;
+  RAISE NOTICE 'PASS official_show_ids() matches is_show_official() for every persona, all three arms';
+END;
+$$;
 
 ROLLBACK;

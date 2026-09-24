@@ -1,42 +1,50 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
 
-const h = vi.hoisted(() => ({
-  roster: [
-    {
-      userId: 'sec',
-      name: 'Sue',
-      role: 'secretary',
-      location: { page: '/' },
-      activity: 'viewing',
-      ts: 0,
-    },
-    {
-      userId: 'ex1',
-      name: 'Ann',
-      role: 'exhibitor',
-      location: { page: '/' },
-      activity: 'viewing',
-      ts: 0,
-    },
-    {
-      userId: 'ex2',
-      name: 'Bob',
-      role: 'exhibitor',
-      location: { page: '/' },
-      activity: 'viewing',
-      ts: 0,
-    },
-  ],
-  // The local user's resolved presence identity (account OR anon passcode grant).
-  viewer: { userId: 'sec', name: 'Sue', role: 'secretary' } as {
-    userId: string;
-    name: string;
-    role: string;
-  } | null,
-}));
+// `viewer` is written from inside tests, so the whole fixture is reset from a
+// factory before every test: CI shuffles test order within a file (MYK9-669).
+const { h, resetH } = vi.hoisted(() => {
+  const defaults = () => ({
+    roster: [
+      {
+        userId: 'sec',
+        name: 'Sue',
+        role: 'secretary',
+        location: { page: '/' },
+        activity: 'viewing',
+        ts: 0,
+      },
+      {
+        userId: 'ex1',
+        name: 'Ann',
+        role: 'exhibitor',
+        location: { page: '/' },
+        activity: 'viewing',
+        ts: 0,
+      },
+      {
+        userId: 'ex2',
+        name: 'Bob',
+        role: 'exhibitor',
+        location: { page: '/' },
+        activity: 'viewing',
+        ts: 0,
+      },
+    ],
+    // The local user's resolved presence identity (account OR anon passcode grant).
+    viewer: { userId: 'sec', name: 'Sue', role: 'secretary' } as {
+      userId: string;
+      name: string;
+      role: string;
+    } | null,
+  });
+  const h = defaults();
+  return { h, resetH: (): void => void Object.assign(h, defaults()) };
+});
+
+beforeEach(resetH);
 
 vi.mock('@/features/show-presence/useShowPresence', () => ({
   useShowPresence: () => ({ present: h.roster, setEditing: vi.fn(), clearEditing: vi.fn() }),

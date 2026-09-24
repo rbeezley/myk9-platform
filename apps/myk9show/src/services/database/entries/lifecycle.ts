@@ -24,7 +24,6 @@ import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { updateEntryStatus } from './secretary';
 import type { SecretaryStatusEntrySeed } from './secretary';
-import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 export type EntryLifecycleAction = 'accept' | 'reject' | 'pull' | 'waitlist';
 
@@ -272,116 +271,6 @@ export const pullEntryDayOf = async (entryId: string, reason?: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'scratch_entry_day_of');
     logQuery('entries', 'pull_entry_day_of', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Secretary approves a pending pull request — guarded by
- * `entry_status='scratch-requested'` so a race that already approved or denied
- * the request returns no row instead of stomping a different state.
- */
-export const approvePullRequest = async (entryId: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .eq('entry_status', 'scratch-requested')
-      .select(
-        `
-        id,
-        entry_status,
-        check_in_status,
-        entry_fee,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'approve_pull_request', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'approve_scratch_request');
-    }
-
-    await logEntryStatusChange({
-      entryId,
-      fromStatus: 'scratch-requested',
-      toStatus: 'scratched',
-      action: 'approve_scratch_request',
-      metadata: { checkInStatus: 'pulled' },
-    });
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'approve_scratch_request');
-    logQuery('entries', 'approve_scratch_request', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Secretary denies a pending pull request — restores
- * `entry_status='confirmed'` and records the denial reason in
- * `special_requests`. Guarded by `entry_status='scratch-requested'`.
- */
-export const denyPullRequest = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-  const note = reason ? `Pull denied: ${reason}` : 'Pull request denied';
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'confirmed',
-        special_requests: note,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .eq('entry_status', 'scratch-requested')
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'deny_pull_request', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'deny_scratch_request');
-    }
-
-    await logEntryStatusChange({
-      entryId,
-      fromStatus: 'scratch-requested',
-      toStatus: 'confirmed',
-      action: 'deny_scratch_request',
-      reason,
-    });
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'deny_scratch_request');
-    logQuery('entries', 'deny_scratch_request', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

@@ -1,6 +1,6 @@
 // Pure helper functions for useClassStoreCompat
 
-import type { ClassInput, EntryInput, SyncableClassData } from '@/store/classStore';
+import type { ClassInput, SyncableClassData } from '@/store/classStore';
 import type { GeneratedClass } from '@/types/class-template-types';
 
 /**
@@ -22,17 +22,6 @@ export function validateClassUpdate(id: string, updates: Partial<ClassInput>): v
   if (Object.keys(updates).length === 0) {
     throw new Error('At least one field must be provided for update');
   }
-}
-
-/**
- * Validates required fields for creating an entry.
- * Throws descriptive errors for missing fields.
- */
-export function validateEntryInput(entryData: EntryInput): void {
-  if (!entryData.classId) throw new Error('Class ID is required');
-  if (!entryData.armband) throw new Error('Armband is required');
-  if (!entryData.handler) throw new Error('Handler name is required');
-  if (!entryData.dog) throw new Error('Dog name is required');
 }
 
 /**

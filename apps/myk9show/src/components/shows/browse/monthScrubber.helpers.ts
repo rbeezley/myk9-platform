@@ -56,8 +56,24 @@ function monthTile(key: string, bucket: Show[], isPast: boolean, year: number | 
 
 function dotFor(show: Show): MonthDot {
   const status = getEntryStatus(show).status;
-  if (status === 'closing_soon') return 'closing';
-  if (status === 'accepting' || status === 'submitted') return 'open';
+  switch (status) {
+    case 'closing_soon':
+      return 'closing';
+    case 'accepting':
+    case 'submitted':
+      return 'open';
+    case 'not_yet_open':
+    case 'closed':
+    case 'setup_incomplete':
+    case 'window_unknown':
+      return 'muted';
+    default:
+      return unknownDot(status);
+  }
+}
+
+function unknownDot(status: never): MonthDot {
+  void status;
   return 'muted';
 }
 

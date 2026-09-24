@@ -9,13 +9,17 @@ import {
   getClassIds,
   shouldCombineAllSections,
 } from './noviceClassGrouping';
+import type { ClassEntry } from '../types';
 
-const createMockClass = (overrides: Record<string, unknown> = {}) => ({
+const createMockClass = (overrides: Partial<ClassEntry> = {}): ClassEntry => ({
   id: '1',
   class_name: 'Container Novice A',
   element: 'Container',
   level: 'Novice',
   section: 'A',
+  class_order: 1,
+  judge_name: 'Test Judge',
+  class_status: 'no-status',
   entry_count: 5,
   completed_count: 0,
   dogs: [],

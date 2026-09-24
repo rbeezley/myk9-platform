@@ -240,9 +240,9 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
   });
 
   it('RunOrderDialog accepts an entries array and async onApplyOrder', async () => {
-    const onApplyOrder = vi.fn<[RunOrderPreset, RunOrderScope?, RenumberMode?], Promise<void>>(
-      async () => undefined
-    );
+    const onApplyOrder = vi.fn<
+      (preset: RunOrderPreset, scope?: RunOrderScope, mode?: RenumberMode) => Promise<void>
+    >(async () => undefined);
     const { RunOrderDialog } = slots;
     const entries: Entry[] = [
       {
@@ -274,7 +274,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
   });
 
   it('ScoresheetPrintDialog passes PrintSortOrder back through onPrint', () => {
-    const onPrint = vi.fn<[PrintSortOrder], void>();
+    const onPrint = vi.fn<(sortOrder: PrintSortOrder) => void>();
     const { ScoresheetPrintDialog } = slots;
     render(
       <ScoresheetPrintDialog

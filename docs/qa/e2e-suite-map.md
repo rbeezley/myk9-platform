@@ -12,6 +12,8 @@ This map classifies current Playwright specs into operational suites for the pro
 
 ## Recommended Commands
 
+Both `pnpm test:e2e <paths/flags>` and `pnpm test:e2e:clean <paths/flags>` pass everything after the script name to `playwright test`, so a path runs only that path (MYK9-628; `src/test/ci/e2eScriptArgs.test.ts` keeps it that way). `test:e2e` additionally runs the `posttest:e2e` cleanup hook afterwards; `test:e2e:clean` skips it, which is why the commands below use it.
+
 ### Suite Map Drift
 
 Run after adding, deleting, moving, or reclassifying E2E specs:
@@ -60,7 +62,6 @@ The command runs the promoted registration service/store checks that used to be 
 cd apps/myk9show
 npx vitest run \
   src/test/unit/entryStore.multiClass.test.ts \
-  src/test/services/entries/entryLimitChecker.waitlists.test.ts \
   src/test/services/APIErrorInterceptor.registrationRecovery.test.ts \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
@@ -191,7 +192,6 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | Spec                                                                               | Why                                                            |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `apps/myk9show/src/test/services/APIErrorInterceptor.registrationRecovery.test.ts` | Registration retry, conflict, and network-error handling.      |
-| `apps/myk9show/src/test/services/entries/entryLimitChecker.waitlists.test.ts`      | Entry limit and waitlist service scenarios.                    |
 | `apps/myk9show/src/hooks/useInfiniteScroll.performanceCaching.test.ts`             | Registration large-result caching, prefetch, and cache bounds. |
 | `apps/myk9show/src/test/unit/entryStore.multiClass.test.ts`                        | Multi-class entry store scenarios converted from E2E.          |
 | `apps/myk9show/src/test/unit/entryStore.test.ts`                                   | Core entry store workflow and audit trail.                     |

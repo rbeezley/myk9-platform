@@ -70,7 +70,6 @@ describe('RequestAccessPage', () => {
     expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1');
   });
 
-
   it('lets an exhibitor search for an existing club from the page', () => {
     mockBrowse.data = {
       ...mockBrowse.data,

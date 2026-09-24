@@ -10,7 +10,10 @@ import {
 
 const handler = createSendAccessRequestEmailHandler({
   resendApiKey: Deno.env.get('RESEND_API_KEY') ?? null,
-  siteUrl: (Deno.env.get('SITE_URL') || 'https://myk9-platform-myk9show.vercel.app').replace(/\/+$/, ''),
+  siteUrl: (Deno.env.get('SITE_URL') || 'https://myk9-platform-myk9show.vercel.app').replace(
+    /\/+$/,
+    ''
+  ),
 });
 
 handle<SendAccessRequestEmailPayload>(

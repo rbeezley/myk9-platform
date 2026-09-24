@@ -27,13 +27,13 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
     trial,
     allTrials,
     hasEntryClassInventory,
-    entryNotYetOpen,
+    entryWindowNotOpen,
   }: {
     show: { style?: string | null; trials?: { id: string; classes?: { element?: string }[] }[] };
     trial: { id?: string } | null;
     allTrials: { id: string }[];
     hasEntryClassInventory?: boolean | null;
-    entryNotYetOpen?: boolean;
+    entryWindowNotOpen?: boolean;
   }) => (
     <div
       data-testid="monogram-landing"
@@ -42,7 +42,7 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
       data-all={allTrials.length}
       data-preview={show?.trials?.map(trial => trial.classes?.[0]?.element).join(',') ?? ''}
       data-inventory={String(hasEntryClassInventory)}
-      data-not-yet-open={String(entryNotYetOpen)}
+      data-entry-window-not-open={String(entryWindowNotOpen)}
     >
       monogram
     </div>
@@ -64,7 +64,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: 'heritage' })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('heritage-landing')).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('ShowPublicLanding', () => {
           } as never,
         ]}
         hasEntryClassInventory={true}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-preview', ',Exterior');
@@ -96,7 +96,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: 'banner' })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('banner-landing')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: null })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: 'default' })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe('ShowPublicLanding', () => {
         })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     const landing = screen.getByTestId('heritage-landing');
@@ -152,7 +152,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: null })}
         landingTrials={[makeTrial('t1'), makeTrial('t2')]}
         hasEntryClassInventory={true}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     const landing = screen.getByTestId('monogram-landing');
@@ -169,28 +169,34 @@ describe('ShowPublicLanding', () => {
    * was already correct and untouched; the defect was that its answer never got
    * this far.
    */
-  it('passes entryNotYetOpen through to the styled landing', () => {
+  it('passes entryWindowNotOpen through to the styled landing', () => {
     render(
       <ShowPublicLanding
         show={makeShow({ style: null })}
         landingTrials={[makeTrial('t1')]}
         hasEntryClassInventory={true}
-        entryNotYetOpen={true}
+        entryWindowNotOpen={true}
       />
     );
-    expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-not-yet-open', 'true');
+    expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
+      'data-entry-window-not-open',
+      'true'
+    );
   });
 
-  it('passes entryNotYetOpen=false through unchanged', () => {
+  it('passes entryWindowNotOpen=false through unchanged', () => {
     render(
       <ShowPublicLanding
         show={makeShow({ style: null })}
         landingTrials={[makeTrial('t1')]}
         hasEntryClassInventory={true}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
-    expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-not-yet-open', 'false');
+    expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
+      'data-entry-window-not-open',
+      'false'
+    );
   });
 
   it('passes a null trial when there are no landing trials', () => {
@@ -199,7 +205,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: null })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
     expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-trial', 'none');

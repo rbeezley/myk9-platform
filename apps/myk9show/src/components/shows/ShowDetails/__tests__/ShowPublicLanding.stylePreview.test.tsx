@@ -51,7 +51,7 @@ function renderPreview(overrides: Partial<React.ComponentProps<typeof ShowPublic
       show={makeShow()}
       landingTrials={[makeTrial('trial-1')]}
       hasEntryClassInventory={null}
-      entryNotYetOpen={false}
+      entryWindowNotOpen={false}
       styleMode="manager-draft-preview"
       onSaveDraftStyle={vi.fn().mockResolvedValue(undefined)}
       {...overrides}
@@ -199,7 +199,7 @@ describe('ShowPublicLanding style preview', () => {
         show={makeShow()}
         landingTrials={[makeTrial('trial-1')]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
         styleMode="manager-draft-preview"
         onSaveDraftStyle={onSaveDraftStyle}
       />
@@ -254,7 +254,7 @@ describe('ShowPublicLanding style preview', () => {
         show={makeShow({ id: 'show-a', style: 'monogram' })}
         landingTrials={[makeTrial('trial-a')]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
         styleMode="manager-draft-preview"
         onSaveDraftStyle={onSaveDraftStyle}
       />,
@@ -271,7 +271,7 @@ describe('ShowPublicLanding style preview', () => {
         show={makeShow({ id: 'show-b', style: 'monogram' })}
         landingTrials={[makeTrial('trial-b')]}
         hasEntryClassInventory={null}
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
         styleMode="manager-draft-preview"
         onSaveDraftStyle={onSaveDraftStyle}
       />

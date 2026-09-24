@@ -69,7 +69,7 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -84,7 +84,7 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -99,7 +99,7 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 

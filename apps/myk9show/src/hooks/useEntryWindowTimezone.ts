@@ -35,11 +35,29 @@
  * `trialsReadStatus` is the same signal `WorkflowStepContent` uses to refuse a
  * mid-hydration trial row, for the reason it states: no marker is better than a
  * wrong one.
+ *
+ * What `tablesStatus.trials` does and does NOT mean (MYK9-679):
+ *
+ *   'success'  the most recent download of `trials` finished. Not "has ever
+ *              finished": see 'syncing'.
+ *   'syncing'  a download is running. Every full sync (autosync, reconnect)
+ *              resets EVERY table to 'syncing' first, so this is re-entered
+ *              after 'success' routinely. It says nothing about whether a
+ *              download already landed; the hook latches that itself
+ *              (`trialsSyncedOnce`), so readiness does not flap false on each
+ *              autosync for a show with no trials (P-F4).
+ *   'idle'     no download has finished and none is running. `triggerSync`
+ *              returns early while offline WITHOUT touching this, and an
+ *              aborted sync lands here too, so 'idle' can last indefinitely.
+ *              Offline with nothing cached is therefore reported as
+ *              `isUnavailable`, not as a wait that cannot end (P-F3).
+ *   'error'    the last download failed.
  */
 
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { useTrialStore } from '@/store/trialStore';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import type { Trial } from '@/store/trial-store-types';
 
@@ -90,12 +108,28 @@ export function useEntryWindowTimezone(showId: string | undefined): EntryWindowT
   const syncContext = useContext(ReplicationSyncContext);
   const trialsSyncStatus = syncContext?.status.tablesStatus.trials;
 
+  // Same fallback rule: no provider means the browser's own flag.
+  const networkContext = useContext(NetworkStatusContext);
+  const isOnline = networkContext?.isOnline ?? navigator.onLine;
+
+  // Latched per mount: once `trials` has downloaded, a later 'syncing' (every
+  // autosync re-enters it) does not un-know the answer. State adjusted during
+  // render rather than a ref, which the React compiler lint forbids reading
+  // in render; the guard makes it settle in one extra pass.
+  const [trialsSyncedOnce, setTrialsSyncedOnce] = useState(false);
+  if (trialsSyncStatus === 'success' && !trialsSyncedOnce) setTrialsSyncedOnce(true);
+
   const localReadFinished = readStatus === 'ready';
-  const syncSettled = trialsSyncStatus === 'success';
+  const syncSettled = trialsSyncedOnce || trialsSyncStatus === 'success';
   // A trial for THIS show in hand beats every other signal: the zone is real,
   // whatever a later refresh did.
   const isReady = hasShowTrials || (localReadFinished && syncSettled);
-  const isUnavailable = !isReady && (readStatus === 'error' || trialsSyncStatus === 'error');
+  // Offline, after the local read came back without this show's trials, no
+  // download can run: that is a terminal state until the connection returns.
+  const offlineWithNothingCached = !isOnline && localReadFinished;
+  const isUnavailable =
+    !isReady &&
+    (readStatus === 'error' || trialsSyncStatus === 'error' || offlineWithNothingCached);
 
   return { timeZone, isReady, isUnavailable };
 }

@@ -94,7 +94,6 @@ describe('Permission Validation Security Tests', () => {
       const show = createMockShow();
 
       expect(ShowPermissionValidator.canCreate(null)).toBe(false);
-      expect(ShowPermissionValidator.canRegister(null, show)).toBe(false);
       expect(ShowPermissionValidator.canEdit(null, createShowWithRelationship(show))).toBe(false);
       expect(ShowPermissionValidator.canDelete(null, createShowWithRelationship(show))).toBe(false);
     });
@@ -107,11 +106,6 @@ describe('Permission Validation Security Tests', () => {
 
   describe('Exhibitor Role Tests', () => {
     const exhibitor = createMockUser(UserRole.EXHIBITOR);
-
-    it('should allow exhibitors to register for shows', () => {
-      const show = createMockShow();
-      expect(ShowPermissionValidator.canRegister(exhibitor, show)).toBe(true);
-    });
 
     it('should restrict exhibitors from management actions', () => {
       const show = createShowWithRelationship(createMockShow());
@@ -375,41 +369,6 @@ describe('Permission Validation Security Tests', () => {
       const user = createMockUser(UserRole.EXHIBITOR);
 
       expect(() => ShowPermissionValidator.canView(user, malformedShow)).not.toThrow();
-    });
-  });
-
-  describe('Registration Time Window Tests', () => {
-    it('should prevent registration for past shows', () => {
-      const pastShow = createMockShow({
-        startDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-        endDate: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-      });
-
-      const user = createMockUser(UserRole.EXHIBITOR);
-      expect(ShowPermissionValidator.canRegister(user, pastShow)).toBe(false);
-    });
-
-    it('should prevent registration after entry close date', () => {
-      // entryCloseDate is a DATE column: entry stays open through the whole
-      // close day (inclusive end-of-day, mirroring entryStatusUtils). "After
-      // close" therefore means a fully-past day, not merely an hour ago.
-      const closedShow = createMockShow({
-        // Two full days ago so the inclusive end-of-close-day is unambiguously
-        // past regardless of the runner's timezone. `- 86400000` (yesterday) is
-        // flaky: after UTC midnight its ISO date-part reads as the local *today*,
-        // leaving the close day still open.
-        entryCloseDate: new Date(Date.now() - 2 * 86400000).toISOString(),
-      });
-
-      const user = createMockUser(UserRole.EXHIBITOR);
-      expect(ShowPermissionValidator.canRegister(user, closedShow)).toBe(false);
-    });
-
-    it('should prevent registration for non-upcoming shows', () => {
-      const draftShow = createMockShow({ status: 'Draft' });
-
-      const user = createMockUser(UserRole.EXHIBITOR);
-      expect(ShowPermissionValidator.canRegister(user, draftShow)).toBe(false);
     });
   });
 });

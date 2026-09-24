@@ -32,6 +32,8 @@ export function deriveShowMarkerStatus(
   if (!ENTERABLE_STATUSES.has(show.status)) return 'closed';
 
   const entry = getEntryStatus(show);
+  // not_yet_open, window_unknown, closed and setup_incomplete all land here:
+  // the map has no "opens later" pin, and a window nobody set must not get one.
   if (!entry.canEnter) return 'closed';
 
   if (capacity && capacity.maxTotalEntries > 0) {

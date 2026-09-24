@@ -1,8 +1,8 @@
 /**
- * Offline Entry Creation System
+ * Entry validation and limit checking.
  *
- * A comprehensive system for creating dog show entries completely offline
- * with full validation, limit checking, and optimistic updates.
+ * `OfflineEntryCreator` was deleted with MYK9-676: it had no production caller,
+ * and it looked trials up on the show store's `trials`, which was always empty.
  */
 
 export { EntryValidator } from './EntryValidator';
@@ -19,48 +19,17 @@ export type {
   LimitCheckContext,
 } from './EntryLimitChecker';
 
-export { OfflineEntryCreator } from './OfflineEntryCreator';
-export type {
-  EntryCreationOptions,
-  EntryCreationResult,
-  BatchEntryCreationResult,
-} from './OfflineEntryCreator';
-
 /**
  * Quick Start Guide:
  *
- * 1. Basic Entry Creation:
- * ```typescript
- * import { OfflineEntryCreator } from '@/services/entries';
- *
- * const result = await OfflineEntryCreator.createEntry(entryData, {
- *   userId: 'current-user',
- *   allowWaitlist: true
- * });
- *
- * if (result.success) {
- *   logger.debug('Entry created:', 'entries', { data: result.entry });
- * } else {
- *   logger.debug('Errors:', 'entries', { data: result.errors });
- * }
- * ```
- *
- * 2. Batch Entry Creation:
- * ```typescript
- * const batchResult = await OfflineEntryCreator.createBatchEntries(entriesArray, {
- *   ignoreWarnings: false,
- *   allowWaitlist: true
- * });
- * ```
- *
- * 3. Validation Only:
+ * 1. Validation Only:
  * ```typescript
  * import { EntryValidator } from '@/services/entries';
  *
  * const validationResult = await EntryValidator.validateEntry(entryData, context);
  * ```
  *
- * 4. Limit Checking:
+ * 2. Limit Checking:
  * ```typescript
  * import { EntryLimitChecker } from '@/services/entries';
  *

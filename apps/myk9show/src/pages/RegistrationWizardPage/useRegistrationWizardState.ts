@@ -51,7 +51,7 @@ import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../Registratio
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
-import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
+import { useEntryCloseAvailability } from './useEntryCloseAvailability';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
@@ -173,8 +173,8 @@ export function useRegistrationWizardState() {
   const addItem = useCartStore(state => state.addItem);
   const abandonCart = useCartStore(state => state.abandonCart);
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
-  // NOT `currentShow.trials` — the show store never populates that array, so it
-  // resolves to the America/New_York fallback for every show (MYK9-642 J-F1).
+  // The show store carries no trials (`StoreShow`, MYK9-676); the zone comes
+  // from the trial store (MYK9-642 J-F1).
   // `isReady` is the second half (L-F1): mid-hydration the hook still answers,
   // with that same fallback, and this wizard can mount straight onto Payment
   // with a Submit button (see useWizardDraftRehydration). An unresolved zone is
@@ -501,32 +501,12 @@ export function useRegistrationWizardState() {
   const [waiveFees, setWaiveFees] = useState(false);
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
 
-  const entryCloseAvailability = useMemo(
-    () =>
-      getEntryCloseAvailability({
-        showId,
-        startDate: currentShow?.startDate,
-        entryOpenDate: currentShow?.entryOpenDate,
-        entryCloseDate: currentShow?.entryCloseDate,
-        // Deliberately still the show-store array, i.e. still the
-        // America/New_York fallback. The entry-close GUARD has read it that way
-        // since it was written; correcting it moves who can enter and when,
-        // which is a separate change from the fee/flag rule this PR is about.
-        // Tracked on MYK9-676.
-        entryWindowTimezone: getEntryWindowTimezone(currentShow?.trials),
-        isLateEntryMode,
-        workflowMode: currentWorkflowMode,
-      }),
-    [
-      showId,
-      currentShow?.startDate,
-      currentShow?.entryOpenDate,
-      currentShow?.entryCloseDate,
-      currentShow?.trials,
-      isLateEntryMode,
-      currentWorkflowMode,
-    ]
-  );
+  const entryCloseAvailability = useEntryCloseAvailability({
+    showId,
+    show: currentShow,
+    isLateEntryMode,
+    workflowMode: currentWorkflowMode,
+  });
 
   // Auto-assign dog owners as handlers for each entry (dog+class) when class
   // selections change. Derived key tracks the set of entries; the effect fires

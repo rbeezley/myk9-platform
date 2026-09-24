@@ -100,7 +100,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
       ],
     } as never);
 
-    expect(result.trials[0]?.classes).toEqual([
+    expect(result.trials?.[0]?.classes).toEqual([
       expect.objectContaining({
         id: 'class-1',
         name: 'Novice Containers',

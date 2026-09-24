@@ -1227,9 +1227,19 @@ describe('ShowDetailsPage', () => {
     });
     expect(setQueryDataSpy).toHaveBeenCalledWith(
       ['shows', 'detail', 'show-1'],
-      expect.objectContaining({ style: 'heritage' })
+      expect.any(Function)
     );
     expect(setQueryDataSpy).toHaveBeenCalledWith(['shows', 'list'], expect.any(Function));
+    // The saved show comes from the show store, which carries no trials
+    // (StoreShow, MYK9-676): the cache write must MERGE it over the query's
+    // row, keeping the embedded trials, not replace the row with it.
+    const embeddedTrials = [{ id: 'trial-1', name: 'Trial 1', date: '2026-03-22' }];
+    const detailUpdater = setQueryDataSpy.mock.calls.find(
+      ([key]) => JSON.stringify(key) === JSON.stringify(['shows', 'detail', 'show-1'])
+    )?.[1] as (current: unknown) => Record<string, unknown>;
+    expect(detailUpdater({ id: 'show-1', style: 'monogram', trials: embeddedTrials })).toEqual(
+      expect.objectContaining({ style: 'heritage', trials: embeddedTrials })
+    );
   });
 
   it('keeps the editor open and surfaces calm recovery copy when premium publish fails', async () => {

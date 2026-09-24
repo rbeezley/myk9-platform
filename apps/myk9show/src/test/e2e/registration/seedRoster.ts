@@ -37,24 +37,20 @@ export const SEEDED_EXHIBITOR_DOG_NAMES = ['Willow', 'Ranger', 'Juni', 'Scout', 
 export interface SeededSearchDog {
   id: string;
   callName: string;
-  ownerId: string;
 }
 
 export const SEEDED_SEARCH_DOGS = {
   ranger: {
     id: 'dededede-0000-0000-0000-000000000042',
     callName: 'Ranger',
-    ownerId: 'dededede-0000-0000-0000-000000000101',
   },
   willow: {
     id: 'dededede-0000-0000-0000-000000000041',
     callName: 'Willow',
-    ownerId: 'dededede-0000-0000-0000-000000000101',
   },
   cooper: {
     id: 'dededede-0000-0000-0000-000000000046',
     callName: 'Cooper',
-    ownerId: 'dededede-0000-0000-0000-000000000102',
   },
 } as const satisfies Record<string, SeededSearchDog>;
 

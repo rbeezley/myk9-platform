@@ -6,7 +6,7 @@ import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandl
  * MYK9-664: a person's date of birth and junior handler numbers live in
  * `public.people_private`, not on `people`.
  *
- * Who can do what (enforced in the database, 20260924051700):
+ * Who can do what (enforced in the database, 20260924063300):
  *  - READ  — the person themself and site admins only (RLS). Everyone else,
  *            show managers included, reads zero rows. An absent row therefore
  *            means "none stored OR not yours to see", never "definitely none".

@@ -1,7 +1,7 @@
 -- MYK9-664: a handler's date of birth and junior handler numbers are readable only
 -- by the person and site admins. Show managers can SET them (for a handler entered
 -- in a show they manage) and see a derived per-entry junior flag, never the values.
--- Behavioral test for 20260924051700_myk9_664_people_private.sql.
+-- Behavioral test for 20260924063300_myk9_664_people_private.sql.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 --

@@ -84,9 +84,9 @@ describe('useClubShowAccessRequests', () => {
     const { result } = renderTheHook();
 
     result.current.roleRequestsTabProps.onApproveRequest('request-1');
-    await waitFor(() => expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-1'));
+    await waitFor(() => expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-1', 'decision'));
 
     result.current.roleRequestsTabProps.onDenyRequest('request-2', 'Not this season.');
-    await waitFor(() => expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-2'));
+    await waitFor(() => expect(notifyMock).toHaveBeenCalledWith('secretary', 'request-2', 'decision'));
   });
 });

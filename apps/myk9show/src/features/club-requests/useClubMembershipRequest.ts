@@ -23,9 +23,13 @@ export function useClubMembershipRequest(club: Pick<Club, 'id' | 'name'>): ClubR
     preState: authUserId ? null : { kind: 'signed-out' },
     fetchStatus: async () => {
       const result = await getMyClubMembershipRequestStatus(club.id);
+      // An approval is only final while the membership is still active. A
+      // member who later lapsed, resigned or was removed may ask again (the
+      // server allows it), so their old approval must not hide the form.
+      const formerMember = result.status === 'approved' && !result.isMember;
       return {
-        status: result.status,
-        reviewerNote: result.reviewerNote,
+        status: formerMember ? null : result.status,
+        reviewerNote: formerMember ? null : result.reviewerNote,
         hasAccessMessage: result.isMember ? `You are already a member of ${club.name}.` : null,
       };
     },

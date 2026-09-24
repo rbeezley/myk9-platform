@@ -126,7 +126,7 @@ describe('RequestAccessPage — existing club', () => {
     expect(await screen.findByText('Request sent')).toBeInTheDocument();
     expect(screen.getByText(/review it from their Club Members page/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('secretary', 'request-1');
+    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('secretary', 'request-1', 'submitted');
   });
 
   it('submits a membership request without requiring a message', async () => {
@@ -140,7 +140,7 @@ describe('RequestAccessPage — existing club', () => {
       expect(submitClubMembershipRequest).toHaveBeenCalledWith({ clubId: 'club-1', note: '' })
     );
     expect(await screen.findByText('Request sent')).toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('membership', 'membership-1');
+    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('membership', 'membership-1', 'submitted');
   });
 
   it('shows an existing pending request instead of another submit button', async () => {
@@ -171,7 +171,23 @@ describe('RequestAccessPage — existing club', () => {
     expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
   });
 
-  it('shows an approved request as approved', async () => {
+  it('tells a current member they already belong instead of offering the form', async () => {
+    vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
+      isMember: true,
+      status: 'approved',
+      reviewerNote: null,
+    });
+    const user = await chooseClub();
+
+    await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
+
+    expect(
+      await screen.findByText('You are already a member of Heartland Dog Club.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
+  });
+
+  it('lets a former member whose old request was approved ask again', async () => {
     vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
       isMember: false,
       status: 'approved',
@@ -181,7 +197,21 @@ describe('RequestAccessPage — existing club', () => {
 
     await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
 
-    expect(await screen.findByText('Your membership request was approved.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Send request' })).toBeInTheDocument();
+  });
+
+  it('shows a secretary approval that the auth scopes have not caught up with yet', async () => {
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'approved',
+      reviewerNote: null,
+    });
+    const user = await chooseClub();
+
+    await user.click(screen.getByRole('button', { name: 'Ask for secretary access' }));
+
+    expect(
+      await screen.findByText('Your secretary access request was approved.')
+    ).toBeInTheDocument();
   });
 
   it('explains why there is nothing to ask for instead of rendering an empty slot', async () => {

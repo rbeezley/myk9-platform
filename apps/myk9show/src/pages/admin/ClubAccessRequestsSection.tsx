@@ -53,7 +53,7 @@ function ReviewCard({
         decision === 'approved' ? 'Club request approved' : 'Club request denied'
       );
       // After the decision is saved; an email problem never undoes it.
-      void notifyAccessRequestEmail('new_club', request.id);
+      void notifyAccessRequestEmail('new_club', request.id, 'decision');
       await onReviewed();
     } catch (error) {
       logger.error(

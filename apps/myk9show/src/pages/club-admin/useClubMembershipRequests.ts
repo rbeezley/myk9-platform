@@ -38,7 +38,7 @@ export function useClubMembershipRequests(
   const approveMutation = useMutation({
     mutationFn: (requestId: string) => approveClubMembershipRequest(requestId),
     onSuccess: (_data, requestId) => {
-      void notifyAccessRequestEmail('membership', requestId);
+      void notifyAccessRequestEmail('membership', requestId, 'decision');
       queryClient.invalidateQueries({ queryKey: ['club-membership-requests', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       notifications.success('Request approved. They are now on the member list.');
@@ -51,7 +51,7 @@ export function useClubMembershipRequests(
     mutationFn: ({ requestId, note }: { requestId: string; note?: string }) =>
       denyClubMembershipRequest(requestId, note ?? null),
     onSuccess: (_data, { requestId }) => {
-      void notifyAccessRequestEmail('membership', requestId);
+      void notifyAccessRequestEmail('membership', requestId, 'decision');
       queryClient.invalidateQueries({ queryKey: ['club-membership-requests', clubId] });
       notifications.success('Request denied.');
     },

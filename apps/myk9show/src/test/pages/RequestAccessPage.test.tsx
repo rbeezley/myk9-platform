@@ -67,7 +67,7 @@ describe('RequestAccessPage', () => {
       });
     });
     expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
-    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1');
+    expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1', 'submitted');
   });
 
   it('lets an exhibitor search for an existing club from the page', () => {

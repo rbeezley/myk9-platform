@@ -61,7 +61,7 @@ export function useClubRequestController(options: Options): ClubRequestControlle
       void refreshStatus();
       notifications.success(options.successMessage);
       // After the commit, never before: an email failure cannot undo the ask.
-      void notifyAccessRequestEmail(options.emailKind, requestId);
+      void notifyAccessRequestEmail(options.emailKind, requestId, 'submitted');
     },
     onError: error => {
       const failure = classifySubmitError(error);

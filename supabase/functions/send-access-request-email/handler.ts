@@ -2,11 +2,12 @@
 // lifecycle — new club, club secretary, and club membership asks.
 //
 // The client calls this AFTER its request/review RPC has committed, so an
-// email failure can never roll back the request or the decision. What to send
-// is derived from the request row, never from the body: a PENDING row is the
-// "submitted" event and only its requester may trigger it; an APPROVED or
-// DENIED row is the decision and only the person recorded as its reviewer may
-// trigger it.
+// email failure can never roll back the request or the decision. The body
+// names only the event; recipients and content come from the request row.
+// A "submitted" event may be triggered only by the row's requester, whatever
+// the row's status now (a quick review must not swallow the submission
+// emails). A "decision" event requires an approved or denied row and may be
+// triggered only by the person recorded as its reviewer.
 //
 // Once-only: each (email_type, request, recipient) is claimed in email_log
 // BEFORE the provider call, against email_log_access_request_once_idx. A
@@ -36,9 +37,12 @@ const KINDS: readonly AccessRequestKind[] = ['new_club', 'secretary', 'membershi
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UNIQUE_VIOLATION = '23505';
 
+export type AccessRequestEvent = 'submitted' | 'decision';
+
 export interface SendAccessRequestEmailPayload {
   kind?: string;
   requestId?: string;
+  event?: string;
 }
 
 interface WriteResult<T = unknown> {
@@ -88,20 +92,23 @@ export function createSendAccessRequestEmailHandler(deps: SendAccessRequestEmail
     if (!body.requestId || !UUID.test(body.requestId)) {
       throw new HttpError(400, 'requestId is required');
     }
+    const event: AccessRequestEvent | null =
+      body.event === 'submitted' || body.event === 'decision' ? body.event : null;
+    if (!event) throw new HttpError(400, 'event must be submitted or decision');
 
     const record = await loadAccessRequest(supabase, kind, body.requestId);
-    await assertCallerOwnsEvent(supabase, record, user.id);
+    await assertCallerOwnsEvent(supabase, record, event, user.id);
 
     if (!deps.resendApiKey) throw new HttpError(503, 'Email service not configured');
 
-    const deliveries = await plannedDeliveries(supabase, record, deps.siteUrl);
+    const deliveries = await plannedDeliveries(supabase, record, event, deps.siteUrl);
     const outcomes: DeliveryOutcome[] = [];
     for (const delivery of deliveries) {
       outcomes.push(await deliverOnce(supabase, deps, record.id, delivery));
     }
 
     return {
-      event: record.status === 'pending' ? 'submitted' : record.status,
+      event: event === 'submitted' ? 'submitted' : record.status,
       sent: outcomes.filter(outcome => outcome === 'sent').length,
       skipped: outcomes.filter(outcome => outcome === 'skipped').length,
       failed: outcomes.filter(outcome => outcome === 'failed').length,
@@ -112,13 +119,18 @@ export function createSendAccessRequestEmailHandler(deps: SendAccessRequestEmail
 async function assertCallerOwnsEvent(
   client: AccessRequestEmailClient,
   record: AccessRequestRecord,
+  event: AccessRequestEvent,
   callerId: string
 ): Promise<void> {
-  if (record.status === 'pending') {
+  if (event === 'submitted') {
     if (record.requesterAuthUserId !== callerId) {
       throw new HttpError(403, 'Only the requester can announce this request');
     }
     return;
+  }
+
+  if (record.status === 'pending') {
+    throw new HttpError(409, 'This request has not been reviewed yet');
   }
 
   const reviewerAuthId = record.reviewedByPersonId
@@ -132,9 +144,10 @@ async function assertCallerOwnsEvent(
 export async function plannedDeliveries(
   client: AccessRequestEmailClient,
   record: AccessRequestRecord,
+  event: AccessRequestEvent,
   siteUrl: string
 ): Promise<Delivery[]> {
-  if (record.status !== 'pending') {
+  if (event === 'decision') {
     return [{ recipient: record.requester, message: decisionEmail(record, siteUrl) }];
   }
 

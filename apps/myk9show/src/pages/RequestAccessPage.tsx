@@ -52,7 +52,7 @@ const RequestAccessPage: React.FC = () => {
       });
       setSubmitted(true);
       // After the request is saved; an email problem never undoes it.
-      void notifyAccessRequestEmail('new_club', requestId);
+      void notifyAccessRequestEmail('new_club', requestId, 'submitted');
     } catch {
       setError("We couldn't send your request. Please try again.");
     } finally {

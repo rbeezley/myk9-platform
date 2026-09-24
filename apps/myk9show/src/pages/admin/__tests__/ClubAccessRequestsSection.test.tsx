@@ -92,7 +92,7 @@ describe('ClubAccessRequestsSection', () => {
     );
     // MYK9-681: the approval email goes out only after the decision saved.
     await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1')
+      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1', 'decision')
     );
   });
 
@@ -111,7 +111,7 @@ describe('ClubAccessRequestsSection', () => {
       })
     );
     await waitFor(() =>
-      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1')
+      expect(notifyAccessRequestEmail).toHaveBeenCalledWith('new_club', 'request-1', 'decision')
     );
   });
 

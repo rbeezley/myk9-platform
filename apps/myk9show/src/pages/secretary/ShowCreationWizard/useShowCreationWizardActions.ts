@@ -35,6 +35,10 @@ import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
+import {
+  normalizeWizardClassSelections,
+  type NormalizedWizardClassSelection,
+} from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -150,7 +154,11 @@ export function useShowCreationWizardActions({
    * so scoring works fully offline.
    */
   const createClasses = useCallback(
-    async (showId: string, trialIdMap: Record<string, string>) => {
+    async (
+      showId: string,
+      trialIdMap: Record<string, string>,
+      normalizedClasses: readonly NormalizedWizardClassSelection[]
+    ) => {
       logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
       const allClasses = createClassDataFromWizard(
@@ -161,25 +169,13 @@ export function useShowCreationWizardActions({
         existingTrials,
         editMode,
         { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-        trialView
+        trialView,
+        normalizedClasses
       );
 
-      // In add-classes mode, trial.classes includes both existing and new classes.
-      // Filter out classes that already exist in the DB to avoid duplicates.
-      let classesToCreate = allClasses;
-      if (editMode?.mode === 'add-classes') {
-        const existingClassKeys = new Set(
-          existingDBClasses.map(c => `${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
-        classesToCreate = allClasses.filter(
-          c => !existingClassKeys.has(`${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
-        logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
-          total: allClasses.length,
-          new: classesToCreate.length,
-          existing: allClasses.length - classesToCreate.length,
-        });
-      }
+      // In add-classes mode trial.classes also holds the show's stored classes; the
+      // normalizer already left those out (retained), so everything here is new.
+      const classesToCreate = allClasses;
 
       const ruleMap = await buildRuleMap(classesToCreate.map(c => c.templateId ?? ''));
 
@@ -190,7 +186,7 @@ export function useShowCreationWizardActions({
     },
     // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
     // should not invalidate already-built class arrays mid-wizard.
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses, trialView]
+    [trials, judgeDetails, existingTrials, editMode, trialView]
   );
 
   /**
@@ -206,6 +202,13 @@ export function useShowCreationWizardActions({
 
       try {
         setIsLoading(true);
+        // Validate every class this save will write before the show/trial writers below can
+        // mutate data. Stored classes loaded for add-classes mode are retained, not re-validated.
+        const normalizedClasses = normalizeWizardClassSelections(
+          show.organization,
+          trials,
+          editMode?.mode === 'add-classes' ? existingDBClasses : []
+        );
 
         // New-show + online path: single atomic RPC
         // (create_show_with_children, migration 145) writes shows + trials +
@@ -321,7 +324,7 @@ export function useShowCreationWizardActions({
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
-        await createClasses(realShowId, trialIdMap);
+        await createClasses(realShowId, trialIdMap, normalizedClasses);
 
         // Persist judge assignments to judge_assignments table
         const judges = wizardShow.assignedJudges || [];
@@ -455,6 +458,7 @@ export function useShowCreationWizardActions({
       judgeDetails,
       clubs,
       editMode,
+      existingDBClasses,
       addShow,
       updateShow,
       deleteShowCascading,

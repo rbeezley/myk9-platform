@@ -1,10 +1,15 @@
 /**
  * An in-memory stand-in for the PostgREST calls the cart store makes, with the
  * real column shapes of `entry_carts`, `entry_cart_items` and `classes`, and the
- * two unique indexes that decide cart behaviour:
+ * two unique indexes and two guard triggers that decide cart behaviour:
  *
  *   entry_carts_active_show_exhibitor_unique_idx  (show_id, exhibitor_id) WHERE status = 'active'
  *   entry_cart_items_unique_dog_class_idx         (cart_id, dog_id, class_id)
+ *   entry_carts_protect_status        a non-service caller cannot set status 'active'
+ *                                     on another status, nor change a submitted cart
+ *   entry_cart_items_protect_cart_id  a non-service caller cannot re-parent an item
+ *
+ * Every caller here is `authenticated`, never `service_role`, as in the app.
  *
  * It evaluates filters, ORDER BY and LIMIT, so a test asserts on what a query
  * would actually return rather than on a scripted answer. `hold()` parks any
@@ -302,6 +307,30 @@ class FakeQuery {
 
     if (this.op === 'update') {
       const targets = this.matching();
+      const payload = this.payload as Row;
+      // The client is never service_role, so the guard triggers apply
+      // (20260611230000_cart_status_and_cartid_guards.sql).
+      if (this.table === 'entry_carts' && 'status' in payload) {
+        const blocked = targets.some(
+          row =>
+            row.status !== payload.status &&
+            (row.status === 'submitted' || payload.status === 'active')
+        );
+        if (blocked) {
+          return {
+            data: null,
+            error: { code: '42501', message: 'cart status cannot regress to active' },
+          };
+        }
+      }
+      if (this.table === 'entry_cart_items' && 'cart_id' in payload) {
+        if (targets.some(row => row.cart_id !== payload.cart_id)) {
+          return {
+            data: null,
+            error: { code: '42501', message: 'entry_cart_items.cart_id cannot be changed' },
+          };
+        }
+      }
       const before = targets.map(row => ({ ...row }));
       targets.forEach(row => Object.assign(row, this.payload as Row));
       if (this.table === 'entry_carts' && this.activeCartConflict()) {

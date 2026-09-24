@@ -36,6 +36,10 @@ import { getClassEntryWindow } from '@/components/shows/RegistrationWorkflow/Cla
 import { calculateCartTotals } from './cartStore.helpers';
 import type { CartItemWithDetails, DroppedCartItem } from './cartStore.types';
 
+/** Shown when the classes in a saved cart could not be re-checked. */
+export const CART_CLASS_CHECK_FAILED_MESSAGE =
+  'We could not check the classes in your saved cart. Please try again.';
+
 interface ClassStatusRow {
   id: string;
   name: string | null;

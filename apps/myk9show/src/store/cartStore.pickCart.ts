@@ -8,15 +8,34 @@
  * drafted items from all three, and the exhibitor saw an empty cart and a 0
  * badge while their classes sat in a row nothing read.
  *
- * The rule, in ONE place so the three readers cannot drift: among the
- * recoverable carts, pick the NEWEST cart THAT HAS ITEMS; if none has items,
- * the newest cart. Carts are never merged here. Items stranded before this
- * rule shipped are moved by the one-off
- * `docs/operations/myk9-650-stranded-cart-remediation.sql`, which applies the
- * same ordering.
+ * The rule, in ONE place so the three readers cannot drift: pick the NEWEST
+ * cart THAT HAS ITEMS; if none has items, the newest cart. Carts are never
+ * merged here.
+ *
+ * One qualification, forced by the database rather than chosen: a cart the
+ * client can OPEN ranks ahead of one it cannot. `trg_entry_carts_protect_status`
+ * (20260611230000) rejects any non-service-role update that sets status
+ * 'active' on another status, so this client can never reactivate a row whose
+ * status is 'expired' (only stripe-checkout, as service_role, can). Picking an
+ * expired cart over the exhibitor's active one would therefore trade a cart
+ * they can use for one that fails to open. So the ranking is:
+ *
+ *   1. status 'active' with items (newest first)
+ *   2. status 'active'
+ *   3. status 'expired' with items
+ *   4. status 'expired'
+ *
+ * The unique index allows at most one active cart per (show, exhibitor), so for
+ * a show-scoped read the active cart wins whenever it exists; the rule does its
+ * work across shows (`/cart` without a show, and the badge). Items already
+ * stranded in 'expired' rows are moved into the openable cart by the one-off
+ * `docs/operations/myk9-650-stranded-cart-remediation.sql`, which ranks the
+ * same way. Whether the client should be able to reopen an 'expired' row at all
+ * is an open decision (a SECURITY DEFINER reopen), not something this module
+ * can route around.
  *
  * The status predicate is unchanged: `('active','expired')` with no
- * `expires_at` filter, so a lapsed draft is still recovered with its items.
+ * `expires_at` filter, so a lapsed hold on an active row is still recovered.
  */
 import { supabase } from '@/lib/supabase';
 
@@ -80,12 +99,16 @@ const createdAtMs = (value: string | null): number => {
 const newestFirst = (a: RecoverableCartCandidate, b: RecoverableCartCandidate): number =>
   createdAtMs(b.created_at) - createdAtMs(a.created_at) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 
-/** The newest cart that has items; the newest cart when none has. */
+/** Openable (status 'active') before not, then with items before without. */
+const rank = (cart: RecoverableCartCandidate): number =>
+  (cart.status === 'active' ? 0 : 2) + (cart.itemCount > 0 ? 0 : 1);
+
+/** The newest openable cart that has items; see the ranking above. */
 export function pickRecoverableCart(
   rows: readonly RecoverableCartLookupRow[]
 ): RecoverableCartCandidate | null {
-  const candidates = rows.map(toCandidate).sort(newestFirst);
-  return candidates.find(cart => cart.itemCount > 0) ?? candidates[0] ?? null;
+  const candidates = rows.map(toCandidate).sort((a, b) => rank(a) - rank(b) || newestFirst(a, b));
+  return candidates[0] ?? null;
 }
 
 export type FindRecoverableCartResult =

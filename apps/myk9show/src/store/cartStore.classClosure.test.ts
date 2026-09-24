@@ -24,6 +24,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { useCartStore } from './cartStore';
+import { CART_CLASS_CHECK_FAILED_MESSAGE } from './cartStore.classClosure';
 
 const klass = (id: string, name: string, status: string, extra: Partial<FakeClassRow> = {}) => ({
   id,
@@ -35,13 +36,13 @@ const klass = (id: string, name: string, status: string, extra: Partial<FakeClas
   ...extra,
 });
 
-/** A months-old draft: expired, one line per class under test. */
+/** A months-old draft: still 'active' with a lapsed hold (the row the client can reopen), one line per class under test. */
 function seedDraft() {
   holder.db = createFakeCartDb({
     carts: [
       fakeCart({
         id: 'cart-draft',
-        status: 'expired',
+        status: 'active',
         expires_at: '2026-06-01T00:30:00.000Z',
         created_at: '2026-06-01T00:00:00.000Z',
         stripe_checkout_session_id: 'cs_test_stale',
@@ -136,6 +137,23 @@ describe('recovered cart items in closed classes (MYK9-656)', () => {
       ])
     );
     expect(dropped).toHaveLength(4);
+  });
+
+  it('settles with a message, and no unchecked cart, when the class check cannot be read', async () => {
+    seedDraft();
+    holder.db.hold(q => q.table === 'classes', {
+      data: null,
+      error: { code: '08006', message: 'connection failure' },
+    })();
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
+
+    expect(cart).toBeNull();
+    expect(useCartStore.getState()).toMatchObject({
+      cart: null,
+      isLoading: false,
+      error: CART_CLASS_CHECK_FAILED_MESSAGE,
+    });
   });
 
   it('says nothing when every class is still open', async () => {

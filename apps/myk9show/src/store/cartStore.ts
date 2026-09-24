@@ -46,7 +46,11 @@ import {
 import { captureCartWriteGuard, guardedSet, invalidateCartWrites } from './cartStore.session';
 import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
 import { findRecoverableCart } from './cartStore.pickCart';
-import { dropItemsInClosedClasses, mergeDroppedItems } from './cartStore.classClosure';
+import {
+  CART_CLASS_CHECK_FAILED_MESSAGE,
+  dropItemsInClosedClasses,
+  mergeDroppedItems,
+} from './cartStore.classClosure';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -172,7 +176,7 @@ export const useCartStore = create<CartState>()(
           const write = guardedSet<CartState>(set, guard);
           write({ isLoading: true, error: null, loadInitiated: true });
 
-          // The newest cart WITH items, not merely the newest (MYK9-650).
+          // The newest openable cart WITH items, not merely the newest (MYK9-650).
           const lookup = await findRecoverableCart({ exhibitorId, showId: options.showId });
           if (lookup.kind === 'error') {
             logger.error(
@@ -311,7 +315,15 @@ export const useCartStore = create<CartState>()(
             items,
           });
           // A recovered draft may be months old: drop classes that closed since.
-          const closure = await dropItemsInClosedClasses({ cartId: cartData.id, items });
+          let closure: Awaited<ReturnType<typeof dropItemsInClosedClasses>>;
+          try {
+            closure = await dropItemsInClosedClasses({ cartId: cartData.id, items });
+          } catch {
+            // Unchecked lines must not reach checkout, and /cart must not sit
+            // on its loading skeleton: settle with a message and no cart.
+            write({ cart: null, isLoading: false, error: CART_CLASS_CHECK_FAILED_MESSAGE });
+            return null;
+          }
           items = closure.items;
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);

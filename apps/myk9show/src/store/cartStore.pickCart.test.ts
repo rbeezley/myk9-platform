@@ -5,7 +5,7 @@
  * active and an expired cart. `/cart`, the wizard opener and the header badge
  * each read `ORDER BY created_at DESC LIMIT 1`, so the exhibitor saw the empty
  * one. These tests drive the REAL store and the REAL badge hook against an
- * in-memory table with the real column shapes and the real unique indexes.
+ * in-memory table with the real column shapes, unique indexes and guard triggers.
  */
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -84,47 +84,58 @@ describe('pickRecoverableCart', () => {
   it('returns null when there is no cart', () => {
     expect(pickRecoverableCart([])).toBeNull();
   });
+
+  it('ranks a cart the client can open ahead of an expired one with items', () => {
+    const picked = pickRecoverableCart([
+      {
+        ...fakeCart({ id: 'active-empty', status: 'active', created_at: '2026-09-02T00:00:00Z' }),
+        entry_cart_items: [{ count: 0 }],
+      },
+      {
+        ...fakeCart({ id: 'expired-full', status: 'expired', created_at: '2026-09-03T00:00:00Z' }),
+        entry_cart_items: [{ count: 3 }],
+      },
+    ]);
+    expect(picked?.id).toBe('active-empty');
+  });
 });
 
 describe('loadActiveCart recovers the cart that has items (MYK9-650)', () => {
-  it('prefers the older expired cart with items over a newer EXPIRED empty cart', async () => {
-    seed(
-      fakeCart({
-        id: 'cart-newer-empty',
-        status: 'expired',
-        expires_at: '2026-09-10T00:30:00.000Z',
-        created_at: '2026-09-10T00:00:00.000Z',
-      })
-    );
+  it('opens the older active cart with items over a newer empty cart for another show', async () => {
+    holder.db = createFakeCartDb({
+      carts: [
+        fakeCart({ id: 'cart-show1', show_id: 'show-1', created_at: '2026-08-01T00:00:00Z' }),
+        fakeCart({ id: 'cart-show2-empty', show_id: 'show-2', created_at: '2026-09-10T00:00:00Z' }),
+      ],
+      items: [fakeCartItem({ id: 'item-drafted', cart_id: 'cart-show1' })],
+    });
 
-    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
-
-    expect(cart?.id).toBe('cart-older');
-    expect(cart?.items.map(item => item.id)).toEqual(['item-drafted']);
-    expect(holder.db.carts.find(c => c.id === 'cart-older')?.status).toBe('active');
-  });
-
-  it('prefers the older cart with items over a newer ACTIVE empty cart, retiring the empty one', async () => {
-    seed(
-      fakeCart({
-        id: 'cart-newer-empty',
-        status: 'active',
-        created_at: '2026-09-10T00:00:00.000Z',
-      })
-    );
-
-    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
+    // A direct visit to /cart: no show in the URL.
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1');
 
     // The store holds the picked cart, so checkout is handed THAT cart's id and
     // therefore exactly its items.
-    expect(cart?.id).toBe('cart-older');
-    expect(useCartStore.getState().cart?.id).toBe('cart-older');
+    expect(cart?.id).toBe('cart-show1');
+    expect(useCartStore.getState().cart?.id).toBe('cart-show1');
     expect(cart?.items.map(item => item.id)).toEqual(['item-drafted']);
-    // Exactly one active cart remains for the pair: the unique index holds.
-    expect(holder.db.carts.filter(c => c.status === 'active').map(c => c.id)).toEqual([
-      'cart-older',
+  });
+
+  it('keeps the active cart for the show over an older expired cart with items, and writes nothing to either', async () => {
+    seed(
+      fakeCart({ id: 'cart-newer-empty', status: 'active', created_at: '2026-09-10T00:00:00Z' })
+    );
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
+
+    // The expired cart cannot be reactivated by this client
+    // (trg_entry_carts_protect_status), so the active one is the only cart that
+    // opens. The stranded item is left for the remediation script.
+    expect(cart?.id).toBe('cart-newer-empty');
+    expect(holder.db.carts.map(c => [c.id, c.status])).toEqual([
+      ['cart-older', 'expired'],
+      ['cart-newer-empty', 'active'],
     ]);
-    expect(holder.db.carts.find(c => c.id === 'cart-newer-empty')?.status).toBe('expired');
+    expect(holder.db.items.map(item => item.cart_id)).toEqual(['cart-older']);
   });
 
   it('keeps the newer active cart when IT has the items', async () => {
@@ -144,14 +155,14 @@ describe('loadActiveCart recovers the cart that has items (MYK9-650)', () => {
 });
 
 describe('useActiveCartItemCount reads the same pick (MYK9-650)', () => {
-  it('counts the older cart that has items, not the newer empty one', async () => {
-    seed(
-      fakeCart({
-        id: 'cart-newer-empty',
-        status: 'active',
-        created_at: '2026-09-10T00:00:00.000Z',
-      })
-    );
+  it('counts the older cart that has items, not a newer empty cart for another show', async () => {
+    holder.db = createFakeCartDb({
+      carts: [
+        fakeCart({ id: 'cart-show1', show_id: 'show-1', created_at: '2026-08-01T00:00:00Z' }),
+        fakeCart({ id: 'cart-show2-empty', show_id: 'show-2', created_at: '2026-09-10T00:00:00Z' }),
+      ],
+      items: [fakeCartItem({ id: 'item-drafted', cart_id: 'cart-show1' })],
+    });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client }, children);

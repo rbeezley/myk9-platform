@@ -28,8 +28,6 @@ export interface RecoverableCartRow {
   show_id: string;
   status: string | null;
   expires_at: string | null;
-  /** Items the lookup counted on this row (MYK9-650); absent when unknown. */
-  itemCount?: number | undefined;
 }
 
 export type RecoverCartHoldResult =
@@ -43,8 +41,13 @@ const freshHold = (): string =>
  * active row that already owns this (show, exhibitor) when the index rejects the
  * reactivation.
  */
-const reactivate = (rowId: string, expiresAt: string) =>
-  supabase
+export async function recoverCartHold(
+  row: RecoverableCartRow,
+  exhibitorId: string
+): Promise<RecoverCartHoldResult> {
+  const expiresAt = freshHold();
+
+  const { error } = await supabase
     .from('entry_carts')
     .update({
       // Not just the hold: an 'expired' row the index does not cover is a row a
@@ -53,16 +56,8 @@ const reactivate = (rowId: string, expiresAt: string) =>
       expires_at: expiresAt,
       stripe_checkout_session_id: null,
     })
-    .eq('id', rowId)
+    .eq('id', row.id)
     .in('status', ['active', 'expired']);
-
-export async function recoverCartHold(
-  row: RecoverableCartRow,
-  exhibitorId: string
-): Promise<RecoverCartHoldResult> {
-  const expiresAt = freshHold();
-
-  const { error } = await reactivate(row.id, expiresAt);
 
   if (!error) return { kind: 'recovered', row: { ...row, status: 'active' }, expiresAt };
 
@@ -71,48 +66,17 @@ export async function recoverCartHold(
     return { kind: 'failed' };
   }
 
-  // Another row already holds the active slot for this (show, exhibitor).
+  // Another row already holds the active slot for this (show, exhibitor). It is
+  // the one `/cart` and the badge read, so it is the one to recover.
   const { data: activeRow, error: activeRowError } = await supabase
     .from('entry_carts')
-    .select('id, show_id, status, expires_at, entry_cart_items(count)')
+    .select('id, show_id, status, expires_at')
     .eq('exhibitor_id', exhibitorId)
     .eq('show_id', row.show_id)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-
-  // MYK9-650: the picker chose `row` BECAUSE it has items and the active row
-  // was newer. If the active row is empty it holds the slot and nothing else,
-  // so it yields: retire it and reactivate the cart with the draft. Nothing is
-  // merged. When the active row has items of its own it keeps the slot, as
-  // before — two carts with items is what the remediation script resolves.
-  const activeItemCount = activeRow?.entry_cart_items?.[0]?.count ?? 0;
-  if (activeRow && (row.itemCount ?? 0) > 0 && activeItemCount === 0) {
-    const { error: retireError } = await supabase
-      .from('entry_carts')
-      .update({ status: 'expired' })
-      .eq('id', activeRow.id)
-      .eq('status', 'active');
-    if (!retireError) {
-      // The empty row is retired, so it can no longer be recovered below.
-      const { error: retryError } = await reactivate(row.id, expiresAt);
-      if (!retryError) return { kind: 'recovered', row: { ...row, status: 'active' }, expiresAt };
-      logger.error(
-        'Error reactivating the cart with items after retiring the empty active cart',
-        'cartStore',
-        { exhibitorId, cartId: row.id, retiredCartId: activeRow.id },
-        retryError
-      );
-      return { kind: 'failed' };
-    }
-    logger.warn(
-      'Could not retire the empty active cart; recovering it instead',
-      'cartStore',
-      { exhibitorId, cartId: row.id, activeCartId: activeRow.id },
-      retireError
-    );
-  }
 
   if (activeRowError || !activeRow) {
     logger.error(
@@ -142,14 +106,5 @@ export async function recoverCartHold(
     return { kind: 'failed' };
   }
 
-  return {
-    kind: 'recovered',
-    row: {
-      id: activeRow.id,
-      show_id: activeRow.show_id,
-      status: activeRow.status,
-      expires_at: activeRow.expires_at,
-    },
-    expiresAt,
-  };
+  return { kind: 'recovered', row: activeRow, expiresAt };
 }

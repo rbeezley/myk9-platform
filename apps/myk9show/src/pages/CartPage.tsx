@@ -445,6 +445,8 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Emptied by the closed-class check: say why (MYK9-656) */}
+          <ClosedClassRemovedNotice />
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
                 1.08:1 on --background, so the circle was a void in both themes

@@ -31,6 +31,8 @@ export function useClubMembershipRequests(
     queryKey: ['club-membership-requests', clubId],
     queryFn: () => listClubMembershipRequests(clubId!),
     enabled: !!clubId,
+    // An inbox: requests arrive while the admin is elsewhere.
+    refetchOnMount: 'always',
   });
   const pendingRequests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
 

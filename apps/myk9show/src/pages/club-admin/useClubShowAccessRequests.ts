@@ -33,6 +33,8 @@ export function useClubShowAccessRequests(
     queryKey: ['club-role-requests', clubId],
     queryFn: () => listClubRoleRequests(clubId!),
     enabled: !!clubId,
+    // An inbox: requests arrive while the admin is elsewhere.
+    refetchOnMount: 'always',
   });
 
   // Defense in depth (MYK9-571 round 3, P3-5): the RPC's own WHERE clause

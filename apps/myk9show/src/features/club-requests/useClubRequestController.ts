@@ -37,6 +37,9 @@ export function useClubRequestController(options: Options): ClubRequestControlle
     queryKey: options.queryKey,
     queryFn: options.fetchStatus,
     enabled: options.preState === null,
+    // The other side decides while the requester is away; re-read on return
+    // instead of trusting the app-wide five-minute staleTime.
+    refetchOnMount: 'always',
   });
 
   const refreshStatus = () => queryClient.invalidateQueries({ queryKey: options.queryKey });

@@ -4,7 +4,8 @@
  * `isHostedDataBusy` signal from `useHostedReportData`. The real hook runs here;
  * only its data sources are stubbed.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { act, createTestQueryClient, render, screen, waitFor } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
@@ -35,7 +36,19 @@ vi.mock('@/features/judge-supplies/trialJudgeSuppliesService', () => ({
   trialJudgeSuppliesService: { listForShow: mocks.listForShow },
 }));
 vi.mock('../reportPreviewUtils', () => ({ printIframe: mocks.printIframe }));
-vi.mock('../ReportPreview', () => ({ ReportPreview: () => <div data-testid="report-preview" /> }));
+// Stands in for the preview: shows what the host handed it, so a test can see
+// the waitlist rows (or the error) the printable report would render.
+vi.mock('../ReportPreview', () => ({
+  ReportPreview: (props: {
+    hosted?: { waitlist?: { data: Array<{ callName: string }>; isError: boolean } };
+  }) => (
+    <div data-testid="report-preview">
+      {props.hosted?.waitlist?.isError
+        ? 'waitlist-error'
+        : (props.hosted?.waitlist?.data ?? []).map(row => row.callName).join(',')}
+    </div>
+  ),
+}));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
@@ -97,8 +110,17 @@ function renderReport(report: string) {
 const printButton = () => screen.getByRole('button', { name: /^print$/i });
 
 describe('ReportsPage Print gate for hosted reports (MYK9-717)', () => {
+  afterEach(() => onlineManager.setOnline(true));
+
   beforeEach(() => {
     vi.restoreAllMocks();
+    // A replica that has synced before, unless a test says otherwise.
+    vi.spyOn(replicatedWaitlistEntriesTable, 'getSyncMetadata').mockResolvedValue({
+      tableName: 'waitlist_entries',
+      lastFullSyncAt: 1,
+      lastIncrementalSyncAt: 1,
+      totalRows: 1,
+    });
     mocks.getWaitlistReportRows.mockReset();
     mocks.listForShow.mockReset();
     mocks.printIframe.mockClear();
@@ -185,5 +207,41 @@ describe('ReportsPage Print gate for hosted reports (MYK9-717)', () => {
     await act(async () => synced.resolve(NEW));
     await waitFor(() => expect(printButton()).toBeEnabled());
     expect(queryClient.getQueryData(queryKeys.showWaitlistReport('show-1'))).toEqual(NEW);
+  });
+
+  it('offline, reads the waitlist from the replica and prints its rows', async () => {
+    onlineManager.setOnline(false);
+    mocks.getWaitlistReportRows.mockResolvedValue([WAITLIST_ROW]);
+    renderReport('waitlist-report');
+
+    await waitFor(() => expect(screen.getByTestId('report-preview')).toHaveTextContent('Buddy'));
+    expect(mocks.getWaitlistReportRows).toHaveBeenCalledWith('show-1');
+    expect(printButton()).toBeEnabled();
+    await userEvent.click(printButton());
+    expect(mocks.printIframe).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks Print while a hosted query is paused offline and has never run', async () => {
+    onlineManager.setOnline(false);
+    mocks.listForShow.mockResolvedValue([]);
+    renderReport('judge-supply-checklist');
+
+    // A network query parks at fetchStatus 'paused' offline without calling its queryFn.
+    await act(async () => {});
+    expect(mocks.listForShow).not.toHaveBeenCalled();
+    expect(printButton()).toBeDisabled();
+
+    await act(async () => onlineManager.setOnline(true));
+    await waitFor(() => expect(printButton()).toBeEnabled());
+  });
+
+  it('reports a never-synced waitlist replica as not loaded, never as an empty waitlist', async () => {
+    vi.spyOn(replicatedWaitlistEntriesTable, 'getSyncMetadata').mockResolvedValue(null);
+    mocks.getWaitlistReportRows.mockResolvedValue([]);
+    renderReport('waitlist-report');
+
+    await waitFor(() =>
+      expect(screen.getByTestId('report-preview')).toHaveTextContent('waitlist-error')
+    );
   });
 });

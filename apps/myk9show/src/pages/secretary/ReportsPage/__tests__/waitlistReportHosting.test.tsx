@@ -33,6 +33,7 @@ import { ReportPreview } from '../ReportPreview';
 import { buildShowReportProps } from '../reportDataMapping';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
 import { queryKeys } from '@/lib/queryClient';
+import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -88,6 +89,13 @@ function renderReportMarkup(hosted: ReturnType<typeof useHostedReportData>): str
 describe('Waitlist Report hosting (MYK9-717)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // A replica that has synced before, so an empty read is a real empty waitlist.
+    vi.spyOn(replicatedWaitlistEntriesTable, 'getSyncMetadata').mockResolvedValue({
+      tableName: 'waitlist_entries',
+      lastFullSyncAt: 1,
+      lastIncrementalSyncAt: 1,
+      totalRows: 0,
+    });
     hydration.revision = 0;
     hydration.listeners.clear();
   });
@@ -114,7 +122,8 @@ describe('Waitlist Report hosting (MYK9-717)', () => {
     mockGetWaitlistReportRows.mockRejectedValue(new Error('offline and not cached'));
     const { result } = renderHosted();
 
-    await waitFor(() => expect(result.current.waitlist?.isError).toBe(true));
+    // One retry (1s) for a transient IndexedDB failure, then the error settles.
+    await waitFor(() => expect(result.current.waitlist?.isError).toBe(true), { timeout: 3000 });
     const markup = renderReportMarkup(result.current);
     expect(markup).toMatch(/couldn(&#x27;|')t load the waitlist/i);
     expect(markup).not.toContain('No dogs are on a waitlist');

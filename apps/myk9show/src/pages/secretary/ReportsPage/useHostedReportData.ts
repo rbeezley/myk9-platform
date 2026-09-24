@@ -53,6 +53,21 @@ export interface HostedReportData {
   isHostedDataBusy: boolean;
 }
 
+/**
+ * Not yet a settled answer: never succeeded or failed (pending — which includes
+ * a query paused offline before its first run), parked waiting for the network
+ * (paused), or fetching now (a first load or a background refresh). Only settled data or a settled error may render
+ * and print; an unresolved query must never read as a ready, empty report.
+ */
+function isUnresolved(query: {
+  isPending?: boolean;
+  isPaused?: boolean;
+  isFetching?: boolean;
+  isLoading?: boolean;
+}): boolean {
+  return Boolean(query.isPending || query.isPaused || query.isFetching || query.isLoading);
+}
+
 export function useHostedReportData({
   reportType,
   showId,
@@ -110,9 +125,9 @@ export function useHostedReportData({
     ...(judgeSupplies ? { judgeSupplies } : {}),
     ...(waitlist ? { waitlist } : {}),
     isHostedDataBusy:
-      (needsEntryForm && (entryForm.isLoading || entryForm.isFetching)) ||
-      (needsSupplies && supplies.isFetching) ||
-      (needsWaitlist && waitlistQuery.isFetching),
+      (needsEntryForm && isUnresolved(entryForm)) ||
+      (needsSupplies && isUnresolved(supplies)) ||
+      (needsWaitlist && isUnresolved(waitlistQuery)),
   };
 }
 

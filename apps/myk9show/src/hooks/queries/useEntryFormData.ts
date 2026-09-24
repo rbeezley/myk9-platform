@@ -56,6 +56,10 @@ export interface UseEntryFormDataResult {
   isLoading: boolean;
   /** True during any fetch, including a background refresh of cached data. */
   isFetching: boolean;
+  /** True until the first successful read, including while paused offline. */
+  isPending: boolean;
+  /** True while a fetch is parked waiting for the network. */
+  isPaused: boolean;
   isError: boolean;
 }
 
@@ -399,6 +403,8 @@ export function useEntryFormData({
     show: query.data?.show ?? null,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isPending: query.isPending,
+    isPaused: query.isPaused,
     isError: query.isError,
   };
 }

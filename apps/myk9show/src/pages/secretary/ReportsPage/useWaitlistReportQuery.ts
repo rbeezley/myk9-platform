@@ -6,17 +6,51 @@ import { replicatedWaitlistEntriesTable } from '@/services/replication/Replicate
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
+import type { ReportWaitlistRow } from '@/lib/reports/types';
 
 /**
- * The Waitlist Report's rows (MYK9-717), read from the local replica.
+ * The waitlist replica has never completed a sync on this device, and holds no
+ * rows. "No rows" then means "not downloaded", not "nobody is waiting", so the
+ * report must say so rather than print an empty waitlist (MYK9-717).
+ */
+export class WaitlistNotDownloadedError extends Error {
+  constructor() {
+    super('The waitlist has not been downloaded to this device yet.');
+    this.name = 'WaitlistNotDownloadedError';
+  }
+}
+
+/**
+ * Read the report rows, refusing to answer "empty" from a cold replica. The
+ * same test `areAtShowEntryCountsKnown` uses: a completed sync always records
+ * `totalRows` in the table's sync metadata. Rows that ARE present are good
+ * evidence even from an unconfirmed replica, as in `useHasAnyEntryForShow`.
+ */
+async function readWaitlistReport(showId: string): Promise<ReportWaitlistRow[]> {
+  const [rows, metadata] = await Promise.all([
+    getWaitlistReportRows(showId),
+    replicatedWaitlistEntriesTable.getSyncMetadata(),
+  ]);
+  if (rows.length === 0 && metadata?.totalRows === undefined) {
+    throw new WaitlistNotDownloadedError();
+  }
+  return rows;
+}
+
+/**
+ * The Waitlist Report's rows (MYK9-717): a replica-backed query in the shape of
+ * useAtShowClassList / useHasAnyEntryForShow / useExhibitorUpcomingShows.
  *
- * A promote or remove invalidates `queryKeys.show` as soon as the SERVER
- * answers, which can be before the replica has the change. So, like
- * useMyRingConflicts and useShowPaperworkPrints, the query is also invalidated
- * whenever a table it reads changes locally — the waitlist, the classes it
- * groups by, the dogs it names — and when handler names finish hydrating
- * (`people` is not a replicated table). Each refetch counts as busy in
- * `useHostedReportData`, so Print waits for it.
+ * - `networkMode: 'always'`: it reads IndexedDB, and the default 'online' mode
+ *   parks it at `fetchStatus: 'paused'` offline without ever running it.
+ * - Subscribe-and-invalidate on every table it reads (waitlist, classes, dogs;
+ *   `emitCurrent: false`), plus handler-name hydration (`people` is not a
+ *   replicated table), unsubscribed on unmount. This also covers a promote the
+ *   server confirmed before the replica had it.
+ * - A cold replica is an error (`WaitlistNotDownloadedError`), never "empty".
+ * - Read failures throw and surface as `isError`; nothing is swallowed.
+ * - `staleTime: 0`: re-read on every open so the paper matches the Waitlist tab.
+ * `useHostedReportData` counts any unresolved state of this query as busy.
  */
 export function useWaitlistReportQuery(showId: string | undefined, enabled: boolean) {
   const queryClient = useQueryClient();
@@ -38,9 +72,13 @@ export function useWaitlistReportQuery(showId: string | undefined, enabled: bool
 
   return useQuery({
     queryKey: key,
-    queryFn: () => getWaitlistReportRows(showId as string),
+    queryFn: () => readWaitlistReport(showId as string),
     enabled,
-    // A local replica read: re-read on every open so the paper matches the Waitlist tab.
     staleTime: 0,
+    networkMode: 'always',
+    // A local read either works or it does not; retrying a cold replica only
+    // delays the explanation. One retry for a transient IndexedDB failure.
+    retry: (failureCount, error) =>
+      !(error instanceof WaitlistNotDownloadedError) && failureCount < 1,
   });
 }

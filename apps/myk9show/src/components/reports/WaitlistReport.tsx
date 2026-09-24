@@ -32,8 +32,8 @@ export const WaitlistReport: React.FC<ReportProps> = ({
       <div className="report-page">
         {header}
         <p role="alert" className="report-warning">
-          We couldn&apos;t load the waitlist, so this report is not complete. Close it and open it
-          again to retry.
+          We couldn&apos;t load the waitlist on this device, so this report is not complete. If
+          you&apos;re offline, connect, then close the report and open it again.
         </p>
       </div>
     );

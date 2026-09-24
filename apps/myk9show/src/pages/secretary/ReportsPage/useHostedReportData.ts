@@ -26,7 +26,6 @@ import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import {
   readinessOf,
   resolveReportReadiness,
-  useIsOnline,
   type ReadinessQuery,
   type ReportDataState,
 } from '@/hooks/queries/reportReadiness';
@@ -69,7 +68,6 @@ export function useHostedReportData({
   trialId,
   dogId,
 }: HostedReportDataOptions): HostedReportData {
-  const isOnline = useIsOnline();
   const queryClient = useQueryClient();
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
   const needsSupplies = JUDGE_SUPPLY_REPORT_IDS.has(reportType) && Boolean(showId);
@@ -91,7 +89,7 @@ export function useHostedReportData({
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
   ];
-  const hostedState = resolveReportReadiness(needed, { isOnline });
+  const hostedState = resolveReportReadiness(needed);
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
     ? {

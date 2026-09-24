@@ -1,6 +1,3 @@
-import { useSyncExternalStore } from 'react';
-import { onlineManager } from '@tanstack/react-query';
-
 /**
  * Why report data cannot be described by `isLoading` / `isError` alone.
  *
@@ -12,8 +9,8 @@ import { onlineManager } from '@tanstack/react-query';
  * - `stale`       -- rows are present but belong to the PREVIOUS selection
  *                    (React Query placeholder data).
  * - `refreshing`  -- settled rows are present, but a read is re-asking the
- *                    question ONLINE, usually because a mutation or a sync just
- *                    changed the rows. The printed paper would be the old answer.
+ *                    question, usually because a mutation or a sync just changed
+ *                    the rows. The printed paper would be the old answer.
  * - `error`       -- the read was made and failed, or the scope is invalid.
  * - `ready`       -- every row is present, current, and not being replaced.
  */
@@ -31,8 +28,6 @@ export interface ReadinessQuery {
 }
 
 export interface ReportReadinessContext {
-  /** React Query's view of connectivity (`onlineManager`). */
-  isOnline: boolean;
   /** The selected trial/class is not part of this show. */
   hasInvalidScope?: boolean;
 }
@@ -51,19 +46,21 @@ export interface ReportReadinessContext {
  * | 3 | any rows are placeholders from the previous selection   | `stale`       | blocked |
  * | 4 | any read has no settled rows and is paused (offline)    | `unavailable` | blocked |
  * | 5 | any read has no settled rows (pending / fetching)       | `loading`     | blocked |
- * | 6 | all rows settled, a read is fetching while ONLINE       | `refreshing`  | blocked |
- * | 7 | all rows settled (idle, paused, or fetching offline)    | `ready`       | allowed |
+ * | 6 | all rows settled, a read is fetching                    | `refreshing`  | blocked |
+ * | 7 | all rows settled, every read idle or paused             | `ready`       | allowed |
  *
- * Row 6 vs row 7 is the offline-first distinction. Online, a refetch means the
- * rows are being replaced by a newer answer (a mutation or sync just landed),
- * so printing now would put the previous answer on paper. Offline, a paused
- * refetch cannot replace anything and a replica re-read returns what the device
- * already holds: the cached report IS the best answer available, and taking it
- * away would strand a secretary in a hall whose wifi just dropped.
+ * Row 6 vs row 7 is the offline-first distinction, and it turns on whether the
+ * read is RUNNING, not on connectivity. A fetching read is replacing the rows:
+ * online after a mutation or sync, and offline too, because the replica reads
+ * run with no network (`networkMode: 'always'`) and re-read after a local
+ * check-in or run-order change. Printing then would put the previous answer on
+ * paper. A PAUSED read cannot replace anything until the network returns, so
+ * the cached report IS the best answer available, and taking it away would
+ * strand a secretary in a hall whose wifi just dropped.
  */
 export function resolveReportReadiness(
   queries: readonly ReadinessQuery[],
-  { isOnline, hasInvalidScope = false }: ReportReadinessContext
+  { hasInvalidScope = false }: ReportReadinessContext = {}
 ): ReportDataState {
   if (hasInvalidScope) return 'error';
   if (queries.some(query => query.isError)) return 'error';
@@ -72,7 +69,7 @@ export function resolveReportReadiness(
   if (unsettled.length > 0) {
     return unsettled.some(query => query.fetchStatus === 'paused') ? 'unavailable' : 'loading';
   }
-  if (isOnline && queries.some(query => query.fetchStatus === 'fetching')) return 'refreshing';
+  if (queries.some(query => query.fetchStatus === 'fetching')) return 'refreshing';
   return 'ready';
 }
 
@@ -111,17 +108,4 @@ const PRECEDENCE: readonly ReportDataState[] = [
 
 export function mostBlockingState(...states: ReportDataState[]): ReportDataState {
   return PRECEDENCE.find(state => states.includes(state)) ?? 'ready';
-}
-
-function subscribeOnline(onChange: () => void): () => void {
-  return onlineManager.subscribe(() => onChange());
-}
-
-function readOnline(): boolean {
-  return onlineManager.isOnline();
-}
-
-/** React Query's connectivity, as a render input, so readiness re-derives on change. */
-export function useIsOnline(): boolean {
-  return useSyncExternalStore(subscribeOnline, readOnline, readOnline);
 }

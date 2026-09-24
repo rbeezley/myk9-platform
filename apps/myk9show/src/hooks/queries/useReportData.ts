@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import {
@@ -23,12 +23,7 @@ import {
   replicatedEntriesTable,
   replicatedTrialsTable,
 } from '@/services/replication';
-import {
-  readinessOf,
-  resolveReportReadiness,
-  useIsOnline,
-  type ReportDataState,
-} from './reportReadiness';
+import { readinessOf, resolveReportReadiness, type ReportDataState } from './reportReadiness';
 
 export type { ReportDataState } from './reportReadiness';
 
@@ -159,7 +154,6 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     [classId, showId, trialId]
   );
 
-  const isOnline = useIsOnline();
   // Set by a replica notice, consumed by the next entries read. See below.
   const replicaNoticedRef = useRef(false);
 
@@ -168,8 +162,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // join (trials, classes, entries, dogs), as useAtShowClassList does, and never
   // on the initial emit. The re-read after a notice skips the network refresh:
   // the replica already holds the change, and a refresh that itself writes rows
-  // would notify again and restart the read forever. The online refetch is what
-  // makes the page read `refreshing`, so Print waits for the fresh rows.
+  // would notify again and restart the read forever. The refetch is what makes
+  // the page read `refreshing`, so Print waits for the fresh rows, offline too.
   useEffect(() => {
     if (!showId) return;
     const invalidate = () => {
@@ -270,8 +264,10 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         // must mask raw cached scores when that optional request is unavailable.
         // Retain the bounded refresh that show reports used before selecting
         // scoped reads, so an online partial cache still has a chance to fill.
-        // Skipped when a replica notice asked for this read: see the subscription.
-        if (!replicaNoticed) await refreshShowEntriesForRead(showId);
+        // Skipped when a replica notice asked for this read (see the
+        // subscription) and offline, where it can only fail -- or stall for its
+        // full deadline -- while Print waits on this read.
+        if (!replicaNoticed && onlineManager.isOnline()) await refreshShowEntriesForRead(showId);
         if (trialId === 'all') {
           const { data, error } = await getEntriesByShowFromReplication(showId);
           if (error) throw error;
@@ -349,7 +345,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       readinessOf(classesQuery),
       readinessOf(entriesQuery),
     ],
-    { isOnline, hasInvalidScope: !selectedTrialIsInShow || !selectedClassIsInScope }
+    { hasInvalidScope: !selectedTrialIsInShow || !selectedClassIsInScope }
   );
 
   const refetch = () => {

@@ -193,6 +193,68 @@ async function clickPrint(): Promise<void> {
   await userEvent.click(screen.getByRole('button', { name: /^print$/i }));
 }
 
+/**
+ * A replica write (a local check-in, a run-order change, a sync landing) must
+ * block Print until the re-read settles: the rows on screen are the answer from
+ * BEFORE the write. Online and offline alike, since replica reads run offline.
+ */
+async function expectReplicaWriteBlocksPrintUntilReread(offline: boolean): Promise<void> {
+  await seedSyncedReplica();
+  if (offline) goOffline();
+  const sheet = captureCheckInSheet();
+
+  render(<ReportsPage />, { initialRoute: CHECK_IN_ROUTE, queryClient: appLikeClient() });
+  await waitFor(() => expect(previewFrame().src).toMatch(/^blob:/), { timeout: 5000 });
+  expect(sheet.callNames()).toEqual(['Aster', 'Bramble', 'Clover']);
+
+  // Hold the next class read open, so the refetch is observably in flight.
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const realRead = replicatedEntriesTable.getEntriesByClass.bind(replicatedEntriesTable);
+  vi.spyOn(replicatedEntriesTable, 'getEntriesByClass').mockImplementation(async classId => {
+    await gate;
+    return realRead(classId);
+  });
+
+  // The mutation: Clover moves to the front of the running order.
+  await act(async () => {
+    await replicatedEntriesTable.batchSet([entry('entry-c', 'dog-c', '103', 0)] as never);
+  });
+
+  // The preview says so, and hides the previous answer rather than show it as current.
+  expect(await screen.findByText(/Updating the report/i)).toBeInTheDocument();
+  expect(previewFrame().style.visibility).toBe('hidden');
+
+  const print = vi.fn();
+  Object.defineProperty(previewFrame().contentWindow!, 'print', { value: print });
+  toastSpy.mockClear();
+  await clickPrint();
+  expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/updating/i));
+  expect(print).not.toHaveBeenCalled();
+
+  // A replica write notifies on the leading AND trailing edge of its debounce;
+  // let the trailing notice land while the read is still held, so the release
+  // below settles the last refetch rather than racing a new one.
+  await act(drainReplicaNotices);
+  await act(async () => {
+    release();
+  });
+  await waitFor(() => expect(sheet.callNames()).toEqual(['Clover', 'Aster', 'Bramble']));
+  await waitFor(() => expect(screen.queryByText(/Updating the report/i)).toBeNull());
+  expect(previewFrame().src).toMatch(/^blob:/);
+  expect(previewFrame().style.visibility).toBe('visible');
+
+  // The frame navigated to the new PDF, so it has a new window to print.
+  const freshPrint = vi.fn();
+  Object.defineProperty(previewFrame().contentWindow!, 'print', { value: freshPrint });
+  toastSpy.mockClear();
+  await clickPrint();
+  expect(toastSpy).not.toHaveBeenCalledWith(expect.stringMatching(/updating/i));
+  expect(freshPrint).toHaveBeenCalledTimes(1);
+}
+
 describe('ReportsPage offline readiness (MYK9-721)', () => {
   beforeEach(async () => {
     resetMockSupabase();
@@ -306,59 +368,11 @@ describe('ReportsPage offline readiness (MYK9-721)', () => {
     expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/could not be loaded/i));
   });
 
-  it('blocks Print while an online refetch after a mutation is in flight, then prints the fresh rows', async () => {
-    await seedSyncedReplica();
-    const sheet = captureCheckInSheet();
+  it('blocks Print while an online re-read after a replica write is in flight, then prints the fresh rows', async () => {
+    await expectReplicaWriteBlocksPrintUntilReread(false);
+  });
 
-    render(<ReportsPage />, { initialRoute: CHECK_IN_ROUTE, queryClient: appLikeClient() });
-    await waitFor(() => expect(previewFrame().src).toMatch(/^blob:/), { timeout: 5000 });
-    expect(sheet.callNames()).toEqual(['Aster', 'Bramble', 'Clover']);
-
-    // Hold the next class read open, so the refetch is observably in flight.
-    let release: () => void = () => {};
-    const gate = new Promise<void>(resolve => {
-      release = resolve;
-    });
-    const realRead = replicatedEntriesTable.getEntriesByClass.bind(replicatedEntriesTable);
-    vi.spyOn(replicatedEntriesTable, 'getEntriesByClass').mockImplementation(async classId => {
-      await gate;
-      return realRead(classId);
-    });
-
-    // The mutation: Clover moves to the front of the running order.
-    await act(async () => {
-      await replicatedEntriesTable.batchSet([entry('entry-c', 'dog-c', '103', 0)] as never);
-    });
-
-    // The preview says so, and hides the previous answer rather than show it as current.
-    expect(await screen.findByText(/Updating the report/i)).toBeInTheDocument();
-    expect(previewFrame().style.visibility).toBe('hidden');
-
-    const print = vi.fn();
-    Object.defineProperty(previewFrame().contentWindow!, 'print', { value: print });
-    toastSpy.mockClear();
-    await clickPrint();
-    expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/updating/i));
-    expect(print).not.toHaveBeenCalled();
-
-    // A replica write notifies on the leading AND trailing edge of its debounce;
-    // let the trailing notice land while the read is still held, so the release
-    // below settles the last refetch rather than racing a new one.
-    await act(drainReplicaNotices);
-    await act(async () => {
-      release();
-    });
-    await waitFor(() => expect(sheet.callNames()).toEqual(['Clover', 'Aster', 'Bramble']));
-    await waitFor(() => expect(screen.queryByText(/Updating the report/i)).toBeNull());
-    expect(previewFrame().src).toMatch(/^blob:/);
-    expect(previewFrame().style.visibility).toBe('visible');
-
-    // The frame navigated to the new PDF, so it has a new window to print.
-    const freshPrint = vi.fn();
-    Object.defineProperty(previewFrame().contentWindow!, 'print', { value: freshPrint });
-    toastSpy.mockClear();
-    await clickPrint();
-    expect(toastSpy).not.toHaveBeenCalledWith(expect.stringMatching(/updating/i));
-    expect(freshPrint).toHaveBeenCalledTimes(1);
+  it('blocks Print while an OFFLINE re-read after a local replica write is in flight', async () => {
+    await expectReplicaWriteBlocksPrintUntilReread(true);
   });
 });

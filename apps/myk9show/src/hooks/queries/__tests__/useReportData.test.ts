@@ -648,9 +648,8 @@ describe('useReportData', () => {
         result.current.refetch();
       });
 
-      // MYK9-721: the refetches re-read the replica offline; while they run,
-      // the rows already in place stay printable (readiness rule 7).
-      expect(result.current.dataState).toBe('ready');
+      // MYK9-721: the refetches re-read the replica offline and settle on the
+      // rows the device holds; the report is printable again once they have.
       await waitFor(() => expect(result.current.entries).toBeDefined());
       expect(result.current.dataState).toBe('ready');
       expect(result.current.isReady).toBe(true);

@@ -13,52 +13,45 @@ const settled: ReadinessQuery = {
   isError: false,
 };
 const q = (overrides: Partial<ReadinessQuery>): ReadinessQuery => ({ ...settled, ...overrides });
-const online = { isOnline: true };
-const offline = { isOnline: false };
 
 describe('resolveReportReadiness — the rule table, row by row', () => {
   it('1: an out-of-show scope is an error, whatever the rows say', () => {
-    expect(resolveReportReadiness([settled], { ...online, hasInvalidScope: true })).toBe('error');
+    expect(resolveReportReadiness([settled], { hasInvalidScope: true })).toBe('error');
   });
 
   it('2: a failed read is an error, even with rows present', () => {
-    expect(resolveReportReadiness([settled, q({ isError: true })], online)).toBe('error');
+    expect(resolveReportReadiness([settled, q({ isError: true })])).toBe('error');
   });
 
   it('3: placeholder rows from the previous selection are stale', () => {
-    expect(resolveReportReadiness([q({ isPlaceholderData: true })], offline)).toBe('stale');
+    expect(resolveReportReadiness([q({ isPlaceholderData: true })])).toBe('stale');
   });
 
   it('4: no rows and paused is unavailable (the offline message)', () => {
-    expect(
-      resolveReportReadiness([settled, q({ hasData: false, fetchStatus: 'paused' })], offline)
-    ).toBe('unavailable');
+    expect(resolveReportReadiness([settled, q({ hasData: false, fetchStatus: 'paused' })])).toBe(
+      'unavailable'
+    );
   });
 
-  it('5: no rows and pending or fetching is loading, online or off', () => {
-    expect(resolveReportReadiness([q({ hasData: false, fetchStatus: 'fetching' })], online)).toBe(
+  it('5: no rows and pending or fetching is loading', () => {
+    expect(resolveReportReadiness([q({ hasData: false, fetchStatus: 'fetching' })])).toBe(
       'loading'
     );
-    expect(resolveReportReadiness([q({ hasData: false, fetchStatus: 'idle' })], offline)).toBe(
-      'loading'
-    );
+    expect(resolveReportReadiness([q({ hasData: false, fetchStatus: 'idle' })])).toBe('loading');
   });
 
-  it('6: settled rows being refetched ONLINE are refreshing', () => {
-    expect(resolveReportReadiness([settled, q({ fetchStatus: 'fetching' })], online)).toBe(
-      'refreshing'
-    );
+  it('6: settled rows being re-read are refreshing, whatever the connectivity', () => {
+    // Offline too: a replica re-read after a local change is replacing the rows.
+    expect(resolveReportReadiness([settled, q({ fetchStatus: 'fetching' })])).toBe('refreshing');
   });
 
-  it('7: settled rows are ready while idle, paused, or refetching offline', () => {
-    expect(resolveReportReadiness([settled], online)).toBe('ready');
-    expect(resolveReportReadiness([q({ fetchStatus: 'paused' })], offline)).toBe('ready');
-    expect(resolveReportReadiness([q({ fetchStatus: 'paused' })], online)).toBe('ready');
-    expect(resolveReportReadiness([q({ fetchStatus: 'fetching' })], offline)).toBe('ready');
+  it('7: settled rows are ready while every read is idle or paused', () => {
+    expect(resolveReportReadiness([settled])).toBe('ready');
+    expect(resolveReportReadiness([settled, q({ fetchStatus: 'paused' })])).toBe('ready');
   });
 
   it('asks nothing of a report that needs no reads', () => {
-    expect(resolveReportReadiness([], online)).toBe('ready');
+    expect(resolveReportReadiness([])).toBe('ready');
   });
 });
 
@@ -75,14 +68,14 @@ describe('mostBlockingState', () => {
     q({ fetchStatus: 'paused' }),
   ];
 
-  it.each([online, offline])('agrees with resolving the union (%o)', context => {
+  it('agrees with resolving the union', () => {
     for (const a of samples) {
       for (const b of samples) {
         const combined: ReportDataState = mostBlockingState(
-          resolveReportReadiness([a], context),
-          resolveReportReadiness([b], context)
+          resolveReportReadiness([a]),
+          resolveReportReadiness([b])
         );
-        expect(combined).toBe(resolveReportReadiness([a, b], context));
+        expect(combined).toBe(resolveReportReadiness([a, b]));
       }
     }
   });

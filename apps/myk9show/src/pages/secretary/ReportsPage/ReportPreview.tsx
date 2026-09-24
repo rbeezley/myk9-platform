@@ -13,8 +13,8 @@ import {
   mapReportTrialFields,
 } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
-import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
-import { clearFrame, releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
+import { useHostedReportData } from './useHostedReportData';
+import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 
@@ -54,8 +54,6 @@ export interface ReportPreviewProps {
   downloadBlockedReason?: string | undefined;
   onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
-  /** Resolved once by the host (`useHostedReportData`), which also gates Print on it. */
-  hosted?: HostedReportData;
 }
 
 interface PageData {
@@ -120,7 +118,6 @@ export function ReportPreview({
   downloadBlockedReason,
   onRetry,
   iframeRef: externalIframeRef,
-  hosted = NO_HOSTED_REPORT_DATA,
 }: ReportPreviewProps) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
   const iframeRef = externalIframeRef ?? internalIframeRef;
@@ -185,23 +182,25 @@ export function ReportPreview({
     return () => URL.revokeObjectURL(url);
   }, [pdfResult, report, iframeRef]);
 
-  // MYK9-280: resolved by the host, where the providers live, because the report
+  // MYK9-280: resolved HERE, where the providers live, because the report
   // components are rendered into a detached tree by renderToStaticMarkup.
-  const { entryFormData, judgeSupplies, waitlist, isHostedDataBusy } = hosted;
+  const { entryFormData, judgeSupplies, isHostedDataPending } = useHostedReportData({
+    reportType,
+    showId: show?.id,
+    trialId: trialId !== 'all' ? trialId : undefined,
+    dogId: dogId !== 'all' ? dogId : undefined,
+  });
 
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    // Never leave the previous report, or a superseded copy of this one, on
-    // screen (and printable) while hosted data loads or refreshes (MYK9-717).
-    if (isHostedDataBusy) {
-      clearFrame(iframe);
-      return;
-    }
     if (isLoading || isError || !show) return;
     if (!report) return;
     // Rendered by the PDF pipeline above instead — never build markup for it.
     if (report.buildPdf) return;
+    // Markup is written into the iframe once per change. Building it before the
+    // hosted fetch resolves would bake the empty state in permanently.
+    if (isHostedDataPending) return;
 
     const renderingMode = getReportRenderingMode(report);
 
@@ -220,7 +219,6 @@ export function ReportPreview({
         sortOrder,
         ...(entryFormData ? { entryFormData } : {}),
         ...(judgeSupplies ? { judgeSupplies } : {}),
-        ...(waitlist ? { waitlist } : {}),
       });
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
@@ -303,8 +301,7 @@ export function ReportPreview({
     // hosted fetch resolved — a permanently blank entry form.
     entryFormData,
     judgeSupplies,
-    waitlist,
-    isHostedDataBusy,
+    isHostedDataPending,
   ]);
 
   // Checked FIRST. With no show there is no showId, so the trials query is

@@ -13,24 +13,19 @@
  * state and the report would print placeholder text instead of data. The fetch has
  * to finish BEFORE the markup is produced, which means it belongs to the host.
  *
- * Called ONCE, by ReportsPage, which hands the result to ReportPreview. Print and
- * the preview frame gate on the same `isHostedDataBusy`, so neither can act on a
- * report whose hosted data is loading or refreshing (MYK9-717).
+ * This hook lives in its own module because ReportPreview.tsx sits at the 500-line
+ * ceiling the code-quality ratchet enforces.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import { useWaitlistReportQuery } from './useWaitlistReportQuery';
-import type { ReportAsyncData, ReportEntryFormData, ReportWaitlistRow } from '@/lib/reports/types';
+import type { ReportAsyncData, ReportEntryFormData } from '@/lib/reports/types';
 
 /** Report ids whose component needs entry-form data passed in. */
 export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);
 
 /** Report ids whose component needs judge-supply rows passed in. */
 export const JUDGE_SUPPLY_REPORT_IDS = new Set(['judge-supply-checklist']);
-
-/** Report ids whose component needs `waitlist_entries` rows passed in (MYK9-717). */
-export const WAITLIST_REPORT_IDS = new Set(['waitlist-report']);
 
 export interface HostedReportDataOptions {
   reportType: string;
@@ -42,15 +37,13 @@ export interface HostedReportDataOptions {
 export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
-  waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   /**
-   * True while the selected report's hosted data is loading OR refreshing in the
-   * background. The one readiness signal for hosted reports: the preview blanks
-   * its frame rather than show a previous report or a superseded copy of this
-   * one, and Print is disabled. Rendering early would bake the empty state into
-   * the iframe, which is the blank-form failure this module exists to prevent.
+   * True while a report that needs hosted data is still fetching it. The preview
+   * must not render markup yet — doing so bakes the empty state into the iframe
+   * and never revisits it, which is the blank-form failure this whole module
+   * exists to prevent.
    */
-  isHostedDataBusy: boolean;
+  isHostedDataPending: boolean;
 }
 
 export function useHostedReportData({
@@ -61,7 +54,6 @@ export function useHostedReportData({
 }: HostedReportDataOptions): HostedReportData {
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
   const needsSupplies = JUDGE_SUPPLY_REPORT_IDS.has(reportType) && Boolean(showId);
-  const needsWaitlist = WAITLIST_REPORT_IDS.has(reportType) && Boolean(showId);
 
   const entryForm = useEntryFormData({
     showId: showId ?? '',
@@ -75,8 +67,6 @@ export function useHostedReportData({
     queryFn: () => trialJudgeSuppliesService.listForShow(showId as string),
     enabled: needsSupplies,
   });
-
-  const waitlistQuery = useWaitlistReportQuery(showId, needsWaitlist);
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
     ? {
@@ -97,24 +87,10 @@ export function useHostedReportData({
       }
     : undefined;
 
-  const waitlist: ReportAsyncData<ReportWaitlistRow[]> | undefined = needsWaitlist
-    ? {
-        data: waitlistQuery.data ?? [],
-        isLoading: waitlistQuery.isLoading,
-        isError: Boolean(waitlistQuery.error),
-      }
-    : undefined;
-
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
-    ...(waitlist ? { waitlist } : {}),
-    isHostedDataBusy:
-      (needsEntryForm && (entryForm.isLoading || entryForm.isFetching)) ||
-      (needsSupplies && supplies.isFetching) ||
-      (needsWaitlist && waitlistQuery.isFetching),
+    isHostedDataPending:
+      (needsEntryForm && entryForm.isLoading) || (needsSupplies && supplies.isLoading),
   };
 }
-
-/** For hosts that render no hosted report (tests, and the default prop). */
-export const NO_HOSTED_REPORT_DATA: HostedReportData = { isHostedDataBusy: false };

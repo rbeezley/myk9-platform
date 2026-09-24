@@ -160,7 +160,7 @@ describe('useHostedReportData — judge supplies', () => {
       { wrapper: wrapper(client) }
     );
 
-    await waitFor(() => expect(result.current.isHostedDataBusy).toBe(false));
+    await waitFor(() => expect(result.current.isHostedDataPending).toBe(false));
     expect(mockListForShow).toHaveBeenCalledTimes(1);
     expect(mockListForShow).toHaveBeenCalledWith('show-1');
     expect(result.current.judgeSupplies?.data).toHaveLength(3);

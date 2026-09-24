@@ -11,4 +11,3 @@ export {
   promoteWaitlistEntry,
   removeFromWaitlist,
 } from './reads';
-export { getWaitlistReportRows } from './reportRows';

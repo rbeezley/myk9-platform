@@ -429,7 +429,8 @@ export function buildShowReportProps({
   classId,
   dogId,
   sortOrder,
-  ...hosted
+  entryFormData,
+  judgeSupplies,
 }: {
   report: ReportDefinition;
   show: Show;
@@ -440,7 +441,9 @@ export function buildShowReportProps({
   classId: string;
   dogId: string;
   sortOrder: string;
-} & Pick<ReportProps, 'entryFormData' | 'judgeSupplies' | 'waitlist'>): ReportProps {
+  entryFormData?: ReportProps['entryFormData'];
+  judgeSupplies?: ReportProps['judgeSupplies'];
+}): ReportProps {
   const targetTrialIds = trialId === 'all' ? trials.map(t => t.id) : [trialId];
   const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';
 
@@ -491,6 +494,7 @@ export function buildShowReportProps({
     ...(showDates ? { showDates } : {}),
     ...(dogId !== 'all' ? { dogId } : {}),
     ...(trialId !== 'all' ? { trialId } : {}),
-    ...hosted,
+    ...(entryFormData ? { entryFormData } : {}),
+    ...(judgeSupplies ? { judgeSupplies } : {}),
   };
 }

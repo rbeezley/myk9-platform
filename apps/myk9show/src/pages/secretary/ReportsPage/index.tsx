@@ -2,15 +2,13 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useReportData } from '@/hooks/queries/useReportData';
+import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
-import { useHostedReportData } from './useHostedReportData';
-import { HOSTED_DATA_BUSY_MESSAGE, PRINT_BLOCKED_MESSAGE } from './printBlockedMessages';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
@@ -30,6 +28,20 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
+
+/**
+ * What to say when Print is pressed on data that is not current. Each names the
+ * situation and what will clear it, because "the report is still loading" was
+ * wrong in three of these four cases.
+ */
+const PRINT_BLOCKED_MESSAGE: Record<ReportDataState, string> = {
+  loading: 'Still loading this show. Print once the preview finishes.',
+  unavailable:
+    'No connection, so the entries could not be checked. Reconnect before printing, or the report may be missing dogs.',
+  stale: 'Still loading the trial you just picked. Print once the preview catches up.',
+  error: 'The entries could not be loaded. Use Try again below, then print.',
+  ready: '',
+};
 
 export interface InitialReportScope {
   trialId: string;
@@ -145,14 +157,6 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
-  // One readiness signal for the reports that load their own data: it disables
-  // Print below and blanks ReportPreview's frame (MYK9-717).
-  const hosted = useHostedReportData({
-    reportType,
-    showId: show?.id,
-    trialId: trialId !== 'all' ? trialId : undefined,
-    dogId: dogId !== 'all' ? dogId : undefined,
-  });
   // During a paused/loading or cold-replica report-trials query, retain the
   // show detail's already-loaded trials for timezone and registry scope. The
   // show detail and report query share the same show, so a non-empty detail row
@@ -266,10 +270,6 @@ export default function ReportsPage() {
     // are NOT exempt -- they are handed trials/classes/entries as props.
     if (reportType !== 'armband-labels' && !isReady) {
       toast(PRINT_BLOCKED_MESSAGE[dataState]);
-      return;
-    }
-    if (hosted.isHostedDataBusy) {
-      toast(HOSTED_DATA_BUSY_MESSAGE);
       return;
     }
     if (!printIframe(iframeRef)) {
@@ -419,7 +419,6 @@ export default function ReportsPage() {
         onDogChange={setDogId}
         onSortChange={setSortOrder}
         onPrint={handlePrint}
-        printDisabled={hosted.isHostedDataBusy}
         officialPdfAction={officialPdfAction}
         showPhase={showTimePhase}
       />
@@ -485,7 +484,6 @@ export default function ReportsPage() {
               }
               onRetry={refetch}
               iframeRef={iframeRef}
-              hosted={hosted}
             />
           </div>
         )}

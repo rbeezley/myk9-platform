@@ -146,21 +146,6 @@ export interface ReportAsyncData<T> {
   isError: boolean;
 }
 
-/**
- * One dog waiting in one class, read from `waitlist_entries` (MYK9-717).
- * Waitlisted dogs never appear in `entries` — `entries_entry_status_check`
- * forbids a waitlist status there — so the Waitlist Report cannot be built
- * from `ReportProps.entries`.
- */
-export interface ReportWaitlistRow {
-  id: string;
-  classId: string;
-  position: number;
-  callName: string;
-  /** Handler (or, when none is named, the dog's owner); null when unknown. */
-  handler: string | null;
-}
-
 export interface ReportEntryFormData {
   dogs: EntryFormDog[];
   secretary: EntryFormSecretary | null;
@@ -204,7 +189,6 @@ export interface ReportProps {
    */
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
-  waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   organization?: string;
   activityType?: string;
   clubName?: string;

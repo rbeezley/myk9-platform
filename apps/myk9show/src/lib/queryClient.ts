@@ -139,8 +139,6 @@ export const queryKeys = {
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
   showPromoCodes: (showId: string) => ['shows', showId, 'promo-codes'] as const,
   showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
-  /** Under `show(id)`, so every waitlist mutation's show invalidation refreshes it (MYK9-717). */
-  showWaitlistReport: (showId: string) => ['shows', showId, 'waitlist-report'] as const,
   upcomingShows: ['shows', 'upcoming'] as const,
 
   // Class Requirements

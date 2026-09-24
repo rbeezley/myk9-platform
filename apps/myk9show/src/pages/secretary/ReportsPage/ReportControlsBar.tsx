@@ -123,8 +123,6 @@ interface ReportControlsBarProps {
   onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
-  /** True while the selected report's own data loads or refreshes (MYK9-717). */
-  printDisabled?: boolean;
   officialPdfAction?: OfficialPdfAction | undefined;
   /**
    * Where the show sits relative to today, which orders the four phase groups
@@ -186,7 +184,6 @@ export function ReportControlsBar({
   onDogChange,
   onSortChange,
   onPrint,
-  printDisabled = false,
   officialPdfAction,
   showPhase = 'unknown',
 }: ReportControlsBarProps) {
@@ -381,15 +378,7 @@ export function ReportControlsBar({
             a blank sheet. A disabled Print sitting beside an enabled Download
             would still read as "printing is the main action, and it is broken". */}
         {!isPdfOnlyReport && (
-          <Button
-            onClick={onPrint}
-            disabled={printDisabled}
-            aria-busy={printDisabled}
-            title={
-              printDisabled ? 'Updating this report. Print once the preview finishes.' : undefined
-            }
-            className="w-full sm:w-auto"
-          >
+          <Button onClick={onPrint} className="w-full sm:w-auto">
             Print
           </Button>
         )}

@@ -598,18 +598,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           {totalClasses > 0 && (
             <Card>
               <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <h4 className="font-medium">Configuration Summary</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {totalClasses} total classes configured across{' '}
-                      {trials.filter(t => t.classes.length > 0).length} trials
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold">{totalClasses * 15} min</div>
-                    <div className="text-xs text-muted-foreground">Est. judging time</div>
-                  </div>
+                {/* No judging-time estimate: it is entries x minutes per run, and a show
+                    being configured has no entries yet (MYK9-689). */}
+                <div className="space-y-1">
+                  <h4 className="font-medium">Configuration Summary</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {totalClasses} total classes configured across{' '}
+                    {trials.filter(t => t.classes.length > 0).length} trials
+                  </p>
                 </div>
               </CardContent>
             </Card>

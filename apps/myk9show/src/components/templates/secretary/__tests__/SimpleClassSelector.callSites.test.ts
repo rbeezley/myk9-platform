@@ -9,9 +9,10 @@
  * because that file has no test of its own and the prop is optional, so typecheck stays
  * silent too.
  *
- * Three consumers exist and the third was missed twice: I wired the wizard and the
- * dialog, and Codex found `AddClassesToTrialPanel` still bare. A structural rule is the
- * only thing that fails when a fourth appears.
+ * There were three consumers and the third was missed twice: I wired the wizard and the
+ * dialog, and Codex found `AddClassesToTrialPanel` still bare. (The dialog has since been
+ * deleted as unused, MYK9-706.) A structural rule is the only thing that fails when a new
+ * one appears.
  */
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -50,8 +51,13 @@ function findMountSites(): Array<{ file: string; hasAddJudge: boolean }> {
 describe('every SimpleClassSelector mount offers a way to add a judge', () => {
   it('finds the known consumers', () => {
     // A guard that matched nothing would pass forever. Pin that it sees real sites.
-    const sites = findMountSites();
-    expect(sites.length).toBeGreaterThanOrEqual(3);
+    const files = findMountSites().map(site => site.file);
+    expect(files).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/components\/shows\/wizard\/steps\/ClassSelectionStep\.tsx$/),
+        expect.stringMatching(/components\/classes\/AddClassesToTrialPanel\.tsx$/),
+      ])
+    );
   });
 
   it('passes addJudge at every mount', () => {

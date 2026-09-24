@@ -39,6 +39,8 @@ import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreati
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
+const NO_RETAINED_CLASSES: readonly never[] = [];
+
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -130,6 +132,8 @@ const ShowCreationWizardPage: React.FC = () => {
     [trials, persistedNameSources]
   );
   const { classes: existingClasses } = useClassStoreCompat();
+  // Add-classes mode loads the show's stored classes into the draft; validation retains them.
+  const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
@@ -244,7 +248,13 @@ const ShowCreationWizardPage: React.FC = () => {
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
-    const messages = getValidationMessagesForStep(currentStep, show, trials, trialView);
+    const messages = getValidationMessagesForStep(
+      currentStep,
+      show,
+      trials,
+      trialView,
+      retainedClasses
+    );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
       // view. Next stays enabled (see canGoNext) so this click actually fires
@@ -287,6 +297,7 @@ const ShowCreationWizardPage: React.FC = () => {
     show,
     trials,
     trialView,
+    retainedClasses,
     scrollBannerIntoView,
   ]);
 
@@ -294,7 +305,13 @@ const ShowCreationWizardPage: React.FC = () => {
   const canGoBack = !isLoading;
 
   // Get validation messages for current step
-  const validationMessages = getValidationMessagesForStep(currentStep, show, trials, trialView);
+  const validationMessages = getValidationMessagesForStep(
+    currentStep,
+    show,
+    trials,
+    trialView,
+    retainedClasses
+  );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
   // gated on validation: a disabled Next just sits there doing nothing when the

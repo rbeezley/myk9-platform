@@ -9,11 +9,9 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Check,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,17 +20,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import {
-  getDogBreedLabel,
-  getDogDisplayName,
-  getDogDistinctRegisteredName,
-  Dog,
-  User,
-} from '@/types/dog-types';
-import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { getDogBreedLabel, getDogDisplayName, Dog, User } from '@/types/dog-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { getPrimaryRole } from '@/context/authContextHelpers';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
@@ -48,21 +38,18 @@ import { logger } from '@/services/LoggingService';
 import {
   addDogSelection,
   addVisibleDogSelections,
+  DOG_TABLE_GRID,
   filterAccessibleDogs,
   getDogEligibilityStatus,
   getRegistrationNumberLabel,
+  getRegistrationShownInRow,
   removeDogSelection,
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
-import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { DogRow } from './DogTableRow';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
-
-// Shared grid template so header and rows always align
-const DOG_TABLE_GRID: React.CSSProperties = {
-  gridTemplateColumns: '20px 1.5fr 1.5fr 1.5fr 56px 112px',
-};
 
 const SortableHeader: React.FC<{
   column: SortColumn;
@@ -104,17 +91,6 @@ interface DogSelectionStepProps {
   showRegistryId?: string | null | undefined;
 }
 
-interface DogRowProps {
-  index: number;
-  style: React.CSSProperties;
-  data: {
-    dogs: Dog[];
-    selectedDogs: string[];
-    onToggle: (dogId: string) => void;
-    getDogEligibilityStatus: (dog: Dog) => { eligible: boolean; issues: string[] };
-  };
-}
-
 function getEmptyStateMessage(
   searchQuery: string,
   activeQuickFilter: string,
@@ -145,129 +121,6 @@ function getEmptyStateMessage(
       return "You don't have any dogs yet. Add a dog from your profile to get started.";
   }
 }
-
-// Compact table row for virtual list
-const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
-  const { dogs, selectedDogs, onToggle, getDogEligibilityStatus } = data;
-  const dog = dogs[index];
-  const { eligible, issues } = getDogEligibilityStatus(dog);
-  const isSelected = selectedDogs.includes(dog.id);
-  const breed = getDogBreedLabel(dog);
-  const reg = dog.registrations?.[0];
-  const ownerDisplay = dog.ownerName || dog.owner?.name || '—';
-  const dogDisplayName = getDogDisplayName(dog);
-
-  const handleRowToggle = () => {
-    if (eligible) onToggle(dog.id);
-  };
-
-  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!eligible) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onToggle(dog.id);
-    }
-  };
-
-  const tooltipDetails: { label: string; value: string }[] = [];
-  // Only when it says something the call name above it does not: a dog whose
-  // registered name IS its call name gave a secretary "Registered Name: Maple"
-  // under a row that already reads Maple (MYK9-485 review round 1).
-  const registeredName = getDogDistinctRegisteredName(dog);
-  if (registeredName) tooltipDetails.push({ label: 'Registered Name', value: registeredName });
-  if (dog.gender) tooltipDetails.push({ label: 'Gender', value: dog.gender });
-  if (dog.dateOfBirth)
-    tooltipDetails.push({ label: 'Date of Birth', value: formatDateMMDDYYYY(dog.dateOfBirth) });
-  if (dog.color) tooltipDetails.push({ label: 'Color', value: dog.color });
-  if (dog.microchipNumber || dog.microchip)
-    tooltipDetails.push({ label: 'Microchip', value: (dog.microchipNumber || dog.microchip)! });
-  const hasTooltip = tooltipDetails.length > 0 || (!eligible && issues.length > 0);
-
-  const row = (
-    <div
-      style={{ ...style, ...DOG_TABLE_GRID }}
-      className={`grid items-center gap-x-3 px-3 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors ${
-        isSelected ? 'bg-primary/5' : ''
-      } ${!eligible ? 'opacity-50 cursor-not-allowed' : ''}`}
-      role="checkbox"
-      tabIndex={eligible ? 0 : -1}
-      aria-label={`Select ${dogDisplayName}`}
-      aria-checked={isSelected}
-      aria-disabled={!eligible || undefined}
-      onClick={handleRowToggle}
-      onKeyDown={handleRowKeyDown}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary shadow',
-          isSelected && 'bg-primary text-primary-foreground',
-          !eligible && 'opacity-50'
-        )}
-      >
-        {isSelected && <Check className="h-4 w-4" />}
-      </span>
-      <span className="min-w-0 truncate text-sm font-medium">{dogDisplayName}</span>
-      <span className="min-w-0 truncate text-sm text-muted-foreground">{breed}</span>
-      <span className="min-w-0 truncate text-sm text-muted-foreground">{ownerDisplay}</span>
-      <span>
-        {reg ? (
-          <Badge variant="outline" className="text-xs">
-            {reg.organization.match(/^(\w+)/)?.[1] || reg.organization}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </span>
-      <span className="min-w-0 truncate text-sm text-muted-foreground flex items-center gap-1">
-        {reg?.registrationNumber ? (
-          reg.registrationNumber
-        ) : (
-          <>
-            <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
-            <span className="text-destructive/70">—</span>
-          </>
-        )}
-      </span>
-    </div>
-  );
-
-  if (hasTooltip) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>{row}</TooltipTrigger>
-          <TooltipContent side="left" className="max-w-xs p-0">
-            <div className="px-3 py-2 space-y-1">
-              <p className="text-xs font-semibold text-popover-foreground">
-                {getDogDisplayName(dog)}
-              </p>
-              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-                {tooltipDetails.map(({ label, value }) => (
-                  <React.Fragment key={label}>
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                    <span className="text-xs text-popover-foreground">{value}</span>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-            {!eligible && issues.length > 0 && (
-              <div className="border-t border-border px-3 py-1.5 bg-destructive/10">
-                {issues.map((issue, idx) => (
-                  <p key={idx} className="text-xs text-destructive">
-                    {issue}
-                  </p>
-                ))}
-              </div>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
-  return row;
-};
 
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
@@ -407,8 +260,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           bVal = (b.ownerName || b.owner?.name || '').toLowerCase();
           break;
         case 'regNumber':
-          aVal = (a.registrations?.[0]?.registrationNumber || '').toLowerCase();
-          bVal = (b.registrations?.[0]?.registrationNumber || '').toLowerCase();
+          // The number the row SHOWS, so the sort matches what she reads (MYK9-619).
+          aVal = (
+            getRegistrationShownInRow(a, showRegistryId)?.registrationNumber || ''
+          ).toLowerCase();
+          bVal = (
+            getRegistrationShownInRow(b, showRegistryId)?.registrationNumber || ''
+          ).toLowerCase();
           break;
       }
       if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
@@ -416,7 +274,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       return 0;
     });
     return sorted;
-  }, [unsortedDogs, sortColumn, sortDirection]);
+  }, [unsortedDogs, sortColumn, sortDirection, showRegistryId]);
 
   const handleQuickCreateFlowCompleted = (exhibitor: User, newDogs: Dog[]) => {
     logger.debug('Quick create flow completed:', 'shows', { data: { exhibitor, dogs: newDogs } });
@@ -777,6 +635,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                       selectedDogs,
                       onToggle: handleDogToggle,
                       getDogEligibilityStatus,
+                      showRegistryId,
                     }}
                   >
                     {DogRow}

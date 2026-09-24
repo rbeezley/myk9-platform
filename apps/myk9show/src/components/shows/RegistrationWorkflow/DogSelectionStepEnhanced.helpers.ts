@@ -1,6 +1,8 @@
-import type { Dog } from '@/types/dog-types';
+import type { CSSProperties } from 'react';
+import type { Dog, Registration } from '@/types/dog-types';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { getRegistry, listRegistries } from '@/features/registries';
+import { resolveRegistrationForShow } from './dogRegistrationForShow';
 
 /**
  * How the picker names the registration number a secretary can search by.
@@ -12,6 +14,26 @@ import { getRegistry, listRegistries } from '@/features/registries';
 export function getRegistrationNumberLabel(showRegistryId: string | null | undefined): string {
   const known = listRegistries().find(id => id === showRegistryId);
   return known ? `${getRegistry(known).id} number` : 'registration number';
+}
+
+// Shared grid template so the staff table's header and rows always align.
+export const DOG_TABLE_GRID: CSSProperties = {
+  gridTemplateColumns: '20px 1.5fr 1.5fr 1.5fr 56px 112px',
+};
+
+/**
+ * The registration the staff table's Org / Reg # cells show, and sort by
+ * (MYK9-619). Once the show's registry and the dog's registrations are both
+ * known, it is the one the show will use — or none, when the dog holds no
+ * usable registration for it. Until then it falls back to the first listed,
+ * which is what the row showed before, and claims nothing about the show.
+ */
+export function getRegistrationShownInRow(
+  dog: Dog,
+  showRegistryId: string | null | undefined
+): Registration | null {
+  const forShow = resolveRegistrationForShow(dog, showRegistryId);
+  return forShow.resolved ? forShow.used : (dog.registrations?.[0] ?? null);
 }
 
 export function addDogSelection(

@@ -54,6 +54,12 @@ export interface ShowEntry {
   showId: string;
   classId: string;
   dogId: string;
+  /**
+   * The dog's call name as the replicated entry carries it
+   * (`dog_call_name` on the entries replication view), so a screen can name
+   * the dog offline without a second lookup. Read-only: never written back.
+   */
+  dogCallName?: string | undefined;
 
   // Current state
   status: EntryStatus;

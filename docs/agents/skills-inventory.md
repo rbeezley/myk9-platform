@@ -11,21 +11,34 @@ from its upstream when a playbook row needs it.
 The routing file named in a third-party row is read by the test and grepped for the skill's name, so
 "it seemed useful" is not a reason — name the file that sends work to it.
 
-| Skill                              | Origin                           | Why we keep it                                                                                       |
-| ---------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `UX-to-Prompt`                     | third-party, upstream unrecorded | routed from `.claude/skills/IA-Review/SKILL.md` (and `UX-Audit`) once a remediation plan is approved |
-| `codebase-design`                  | Matt Pocock skills               | routed from `.agents/skills/improve-codebase-architecture/SKILL.md` for the architecture vocabulary  |
-| `domain-modeling`                  | Matt Pocock skills               | routed from `docs/agents/domain.md` when the glossary has a real gap                                 |
-| `grilling`                         | Matt Pocock skills               | routed from `.agents/skills/improve-codebase-architecture/SKILL.md` to walk a design tree            |
-| `improve-codebase-architecture`    | Matt Pocock skills               | routed from `.claude/skills/codebase-health/references/churn-hotspots.md`, `ship-it` and `/simplify` |
-| `launch-readiness-triage`          | ours                             | PLAYBOOK-adjacent: daily P0/P1 and the Friday findings review                                        |
-| `quality-finding-lifecycle`        | ours                             | finding identity, severity and closure proof for every audit skill                                   |
-| `role-journey-ux-audit`            | ours                             | PLAYBOOK § 6 — role-scoped, multi-viewport UX walk                                                   |
-| `supabase-health-drift-audit`      | ours                             | scheduled read-only Supabase drift and posture audit                                                 |
-| `supabase-postgres-best-practices` | Supabase agent skills            | routed from `.claude/skills/debugging-patterns/SKILL.md` for slow-query and index symptoms           |
-| `vercel-composition-patterns`      | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 2 for component APIs that grow boolean props                        |
-| `vercel-react-best-practices`      | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 2 for rendering, data fetching and bundle cost                      |
-| `web-design-guidelines`            | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 6 for a Web Interface Guidelines pass on rendered UI                |
+## Local-only skills
+
+A skill some machines install and the repo deliberately never carries gets a row whose Origin starts
+with `local-only`. That row needs no directory, so the test is green on CI (where the skill is
+absent) and on a machine that has it installed (MYK9-598). The exemption holds only while
+`git check-ignore` says the name is ignored in all three trees (`.agents/skills`, `.claude/skills`,
+`.codex/skills`). A force-added or re-included copy fails the test.
+
+`skills-lock.json` still declares `impeccable` although its directory is ignored. That is deliberate:
+the lock file is the install manifest, like `package-lock.json` beside an ignored `node_modules`.
+It records the upstream and hash to reinstall from. The skill's files stay out of the repo.
+
+| Skill                              | Origin                           | Why we keep it                                                                                             |
+| ---------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `UX-to-Prompt`                     | third-party, upstream unrecorded | routed from `.claude/skills/IA-Review/SKILL.md` (and `UX-Audit`) once a remediation plan is approved       |
+| `codebase-design`                  | Matt Pocock skills               | routed from `.agents/skills/improve-codebase-architecture/SKILL.md` for the architecture vocabulary        |
+| `domain-modeling`                  | Matt Pocock skills               | routed from `docs/agents/domain.md` when the glossary has a real gap                                       |
+| `grilling`                         | Matt Pocock skills               | routed from `.agents/skills/improve-codebase-architecture/SKILL.md` to walk a design tree                  |
+| `impeccable`                       | local-only, pbakaus/impeccable   | routed from `docs/playbook-impeccable-page-improvements.md`; gitignored, reinstall from `skills-lock.json` |
+| `improve-codebase-architecture`    | Matt Pocock skills               | routed from `.claude/skills/codebase-health/references/churn-hotspots.md`, `ship-it` and `/simplify`       |
+| `launch-readiness-triage`          | ours                             | PLAYBOOK-adjacent: daily P0/P1 and the Friday findings review                                              |
+| `quality-finding-lifecycle`        | ours                             | finding identity, severity and closure proof for every audit skill                                         |
+| `role-journey-ux-audit`            | ours                             | PLAYBOOK § 6 — role-scoped, multi-viewport UX walk                                                         |
+| `supabase-health-drift-audit`      | ours                             | scheduled read-only Supabase drift and posture audit                                                       |
+| `supabase-postgres-best-practices` | Supabase agent skills            | routed from `.claude/skills/debugging-patterns/SKILL.md` for slow-query and index symptoms                 |
+| `vercel-composition-patterns`      | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 2 for component APIs that grow boolean props                              |
+| `vercel-react-best-practices`      | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 2 for rendering, data fetching and bundle cost                            |
+| `web-design-guidelines`            | Vercel Labs agent skills         | routed from `docs/PLAYBOOK.md` § 6 for a Web Interface Guidelines pass on rendered UI                      |
 
 ## What was removed, and why
 

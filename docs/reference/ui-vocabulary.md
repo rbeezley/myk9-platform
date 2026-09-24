@@ -79,7 +79,18 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Per-class entries table              | Add Entry                                         |
 | Offline / ringside entry form        | Add Entry                                         |
 | Header + command menu                | Add entry for my dog / Add entry for someone else |
+| Shows page, empty states, shortcuts  | Add Show                                          |
+| Show wizard — heading, submit button | Add Show                                          |
+| Secretary dashboard, no shows yet    | Add your first show                               |
+| Show page — Trials tab, Show Map     | Add Trial                                         |
+| Show page — Classes tab              | Add Classes                                       |
+| Class creation page                  | Add Classes                                       |
+| Dogs page, person profile            | Add Dog                                           |
+| Add-dog panel — title, save button   | Add Dog                                           |
+| Command menu                         | Add Dog / Add Show                                |
+| Header Actions menu — on a show      | Add Trial                                         |
+| Header Actions menu — off a show     | Add Show                                          |
 
-## Not yet done
+### "New" as an adjective
 
-The `Add` / `New` / `Create` collapse across the remaining nouns (Show, Dog, Trial, Class, Judge) is outstanding — a survey at the time of writing found all three verbs in use for Show and for Dog. Tracked separately; this document is the standard it should be swept against.
+`new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.

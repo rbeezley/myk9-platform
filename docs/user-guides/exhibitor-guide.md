@@ -71,7 +71,7 @@ Before entering a show, your dog needs a profile in your account.
    - **Gender** (required)
    - **Date of birth** (required)
 4. Under **Additional**: enter the AKC or UKC registration number, registered name, and breed.
-5. Click **Create Dog**.
+5. Click **Add Dog**.
 
 ![E-04: My Dogs list — dog card visible](../screenshots/E-04.png)
 

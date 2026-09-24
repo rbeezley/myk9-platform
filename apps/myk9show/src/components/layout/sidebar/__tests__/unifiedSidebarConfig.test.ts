@@ -109,12 +109,12 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(group?.items.some(i => i.href === '/secretary/messages')).toBe(false);
   });
 
-  it('manage sidebar omits Create Show and other parked items', () => {
+  it('manage sidebar omits Add Show and other parked items', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
     for (const absent of [
-      'New Show',
+      'Add Show',
       'Check-In',
       'Volunteers',
       'Settings',

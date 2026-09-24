@@ -22,6 +22,7 @@
  * message, so the hang is unrepresentable instead of guarded.
  */
 import type { CartWithDetails, EnsureCartResult } from './cartStore.types';
+import type { CartWriteGuard } from './cartStore.session';
 
 export type { EnsureCartResult };
 
@@ -69,11 +70,19 @@ export const isActiveCartUniqueViolation = (
   `${error.message ?? ''} ${error.details ?? ''}`.includes(ACTIVE_CART_UNIQUE_INDEX);
 
 export interface EnsureCartDeps {
+  /**
+   * `isCurrent` is this opener's token: false once the opener is superseded,
+   * and the store drops every write made under it (MYK9-655).
+   */
   loadActiveCart: (
     exhibitorId: string,
-    options?: { showId?: string }
+    options?: { showId?: string; isCurrent?: CartWriteGuard }
   ) => Promise<CartWithDetails | null>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  createCart: (
+    showId: string,
+    exhibitorId: string,
+    options?: { isCurrent?: CartWriteGuard }
+  ) => Promise<CartWithDetails | null>;
   /**
    * The message the store recorded for the most recent cart failure, used as the
    * CAUSE handed to `onFailure`. `createCart` swallows its PostgREST error and
@@ -111,8 +120,22 @@ export function ensureCartOnce(
   const inFlight = ensureCartInFlight.get(key);
   if (inFlight) return inFlight;
 
+  // This opener's generation token (MYK9-655). The timeout below SUPERSEDES
+  // the opener rather than merely racing it: the work keeps running, so every
+  // store write it makes, and every further step it would take, has to check
+  // that it is still the opener anyone is waiting on. A retry is a new opener
+  // with a new token, so the stale one can never overwrite what the retry did.
+  let superseded = false;
+  const isCurrent: CartWriteGuard = () => !superseded;
+  // Whichever of work and timeout settles first reports; the other is silent.
+  // So `onFailure` runs at most once per opener.
+  let reported = false;
+
   const fail = (message: string, cause?: unknown): EnsureCartResult => {
-    deps.onFailure(message, cause);
+    if (!reported && !superseded) {
+      reported = true;
+      deps.onFailure(message, cause);
+    }
     return { kind: 'failed', error: message };
   };
 
@@ -123,10 +146,13 @@ export function ensureCartOnce(
       // cart for the show and when a read on the way there failed — it never
       // says which, which is why the create below is the only thing that can
       // turn a null into a `ready`, and why anything short of that is `failed`.
-      const recovered = await deps.loadActiveCart(exhibitorId, { showId });
+      const recovered = await deps.loadActiveCart(exhibitorId, { showId, isCurrent });
       if (recovered) return { kind: 'ready', cart: recovered };
+      // Superseded while recovering: the retry owns the cart now, and a create
+      // from here would insert a rival row beside it.
+      if (superseded) return { kind: 'failed', error: CART_OPEN_TIMED_OUT_MESSAGE };
 
-      const created = await deps.createCart(showId, exhibitorId);
+      const created = await deps.createCart(showId, exhibitorId, { isCurrent });
       if (created) return { kind: 'ready', cart: created };
 
       // `createCart` returns null on its own catch AND on the conflict branch
@@ -149,7 +175,11 @@ export function ensureCartOnce(
   // result, so a request that never comes back still produces `failed`.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<EnsureCartResult>(resolve => {
-    timer = setTimeout(() => resolve(fail(CART_OPEN_TIMED_OUT_MESSAGE)), CART_OPEN_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      const result = fail(CART_OPEN_TIMED_OUT_MESSAGE);
+      superseded = true;
+      resolve(result);
+    }, CART_OPEN_TIMEOUT_MS);
   });
 
   const pending: Promise<EnsureCartResult> = Promise.race([work, timedOut]).finally(() => {
@@ -163,7 +193,12 @@ export function ensureCartOnce(
   return pending;
 }
 
-/** Test-only: this module holds mutable state that outlives a single test. */
+/**
+ * Forget every in-flight opener. Called by the store's `reset()` so an account
+ * that signs back in starts a fresh opener instead of joining one whose writes
+ * the reset has already dropped; also used by tests, since this module holds
+ * state that outlives a single test.
+ */
 export function resetEnsureCartInFlight(): void {
   ensureCartInFlight.clear();
 }

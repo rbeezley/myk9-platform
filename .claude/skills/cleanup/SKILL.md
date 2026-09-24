@@ -30,11 +30,12 @@ git worktree list
 - **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks the harness's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
   ```bash
   MAIN="/absolute/path/to/main/repo"
-  # worktree remove is the last command
-  git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
+  # worktree remove is the last command; never --force (see "Removal" below)
+  git -C "$MAIN" worktree remove "/absolute/path/to/stale-worktree"
   ```
   Leave the local branch: `git branch -D` is a denied command in this repo's Claude Code permissions (Codex may run it per `AGENTS.md`, before the worktree removal). The harness recovers the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
+- **Removal is plain `git worktree remove`, never `--force`.** Git's own refusal is the backstop: it declines a tree with modified or untracked files. If git refuses, stop and report the files it names. Do not force, and do not clean the tree to get past it.
 - **Reap dev servers first.** Before removing a worktree, run §2 scoped to that worktree path and kill any survivors — otherwise they keep listening on their ports as zombies after the directory is gone.
 - Report how many were found; only remove after explicit user confirmation.
 
@@ -122,41 +123,38 @@ git branch --merged main | grep -v '^\*\|main' | head -10
 - `supabase/functions/` (root) — e.g. `send-email`, `validate-passcode`, `push-trigger-*`, `admin-*`
 - `apps/myk9show/supabase/functions/` (Stripe/cron) — e.g. `stripe-*`, `cron-*`
 
-Step 1 — list every source function with its last-commit date (both dirs, excluding `_shared`):
+Run the check (read-only; it never deploys). It lists both dirs, excludes `_shared`, reads the deployed list with `supabase functions list -o json`, and prints one status per function:
 
 ```bash
-for dir in supabase/functions apps/myk9show/supabase/functions; do
-  [ -d "$dir" ] || continue
-  for fn in "$dir"/*/; do
-    name=$(basename "$fn")
-    case "$name" in _*) continue;; esac
-    echo "$name | $(git log -1 --format=%cI -- "$fn" 2>/dev/null) | $dir"
-  done
-done | sort
+pnpm -s qa:edge-function-drift            # dates only, seconds
+pnpm -s qa:edge-function-drift --content  # downloads each deploy and compares it with source, minutes
 ```
 
-Step 2 — list deployed functions with their `UPDATED_AT`:
+Exit 0 means every function is current; exit 1 means at least one row below needs a decision; exit 2 means the check could not run, including a `--content` download that failed (`check-failed` rows). Report the non-`current` rows.
 
-```bash
-source supabase/.env && supabase functions list --project-ref sojmvhhwsjxmfistvzbe 2>/dev/null
-```
+- **`stale`** (date mode only): the source's dating commit is newer than the deploy. It is a candidate for a closer look, not proof of anything. Run `--content` to see whether the copies actually differ.
+- **`differs`** (`--content` only): the deployed copy and source are not the same after both are Prettier-formatted. The note names the files, including `_shared` ones. It does **not** say which copy is newer. The deploy may carry a live-only change the repo never received, so `differs` is never a reason to deploy on its own.
+- **`unknown`:** dates cannot decide. This clone is **shallow** (`git rev-parse --is-shallow-repository`), and `git log -- <dir>` for a file untouched since the graft boundary returns the BOUNDARY's date, not the real edit date. The real edit is at or before the boundary, so a deploy newer than the boundary is reported `current`; a deploy older than it is `unknown`, never `stale`. On 2026-09-15 the hand-run version of this check called 20 of 45 functions stale for this reason alone (MYK9-597). Run `--content` to see whether the copies differ. `git fetch --unshallow` also makes the dates meaningful, but it is a large fetch: offer it, and do not run it unprompted.
+- **`sub-day`:** a squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch. Treat it as ordering noise unless `--content` says `differs`.
+- **`never-deployed`:** a source function with no deployed slug.
+- **`orphan-deploy`:** a deployed slug with no source dir in either function dir. It is live code that nothing in the repo maintains. Ask whether to restore its source or delete the deploy; deleting is a shared-system write.
+- **`dual-location`:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug, so do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
 
-Step 3 — reason over the two lists and flag:
+Calibration, for a date-mode flag you confirm by hand:
 
-- **Stale deploy:** a function whose source last-commit (Step 1) is _newer_ than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses. Two calibration rules before you act on a flag:
-  - **Flags are candidates, not proof.** `git log -- <dir>` dates any file touch in the dir — a comment, a sibling test, a formatting sweep — not just deployable change. Confirm a real behavioral diff before deploying: `git show <last-commit> -- <dir>/index.ts` (did the entry file substantively change?), or `supabase functions download <name>` into a temp dir and diff against source.
-  - **Sub-day gaps are usually false positives.** A squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch — so source-newer-by-an-hour usually means the deploy already contains it. Treat weeks/months gaps as real drift; treat sub-day gaps as ordering noise unless a diff proves otherwise.
-- **Never deployed:** a source function absent from the deployed list.
-- **Dual-location fork:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
+- **A date is not a behavioural change.** Dates come from the function's own dir, so a sibling test or a comment moves them and a `_shared` edit does not. Commits listed in `.git-blame-ignore-revs` (the one-time Prettier pass, #2121) are skipped. `--content` shows whether the copies differ. Prefer it over reading a diff.
+- **An all-insertions diff is a moved path or a history floor, not a change.** `git show <last-commit> -- <dir>/index.ts` on a graft-boundary commit or a rename shows the whole file as added (e.g. `index.ts | 273 +++`), which looks like a large edit. It says nothing about behaviour. Compare content instead.
 
-- For each stale/never-deployed function, report it and include the deploy command. Root functions deploy from the repo root; Stripe/cron functions need `--workdir apps/myk9show`:
-  ```bash
-  # root function
-  supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-  # apps/myk9show function
-  supabase functions deploy <name> --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-  ```
-- **Deploying is a shared-system write — always ask before running it** (never auto-deploy). Editing a `_shared/*` helper restales every function that imports it; redeploy those importers, not just directly-changed function dirs.
+**Report; do not propose a deploy.** List every non-`current` row with its note. For `stale`, `differs` and `unknown` rows, do not offer a deploy command in the report.
+
+**Before any deploy, confirm the direction by hand**, one function at a time:
+
+1. Download the deploy into a scratch workdir, never into the repo: `supabase functions download <name> --project-ref sojmvhhwsjxmfistvzbe --use-api --workdir "$SCRATCH"`.
+2. Diff each file `--content` named against source: `diff -u "$SCRATCH/supabase/functions/<file>" <source dir>/<file>`.
+3. For each line only the deploy has, `git log -S '<that line>' -- <source dir>` to find it in history. Found and later removed means the repo moved on and the deploy is behind. Not found anywhere means the line exists only in production, which is a **live-only change**.
+4. **Never deploy over a live-only change.** Report it, get the change into the repo first, and deploy only after the repo carries it.
+
+Deploying is a shared-system write: ask each time, never auto-deploy. Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--project-ref sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
 
 ## Output Format
 
@@ -181,13 +179,13 @@ If issues need user input, list them at the end:
 Action needed:
   1. 2 uncommitted files -- commit or discard?
   2. Migration 110 not yet pushed -- push now?
-  3. send-email source (06-23) newer than deployed (05-03) -- deploy now?
+  3. send-email: deploy differs from source (_shared/http/cors.ts) -- confirm direction before any deploy?
 ```
 
 ## Rules
 
 - Run all checks even if early ones find issues
-- NEVER auto-remove worktrees — always ask first (another agent may be using it)
+- NEVER auto-remove worktrees — always ask first (another agent may be using it). Remove with plain `git worktree remove`, never `--force`, and stop if git refuses.
 - NEVER auto-kill dev servers whose worktree still exists — ask first (another agent may be using it). Auto-killing IS allowed when both the worktree directory is gone AND its name is absent from `git worktree list`.
 - **Reap dev servers before removing their worktree** — `git worktree remove` does not kill child processes, so dev servers outlive their source tree and become 404-serving zombies
 - Always ask before: committing, pushing, deploying, deleting unmerged branches

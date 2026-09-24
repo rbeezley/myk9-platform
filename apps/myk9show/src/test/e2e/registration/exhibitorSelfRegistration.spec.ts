@@ -3,6 +3,7 @@ import { signInAsExhibitor } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
+import { RECOVERABLE_CART_LOOKUP_SELECT_PARAM } from '@/store/cartStore.pickCart.constants';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
@@ -27,10 +28,19 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
     const request = route.request();
 
     if (request.method() === 'GET') {
+      // The recoverable-cart lookup (MYK9-650) is a LIST read with an item
+      // count; every other cart GET here is a single-row read.
+      const isLookup =
+        new URL(request.url()).searchParams.get('select') === RECOVERABLE_CART_LOOKUP_SELECT_PARAM;
+      const body = isLookup
+        ? cart
+          ? [{ ...cart, entry_cart_items: [{ count: cartItem ? 1 : 0 }] }]
+          : []
+        : cart;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(cart),
+        body: JSON.stringify(body),
       });
       return;
     }

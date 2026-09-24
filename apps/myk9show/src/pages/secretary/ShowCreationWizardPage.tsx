@@ -364,7 +364,7 @@ const ShowCreationWizardPage: React.FC = () => {
         <div className="container mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6">
           {/* Title */}
           <h2 className="text-base font-semibold mb-4 text-foreground">
-            {getEditModeTitle(editMode) ?? 'Create New Show'}
+            {getEditModeTitle(editMode) ?? 'Add Show'}
           </h2>
 
           {/* Horizontal step indicator — sticky under the page header so the

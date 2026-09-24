@@ -183,6 +183,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   { pkgDir: '.', script: 'qa:inflight:test', command: 'vitest run scripts/qa/inflight.test.ts' },
   {
     pkgDir: '.',
+    script: 'qa:edge-function-drift:test',
+    command: 'vitest run scripts/qa/edge-function-drift.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:primary-checkout:test',
     command: 'vitest run scripts/qa/primary-checkout.test.ts',
   },

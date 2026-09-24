@@ -67,7 +67,7 @@ describe('ReviewStep — blocking errors must actually block', () => {
     const onCreateShow = vi.fn();
     render(<ReviewStep trialView={trialView} onCreateShow={onCreateShow} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /^create show$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^add show$/i }));
 
     expect(onCreateShow).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(

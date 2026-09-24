@@ -215,9 +215,9 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
     // Email is rendered both as a paragraph (hero) and a mailto link in the
     // contact section — target the link to avoid strict-mode collisions.
     await expect(page.getByRole('link', { name: PERSON_A_EMAIL })).toBeVisible();
-    // Dogs section + Add New Dog button is the entry point for the
+    // Dogs section + Add Dog button is the entry point for the
     // associate-dog-as-owner flow tested below.
-    await expect(page.getByRole('button', { name: 'Add New Dog' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Dog' })).toBeVisible();
   });
 
   test('edit Person A — saves phone via Contact tab', async ({ page }) => {
@@ -253,13 +253,13 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     await signInAsSecretary(page);
   });
 
-  test('Add New Dog from Person A profile — Owner pre-fills with that person', async ({ page }) => {
+  test('Add Dog from Person A profile — Owner pre-fills with that person', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'Add New Dog' }).click();
-    await expect(page.getByRole('dialog', { name: 'Add New Dog' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Add Dog' })).toBeVisible();
 
     // INTENT (regression guard): when the secretary opens AddDogPanel from a
     // person's profile, currentUserPersonId is that person's id. The panel's
@@ -288,7 +288,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
         r =>
           r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST' && r.status() < 300
       ),
-      page.getByRole('button', { name: 'Create Dog' }).click(),
+      page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click(),
     ]);
     expect(resp.ok()).toBe(true);
 

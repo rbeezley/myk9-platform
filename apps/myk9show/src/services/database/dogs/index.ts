@@ -20,3 +20,4 @@ export {
   getOwnedLiveDogsByPerson,
 } from './reads';
 export type { OwnedLiveDog } from './reads';
+export type { RestoreDogResult, SkippedPlacement } from './restoreDogResult';

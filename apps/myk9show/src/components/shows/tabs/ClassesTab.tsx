@@ -263,7 +263,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         action={
           canManage
             ? {
-                label: 'New Class',
+                label: 'Add Classes',
                 onClick: () =>
                   navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`),
                 icon: Plus,
@@ -310,7 +310,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" />
-              New Class
+              Add Classes
             </Button>
           )}
         </div>

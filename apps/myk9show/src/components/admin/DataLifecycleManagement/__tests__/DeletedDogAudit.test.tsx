@@ -1,7 +1,7 @@
 /**
  * MYK9-607 / MYK9-608 end to end through the real tab, the real mapper and the
  * real section, with only the service layer mocked — on the EXACT row shapes
- * `get_deleted_dogs()` and `restore_dog()` return (migration 20260924074100,
+ * `get_deleted_dogs()` and `restore_dog()` return (migration 20260924104100,
  * pinned by supabase/tests/myk9_607_608_dog_delete_audit_restore_test.sql).
  * A field dropped by any hop between the RPC and the rendered row fails here.
  */
@@ -96,12 +96,42 @@ const FORCED_ROW = {
   force_delete_audit: {
     logged_at: '2026-09-24T07:41:00.123+00:00',
     actor_name: 'Restore Admin',
-    entry_ids: ['entry-paid', 'entry-refunded', 'entry-scored'],
+    entry_ids: ['entry-paid', 'entry-partial', 'entry-refunded', 'entry-scored'],
     paid_entry_ids: ['entry-paid'],
-    // entry-refunded was refunded in myK9 before the override: its intent is
-    // recorded, but nothing is owed on it.
-    stripe_payment_intent_ids: ['pi_myk9608_refunded', 'pi_myk9608_stranded'],
-    paid_payment_intent_ids: ['pi_myk9608_stranded'],
+    stripe_payment_intent_ids: ['pi_myk9608_partial', 'pi_myk9608_refunded', 'pi_myk9608_stranded'],
+    // Exactly the `payments` shape the SQL test pins: one object per affected
+    // entry, jsonb numerics as numbers, NULL where nothing was recorded. Both
+    // refunds read payment_status 'refunded'; only the amounts differ.
+    payments: [
+      {
+        entry_id: 'entry-paid',
+        stripe_payment_intent_id: 'pi_myk9608_stranded',
+        payment_status: 'paid',
+        entry_fee: 35.0,
+        refund_amount: null,
+      },
+      {
+        entry_id: 'entry-partial',
+        stripe_payment_intent_id: 'pi_myk9608_partial',
+        payment_status: 'refunded',
+        entry_fee: 35.0,
+        refund_amount: 10.0,
+      },
+      {
+        entry_id: 'entry-refunded',
+        stripe_payment_intent_id: 'pi_myk9608_refunded',
+        payment_status: 'refunded',
+        entry_fee: 35.0,
+        refund_amount: 35.0,
+      },
+      {
+        entry_id: 'entry-scored',
+        stripe_payment_intent_id: null,
+        payment_status: 'pending',
+        entry_fee: null,
+        refund_amount: null,
+      },
+    ],
     waitlist_rows_removed: 0,
     cart_items_removed: 0,
     refund_issued: false,
@@ -171,11 +201,23 @@ describe('Deleted Items — dogs (MYK9-607, MYK9-608)', () => {
       )
     ).toBeInTheDocument();
     expect(
-      forced.getByText('Entries removed (3, 1 paid): entry-paid, entry-refunded, entry-scored')
+      forced.getByText(
+        'Entries removed (4): entry-paid, entry-partial, entry-refunded, entry-scored'
+      )
     ).toBeInTheDocument();
-    expect(forced.getByText(/Paid and not refunded: pi_myk9608_stranded\./)).toBeInTheDocument();
-    expect(forced.queryByText(/pi_myk9608_refunded/)).not.toBeInTheDocument();
-    expect(forced.getByText(/never the Stripe dashboard/)).toBeInTheDocument();
+    // Every entry with an intent, as recorded — the partial refund included,
+    // the intent-less entry left out, and no "owed" verdict anywhere.
+    expect(
+      forced.getByText(
+        'Payments recorded at delete: pi_myk9608_stranded: $35.00 paid; pi_myk9608_partial: $35.00 paid, $10.00 refunded; pi_myk9608_refunded: $35.00 paid, refunded in full.'
+      )
+    ).toBeInTheDocument();
+    expect(forced.queryByText(/owed|not refunded|outstanding/i)).not.toBeInTheDocument();
+    expect(
+      forced.getByText(
+        'To refund, restore the dog, then refund in myK9 as needed — never in the Stripe dashboard.'
+      )
+    ).toBeInTheDocument();
 
     expect(
       within(rowFor('Ordinary Formally')).queryByText(/Force-deleted/)

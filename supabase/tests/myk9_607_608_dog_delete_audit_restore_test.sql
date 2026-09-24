@@ -1,4 +1,4 @@
--- MYK9-607 + MYK9-608 (migration 20260924074100): what restore_dog does with a
+-- MYK9-607 + MYK9-608 (migration 20260924104100): what restore_dog does with a
 -- stale placement snapshot, which audit row it reads, and what Admin -> Deleted
 -- Items can see about a deleted dog.
 --
@@ -15,8 +15,10 @@
 --   3. MYK9-608. get_deleted_dogs() names the deleter for BOTH delete paths
 --      and carries the force-delete audit facts (entries, paid entries, Stripe
 --      payment intents) for a force-deleted dog, and nothing for an ordinary
---      soft delete. An intent whose entry was refunded in myK9 BEFORE the
---      override is recorded but is not offered as money to recover.
+--      soft delete. Each affected entry's money facts (intent, payment_status,
+--      entry_fee, refund_amount) come back EXACTLY as recorded — including a
+--      full and a PARTIAL in-app refund, which both read payment_status
+--      'refunded' — and nothing derives an owed amount.
 --      Non-admins get no rows.
 --   4. Force-delete, restore, then an ORDINARY soft delete, in one transaction:
 --      the second deletion shares the first one's deleted_at. The restored-from
@@ -130,16 +132,25 @@ VALUES (
   '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
   '00000000-0000-0000-0000-000000607053', 'paid', 'online', 'pi_myk9608_stranded', 35.00
 );
--- Refunded in myK9 before the override, as the dialog tells the admin to do.
+-- Refunded in myK9 before the override, as the dialog tells the admin to do:
+-- 087 in full, 088 only in part. Both read payment_status 'refunded'
+-- (buildEntryRefundStamp stamps it for a partial refund too), so only
+-- entry_fee and refund_amount tell them apart.
 INSERT INTO public.entries (
   id, class_id, trial_id, show_id, dog_id, payment_status, payment_method,
-  stripe_payment_intent_id, entry_fee
+  stripe_payment_intent_id, entry_fee, refund_amount
 )
-VALUES (
-  '00000000-0000-0000-0000-000000607087', '00000000-0000-0000-0000-000000607041',
-  '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
-  '00000000-0000-0000-0000-000000607053', 'refunded', 'online', 'pi_myk9608_refunded', 35.00
-);
+VALUES
+  (
+    '00000000-0000-0000-0000-000000607087', '00000000-0000-0000-0000-000000607041',
+    '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
+    '00000000-0000-0000-0000-000000607053', 'refunded', 'online', 'pi_myk9608_refunded', 35.00, 35.00
+  ),
+  (
+    '00000000-0000-0000-0000-000000607088', '00000000-0000-0000-0000-000000607042',
+    '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
+    '00000000-0000-0000-0000-000000607053', 'refunded', 'online', 'pi_myk9608_partial', 35.00, 10.00
+  );
 RESET ROLE;
 
 DO $$
@@ -170,8 +181,14 @@ BEGIN
     SELECT 1 FROM public.entries
     WHERE id = '00000000-0000-0000-0000-000000607087'
       AND payment_status = 'refunded' AND stripe_payment_intent_id = 'pi_myk9608_refunded'
+      AND refund_amount = 35.00
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-000000607088'
+      AND payment_status = 'refunded' AND stripe_payment_intent_id = 'pi_myk9608_partial'
+      AND entry_fee = 35.00 AND refund_amount = 10.00
   ) THEN
-    RAISE EXCEPTION 'FIXTURE the refunded online entry was not seeded';
+    RAISE EXCEPTION 'FIXTURE the fully and partially refunded online entries were not seeded';
   END IF;
 
   IF (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000607086') IS DISTINCT FROM 4 THEN
@@ -405,14 +422,48 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS a force-deleted dog carries its entries, paid entries and stranded payment intent';
 
-  IF NOT COALESCE(v_forced -> 'force_delete_audit' -> 'stripe_payment_intent_ids' ? 'pi_myk9608_refunded', false)
-     OR NOT COALESCE(v_forced -> 'force_delete_audit' -> 'paid_payment_intent_ids' ? 'pi_myk9608_stranded', false)
-     OR COALESCE(v_forced -> 'force_delete_audit' -> 'paid_payment_intent_ids' ? 'pi_myk9608_refunded', true) THEN
+  -- The money facts, exactly as the rows held them. Compared as a whole
+  -- array so a missing entry, an extra key or a derived field all fail.
+  IF (v_forced -> 'force_delete_audit' -> 'payments') IS DISTINCT FROM jsonb_build_array(
+    jsonb_build_object(
+      'entry_id', '00000000-0000-0000-0000-000000607085',
+      'stripe_payment_intent_id', 'pi_myk9608_stranded',
+      'payment_status', 'paid',
+      'entry_fee', 35.00,
+      'refund_amount', NULL
+    ),
+    jsonb_build_object(
+      'entry_id', '00000000-0000-0000-0000-000000607087',
+      'stripe_payment_intent_id', 'pi_myk9608_refunded',
+      'payment_status', 'refunded',
+      'entry_fee', 35.00,
+      'refund_amount', 35.00
+    ),
+    jsonb_build_object(
+      'entry_id', '00000000-0000-0000-0000-000000607088',
+      'stripe_payment_intent_id', 'pi_myk9608_partial',
+      'payment_status', 'refunded',
+      'entry_fee', 35.00,
+      'refund_amount', 10.00
+    )
+  ) THEN
     RAISE EXCEPTION
-      'FAIL paid_payment_intent_ids does not separate the unrefunded intent from the one refunded before the override: %',
-      v_forced -> 'force_delete_audit';
+      'FAIL the per-entry money facts are not exactly as recorded: %',
+      v_forced -> 'force_delete_audit' -> 'payments';
   END IF;
-  RAISE NOTICE 'PASS an intent refunded before the override is not offered as money to recover';
+  RAISE NOTICE 'PASS every affected entry''s money facts come back exactly as recorded, partial refund included';
+
+  -- Recorded, never judged: no derived owed/unrefunded field anywhere.
+  IF COALESCE(v_forced -> 'force_delete_audit' ? 'paid_payment_intent_ids', true)
+     OR EXISTS (
+       SELECT 1
+       FROM jsonb_array_elements(v_forced -> 'force_delete_audit' -> 'payments') p,
+            jsonb_object_keys(p) k
+       WHERE k NOT IN ('entry_id', 'stripe_payment_intent_id', 'payment_status', 'entry_fee', 'refund_amount')
+     ) THEN
+    RAISE EXCEPTION 'FAIL the audit carries a derived money judgement: %', v_forced -> 'force_delete_audit';
+  END IF;
+  RAISE NOTICE 'PASS the audit carries no derived owed or unrefunded field';
 END;
 $$;
 

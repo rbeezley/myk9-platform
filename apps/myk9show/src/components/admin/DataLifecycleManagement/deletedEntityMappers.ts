@@ -53,14 +53,51 @@ export function formatDeleter(name: unknown, email: unknown): string | null {
   return n ?? e;
 }
 
+const asAmount = (value: unknown): number | null => {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+};
+
+const dollars = (n: number) => `$${n.toFixed(2)}`;
+
+/**
+ * One recorded payment, as the entry row held it at delete time: "pi_x: $35.00
+ * paid", "pi_x: $35.00 paid, $10.00 refunded", "pi_x: $35.00 paid, refunded in
+ * full". A statement of what was recorded, never of what is owed (MYK9-608).
+ */
+export function describeRecordedPayment(payment: unknown): string | null {
+  if (payment === null || typeof payment !== 'object' || Array.isArray(payment)) return null;
+  const p = payment as Record<string, unknown>;
+  const intent = typeof p.stripe_payment_intent_id === 'string' ? p.stripe_payment_intent_id : '';
+  if (!intent) return null;
+
+  const status = typeof p.payment_status === 'string' ? p.payment_status : null;
+  const fee = asAmount(p.entry_fee);
+  const refunded = asAmount(p.refund_amount);
+
+  if (status !== 'paid' && status !== 'refunded') {
+    return `${intent}: ${fee !== null ? `${dollars(fee)}, ` : ''}status ${status ?? 'not recorded'}`;
+  }
+  const parts = [fee !== null ? `${dollars(fee)} paid` : 'paid (fee not recorded)'];
+  if (refunded !== null && refunded > 0) {
+    parts.push(
+      fee !== null && refunded === fee ? 'refunded in full' : `${dollars(refunded)} refunded`
+    );
+  } else if (status === 'refunded') {
+    parts.push('marked refunded, no amount recorded');
+  }
+  return `${intent}: ${parts.join(', ')}`;
+}
+
 /**
  * The facts `get_deleted_dogs()` carries for a FORCE-deleted dog (MYK9-608):
- * who overrode the paid/scored guard, which entries went with the dog, and the
- * payments it stranded. An ordinary delete has no audit object and no lines.
+ * who overrode the paid/scored guard, which entries went with the dog, and
+ * every entry's payment exactly as recorded at delete time. An ordinary delete
+ * has no audit object and no lines.
  *
- * Only `paid_payment_intent_ids` is offered as money to recover: an entry the
- * admin refunded in myK9 before the override (as the dialog tells them to)
- * keeps its intent in `stripe_payment_intent_ids` but is owed nothing.
+ * DECISION: facts, not a verdict. Nothing here decides what is still owed — a
+ * full and a partial in-app refund both read payment_status 'refunded', and the
+ * one netting rule lives in payoutCalc. The admin reads the recorded amounts.
  *
  * INTENT: the recovery line says restore-then-refund-in-myK9, and never the
  * Stripe dashboard. A dashboard refund writes no refund_amount, so the club is
@@ -71,20 +108,20 @@ export function describeForceDeleteAudit(audit: unknown): string[] | undefined {
   const a = audit as Record<string, unknown>;
   const actor = typeof a.actor_name === 'string' && a.actor_name.trim() ? a.actor_name : 'an admin';
   const entryIds = stringList(a.entry_ids);
-  const paidIds = stringList(a.paid_entry_ids);
-  const unrefunded = stringList(a.paid_payment_intent_ids);
+  const payments = (Array.isArray(a.payments) ? a.payments : [])
+    .map(describeRecordedPayment)
+    .filter((line): line is string => line !== null);
 
   const lines = [
     `Force-deleted over the paid/scored guard by ${actor}. The override issued no refund.`,
   ];
   if (entryIds.length > 0) {
-    lines.push(
-      `Entries removed (${entryIds.length}, ${paidIds.length} paid): ${entryIds.join(', ')}`
-    );
+    lines.push(`Entries removed (${entryIds.length}): ${entryIds.join(', ')}`);
   }
-  if (unrefunded.length > 0) {
+  if (payments.length > 0) {
+    lines.push(`Payments recorded at delete: ${payments.join('; ')}.`);
     lines.push(
-      `Paid and not refunded: ${unrefunded.join(', ')}. To refund, restore the dog and use each paid entry's Refund action in myK9 — never the Stripe dashboard.`
+      'To refund, restore the dog, then refund in myK9 as needed — never in the Stripe dashboard.'
     );
   }
   return lines;

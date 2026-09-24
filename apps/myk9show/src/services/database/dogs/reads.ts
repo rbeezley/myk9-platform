@@ -939,7 +939,7 @@ export const restoreDog = async (id: string, restoredBy?: string) => {
       throw createDatabaseError(error, 'dog', 'restore');
     }
 
-    // jsonb since 20260924074100: counts plus any placement NOT re-applied (MYK9-607).
+    // jsonb since 20260924104100: counts plus any placement NOT re-applied (MYK9-607).
     return { data: parseRestoreDogResult(data), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

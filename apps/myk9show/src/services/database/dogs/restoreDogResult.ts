@@ -1,4 +1,4 @@
-// The jsonb `restore_dog` returns (migration 20260924074100, MYK9-607).
+// The jsonb `restore_dog` returns (migration 20260924104100, MYK9-607).
 //
 // A placement snapshotted by force_delete_dog is NOT given back when another
 // live entry in that manual class holds it now: the secretary set that after

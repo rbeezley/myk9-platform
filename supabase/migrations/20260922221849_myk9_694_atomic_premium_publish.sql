@@ -375,4 +375,27 @@ GRANT EXECUTE ON FUNCTION public.publish_premium_artifact(uuid, text, text, bigi
 COMMENT ON FUNCTION public.publish_premium_artifact(uuid, text, text, bigint, text, jsonb) IS
   'Atomically commits an exact trusted path and canonical public-form URL identity (not a download URL after private cutover), plus complete experience snapshot, only for the current server-issued attempt.';
 
+-- A reservation is bookkeeping, not a show edit. update_shows_updated_at used
+-- to fire on every UPDATE, so a reserved-but-uncommitted attempt (LLM, render
+-- or upload failure, closed tab, stale-version loss) pushed updated_at past
+-- published_premium_at and marked a current premium "Republish" with no show
+-- data changed (Claude review of #2375, P3). Skip the bump only when the
+-- attempt counter is the SOLE change; every other UPDATE, including a no-op
+-- touch, still bumps updated_at exactly as before.
+--
+-- A BEFORE trigger's WHEN sees NEW as already modified by earlier triggers,
+-- and shows_version_increment (which sorts first) always sets
+-- NEW.version = OLD.version + 1. `version` is therefore excluded too, or the
+-- clause would be true for every row. It is the only earlier BEFORE UPDATE
+-- trigger on shows that writes to NEW.
+CREATE OR REPLACE TRIGGER update_shows_updated_at
+  BEFORE UPDATE ON public.shows
+  FOR EACH ROW
+  WHEN (
+    OLD.premium_publish_version IS NOT DISTINCT FROM NEW.premium_publish_version
+    OR (to_jsonb(OLD) - 'premium_publish_version' - 'version' - 'updated_at')
+       IS DISTINCT FROM (to_jsonb(NEW) - 'premium_publish_version' - 'version' - 'updated_at')
+  )
+  EXECUTE FUNCTION public.update_updated_at_column();
+
 NOTIFY pgrst, 'reload schema';

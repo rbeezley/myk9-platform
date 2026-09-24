@@ -73,15 +73,15 @@ export interface GeneratedPremium {
     name: string;
     startDate: string;
     endDate: string;
-    venue: string;
+    venue: string | null;
     entryOpenDate: string | null;
     entryCloseDate: string | null;
-    preEntryFee: number;
-    dayOfFee: number;
+    preEntryFee: number | null;
+    dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
   };
-  club: { name: string; logoUrl: string | null };
+  club: { name: string | null; logoUrl: string | null };
   secretary: {
     name: string | null;
     email: string | null;

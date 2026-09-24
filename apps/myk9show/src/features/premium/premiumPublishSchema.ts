@@ -3,6 +3,12 @@ import type { GeneratedPremium } from '@/types/premium-types';
 import type { PremiumPublishAttempt } from './premiumPublishIntent';
 
 const nullableText = z.string().nullable();
+const nullableAmount = z.number().nullable();
+// Accommodations are free-form template jsonb; a missing field renders blank.
+const looseText = z
+  .string()
+  .nullish()
+  .transform(value => value ?? '');
 const premiumStyle = z.enum([
   'monogram',
   'banner',
@@ -22,15 +28,18 @@ const generatedPremiumSchema = z.object({
     name: z.string(),
     startDate: z.string(),
     endDate: z.string(),
-    venue: z.string(),
+    // Nullable at the source (shows.location, the two fee columns, and
+    // clubs.name via a nullable club_id); the PDF templates render them as
+    // '—' / 'Host Club'. Requiring them failed publish for sparse drafts.
+    venue: nullableText,
     entryOpenDate: nullableText,
     entryCloseDate: nullableText,
-    preEntryFee: z.number(),
-    dayOfFee: z.number(),
+    preEntryFee: nullableAmount,
+    dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
   }),
-  club: z.object({ name: z.string(), logoUrl: nullableText }),
+  club: z.object({ name: nullableText, logoUrl: nullableText }),
   secretary: z.object({
     name: nullableText,
     email: nullableText,
@@ -53,7 +62,7 @@ const generatedPremiumSchema = z.object({
   ),
   supplemental: z.object({
     vetClinic: z.object({ name: z.string(), address: z.string(), phone: z.string() }).nullable(),
-    accommodations: z.array(z.object({ name: z.string(), address: z.string(), phone: z.string() })),
+    accommodations: z.array(z.object({ name: looseText, address: looseText, phone: looseText })),
     coverImageUrl: nullableText,
     hospitalityNotes: nullableText,
     awardsDescription: nullableText,

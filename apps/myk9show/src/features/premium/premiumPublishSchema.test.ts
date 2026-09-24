@@ -39,6 +39,34 @@ describe('premium publication schemas', () => {
     expect(() => parseGeneratedPremium({ ...premium, trials: [{ judges: [{}] }] })).toThrow();
   });
 
+  it('accepts the blank optional fields generate-premium returns for a sparse draft show', () => {
+    // generate-premium fills these from nullable columns: shows.location,
+    // pre_entry_fee / day_of_show_fee (NULLIF on an empty form field) and
+    // clubs.name through a nullable club_id. The PDF templates already render
+    // them as '—' / 'Host Club'; rejecting them failed the whole publish.
+    const sparse = {
+      ...premium,
+      show: { ...premium.show, venue: null, preEntryFee: null, dayOfFee: null },
+      club: { name: null, logoUrl: null },
+    };
+
+    expect(parseGeneratedPremium(sparse)).toEqual(sparse);
+  });
+
+  it('normalizes free-form accommodation entries with missing fields to empty strings', () => {
+    const withLooseAccommodation = {
+      ...premium,
+      supplemental: {
+        ...premium.supplemental,
+        accommodations: [{ name: 'La Quinta' }],
+      },
+    };
+
+    expect(parseGeneratedPremium(withLooseAccommodation).supplemental.accommodations).toEqual([
+      { name: 'La Quinta', address: '', phone: '' },
+    ]);
+  });
+
   it('accepts only a complete current-schema persisted attempt', () => {
     const attempt = {
       schemaVersion: 4,

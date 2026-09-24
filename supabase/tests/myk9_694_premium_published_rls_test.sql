@@ -23,6 +23,14 @@ VALUES
   ('00000000-0000-0000-0000-000000694013', 'MYK9-694 Show C', 'AKC', current_date,
    current_date + 1, '00000000-0000-0000-0000-000000694001', 'published');
 
+-- Show D exists only for the updated_at contract: its timestamp is backdated
+-- so a bump inside this single transaction (NOW() is constant) is visible.
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status, updated_at)
+VALUES
+  ('00000000-0000-0000-0000-000000694014', 'MYK9-694 Show D', 'AKC', current_date,
+   current_date + 1, '00000000-0000-0000-0000-000000694001', 'draft',
+   now() - interval '1 day');
+
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000694021', 'MYK9-694', 'Club Admin',
@@ -495,6 +503,8 @@ BEGIN
   END IF;
 
   -- Cross-show commit authorization is denied even when the object is staged.
+  -- Asserts the authorization message, not any error: the path-prefix check
+  -- would also reject this call, and must not be what makes it pass.
   BEGIN
     PERFORM public.publish_premium_artifact(
       other_show,
@@ -504,12 +514,72 @@ BEGIN
       'heritage',
       '{}'::jsonb
     );
-    denied := false;
-  EXCEPTION WHEN OTHERS THEN
-    denied := true;
-  END;
-  IF NOT denied THEN
     RAISE EXCEPTION 'FAIL manager committed another show''s staged artifact';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'Not authorized to publish this show' THEN
+      RAISE EXCEPTION 'FAIL cross-show commit was rejected for the wrong reason: %', SQLERRM;
+    END IF;
+  END;
+
+  -- Cross-club boundary, each case isolated so exactly one guard can reject it
+  -- (Claude review of #2375, P2). Club A's admin, acting on Club B's Show B:
+  -- 1. reserving a publish attempt;
+  BEGIN
+    PERFORM public.begin_or_reconcile_premium_publish(other_show, NULL, NULL);
+    RAISE EXCEPTION 'FAIL club A admin reserved a premium publish for club B''s show';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'Not authorized to publish this show' THEN
+      RAISE EXCEPTION 'FAIL cross-club reservation was rejected for the wrong reason: %', SQLERRM;
+    END IF;
+  END;
+
+  -- 2. staging a correctly shaped versioned object under Show B's prefix;
+  BEGIN
+    INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+    VALUES (
+      'premium-published',
+      other_show::text || '/' || artifact || '.pdf',
+      admin_id,
+      jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+    );
+    RAISE EXCEPTION 'FAIL club A admin staged a premium object under club B''s show';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  -- 3. committing with a correctly prefixed Show B path, so the path check
+  --    passes and only the authorization guard can reject it.
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      other_show,
+      other_show::text || '/' || artifact || '.pdf',
+      'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || other_show::text || '/' || artifact || '.pdf',
+      first_version,
+      'heritage',
+      '{}'::jsonb
+    );
+    RAISE EXCEPTION 'FAIL club A admin committed a publication on club B''s show';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'Not authorized to publish this show' THEN
+      RAISE EXCEPTION 'FAIL cross-club commit was rejected for the wrong reason: %', SQLERRM;
+    END IF;
+  END;
+
+  -- A reservation alone must not bump updated_at (that reads as "show data
+  -- changed" and marks a current premium stale); a real edit still must.
+  PERFORM public.begin_or_reconcile_premium_publish(
+    '00000000-0000-0000-0000-000000694014'::uuid, NULL, NULL
+  );
+  IF (SELECT updated_at FROM public.shows WHERE id = '00000000-0000-0000-0000-000000694014')
+     >= now() - interval '1 hour' THEN
+    RAISE EXCEPTION 'FAIL a premium publish reservation bumped shows.updated_at';
+  END IF;
+  UPDATE public.shows
+     SET name = 'MYK9-694 Show D renamed'
+   WHERE id = '00000000-0000-0000-0000-000000694014';
+  IF (SELECT updated_at FROM public.shows WHERE id = '00000000-0000-0000-0000-000000694014')
+     < now() THEN
+    RAISE EXCEPTION 'FAIL an ordinary show edit no longer bumps shows.updated_at';
   END IF;
 
   -- Direct flat-URL row writes are no longer a rollback path after privacy cutover.

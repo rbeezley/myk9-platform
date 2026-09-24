@@ -1,7 +1,7 @@
 -- MYK9-664: a handler's date of birth and junior handler numbers are readable only
 -- by the person and site admins. Show managers can SET them (for a handler entered
--- in a show they manage) and see a derived per-entry junior flag, never the values.
--- Behavioral test for 20260924063300_myk9_664_people_private.sql.
+-- in a show they manage) and read the junior flag each entry recorded, never the values.
+-- Behavioral test for 20260924231700_myk9_664_people_private.sql.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 --
@@ -132,6 +132,17 @@ values
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
 values ('00000000-0000-0000-0000-000000664024', 'UKC (United Kennel Club)', 'UKC664024', false);
 
+-- Stored values, written as the owner (the fixture, not a code path under test).
+-- Written BEFORE the entries, so each entry records its junior flag at creation
+-- (section 3) from these dates, independent of today's date.
+insert into public.people_private (person_id, date_of_birth, junior_handler_numbers)
+values
+  ('00000000-0000-0000-0000-000000664014', date '1980-05-05', '{"AKC":"SELF-1"}'),
+  ('00000000-0000-0000-0000-000000664015', date '2011-06-14', '{}'),
+  ('00000000-0000-0000-0000-000000664016', date '1970-01-01', '{}'),
+  ('00000000-0000-0000-0000-000000664017', date '2008-03-01', '{}'),
+  ('00000000-0000-0000-0000-000000664018', date '2012-12-12', '{"AKC":"OUT-1"}');
+
 -- 031 self @A, 032 junior @A, 033 adult @A, 034 boundary @A (AKC),
 -- 035 boundary @U (UKC), 036 no-birthday @A, 037 junior @U (for the "other show" pair).
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler, handler_id,
@@ -156,13 +167,6 @@ values
    '00000000-0000-0000-0000-000000664002', '00000000-0000-0000-0000-000000664003', 'MYK9-664 NoBirthday',
    '00000000-0000-0000-0000-000000664019', 'confirmed', 'pending', 25, 'no-status');
 
--- Stored values, written as the owner (the fixture, not a code path under test).
-insert into public.people_private (person_id, date_of_birth, junior_handler_numbers)
-values
-  ('00000000-0000-0000-0000-000000664014', date '1980-05-05', '{"AKC":"SELF-1"}'),
-  ('00000000-0000-0000-0000-000000664016', date '1970-01-01', '{}'),
-  ('00000000-0000-0000-0000-000000664017', date '2008-03-01', '{}'),
-  ('00000000-0000-0000-0000-000000664018', date '2012-12-12', '{"AKC":"OUT-1"}');
 
 do $$
 begin
@@ -292,21 +296,37 @@ select pg_temp.expect('the outsider''s stored date is untouched',
   '2012-12-12');
 
 -- ---------------------------------------------------------------------------
--- 3. Secretary A sees the derived flag, per entry, correctly.
+-- 3. Secretary A reads the junior flag each entry RECORDED at creation. Nothing
+--    derives it from the date of birth on a manager's request: a manager who can
+--    edit a trial's date and re-ask could bisect the handler's 18th birthday.
 -- ---------------------------------------------------------------------------
-select pg_temp.expect('the flag function returns no date column',
+select pg_temp.expect('the live-derivation function entry_handler_junior_flags is gone',
+  (select count(*)::text from pg_proc where proname = 'entry_handler_junior_flags'),
+  '0');
+select pg_temp.expect('no API-callable function takes a date of birth to answer "junior?"',
+  (select count(*)::text from pg_proc p
+    where p.pronamespace = 'public'::regnamespace
+      and 'date'::regtype = any (p.proargtypes::oid[]::regtype[])
+      and p.proname like '%junior%'),
+  '0');
+select pg_temp.expect('the recorded-flag read returns no date column',
   (select count(*)::text from pg_proc p, unnest(p.proallargtypes) t(typ)
-    where p.oid = 'public.entry_handler_junior_flags(uuid[])'::regprocedure
+    where p.oid = 'public.recorded_entry_handler_junior_flags(uuid[])'::regprocedure
       and t.typ = 'date'::regtype),
   '0');
-select pg_temp.expect('secretary A: flags for every entry in the club''s shows',
+select pg_temp.expect('secretary A cannot read entries.handler_is_junior directly (no column grant)',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select count(handler_is_junior) from public.entries
+       where id = '00000000-0000-0000-0000-000000664032'$s$),
+  'err:42501');
+select pg_temp.expect('secretary A: recorded flags for every entry in the club''s shows',
   pg_temp.q('00000000-0000-0000-0000-000000664101',
     $s$select string_agg(right(entry_id::text, 3) || '=' || coalesce(is_junior::text, 'null'), ',' order by entry_id)
-       from public.entry_handler_junior_flags(array[
+       from public.recorded_entry_handler_junior_flags(array[
          '00000000-0000-0000-0000-000000664031', '00000000-0000-0000-0000-000000664032',
          '00000000-0000-0000-0000-000000664033', '00000000-0000-0000-0000-000000664034',
          '00000000-0000-0000-0000-000000664035', '00000000-0000-0000-0000-000000664036']::uuid[])$s$),
-  -- 031 self, 44 on the day: adult. 032 junior, 15: junior. 033 adult: adult.
+  -- 031 self, 46 on the day: adult. 032 junior, 15: junior. 033 adult: adult.
   -- 034 boundary at an AKC trial (18 on the day): adult. 035 same person at a UKC
   -- trial (17 on January 1): junior. 036 no date of birth: unknown.
   '031=false,032=true,033=false,034=false,035=true,036=null');
@@ -316,11 +336,11 @@ select pg_temp.expect('secretary A: flags for every entry in the club''s shows',
 -- ---------------------------------------------------------------------------
 select pg_temp.expect('positive control: secretary B gets the flag machinery for their own show (no rows, no error)',
   pg_temp.q('00000000-0000-0000-0000-000000664102',
-    $s$select count(*) from public.entry_handler_junior_flags(array[]::uuid[])$s$),
+    $s$select count(*) from public.recorded_entry_handler_junior_flags(array[]::uuid[])$s$),
   '0');
 select pg_temp.expect('secretary B gets no flag for show A''s entries',
   pg_temp.q('00000000-0000-0000-0000-000000664102',
-    $s$select count(*) from public.entry_handler_junior_flags(array[
+    $s$select count(*) from public.recorded_entry_handler_junior_flags(array[
        '00000000-0000-0000-0000-000000664032', '00000000-0000-0000-0000-000000664034']::uuid[])$s$),
   '0');
 select pg_temp.expect('secretary B cannot set the values of show A''s entrant',
@@ -368,7 +388,7 @@ select pg_temp.expect('the person cannot set someone else''s values',
   'err:42501');
 select pg_temp.expect('an exhibitor gets no flag for entries they do not manage',
   pg_temp.q('00000000-0000-0000-0000-000000664104',
-    $s$select count(*) from public.entry_handler_junior_flags(array[
+    $s$select count(*) from public.recorded_entry_handler_junior_flags(array[
        '00000000-0000-0000-0000-000000664031', '00000000-0000-0000-0000-000000664032']::uuid[])$s$),
   '0');
 
@@ -401,11 +421,20 @@ select pg_temp.expect('anon cannot call the write RPC',
   'err:42501');
 select pg_temp.expect('anon cannot call the flag RPC',
   pg_temp.q(null,
-    $s$select count(*) from public.entry_handler_junior_flags(array[
+    $s$select count(*) from public.recorded_entry_handler_junior_flags(array[
+       '00000000-0000-0000-0000-000000664032']::uuid[])$s$),
+  'err:42501');
+select pg_temp.expect('anon cannot call the site-admin recompute RPC',
+  pg_temp.q(null,
+    $s$select public.recompute_entry_handler_junior_flags(array[
        '00000000-0000-0000-0000-000000664032']::uuid[])$s$),
   'err:42501');
 select pg_temp.expect('anon cannot call the pure helper either',
-  pg_temp.q(null, $s$select public.handler_is_junior(date '2010-01-01', date '2026-01-01', 'AKC')$s$),
+  pg_temp.q(null, $s$select private.handler_is_junior_at(date '2010-01-01', date '2026-01-01', 'AKC')$s$),
+  'err:42501');
+select pg_temp.expect('authenticated cannot call the pure helper either',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select private.handler_is_junior_at(date '2010-01-01', date '2026-01-01', 'AKC')$s$),
   'err:42501');
 
 -- ---------------------------------------------------------------------------
@@ -493,5 +522,208 @@ select pg_temp.expect('anon cannot call the save RPC',
     $s$select public.update_person_details('00000000-0000-0000-0000-000000664016',
        '{"phone":"1"}', '{}') is not null$s$),
   'err:42501');
+
+-- ---------------------------------------------------------------------------
+-- 9. The junior flag is RECORDED on the entry (Codex P1 on PR #2412).
+--
+-- A live "is this handler a junior at this trial?" answer leaks the date of
+-- birth: a manager edits the trial date, asks again, and bisects the 18th
+-- birthday. So the flag is written by one BEFORE trigger on `entries`, from the
+-- date of birth and the trial as they stand when the entry is created, and is
+-- recomputed only when the handler's date of birth is set or changed (for
+-- entries not yet run) or by a site admin. A manager only ever reads it.
+--
+-- Dates here are relative to current_date, so this section does not rot:
+--   Show Q / trial TQ in club A, trial date D = current_date + 60.
+--   041 turns 18 ten days AFTER D   -> junior at D, adult if D moves 20 days later.
+--   045 is 40                       -> adult.
+--   046 has no date of birth        -> unknown.
+--   Trial TP (club A, show P) ran 10 days ago, for the "not yet run" rule.
+-- ---------------------------------------------------------------------------
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
+values
+  ('00000000-0000-0000-0000-000000664042', 'MYK9-664 Show Q', 'AKC',
+   current_date + 60, current_date + 90, '00000000-0000-0000-0000-000000664001', 'published'),
+  ('00000000-0000-0000-0000-000000664052', 'MYK9-664 Show P', 'AKC',
+   current_date - 10, current_date - 10, '00000000-0000-0000-0000-000000664001', 'published');
+insert into public.trials (id, show_id, name, date, registry_id)
+values
+  ('00000000-0000-0000-0000-000000664043', '00000000-0000-0000-0000-000000664042',
+   'MYK9-664 Trial Q', current_date + 60, 'AKC'),
+  ('00000000-0000-0000-0000-000000664053', '00000000-0000-0000-0000-000000664052',
+   'MYK9-664 Trial P', current_date - 10, 'AKC');
+insert into public.classes (id, trial_id, name, status)
+values
+  ('00000000-0000-0000-0000-000000664044', '00000000-0000-0000-0000-000000664043',
+   'Container Novice', 'upcoming'),
+  ('00000000-0000-0000-0000-000000664054', '00000000-0000-0000-0000-000000664053',
+   'Container Novice', 'upcoming');
+insert into public.people (id, first_name, last_name, email)
+values
+  ('00000000-0000-0000-0000-000000664041', 'MYK9-664', 'NearlyEighteen', null),
+  ('00000000-0000-0000-0000-000000664045', 'MYK9-664', 'Forty', null),
+  ('00000000-0000-0000-0000-000000664046', 'MYK9-664', 'Undated', null);
+insert into public.people_private (person_id, date_of_birth)
+values
+  ('00000000-0000-0000-0000-000000664041',
+   (current_date + 60 - interval '18 years' + interval '10 days')::date),
+  ('00000000-0000-0000-0000-000000664045', (current_date - interval '40 years')::date);
+insert into public.dogs (id, name, call_name, breed, owner_id)
+values
+  ('00000000-0000-0000-0000-000000664061', 'MYK9-664 Dog Nearly', 'Nearly', 'Beagle', '00000000-0000-0000-0000-000000664041'),
+  ('00000000-0000-0000-0000-000000664062', 'MYK9-664 Dog Forty', 'Forty', 'Beagle', '00000000-0000-0000-0000-000000664045'),
+  ('00000000-0000-0000-0000-000000664063', 'MYK9-664 Dog Undated', 'Undated', 'Beagle', '00000000-0000-0000-0000-000000664046');
+insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
+values
+  ('00000000-0000-0000-0000-000000664061', 'AKC (American Kennel Club)', 'SR664061', true),
+  ('00000000-0000-0000-0000-000000664062', 'AKC (American Kennel Club)', 'SR664062', true),
+  ('00000000-0000-0000-0000-000000664063', 'AKC (American Kennel Club)', 'SR664063', true);
+
+-- The past-trial entry is fixture (as owner): it exists before anything under test.
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler, handler_id,
+  entry_status, payment_status, entry_fee, check_in_status)
+values
+  ('00000000-0000-0000-0000-000000664074', '00000000-0000-0000-0000-000000664063', '00000000-0000-0000-0000-000000664054',
+   '00000000-0000-0000-0000-000000664052', '00000000-0000-0000-0000-000000664053', 'MYK9-664 Undated',
+   '00000000-0000-0000-0000-000000664046', 'confirmed', 'pending', 25, 'no-status');
+
+-- 9a. Secretary A creates the entries the way secretary manual entry does: a
+--     direct insert as `authenticated`. The adult's insert claims junior = true;
+--     the caller's value is ignored.
+select pg_temp.expect('secretary A creates three entries at trial Q',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$with ins as (
+         insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler, handler_id,
+           entry_status, payment_status, entry_fee, check_in_status, handler_is_junior)
+         values
+           ('00000000-0000-0000-0000-000000664071', '00000000-0000-0000-0000-000000664061',
+            '00000000-0000-0000-0000-000000664044', '00000000-0000-0000-0000-000000664042',
+            '00000000-0000-0000-0000-000000664043', 'MYK9-664 NearlyEighteen',
+            '00000000-0000-0000-0000-000000664041', 'confirmed', 'pending', 25, 'no-status', null),
+           ('00000000-0000-0000-0000-000000664072', '00000000-0000-0000-0000-000000664062',
+            '00000000-0000-0000-0000-000000664044', '00000000-0000-0000-0000-000000664042',
+            '00000000-0000-0000-0000-000000664043', 'MYK9-664 Forty',
+            '00000000-0000-0000-0000-000000664045', 'confirmed', 'pending', 25, 'no-status', true),
+           ('00000000-0000-0000-0000-000000664073', '00000000-0000-0000-0000-000000664063',
+            '00000000-0000-0000-0000-000000664044', '00000000-0000-0000-0000-000000664042',
+            '00000000-0000-0000-0000-000000664043', 'MYK9-664 Undated',
+            '00000000-0000-0000-0000-000000664046', 'confirmed', 'pending', 25, 'no-status', null)
+         returning 1)
+       select count(*) from ins$s$),
+  '3');
+select pg_temp.expect('created: under 18 = junior, 40 = adult (caller''s true ignored), no date = unknown',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select string_agg(right(entry_id::text, 3) || '=' || coalesce(is_junior::text, 'null'), ',' order by entry_id)
+       from public.recorded_entry_handler_junior_flags(array[
+         '00000000-0000-0000-0000-000000664071', '00000000-0000-0000-0000-000000664072',
+         '00000000-0000-0000-0000-000000664073']::uuid[])$s$),
+  '071=true,072=false,073=null');
+
+-- 9b. The P1: a manager moves the trial date past the 18th birthday. Recomputed
+--     live, 071 would now read adult; recorded, it does not move.
+select pg_temp.expect('secretary A moves trial Q''s date 20 days later',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$with u as (update public.trials set date = current_date + 80
+                  where id = '00000000-0000-0000-0000-000000664043' returning 1)
+       select count(*) from u$s$),
+  '1');
+select pg_temp.expect('positive control: the trial date really moved (checked as owner)',
+  (select (date - current_date)::text from public.trials
+    where id = '00000000-0000-0000-0000-000000664043'),
+  '80');
+select pg_temp.expect('after the trial date edit the recorded flags are unchanged',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select string_agg(right(entry_id::text, 3) || '=' || coalesce(is_junior::text, 'null'), ',' order by entry_id)
+       from public.recorded_entry_handler_junior_flags(array[
+         '00000000-0000-0000-0000-000000664071', '00000000-0000-0000-0000-000000664072',
+         '00000000-0000-0000-0000-000000664073']::uuid[])$s$),
+  '071=true,072=false,073=null');
+select pg_temp.expect('an unrelated entry update (run order) does not recompute either',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$with u as (update public.entries set run_order = 7
+                  where id = '00000000-0000-0000-0000-000000664071' returning 1)
+       select count(*) from u$s$),
+  '1');
+select pg_temp.expect('...071 is still recorded junior',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664071'),
+  'true');
+
+-- 9c. A manager cannot write the flag.
+select pg_temp.expect('secretary A''s direct write of the flag is accepted as a statement...',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$with u as (update public.entries set handler_is_junior = false
+                  where id = '00000000-0000-0000-0000-000000664071' returning 1)
+       select count(*) from u$s$),
+  '1');
+select pg_temp.expect('...and ignored: 071 is still recorded junior',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664071'),
+  'true');
+select pg_temp.expect('changing an entry''s handler clears the flag rather than recomputing it',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$with u as (update public.entries set handler_id = '00000000-0000-0000-0000-000000664041'
+                  where id = '00000000-0000-0000-0000-000000664072' returning 1)
+       select count(*) from u$s$),
+  '1');
+select pg_temp.expect('...072 now reads unknown, not a fresh answer for the new handler',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664072'),
+  'null');
+
+-- 9d. Recomputing is a site-admin action.
+select pg_temp.expect('secretary A cannot call the recompute RPC',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.recompute_entry_handler_junior_flags(array[
+       '00000000-0000-0000-0000-000000664071']::uuid[])$s$),
+  'err:42501');
+select pg_temp.expect('an exhibitor cannot call the recompute RPC',
+  pg_temp.q('00000000-0000-0000-0000-000000664104',
+    $s$select public.recompute_entry_handler_junior_flags(array[
+       '00000000-0000-0000-0000-000000664071']::uuid[])$s$),
+  'err:42501');
+select pg_temp.expect('...the refused recompute changed nothing',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664071'),
+  'true');
+select pg_temp.expect('positive control: the site admin''s recompute rewrites the one changed flag',
+  pg_temp.q('00000000-0000-0000-0000-000000664103',
+    $s$select public.recompute_entry_handler_junior_flags(array[
+       '00000000-0000-0000-0000-000000664071', '00000000-0000-0000-0000-000000664073']::uuid[])$s$),
+  '1');
+select pg_temp.expect('...071 is now measured at the moved date: adult',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664071'),
+  'false');
+
+-- 9e. Setting the handler's date of birth records the flag on their entries that
+--     have not run yet, and leaves the ones that have alone.
+select pg_temp.expect('secretary A sets the undated handler''s date of birth (a 12-year-old)',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664046', '{}',
+       jsonb_build_object('date_of_birth', (current_date - interval '12 years')::date::text)) is not null$s$),
+  'true');
+select pg_temp.expect('...the not-yet-run entry now records junior',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664073'),
+  'true');
+select pg_temp.expect('...the entry at the trial that already ran is untouched',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664074'),
+  'null');
+select pg_temp.expect('saving other details without the date of birth recomputes nothing',
+  pg_temp.q('00000000-0000-0000-0000-000000664101',
+    $s$select public.update_person_details('00000000-0000-0000-0000-000000664041',
+       '{"city":"Salina"}', '{"junior_handler_numbers":{"AKC":"J-41"}}') is not null$s$),
+  'true');
+select pg_temp.expect('...071 keeps the site admin''s answer',
+  (select coalesce(handler_is_junior::text, 'null') from public.entries
+    where id = '00000000-0000-0000-0000-000000664071'),
+  'false');
+select pg_temp.expect('secretary B reads no recorded flag of show Q',
+  pg_temp.q('00000000-0000-0000-0000-000000664102',
+    $s$select count(*) from public.recorded_entry_handler_junior_flags(array[
+       '00000000-0000-0000-0000-000000664071', '00000000-0000-0000-0000-000000664073']::uuid[])$s$),
+  '0');
 
 rollback;

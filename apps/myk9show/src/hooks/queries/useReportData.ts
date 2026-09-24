@@ -60,12 +60,15 @@ interface HydratedReportEntries {
 
 /**
  * MYK9-570 / MYK9-664: hydrate each entry with its handler's name and the
- * server-derived junior flag for THAT entry's trial.
+ * junior flag that entry recorded at creation for THAT entry's trial.
  *
  * The replica carries `entries.handler_id` but nothing from `people`, so the
  * catalog cannot know whether a handler is a junior without asking. The date of
- * birth itself never reaches this client (MYK9-664): the database answers per
- * entry, and only for shows the caller manages. Deliberately ANCILLARY — a
+ * birth itself never reaches this client (MYK9-664): the database returns the
+ * stored per-entry flag, and only for shows the caller manages. The replica does
+ * not carry `entries.handler_is_junior` on purpose: the column has no grant (the
+ * entries views would show it to exhibitors too), and the name check below needs
+ * an online `people` read anyway. Deliberately ANCILLARY — a
  * failed read leaves `handler_person` undefined, which the mapper reads as
  * "unknown", so the catalog prints without junior marks instead of refusing to
  * print.

@@ -6,7 +6,7 @@ import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandl
  * MYK9-664: a person's date of birth and junior handler numbers live in
  * `public.people_private`, not on `people`.
  *
- * Who can do what (enforced in the database, 20260924063300):
+ * Who can do what (enforced in the database, 20260924231700):
  *  - READ  — the person themself and site admins only (RLS). Everyone else,
  *            show managers included, reads zero rows. An absent row therefore
  *            means "none stored OR not yours to see", never "definitely none".
@@ -15,8 +15,11 @@ import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandl
  *            a show the person is entered in. It writes the `people` columns and
  *            these in one transaction and never returns them, so a manager can
  *            set a mail-in junior's date of birth without reading it back.
- *  - The junior yes/no a manager needs comes from `entry_handler_junior_flags()`
- *    (see juniorHandlerProfiles.ts), never from the date.
+ *  - The junior yes/no a manager needs is the flag each entry recorded at
+ *    creation, read through `recorded_entry_handler_junior_flags()` (see
+ *    juniorHandlerProfiles.ts), never derived from the date on their request.
+ *    Setting or changing a date of birth here re-records it on that handler's
+ *    entries that have not run yet.
  */
 export interface PersonPrivateDetails {
   dateOfBirth: string | null;

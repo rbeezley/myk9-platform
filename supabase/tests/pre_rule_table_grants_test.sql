@@ -96,7 +96,7 @@ BEGIN
     ('paperwork_prints','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('pedigree_ancestors','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('people','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
-    -- MYK9-664: self/site-admin read under RLS; every write goes through set_person_private_details().
+    -- MYK9-664: self/site-admin read under RLS; every write goes through update_person_details().
     ('people_private','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('performance_metrics','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('permission_audit_log','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -323,6 +323,9 @@ BEGIN
       -- anon stays 0 for the same reason as above -- that migration REVOKEs the
       -- column from anon, since a ringside passcode session scores runs and has
       -- no business following the money.
+      -- Still 56 after entries.handler_is_junior (MYK9-664): that column is
+      -- deliberately NOT granted; managers read it through
+      -- recorded_entry_handler_junior_flags().
       ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),

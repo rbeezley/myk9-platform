@@ -5,9 +5,12 @@ import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
  * MYK9-570 / MYK9-664: is each entry's handler a junior at that entry's trial?
  *
  * The secretary printing a catalog may not read a handler's date of birth
- * (MYK9-664, owner decision b). The database derives the answer per entry —
- * `entry_handler_junior_flags()`, the SQL twin of `deriveJuniorStatus` — and
- * returns a boolean for entries in shows the caller manages, nothing else.
+ * (MYK9-664, owner decision b). Each entry RECORDS the answer when it is created
+ * (`entries.handler_is_junior`, written by one database trigger), and
+ * `recorded_entry_handler_junior_flags()` returns that stored boolean for entries
+ * in shows the caller manages, nothing else. It is never derived live on a
+ * manager's request: a manager who can edit the trial date could otherwise ask
+ * again after each edit and bisect the handler's 18th birthday.
  *
  * The handler's own name comes with it, from `people` (which managers may
  * read), so the mapper can still refuse to mark a line whose printed handler
@@ -23,7 +26,7 @@ export interface EntryHandlerJunior {
   /** The handler's own name, used to check they are the handler the paperwork prints. */
   firstName: string | null;
   lastName: string | null;
-  /** true = junior at this entry's trial, false = adult, null = cannot be derived. */
+  /** Recorded at entry: true = junior at this entry's trial, false = adult, null = unknown. */
   isJunior: boolean | null;
 }
 
@@ -80,7 +83,7 @@ export async function loadEntryHandlerJuniorFlags(
     ID_CHUNK_SIZE
   )) {
     try {
-      const { data, error } = await supabase.rpc('entry_handler_junior_flags', {
+      const { data, error } = await supabase.rpc('recorded_entry_handler_junior_flags', {
         p_entry_ids: batch,
       });
       if (error) {

@@ -1965,6 +1965,7 @@ export type Database = {
           final_placement: number | null
           handler: string | null
           handler_id: string | null
+          handler_is_junior: boolean | null
           has_video_review: boolean | null
           id: string
           is_day_of_show: boolean | null
@@ -2060,6 +2061,7 @@ export type Database = {
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
+          handler_is_junior?: boolean | null
           has_video_review?: boolean | null
           id?: string
           is_day_of_show?: boolean | null
@@ -2155,6 +2157,7 @@ export type Database = {
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
+          handler_is_junior?: boolean | null
           has_video_review?: boolean | null
           id?: string
           is_day_of_show?: boolean | null
@@ -12436,13 +12439,6 @@ export type Database = {
         Args: { p_event_type: string; p_waitlist_entry_id: string }
         Returns: string
       }
-      entry_handler_junior_flags: {
-        Args: { p_entry_ids: string[] }
-        Returns: {
-          entry_id: string
-          is_junior: boolean
-        }[]
-      }
       ensure_show_lifecycle_email_steps: {
         Args: { p_show_id: string }
         Returns: undefined
@@ -13085,14 +13081,6 @@ export type Database = {
         Args: { p_evaluated_at?: string; p_person_id: string }
         Returns: boolean
       }
-      handler_is_junior: {
-        Args: {
-          p_date_of_birth: string
-          p_registry_id: string
-          p_trial_date: string
-        }
-        Returns: boolean
-      }
       has_role: {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean
@@ -13240,6 +13228,10 @@ export type Database = {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
       }
+      recompute_entry_handler_junior_flags: {
+        Args: { p_entry_ids: string[] }
+        Returns: number
+      }
       recompute_order_refund_totals: {
         Args: { p_payment_intent_id: string }
         Returns: {
@@ -13286,6 +13278,13 @@ export type Database = {
           p_event_id: string
         }
         Returns: boolean
+      }
+      recorded_entry_handler_junior_flags: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          entry_id: string
+          is_junior: boolean
+        }[]
       }
       refresh_class_scoring_state: {
         Args: { p_class_id: string }

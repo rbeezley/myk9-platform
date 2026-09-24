@@ -69,7 +69,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   paperwork_prints: 'SELECT,INSERT',
   pedigree_ancestors: 'SELECT,INSERT,UPDATE,DELETE',
   people: 'SELECT,INSERT,UPDATE,DELETE',
-  // MYK9-664: self/site-admin read under RLS; writes only via set_person_private_details().
+  // MYK9-664: self/site-admin read under RLS; writes only via update_person_details().
   people_private: 'SELECT',
   performance_metrics: 'SELECT,INSERT',
   permission_audit_log: 'SELECT,INSERT',

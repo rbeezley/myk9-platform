@@ -83,9 +83,9 @@ describe('ShowCatalog junior handler mark', () => {
 });
 
 /**
- * MYK9-664: the catalog no longer sees a date of birth. The database derives
- * the junior flag per entry (`entry_handler_junior_flags`, twin of
- * `deriveJuniorStatus`; the age/registry rules are pinned in
+ * MYK9-664: the catalog no longer sees a date of birth. Each entry records its
+ * junior flag at creation (`recorded_entry_handler_junior_flags`, computed from
+ * the SQL twin of `deriveJuniorStatus`; the age/registry rules are pinned in
  * supabase/tests/myk9_664_people_private_test.sql), and the mapper only decides
  * whether the flagged person is the handler the paperwork prints.
  */

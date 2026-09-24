@@ -6,7 +6,9 @@
  * other test still green.
  *
  * MYK9-664: the hop now reads the handler's NAME from `people` and the junior
- * flag, per entry, from `entry_handler_junior_flags()`. The date of birth never
+ * flag each entry RECORDED at creation, from `recorded_entry_handler_junior_flags()`
+ * (never derived live: a live answer let a manager bisect the date of birth by
+ * editing the trial date). The date of birth never
  * reaches the secretary's client.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -90,7 +92,9 @@ describe('loadEntryHandlerJuniorFlags', () => {
     const columns = (select.mock.calls[0]![0] as string).split(',').map(c => c.trim());
     expect(columns.sort()).toEqual(['first_name', 'id', 'last_name']);
     expect(mocks.from).toHaveBeenCalledWith('people');
-    expect(mocks.rpc).toHaveBeenCalledWith('entry_handler_junior_flags', { p_entry_ids: ['e1'] });
+    expect(mocks.rpc).toHaveBeenCalledWith('recorded_entry_handler_junior_flags', {
+      p_entry_ids: ['e1'],
+    });
     expect(result.byEntryId.get('e1')).toEqual({
       firstName: 'Chris',
       lastName: 'Kid',

@@ -8,9 +8,14 @@
 -- Owner decisions (Richard, on the issue; final):
 --   (a) Show managers can still SET a mail-in junior handler's date of birth and
 --       junior handler numbers.
---   (b) Managers must NOT read either back. They see only a derived junior yes/no,
---       per entry, from the trial date. The two values are readable only by the person
---       themself and by site admins.
+--   (b) Managers must NOT read either back. They see only a junior yes/no per
+--       entry. The two values are readable only by the person themself and by site
+--       admins.
+--   (c) After Codex's P1 on PR #2412 (option 3): the junior yes/no is RECORDED on
+--       the entry, like the junior box ticked on a paper entry form, and never
+--       derived from the date of birth on a manager's request. A live derivation
+--       ("is this handler a junior at this trial's date?") lets a manager edit the
+--       trial date, ask again, and bisect the handler's 18th birthday. See 5.
 --
 -- Design: a side table, not a column REVOKE on `people`.
 --   * `people` carries table-wide SELECT for `authenticated`. Withholding two columns
@@ -33,8 +38,12 @@
 --          manager of a show the person is entered in (can_manage_show_person). Writes
 --          the people columns and the private details in one transaction; never
 --          returns the private values.
---   derived entry_handler_junior_flags(): per entry, to managers of that entry's show
---          (and site admins). Returns a boolean, never the date.
+--   flag   entries.handler_is_junior: written ONLY by the BEFORE trigger
+--          trg_entries_handler_is_junior — at entry creation, and on a recompute
+--          that only a date-of-birth change (entries not yet run) or a site admin
+--          (recompute_entry_handler_junior_flags) can start. Read by managers of the
+--          entry's show (and site admins) through recorded_entry_handler_junior_flags();
+--          no column grant, so no direct read.
 --   anon   nothing.
 
 BEGIN;
@@ -68,8 +77,8 @@ CREATE TABLE public.people_private (
 COMMENT ON TABLE public.people_private IS
   'MYK9-664: a person''s date of birth and registry-issued junior handler numbers. '
   'Readable only by the person and site admins (RLS). Written only through '
-  'update_person_details(). Show managers see a derived junior flag via '
-  'entry_handler_junior_flags(), never the values.';
+  'update_person_details(). Show managers see only the junior flag recorded on each '
+  'entry (entries.handler_is_junior), never the values.';
 
 CREATE TRIGGER update_people_private_updated_at
   BEFORE UPDATE ON public.people_private
@@ -304,18 +313,61 @@ REVOKE ALL ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean)
 GRANT EXECUTE ON FUNCTION public.update_person_details(uuid, jsonb, jsonb, boolean) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- 5. The derived flag.
+-- 5. The junior flag, RECORDED on the entry (owner decision c).
 --
--- Mirrors deriveJuniorStatus() in apps/myk9show/src/features/registries/
--- juniorHandlerPolicy.ts exactly — read that file for the rulebook citations:
+-- Why recorded, not derived. A function that answers "is this entry's handler a
+-- junior at this trial?" from the date of birth each time it is asked leaks the
+-- date of birth to anyone who can also move the trial date: edit the date, ask
+-- again, and the flip between junior and adult bisects the 18th birthday in about
+-- a dozen edits. So nothing a manager can call derives the flag. It is written
+-- onto `entries.handler_is_junior` by ONE BEFORE trigger, and a manager only
+-- reads the stored value back.
+--
+-- When the trigger computes it (every other write leaves it as it was):
+--   * INSERT — every entry insert path, whatever issues it: checkout
+--     (submit_show_entries), secretary manual entry (a direct insert through the
+--     replication layer), move-up (move_up_entry inserts the new entry) and any
+--     transfer that creates a row. A value the caller supplies is ignored.
+--   * UPDATE under the transaction-local setting myk9.recompute_handler_junior =
+--     'on', which only private.recompute_entry_handler_junior() sets, and which
+--     only two things call:
+--       - the AFTER trigger on people_private, when a handler's date of birth is
+--         set or changed: their entries that have not run yet (trial date today or
+--         later, not scored);
+--       - public.recompute_entry_handler_junior_flags(), site admins only.
+-- What does NOT recompute it: a trial date edit (nothing on `trials` touches
+-- entries), a class move, a run-order change, or a direct write of the column,
+-- which the trigger silently puts back. Changing an entry's HANDLER clears it to
+-- NULL (unknown) rather than recomputing: a recompute there would hand a manager
+-- the same bisection, one handler swap per probe.
+--
+-- Residual, stated so nobody mistakes it for a guarantee: a manager who creates a
+-- NEW entry for a handler records a fresh answer at that trial's date. Each probe
+-- then costs a real entry row (with its status history), which is visible, rather
+-- than a silent re-read. That is the paper-form behaviour the owner chose.
+--
+-- The rule itself mirrors deriveJuniorStatus() in apps/myk9show/src/features/
+-- registries/juniorHandlerPolicy.ts exactly — read that file for the rulebook
+-- citations:
 --   AKC   under 18 on the trial date.
 --   UKC   under 18 on January 1 of the trial's year.
 --   other (ASCA states no ceiling; an unknown registry has no rule) -> NULL.
--- NULL also for: no date of birth, no trial date, a date of birth after the
--- measuring date (bad data, never "a very young junior").
--- Completed years are computed on calendar fields, the same way the client does.
+-- NULL also for: no date of birth, no trial, a date of birth after the measuring
+-- date (bad data, never "a very young junior"). Completed years are computed on
+-- calendar fields, the same way the client does. "Not run yet" compares the trial
+-- date with the database's current_date (UTC), so on the trial day itself a
+-- date-of-birth change still recomputes.
 -- ---------------------------------------------------------------------------
-CREATE FUNCTION public.handler_is_junior(
+ALTER TABLE public.entries ADD COLUMN handler_is_junior boolean;
+
+COMMENT ON COLUMN public.entries.handler_is_junior IS
+  'MYK9-664: was the handler a junior at this entry''s trial, recorded when the entry '
+  'was created (NULL = unknown). Written only by trg_entries_handler_is_junior; '
+  'recomputed only on a date-of-birth change (entries not yet run) or by a site admin. '
+  'No column grant: managers read it through recorded_entry_handler_junior_flags().';
+
+-- 5a. The pure rule. In `private`, which no API role can use.
+CREATE FUNCTION private.handler_is_junior_at(
   p_date_of_birth date,
   p_trial_date date,
   p_registry_id text
@@ -348,48 +400,195 @@ AS $$
   FROM age a;
 $$;
 
-COMMENT ON FUNCTION public.handler_is_junior(date, date, text) IS
+COMMENT ON FUNCTION private.handler_is_junior_at(date, date, text) IS
   'MYK9-664: SQL twin of deriveJuniorStatus() (juniorHandlerPolicy.ts). true = junior, '
-  'false = adult, NULL = cannot be derived. Keep both in step.';
+  'false = adult, NULL = cannot be derived. Keep both in step. Called only by the '
+  'entry junior-flag trigger path; never by an API role.';
 
--- Pure, but only ever called from the definer function below; no API role needs it.
-REVOKE ALL ON FUNCTION public.handler_is_junior(date, date, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.handler_is_junior(date, date, text) FROM anon;
-REVOKE ALL ON FUNCTION public.handler_is_junior(date, date, text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.handler_is_junior(date, date, text) TO service_role;
+-- 5b. The flag for one entry's handler and trial, as the database stands now.
+CREATE FUNCTION private.entry_handler_is_junior(
+  p_handler_id uuid,
+  p_class_id uuid,
+  p_trial_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT private.handler_is_junior_at(pp.date_of_birth, t.date, t.registry_id)
+  FROM public.trials t
+  LEFT JOIN public.people_private pp ON pp.person_id = p_handler_id
+  WHERE t.id = coalesce(
+    (SELECT c.trial_id FROM public.classes c WHERE c.id = p_class_id),
+    p_trial_id
+  );
+$$;
 
-CREATE FUNCTION public.entry_handler_junior_flags(p_entry_ids uuid[])
+-- 5c. The ONE writer of entries.handler_is_junior. SECURITY DEFINER because it
+--     reads people_private, which RLS closes to the manager inserting the entry.
+CREATE FUNCTION private.entries_record_handler_is_junior()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT'
+     OR current_setting('myk9.recompute_handler_junior', true) = 'on' THEN
+    NEW.handler_is_junior :=
+      private.entry_handler_is_junior(NEW.handler_id, NEW.class_id, NEW.trial_id);
+  ELSIF NEW.handler_id IS DISTINCT FROM OLD.handler_id THEN
+    NEW.handler_is_junior := NULL;
+  ELSE
+    NEW.handler_is_junior := OLD.handler_is_junior;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_entries_handler_is_junior
+  BEFORE INSERT OR UPDATE ON public.entries
+  FOR EACH ROW EXECUTE FUNCTION private.entries_record_handler_is_junior();
+
+-- 5d. The recompute. Only rows whose answer actually changes are touched, so an
+--     unchanged entry keeps its replication version.
+CREATE FUNCTION private.recompute_entry_handler_junior(
+  p_entry_ids uuid[],
+  p_not_yet_run_only boolean
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  PERFORM set_config('myk9.recompute_handler_junior', 'on', true);
+
+  UPDATE public.entries e
+  SET handler_is_junior = private.entry_handler_is_junior(e.handler_id, e.class_id, e.trial_id)
+  WHERE e.id = ANY (coalesce(p_entry_ids, '{}'::uuid[]))
+    AND e.deleted_at IS NULL
+    AND e.handler_is_junior IS DISTINCT FROM
+        private.entry_handler_is_junior(e.handler_id, e.class_id, e.trial_id)
+    AND (
+      NOT p_not_yet_run_only
+      OR (
+        coalesce(e.is_scored, false) = false
+        AND EXISTS (
+          SELECT 1
+          FROM public.trials t
+          WHERE t.id = coalesce(
+              (SELECT c.trial_id FROM public.classes c WHERE c.id = e.class_id),
+              e.trial_id
+            )
+            AND t.date >= current_date
+        )
+      )
+    );
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  PERFORM set_config('myk9.recompute_handler_junior', '', true);
+  RETURN v_count;
+END;
+$$;
+
+-- 5e. A handler's date of birth set or changed: record the new answer on their
+--     entries that have not run yet. Fires for every writer of people_private
+--     (update_person_details, service role), not only the RPC.
+CREATE FUNCTION private.people_private_record_entry_junior()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.date_of_birth IS NOT DISTINCT FROM OLD.date_of_birth THEN
+    RETURN NULL;
+  END IF;
+  PERFORM private.recompute_entry_handler_junior(
+    ARRAY(
+      SELECT e.id FROM public.entries e
+      WHERE e.handler_id = NEW.person_id AND e.deleted_at IS NULL
+    ),
+    true
+  );
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trg_people_private_record_entry_junior
+  AFTER INSERT OR UPDATE OF date_of_birth ON public.people_private
+  FOR EACH ROW EXECUTE FUNCTION private.people_private_record_entry_junior();
+
+REVOKE ALL ON FUNCTION private.handler_is_junior_at(date, date, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.entry_handler_is_junior(uuid, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.entries_record_handler_is_junior() FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.recompute_entry_handler_junior(uuid[], boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.people_private_record_entry_junior() FROM PUBLIC;
+
+-- 5f. Record the flag on the entries that already exist, as if created now. Only
+--     entries whose handler has a date of birth get a non-NULL answer, so only
+--     those rows are touched.
+SELECT private.recompute_entry_handler_junior(
+  ARRAY(SELECT e.id FROM public.entries e WHERE e.deleted_at IS NULL),
+  false
+);
+
+-- 5g. Site admin: recompute the listed entries from the current date of birth and
+--     trial, whatever the trial date. The only caller-driven recompute there is.
+CREATE FUNCTION public.recompute_entry_handler_junior_flags(p_entry_ids uuid[])
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR NOT (SELECT public.is_site_admin()) THEN
+    RAISE EXCEPTION 'Only a site admin can recompute junior handler flags'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN private.recompute_entry_handler_junior(p_entry_ids, false);
+END;
+$$;
+
+COMMENT ON FUNCTION public.recompute_entry_handler_junior_flags(uuid[]) IS
+  'MYK9-664: site admins only. Recomputes entries.handler_is_junior for the listed '
+  'entries from the handler''s current date of birth and the trial as it stands. '
+  'Returns the number of entries whose flag changed.';
+
+REVOKE ALL ON FUNCTION public.recompute_entry_handler_junior_flags(uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.recompute_entry_handler_junior_flags(uuid[]) FROM anon;
+GRANT EXECUTE ON FUNCTION public.recompute_entry_handler_junior_flags(uuid[]) TO authenticated;
+
+-- 5h. The manager read: the STORED flag, for entries in shows the caller manages
+--     (or any, for a site admin). Reads nothing from people_private.
+CREATE FUNCTION public.recorded_entry_handler_junior_flags(p_entry_ids uuid[])
 RETURNS TABLE (entry_id uuid, is_junior boolean)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT
-    e.id,
-    public.handler_is_junior(pp.date_of_birth, t.date, t.registry_id)
+  SELECT e.id, e.handler_is_junior
   FROM public.entries e
-  JOIN public.classes c ON c.id = e.class_id AND c.deleted_at IS NULL
-  JOIN public.trials t ON t.id = c.trial_id AND t.deleted_at IS NULL
-  JOIN public.people h ON h.id = e.handler_id AND h.deleted_at IS NULL
-  LEFT JOIN public.people_private pp ON pp.person_id = h.id
   WHERE e.id = ANY (p_entry_ids)
     AND e.deleted_at IS NULL
-    -- Restated: the trial the class hangs off belongs to the entry's show, and the
-    -- caller manages THAT show. A manager of another show gets no row at all.
-    AND t.show_id = e.show_id
     AND (SELECT auth.uid()) IS NOT NULL
     AND ((SELECT public.is_site_admin()) OR public.can_manage_show(e.show_id));
 $$;
 
-COMMENT ON FUNCTION public.entry_handler_junior_flags(uuid[]) IS
-  'MYK9-664: per entry, is the handler a junior at that entry''s trial? Only for entries '
-  'in shows the caller manages (or site admin). Never returns the date of birth.';
+COMMENT ON FUNCTION public.recorded_entry_handler_junior_flags(uuid[]) IS
+  'MYK9-664: the junior flag each entry recorded (entries.handler_is_junior), for '
+  'entries in shows the caller manages (or site admin). Never derives it and never '
+  'returns the date of birth.';
 
-REVOKE ALL ON FUNCTION public.entry_handler_junior_flags(uuid[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.entry_handler_junior_flags(uuid[]) FROM anon;
-GRANT EXECUTE ON FUNCTION public.entry_handler_junior_flags(uuid[]) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.entry_handler_junior_flags(uuid[]) TO service_role;
+REVOKE ALL ON FUNCTION public.recorded_entry_handler_junior_flags(uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.recorded_entry_handler_junior_flags(uuid[]) FROM anon;
+GRANT EXECUTE ON FUNCTION public.recorded_entry_handler_junior_flags(uuid[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.recorded_entry_handler_junior_flags(uuid[]) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 6. Fail the push rather than ship a readable date of birth.
@@ -415,8 +614,23 @@ BEGIN
     RAISE EXCEPTION 'authenticated may only SELECT people_private; writes go through the RPC';
   END IF;
   IF has_function_privilege('anon', 'public.update_person_details(uuid, jsonb, jsonb, boolean)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.entry_handler_junior_flags(uuid[])', 'EXECUTE') THEN
+     OR has_function_privilege('anon', 'public.recorded_entry_handler_junior_flags(uuid[])', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.recompute_entry_handler_junior_flags(uuid[])', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon can execute a MYK9-664 function; it must not';
+  END IF;
+  -- The flag is read only through the manager-gated function, never the column.
+  IF has_column_privilege('anon', 'public.entries', 'handler_is_junior', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.entries', 'handler_is_junior', 'SELECT') THEN
+    RAISE EXCEPTION 'entries.handler_is_junior is readable directly; it must not be';
+  END IF;
+  -- Nothing an API role can call derives the flag from a date of birth.
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace
+      AND p.proname LIKE '%junior%'
+      AND 'date'::regtype = ANY (p.proargtypes::oid[]::regtype[])
+  ) OR to_regproc('public.entry_handler_junior_flags') IS NOT NULL THEN
+    RAISE EXCEPTION 'a public function still derives the junior flag live';
   END IF;
 END $$;
 

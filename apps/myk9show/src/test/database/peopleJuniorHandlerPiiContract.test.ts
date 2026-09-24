@@ -302,7 +302,7 @@ function ownSelectColumns(chain: string): string {
 
 describe('MYK9-664: the values live only in people_private', () => {
   it('the migration moves the data and drops both columns from people', () => {
-    const file = migrationFiles().find(f => f.startsWith('20260924063300'));
+    const file = migrationFiles().find(f => f.startsWith('20260924231700'));
     expect(file).toBeDefined();
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
     expect(sql).toMatch(

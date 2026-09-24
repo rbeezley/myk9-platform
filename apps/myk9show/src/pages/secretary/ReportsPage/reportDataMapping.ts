@@ -194,11 +194,13 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
 /**
  * MYK9-570: is this entry's handler a junior at THIS trial?
  *
- * Derived per entry, never stored: the same person is a junior at a March trial
- * and an adult at a November one, and the three registries do not even measure
- * on the same day. Since MYK9-664 the derivation runs in the database
- * (`entry_handler_junior_flags`, the SQL twin of `deriveJuniorStatus`), because
- * the secretary printing this may not read the date of birth. Returns an empty
+ * Per entry, not per person: the same person is a junior at a March trial and
+ * an adult at a November one, and the three registries do not even measure on
+ * the same day. Since MYK9-664 each entry RECORDS the answer when it is created
+ * (`entries.handler_is_junior`, computed by the database from the SQL twin of
+ * `deriveJuniorStatus`), because the secretary printing this may not read the
+ * date of birth, and must not be able to re-derive it by moving the trial date.
+ * Returns an empty
  * object — not `handlerIsJunior: false` — whenever the answer is unknown, so a
  * missing hydration read cannot print as "definitely an adult".
  */

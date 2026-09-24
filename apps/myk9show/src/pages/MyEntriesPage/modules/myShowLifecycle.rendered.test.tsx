@@ -153,4 +153,39 @@ describe('My Shows lifecycle — a result recorded as withdrawn', () => {
     expect(rowFor('Container Novice')).toHaveTextContent('WD');
     expect(rowFor('Container Novice')).not.toHaveTextContent(/check in/i);
   });
+
+  // The day button reads `isClassCheckInEligible`, a second reader of the
+  // lifecycle: it must not offer to check a WD class in on its trial day.
+  it('offers no day check-in for a WD class', () => {
+    renderRows([
+      mapleRow('maple-wd', 'Container Novice', 'confirmed', { resultStatus: 'withdrawn' }),
+    ]);
+
+    expect(
+      within(dogCard()).queryByRole('button', { name: 'Check in Maple for Saturday' })
+    ).toBeNull();
+  });
+
+  it('control — a live accepted class on its day does offer it', () => {
+    renderRows([mapleRow('maple-live', 'Container Novice', 'confirmed')]);
+
+    expect(
+      within(dogCard()).getByRole('button', { name: 'Check in Maple for Saturday' })
+    ).toBeInTheDocument();
+  });
+
+  // Codex round 1: a WD the judge recorded AS a result (`is_scored` true) is a
+  // result, not a lifecycle withdrawal — the chip must agree with the row.
+  it('keeps a SCORED WD result in the scored lifecycle', () => {
+    renderRows([
+      mapleRow('maple-wd-scored', 'Container Novice', 'confirmed', {
+        resultStatus: 'withdrawn',
+        isScored: true,
+        resultsReleasedAt: '2026-10-24T15:00:00Z',
+      }),
+    ]);
+
+    expect(within(dogCard()).getByText('Scored')).toBeInTheDocument();
+    expect(within(dogCard()).queryByText('Withdrawn')).not.toBeInTheDocument();
+  });
 });

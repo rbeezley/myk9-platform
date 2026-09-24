@@ -12,7 +12,8 @@
  * @module MyEntriesPage/modules/entryNextAction
  */
 
-import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isAccountedFor } from '@/features/_shared/entryAccounting';
+import { isExpectedClass } from './myShowLifecycle';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
@@ -74,7 +75,9 @@ export function isClassCheckInEligible(entry: MyEntry, cls: EntryClass): boolean
   if (
     entry.isShowCancelled ||
     cls.unresolved ||
-    !isExpectedEntry(cls) ||
+    // The My Shows lifecycle predicate, not `isExpectedEntry`: on this page
+    // that reads the lossy UI enum and never saw a WD result (MYK9-624).
+    !isExpectedClass(cls) ||
     isAccountedFor(cls) ||
     cls.entryStatusKind === 'completed' ||
     cls.status !== 'entered'

@@ -60,7 +60,7 @@ export type LifecycleClass = Pick<
  *    swallowed it.
  *  - `paid`, the other override, classifies as `accepted` and is not settled.
  *
- * A recorded WD result settles an otherwise live row as a withdrawal.
+ * An unscored WD result settles an otherwise live row as a withdrawal.
  *
  * Deliberately blind to `check_in_status = 'pulled'`: that is a DAY-OF state
  * with its own row kind, chip and "change" link. `isExpectedClass` below is
@@ -72,7 +72,11 @@ export function settledLifecycleKind(cls: LifecycleClass): SettledLifecycleKind 
     if (kind === 'not_accepted' && cls.entryStatus === EntryStatus.PENDING) return undefined;
     return kind as SettledLifecycleKind;
   }
-  if (cls.resultStatus === 'withdrawn') return 'withdrawn';
+  // Only an UNSCORED WD settles the lifecycle. A WD the judge recorded as the
+  // result (`is_scored` true) is a result, and the results view reads it as one;
+  // treating it as a withdrawal put "Withdrawn" on the chip over a WD result
+  // row (Codex round 1).
+  if (cls.resultStatus === 'withdrawn' && cls.isScored !== true) return 'withdrawn';
   return undefined;
 }
 

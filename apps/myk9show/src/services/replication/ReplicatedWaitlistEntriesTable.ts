@@ -98,6 +98,37 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<WaitlistEntryRow, ReplicatedWaitlistEntry> = {
+      // Coverage self-heal (MYK9-660). An incremental sync only asks for rows
+      // whose updated_at is past the watermark, so rows that become visible
+      // because RLS widened (club admins reading their show's waitlist) are
+      // never fetched: their updated_at predates the watermark. When the
+      // server reports more rows than the replica holds, the engine forces a
+      // full sync. Same mechanism as classes, trials and entries.
+      getRemoteRowCount: async () => {
+        try {
+          const { count, error } = await supabase
+            .from('waitlist_entries')
+            .select('id', { count: 'exact', head: true });
+
+          if (error) {
+            logger.warn(
+              `[${this.getTableName()}] Waitlist coverage count unavailable; continuing sync`,
+              'replication',
+              { message: error.message }
+            );
+            return undefined;
+          }
+
+          return count ?? 0;
+        } catch (error) {
+          logger.warn(
+            `[${this.getTableName()}] Waitlist coverage count unavailable; continuing sync`,
+            'replication',
+            { message: error instanceof Error ? error.message : String(error) }
+          );
+          return undefined;
+        }
+      },
       fetchRemoteRows: async ({ since }) => {
         const { data, error } = await supabase
           .from('waitlist_entries')

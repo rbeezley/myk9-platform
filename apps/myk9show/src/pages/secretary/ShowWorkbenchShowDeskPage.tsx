@@ -49,7 +49,6 @@ import {
 } from './showDeskEntryAvailability';
 import { ShowDeskEntriesUnavailable } from './ShowDeskEntriesUnavailable';
 import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
-import { useShowDeskCollectionWindow } from './useShowDeskCollectionWindow';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
@@ -94,8 +93,7 @@ export function ShowWorkbenchShowDeskPage() {
     isEnabled: Boolean(showId),
   });
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
-  // No cast: SecretaryEntry must carry every field the closeout card reads.
-  const reconciliationEntries: ShowDayReconciliationEntry[] = showEntries;
+  const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   // "May this viewer OPERATE this show?" — strictly narrower than "may they
   // manage it". Three controls on this page route into
@@ -156,7 +154,6 @@ export function ShowWorkbenchShowDeskPage() {
     [associatedTrials, entriesKnown, entryTallies, trialClasses]
   );
   const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
-  const deskWindow = useShowDeskCollectionWindow(currentShow?.startDate, associatedTrials);
   const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
     () =>
       associatedTrials.map(trial => ({
@@ -401,11 +398,7 @@ export function ShowWorkbenchShowDeskPage() {
         layout: 'wide',
         content: (
           <div className="space-y-4">
-            <ShowCloseoutSummary
-              showId={currentShow.id}
-              entries={reconciliationEntries}
-              deskWindow={deskWindow}
-            />
+            <ShowCloseoutSummary showId={currentShow.id} entries={reconciliationEntries} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to={`/shows/${currentShow.id}/results`}>
@@ -444,7 +437,6 @@ export function ShowWorkbenchShowDeskPage() {
     currentShow,
     closeoutClasses,
     closeoutTrials,
-    deskWindow,
     effectiveJudges,
     hospitalityJudges,
     incidentAttentionLabel,

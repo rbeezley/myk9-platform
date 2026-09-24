@@ -9,7 +9,6 @@ import {
 import {
   LATE_ENTRY_PAYMENT_METHODS,
   summarizeShowDayReconciliation,
-  type DeskCollectionWindow,
   type ShowDayReconciliationEntry,
 } from './showDayReconciliationSummary';
 import { summarizeCloseoutStatus, type IncidentState } from './showCloseoutStatus';
@@ -18,15 +17,13 @@ import { formatIncidentType, summarizeShowIncidents } from './showIncidents';
 interface ShowCloseoutSummaryProps {
   showId: string;
   entries: ShowDayReconciliationEntry[];
-  /** When the show ran, so only money taken at the desk counts (MYK9-677). */
-  deskWindow: DeskCollectionWindow | null;
 }
 
 const STAT_LABEL_CLASS = 'text-xs font-medium uppercase text-muted-foreground';
 const STAT_VALUE_CLASS = 'text-xl font-semibold';
 
-export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseoutSummaryProps) {
-  const recon = summarizeShowDayReconciliation(entries, deskWindow);
+export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProps) {
+  const recon = summarizeShowDayReconciliation(entries);
   const reconNeedsReview = recon.pulledCount > 0 || recon.refundReviewCount > 0;
   const hasLateEntries = recon.lateEntryCount > 0;
   const refundReviewText =
@@ -86,7 +83,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           <div role="group" aria-label="Show entries">
             <p className={STAT_LABEL_CLASS}>Entries</p>
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
-            <p className="text-xs text-muted-foreground">{recon.lateEntryCount} taken at the show</p>
+            <p className="text-xs text-muted-foreground">{recon.lateEntryCount} day-of</p>
           </div>
           <div role="group" aria-label="Collected at-show late-entry fees">
             <p className={STAT_LABEL_CLASS}>At-show collected</p>

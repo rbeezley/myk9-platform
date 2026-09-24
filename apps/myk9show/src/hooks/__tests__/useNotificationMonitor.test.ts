@@ -141,6 +141,7 @@ describe('useNotificationMonitor', () => {
     vi.clearAllMocks();
     mockPreferences.enabled = true;
     mockAuth.userId = 'auth-user-1';
+    mockDeliver.mockReturnValue(true);
     mockUseShowDayData.mockReturnValue({ activeShows: [{ showId: 'show-1' }] });
     mockUseQueryResult.mockReturnValue({ data: null, refetch: mockRefetch });
     mockRefetch.mockResolvedValue({ data: null });
@@ -406,6 +407,17 @@ describe('useNotificationMonitor', () => {
 
       mockDeliver.mockClear();
       mockAuth.userId = 'auth-user-2';
+      renderHook(() => useNotificationMonitor()).unmount();
+      expect(countOf('results_posted')).toBe(1);
+    });
+
+    it('does not record an alert that delivery suppressed', () => {
+      loadSnapshot(finalized);
+      mockDeliver.mockReturnValue(false);
+      renderHook(() => useNotificationMonitor()).unmount();
+
+      mockDeliver.mockReset();
+      mockDeliver.mockReturnValue(true);
       renderHook(() => useNotificationMonitor()).unmount();
       expect(countOf('results_posted')).toBe(1);
     });

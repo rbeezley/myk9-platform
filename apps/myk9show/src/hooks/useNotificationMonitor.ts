@@ -20,10 +20,15 @@ import {
   watchedUpcomingEntries,
   type NotificationWatchSet,
 } from '@/hooks/notificationWatchSet';
-import { alertKey, createNotifiedAlertLedger } from '@/hooks/notifiedAlertLedger';
+import {
+  alertKey,
+  createNotifiedAlertLedger,
+  type NotifiedAlertLedger,
+} from '@/hooks/notifiedAlertLedger';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
+import type { NotificationPayload } from '@myk9/notifications';
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;
@@ -74,6 +79,21 @@ function buildResultsActionUrl(
   }
 
   return `/classes/${classId}`;
+}
+
+/**
+ * Deliver the alert unless this user has already had it, and record it only
+ * when delivery accepted it: an alert suppressed (notifications off, handler in
+ * the ring) must not be marked as seen, or it would never arrive (MYK9-735).
+ */
+function deliverOnce(
+  ledger: NotifiedAlertLedger,
+  key: string,
+  deliver: (payload: NotificationPayload) => boolean,
+  build: () => NotificationPayload
+): void {
+  if (ledger.has(key)) return;
+  if (deliver(build())) ledger.mark(key);
 }
 
 export function useNotificationMonitor(): void {
@@ -203,19 +223,20 @@ export function useNotificationMonitor(): void {
       // the ledger stops a reload repeating the alert for the same in-ring dog.
       const key = alertKey.yourTurn(classId, inRingEntryId, entry.id);
       if (ledgerRef.current.has(key)) continue;
-      ledgerRef.current.mark(key);
       lastYourTurnAlert.current.set(entry.id, now);
 
-      const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
-      const notification = buildYourTurnPayload({
-        dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
-        className: context.className,
-        dogsAhead,
-        armband: entry.registrationData?.armband ?? null,
-        ...(conflicts.length > 0 ? { conflicts } : {}),
+      deliverOnce(ledgerRef.current, key, deliverRef.current, () => {
+        const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
+        const notification = buildYourTurnPayload({
+          dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
+          className: context.className,
+          dogsAhead,
+          armband: entry.registrationData?.armband ?? null,
+          ...(conflicts.length > 0 ? { conflicts } : {}),
+        });
+        notification.actionUrl = `/classes/${context.classId}`;
+        return notification;
       });
-      notification.actionUrl = `/classes/${context.classId}`;
-      deliverRef.current(notification);
     }
   }, []);
 
@@ -288,44 +309,46 @@ export function useNotificationMonitor(): void {
           userEntries.length > 0 &&
           !ledgerNow.has(startingKey)
         ) {
-          ledgerNow.mark(startingKey);
-          const starting = buildClassStartingPayload({ className: context.className });
-          starting.actionUrl = `/classes/${classId}`;
-          deliverRef.current(starting);
+          deliverOnce(ledgerNow, startingKey, deliverRef.current, () => {
+            const starting = buildClassStartingPayload({ className: context.className });
+            starting.actionUrl = `/classes/${classId}`;
+            return starting;
+          });
 
           for (const entry of userEntries) {
-            const reminderKey = alertKey.checkInReminder(classId, entry.id);
-            if (
-              (!entry.checkInStatus || entry.checkInStatus === 'no-status') &&
-              !ledgerNow.has(reminderKey)
-            ) {
-              ledgerNow.mark(reminderKey);
-              const reminder = buildCheckInReminderPayload({
-                dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
-                className: context.className,
-              });
-              reminder.actionUrl = `/classes/${classId}`;
-              deliverRef.current(reminder);
-            }
+            if (entry.checkInStatus && entry.checkInStatus !== 'no-status') continue;
+            deliverOnce(
+              ledgerNow,
+              alertKey.checkInReminder(classId, entry.id),
+              deliverRef.current,
+              () => {
+                const reminder = buildCheckInReminderPayload({
+                  dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
+                  className: context.className,
+                });
+                reminder.actionUrl = `/classes/${classId}`;
+                return reminder;
+              }
+            );
           }
         }
 
-        const resultsKey = alertKey.resultsPosted(classId);
-        if (classRow.is_scoring_finalized && userEntries.length > 0 && !ledgerNow.has(resultsKey)) {
-          ledgerNow.mark(resultsKey);
-          const results = buildResultsPostedPayload({
-            dogName: userEntries
-              .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')
-              .join(', '),
-            className: context.className,
+        if (classRow.is_scoring_finalized && userEntries.length > 0) {
+          deliverOnce(ledgerNow, alertKey.resultsPosted(classId), deliverRef.current, () => {
+            const results = buildResultsPostedPayload({
+              dogName: userEntries
+                .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')
+                .join(', '),
+              className: context.className,
+            });
+            results.actionUrl = buildResultsActionUrl(
+              classId,
+              userEntries,
+              nextResultStatuses,
+              classRow.results_released_at
+            );
+            return results;
           });
-          results.actionUrl = buildResultsActionUrl(
-            classId,
-            userEntries,
-            nextResultStatuses,
-            classRow.results_released_at
-          );
-          deliverRef.current(results);
         }
 
         const inRingEntry = context.entries.find(entry => entry.checkInStatus === 'in-ring');

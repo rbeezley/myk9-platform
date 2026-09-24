@@ -76,6 +76,16 @@ describe('useNotificationDelivery', () => {
     expect(useNotificationStore.getState().recentAlerts).toHaveLength(0);
   });
 
+  // MYK9-735: the monitor records an alert as seen only when it was delivered.
+  it('reports whether the alert was delivered or suppressed', () => {
+    const { result, rerender } = renderHook(() => useNotificationDelivery());
+    expect(result.current.deliver(makePayload('1'))).toBe(true);
+
+    act(() => useNotificationStore.setState({ isInRing: true }));
+    rerender();
+    expect(result.current.deliver(makePayload('2'))).toBe(false);
+  });
+
   it('calls speakWithConfig when voice is enabled and category matches', () => {
     useNotificationStore.setState({
       preferences: {

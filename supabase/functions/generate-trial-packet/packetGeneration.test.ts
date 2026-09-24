@@ -724,6 +724,22 @@ describe('the correlated failure that used to duplicate an email', () => {
     expect(summary.generated.map(p => p.trialDate)).toEqual([SAT, '2026-09-20']);
   });
 
+  it('waits through the injected sleep, never a real timer as well', async () => {
+    // `deps.sleep?.(ms) ?? sleep(ms)` ran the real 2s wait after the injected
+    // one too, because a resolved sleep is `undefined`. The stub did nothing.
+    const { supabase } = makeStub({ auditInsertFails: true, completeFailures: 1 });
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+    try {
+      await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps({ sleep }));
+      expect(sleep).toHaveBeenCalledWith(2_000);
+      expect(setTimeoutSpy).not.toHaveBeenCalledWith(expect.any(Function), 2_000);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
   it('never reports a delivered packet as a failure', async () => {
     // The email is gone. Throwing here would release the claim and guarantee
     // the duplicate this retry exists to avoid.

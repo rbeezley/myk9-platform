@@ -238,6 +238,55 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
     expect(countOf('your_turn')).toBe(1);
   });
 
+  // Backgrounded time counts as "away": server push covers it, so the first
+  // snapshot after the app is visible again is a fresh baseline.
+  it('re-baselines after the app was hidden, then alerts on later changes', async () => {
+    let visibility: DocumentVisibilityState = 'visible';
+    const descriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibility,
+    });
+    const setVisibility = (next: DocumentVisibilityState) => {
+      visibility = next;
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+    };
+    try {
+      loadSnapshot({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
+      renderHook(() => useNotificationMonitor());
+
+      setVisibility('hidden');
+      // While away: the class finalizes and the in-ring dog changes.
+      const whileAway: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+        entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
+      };
+      mockRefetch.mockResolvedValue({ data: whileAway });
+      setVisibility('visible');
+      await emitShowChange();
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      mockRefetch.mockResolvedValue({
+        data: {
+          ...whileAway,
+          entries: [
+            entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+            entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+            entry(),
+          ],
+        },
+      });
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledTimes(1);
+      expect(countOf('your_turn')).toBe(1);
+    } finally {
+      if (descriptor) Object.defineProperty(document, 'visibilityState', descriptor);
+      else delete (document as { visibilityState?: unknown }).visibilityState;
+    }
+  });
+
   it('re-baselines on a user change instead of bursting alerts for the new user', () => {
     loadSnapshot({
       classes: [classRow({ status: 'Complete' }), classRow({ id: 'class-2' })],

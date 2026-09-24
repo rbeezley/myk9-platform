@@ -175,6 +175,9 @@ export function useNotificationMonitor(): void {
   // while the user was away; alerting on STATE here re-announced weeks-old
   // results on every sign-in.
   const observedRef = useRef<Observed | null>(null);
+  // Set when the app is hidden: backgrounded time counts as "away" too, so the
+  // first snapshot processed while visible again is a baseline.
+  const awaySinceLastBaselineRef = useRef(false);
   const userIdRef = useRef<string | null>(userWithRoles?.id ?? null);
 
   const deliverRef = useRef(deliver);
@@ -303,8 +306,13 @@ export function useNotificationMonitor(): void {
       const userId = userIdRef.current;
       const previous = observedRef.current;
       observedRef.current = { userId, classes: nextObserved };
-      // Baseline: first snapshot after mount or after a user change.
-      if (!previous || previous.userId !== userId) return;
+      // Baseline: the first snapshot after mount, after a user change, or after
+      // the app was hidden (every snapshot while hidden is a baseline too).
+      const wasAway = awaySinceLastBaselineRef.current;
+      if (wasAway && document.visibilityState !== 'hidden') {
+        awaySinceLastBaselineRef.current = false;
+      }
+      if (!previous || previous.userId !== userId || wasAway) return;
 
       for (const [classId, context] of nextContexts) {
         const classRow = classLookup.get(classId);
@@ -363,6 +371,14 @@ export function useNotificationMonitor(): void {
   useEffect(() => {
     if (snapshotQuery.data) processSnapshot(snapshotQuery.data);
   }, [snapshotQuery.data, processSnapshot]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') awaySinceLastBaselineRef.current = true;
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   const refetchSnapshot = snapshotQuery.refetch;
   useEffect(() => {

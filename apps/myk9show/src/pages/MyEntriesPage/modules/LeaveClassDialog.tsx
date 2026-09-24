@@ -29,6 +29,7 @@ import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligib
 import { logger } from '@/services/LoggingService';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import type { LeaveClassDialogState } from './my-entries-types';
+import { dogCardAnchorId } from './dogCardAnchor';
 
 export interface LeaveClassDialogProps {
   dialog: LeaveClassDialogState;
@@ -64,23 +65,25 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const eligibility = useWithdrawEligibility(open, false, target ? [target.classId] : []);
   const rowEligibility = target ? eligibility[target.classId] : undefined;
 
-  // NO focus restore here, deliberately — see MYK9-658.
+  // MYK9-658: where focus goes once a leave LANDS. On success the row's
+  // "Leave class…" button unmounts with the row state it belonged to, so the
+  // AlertDialog's own restore targets a removed node and focus fell to
+  // `<body>`. The card itself survives the refresh, so focus goes to its
+  // anchor, keyed on `MyShowDog.id` (`dogCardAnchor.ts`) — unique per rendered
+  // card. The first attempt keyed on `dogId`, which one dog entered in two
+  // shows duplicates, and sent focus into the FIRST show's card.
   //
-  // Round 1 added one: on success the row's "Leave class…" button unmounts with
-  // the row it belonged to, so the AlertDialog's own restore targets a removed
-  // node and focus falls to `<body>`. The fix anchored focus on the dog card by
-  // a `my-show-dog-${dogId}` id — and round 2 proved that id is DUPLICATED
-  // whenever one dog is entered in two shows, because dogs are merged by dogId
-  // inside a group and the page renders every group at once. `getElementById`
-  // then returns the first in document order, so withdrawing from the second
-  // show moved focus into the FIRST show's card: a silent jump to a different
-  // show, which is worse than the `<body>` drop it was written to cure.
-  //
-  // Two of round 2's four findings were on that mechanism, which is the
-  // stop-and-restructure signal in CLAUDE.md § Gates step 3 rather than a cue
-  // for a third patch. So it is deleted rather than re-scoped: the page returns
-  // to the P3 it had before, and the real fix — which needs a per-card key and
-  // a test that renders the actual card — is filed as its own issue.
+  // A ref, because the dialog closes (and `target` goes null) before the
+  // primitive asks where to put focus. Every close that is not a landed leave
+  // — Escape, "Keep my entry" — keeps the primitive's own restore to the
+  // still-mounted trigger.
+  const landedAnchorRef = React.useRef<string | null>(null);
+  const finalFocus = React.useCallback((): HTMLElement | boolean => {
+    const anchorId = landedAnchorRef.current;
+    landedAnchorRef.current = null;
+    return (anchorId && document.getElementById(anchorId)) || true;
+  }, []);
+
   const confirm = async (choice: {
     kind: RemoveFromClassKind;
     reason: WithdrawalReasonCode | null;
@@ -123,6 +126,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       );
       savingRef.current = false;
       setIsSaving(false);
+      landedAnchorRef.current = dogCardAnchorId(target.dogCardId);
       onClose();
       onUpdate();
     } catch (err) {
@@ -149,6 +153,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       // AlertDialogAction; it is refused so a refusal can keep the chooser (and
       // the exhibitor's half-made choice) on screen. Every other close — Escape,
       // the overlay, "Keep my entry" — passes through untouched.
+      finalFocus={finalFocus}
       onOpenChange={next => {
         if (!next && !savingRef.current) onClose();
       }}

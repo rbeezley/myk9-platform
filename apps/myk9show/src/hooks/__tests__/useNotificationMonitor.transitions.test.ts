@@ -238,33 +238,46 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
     expect(countOf('your_turn')).toBe(1);
   });
 
-  // Backgrounded time counts as "away": server push covers it, so the first
-  // snapshot after the app is visible again is a fresh baseline.
-  it('re-baselines after the app was hidden, then alerts on later changes', async () => {
+  /** Runs `body` with a controllable `document.visibilityState`, restored afterwards. */
+  async function withVisibility(
+    body: (setVisibility: (next: DocumentVisibilityState) => Promise<void>) => Promise<void>
+  ) {
     let visibility: DocumentVisibilityState = 'visible';
     const descriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       get: () => visibility,
     });
-    const setVisibility = (next: DocumentVisibilityState) => {
-      visibility = next;
-      act(() => {
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-    };
     try {
+      await body(async next => {
+        visibility = next;
+        await act(async () => {
+          document.dispatchEvent(new Event('visibilitychange'));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+      });
+    } finally {
+      if (descriptor) Object.defineProperty(document, 'visibilityState', descriptor);
+      else delete (document as { visibilityState?: unknown }).visibilityState;
+    }
+  }
+
+  // Backgrounded time counts as "away": server push covers it, so the app
+  // re-baselines from a refetch taken the moment it is visible again.
+  it('re-baselines after the app was hidden, then alerts on later changes', async () => {
+    await withVisibility(async setVisibility => {
       loadSnapshot({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
       renderHook(() => useNotificationMonitor());
 
-      setVisibility('hidden');
+      await setVisibility('hidden');
       // While away: the class finalizes and the in-ring dog changes.
       const whileAway: NotificationSnapshot = {
         classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
         entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
       };
       mockRefetch.mockResolvedValue({ data: whileAway });
-      setVisibility('visible');
+      await setVisibility('visible');
       await emitShowChange();
       expect(mockDeliver).not.toHaveBeenCalled();
 
@@ -281,10 +294,27 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
       await emitShowChange();
       expect(mockDeliver).toHaveBeenCalledTimes(1);
       expect(countOf('your_turn')).toBe(1);
-    } finally {
-      if (descriptor) Object.defineProperty(document, 'visibilityState', descriptor);
-      else delete (document as { visibilityState?: unknown }).visibilityState;
-    }
+    });
+  });
+
+  it('takes the baseline from a refetch on becoming visible, so the next change alerts', async () => {
+    await withVisibility(async setVisibility => {
+      loadSnapshot({ classes: [classRow()], entries: [entry()] });
+      renderHook(() => useNotificationMonitor());
+
+      await setVisibility('hidden');
+      mockRefetch.mockResolvedValue({ data: { classes: [classRow()], entries: [entry()] } });
+      await setVisibility('visible');
+      expect(mockRefetch).toHaveBeenCalledOnce();
+
+      mockRefetch.mockResolvedValue({
+        data: { classes: [classRow({ status: 'In Progress' })], entries: [entry()] },
+      });
+      await emitShowChange();
+
+      expect(countOf('class_starting')).toBe(1);
+      expect(mockDeliver).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('re-baselines on a user change instead of bursting alerts for the new user', () => {

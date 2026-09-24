@@ -178,6 +178,9 @@ export function useNotificationMonitor(): void {
   // Set when the app is hidden: backgrounded time counts as "away" too, so the
   // first snapshot processed while visible again is a baseline.
   const awaySinceLastBaselineRef = useRef(false);
+  // The live refresh, while the subscription effect is active; used to take the
+  // post-away baseline the moment the app is visible again.
+  const refreshNowRef = useRef<(() => void) | null>(null);
   const userIdRef = useRef<string | null>(userWithRoles?.id ?? null);
 
   const deliverRef = useRef(deliver);
@@ -374,7 +377,14 @@ export function useNotificationMonitor(): void {
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') awaySinceLastBaselineRef.current = true;
+      if (document.visibilityState === 'hidden') {
+        awaySinceLastBaselineRef.current = true;
+      } else if (awaySinceLastBaselineRef.current) {
+        // Take the baseline now rather than at the next poll, so a change
+        // after the user is back is compared against it and still alerts. A
+        // change during this one round trip is covered by server push.
+        refreshNowRef.current?.();
+      }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -427,8 +437,10 @@ export function useNotificationMonitor(): void {
     };
 
     const unsubscribes = showIds.map(showId => subscribeToShowChanges(showId, nudge));
+    refreshNowRef.current = () => void refresh();
     return () => {
       disposed = true;
+      refreshNowRef.current = null;
       if (timer) clearTimeout(timer);
       for (const unsubscribe of unsubscribes) unsubscribe();
     };

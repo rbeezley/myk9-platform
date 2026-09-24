@@ -240,9 +240,9 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
   });
 
   it('RunOrderDialog accepts an entries array and async onApplyOrder', async () => {
-    const onApplyOrder = vi.fn<(preset: RunOrderPreset, scope?: RunOrderScope, mode?: RenumberMode) => Promise<void>>(
-      async () => undefined
-    );
+    const onApplyOrder = vi.fn<
+      (preset: RunOrderPreset, scope?: RunOrderScope, mode?: RenumberMode) => Promise<void>
+    >(async () => undefined);
     const { RunOrderDialog } = slots;
     const entries: Entry[] = [
       {

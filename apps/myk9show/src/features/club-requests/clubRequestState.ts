@@ -45,13 +45,28 @@ export type ServerRequestState = Extract<
   { kind: 'has-access' | 'blocked' | 'pending' | 'approved' | 'denied' | 'available' }
 >;
 
-export type SubmitFailure = 'already-pending' | 'standing-denial' | 'already-member' | 'unknown';
+export type SubmitFailure =
+  | 'already-pending'
+  | 'standing-denial'
+  | 'already-member'
+  | 'too-many-pending'
+  | 'unknown';
+
+/** SQLSTATE both submit RPCs raise at five open requests (submit_role_request too). */
+const TOO_MANY_PENDING_CODE = '53400';
 
 export function classifySubmitError(error: unknown): SubmitFailure {
   if (error instanceof RoleRequestAlreadyPendingError) return 'already-pending';
   if (error instanceof RoleRequestStandingDenialError) return 'standing-denial';
   if (error instanceof AlreadyClubMemberError) return 'already-member';
+  if ((error as { code?: unknown } | null)?.code === TOO_MANY_PENDING_CODE) {
+    return 'too-many-pending';
+  }
   return 'unknown';
 }
 
 export const GENERIC_SUBMIT_ERROR = "We couldn't send that request. Please try again.";
+
+/** Retrying cannot help until a club reviews one of the open requests. */
+export const TOO_MANY_PENDING_ERROR =
+  'You have 5 requests waiting for review. You can send another once a club responds.';

@@ -11,6 +11,7 @@ import { notifications } from '@/lib/notifications';
 import {
   classifySubmitError,
   GENERIC_SUBMIT_ERROR,
+  TOO_MANY_PENDING_ERROR,
   type ClubRequestController,
   type ClubRequestState,
   type ServerRequestState,
@@ -70,6 +71,10 @@ export function useClubRequestController(options: Options): ClubRequestControlle
         notifications.error((error as Error).message);
         return;
       }
+      if (failure === 'too-many-pending') {
+        setSubmitError(TOO_MANY_PENDING_ERROR);
+        return;
+      }
       setSubmitError(GENERIC_SUBMIT_ERROR);
       logger.error('Failed to submit club request', 'clubs', {
         ...options.logContext,
@@ -97,6 +102,11 @@ export function useClubRequestController(options: Options): ClubRequestControlle
   // Between a successful submit and the status refetch, the server already
   // holds the ask: show it as pending rather than re-offering the form.
   if (justSubmitted && state.kind === 'available') state = { kind: 'pending' };
+
+  // A cached 'available' is the one answer that offers a submit; while it is
+  // being re-read (return, focus) it may already be stale, so show loading.
+  // Cached pending/denied/has-access answers offer no action and stay.
+  if (state.kind === 'available' && statusQuery.isFetching) state = { kind: 'loading' };
 
   return {
     state,

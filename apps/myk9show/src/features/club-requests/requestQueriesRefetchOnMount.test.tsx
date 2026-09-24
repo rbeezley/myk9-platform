@@ -148,4 +148,54 @@ describe('request reads refetch when their surface is opened again', () => {
     await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(second.result.current.state.kind).toBe('error'));
   });
+
+  it('shows loading, not a cached form, while a returning status re-read is in flight', async () => {
+    let resolveSecond!: (value: { kind: 'denied'; reviewerNote: null }) => void;
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: 'available' })
+      .mockImplementationOnce(() => new Promise(resolve => (resolveSecond = resolve)));
+    const client = appLikeClient();
+    const { first, remount } = mountTwice(client, () =>
+      useClubRequestController({
+        queryKey: ['my-request', 'club-recheck'],
+        preState: null,
+        fetchStatus,
+        submitRequest: vi.fn(),
+        successMessage: 'sent',
+        logContext: {},
+      })
+    );
+
+    await waitFor(() => expect(first.result.current.state.kind).toBe('available'));
+    const second = remount();
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
+    expect(second.result.current.state.kind).toBe('loading');
+
+    act(() => resolveSecond({ kind: 'denied', reviewerNote: null }));
+    await waitFor(() => expect(second.result.current.state.kind).toBe('denied'));
+  });
+
+  it('keeps a cached pending answer visible while it is re-read', async () => {
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: 'pending' })
+      .mockImplementationOnce(() => new Promise(() => undefined));
+    const client = appLikeClient();
+    const { first, remount } = mountTwice(client, () =>
+      useClubRequestController({
+        queryKey: ['my-request', 'club-pending-recheck'],
+        preState: null,
+        fetchStatus,
+        submitRequest: vi.fn(),
+        successMessage: 'sent',
+        logContext: {},
+      })
+    );
+
+    await waitFor(() => expect(first.result.current.state.kind).toBe('pending'));
+    const second = remount();
+    await waitFor(() => expect(fetchStatus).toHaveBeenCalledTimes(2));
+    expect(second.result.current.state.kind).toBe('pending');
+  });
 });

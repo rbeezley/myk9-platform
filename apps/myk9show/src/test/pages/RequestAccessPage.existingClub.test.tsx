@@ -246,4 +246,33 @@ describe('RequestAccessPage — existing club', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't send that request/i);
     expect(screen.getByRole('button', { name: 'Send request' })).toBeEnabled();
   });
+
+  it('explains the five-pending limit on a membership request instead of suggesting a retry', async () => {
+    vi.mocked(submitClubMembershipRequest).mockRejectedValue(
+      Object.assign(new Error('Too many pending membership requests (max 5).'), { code: '53400' })
+    );
+    const user = await chooseClub();
+
+    await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
+    await user.click(await screen.findByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You have 5 requests waiting for review. You can send another once a club responds.'
+    );
+  });
+
+  it('explains the five-pending limit on a secretary request too', async () => {
+    vi.mocked(submitClubSecretaryRequest).mockRejectedValue(
+      Object.assign(new Error('Too many pending role requests (max 5).'), { code: '53400' })
+    );
+    const user = await chooseClub();
+
+    await user.click(screen.getByRole('button', { name: 'Ask for secretary access' }));
+    await user.type(await screen.findByLabelText(/why are you asking/i), 'I run entries.');
+    await user.click(screen.getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You have 5 requests waiting for review. You can send another once a club responds.'
+    );
+  });
 });

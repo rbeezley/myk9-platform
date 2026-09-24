@@ -31,8 +31,8 @@ git worktree list
   ```bash
   MAIN="/absolute/path/to/main/repo"
   WT="/absolute/path/to/stale-worktree"
-  # worktree remove is the last command, and runs only if nothing else holds the tree
-  pnpm -s qa:worktree-liveness "$WT" --window 5 && git -C "$MAIN" worktree remove --force "$WT"
+  # worktree remove is the last command; never --force (see "Removal" below)
+  pnpm -s qa:worktree-liveness "$WT" --window 5 && git -C "$MAIN" worktree remove "$WT"
   ```
   Leave the local branch: `git branch -D` is a denied command in this repo's Claude Code permissions (Codex may run it per `AGENTS.md`, before the worktree removal). The harness recovers the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
@@ -40,11 +40,12 @@ git worktree list
   ```bash
   pnpm -s qa:worktree-liveness "<absolute worktree path>"   # --window 15 --threshold 10 are the defaults
   ```
-  It finds processes whose cwd is inside the tree (`lsof -d cwd`) and every descendant (from the `ps` parent-pid table, as `pgrep -P` would find them). It samples their CPU twice, 15s apart, with `ps -o time=`, and lists files under the tree they hold open for writing (`lsof -p`). The verdict is **FREE** (exit 0) when nothing holds the tree. It is **BUSY** (exit 1) at 10% of one core or more, or with any write handle. It is **QUIET** (exit 3) when the tree is held below that with no writes; exit 2 means the check could not run, and it fails closed: a `ps` or `lsof` that errors or returns a partial table is exit 2, never FREE. 10% separates polling from work: the idle session measured on 2026-09-15 accrued 0.69s over 15s (4.6%), which is MCP polling. Report a BUSY tree and do not offer to remove it. QUIET is not proof of abandonment, because a session waiting on a model reply is quiet too. It is the precondition for _asking_, together with a clean tree and a branch tip whose SHA equals the merged PR's `headRefOid`, never a branch-name match.
+  The verdict is **advisory evidence only**. The check sees only processes whose cwd is inside the tree. A process running from another directory that holds a file in the tree open for writing is invisible to it, so FREE does not mean nothing is writing there (follow-up: "worktree-liveness: detect write handles from processes outside the tree"). It finds processes whose cwd is inside the tree (`lsof -d cwd`) and every descendant (from the `ps` parent-pid table, as `pgrep -P` would find them). It samples their CPU twice, 15s apart, with `ps -o time=`, and lists files under the tree they hold open for writing (`lsof -p`). The verdict is **FREE** (exit 0) when nothing holds the tree. It is **BUSY** (exit 1) at 10% of one core or more, or with any write handle. It is **QUIET** (exit 3) when the tree is held below that with no writes; exit 2 means the check could not run, and it fails closed: a `ps` or `lsof` that errors or returns a partial table is exit 2, never FREE. 10% separates polling from work: the idle session measured on 2026-09-15 accrued 0.69s over 15s (4.6%), which is MCP polling. Report a BUSY tree and do not offer to remove it. QUIET is not proof of abandonment, because a session waiting on a model reply is quiet too. It is the precondition for _asking_, together with a clean tree and a branch tip whose SHA equals the merged PR's `headRefOid`, never a branch-name match.
 - **Stopping a holder, after the user confirms.** Stop the session through the harness when it offers a stop, otherwise `kill <pid>` (SIGTERM) on the holder and on the children the check listed. Use `kill -9` only when a process is still alive after that and the user agrees. Then re-run `qa:worktree-liveness` and remove the tree only on **FREE** (exit 0), chained in one command so the gap between the check and the removal is as short as it can be:
   ```bash
   pnpm -s qa:worktree-liveness "$WT" --window 5 && git -C "$MAIN" worktree remove "$WT"
   ```
+- **Removal is plain `git worktree remove`, never `--force`.** FREE is advisory, so git's own refusal is the backstop: it declines a tree with modified or untracked files. If git refuses, stop and report the files it names. Do not force, and do not clean the tree to get past it.
 - **Reap dev servers first.** Before removing a worktree, run §2 scoped to that worktree path and kill any survivors — otherwise they keep listening on their ports as zombies after the directory is gone.
 - Report how many were found; only remove after explicit user confirmation.
 
@@ -191,7 +192,7 @@ Action needed:
 ## Rules
 
 - Run all checks even if early ones find issues
-- NEVER auto-remove worktrees — always ask first (another agent may be using it). Judge "in use" with `qa:worktree-liveness`, never with a session's `isRunning` or `lastActivityAt`, and remove only on a fresh FREE.
+- NEVER auto-remove worktrees — always ask first (another agent may be using it). Judge "in use" with `qa:worktree-liveness`, never with a session's `isRunning` or `lastActivityAt`. A fresh FREE is required but advisory: remove with plain `git worktree remove`, never `--force`, and stop if git refuses.
 - NEVER auto-kill dev servers whose worktree still exists — ask first (another agent may be using it). Auto-killing IS allowed when both the worktree directory is gone AND its name is absent from `git worktree list`.
 - **Reap dev servers before removing their worktree** — `git worktree remove` does not kill child processes, so dev servers outlive their source tree and become 404-serving zombies
 - Always ask before: committing, pushing, deploying, deleting unmerged branches

@@ -222,6 +222,8 @@ describe('measure, against real processes', () => {
     vi.spyOn(console, 'log').mockImplementation((...a) => void logs.push(a.join(' ')));
     expect(runCli([wt, '--window', '1'])).toBe(0);
     expect(logs.join('\n')).toMatch(/FREE/);
+    // FREE is advisory: it cannot see writers outside the tree, so it says so.
+    expect(logs.join('\n')).toMatch(/advisory: processes outside the tree[\s\S]*never --force/);
     start(wt, 'setInterval(() => {}, 1000)');
     await settle();
     expect(runCli([wt, '--window', '1'])).toBe(3);

@@ -25,6 +25,14 @@
  * session waiting on a model reply is quiet too — so it decides nothing on its
  * own; the cleanup skill still asks before stopping anything.
  *
+ * Every verdict is ADVISORY. The check sees only processes whose cwd is inside
+ * the tree: a process running from elsewhere that holds a tree file open for
+ * writing is invisible, so `free` does not mean nothing writes there
+ * (follow-up: "worktree-liveness: detect write handles from processes outside
+ * the tree"). Never chain `free` into `git worktree remove --force`; plain
+ * `git worktree remove` refuses a tree with modified or untracked files, and
+ * that refusal is the backstop.
+ *
  * Usage: pnpm -s qa:worktree-liveness "<worktree path>" [--window 15] [--threshold 10]
  */
 import { spawnSync } from 'node:child_process';
@@ -166,8 +174,9 @@ export function decide(
 }
 
 /**
- * Fails closed: FREE is chained straight into `git worktree remove`, so a
- * probe that did not run must never read as "nothing holds the tree". lsof
+ * Fails closed: the cleanup skill chains FREE into a plain `git worktree
+ * remove`, so a probe that did not run must never read as "nothing holds the
+ * tree". lsof
  * exits 1 when some process could not be inspected yet prints every one it
  * could, so callers pass the statuses they accept and a positive control.
  */
@@ -269,6 +278,10 @@ export function render(worktree: string, l: Liveness, windowSeconds: number): st
   }
   if (l.verdict === 'free') {
     lines.push('  no other process has its cwd in this tree');
+    lines.push(
+      '  advisory: processes outside the tree that write into it are not seen; remove with plain\n' +
+        '          `git worktree remove` (never --force) and stop if git refuses'
+    );
     return lines.join('\n');
   }
   for (const p of l.holders) lines.push(`  holder  pid ${p.pid}  ${p.command}`);

@@ -23,10 +23,6 @@ describe('StatusIcon', () => {
   });
 
   it('maps persisted request aliases without falling back', () => {
-    expect(getStatusDescriptor('entry', 'scratch_requested')).toMatchObject({
-      status: 'scratch_requested',
-      shape: 'needs-attention',
-    });
     expect(getStatusDescriptor('entry', 'move_up_requested')).toMatchObject({
       status: 'move_up_requested',
       shape: 'needs-attention',

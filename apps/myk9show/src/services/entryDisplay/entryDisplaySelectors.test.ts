@@ -37,12 +37,17 @@ describe('getEntryStatusKind — the single classifier', () => {
     // Both spellings are valid per the entry_status CHECK constraint (it restored
     // the hyphen forms alongside the underscore forms) — neither may render Unknown.
     ['move_up_requested', 'move_up_requested'],
-    ['scratch-requested', 'pending'],
-    ['scratch_requested', 'pending'],
   ];
 
   it.each(cases)('maps %s -> %s', (raw, kind) => {
     expect(getEntryStatusKind(raw)).toBe(kind);
+  });
+
+  it('reads the retired scratch-request spellings as unknown, not a crash (MYK9-719)', () => {
+    // The CHECK no longer admits either value, so no row can carry one; a stale
+    // client cache still must not throw or borrow another state's wording.
+    expect(getEntryStatusKind('scratch-requested')).toBe('unknown');
+    expect(getEntryStatusKind('scratch_requested')).toBe('unknown');
   });
 
   it('returns unknown (never a terminal/pending fallthrough) for garbage / null / undefined', () => {

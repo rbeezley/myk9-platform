@@ -11,7 +11,7 @@
     "dev:show": "turbo dev --filter=@myk9/show",
     "build": "turbo build",
     "build:show": "turbo build --filter=@myk9/show",
-    "typecheck": "turbo typecheck && pnpm run typecheck:scripts",
+    "typecheck": "pnpm run typecheck:scripts && turbo typecheck",
     "typecheck:scripts": "tsx scripts/qa/typecheck-scripts.ts",
     "typecheck:scripts:update-baseline": "tsx scripts/qa/typecheck-scripts.ts --update-baseline",
     "qa:typecheck-scripts:test": "vitest run scripts/qa/typecheck-scripts.test.ts",

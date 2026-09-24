@@ -102,7 +102,16 @@ class MockQueryBuilder {
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason?: unknown) => void) {
-    return Promise.resolve(this.resultFor(this.call)).then(resolve, reject);
+    const result = this.resultFor(this.call);
+    // The recoverable-cart lookup reads a LIST (MYK9-650); the scripts below
+    // name the one row it should find.
+    const isLookup =
+      this.call.table === 'entry_carts' && this.call.select === RECOVERABLE_CART_LOOKUP_COLUMNS;
+    const shaped =
+      isLookup && !Array.isArray(result.data)
+        ? { ...result, data: result.data ? [result.data] : [] }
+        : result;
+    return Promise.resolve(shaped).then(resolve, reject);
   }
 }
 
@@ -120,6 +129,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { useCartStore } from './cartStore';
+import { RECOVERABLE_CART_LOOKUP_COLUMNS } from './cartStore.pickCart';
 
 const expiredCartLookup = {
   id: 'cart-expired',
@@ -203,7 +213,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             return call.gts.length > 0
               ? { data: null, error: null }
               : { data: expiredCartLookup, error: null };
@@ -260,7 +270,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             return { data: freshCartLookup, error: null };
           }
 
@@ -292,7 +302,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             return { data: expiredCartLookup, error: null };
           }
 
@@ -340,7 +350,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             return { data: expiredCartLookup, error: null };
           }
 
@@ -537,7 +547,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             return { data: freshCartLookup, error: null };
           }
 
@@ -603,7 +613,7 @@ describe('cartStore payment recovery', () => {
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
-          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
             cartLookupCount += 1;
             return cartLookupCount <= 2
               ? { data: null, error: null }

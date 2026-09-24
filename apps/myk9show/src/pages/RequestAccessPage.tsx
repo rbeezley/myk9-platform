@@ -181,8 +181,8 @@ const RequestAccessPage: React.FC = () => {
               <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
               <h2 className="text-xl font-semibold">Request sent</h2>
               <p className="text-base text-muted-foreground">
-                We received your club request and sent a confirmation to the email on your account.
-                We will email you again when it has been reviewed.
+                We received your club request. A myK9Show administrator will review it, and we will
+                email the address on your account when it has been reviewed.
               </p>
               <Button asChild className="min-h-11">
                 <Link to="/exhibitor/entries">Return to My Shows</Link>

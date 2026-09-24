@@ -147,4 +147,50 @@ describe('buildLandingData', () => {
 
     expect(data.trials.map(t => t.id)).toEqual(['dated', 'undated']);
   });
+
+  // Codex P2 on MYK9-704: trial names are not unique, so de-duplicating a
+  // judge's assignments by label hid one of two same-named trials.
+  describe('judge assignments', () => {
+    const judgeTrial = (id: string, name: string, trialDate: string) =>
+      ({
+        id,
+        showId: show.id,
+        name,
+        trialNumber: name,
+        trialDate,
+        judge: 'Alex Judge',
+        registryId: 'AKC',
+      }) as unknown as Trial;
+
+    it('keeps two same-named trials on different dates, disambiguated by date', () => {
+      const sameName = [
+        judgeTrial('t-sat', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-sun', 'Trial 1', '2026-11-01'),
+      ];
+      const data = buildLandingData(show, sameName[0], sameName, 12);
+
+      expect(data.judges).toHaveLength(1);
+      expect(data.judges[0]?.trials).toEqual(['Trial 1 (Sat, Oct 31)', 'Trial 1 (Sun, Nov 1)']);
+    });
+
+    it('lists a trial once when the judge is assigned to the same trial ID twice', () => {
+      const duplicated = [
+        judgeTrial('t-1', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-1', 'Trial 1', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, duplicated[0], duplicated, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Trial 1']);
+    });
+
+    it('keeps plain labels when the judge sits differently named trials', () => {
+      const distinct = [
+        judgeTrial('t-am', 'Saturday T 1', '2026-10-31'),
+        judgeTrial('t-pm', 'Saturday T 2', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, distinct[0], distinct, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Saturday T 1', 'Saturday T 2']);
+    });
+  });
 });

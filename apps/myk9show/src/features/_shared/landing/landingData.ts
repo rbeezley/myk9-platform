@@ -4,6 +4,7 @@ import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnaps
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
+import { formatWeekdayMonthDay } from '@/lib/format/dates';
 
 export interface LandingTrial {
   id: string;
@@ -144,6 +145,22 @@ export function buildJourneySteps(
   ].filter(step => step.date !== null);
 }
 
+/**
+ * One label per trial a judge sits. A label shared by two of those trials is
+ * suffixed with the trial's date ("Trial 1 (Sat, Oct 31)") so neither reads as
+ * a duplicate; a label unique to one trial is left as-is.
+ */
+function judgeTrialLabels(assigned: readonly LandingTrial[]): string[] {
+  const labels = assigned.map(trial =>
+    formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+  );
+  return labels.map((label, index) => {
+    const shared = labels.filter(other => other === label).length > 1;
+    const day = shared ? formatWeekdayMonthDay(assigned[index]?.date) : '';
+    return day ? `${label} (${day})` : label;
+  });
+}
+
 export function buildLandingData(
   show: Show | null | undefined,
   currentTrial: Trial | null | undefined,
@@ -196,19 +213,20 @@ export function buildLandingData(
       ...(trial.judge ? { judgeName: trial.judge } : {}),
     }));
 
-  const judgeMap = new Map<string, string[]>();
+  // A judge's assignments are keyed by trial ID: trial names are not unique, so
+  // de-duplicating by label hid one of two same-named trials (MYK9-704).
+  const judgeMap = new Map<string, Map<string, LandingTrial>>();
   for (const trial of trials) {
     if (!trial.judgeName) continue;
-    const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber });
-    const labels = judgeMap.get(trial.judgeName) ?? [];
-    if (label && !labels.includes(label)) labels.push(label);
-    judgeMap.set(trial.judgeName, labels);
+    const assigned = judgeMap.get(trial.judgeName) ?? new Map<string, LandingTrial>();
+    assigned.set(trial.id, trial);
+    judgeMap.set(trial.judgeName, assigned);
   }
-  const judges = Array.from(judgeMap.entries()).map<LandingJudge>(([name, labels], index) => ({
+  const judges = Array.from(judgeMap.entries()).map<LandingJudge>(([name, assigned], index) => ({
     id: `judge-${index}`,
     name,
     city: null,
-    trials: labels,
+    trials: judgeTrialLabels([...assigned.values()]),
     elements: [],
   }));
 

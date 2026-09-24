@@ -114,7 +114,8 @@ describe('useMonogramLandingData', () => {
     const show = makeShow();
     const trials: Trial[] = [
       makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't1-dup', trialNumber: 1, judge: 'Catherine Beagles' }),
+      // Same trial ID: assignments de-duplicate by trial, not label (MYK9-704).
+      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
     expect(result.current.judges[0]?.trials).toEqual(['Trial 1']);

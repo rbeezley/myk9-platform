@@ -1,7 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { buildCreateShowPayload } from '../buildCreateShowPayload';
+import { buildCreateShowPayload as buildPayloadWithView } from '../buildCreateShowPayload';
 import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+function buildCreateShowPayload(
+  show: WizardShowData,
+  trials: WizardTrial[],
+  judgeDetails: Parameters<typeof buildPayloadWithView>[2],
+  ruleMap: Map<string, SportClassRuleRow>,
+  status: Parameters<typeof buildPayloadWithView>[4]
+) {
+  const trialView = createWizardTrialView(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+  return buildPayloadWithView(show, trials, judgeDetails, ruleMap, status, trialView);
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,7 +45,7 @@ const baseShow: WizardShowData = {
 
 const baseTrial: WizardTrial = {
   id: 'wizard-trial-1',
-  name: 'Saturday Trial',
+  nameOverride: 'Saturday Trial',
   dateTime: '2026-06-01T09:00:00',
   eventNumber: 'EVT-001',
   trialType: 'Scent Work',
@@ -116,6 +135,33 @@ describe('buildCreateShowPayload', () => {
       'unpublished'
     );
     expect(rpcInput.p_trials[0]!.status).toBe('upcoming');
+  });
+
+  it('saves derived day-scoped names in draft order while preserving explicit overrides', () => {
+    const trials: WizardTrial[] = [
+      { ...baseTrial, id: 'generated-1', nameOverride: undefined },
+      { ...baseTrial, id: 'custom', nameOverride: 'Custom Nosework Trial' },
+      { ...baseTrial, id: 'generated-2', nameOverride: undefined },
+    ];
+
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      trials,
+      {},
+      new Map(),
+      'unpublished'
+    );
+
+    expect(rpcInput.p_trials.map(trial => trial.name)).toEqual([
+      'Monday Trial 1',
+      'Custom Nosework Trial',
+      'Monday Trial 3',
+    ]);
+    expect(localEntities.trials.map(trial => trial.name)).toEqual([
+      'Monday Trial 1',
+      'Custom Nosework Trial',
+      'Monday Trial 3',
+    ]);
   });
 
   it('localEntities.show has _syncStatus synced and _localOnly false', () => {
@@ -208,6 +254,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
           judgeId: 'judge-uuid-a',
@@ -225,13 +272,116 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_classes[0]!.trial_id).toBe(trialIdMap['wizard-trial-1']);
   });
 
+  it('rejects a class with an unresolved registry element before returning a payload', () => {
+    const invalidTrial: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-invalid',
+          customizations: { element: 'Unknown', level: 'Unknown', className: 'Unresolved class' },
+        },
+      ],
+    };
+
+    expect(() => buildCreateShowPayload(baseShow, [invalidTrial], {}, new Map(), 'draft')).toThrow(
+      /Unresolved class.*element/i
+    );
+  });
+
+  it('rejects a class triple that is configured for a different registry', () => {
+    const ukcOnlyClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-ukc-only',
+          customizations: {
+            element: 'Container',
+            level: 'Master',
+            section: 'B',
+            className: 'Container Master B',
+          },
+        },
+      ],
+    };
+
+    expect(() => buildCreateShowPayload(baseShow, [ukcOnlyClass], {}, new Map(), 'draft')).toThrow(
+      /Container Master B.*registry/i
+    );
+  });
+
+  it('normalizes configured standalone classes to an empty level', () => {
+    const standaloneClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-detective',
+          customizations: { element: 'Detective', level: 'Detective', className: 'Detective' },
+        },
+      ],
+    };
+
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [standaloneClass],
+      {},
+      new Map(),
+      'draft'
+    );
+
+    expect(rpcInput.p_classes).toHaveLength(1);
+    expect(rpcInput.p_classes[0]!.element).toBe('Detective');
+    expect(rpcInput.p_classes[0]!.level).toBeNull();
+  });
+
+  it('deduplicates aliases that normalize to the same class triple within one trial', () => {
+    const duplicateClasses: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-containers',
+          customizations: {
+            element: 'Containers',
+            level: 'Novice',
+            section: 'A',
+            className: 'Containers Novice',
+          },
+        },
+        {
+          templateId: 'tmpl-container',
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'Container Novice',
+          },
+        },
+      ],
+    };
+
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [duplicateClasses],
+      {},
+      new Map(),
+      'draft'
+    );
+
+    expect(rpcInput.p_classes).toHaveLength(1);
+    expect(rpcInput.p_classes[0]!.element).toBe('Container');
+  });
+
   it('carries the per-class judgeId into p_classes[].judge_id (class-level assignment grain)', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           judgeId: 'judge-uuid-a',
         },
       ],
@@ -254,7 +404,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           // no judgeId
         },
       ],
@@ -278,6 +433,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
         },
@@ -365,7 +521,7 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-unknown',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: { element: 'Container', level: 'Novice', section: 'A', className: 'NW1' },
         },
       ],
     };
@@ -448,7 +604,7 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: { element: 'Container', level: 'Novice', section: 'A', className: 'NW1' },
         },
       ],
     };

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { QueryClient } from '@tanstack/react-query';
 import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const rpcMock = vi.fn();
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -55,7 +56,20 @@ vi.mock('@/lib/notifications', () => ({
 
 // Import after mocks so the module-under-test picks them up.
 import { OfficialsNotAssignedError } from '../showSaveErrors';
-import { saveShowAtomicOnline } from '../saveShowAtomicOnline';
+import { saveShowAtomicOnline as saveShowAtomicOnlineWithView } from '../saveShowAtomicOnline';
+import type { SaveShowAtomicOnlineArgs } from '../saveShowAtomicOnline';
+
+function saveShowAtomicOnline(args: Omit<SaveShowAtomicOnlineArgs, 'trialView'>) {
+  const trialView = createWizardTrialView(
+    args.trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+  return saveShowAtomicOnlineWithView({ ...args, trialView });
+}
 
 const baseShow: WizardShowData = {
   name: 'Test Show',
@@ -199,6 +213,38 @@ describe('saveShowAtomicOnline', () => {
     ).rejects.toThrow('boom');
 
     expect(showsSetMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid class identity before the atomic RPC or local cache writes', async () => {
+    const invalidTrial: WizardTrial = {
+      id: 'wizard-trial-invalid',
+      trialType: 'Scent Work',
+      dateTime: '2026-06-01T09:00:00',
+      eventNumber: 'EVT-INVALID',
+      classes: [
+        {
+          templateId: 'template-invalid',
+          customizations: { className: 'Unknown class', element: 'Unknown', level: 'Unknown' },
+        },
+      ],
+    };
+
+    await expect(
+      saveShowAtomicOnline({
+        show: baseShow,
+        trials: [invalidTrial],
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toThrow(/Unknown class.*element/i);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(showsSetMock).not.toHaveBeenCalled();
+    expect(trialsSetMock).not.toHaveBeenCalled();
+    expect(classesSetMock).not.toHaveBeenCalled();
   });
 
   it('does not throw when IndexedDB seeding fails after a successful RPC', async () => {

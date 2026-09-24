@@ -18,6 +18,7 @@ import { deriveRegistryId } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
@@ -34,9 +35,14 @@ import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
+import {
+  normalizeWizardClassSelections,
+  type NormalizedWizardClassSelection,
+} from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
+  trialView: WizardTrialView;
   setIsLoading: (loading: boolean) => void;
   /**
    * Called once the show row exists. `passcodes` carries the freshly-generated
@@ -54,6 +60,7 @@ interface UseShowCreationWizardActionsOptions {
 
 export function useShowCreationWizardActions({
   editMode,
+  trialView,
   setIsLoading,
   onCreated,
 }: UseShowCreationWizardActionsOptions) {
@@ -112,7 +119,8 @@ export function useShowCreationWizardActions({
       // partially-populated trialIdMap if one insert fails, causing classes
       // for the failed trial to be silently dropped with no trialId.
       for (const [index, wizardTrial] of trialsToAdd.entries()) {
-        const trialName = wizardTrial.name || `Trial ${index + 1}`;
+        const trialName =
+          trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
         const newTrial: TrialInput = {
           showId,
           showName,
@@ -137,7 +145,7 @@ export function useShowCreationWizardActions({
 
       return trialIdMap;
     },
-    [editMode, existingTrials, trials, addTrialToStore, user]
+    [editMode, existingTrials, trials, addTrialToStore, user, trialView]
   );
 
   /**
@@ -146,7 +154,11 @@ export function useShowCreationWizardActions({
    * so scoring works fully offline.
    */
   const createClasses = useCallback(
-    async (showId: string, trialIdMap: Record<string, string>) => {
+    async (
+      showId: string,
+      trialIdMap: Record<string, string>,
+      normalizedClasses: readonly NormalizedWizardClassSelection[]
+    ) => {
       logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
       const allClasses = createClassDataFromWizard(
@@ -156,25 +168,14 @@ export function useShowCreationWizardActions({
         showId,
         existingTrials,
         editMode,
-        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee }
+        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
+        trialView,
+        normalizedClasses
       );
 
-      // In add-classes mode, trial.classes includes both existing and new classes.
-      // Filter out classes that already exist in the DB to avoid duplicates.
-      let classesToCreate = allClasses;
-      if (editMode?.mode === 'add-classes') {
-        const existingClassKeys = new Set(
-          existingDBClasses.map(c => `${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
-        classesToCreate = allClasses.filter(
-          c => !existingClassKeys.has(`${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
-        logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
-          total: allClasses.length,
-          new: classesToCreate.length,
-          existing: allClasses.length - classesToCreate.length,
-        });
-      }
+      // In add-classes mode trial.classes also holds the show's stored classes; the
+      // normalizer already left those out (retained), so everything here is new.
+      const classesToCreate = allClasses;
 
       const ruleMap = await buildRuleMap(classesToCreate.map(c => c.templateId ?? ''));
 
@@ -185,8 +186,7 @@ export function useShowCreationWizardActions({
     },
     // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
     // should not invalidate already-built class arrays mid-wizard.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
+    [trials, judgeDetails, existingTrials, editMode, trialView]
   );
 
   /**
@@ -202,6 +202,13 @@ export function useShowCreationWizardActions({
 
       try {
         setIsLoading(true);
+        // Validate every class this save will write before the show/trial writers below can
+        // mutate data. Stored classes loaded for add-classes mode are retained, not re-validated.
+        const normalizedClasses = normalizeWizardClassSelections(
+          show.organization,
+          trials,
+          editMode?.mode === 'add-classes' ? existingDBClasses : []
+        );
 
         // New-show + online path: single atomic RPC
         // (create_show_with_children, migration 145) writes shows + trials +
@@ -217,6 +224,7 @@ export function useShowCreationWizardActions({
           } = await saveShowAtomicOnline({
             show,
             trials,
+            trialView,
             judgeDetails,
             clubs,
             status,
@@ -269,7 +277,8 @@ export function useShowCreationWizardActions({
           judgeDetails,
           clubs,
           status,
-          editMode
+          editMode,
+          trialView
         );
 
         // Save to show store and get the real DB UUID back
@@ -315,7 +324,7 @@ export function useShowCreationWizardActions({
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
-        await createClasses(realShowId, trialIdMap);
+        await createClasses(realShowId, trialIdMap, normalizedClasses);
 
         // Persist judge assignments to judge_assignments table
         const judges = wizardShow.assignedJudges || [];
@@ -445,9 +454,11 @@ export function useShowCreationWizardActions({
     [
       show,
       trials,
+      trialView,
       judgeDetails,
       clubs,
       editMode,
+      existingDBClasses,
       addShow,
       updateShow,
       deleteShowCascading,

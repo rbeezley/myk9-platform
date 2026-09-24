@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
-import { applyRegistrationClock } from './seedRoster';
+import { applyRegistrationClock, searchForSeededDog, SEEDED_SEARCH_DOGS } from './seedRoster';
 
 const SHOW_ID = process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? LIVE_REGISTRATION_SHOW_ID;
 // Both from `supabase/seed-demo.sql` section 5, and they must have DIFFERENT
@@ -10,8 +10,8 @@ const SHOW_ID = process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? LIVE_REGIST
 // exhibitor@myk9t.com and Cooper to secretary@myk9t.com. This used to name
 // Scout, which the seed also moved onto exhibitor@myk9t.com — the two dogs then
 // shared an owner and the guard had nothing to block (MYK9-545).
-const PRIMARY_DOG = 'Willow';
-const OTHER_EXHIBITOR_DOG = 'Cooper';
+const PRIMARY_DOG = SEEDED_SEARCH_DOGS.willow;
+const OTHER_EXHIBITOR_DOG = SEEDED_SEARCH_DOGS.cooper;
 
 async function gotoRegistration(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, {
@@ -21,21 +21,6 @@ async function gotoRegistration(page: Page) {
   await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
     timeout: 15000,
   });
-}
-
-async function searchDog(page: Page, name: string) {
-  const search = page.getByPlaceholder(/Search all dogs/i);
-  await search.fill(name);
-  await page.waitForResponse(
-    response =>
-      response.url().includes('/rest/v1/dogs') &&
-      response.request().method() === 'GET' &&
-      response.url().toLowerCase().includes(name.toLowerCase()),
-    { timeout: 10000 }
-  );
-  // The response landing is not the row landing. Wait for the rendered result
-  // before clicking, or the click lands on the previous (unfiltered) list.
-  await expect(selectDog(page, name)).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -88,8 +73,8 @@ test.describe('Secretary registration for existing users', () => {
     await expect(page.getByPlaceholder(/Search all dogs/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Next/ })).toBeDisabled();
 
-    await searchDog(page, PRIMARY_DOG);
-    await selectDog(page, PRIMARY_DOG).click();
+    await searchForSeededDog(page, PRIMARY_DOG);
+    await selectDog(page, PRIMARY_DOG.callName).click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
   });
@@ -152,11 +137,11 @@ test.describe('Secretary registration for existing users', () => {
   });
 
   test('blocks existing-user carts that span multiple exhibitors', async ({ page }) => {
-    await searchDog(page, PRIMARY_DOG);
-    await selectDog(page, PRIMARY_DOG).click();
+    await searchForSeededDog(page, PRIMARY_DOG);
+    await selectDog(page, PRIMARY_DOG.callName).click();
 
-    await searchDog(page, OTHER_EXHIBITOR_DOG);
-    await selectDog(page, OTHER_EXHIBITOR_DOG).click();
+    await searchForSeededDog(page, OTHER_EXHIBITOR_DOG);
+    await selectDog(page, OTHER_EXHIBITOR_DOG.callName).click();
 
     await expect(page.getByText(/2 selected/).first()).toBeVisible({ timeout: 5000 });
     await expect(

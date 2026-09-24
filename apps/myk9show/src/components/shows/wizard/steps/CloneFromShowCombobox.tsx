@@ -127,7 +127,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         });
 
         addTrial({
-          name: trial.name || 'Trial',
+          nameOverride: trial.name || 'Trial',
           dateTime: '',
           eventNumber: '',
           trialType: trial.trialType,

@@ -10,7 +10,10 @@
  * against a show start of 8:00 AM the same day, close > start and the rule fired.
  */
 import { describe, expect, it } from 'vitest';
-import { getShowDetailsValidationMessages } from './showCreationWizardValidation';
+import {
+  getShowDetailsValidationMessages,
+  getValidationMessagesForStep,
+} from './showCreationWizardValidation';
 
 const CLOSE_RULE = 'Entry close date must be on or before the show start date';
 
@@ -89,5 +92,39 @@ describe('getShowDetailsValidationMessages — entry close vs show start', () =>
     } else {
       expect(messages).not.toContain('End date must be on or after start date');
     }
+  });
+});
+
+describe('class-selection step registry validation', () => {
+  it('refuses a cloned foreign-registry class before advancing to review', () => {
+    const show = baseShow();
+    const trials = [
+      {
+        id: 'trial-1',
+        dateTime: '2026-08-29T08:00:00',
+        eventNumber: 'EVT-1',
+        trialType: 'scent_work',
+        classes: [
+          {
+            templateId: 'template-1',
+            customizations: {
+              className: 'Container Master B',
+              element: 'Container',
+              level: 'Master',
+              section: 'B',
+            },
+          },
+        ],
+      },
+    ];
+    const trialView = {
+      effectiveNamesByTrialId: new Map([['trial-1', 'Saturday Trial 1']]),
+      persistedTrialCount: 0,
+      hasAnyTrials: true,
+    };
+
+    expect(getValidationMessagesForStep(2, show, trials, trialView).join(' ')).toMatch(
+      /Container Master B.*AKC registry/i
+    );
   });
 });

@@ -7,7 +7,9 @@ import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
+import type { NormalizedWizardClassSelection } from './classConfigurationValidation';
 
 export interface WizardShowData {
   name: string;
@@ -36,7 +38,7 @@ export interface WizardShowData {
 
 export interface WizardTrial {
   id: string;
-  name: string;
+  nameOverride?: string | undefined;
   dateTime: string;
   eventNumber: string;
   trialType?: string | undefined;
@@ -113,10 +115,15 @@ export function createClassDataFromWizard(
   judgeDetails: JudgeDetailsMap,
   showId: string,
   existingTrials: ExistingTrial[],
-  editMode?: EditMode,
-  showFees?: { preEntryFee?: number; dayOfShowFee?: number }
+  editMode: EditMode | undefined,
+  showFees: { preEntryFee?: number; dayOfShowFee?: number } | undefined,
+  trialView: WizardTrialView,
+  normalizedClasses: readonly NormalizedWizardClassSelection[]
 ): ClassData[] {
   const classes: ClassData[] = [];
+  const normalizedBySource = new Map(
+    normalizedClasses.map(selection => [`${selection.trialId}|${selection.sourceIndex}`, selection])
+  );
 
   // In add-classes mode, process ALL trials (we're adding classes to existing trials).
   // In other edit modes, only create classes for NEW trials.
@@ -133,9 +140,9 @@ export function createClassDataFromWizard(
 
     if (trialId && wizardTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
-        const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
-        const element = (cls.customizations?.element as string) || 'Unknown';
-        const level = (cls.customizations?.level as string) || 'Unknown';
+        const normalized = normalizedBySource.get(`${wizardTrial.id}|${index}`);
+        if (!normalized) return;
+        const className = normalized.className;
 
         // Generate a proper UUID for the class
         const classId = crypto.randomUUID();
@@ -143,9 +150,10 @@ export function createClassDataFromWizard(
         const classData: ClassData = {
           id: classId,
           trialId: trialId,
-          trial: wizardTrial.name,
+          trial: trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? '',
           trialDate: format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd'),
-          trialNumber: wizardTrial.eventNumber || wizardTrial.name,
+          trialNumber:
+            wizardTrial.eventNumber || trialView.effectiveNamesByTrialId.get(wizardTrial.id) || '',
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
@@ -153,9 +161,9 @@ export function createClassDataFromWizard(
           // RPC payload can write a class-level judge_assignment. Dropping it
           // here is what left judges off the class-centric judge dashboard.
           judgeId: cls.judgeId || undefined,
-          element: element,
-          level: level,
-          section: (cls.customizations?.section as string) || '',
+          element: normalized.triple.element,
+          level: normalized.triple.level,
+          section: normalized.triple.section,
           hidesUsed: '0',
           distractionsUsed: '0',
           itemsUsed: '',
@@ -223,7 +231,8 @@ export function transformWizardDataToShow(
   judgeDetails: JudgeDetailsMap,
   clubs: Club[],
   status: ShowStatus,
-  editMode?: EditMode
+  editMode: EditMode | undefined,
+  trialView: WizardTrialView
 ): Show {
   // Use existing ID in edit mode, or generate new ID for new shows
   const showId = editMode
@@ -252,7 +261,7 @@ export function transformWizardDataToShow(
   // Transform trials
   const showTrials = trials.map((trial, index) => ({
     id: trial.id,
-    name: trial.name,
+    name: trialView.effectiveNamesByTrialId.get(trial.id) ?? '',
     date: trial.dateTime,
     trialNumber: `${index + 1}`,
     status: 'Upcoming',

@@ -8,6 +8,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const mockUpdateTrial = vi.fn();
 const mockAssignJudgeToClass = vi.fn();
@@ -74,7 +75,7 @@ function fakeWizardState(organization: string): Record<string, unknown> {
     trials: [
       {
         id: 'trial-1',
-        name: 'Saturday Trial',
+        nameOverride: 'Saturday Trial',
         dateTime: '',
         eventNumber: '',
         trialType: organization === 'UKC' ? 'Nosework' : 'Scent Detection',
@@ -103,6 +104,13 @@ function fakeWizardState(organization: string): Record<string, unknown> {
     judgeAssignments: {},
     assignJudgeToClass: mockAssignJudgeToClass,
   };
+}
+
+function trialView() {
+  return createWizardTrialView(
+    [{ id: 'trial-1', nameOverride: 'Saturday Trial', trialDate: '' }],
+    []
+  );
 }
 
 /**
@@ -140,7 +148,7 @@ describe('ClassSelectionStep — registry-filtered class list', () => {
   it('shows only the UKC Nosework class list for a UKC show', async () => {
     setOrganization('UKC');
 
-    render(<ClassSelectionStep />);
+    render(<ClassSelectionStep trialView={trialView()} />);
 
     expect(await screen.findByLabelText(/Select UKC Vehicle Novice/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/AKC Container Novice A/i)).not.toBeInTheDocument();
@@ -150,7 +158,7 @@ describe('ClassSelectionStep — registry-filtered class list', () => {
   it('shows only the ASCA Scent Detection class list for an ASCA show', async () => {
     setOrganization('ASCA');
 
-    render(<ClassSelectionStep />);
+    render(<ClassSelectionStep trialView={trialView()} />);
 
     expect(await screen.findByLabelText(/Select ASCA Container Open/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/AKC Container Novice A/i)).not.toBeInTheDocument();
@@ -164,12 +172,26 @@ describe('ClassSelectionStep — a retained cloned class names itself on screen'
       selector(wizardStateWithRetainedCustomClass())
     );
 
-    render(<ClassSelectionStep />);
+    render(<ClassSelectionStep trialView={trialView()} />);
 
     const cloned = await screen.findByLabelText('Deselect AKC Container Novice A Preliminary');
     // The accessible name was ALWAYS correct — read what a sighted secretary sees.
     expect((cloned.textContent ?? '').replace(/\s+/gu, ' ')).toContain(
       'AKC Container Novice A Preliminary'
     );
+  });
+});
+
+describe('ClassSelectionStep — no judging-time estimate before entries exist (MYK9-689)', () => {
+  it('shows the configuration summary without an estimated judging time', async () => {
+    mockUseWizardStore.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector(wizardStateWithRetainedCustomClass())
+    );
+
+    render(<ClassSelectionStep trialView={trialView()} />);
+
+    // Positive control: the summary card that used to carry the estimate renders.
+    expect(await screen.findByText('Configuration Summary')).toBeInTheDocument();
+    expect(screen.queryByText(/est\. judging time/i)).not.toBeInTheDocument();
   });
 });

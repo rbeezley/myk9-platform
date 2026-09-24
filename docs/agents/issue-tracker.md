@@ -62,6 +62,25 @@ after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 fil
 - Issues encode dependency chains as Linear issue-links — a single "In Progress" issue with
   unstarted downstream links is usually correct sequencing, not neglect.
 
+## Model routing for issue work
+
+When the user requests subagents, choose models by the uncertainty and risk of each task:
+
+- Use GPT-6 Sol for orchestration: interpreting acceptance criteria, assigning work, resolving
+  ambiguity, integrating changes, and deciding whether the issue is complete.
+- Use GPT-6 Luna for bounded work with explicit inputs and pass conditions: locating code,
+  summarizing patterns, gathering test evidence, and making small, well-specified edits.
+- Use GPT-6 Sol for implementation that crosses architectural boundaries, changes offline data
+  or permissions, or requires design judgment. Escalate a Luna task to Sol if its scope becomes
+  ambiguous or targeted checks do not pass.
+- Use GPT-6 Sol for the final adversarial PR review. Luna can provide an additional focused
+  review lens, but neither model replaces an other-harness review when the review tier requires
+  `independent` scrutiny.
+
+This is a routing default, not a reason to create subagents. Do not add model assignments to
+every Linear issue. Record a short issue-specific routing note only when unusual complexity,
+risk, or independent parallel work changes this default. Choose again as the issue evolves.
+
 ## Division of labor with OpenSpec
 
 Linear holds _state_ (status, priority, sequencing). `openspec/changes/<id>/` holds _content_

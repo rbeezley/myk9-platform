@@ -9,6 +9,7 @@ import type { PaymentStatus } from '@/types/show-registration-types';
 import type { Show } from '@/types/show-types';
 import type { DogRegistrationLike, MappedDogRegistrationLike } from '@/features/dogs/identity';
 import type { RegistryId } from '@/features/registries';
+import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
 export const REPORT_ENTRY_SOURCE = {
   MYK9: 'myk9',
@@ -87,7 +88,13 @@ export type ReportDbEntry = DbEntry & {
     call_name?: string | null;
     breed?: string | null;
     registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[];
+    owner?: {
+      first_name?: string | null;
+      last_name?: string | null;
+    } | null;
   } | null;
+  /** Canonical assigned-handler-first identity attached by the entry read boundary. */
+  handler_identity?: ProjectedEntryHandler;
   registration?: {
     payment_status?: string | null;
   } | null;

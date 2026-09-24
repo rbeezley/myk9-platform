@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mapReplicatedEntryToDbRow } from '../entryMappers';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 describe('mapReplicatedEntryToDbRow', () => {
   it('preserves financial closeout fields from replicated rows', () => {
@@ -44,5 +45,21 @@ describe('mapReplicatedEntryToDbRow', () => {
     } as Parameters<typeof rowToEntry>[0]);
 
     expect(mapReplicatedEntryToDbRow(replicated).deleted_at).toBe(deletedAt);
+  });
+
+  it('preserves denormalized dog identity when the dog cache row is missing', () => {
+    const replicated: ReplicatedEntry = {
+      id: 'entry-cold-dog',
+      dogId: 'dog-1',
+      dogOwnerId: 'owner-1',
+      dogCallName: 'Scout',
+      dogBreed: 'Beagle',
+    };
+
+    expect(mapReplicatedEntryToDbRow(replicated, { dog: null })).toMatchObject({
+      dog_owner_id: 'owner-1',
+      dog_call_name: 'Scout',
+      dog_breed: 'Beagle',
+    });
   });
 });

@@ -21,12 +21,14 @@ import {
   Users,
   DollarSign,
 } from 'lucide-react';
+import { estimateJudgingMinutes, type EntryCountState } from './entryCountState';
 
 interface ClassSelectionGridProps {
   template: ClassTemplate;
   selectedClasses: ClassDefinition[];
   onSelectionChange: (classes: ClassDefinition[]) => void;
   onPreviewClass?: (classDefinition: ClassDefinition) => void;
+  entryCountState?: EntryCountState | undefined;
 }
 
 export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
@@ -34,6 +36,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
   selectedClasses,
   onSelectionChange,
   onPreviewClass,
+  entryCountState = { status: 'unavailable', count: 0 },
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterElement, setFilterElement] = useState<string>('');
@@ -124,6 +127,10 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
 
   const allFilteredSelected =
     filteredClasses.length > 0 && filteredClasses.every(cls => isClassSelected(cls));
+  const estimatedJudgingMinutes = estimateJudgingMinutes(
+    entryCountState,
+    template.defaults?.judgingTimeEstimate
+  );
 
   return (
     <div className="space-y-6">
@@ -150,7 +157,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-green-500" />
-              <span>{template.defaults?.judgingTimeEstimate || 'N/A'} min per class</span>
+              <span>{template.defaults?.judgingTimeEstimate || 'N/A'} min per run</span>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-purple-500" />
@@ -472,10 +479,12 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 <span className="font-medium">
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
-                <div className="text-sm text-muted-foreground">
-                  Estimated judging time:{' '}
-                  {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
-                </div>
+                {estimatedJudgingMinutes !== null && (
+                  <div className="text-sm text-muted-foreground">
+                    Estimated judging time based on current entries: {estimatedJudgingMinutes}{' '}
+                    minutes
+                  </div>
+                )}
               </div>
               <Button variant="outline" onClick={clearAllSelections}>
                 Clear Selection

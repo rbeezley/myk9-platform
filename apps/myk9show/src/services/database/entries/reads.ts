@@ -35,6 +35,12 @@ import {
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
+import {
+  HANDLER_PERSON_SELECT,
+  attachPostgrestHandlerIdentity,
+  mapReplicatedEntriesWithHandlerIdentity,
+  projectPostgrestEntryHandlerIdentity,
+} from './entryHandlerReadBoundary';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -93,36 +99,18 @@ async function loadEnrollmentFinancialsMap(
   }
 }
 
+function registrationJoin(
+  entry: ReplicatedEntry,
+  enrollmentsMap: ReadonlyMap<string, Record<string, unknown>>
+): { registration: Record<string, unknown> | null } | Record<string, never> {
+  if (!entry.registrationId) return {};
+  return { registration: enrollmentsMap.get(entry.registrationId) ?? null };
+}
+
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
   // Replication stores submitted_at as submittedAt; the mapper emits it as
   // created_at for the DB-shaped row, matching the PostgREST order column.
   return entry.submittedAt ?? entry.updated_at;
-}
-
-/**
- * Map an array of ReplicatedEntry to DB-row-shaped objects using pre-loaded
- * lookup maps. Joins dog, class, and show sub-objects.
- */
-function mapEntriesWithStandardJoins(
-  entries: ReplicatedEntry[],
-  dogsMap: Map<string, ReplicatedDog>,
-  classesMap: Map<string, ReplicatedClass>,
-  showsMap: Map<string, ReplicatedShow>,
-  enrollmentsMap?: Map<string, Record<string, unknown>>
-): Record<string, unknown>[] {
-  return entries.map(entry => {
-    const registration =
-      enrollmentsMap && entry.registrationId
-        ? (enrollmentsMap.get(entry.registrationId) ?? null)
-        : undefined;
-
-    return mapReplicatedEntryToDbRow(entry, {
-      dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-      cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-      show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-      ...(registration !== undefined ? { registration } : {}),
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +172,7 @@ async function postgrestGetAllEntries() {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -222,7 +211,10 @@ async function postgrestGetAllEntries() {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_all');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntryById(id: string) {
@@ -231,6 +223,7 @@ async function postgrestGetEntryById(id: string) {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -272,7 +265,15 @@ async function postgrestGetEntryById(id: string) {
     .single();
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_id');
-  return { data, error: null };
+  return {
+    data: data
+      ? {
+          ...data,
+          handler_identity: projectPostgrestEntryHandlerIdentity(data as Record<string, unknown>),
+        }
+      : data,
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByShow(showId: string) {
@@ -281,6 +282,7 @@ async function postgrestGetEntriesByShow(showId: string) {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -313,7 +315,10 @@ async function postgrestGetEntriesByShow(showId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 /**
@@ -356,6 +361,7 @@ async function withMoveUpLinkFallback<T>(
  */
 const SHOW_FINANCIALS_SELECT_WITH_LINK = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -391,6 +397,7 @@ const SHOW_FINANCIALS_SELECT_WITH_LINK = `
 
 const SHOW_FINANCIALS_SELECT = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -426,6 +433,7 @@ const SHOW_FINANCIALS_SELECT = `
 
 const TRIAL_ENTRIES_SELECT_WITH_LINK = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -458,6 +466,7 @@ const TRIAL_ENTRIES_SELECT_WITH_LINK = `
 
 const TRIAL_ENTRIES_SELECT = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -512,7 +521,10 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {
@@ -534,11 +546,15 @@ async function postgrestGetEntriesByTrial(trialId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
   const CLASS_ENTRY_RELATIONS_SELECT = `
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -587,7 +603,10 @@ async function postgrestGetEntriesByClass(classId: string) {
     return e;
   });
 
-  return { data: backfilledEntries, error: null };
+  return {
+    data: attachPostgrestHandlerIdentity(backfilledEntries as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByDog(dogId: string) {
@@ -596,6 +615,19 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
       class:class_id (
         id,
         name,
@@ -616,7 +648,10 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_dog');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByStatus(status: EntryStatus) {
@@ -625,6 +660,7 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      ${HANDLER_PERSON_SELECT},
       dog:dog_id (
         id,
         name,
@@ -656,7 +692,10 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_status');
-  return { data: data || [], error: null };
+  return {
+    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
+    error: null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -685,7 +724,13 @@ export const getAllEntries = async () => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
-      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+        })
+      );
       return { data, error: null };
     },
     postgrest: postgrestGetAllEntries,
@@ -706,7 +751,11 @@ export const getEntryById = async (id: string) => {
         entry.classId ? replicatedClassesTable.getClassById(entry.classId) : Promise.resolve(null),
         entry.showId ? replicatedShowsTable.getShowById(entry.showId) : Promise.resolve(null),
       ]);
-      const data = mapReplicatedEntryToDbRow(entry, { dog, cls, show });
+      const data = await mapReplicatedEntriesWithHandlerIdentity(
+        [entry],
+        new Map(dog ? [[dog.id, dog]] : []),
+        current => mapReplicatedEntryToDbRow(current, { dog, cls, show })
+      ).then(([row]) => row ?? null);
       return { data, error: null };
     },
     postgrest: () => postgrestGetEntryById(id),
@@ -730,7 +779,7 @@ export const getEntriesByShow = async (showId: string) => {
   // A populated replica may contain only individually hydrated entries. Refresh
   // this show through the conflict-aware sync path before treating it as complete.
   // Failed/offline sync must not discard the entries already available locally.
-  await refreshShowEntriesForRead(showId);
+  const refreshCompleted = await refreshShowEntriesForRead(showId);
   const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
@@ -748,13 +797,11 @@ export const getEntriesByShow = async (showId: string) => {
         compareDateDesc(getEntryCreatedSortValue)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-          registration: entry.registrationId
-            ? (enrollmentsMap.get(entry.registrationId) ?? null)
-            : null,
+          ...registrationJoin(entry, enrollmentsMap),
         })
       );
       return { data, error: null, locallyDeletedIds };
@@ -765,9 +812,14 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
     verifyOnlineWhenEmpty: true,
   });
-  if (result.error) return { ...result, resultsReadComplete: false };
+  if (result.error) return { ...result, resultsReadComplete: false, verified: false };
   const released = await withReleasedShowResults(showId, result.data);
-  return { ...result, data: released.entries, resultsReadComplete: released.resultsReadComplete };
+  return {
+    ...result,
+    data: released.entries,
+    resultsReadComplete: released.resultsReadComplete,
+    verified: refreshCompleted,
+  };
 };
 
 /**
@@ -790,8 +842,16 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         compareDateDesc(getEntryCreatedSortValue)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
+      const data = await mapReplicatedEntriesWithHandlerIdentity(entries, dogsMap, entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          show: null,
+          ...registrationJoin(entry, enrollmentsMap),
+        })
+      );
       return {
-        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, new Map(), enrollmentsMap),
+        data,
         error: null,
         locallyDeletedIds,
       };
@@ -845,7 +905,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
 
       const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry => {
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry => {
         const raw = entry as unknown as Record<string, unknown>;
         const promoCodeId = raw.promoCodeId as string | undefined;
         const cls = entry.classId ? classesMap.get(entry.classId) : null;
@@ -905,13 +965,11 @@ export const getEntriesByTrial = async (trialId: string) => {
       const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-          registration: entry.registrationId
-            ? (enrollmentsMap.get(entry.registrationId) ?? null)
-            : null,
+          ...registrationJoin(entry, enrollmentsMap),
         })
       );
       return { data, error: null, locallyDeletedIds };
@@ -954,12 +1012,10 @@ export const getEntriesByClass = async (classId: string) => {
         compareNumberAscNullsLast(entry => entry.runOrder)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-          registration: entry.registrationId
-            ? (enrollmentsMap.get(entry.registrationId) ?? null)
-            : null,
+          ...registrationJoin(entry, enrollmentsMap),
         })
       );
       // Backfill armbands from the authoritative armbands table for entries
@@ -1024,8 +1080,9 @@ export interface DogEntriesReadResult {
 //     own `resolveConflict` keeps a `_syncStatus: 'pending'` row over the server
 //     copy for exactly this reason; merging follows that same rule.
 async function replicaGetEntriesByDog(dogId: string) {
-  const [allEntries, classesMap, showsMap] = await Promise.all([
+  const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
     replicatedEntriesTable.getAll(),
+    loadDogsMap(),
     loadClassesMap(),
     loadShowsMap(),
   ]);
@@ -1036,7 +1093,7 @@ async function replicaGetEntriesByDog(dogId: string) {
     liveEntries.filter(e => e._syncStatus === 'pending').map(e => String(e.id))
   );
   const sortedEntries = sortedCopy(liveEntries, compareDateDesc(getEntryCreatedSortValue));
-  const data = sortedEntries.map(entry =>
+  const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
     mapReplicatedEntryToDbRow(entry, {
       cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
       show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
@@ -1182,7 +1239,13 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
       ]);
       const filtered = allEntries.filter(e => e.entryStatus === status && isLiveEntry(e));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
-      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
+      const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
+        mapReplicatedEntryToDbRow(entry, {
+          dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+        })
+      );
       return { data, error: null };
     },
     postgrest: () => postgrestGetEntriesByStatus(status),

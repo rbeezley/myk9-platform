@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
-import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
+import {
+  installSecretaryFixture,
+  NON_OWNED_DOG_CALL_NAME,
+  NON_OWNED_DOG_SEARCH,
+  SECRETARY_FIXTURE_SHOW_ID,
+} from '../../helpers/secretaryFixture';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -11,11 +16,12 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
-// Deterministic MYK9-109 load fixture owned by the demo exhibitor. Unlike the
-// account's named dogs, this fixture remains available after user dog cleanup.
-const NON_OWNED_DOG_SEARCH = 'Echo 10';
-const NON_OWNED_DOG_LABEL = 'Echo';
+// Every show-scoped case runs on the hermetic secretary show
+// (docs/plan-hermetic-e2e-fixtures.md). They opened the seeded show until
+// staging was emptied on 2026-09-20; the mail-in case then read "Show not
+// found." and the entries case rendered its chrome around a show that no
+// longer existed, which passed or failed by timing.
+const SHOW_ID = SECRETARY_FIXTURE_SHOW_ID;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 1 UAT - Secretary critical path', () => {
@@ -75,6 +81,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   }) => {
     await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
 
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
@@ -92,7 +99,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByText(/No dogs match your search/i)).not.toBeVisible();
 
     const dog = page.getByRole('checkbox', {
-      name: `Select ${NON_OWNED_DOG_LABEL}`,
+      name: `Select ${NON_OWNED_DOG_CALL_NAME}`,
       exact: true,
     });
     await expect(dog).toBeVisible();
@@ -110,6 +117,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
 
   test('entry management exposes review, waitlist, and export controls', async ({ page }) => {
     test.setTimeout(60_000);
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/entries`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
@@ -135,6 +143,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/reports`);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });

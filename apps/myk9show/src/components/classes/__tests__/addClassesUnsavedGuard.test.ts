@@ -1,16 +1,16 @@
 /**
- * COMPLETENESS guard: both Add-Classes surfaces must register an unsaved-changes guard.
+ * COMPLETENESS guard: every Add-Classes surface must register an unsaved-changes guard.
  *
  * The class-edit panels get this free from `EditPanelWrapper`, which mounts
- * `UnsavedChangesRouteGuard`. The two Add-Classes surfaces build their own chrome
- * (`SlideOverPanel` / `Dialog`) and so had no guard at all: any route change discarded
+ * `UnsavedChangesRouteGuard`. The Add-Classes panel builds its own chrome
+ * (`SlideOverPanel`) and so had no guard at all: any route change discarded
  * the class selection silently, including the "Add a judge" link the empty-roster notice
  * now offers.
  *
- * This is a source scan and says so. What it proves is only that each surface *mounts*
+ * This is a source scan and says so. What it proves is only that the surface *mounts*
  * the guard and ties it to the selection — the guard's own blocking behaviour is the
- * router's, tested with the guard itself. What no rendering test can check is a THIRD
- * Add-Classes surface appearing without one, which is the failure this file exists to
+ * router's, tested with the guard itself. What no rendering test can check is a NEW
+ * Add-Classes surface appearing without one (add it to SURFACES), which is the failure this file exists to
  * catch: the equivalent gap in `SimpleClassSelector` was missed twice.
  */
 import { describe, expect, it } from 'vitest';
@@ -19,10 +19,8 @@ import { join } from 'node:path';
 
 const SRC = join(__dirname, '../../..');
 
-const SURFACES = [
-  'components/classes/AddClassesToTrialPanel.tsx',
-  'components/trials/AddClassesToTrialDialog.tsx',
-];
+// AddClassesToTrialDialog was a second surface until it was deleted as unused.
+const SURFACES = ['components/classes/AddClassesToTrialPanel.tsx'];
 
 describe('Add-Classes surfaces guard the class selection', () => {
   it.each(SURFACES)('%s mounts UnsavedChangesRouteGuard', relative => {

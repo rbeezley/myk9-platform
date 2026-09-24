@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { useWizardStore } from '@/store/wizardStore';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { createMockTemplate } from '@/test/utils/mockData';
 import { ClassSelectionStep } from '../ClassSelectionStep';
 import { ReviewStep } from '../ReviewStep';
@@ -43,6 +44,18 @@ const orderedTemplate = {
   ],
 };
 let availableTemplates = [template];
+
+function currentTrialView() {
+  const trials = useWizardStore.getState().trials;
+  return createWizardTrialView(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    []
+  );
+}
 
 vi.mock('@/hooks/useTemplates', () => ({
   useTemplates: () => ({
@@ -91,7 +104,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       trials: [
         {
           id: 'trial-1',
-          name: 'Saturday Trial',
+          nameOverride: 'Saturday Trial',
           dateTime: '2026-10-01T08:00:00.000Z',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
@@ -123,7 +136,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
   });
 
   it('keeps a renamed clone searchable and removable, then updates Review counts and assignments', async () => {
-    const classes = render(<ClassSelectionStep />);
+    const classes = render(<ClassSelectionStep trialView={currentTrialView()} />);
 
     await classes.user.type(screen.getByPlaceholderText('Search classes...'), 'Renamed Container');
     await classes.user.click(
@@ -140,7 +153,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
     );
 
     classes.unmount();
-    render(<ReviewStep />);
+    render(<ReviewStep trialView={currentTrialView()} />);
 
     const classesTile = screen
       .getByText(/^Classes$/, { selector: 'p' })
@@ -153,10 +166,10 @@ describe('ClassSelectionStep retained cloned classes', () => {
 
   it('hydrates an asynchronously loaded saved template without clearing retained classes', async () => {
     availableTemplates = [];
-    const classes = render(<ClassSelectionStep />);
+    const classes = render(<ClassSelectionStep trialView={currentTrialView()} />);
 
     availableTemplates = [template, alternateTemplate];
-    classes.rerender(<ClassSelectionStep />);
+    classes.rerender(<ClassSelectionStep trialView={currentTrialView()} />);
 
     await classes.user.type(screen.getByPlaceholderText('Search classes...'), 'Renamed Container');
     expect(
@@ -176,7 +189,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       trials: [
         {
           id: 'trial-1',
-          name: 'Saturday Trial',
+          nameOverride: 'Saturday Trial',
           dateTime: '2026-10-01T08:00:00.000Z',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
@@ -185,7 +198,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       ],
     }));
 
-    return render(<ClassSelectionStep />);
+    return render(<ClassSelectionStep trialView={currentTrialView()} />);
   }
 
   function elementOrder() {

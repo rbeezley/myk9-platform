@@ -3,6 +3,7 @@ import { toScoresheetModel, selectPacketPages } from './toScoresheetModel';
 import type { ReportDataSet } from './types';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { attachPostgrestHandlerIdentity } from '@/services/database/entries/entryHandlerReadBoundary';
 
 const show = {
   id: 'show-1',
@@ -96,6 +97,127 @@ function datasetWithArmbands(armbands: number[]): ReportDataSet {
 }
 
 describe('toScoresheetModel', () => {
+  it('prints the canonical assigned identity through the Reports check-in model', () => {
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id);
+    const entries = attachPostgrestHandlerIdentity([
+      {
+        id: 'entry-1',
+        class_id: classData.id,
+        armband: '7',
+        run_order: 1,
+        handler: 'Assigned Handler',
+        handler_id: 'handler-1',
+        dog: {
+          call_name: 'Rocket',
+          breed: 'Beagle',
+          owner: { id: 'owner-1', first_name: 'Dog', last_name: 'Owner' },
+        },
+      },
+    ]);
+    const dataset = {
+      show,
+      pages: [{ trial, classData, entries }],
+    } as unknown as ReportDataSet;
+
+    const checkIn = toScoresheetModel(dataset, 'run-order').pages.find(
+      page => page.kind === 'check-in'
+    );
+
+    expect(checkIn?.entries[0]?.handler).toBe('Assigned Handler');
+  });
+
+  it('uses the assigned person when handler text is absent', () => {
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id);
+    const entries = attachPostgrestHandlerIdentity([
+      {
+        id: 'entry-1',
+        class_id: classData.id,
+        armband: '7',
+        run_order: 1,
+        handler: null,
+        handler_id: 'handler-1',
+        handler_person: { id: 'handler-1', first_name: 'Assigned', last_name: 'Person' },
+        dog: {
+          call_name: 'Rocket',
+          breed: 'Beagle',
+          owner: { id: 'owner-1', first_name: 'Dog', last_name: 'Owner' },
+        },
+      },
+    ]);
+    const dataset = {
+      show,
+      pages: [{ trial, classData, entries }],
+    } as unknown as ReportDataSet;
+
+    const checkIn = toScoresheetModel(dataset, 'run-order').pages.find(
+      page => page.kind === 'check-in'
+    );
+
+    expect(checkIn?.entries[0]?.handler).toBe('Assigned Person');
+  });
+
+  it('falls back to the owner only when no handler is assigned', () => {
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id);
+    const entries = attachPostgrestHandlerIdentity([
+      {
+        id: 'entry-1',
+        class_id: classData.id,
+        armband: '7',
+        run_order: 1,
+        handler: null,
+        handler_id: null,
+        dog: {
+          call_name: 'Rocket',
+          breed: 'Beagle',
+          owner: { id: 'owner-1', first_name: 'Dog', last_name: 'Owner' },
+        },
+      },
+    ]);
+    const dataset = {
+      show,
+      pages: [{ trial, classData, entries }],
+    } as unknown as ReportDataSet;
+
+    const checkIn = toScoresheetModel(dataset, 'run-order').pages.find(
+      page => page.kind === 'check-in'
+    );
+
+    expect(checkIn?.entries[0]?.handler).toBe('Dog Owner');
+  });
+
+  it('keeps an unresolved assignment unknown instead of borrowing the owner', () => {
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id);
+    const entries = attachPostgrestHandlerIdentity([
+      {
+        id: 'entry-1',
+        class_id: classData.id,
+        armband: '7',
+        run_order: 1,
+        handler: null,
+        handler_id: 'missing-handler',
+        dog: {
+          call_name: 'Rocket',
+          breed: 'Beagle',
+          owner: { id: 'owner-1', first_name: 'Dog', last_name: 'Owner' },
+        },
+      },
+    ]);
+    const dataset = {
+      show,
+      pages: [{ trial, classData, entries }],
+    } as unknown as ReportDataSet;
+
+    const checkIn = toScoresheetModel(dataset, 'run-order').pages.find(
+      page => page.kind === 'check-in'
+    );
+
+    expect(checkIn?.entries[0]?.handler).toBe('Unknown');
+  });
+
   it('produces one class section per ReportDataSet page', () => {
     const model = toScoresheetModel(datasetWithPages(2), 'run-order');
     expect(model.pages.filter(page => page.kind === 'score-recording').length).toBeGreaterThan(0);

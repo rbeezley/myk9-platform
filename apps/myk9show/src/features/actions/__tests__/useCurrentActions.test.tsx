@@ -92,6 +92,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-enter-own-dogs',
       'show-open-entry-management',
       'show-open-show-desk',
+      'show-add-new-trial',
       'show-generate-publish-premium',
       'show-settings',
     ]);

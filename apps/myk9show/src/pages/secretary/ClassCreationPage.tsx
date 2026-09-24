@@ -1,4 +1,4 @@
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClassCreationStore } from '@/store/classCreationStore';
 import { ClassTemplate, ClassDefinition, CreatedClass } from '@/types/template.types';
@@ -24,8 +24,12 @@ import {
 // Import our new components
 import { OrganizationSelector } from '@/components/templates/secretary/OrganizationSelector';
 import { ClassSelectionGrid } from '@/components/templates/secretary/ClassSelectionGrid';
+import { estimateJudgingMinutes } from '@/components/templates/secretary/entryCountState';
 import { ClassBatchActions } from '@/components/templates/secretary/ClassBatchActions';
 import { FieldOverrideForm } from '@/components/templates/secretary/FieldOverrideForm';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useTrialDetailData } from '@/hooks/useTrialDetailData';
 
 interface ClassCreationPageProps {
   trialId?: string;
@@ -55,6 +59,65 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     .map(item => item.classDefinition);
 
   const effectiveTrialId = trialId || paramTrialId;
+  const { parentShow } = useTrialDetailData(effectiveTrialId);
+  const entryScopeShowId = showId || parentShow?.id;
+  const {
+    classes: existingClasses,
+    entries: currentEntries,
+    isLoading: entryDataLoading,
+    isFetching: entryDataFetching,
+    isStale: entryDataStale,
+    error: entryDataError,
+    isEntriesVerified: entryDataVerified,
+  } = useClassStoreCompat(entryScopeShowId);
+  const entryCountState = useMemo(() => {
+    if (!entryScopeShowId) return { status: 'unavailable' as const, count: 0 };
+    if (entryDataLoading || entryDataFetching || entryDataStale || !entryDataVerified) {
+      return { status: 'loading' as const, count: 0 };
+    }
+    if (entryDataError || !effectiveTrialId) return { status: 'unavailable' as const, count: 0 };
+
+    const selectedClassKeys = new Set(
+      selectedClassDefinitions.map(classDefinition =>
+        JSON.stringify([
+          classDefinition.className,
+          classDefinition.element,
+          classDefinition.level ?? '',
+          classDefinition.section ?? '',
+        ])
+      )
+    );
+    const trialClassIds = new Set(
+      existingClasses
+        .filter(
+          cls =>
+            cls.trialId === effectiveTrialId &&
+            selectedClassKeys.has(
+              JSON.stringify([cls.className, cls.element, cls.level ?? '', cls.section ?? ''])
+            )
+        )
+        .map(cls => cls.id)
+    );
+    const count = currentEntries.filter(
+      entry => trialClassIds.has(entry.classId) && isExpectedEntry(entry)
+    ).length;
+    return { status: 'ready' as const, count };
+  }, [
+    currentEntries,
+    effectiveTrialId,
+    entryDataError,
+    entryDataFetching,
+    entryDataLoading,
+    entryDataStale,
+    entryDataVerified,
+    entryScopeShowId,
+    existingClasses,
+    selectedClassDefinitions,
+  ]);
+  const estimatedJudgingMinutes = estimateJudgingMinutes(
+    entryCountState,
+    selectedTemplate?.defaults?.judgingTimeEstimate
+  );
   const manageClassesHref =
     showId && effectiveTrialId
       ? `/shows/${showId}/classes/${effectiveTrialId}`
@@ -385,6 +448,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               template={selectedTemplate}
               selectedClasses={selectedClassDefinitions}
               onSelectionChange={handleClassSelectionChange}
+              entryCountState={entryCountState}
             />
 
             {selectedClassDefinitions.length > 0 && (
@@ -486,13 +550,16 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                     </div>
                     <div className="text-sm text-muted-foreground">Classes</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-teal-600">
-                      {selectedClassDefinitions.length *
-                        (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
+                  {estimatedJudgingMinutes !== null && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-teal-600">
+                        {estimatedJudgingMinutes} min
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Estimated judging time based on current entries
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">Minutes</div>
-                  </div>
+                  )}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-violet-600">
                       $

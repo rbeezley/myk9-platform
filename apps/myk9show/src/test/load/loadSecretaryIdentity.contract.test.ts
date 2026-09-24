@@ -8,6 +8,7 @@ const setup = readFileSync(
   'utf8'
 );
 const seed = readFileSync(resolve(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
+const loadFixtureSeed = readFileSync(resolve(repoRoot, 'supabase/seed-load-fixture.sql'), 'utf8');
 
 function extractSetupUserBlock(email: string): string {
   const emailIndex = setup.indexOf(`email: '${email}'`);
@@ -73,7 +74,7 @@ describe('load-secretary fixture identity', () => {
   });
 
   it('rejects the old split first and last fields in canonical fixture sources', () => {
-    const canonicalSources = `${setup}\n${seed}`;
+    const canonicalSources = `${setup}\n${seed}\n${loadFixtureSeed}`;
     const firstNameField = ['first', 'Name'].join('');
     const lastNameField = ['last', 'Name'].join('');
 

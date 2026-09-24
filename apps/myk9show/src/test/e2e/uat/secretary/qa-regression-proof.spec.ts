@@ -1,7 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { SECRETARY_USER, signInAsSecretary } from '../shared/auth';
 import { currentMonthWizardDates } from '../../shared/wizardDates';
-import { ADD_TRIALS_SHOW_ID } from '../shared/seededShows';
+import {
+  installSecretaryFixture,
+  SECRETARY_FIXTURE_SHOW_ID,
+  secretaryFixtureShowStartDate,
+} from '../../helpers/secretaryFixture';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -103,15 +107,20 @@ test.describe('Secretary QA regression proof', () => {
   });
 
   test('trial configuration uses human AKC labels and required event numbers', async ({ page }) => {
+    // Hermetic show (docs/plan-hermetic-e2e-fixtures.md). This case opened the
+    // seeded show until staging was emptied on 2026-09-20 and the wizard fell
+    // to "We couldn't open this show". The fixture aborts writes, so nothing
+    // here can save into the secretary's real club.
+    await installSecretaryFixture(page);
     await signInAsSecretary(
       page,
-      `/secretary/create-show/wizard?showId=${ADD_TRIALS_SHOW_ID}&mode=add-trials`
+      `/secretary/create-show/wizard?showId=${SECRETARY_FIXTURE_SHOW_ID}&mode=add-trials`
     );
 
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
+    const addTrialAction = page.getByRole('button', { name: /^Add (First|Another) Trial$/ }).last();
     await expect(addTrialAction).toBeVisible();
     await addTrialAction.click({ force: true });
 
@@ -150,16 +159,20 @@ test.describe('Secretary QA regression proof', () => {
     await expect(trialDateTime).toBeVisible();
     await trialDateTime.press('Enter');
     const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') });
-    // The picker defaults to the show's start date, which may differ from the current month
-    // due to UTC-midnight timestamps resolving to the previous day in US timezones.
-    // Assert year is current and month is within a ±2-month window of today.
-    const now = new Date();
-    const yearStr = await dialog.locator('select').nth(1).inputValue();
-    expect(parseInt(yearStr)).toBe(now.getFullYear());
-    const monthStr = await dialog.locator('select').first().inputValue();
-    const pickedMonth = parseInt(monthStr);
-    expect(pickedMonth).toBeGreaterThanOrEqual(Math.max(1, now.getMonth() - 1));
-    expect(pickedMonth).toBeLessThanOrEqual(Math.min(12, now.getMonth() + 4));
+    // The picker opens on the show's start date. A UTC-midnight date can read as
+    // the previous day in US timezones, so accept that day's month too. Compare
+    // against the FIXTURE's date, not today: a show 30 days out starts next year
+    // in December (Codex review, #2392). Month values are 0-based (`getMonth()`).
+    const start = secretaryFixtureShowStartDate();
+    const startDay = new Date(`${start}T12:00:00`);
+    const dayBefore = new Date(startDay.getTime() - 86_400_000);
+    const accepted = [startDay, dayBefore].map(d => `${d.getFullYear()}-${d.getMonth()}`);
+    const pickedYear = await dialog.locator('select').nth(1).inputValue();
+    const pickedMonth = await dialog.locator('select').first().inputValue();
+    expect(
+      accepted,
+      `the picker opened on ${pickedYear}-${pickedMonth} (0-based month), not the show start ${start}`
+    ).toContain(`${pickedYear}-${pickedMonth}`);
   });
 });
 

@@ -53,6 +53,7 @@ import {
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
+import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
@@ -498,6 +499,7 @@ const ShowDetailsPage: React.FC = () => {
   if (audience === 'public') {
     return (
       <ShowPublicLanding
+        key={actualCurrentShow.id}
         show={actualCurrentShow}
         landingTrials={landingTrials}
         offeredClasses={publicShowClasses}
@@ -505,6 +507,14 @@ const ShowDetailsPage: React.FC = () => {
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
+        styleMode={canManageShow ? 'manager-draft-preview' : 'public'}
+        onSaveDraftStyle={style =>
+          saveShowDraftStyle({
+            show: actualCurrentShow,
+            style,
+            ownerId: user?.id ?? '',
+          }).then(() => undefined)
+        }
       />
     );
   }

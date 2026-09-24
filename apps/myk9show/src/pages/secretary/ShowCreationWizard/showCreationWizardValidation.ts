@@ -2,6 +2,12 @@
  * Validation logic for the Show Creation Wizard
  */
 import { toLocalDateOnly } from '@/utils/date-format';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
+import {
+  InvalidWizardClassConfigurationError,
+  normalizeWizardClassSelections,
+  type PersistedClassIdentity,
+} from './classConfigurationValidation';
 
 interface ShowData {
   name: string;
@@ -21,7 +27,7 @@ interface ShowData {
 
 interface Trial {
   id: string;
-  name: string;
+  nameOverride?: string | undefined;
   dateTime: string;
   eventNumber: string;
   trialType?: string | undefined;
@@ -79,19 +85,24 @@ function toDatePart(value: string | undefined | null): string {
 /**
  * Get validation messages for the Trial Configuration step (step 1)
  */
-export function getTrialValidationMessages(trials: Trial[], organization?: string): string[] {
+export function getTrialValidationMessages(
+  trials: Trial[],
+  trialView: WizardTrialView,
+  organization?: string
+): string[] {
   const messages: string[] = [];
   const requiresEventNumber = organization === 'AKC';
-
   if (trials.length === 0) {
     messages.push('At least one trial is required');
   } else {
     trials.forEach((trial, index) => {
-      if (!trial.name?.trim()) messages.push(`Trial ${index + 1} name is required`);
-      if (!trial.trialType) messages.push(`Trial ${index + 1} type is required`);
-      if (!trial.dateTime) messages.push(`Trial ${index + 1} date and time is required`);
+      const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? `Trial ${index + 1}`;
+      if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
+        messages.push(`${trialName} name is required`);
+      if (!trial.trialType) messages.push(`${trialName} type is required`);
+      if (!trial.dateTime) messages.push(`${trialName} date and time is required`);
       if (requiresEventNumber && !trial.eventNumber?.trim())
-        messages.push(`Trial ${index + 1} event number is required for AKC events`);
+        messages.push(`${trialName} event number is required for AKC events`);
     });
   }
 
@@ -101,7 +112,12 @@ export function getTrialValidationMessages(trials: Trial[], organization?: strin
 /**
  * Get validation messages for the Class Selection step (step 2)
  */
-export function getClassValidationMessages(trials: Trial[]): string[] {
+export function getClassValidationMessages(
+  trials: Trial[],
+  trialView: WizardTrialView,
+  organization: string,
+  persistedClasses: readonly PersistedClassIdentity[] = []
+): string[] {
   const messages: string[] = [];
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -111,9 +127,20 @@ export function getClassValidationMessages(trials: Trial[]): string[] {
     // Ensure every trial has at least one class
     trials.forEach(trial => {
       if (trial.classes.length === 0) {
-        messages.push(`${trial.name || 'A trial'} needs at least one class`);
+        messages.push(
+          `${trialView.effectiveNamesByTrialId.get(trial.id) || 'A trial'} needs at least one class`
+        );
       }
     });
+  }
+
+  if (totalClasses > 0) {
+    try {
+      normalizeWizardClassSelections(organization, trials, persistedClasses);
+    } catch (error) {
+      if (!(error instanceof InvalidWizardClassConfigurationError)) throw error;
+      messages.push(error.message);
+    }
   }
 
   return messages;
@@ -125,15 +152,18 @@ export function getClassValidationMessages(trials: Trial[]): string[] {
 export function getValidationMessagesForStep(
   step: number,
   show: ShowData,
-  trials: Trial[]
+  trials: Trial[],
+  trialView: WizardTrialView,
+  /** Add-classes mode: the show's stored classes, retained rather than re-validated. */
+  persistedClasses: readonly PersistedClassIdentity[] = []
 ): string[] {
   switch (step) {
     case 0:
       return getShowDetailsValidationMessages(show);
     case 1:
-      return getTrialValidationMessages(trials, show.organization);
+      return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(trials);
+      return getClassValidationMessages(trials, trialView, show.organization, persistedClasses);
     case 3:
       // Review step shows its own validation
       return [];

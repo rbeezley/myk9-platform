@@ -44,8 +44,13 @@ const DOGS_PER_SHOW = 63;
 /** Classes per trial, matching the existing show-0 layout. */
 const CLASSES_PER_TRIAL = 2;
 
-/** Hand-authored golden-path entries, present only on the original show. */
-const LARGE_SHOW_HAND_AUTHORED_ENTRIES = 12;
+/**
+ * Hand-authored golden-path entries, present only on the original show. These
+ * come from supabase/seed-demo.sql (the lean set); the generated ones come from
+ * supabase/seed-load-fixture.sql. 13 since MYK9-558 added the MYK9-515
+ * full-class entry ...069.
+ */
+const LARGE_SHOW_HAND_AUTHORED_ENTRIES = 13;
 
 /**
  * Load ids carry their show in the FIRST digit of the final UUID group, with the

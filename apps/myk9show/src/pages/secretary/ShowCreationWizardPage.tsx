@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTrialStore } from '@/store/trialStore';
+import { isTrialSnapshotReady } from '@/components/shows/wizard/steps/TrialConfigurationStep.helpers';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
@@ -36,6 +37,9 @@ import {
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
+import { createWizardTrialView } from '@/utils/wizardTrialNames';
+
+const NO_RETAINED_CLASSES: readonly never[] = [];
 
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -92,13 +96,50 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const { trials: existingTrials } = useTrialStore();
+  const {
+    trials: existingTrials,
+    trialsReadStatus,
+    trialsReadError,
+    trialsHasConfirmedSnapshot,
+    loadTrials,
+  } = useTrialStore();
+  const existingTrialsReady =
+    editMode?.mode !== 'add-trials' ||
+    isTrialSnapshotReady(trialsReadStatus, trialsHasConfirmedSnapshot);
+  const persistedNameSources = useMemo(
+    () =>
+      editMode?.mode === 'add-trials'
+        ? existingTrials
+            .filter(trial => trial.showId === editMode.showId)
+            .map(trial => ({
+              id: trial.id,
+              name: trial.name ?? '',
+              trialDate: trial.trialDate ?? '',
+            }))
+        : [],
+    [editMode, existingTrials]
+  );
+  const trialView = useMemo(
+    () =>
+      createWizardTrialView(
+        trials.map(trial => ({
+          id: trial.id,
+          trialDate: trial.dateTime,
+          nameOverride: trial.nameOverride,
+        })),
+        persistedNameSources
+      ),
+    [trials, persistedNameSources]
+  );
   const { classes: existingClasses } = useClassStoreCompat();
+  // Add-classes mode loads the show's stored classes into the draft; validation retains them.
+  const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
   const { handleCreateShow } = useShowCreationWizardActions({
     editMode,
+    trialView,
     setIsLoading,
     onCreated: (id, name, passcodes, passcodeError) =>
       setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
@@ -207,7 +248,13 @@ const ShowCreationWizardPage: React.FC = () => {
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
-    const messages = getValidationMessagesForStep(currentStep, show, trials);
+    const messages = getValidationMessagesForStep(
+      currentStep,
+      show,
+      trials,
+      trialView,
+      retainedClasses
+    );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
       // view. Next stays enabled (see canGoNext) so this click actually fires
@@ -243,13 +290,28 @@ const ShowCreationWizardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentStep, markStepCompleted, setCurrentStep, show, trials, scrollBannerIntoView]);
+  }, [
+    currentStep,
+    markStepCompleted,
+    setCurrentStep,
+    show,
+    trials,
+    trialView,
+    retainedClasses,
+    scrollBannerIntoView,
+  ]);
 
   // Step navigation validation
   const canGoBack = !isLoading;
 
   // Get validation messages for current step
-  const validationMessages = getValidationMessagesForStep(currentStep, show, trials);
+  const validationMessages = getValidationMessagesForStep(
+    currentStep,
+    show,
+    trials,
+    trialView,
+    retainedClasses
+  );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
   // gated on validation: a disabled Next just sits there doing nothing when the
@@ -378,13 +440,21 @@ const ShowCreationWizardPage: React.FC = () => {
                   <WizardStepContent
                     currentStep={currentStep}
                     editMode={editMode}
-                    existingTrials={existingTrials}
+                    trialView={trialView}
+                    existingTrialsReady={existingTrialsReady}
                     existingClasses={existingClasses}
                     hasAttemptedNext={hasAttemptedNext}
                     isLoading={isLoading}
                     onCreateShow={handleCreateShow}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
+                    existingTrialsReadStatus={
+                      editMode?.mode === 'add-trials' ? trialsReadStatus : undefined
+                    }
+                    existingTrialsReadError={
+                      editMode?.mode === 'add-trials' ? trialsReadError : undefined
+                    }
+                    onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
                   />
                 )}
               </div>

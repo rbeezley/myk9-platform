@@ -10,6 +10,10 @@ import {
 } from './helpers/sharedStagingWriteGuard';
 
 // Bounded diagnostic, never a load scenario or a scoring-write test.
+// PRECONDITION: this diagnostic addresses MYK9-109 load-fixture rows
+// (loadFixture.ts), which exist only after supabase/seed-load-fixture.sql is
+// applied on top of supabase/seed-demo.sql (MYK9-558). A plain reseed removes
+// them. Opt in only against a target where the fixture is applied.
 test.skip(process.env.LOAD_READINESS_DIAGNOSTIC !== 'true', 'Explicit diagnostic opt-in required');
 test.use({ trace: 'off', screenshot: 'off', video: 'off', serviceWorkers: 'block' });
 test.setTimeout(60_000);

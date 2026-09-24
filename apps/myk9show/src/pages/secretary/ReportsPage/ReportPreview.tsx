@@ -184,7 +184,7 @@ export function ReportPreview({
 
   // MYK9-280: resolved HERE, where the providers live, because the report
   // components are rendered into a detached tree by renderToStaticMarkup.
-  const { entryFormData, judgeSupplies, isHostedDataPending } = useHostedReportData({
+  const { entryFormData, judgeSupplies, waitlist, isHostedDataPending } = useHostedReportData({
     reportType,
     showId: show?.id,
     trialId: trialId !== 'all' ? trialId : undefined,
@@ -219,6 +219,7 @@ export function ReportPreview({
         sortOrder,
         ...(entryFormData ? { entryFormData } : {}),
         ...(judgeSupplies ? { judgeSupplies } : {}),
+        ...(waitlist ? { waitlist } : {}),
       });
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
@@ -301,6 +302,7 @@ export function ReportPreview({
     // hosted fetch resolved — a permanently blank entry form.
     entryFormData,
     judgeSupplies,
+    waitlist,
     isHostedDataPending,
   ]);
 

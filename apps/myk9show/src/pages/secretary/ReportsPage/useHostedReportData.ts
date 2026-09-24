@@ -19,13 +19,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import type { ReportAsyncData, ReportEntryFormData } from '@/lib/reports/types';
+import { getWaitlistReportRows } from '@/services/database/waitlists';
+import type {
+  ReportAsyncData,
+  ReportEntryFormData,
+  ReportWaitlistRow,
+} from '@/lib/reports/types';
 
 /** Report ids whose component needs entry-form data passed in. */
 export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);
 
 /** Report ids whose component needs judge-supply rows passed in. */
 export const JUDGE_SUPPLY_REPORT_IDS = new Set(['judge-supply-checklist']);
+
+/** Report ids whose component needs `waitlist_entries` rows passed in (MYK9-717). */
+export const WAITLIST_REPORT_IDS = new Set(['waitlist-report']);
 
 export interface HostedReportDataOptions {
   reportType: string;
@@ -37,6 +45,7 @@ export interface HostedReportDataOptions {
 export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
+  waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   /**
    * True while a report that needs hosted data is still fetching it. The preview
    * must not render markup yet — doing so bakes the empty state into the iframe
@@ -54,6 +63,7 @@ export function useHostedReportData({
 }: HostedReportDataOptions): HostedReportData {
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
   const needsSupplies = JUDGE_SUPPLY_REPORT_IDS.has(reportType) && Boolean(showId);
+  const needsWaitlist = WAITLIST_REPORT_IDS.has(reportType) && Boolean(showId);
 
   const entryForm = useEntryFormData({
     showId: showId ?? '',
@@ -66,6 +76,12 @@ export function useHostedReportData({
     queryKey: ['judge-supply-checklist-report', showId ?? ''] as const,
     queryFn: () => trialJudgeSuppliesService.listForShow(showId as string),
     enabled: needsSupplies,
+  });
+
+  const waitlistQuery = useQuery({
+    queryKey: ['waitlist-report', showId ?? ''] as const,
+    queryFn: () => getWaitlistReportRows(showId as string),
+    enabled: needsWaitlist,
   });
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
@@ -87,10 +103,21 @@ export function useHostedReportData({
       }
     : undefined;
 
+  const waitlist: ReportAsyncData<ReportWaitlistRow[]> | undefined = needsWaitlist
+    ? {
+        data: waitlistQuery.data ?? [],
+        isLoading: waitlistQuery.isLoading,
+        isError: Boolean(waitlistQuery.error),
+      }
+    : undefined;
+
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
+    ...(waitlist ? { waitlist } : {}),
     isHostedDataPending:
-      (needsEntryForm && entryForm.isLoading) || (needsSupplies && supplies.isLoading),
+      (needsEntryForm && entryForm.isLoading) ||
+      (needsSupplies && supplies.isLoading) ||
+      (needsWaitlist && waitlistQuery.isLoading),
   };
 }

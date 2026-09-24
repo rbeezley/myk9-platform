@@ -1,13 +1,22 @@
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
-import type { ReportProps, ReportEntry } from '@/lib/reports/types';
+import type { ReportProps, ReportWaitlistRow } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
-import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
-export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, entries }) => {
-  const waitlisted = entries.filter(
-    e => e.entryStatus === 'waitlist' || e.entryStatus === 'waitlisted'
-  );
+/**
+ * MYK9-717: the waitlist is `waitlist_entries`, resolved by the host into
+ * `waitlist` — never `entries`, whose status constraint forbids a waitlist
+ * value. Trials and classes come from `allTrials` / `allClasses`, which the
+ * host has already narrowed to the selected trial, so a waitlist row for a
+ * class outside that scope is dropped rather than printed under no heading.
+ */
+export const WaitlistReport: React.FC<ReportProps> = ({
+  showName,
+  organization,
+  allTrials = [],
+  allClasses = [],
+  waitlist,
+}) => {
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
 
   const header = (
@@ -18,82 +27,75 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
     </div>
   );
 
-  if (waitlisted.length === 0) {
+  if (waitlist?.isError) {
     return (
       <div className="report-page">
         {header}
-        <p className="report-empty-state">No waitlisted entries.</p>
+        <p role="alert" className="report-warning">
+          We couldn&apos;t load the waitlist, so this report is not complete. Close it and open it
+          again to retry.
+        </p>
       </div>
     );
   }
 
-  const trialMap = new Map<
-    string,
-    {
-      trialName: string;
-      trialNumber: string;
-      trialDate: string;
-      classes: Map<
-        string,
-        { element: string; level: string; section: string; entries: ReportEntry[] }
-      >;
-    }
-  >();
-  for (const entry of waitlisted) {
-    const trialKey = entry.trialId ?? 'unknown';
-    if (!trialMap.has(trialKey)) {
-      trialMap.set(trialKey, {
-        trialName: entry.trialName ?? '',
-        trialNumber: entry.trialNumber ?? '',
-        trialDate: entry.trialDate ?? '',
-        classes: new Map(),
-      });
-    }
-    const trial = trialMap.get(trialKey)!;
-    const classKey = entry.classId ?? 'unknown';
-    if (!trial.classes.has(classKey)) {
-      trial.classes.set(classKey, {
-        element: entry.classElement ?? '',
-        level: entry.classLevel ?? '',
-        section: entry.classSection ?? '',
-        entries: [],
-      });
-    }
-    trial.classes.get(classKey)!.entries.push(entry);
+  const rowsByClass = new Map<string, ReportWaitlistRow[]>();
+  for (const row of waitlist?.data ?? []) {
+    const rows = rowsByClass.get(row.classId) ?? [];
+    rows.push(row);
+    rowsByClass.set(row.classId, rows);
+  }
+
+  const trials = allTrials
+    .map(trial => ({
+      trial,
+      classes: allClasses.filter(c => c.trialId === trial.id && rowsByClass.has(c.id)),
+    }))
+    .filter(t => t.classes.length > 0);
+
+  if (trials.length === 0) {
+    return (
+      <div className="report-page">
+        {header}
+        <p className="report-empty-state">No dogs are on a waitlist for this show.</p>
+      </div>
+    );
   }
 
   return (
     <div className="report-page">
       {header}
 
-      {[...trialMap.entries()].map(([trialId, trial]) => (
-        <div key={trialId} className="catalog-trial-section">
+      {trials.map(({ trial, classes }) => (
+        <div key={trial.id} className="catalog-trial-section">
           <h2 className="catalog-trial-header">
-            {formatTrialLabel({ name: trial.trialName, trialNumber: trial.trialNumber })}
-            {trial.trialDate ? ` — ${formatReportDate(trial.trialDate)}` : ''}
+            {formatTrialLabel({ name: trial.name ?? '', trialNumber: trial.trialNumber })}
+            {trial.date ? ` — ${formatReportDate(trial.date)}` : ''}
           </h2>
 
-          {[...trial.classes.entries()].map(([classId, cls]) => (
-            <div key={classId} className="catalog-class-section">
+          {classes.map(cls => (
+            <div key={cls.id} className="catalog-class-section">
               <div className="catalog-class-header">
                 {[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
               </div>
               <table className="report-table">
                 <thead>
                   <tr>
-                    <th>Armband</th>
+                    <th>Position</th>
                     <th>Call Name</th>
-                    <th>Owner</th>
+                    <th>Handler</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cls.entries.map(entry => (
-                    <tr key={entry.id}>
-                      <td>{formatArmbandDisplay(entry.armband)}</td>
-                      <td>{entry.callName}</td>
-                      <td>{entry.handler}</td>
-                    </tr>
-                  ))}
+                  {[...(rowsByClass.get(cls.id) ?? [])]
+                    .sort((a, b) => a.position - b.position)
+                    .map(row => (
+                      <tr key={row.id}>
+                        <td>{row.position}</td>
+                        <td>{row.callName}</td>
+                        <td>{row.handler || '—'}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

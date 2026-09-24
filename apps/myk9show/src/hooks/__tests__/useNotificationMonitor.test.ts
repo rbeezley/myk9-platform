@@ -11,12 +11,7 @@ import {
   buildYourTurnPayload,
 } from '@myk9/notifications';
 import { useNotificationMonitor } from '../useNotificationMonitor';
-import {
-  classRow,
-  daysAgoIso,
-  entry,
-  type NotificationSnapshot,
-} from './notificationMonitorFixtures';
+import { classRow, entry, type NotificationSnapshot } from './notificationMonitorFixtures';
 
 const {
   mockDeliver,
@@ -101,6 +96,12 @@ vi.mock('@/features/at-show/dogFavoritesSync', () => ({
 }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
 
+/** The first snapshot after mount is a silent baseline (MYK9-735); alerts need a change after it. */
+function mountWithBaseline(snapshot: NotificationSnapshot) {
+  mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
+  return renderHook(() => useNotificationMonitor());
+}
+
 async function emitShowChange() {
   await act(async () => {
     showChangeHandler?.({ table: 'entries' });
@@ -116,7 +117,6 @@ describe('useNotificationMonitor', () => {
     vi.clearAllMocks();
     mockPreferences.enabled = true;
     mockAuth.userId = 'auth-user-1';
-    mockDeliver.mockReturnValue(true);
     mockUseShowDayData.mockReturnValue({ activeShows: [{ showId: 'show-1' }] });
     mockUseQueryResult.mockReturnValue({ data: null, refetch: mockRefetch });
     mockRefetch.mockResolvedValue({ data: null });
@@ -152,7 +152,10 @@ describe('useNotificationMonitor', () => {
         entries: [entry({ check_in_status: 'no-status' })],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({
+      classes: [classRow()],
+      entries: [entry({ check_in_status: 'no-status' })],
+    });
 
     await emitShowChange();
 
@@ -182,7 +185,7 @@ describe('useNotificationMonitor', () => {
         ],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
 
     await emitShowChange();
 
@@ -210,7 +213,7 @@ describe('useNotificationMonitor', () => {
         ],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
 
     await emitShowChange();
     expect(buildYourTurnPayload).toHaveBeenCalledOnce();
@@ -228,13 +231,13 @@ describe('useNotificationMonitor', () => {
           classRow({
             status: 'Complete',
             is_scoring_finalized: true,
-            results_released_at: daysAgoIso(1),
+            results_released_at: '2026-06-19T16:00:00.000Z',
           }),
         ],
         entries: [entry({ is_scored: true, result_status: 'qualified' })],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
 
     await emitShowChange();
 

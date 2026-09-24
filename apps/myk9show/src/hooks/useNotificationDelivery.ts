@@ -13,8 +13,6 @@ import { useToastStore } from '@/store/toastStore';
 /**
  * Returns a `deliver` function that sends a notification through all enabled channels:
  * toast (custom ToastContainer), sound, voice, vibration, and push (background tab).
- * It returns false when the alert was suppressed, so a caller that records alerts
- * as seen (MYK9-735) records only the ones the user actually got.
  */
 export function useNotificationDelivery() {
   const preferences = useNotificationStore(s => s.preferences);
@@ -23,9 +21,9 @@ export function useNotificationDelivery() {
   const addToast = useToastStore(s => s.addToast);
 
   const deliver = useCallback(
-    (payload: NotificationPayload): boolean => {
+    (payload: NotificationPayload) => {
       // Check suppression
-      if (shouldSuppress(preferences, { isInRing })) return false;
+      if (shouldSuppress(preferences, { isInRing })) return;
 
       // Always add to store (for bell dropdown + center)
       addAlert(payload);
@@ -74,7 +72,6 @@ export function useNotificationDelivery() {
 
       // Push is server-triggered (database webhooks → edge function → service worker).
       // No client-side push delivery needed in this hook.
-      return true;
     },
     [preferences, isInRing, addAlert, addToast]
   );

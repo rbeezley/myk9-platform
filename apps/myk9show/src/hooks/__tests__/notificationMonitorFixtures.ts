@@ -20,12 +20,6 @@ export function entry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-export const DAY_MS = 24 * 60 * 60 * 1000;
-
-export function daysAgoIso(days: number): string {
-  return new Date(Date.now() - days * DAY_MS).toISOString();
-}
-
 export function classRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'class-1',
@@ -33,7 +27,6 @@ export function classRow(overrides: Record<string, unknown> = {}) {
     status: 'Pending',
     is_scoring_finalized: false,
     results_released_at: null,
-    trial: { show_id: 'show-1', date: daysAgoIso(0).slice(0, 10) },
     ...overrides,
   };
 }

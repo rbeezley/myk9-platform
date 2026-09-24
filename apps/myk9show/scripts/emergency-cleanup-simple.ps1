@@ -128,7 +128,7 @@ Write-Host "You can now run tests again with clean system resources." -Foregroun
 Write-Host ""
 Write-Host "Quick Tips:" -ForegroundColor Yellow
 Write-Host "  Use npm run test:cleanup:force for regular cleanup" -ForegroundColor White
-Write-Host "  Run tests with npm run test:e2e (includes auto-cleanup)" -ForegroundColor White
+Write-Host "  Run tests with pnpm test:e2e" -ForegroundColor White
 Write-Host "  Monitor Task Manager during tests to catch issues early" -ForegroundColor White
 
 Read-Host "Press Enter to exit"

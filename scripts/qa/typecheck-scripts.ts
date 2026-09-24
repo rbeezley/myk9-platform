@@ -15,10 +15,11 @@
  * baseline holds zero entries for — still turns `pnpm typecheck` red.
  *
  * `typecheck:scripts` is deliberately a plain chain step in root
- * `package.json` (`turbo typecheck && pnpm run typecheck:scripts`), not a
+ * `package.json` (`pnpm run typecheck:scripts && turbo typecheck`), not a
  * turbo task: turbo's default input hashing would not pick up changes under
  * `scripts/**`, so a turbo-cached run could report green against a stale
- * compile.
+ * compile. It runs FIRST so that arguments pnpm appends (`--filter=<pkg>`)
+ * reach turbo, not this script (MYK9-720).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

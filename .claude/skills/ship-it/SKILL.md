@@ -94,7 +94,16 @@ changed_files() {
 If `changed_files | grep -q '^supabase/migrations/'`:
 
 1. Dispatch the `migration-auditor` agent on each new or changed migration file and fix what it finds.
-2. Run the database contract suite: `cd apps/myk9show && pnpm vitest run src/test/database/ > ../../.logs/ship-it-db.log 2>&1; echo "EXIT=$?"`.
+2. Run the database contract suite from the worktree root, and stop on a non-zero exit — fix the failure and re-run before Step 3b:
+
+   ```bash
+   mkdir -p .logs
+   (cd apps/myk9show && pnpm vitest run src/test/database/) > .logs/ship-it-db.log 2>&1
+   DB_STATUS=$?
+   echo "EXIT=$DB_STATUS"
+   [ "$DB_STATUS" -eq 0 ] || { echo "DB contract suite failed — see .logs/ship-it-db.log"; exit 1; }
+   ```
+
 3. There is no local Docker, so migrations are not replayed here; the behavioral SQL tests and the full replay run only in CI. Say so in the PR body rather than implying they ran.
 
 ---

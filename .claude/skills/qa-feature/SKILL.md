@@ -70,12 +70,14 @@ Accounts and the sign-in flow are canonical in the `audit-pages` skill (§ Setup
 
 `playwright-cli` flow:
 
+The passwords are in `apps/myk9show/.env.local`, which the shell does not load on its own. Export it in the same command as the fill, and name the role's real variable — `E2E_SECRETARY_PASSWORD`, `E2E_JUDGE_PASSWORD`, `E2E_ADMIN_PASSWORD`, `E2E_DEMO_EXHIBITOR_PASSWORD` or `E2E_CLUB_ADMIN_PASSWORD` (secretary shown):
+
 ```bash
 playwright-cli open http://localhost:5173/sign-in
-playwright-cli fill <credential-input-ref> "<role-email>"
+playwright-cli fill <credential-input-ref> "secretary@myk9t.com"
 playwright-cli click <continue-button-ref>      # reveals the password step in place
 playwright-cli snapshot                          # get the password-input ref
-playwright-cli fill <password-input-ref> "$E2E_<ROLE>_PASSWORD"
+(set -a; . apps/myk9show/.env.local; set +a; playwright-cli fill <password-input-ref> "$E2E_SECRETARY_PASSWORD")
 playwright-cli click <sign-in-button-ref>
 playwright-cli snapshot                          # confirm you left /sign-in
 ```

@@ -46,11 +46,7 @@ export type ServerRequestState = Extract<
 >;
 
 export type SubmitFailure =
-  | 'already-pending'
-  | 'standing-denial'
-  | 'already-member'
-  | 'too-many-pending'
-  | 'unknown';
+  'already-pending' | 'standing-denial' | 'already-member' | 'too-many-pending' | 'unknown';
 
 /** SQLSTATE both submit RPCs raise at five open requests (submit_role_request too). */
 const TOO_MANY_PENDING_CODE = '53400';

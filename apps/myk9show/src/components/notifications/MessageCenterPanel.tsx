@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -40,6 +40,11 @@ import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
 import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
+import {
+  initialComposeShowId,
+  readRouteShowId,
+  selectComposeShows,
+} from '@/features/messages/messageComposeShows';
 import type {
   MessageShowDeliveryLane,
   MessageShowRecipientType,
@@ -165,7 +170,7 @@ function EmptyPanelState({
 
 export function MessageCenterPanel() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isCenterOpen = useNotificationStore(s => s.isCenterOpen);
   const closeCenter = useNotificationStore(s => s.closeCenter);
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
@@ -206,21 +211,10 @@ export function MessageCenterPanel() {
   const composeShowWideDeliveryLane: MessageShowDeliveryLane = canPostShowWideMessage
     ? 'announcement'
     : 'targeted';
-  const showsById = new Map(shows.map(show => [show.id, show]));
-  const staffShows =
-    currentShowIds.length > 0
-      ? currentShowIds.map((showId, index) => {
-          const show = showsById.get(showId);
-          return {
-            id: showId,
-            name:
-              show?.name ?? (currentShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
-          };
-        })
-      : shows.map(show => ({ id: show.id, name: show.name }));
-  const urlShowId = searchParams.get('showId') ?? '';
-  const validUrlShowId = staffShows.some(show => show.id === urlShowId) ? urlShowId : '';
-  const selectedComposeShowId = composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
+  // MYK9-641: only shows this person may post to, opening on the one they are on.
+  const staffShows = selectComposeShows(shows, currentShowIds, userWithRoles, hasRole);
+  const routeShowId = readRouteShowId(location.pathname, location.search);
+  const selectedComposeShowId = composeShowId || initialComposeShowId(staffShows, '');
   const {
     data: composeClasses = [],
     isError: composeClassesError,
@@ -257,7 +251,7 @@ export function MessageCenterPanel() {
   }
 
   function handleOpenCompose() {
-    setComposeShowId(validUrlShowId || (staffShows.length === 1 ? staffShows[0].id : ''));
+    setComposeShowId(initialComposeShowId(staffShows, routeShowId));
     setIsComposeOpen(true);
   }
 

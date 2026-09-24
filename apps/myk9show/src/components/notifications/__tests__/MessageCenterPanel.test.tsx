@@ -53,8 +53,8 @@ vi.mock('@/store/showStore', async () => {
   const { create } = await import('zustand');
   const useShowStore = create<Record<string, unknown>>()(() => ({
     shows: [
-      { id: 'show-1', name: 'Spring Trial' },
-      { id: 'show-2', name: 'Summer Trial' },
+      { id: 'show-1', name: 'Spring Trial', clubId: 'club-1' },
+      { id: 'show-2', name: 'Summer Trial', clubId: 'club-1' },
     ],
   }));
   return { useShowStore };
@@ -84,6 +84,9 @@ vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
   useMessageShowClassOptions: (...args: unknown[]) =>
     classOptionsHookMock(args[0] as string | null | undefined, args[1] as { enabled?: boolean }),
 }));
+
+// A club-scoped secretary grant: the composer offers only that club's shows (MYK9-641).
+const SECRETARY_SCOPES = [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }];
 
 let authContext: Record<string, unknown> = {
   user: { id: 'user-1', email: 'test@test.com' },
@@ -159,8 +162,8 @@ beforeEach(async () => {
   const { useShowStore } = await import('@/store/showStore');
   (useShowStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
     shows: [
-      { id: 'show-1', name: 'Spring Trial' },
-      { id: 'show-2', name: 'Summer Trial' },
+      { id: 'show-1', name: 'Spring Trial', clubId: 'club-1' },
+      { id: 'show-2', name: 'Summer Trial', clubId: 'club-1' },
     ],
   });
 });
@@ -189,7 +192,12 @@ describe('MessageCenterPanel', () => {
   it('shows a compose action for staff users', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -209,7 +217,12 @@ describe('MessageCenterPanel', () => {
   it('requires staff users to pick a show before composing when multiple shows are active', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -231,7 +244,12 @@ describe('MessageCenterPanel', () => {
   it('preselects the show from the current URL when opening compose', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -253,7 +271,12 @@ describe('MessageCenterPanel', () => {
   it('ignores an invalid URL show when opening compose', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -275,7 +298,12 @@ describe('MessageCenterPanel', () => {
   it('does not load compose class options until staff opens compose', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -296,7 +324,12 @@ describe('MessageCenterPanel', () => {
   it('opens the secretary full communication view from Message Center', () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -311,7 +344,12 @@ describe('MessageCenterPanel', () => {
   it('lets staff compose from managed shows even without an active show subscription', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -333,13 +371,15 @@ describe('MessageCenterPanel', () => {
     expect(screen.getByText('Summer Trial')).toBeInTheDocument();
   });
 
-  it('lets staff compose for the active show before the show list hydrates', async () => {
+  // A secretary's list needs each show's club, so it waits for the store (MYK9-641);
+  // a judge's context show does not, because the server's judge arm is the scope.
+  it('lets a judge compose for the active show before the show list hydrates', async () => {
     authContext = {
-      user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
-      isSecretary: true,
+      user: { id: 'judge-1', email: 'judge@test.com' },
+      userWithRoles: { id: 'judge-1', roles: ['judge'], scopes: [], user_metadata: {} },
+      isSecretary: false,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'judge',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
     (
@@ -364,7 +404,12 @@ describe('MessageCenterPanel', () => {
   it('shows a calm load error when compose class options fail', async () => {
     authContext = {
       user: { id: 'secretary-1', email: 'secretary@test.com' },
-      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'secretary-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
@@ -381,7 +426,7 @@ describe('MessageCenterPanel', () => {
       currentShowIds: ['show-1'],
     });
 
-    renderPanel();
+    renderPanel('/shows/show-1');
     fireEvent.click(screen.getByRole('button', { name: /compose/i }));
 
     expect(screen.getByText("Couldn't load classes for this show.")).toBeInTheDocument();
@@ -428,7 +473,7 @@ describe('MessageCenterPanel', () => {
       currentShowIds: ['show-1'],
     });
 
-    renderPanel();
+    renderPanel('/shows/show-1');
     fireEvent.click(screen.getByRole('button', { name: /compose/i }));
 
     const composer = screen.getByTestId('message-show-composer');
@@ -468,7 +513,12 @@ describe('MessageCenterPanel', () => {
   it('routes staff users to /secretary/messages?showId=:showId', async () => {
     authContext = {
       user: { id: 'user-1', email: 'test@test.com' },
-      userWithRoles: { id: 'user-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      userWithRoles: {
+        id: 'user-1',
+        roles: ['secretary'],
+        scopes: SECRETARY_SCOPES,
+        user_metadata: {},
+      },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,

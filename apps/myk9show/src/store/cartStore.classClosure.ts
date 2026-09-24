@@ -60,8 +60,8 @@ export interface ClosedClassDropResult {
 /**
  * Drop cart items whose class is closed, delete their rows so checkout can
  * never be handed them, and say which were dropped and why. Throws on a failed
- * read or delete, like the reconcile it follows, so the caller's own error path
- * decides what the exhibitor sees rather than a silently unchecked cart.
+ * read, delete or session sever, so the caller's own error path decides what
+ * the exhibitor sees rather than a silently unchecked cart.
  */
 export async function dropItemsInClosedClasses({
   cartId,
@@ -151,10 +151,16 @@ export async function dropItemsInClosedClasses({
     })
     .eq('id', cartId)
     .in('status', ['active', 'expired']);
+  // Fail closed: the lines are already gone, so a session left linked would
+  // let an open Stripe page charge for a set this cart no longer holds.
   if (updateError) {
-    logger.warn('Error updating cart totals after closed-class removal', 'cartStore', {
-      cartId,
-    });
+    logger.error(
+      'Could not sever the checkout session after closed-class removal',
+      'cartStore',
+      { cartId },
+      updateError
+    );
+    throw updateError;
   }
 
   return { items: kept, dropped };

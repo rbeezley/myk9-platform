@@ -156,6 +156,29 @@ describe('recovered cart items in closed classes (MYK9-656)', () => {
     });
   });
 
+  it('fails closed when the checkout session cannot be severed after a removal', async () => {
+    seedDraft();
+    // The totals-and-session write that follows the delete. An open Stripe
+    // page must not stay linked to a cart whose contents just changed.
+    holder.db.hold(
+      q =>
+        q.table === 'entry_carts' &&
+        q.op === 'update' &&
+        'stripe_checkout_session_id' in (q.payload as Record<string, unknown>) &&
+        'subtotal_cents' in (q.payload as Record<string, unknown>),
+      { data: null, error: { code: '08006', message: 'connection failure' } }
+    )();
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', { showId: 'show-1' });
+
+    expect(cart).toBeNull();
+    expect(useCartStore.getState()).toMatchObject({
+      cart: null,
+      isLoading: false,
+      error: CART_CLASS_CHECK_FAILED_MESSAGE,
+    });
+  });
+
   it('says nothing when every class is still open', async () => {
     holder.db = createFakeCartDb({
       carts: [fakeCart({ id: 'cart-live' })],

@@ -45,13 +45,6 @@ import {
 
 export { RECOVERABLE_CART_LOOKUP_COLUMNS, RECOVERABLE_CART_STATUSES };
 
-/**
- * Upper bound on candidates read per lookup. Live data has at most a handful of
- * recoverable carts per exhibitor; the bound only stops a pathological account
- * from turning the badge into a large read.
- */
-export const RECOVERABLE_CART_CANDIDATE_LIMIT = 50;
-
 /** One `entry_carts` row as the lookup returns it. */
 export interface RecoverableCartLookupRow {
   id: string;
@@ -130,9 +123,13 @@ export async function findRecoverableCart({
 
   if (showId) query = query.eq('show_id', showId);
 
-  const { data, error } = await query
-    .order('created_at', { ascending: false, nullsFirst: false })
-    .limit(RECOVERABLE_CART_CANDIDATE_LIMIT);
+  // No LIMIT: the pick ranks on status and item count, which a created_at
+  // limit applied first could cut the winner from. Live data holds a handful of
+  // recoverable carts per exhibitor, so the whole set is a small read.
+  const { data, error } = await query.order('created_at', {
+    ascending: false,
+    nullsFirst: false,
+  });
 
   if (error) return { kind: 'error', error };
 

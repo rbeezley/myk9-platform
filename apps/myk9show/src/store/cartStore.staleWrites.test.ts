@@ -56,6 +56,8 @@ beforeEach(() => {
   vi.mocked(logger.error).mockClear();
   resetEnsureCartInFlight();
   useCartStore.getState().reset();
+  // reset() records nothing about who is signed in; each test starts unowned.
+  useCartStore.setState({ ownerAuthUserId: undefined });
   localStorage.removeItem(STORAGE_KEY);
 });
 
@@ -157,6 +159,36 @@ describe('useNotifyAccountBoundary (MYK9-651)', () => {
 
     expect(useCartStore.getState().cartRecoveryInfo ?? null).toBeNull();
     expect(localStorage.getItem(STORAGE_KEY) ?? '').not.toContain('cart-previous-user');
+  });
+
+  const persistRecoveryFor = (ownerAuthUserId: string) => {
+    const cartRecoveryInfo = { id: 'cart-previous-user', showId: 's', exhibitorId: 'e' };
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        state: { lastSyncedAt: null, cartRecoveryInfo, ownerAuthUserId },
+        version: 0,
+      })
+    );
+    useCartStore.setState({ cartRecoveryInfo, ownerAuthUserId });
+  };
+
+  it("clears account A's persisted ids when the tab opens with account B signed in", () => {
+    persistRecoveryFor('auth-user-A');
+
+    renderHook(() => useNotifyAccountBoundary({ authReady: true, userId: 'auth-user-B' }));
+
+    expect(useCartStore.getState().cartRecoveryInfo ?? null).toBeNull();
+    expect(useCartStore.getState().ownerAuthUserId).toBe('auth-user-B');
+    expect(localStorage.getItem(STORAGE_KEY) ?? '').not.toContain('cart-previous-user');
+  });
+
+  it('keeps the persisted ids when the tab opens with the same account restored', () => {
+    persistRecoveryFor('auth-user-A');
+
+    renderHook(() => useNotifyAccountBoundary({ authReady: true, userId: 'auth-user-A' }));
+
+    expect(useCartStore.getState().cartRecoveryInfo?.id).toBe('cart-previous-user');
   });
 });
 

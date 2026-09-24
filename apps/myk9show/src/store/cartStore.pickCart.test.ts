@@ -138,6 +138,27 @@ describe('loadActiveCart recovers the cart that has items (MYK9-650)', () => {
     expect(holder.db.items.map(item => item.cart_id)).toEqual(['cart-older']);
   });
 
+  it('finds the winner even when it is the oldest of 51 carts', async () => {
+    const newerEmpty = Array.from({ length: 50 }, (_, index) =>
+      fakeCart({
+        id: `cart-empty-${index}`,
+        show_id: `show-empty-${index}`,
+        created_at: new Date(Date.UTC(2026, 8, 2) + index * 60_000).toISOString(),
+      })
+    );
+    holder.db = createFakeCartDb({
+      carts: [
+        fakeCart({ id: 'cart-oldest-with-items', created_at: '2026-08-01T00:00:00Z' }),
+        ...newerEmpty,
+      ],
+      items: [fakeCartItem({ id: 'item-drafted', cart_id: 'cart-oldest-with-items' })],
+    });
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1');
+
+    expect(cart?.id).toBe('cart-oldest-with-items');
+  });
+
   it('keeps the newer active cart when IT has the items', async () => {
     holder.db = createFakeCartDb({
       carts: [

@@ -139,6 +139,13 @@ export interface CartState {
    * just never declared here.
    */
   cartRecoveryInfo?: { id: string; showId: string; exhibitorId: string } | null;
+  /**
+   * The auth user id the persisted slice belongs to, stamped by the account
+   * announcement and persisted with it (MYK9-651). `undefined` means no
+   * announcement has ever reached this storage; `reset()` leaves it alone, since
+   * it records who is signed in, not what the cart holds.
+   */
+  ownerAuthUserId?: string | null | undefined;
 
   // Expiration tracking
   expirationWarning: boolean;

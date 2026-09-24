@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
 import { render } from '@/test/utils/testUtils';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import { BasicInfoTab } from './BasicInfoTab';
@@ -41,8 +42,7 @@ function mockLockFacts(facts: Record<string, boolean> | null, error: unknown = n
   );
 }
 
-function renderTab(options: { personId?: string; isSiteAdmin?: boolean } = {}) {
-  const { personId = 'person-1', isSiteAdmin = false } = options;
+function tabUi(personId: string, isSiteAdmin: boolean) {
   const context = {
     data: formData,
     updateData: () => {},
@@ -54,7 +54,7 @@ function renderTab(options: { personId?: string; isSiteAdmin?: boolean } = {}) {
     setIsLoading: () => {},
   } as unknown as EditPanelContextValue;
 
-  return render(
+  return (
     <EditPanelContext.Provider value={context}>
       <BasicInfoTab
         personId={personId}
@@ -64,6 +64,47 @@ function renderTab(options: { personId?: string; isSiteAdmin?: boolean } = {}) {
       />
     </EditPanelContext.Provider>
   );
+}
+
+function renderTab(
+  options: { personId?: string; isSiteAdmin?: boolean; queryClient?: QueryClient } = {}
+) {
+  const { personId = 'person-1', isSiteAdmin = false, queryClient } = options;
+  return render(tabUi(personId, isSiteAdmin), queryClient ? { queryClient } : undefined);
+}
+
+/**
+ * The app's real query defaults that matter here (lib/queryClient.ts): a
+ * five-minute staleTime, refetch-on-mount only when stale, and the global
+ * `placeholderData: prev => prev` that hands a query its previous key's data
+ * (MYK9-709). The shared test client disables all of that, so it could not
+ * show a stale lock.
+ */
+function appLikeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: 5 * 60 * 1000,
+        refetchOnMount: true,
+        refetchOnWindowFocus: false,
+        placeholderData: (previous: unknown) => previous,
+      },
+    },
+  });
+}
+
+/** Facts per person id; a value of `'pending'` never resolves. */
+function mockLockFactsByPerson(byPerson: Record<string, Record<string, boolean> | 'pending'>) {
+  mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
+    if (fn !== 'person_email_lock_facts') return createChainableQuery();
+    const facts = byPerson[String(args?.p_person_id)];
+    const result =
+      facts === 'pending'
+        ? new Promise(() => {})
+        : Promise.resolve({ data: facts ?? null, error: null });
+    return result as unknown as ReturnType<typeof createChainableQuery>;
+  });
 }
 
 const emailInput = () => screen.getByLabelText(/email address/i);
@@ -89,9 +130,9 @@ describe('BasicInfoTab email lock', () => {
 
     renderTab();
 
-    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+    expect(await screen.findByText(/address they sign in with/i)).toBeInTheDocument();
+    expect(emailInput()).toHaveAttribute('readonly');
     expect(emailInput()).toHaveValue('ada@example.com');
-    expect(screen.getByText(/address they sign in with/i)).toBeInTheDocument();
   });
 
   it('keeps a signed-in person locked for a site admin too', async () => {
@@ -99,7 +140,8 @@ describe('BasicInfoTab email lock', () => {
 
     renderTab({ isSiteAdmin: true });
 
-    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
+    expect(await screen.findByText(/address they sign in with/i)).toBeInTheDocument();
+    expect(emailInput()).toHaveAttribute('readonly');
   });
 
   it('locks the email for a secretary editing a mail-in person with entries', async () => {
@@ -107,8 +149,8 @@ describe('BasicInfoTab email lock', () => {
 
     renderTab();
 
-    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
-    expect(screen.getByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
+    expect(await screen.findByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
+    expect(emailInput()).toHaveAttribute('readonly');
   });
 
   it('locks the email for a secretary editing a person who holds roles', async () => {
@@ -116,8 +158,8 @@ describe('BasicInfoTab email lock', () => {
 
     renderTab();
 
-    await waitFor(() => expect(emailInput()).toHaveAttribute('readonly'));
-    expect(screen.getByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
+    expect(await screen.findByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument();
+    expect(emailInput()).toHaveAttribute('readonly');
   });
 
   it('leaves the email editable for a site admin editing a mail-in person with entries', async () => {
@@ -126,7 +168,7 @@ describe('BasicInfoTab email lock', () => {
     renderTab({ isSiteAdmin: true });
 
     await lockRpcCalled();
-    expect(emailInput()).not.toHaveAttribute('readonly');
+    await waitFor(() => expect(emailInput()).not.toHaveAttribute('readonly'));
     expect(screen.queryByText(SITE_ADMIN_ONLY_NOTE)).not.toBeInTheDocument();
   });
 
@@ -136,7 +178,7 @@ describe('BasicInfoTab email lock', () => {
     renderTab();
 
     await lockRpcCalled();
-    expect(emailInput()).not.toHaveAttribute('readonly');
+    await waitFor(() => expect(emailInput()).not.toHaveAttribute('readonly'));
   });
 
   // Unknown reads as editable, not locked: the database refuses the save and
@@ -148,7 +190,55 @@ describe('BasicInfoTab email lock', () => {
     renderTab();
 
     await lockRpcCalled();
-    expect(emailInput()).not.toHaveAttribute('readonly');
+    await waitFor(() => expect(emailInput()).not.toHaveAttribute('readonly'));
+  });
+
+  // Codex P2 on #2402: the lock facts were cached for 30s, so an entry or role
+  // added between two opens of the editor left the email editable, and the
+  // database refused the save. Every open must read fresh, and must not show
+  // the cached answer while it does.
+  it("re-reads the lock on every open, never showing the previous open's facts", async () => {
+    const queryClient = appLikeQueryClient();
+    mockLockFacts({ has_sign_in: false, has_roles: false, has_entries: false });
+
+    const first = renderTab({ queryClient });
+    await lockRpcCalled();
+    await waitFor(() => expect(emailInput()).not.toHaveAttribute('readonly'));
+    first.unmount();
+
+    // An entry is added for this person, then the editor is reopened at once.
+    mockLockFacts({ has_sign_in: false, has_roles: false, has_entries: true });
+    renderTab({ queryClient });
+
+    expect(emailInput()).toHaveAttribute('readonly');
+    await waitFor(() => expect(screen.getByText(SITE_ADMIN_ONLY_NOTE)).toBeInTheDocument());
+    expect(emailInput()).toHaveAttribute('readonly');
+  });
+
+  it("never renders one person's lock facts for the next person", async () => {
+    const queryClient = appLikeQueryClient();
+    mockLockFactsByPerson({
+      'person-a': { has_sign_in: false, has_roles: false, has_entries: false },
+      'person-b': 'pending',
+    });
+
+    const view = renderTab({ personId: 'person-a', queryClient });
+    await waitFor(() =>
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('person_email_lock_facts', {
+        p_person_id: 'person-a',
+      })
+    );
+    await waitFor(() => expect(emailInput()).not.toHaveAttribute('readonly'));
+
+    // Person B's facts are still in flight: A's "editable" must not show for B.
+    view.rerender(tabUi('person-b', false));
+    await waitFor(() =>
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('person_email_lock_facts', {
+        p_person_id: 'person-b',
+      })
+    );
+    expect(emailInput()).toHaveAttribute('readonly');
+    expect(screen.queryByText(SITE_ADMIN_ONLY_NOTE)).not.toBeInTheDocument();
   });
 
   // Create mode has no person to look up, and an email must be typeable.

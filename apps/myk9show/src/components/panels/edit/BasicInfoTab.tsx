@@ -8,7 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
-import { decidePersonEmailLock, fetchPersonEmailLockFacts } from '@/services/database/users';
+import {
+  decidePersonEmailLock,
+  fetchPersonEmailLockFacts,
+  type PersonEmailLock,
+} from '@/services/database/users';
 import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
@@ -25,7 +29,10 @@ import type { UserFormData } from './UserEditPanel.types';
  * the panel reports a refused save; this only decides whether to offer an edit
  * that would be refused.
  */
-function usePersonEmailLock(personId: string | undefined, isSiteAdmin: boolean) {
+function usePersonEmailLock(
+  personId: string | undefined,
+  isSiteAdmin: boolean
+): PersonEmailLock | { locked: 'pending' } {
   const query = useQuery({
     queryKey: ['personEmailLockFacts', personId],
     queryFn: async () => {
@@ -33,12 +40,23 @@ function usePersonEmailLock(personId: string | undefined, isSiteAdmin: boolean) 
       return fetchPersonEmailLockFacts(personId);
     },
     enabled: !!personId,
-    staleTime: 30_000,
+    // Read fresh on every open: an entry or role added since the last open
+    // changes the answer, and the database refuses the save if we guess wrong.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    // Opt out of the global `placeholderData: prev => prev` (lib/queryClient.ts,
+    // MYK9-709), which would show the previous person's facts for this one.
+    placeholderData: () => undefined,
   });
+  // While the fresh read is in flight, show neither a cached nor a borrowed
+  // answer: a neutral read-only field until the facts for THIS open arrive.
+  if (query.isFetching || query.isPlaceholderData) return { locked: 'pending' };
   return decidePersonEmailLock({ isSiteAdmin, facts: query.data ?? null });
 }
 
 const EMAIL_LOCK_NOTE = {
+  pending: 'Checking whether this email can be changed...',
   'sign-in': "This is the address they sign in with, so it can't be changed here.",
   'site-admin-only':
     'Only a site admin can change this email once the person has entries or a sign-in account.',
@@ -130,7 +148,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           once the person has entries or roles (MYK9-710): the database refuses
           those edits, so the editor does not offer them. */}
       <FormField label="Email Address" fieldId="email" required error={emailError}>
-        {emailLock.locked ? (
+        {emailLock.locked !== false ? (
           <>
             <Input
               {...emailInputProps}
@@ -139,7 +157,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {EMAIL_LOCK_NOTE[emailLock.reason]}
+              {EMAIL_LOCK_NOTE[emailLock.locked === 'pending' ? 'pending' : emailLock.reason]}
             </p>
           </>
         ) : (

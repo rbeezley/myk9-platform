@@ -59,7 +59,7 @@
 
 **Rough steps (qa-draft):**
 
-1. From the Dashboard, click **Create Show**.
+1. From the Dashboard, click **Add Show**.
 2. **Step 1 — Show Details:** Enter the show name, sanctioning organization (AKC / UKC / Other), start and end dates, entry fee, and entry open/close dates. Click **Next**.
 3. **Step 2 — Trial Configuration:** Add each trial with its date/time and event number. Click **Next**.
 4. **Step 3 — Class Selection:** For each trial, select classes and assign a judge to each. Click **Next**.

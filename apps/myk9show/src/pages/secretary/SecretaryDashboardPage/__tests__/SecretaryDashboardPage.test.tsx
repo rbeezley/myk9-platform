@@ -113,7 +113,7 @@ describe('SecretaryDashboardPage', () => {
     );
     expect(screen.queryByText('Open dogs')).not.toBeInTheDocument();
     expect(screen.queryByText('Open people')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /New Show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add Show/i })).not.toBeInTheDocument();
   });
 
   it('only surfaces pending-entry attention for shows the secretary manages', () => {

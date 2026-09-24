@@ -215,10 +215,10 @@ const BrowseDogsPage: React.FC = () => {
       canCreateDogs ? (
         <Button onClick={openCreateDogPanel}>
           <Plus className="h-4 w-4 mr-2" />
-          {isExhibitorOnly ? 'Add Dog' : 'New Dog'}
+          Add Dog
         </Button>
       ) : undefined,
-    [canCreateDogs, isExhibitorOnly, openCreateDogPanel]
+    [canCreateDogs, openCreateDogPanel]
   );
 
   const renderCards = () => (
@@ -272,7 +272,7 @@ const BrowseDogsPage: React.FC = () => {
           action={
             canCreateDogs
               ? {
-                  label: isExhibitorOnly ? 'Add Dog' : 'New Dog',
+                  label: 'Add Dog',
                   onClick: openCreateDogPanel,
                   icon: Plus,
                 }

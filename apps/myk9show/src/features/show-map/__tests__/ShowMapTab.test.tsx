@@ -428,7 +428,7 @@ describe('ShowMapTab', () => {
     render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />);
 
     expect(screen.getByText('No trials yet')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /new trial/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add trial/i })).toBeInTheDocument();
   });
 
   it('renders a read-only map when canManageShow is false', async () => {
@@ -476,7 +476,7 @@ describe('ShowMapTab', () => {
 
     expect(screen.getByText('No trials yet')).toBeInTheDocument();
     expect(screen.getByText(/doesn't have trials listed yet/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /new trial/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add trial/i })).not.toBeInTheDocument();
   });
 
   // B6: the wrap-up subtitle and the actionPhase prop were removed alongside

@@ -50,15 +50,15 @@ Most day-of jobs live behind **Show Day → Tools**.
 
 ## 1 · Create a show, its trials, and its classes
 
-The wizard creates all three in one pass. **Dashboard → Create Show.**
+The wizard creates all three in one pass. **Dashboard → Add Show.**
 
-![Create Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
+![Add Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
 
 1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), dates, location, host club, entry fee, and the entry open/close dates. Add your **chairman** and **secretary**.
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
 4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
-5. **Step 4 — Review.** Check the summary, then **Create Show (Unpublished)** or **Create & Publish Show**.
+5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it from the show page.
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
 

@@ -37,7 +37,7 @@ An action bar's primary control SHALL render fully within the viewport at every 
 #### Scenario: Dog form footer at phone width with a status indicator
 
 - **WHEN** the Add Dog or Edit Dog form renders at 390px width while displaying its unsaved-changes indicator
-- **THEN** the primary control ("Create Dog" / "Save Changes") is entirely within the viewport with its full label visible
+- **THEN** the primary control ("Add Dog" / "Save Changes") is entirely within the viewport with its full label visible
 - **AND** the Cancel control remains visible and operable
 
 #### Scenario: Action bar at the minimum supported width

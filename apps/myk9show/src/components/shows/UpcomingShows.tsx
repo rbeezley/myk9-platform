@@ -155,7 +155,7 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-3xl font-bold">Upcoming Shows</h2>
         <div className="flex gap-2">
-          {onAddShow && <Button onClick={onAddShow}>+ Create New Show</Button>}
+          {onAddShow && <Button onClick={onAddShow}>+ Add Show</Button>}
           {canScrollLeft && (
             <Button
               variant="outline"

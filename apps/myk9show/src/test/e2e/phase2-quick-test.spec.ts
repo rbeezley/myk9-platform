@@ -38,7 +38,7 @@ test.describe('Phase 2: Quick Show Management Test', () => {
     console.log('Looking for create show button...');
     const createButton = page
       .locator(
-        'button:has-text("Create Show"), button:has-text("New Show"), a:has-text("Create Show")'
+        'button:has-text("Add Show"), a:has-text("Add Show")'
       )
       .first();
 

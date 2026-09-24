@@ -349,7 +349,7 @@ export class ShowCreationWizardPage {
     const calendarDialog = this.page.locator('[role="dialog"]:has([role="grid"])');
     if (await calendarDialog.isVisible({ timeout: 500 }).catch(() => false)) {
       // Click on the page title to close the calendar (clicking outside the dialog)
-      const pageTitle = this.page.locator('h2:has-text("Create New Show")');
+      const pageTitle = this.page.locator('h2:has-text("Add Show")');
       if (await pageTitle.isVisible().catch(() => false)) {
         await pageTitle.click({ force: true });
         await this.page.waitForTimeout(200);
@@ -665,7 +665,7 @@ export class ShowCreationWizardPage {
   // ========== Step 4 Actions ==========
   async createShow() {
     // Look for the create show button - could have different text
-    const createButton = this.page.locator('button:has-text("Create Show")').first();
+    const createButton = this.page.locator('button:has-text("Add Show")').first();
     await createButton.click();
     await this.page.waitForURL(/\/secretary\/dashboard/, { timeout: 15000 });
   }

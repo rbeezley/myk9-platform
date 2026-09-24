@@ -79,7 +79,19 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Per-class entries table              | Add Entry                                         |
 | Offline / ringside entry form        | Add Entry                                         |
 | Header + command menu                | Add entry for my dog / Add entry for someone else |
+| Shows page, empty states, shortcuts  | Add Show                                          |
+| Show wizard — heading, submit button | Add Show                                          |
+| Secretary dashboard, no shows yet    | Add your first show                               |
+| Show page — Trials tab, Show Map     | Add Trial                                         |
+| Show page — Classes tab              | Add Classes                                       |
+| Class creation page                  | Add Classes                                       |
+| Dogs page, person profile            | Add Dog                                           |
+| Add-dog panel — title, save button   | Add Dog                                           |
+
+### "New" as an adjective
+
+`new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.
 
 ## Not yet done
 
-The `Add` / `New` / `Create` collapse across the remaining nouns (Show, Dog, Trial, Class, Judge) is outstanding — a survey at the time of writing found all three verbs in use for Show and for Dog. Tracked separately; this document is the standard it should be swept against.
+The command menu still says **Add New Dog**, **Add New Show**, **Create a show** and **Add a new trial** (`CommandPalette.tsx`, `features/actions/actionRegistry.ts`). They were left out of the MYK9-671 sweep because another open change was editing those files; sweep them to **Add Dog**, **Add Show** and **Add Trial** next.

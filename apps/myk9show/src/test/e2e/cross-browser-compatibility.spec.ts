@@ -170,7 +170,7 @@ test.describe('Device Compatibility Tests', () => {
           }
         } else {
           // Desktop checks
-          const createButton = devicePage.getByRole('button', { name: /create show/i });
+          const createButton = devicePage.getByRole('button', { name: /add show/i });
           if (await createButton.isVisible()) {
             await expect(createButton).toBeVisible();
           }

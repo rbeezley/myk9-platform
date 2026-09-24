@@ -156,7 +156,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
 
   await expect(page.getByRole('heading', { name: 'Add Dog(s)' })).toBeVisible();
   await page.getByRole('button', { name: 'Add First Dog' }).click();
-  const dogDialog = page.getByRole('dialog', { name: 'Add New Dog' });
+  const dogDialog = page.getByRole('dialog', { name: 'Add Dog' });
   await expect(dogDialog).toBeVisible();
 
   await dogDialog.getByLabel(/Call Name/i).fill('Stamp');
@@ -189,7 +189,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
 
   await expect(dogDialog.getByText('Mailbox Special Delivery')).toBeVisible();
-  await dogDialog.getByRole('button', { name: 'Create Dog' }).click();
+  await dogDialog.getByRole('button', { name: 'Add Dog', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({
     timeout: 15000,

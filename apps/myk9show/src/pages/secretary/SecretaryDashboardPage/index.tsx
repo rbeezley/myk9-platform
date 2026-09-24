@@ -115,10 +115,10 @@ export function SecretaryDashboardPage() {
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">No shows yet.</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Create your first show to get started.
+                Add your first show to get started.
               </p>
               <Button asChild className="mt-4 min-h-11">
-                <Link to="/secretary/create-show/wizard">Create your first show</Link>
+                <Link to="/secretary/create-show/wizard">Add your first show</Link>
               </Button>
             </div>
           )}

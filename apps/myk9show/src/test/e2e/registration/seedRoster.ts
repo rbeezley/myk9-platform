@@ -11,8 +11,9 @@
 
 /**
  * Named dogs the seed gives `exhibitor@myk9t.com` (`seed-demo.sql` section 5:
- * Willow, Ranger, Juniper, Scout, Maple). Everything above this is the MYK9-109
- * load fixture plus whatever a walk left behind, so this is the only number
+ * Willow, Ranger, Juniper, Scout, Maple). Everything above this is walk debris,
+ * plus the MYK9-109 load fixture's dogs when that opt-in file
+ * (supabase/seed-load-fixture.sql) is applied, so this is the only number
  * about the roster that a reseed guarantees.
  */
 export const SEEDED_EXHIBITOR_DOG_COUNT = 5;
@@ -23,8 +24,8 @@ export const SEEDED_EXHIBITOR_DOG_COUNT = 5;
  * "Juniper" appears as **Juni** and a selector written from the registered name
  * never matches. These are the names the picker labels as `Select <name>`.
  *
- * They are unique across the seeded roster, unlike the MYK9-109 load fixture's
- * (three of its dogs answer to "Birch"), so they are the only safe input to a
+ * They are unique across the seeded roster, unlike the opt-in MYK9-109 load
+ * fixture's (three of its dogs answer to "Birch"), so they are the only safe input to a
  * `getByRole('checkbox', { name })` locator — but only while no walk debris
  * shares one. A spec that needs a STRICT single match should say so; a spec
  * that only needs presence should take `.first()`.

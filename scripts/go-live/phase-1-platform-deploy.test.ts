@@ -186,6 +186,32 @@ describe('phase 1 deploy verifier', () => {
     });
   });
 
+  it('accepts deploymentEnabled false, which disables Git deploys on every branch', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, 'apps/myk9show/vercel.json'),
+      '{"git":{"deploymentEnabled":false}}'
+    );
+
+    expect(checkVercelConfig(root).status).toBe('ok');
+  });
+
+  it('rejects deploymentEnabled true', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, 'apps/myk9show/vercel.json'),
+      '{"git":{"deploymentEnabled":true}}'
+    );
+
+    expect(checkVercelConfig(root)).toEqual({
+      key: 'vercel_git_auto_deploy_disable',
+      status: 'fail',
+      detail: 'missing main=false: apps/myk9show/vercel.json',
+    });
+  });
+
   it('warns when the guides Vercel Git auto-deploy guard is missing', () => {
     const root = makeRoot();
     writeFileSync(

@@ -9,15 +9,40 @@ import {
 } from './loadFixture';
 
 const repoRoot = resolve(process.cwd(), '../..');
+// seed-demo.sql is the lean canonical reseed: it DELETES the load ranges.
+// seed-load-fixture.sql is the opt-in fixture that CREATES them (MYK9-558).
 const seed = readFileSync(resolve(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
+const fixture = readFileSync(resolve(repoRoot, 'supabase/seed-load-fixture.sql'), 'utf8');
 
 describe('canonical MYK9-109 load fixture', () => {
   it('adds 63 deterministic dogs across the eight non-finalized canonical classes', () => {
-    expect(seed).toContain('-- MYK9-109 LOAD FIXTURE START');
-    expect(seed).toContain('generate_series(1, 63)');
-    expect(seed).toContain('generate_series(1, 8)');
-    expect(seed).toContain('63 dogs x 8 classes = 504');
-    expect(seed).toContain('excludes finalized class dec1a55e-0000-0000-0000-000000000031');
+    expect(fixture).toContain('-- MYK9-109 LOAD FIXTURE START');
+    expect(fixture).toContain('generate_series(1, 63)');
+    expect(fixture).toContain('generate_series(1, 8)');
+    expect(fixture).toContain('63 dogs x 8 classes = 504');
+    expect(fixture).toContain('excludes finalized class dec1a55e-0000-0000-0000-000000000031');
+  });
+
+  it('keeps the load fixture out of the lean canonical reseed', () => {
+    // MYK9-558: a plain seed-demo.sql run must leave no load rows behind, so it
+    // must not create any. It still deletes them (next test).
+    expect(seed).not.toContain('-- MYK9-109 LOAD FIXTURE START');
+    expect(seed).not.toContain('-- 17b. MULTI-SHOW LOAD FIXTURE');
+    expect(seed).not.toMatch(
+      /INSERT INTO public\.(dogs|entries|armbands|shows|trials|classes|clubs)[^;]*a1090000-/
+    );
+    expect(seed).toContain('seed-demo expected 13 demo-show entries (lean set)');
+    const handAuthored = PRIMARY_LOAD_SHOW.showEntryCount - PRIMARY_LOAD_SHOW.generatedEntryCount;
+    expect(seed).toContain(`IF v_entry_count <> ${handAuthored} THEN`);
+    expect(seed).toContain('seed-demo expected no MYK9-109 load-fixture rows after a reseed');
+  });
+
+  it('refuses to apply the load fixture twice or without the lean set', () => {
+    expect(fixture).toContain('run supabase/seed-demo.sql first');
+    expect(fixture).toContain('the load fixture is already applied');
+    // No cleanup of its own: seed-demo.sql owns every delete.
+    expect(fixture).not.toMatch(/\bDELETE FROM\b/);
+    expect(fixture).not.toMatch(/\bTRUNCATE\b/);
   });
 
   it('cleans the deterministic range before recreating it', () => {
@@ -33,8 +58,11 @@ describe('canonical MYK9-109 load fixture', () => {
     );
   });
 
-  it('asserts the declared 516-row show total', () => {
-    expect(seed).toContain('MYK9-109 expected 516 demo-show entries');
+  it('asserts the declared show total the fixture computes', () => {
+    expect(fixture).toContain(`IF v_entry_count <> ${PRIMARY_LOAD_SHOW.showEntryCount} THEN`);
+    expect(fixture).toContain(
+      `MYK9-109 expected ${PRIMARY_LOAD_SHOW.showEntryCount} demo-show entries`
+    );
   });
 });
 
@@ -48,39 +76,42 @@ describe('multi-show seed agrees with the fixture', () => {
   const midShows = LOAD_SHOWS.slice(1);
 
   /**
-   * Just the 17b insert block. Slicing to end-of-file would sweep in the show-0
-   * postcondition that follows it, which legitimately names show 0.
+   * Just the 17b insert block. Slicing to end-of-file would sweep in the 17c
+   * full-class cap and the show-0 postcondition that follow it, which
+   * legitimately name show 0.
    */
   const multiShowBlock = (() => {
-    const start = seed.indexOf('-- 17b. MULTI-SHOW LOAD FIXTURE');
-    const end = seed.indexOf('-- 18.', start);
+    const start = fixture.indexOf('-- 17b. MULTI-SHOW LOAD FIXTURE');
+    const end = fixture.indexOf('-- 17c.', start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
-    return seed.slice(start, end);
+    return fixture.slice(start, end);
   })();
 
   it('declares the block and its provenance', () => {
-    expect(seed).toContain('-- 17b. MULTI-SHOW LOAD FIXTURE (shows 1-3)');
-    expect(seed).toContain('apps/myk9show/src/test/load/loadFixture.ts');
+    expect(fixture).toContain('-- 17b. MULTI-SHOW LOAD FIXTURE (shows 1-3)');
+    expect(fixture).toContain('apps/myk9show/src/test/load/loadFixture.ts');
   });
 
   it('generates exactly the number of shows, trials, classes and dogs the fixture declares', () => {
-    expect(seed).toContain(`generate_series(1, ${midShows.length}) AS load_shows(s)`);
-    expect(seed).toContain(`generate_series(1, ${midShows[0].trials.length}) AS load_trials(t)`);
-    expect(seed).toContain(`generate_series(1, ${midShows[0].ringCount}) AS load_classes(c)`);
-    expect(seed).toContain(`generate_series(1, ${midShows[0].dogCount}) AS load_dogs(dog_number)`);
+    expect(fixture).toContain(`generate_series(1, ${midShows.length}) AS load_shows(s)`);
+    expect(fixture).toContain(`generate_series(1, ${midShows[0].trials.length}) AS load_trials(t)`);
+    expect(fixture).toContain(`generate_series(1, ${midShows[0].ringCount}) AS load_classes(c)`);
+    expect(fixture).toContain(
+      `generate_series(1, ${midShows[0].dogCount}) AS load_dogs(dog_number)`
+    );
   });
 
   it('uses the fixture ring count in the entry-number formula', () => {
     // entry_number = (dog - 1) * ringCount + class. A mismatch here would give
     // every show the wrong entry ids without changing any literal id in the file.
-    expect(seed).toContain(`((dog_number - 1) * ${midShows[0].ringCount}) + class_number`);
+    expect(fixture).toContain(`((dog_number - 1) * ${midShows[0].ringCount}) + class_number`);
   });
 
   it('derives armband numbers the same way the fixture does', () => {
     // Fixture: armbandBase = 2000 + index * 1000, armband = base + dogNumber.
     expect(midShows[0].armbandBase).toBe(3000);
-    expect(seed).toContain('2000 + (s * 1000) + dog_number');
+    expect(fixture).toContain('2000 + (s * 1000) + dog_number');
   });
 
   it('emits every id inside a range the cleanup block deletes', () => {
@@ -94,9 +125,9 @@ describe('multi-show seed agrees with the fixture', () => {
       ['a1090000-0000-0000-0013-', 'a1090000-0000-0000-0014-'], // clubs
     ];
     for (const [lower, upper] of ranges) {
-      // Each range must be both written by the insert block and removed by cleanup,
-      // or rows accumulate one orphaned set per reseed.
-      expect(seed).toContain(`${lower}%s%s`);
+      // Each range must be both written by the load fixture and removed by the
+      // lean reseed's cleanup, or rows accumulate one orphaned set per reseed.
+      expect(fixture).toContain(`${lower}%s%s`);
       expect(seed).toContain(`${lower}000000000000'::uuid`);
       expect(seed).toContain(`${upper}000000000000'::uuid`);
     }
@@ -143,8 +174,8 @@ describe('multi-show seed agrees with the fixture', () => {
     // These accounts come from the admin API, not this seed. An unconditional
     // grant would fail every reseed until someone provisions them; the harness
     // fails closed at dispatch instead.
-    expect(seed).toContain("format('load-secretary-%s@myk9t.com', s)");
-    expect(seed).toContain('p.auth_user_id IS NOT NULL');
+    expect(fixture).toContain("format('load-secretary-%s@myk9t.com', s)");
+    expect(fixture).toContain('p.auth_user_id IS NOT NULL');
     // Must NOT appear in the preflight that raises on a missing account.
     const preflight = seed.slice(0, seed.indexOf('-- 0. Idempotency'));
     expect(preflight).not.toContain('load-secretary-');
@@ -191,10 +222,10 @@ describe('multi-show seed agrees with the fixture', () => {
   });
 
   it('asserts the platform-wide totals the fixture computes', () => {
-    expect(seed).toContain(`found %', v_total`);
-    expect(seed).toContain(`<> ${LOAD_TOTAL_GENERATED_ENTRY_COUNT} THEN`);
-    expect(seed).toContain(`<> ${midShows[0].generatedEntryCount} THEN`);
-    expect(seed).toContain(`<> ${midShows.length} THEN`);
+    expect(fixture).toContain(`found %', v_total`);
+    expect(fixture).toContain(`<> ${LOAD_TOTAL_GENERATED_ENTRY_COUNT} THEN`);
+    expect(fixture).toContain(`<> ${midShows[0].generatedEntryCount} THEN`);
+    expect(fixture).toContain(`<> ${midShows.length} THEN`);
   });
 
   it('enables self-check-in explicitly rather than relying on the cascade default', () => {

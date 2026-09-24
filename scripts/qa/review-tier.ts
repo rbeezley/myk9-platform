@@ -62,6 +62,148 @@ export function touchesMigration(files: readonly string[]): boolean {
 /** Docs are the only `none`, and never the instruction files above. */
 const NONE_PATTERNS: readonly RegExp[] = [/^docs\//, /^[^/]*\.md$/];
 
+const DEPENDENCY_ONLY_PATTERNS: readonly RegExp[] = [
+  /^package\.json$/,
+  /^(apps|packages)\/[^/]+\/package\.json$/,
+  /^pnpm-lock\.yaml$/,
+];
+const APP_SOURCE_PATTERN = /^apps\/[^/]+\/src\//;
+/**
+ * Tests and test support. Contract and guard tests live all over app source
+ * (`src/test/database/*Contract*`, `entryCloseGuard.test.ts`,
+ * `*.source.test.ts`), so no directory list can name them; a one-line
+ * `it.skip` in any of them turns CI green while disabling what it guards.
+ * On the bounded app route these paths qualify only when ADDED.
+ */
+const TEST_SUPPORT_PATTERN =
+  /(^|\/)(test|tests|__tests__|__mocks__)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
+const SMALL_APP_FILE_LIMIT = 3;
+const SMALL_APP_CHANGED_LINE_LIMIT = 100;
+
+/**
+ * The only package.json fields a dependency-only change may touch. Anything
+ * else — `scripts`, lifecycle hooks, `packageManager`, the rest of `pnpm` —
+ * runs or configures code in CI and is not a dependency bump.
+ */
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'optionalDependencies',
+] as const;
+
+export interface OptionalReviewInput {
+  changedFiles: readonly string[];
+  labels?: readonly string[];
+  additions?: number;
+  deletions?: number;
+  fileListUnusable?: boolean;
+  /** Files the diff ADDS. Absent means unknown: no test path qualifies. */
+  addedFiles?: readonly string[];
+  /**
+   * True only when every changed package.json was compared at base and head
+   * and differs in dependency fields alone. Absent means unverified.
+   */
+  dependencyManifestsVerified?: boolean;
+}
+
+export function isPackageManifest(file: string): boolean {
+  return file.endsWith('package.json');
+}
+
+export function isDependencyFileSet(files: readonly string[]): boolean {
+  return files.length > 0 && files.every(file => DEPENDENCY_ONLY_PATTERNS.some(p => p.test(file)));
+}
+
+export function hasDependenciesLabel(labels: readonly string[] | undefined): boolean {
+  return labels?.some(label => label.toLowerCase() === 'dependencies') ?? false;
+}
+
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0
+    );
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function withoutDependencyFields(raw: string): string | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const rest: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
+  for (const field of DEPENDENCY_FIELDS) delete rest[field];
+  // `pnpm.overrides` pins transitive versions — dependency data. Every other
+  // `pnpm` key (onlyBuiltDependencies, patchedDependencies, ...) must match.
+  const pnpm = rest.pnpm;
+  if (pnpm && typeof pnpm === 'object' && !Array.isArray(pnpm)) {
+    const pnpmRest: Record<string, unknown> = { ...(pnpm as Record<string, unknown>) };
+    delete pnpmRest.overrides;
+    if (Object.keys(pnpmRest).length === 0) delete rest.pnpm;
+    else rest.pnpm = pnpmRest;
+  }
+  return canonical(rest);
+}
+
+/** True when two package.json texts differ in dependency fields alone. */
+export function manifestChangeIsDependencyOnly(before: string, after: string): boolean {
+  const a = withoutDependencyFields(before);
+  const b = withoutDependencyFields(after);
+  return a !== undefined && a === b;
+}
+
+/**
+ * Low-risk changes may skip mandatory review while their ordinary CI checks
+ * remain required. Dependency-only skips require the existing `dependencies`
+ * label AND verified manifests; small app fixes are capped at three
+ * app-source files and 100 changed lines, and may only ADD tests. Guardrail,
+ * migration, and incomplete-file-list cases never qualify.
+ */
+export function optionalReviewReason(input: OptionalReviewInput): string | undefined {
+  const { changedFiles } = input;
+  if (changedFiles.length === 0 || input.fileListUnusable) return undefined;
+
+  if (requiredTier(changedFiles).tier === 'none') return 'documentation';
+
+  if (isDependencyFileSet(changedFiles)) {
+    return hasDependenciesLabel(input.labels) && input.dependencyManifestsVerified === true
+      ? 'dependency-only'
+      : undefined;
+  }
+
+  if (
+    requiredTier(changedFiles).tier === 'independent' ||
+    touchesMigration(changedFiles) ||
+    changedFiles.length > SMALL_APP_FILE_LIMIT ||
+    !changedFiles.every(file => APP_SOURCE_PATTERN.test(file))
+  ) {
+    return undefined;
+  }
+
+  const added = new Set(input.addedFiles ?? []);
+  if (changedFiles.some(file => TEST_SUPPORT_PATTERN.test(file) && !added.has(file))) {
+    return undefined;
+  }
+
+  if (input.additions === undefined || input.deletions === undefined) return undefined;
+  const changedLines = input.additions + input.deletions;
+  if (
+    !Number.isFinite(changedLines) ||
+    changedLines < 0 ||
+    changedLines > SMALL_APP_CHANGED_LINE_LIMIT
+  ) {
+    return undefined;
+  }
+  return 'small-app-change';
+}
+
 function floorFor(file: string): { tier: Tier; reason: string } {
   if (INDEPENDENT_PATTERNS.some(p => p.test(file))) {
     return { tier: 'independent', reason: `${file} is a guardrail or high-risk path` };
@@ -105,6 +247,55 @@ export function changedFiles(base: string): string[] {
   return out.split('\n').filter(Boolean);
 }
 
+function changedLineCounts(base: string): { additions: number; deletions: number } {
+  const out = execFileSync('git', ['diff', '--numstat', `${base}...HEAD`], { encoding: 'utf8' });
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .reduce(
+      (counts, line) => {
+        const [added, deleted] = line.split('\t');
+        // Binary changes report `-`; they cannot qualify for the bounded app route.
+        if (added === '-' || deleted === '-') {
+          return { additions: Number.NaN, deletions: Number.NaN };
+        }
+        return {
+          additions: counts.additions + Number(added),
+          deletions: counts.deletions + Number(deleted),
+        };
+      },
+      { additions: 0, deletions: 0 }
+    );
+}
+
+function addedFiles(base: string): string[] {
+  const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=A', `${base}...HEAD`], {
+    encoding: 'utf8',
+  });
+  return out.split('\n').filter(Boolean);
+}
+
+/** Same rule the gate applies, read from git instead of the GitHub API. */
+function manifestsVerified(base: string, files: readonly string[]): boolean {
+  try {
+    const mergeBase = execFileSync('git', ['merge-base', base, 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+    const show = (ref: string, file: string) =>
+      execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8', stdio: 'pipe' });
+    return files
+      .filter(isPackageManifest)
+      .every(file => manifestChangeIsDependencyOnly(show(mergeBase, file), show('HEAD', file)));
+  } catch {
+    // An added or deleted manifest has no counterpart to compare: not a bump.
+    return false;
+  }
+}
+
+function labelArgs(argv: readonly string[]): string[] {
+  return argv.flatMap((arg, i) => (arg === '--label' ? [argv[i + 1] ?? ''] : []));
+}
+
 /**
  * `--files-stdin`: read a newline-separated file list on stdin and print ONLY
  * the tier. `scripts/qa/post-review-gate.sh` uses it to check an `owner`
@@ -129,7 +320,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
   const files = changedFiles(base);
   const { tier, reason } = requiredTier(files);
+  const labels = labelArgs(process.argv);
+  const optional = optionalReviewReason({
+    changedFiles: files,
+    labels,
+    ...changedLineCounts(base),
+    addedFiles: addedFiles(base),
+    dependencyManifestsVerified:
+      isDependencyFileSet(files) && hasDependenciesLabel(labels)
+        ? manifestsVerified(base, files)
+        : undefined,
+  });
   console.log(`review-tier: ${files.length} file(s) vs ${base}`);
   console.log(`tier: ${tier}`);
   console.log(`reason: ${reason}`);
+  console.log(optional ? `review: optional (${optional})` : 'review: required');
 }

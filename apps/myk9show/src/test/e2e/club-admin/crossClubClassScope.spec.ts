@@ -35,11 +35,16 @@ const HEARTLAND_CLASS =
   '/trials/dededede-0000-0000-0000-000000000021' +
   '/classes/dec1a55e-0000-0000-0000-000000000031';
 
-/** Seeded published class owned by a DIFFERENT club (MYK9-109 Load Club 1). */
+/**
+ * Seeded class owned by a DIFFERENT club: Prairie Trail's past show
+ * (seed-demo.sql section 4c). It used to be MYK9-109 Load Club 1's class, which
+ * is opt-in load-fixture data since MYK9-558. Pinned to the seed by
+ * seedDemoStagingConsumersContract.test.ts.
+ */
 const OTHER_CLUB_CLASS =
-  '/shows/a1090000-0000-0000-0010-100000000001' +
-  '/trials/a1090000-0000-0000-0011-100000000001' +
-  '/classes/a1090000-0000-0000-0012-100000000001';
+  '/shows/dededede-0000-0000-0000-000000000013' +
+  '/trials/dededede-0000-0000-0000-000000000027' +
+  '/classes/dec1a55e-0000-0000-0000-000000000046';
 
 const runSheet = (page: Page) => page.getByTestId('secretary-run-sheet');
 /** The non-staff surface. ClassDetailsPage renders exactly one of these two. */

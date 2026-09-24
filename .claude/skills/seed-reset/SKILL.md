@@ -6,7 +6,7 @@ user-invocable: true
 
 # Seed Reset
 
-Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026-06-17). Most "data is broken" reports after a reseed are one of the known gaps below — check those before writing any SQL, and read the abort headings before deciding the seed is broken.
+Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026-06-17): the lean set of two clubs, the three Heartland shows, six dogs and the role accounts. The MYK9-109 load fixture (63 load dogs and 504 entries on the demo show, three load clubs and shows with 189 dogs) is a separate, opt-in file, `supabase/seed-load-fixture.sql` (MYK9-558). Most "data is broken" reports after a reseed are one of the known gaps below — check those before writing any SQL, and read the abort headings before deciding the seed is broken.
 
 ## Canonical accounts
 
@@ -63,7 +63,7 @@ Both `stripe_orders` scope FKs are ON DELETE RESTRICT since migration `202609151
 
 **First, record the scope you are about to clear:** `SELECT id, show_id, enrollment_id, amount_cents FROM public.stripe_orders WHERE id IN (...)`, saved somewhere you will find again. Once a scope column is NULL there is no stamped identity to rebuild it from.
 
-- **Default: detach, reseed, reattach, but only for fixed ids.** `UPDATE public.stripe_orders SET show_id = NULL, enrollment_id = NULL WHERE id IN (...)` clears the guard and keeps the payment intent, checkout session, amount and fee split. The seed re-inserts the demo shows `dededede-...010/011/012`, the load shows and exactly one enrollment, `dededede-...070`, under the same fixed ids, so a `show_id`, or an `enrollment_id` equal to `...070`, can be restored with an `UPDATE` after the reseed and nothing is lost. **Any other `enrollment_id` is a checkout-created enrollment that the show delete cascades away and nothing re-inserts**, so the reattach will fail with a 23503 and the link is gone for good. For such a row, record the enrollment row itself before the reseed and treat the order as detached for good under the next bullet. As of 2026-09-15 the only order on staging that trips this guard is exactly that case.
+- **Default: detach, reseed, reattach, but only for fixed ids.** `UPDATE public.stripe_orders SET show_id = NULL, enrollment_id = NULL WHERE id IN (...)` clears the guard and keeps the payment intent, checkout session, amount and fee split. The seed re-inserts the demo shows `dededede-...010/011/012` (and `seed-load-fixture.sql` the load shows, when it is applied) and exactly one enrollment, `dededede-...070`, under the same fixed ids, so a `show_id`, or an `enrollment_id` equal to `...070`, can be restored with an `UPDATE` after the reseed and nothing is lost. **Any other `enrollment_id` is a checkout-created enrollment that the show delete cascades away and nothing re-inserts**, so the reattach will fail with a 23503 and the link is gone for good. For such a row, record the enrollment row itself before the reseed and treat the order as detached for good under the next bullet. As of 2026-09-15 the only order on staging that trips this guard is exactly that case.
 - **If it stays detached,** the row joins the class `docs/operations/stripe-ledger-orphans.md` keeps deliberately. That record was written for orphans an earlier bug created and migration `20260915191700` exists to stop reseeds making more, so append the id and amount to that document; it carries a dated count and total that your row would silently falsify.
 - **Delete the row** only as a reviewed step, which for a solo operator means reconciling it against Stripe first. `stripe_order_refunds.order_id` is RESTRICT too: the refund rows go first.
 
@@ -97,10 +97,14 @@ Messages beginning `seed-demo preflight:` are a different category: a misconfigu
 1. Confirm target is dev/staging — **never** run seed SQL at a production ref without explicit instruction. Project ref: `sojmvhhwsjxmfistvzbe`.
 2. Reseed is a shared-system write: confirm with the user first (Auto Mode rule).
 3. Run `seed-demo.sql` with its output captured to a file. It is idempotent over its own rows, but it ABORTS by design rather than cascade away an entry, enrollment or Stripe order that carries real money, and it WARNS about rows it removed. Afterwards `grep -i warning` the captured output, because a warning in 400 lines of output is easy to miss and the rows it names are gone. An abort is the guard working; find its heading above before touching any SQL.
-4. Verify, in one query batch: demo shows/trials/classes/entries exist; §10 role grants exist; `auth.users` rows exist for all seven `@myk9t.com` sign-in accounts.
+4. Verify, in one query batch: demo shows/trials/classes/entries exist (the demo show `...010` holds 13 entries on the lean set; the seed's own postcondition aborts otherwise, and also if any MYK9-109 load row survived); §10 role grants exist; `auth.users` rows exist for all seven `@myk9t.com` sign-in accounts.
 5. Smoke-test sign-in for secretary and exhibitor (two-step SmartSignInPage flow) before declaring done.
+6. **Only for a load rehearsal or PDF calibration** (the 63-entry classes), apply `supabase/seed-load-fixture.sql` AFTER step 3, in its own `psql -v ON_ERROR_STOP=1 -f` run against the same URL. It is a second shared-system write: confirm it separately. It refuses to run twice (rerun `seed-demo.sql` first) and asserts its own totals (517 entries on `...010`, 1260 generated platform-wide). `.github/workflows/load-rehearsal.yml` applies it itself. Never leave it applied on staging when a club is testing: the staff dog picker searches every dog in the system, so a secretary sees all 252 load dogs.
+7. **To remove the load fixture, rerun `seed-demo.sql` alone.** Section 0 still deletes every MYK9-109 id range, so a plain reseed returns the lean set.
 
 ## Guardrails
+
+- Every destructive statement in `seed-demo.sql` is scoped to the seeded show ids (section 0 `scope_shows`), pinned by `seedDemoSelfCleaningRelationshipDeleteContract.test.ts`. Never widen it; a hand-created UAT show must survive a reseed. A "wipe staging" request is answered with the site-admin dashboard delete path, never a blanket delete.
 
 - The demo exhibitor (`exhibitor@myk9t.com`) is a protected account with seeded dogs — don't delete or repurpose it.
 - Person-delete is trigger-blocked when the person owns live dogs; surface the edge-fn error CODE rather than fighting it.

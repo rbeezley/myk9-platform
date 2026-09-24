@@ -9,6 +9,10 @@ import {
 
 // Opt-in, read-only diagnostic: never scores, checks in, reseeds, or changes settings.
 // Keep separate from the full G9 entry point and its unchanged workload/thresholds.
+// PRECONDITION: this diagnostic addresses MYK9-109 load-fixture rows
+// (loadFixture.ts), which exist only after supabase/seed-load-fixture.sql is
+// applied on top of supabase/seed-demo.sql (MYK9-558). A plain reseed removes
+// them. Opt in only against a target where the fixture is applied.
 test.skip(process.env.LOAD_READINESS_DIAGNOSTIC !== 'true', 'Explicit diagnostic opt-in required');
 test.use({ trace: 'off', screenshot: 'off', video: 'off', serviceWorkers: 'block' });
 test.setTimeout(45_000);

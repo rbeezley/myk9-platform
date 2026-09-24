@@ -37,7 +37,7 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 
 1. `supabase migration list` — remote matches local.
 2. Functions: hit the function or check `supabase functions list --project-ref sojmvhhwsjxmfistvzbe` shows the new version; watch logs via the Supabase MCP `get_logs`.
-3. Frontend: staging auto-deploys from `main` (myk9-platform-myk9show.vercel.app) — confirm the Vercel deployment for the merge commit succeeded.
+3. Frontend: nothing deploys on merge. With the user's go-ahead, `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run; `gh run watch` it, and read the summary for the deployed commit and the entry chunk myk9show.com serves.
 4. Run `get_advisors` after schema changes to catch new RLS/security warnings.
 
 ## Common failure signatures

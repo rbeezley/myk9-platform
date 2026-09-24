@@ -30,15 +30,16 @@
 --      newest copy moves;
 --   3. makes the picked cart 'active' when it now holds items, so the app can
 --      open it (at most one per pair, so the active-cart index holds), and
---      severs its checkout session because its contents changed;
+--      severs the checkout session of EVERY cart whose contents changed: the
+--      carts items moved into AND the carts they moved out of;
 --   4. expires every other recoverable cart in the pair that is now empty.
 --
 -- Carts are never merged across shows or exhibitors, and terminal carts
 -- (submitted / abandoned) are never touched. Stored totals are a cache: the app
 -- recomputes them from the items on every load, and stripe-checkout overwrites
--- them, so they are not rewritten here. When the app next loads a revived
--- draft, the MYK9-656 check removes any class that has since closed and tells
--- the exhibitor.
+-- them, so they are not rewritten here. A revived draft may hold a class that
+-- has since closed; stripe-checkout's show and entry-window gates still apply
+-- at payment, and the class-closure re-check is tracked separately (MYK9-656).
 --
 -- Both guard triggers (`trg_entry_cart_items_protect_cart_id` and
 -- `trg_entry_carts_protect_status`) admit only `current_setting('role') =
@@ -114,8 +115,8 @@ SELECT id, show_id, exhibitor_id,
        ) AS pick_rank
 FROM carts;
 
--- The carts that received items, so only their checkout sessions are severed.
-CREATE TEMP TABLE myk9_650_moved_into (cart_id uuid PRIMARY KEY) ON COMMIT DROP;
+-- Every cart an item moved into or out of, so exactly those sessions are severed.
+CREATE TEMP TABLE myk9_650_changed_carts (cart_id uuid PRIMARY KEY) ON COMMIT DROP;
 
 -- Lock every cart in scope so a live session cannot add to one mid-move.
 SELECT c.id FROM public.entry_carts c JOIN myk9_650_pick p ON p.id = c.id FOR UPDATE OF c;
@@ -124,7 +125,7 @@ SELECT c.id FROM public.entry_carts c JOIN myk9_650_pick p ON p.id = c.id FOR UP
 --    copy when two other carts hold the same (dog, class).
 WITH candidates AS (
   SELECT DISTINCT ON (target.id, i.dog_id, i.class_id)
-         i.id AS item_id, target.id AS target_cart_id
+         i.id AS item_id, i.cart_id AS source_cart_id, target.id AS target_cart_id
   FROM public.entry_cart_items i
   JOIN myk9_650_pick src ON src.id = i.cart_id AND src.pick_rank > 1
   JOIN myk9_650_pick target
@@ -144,9 +145,12 @@ moved AS (
   SET cart_id = c.target_cart_id
   FROM candidates c
   WHERE i.id = c.item_id
-  RETURNING i.cart_id
+  RETURNING c.source_cart_id, c.target_cart_id
 )
-INSERT INTO myk9_650_moved_into SELECT DISTINCT cart_id FROM moved;
+INSERT INTO myk9_650_changed_carts
+SELECT source_cart_id FROM moved
+UNION
+SELECT target_cart_id FROM moved;
 
 -- 4 (before 3, so the reactivation below can never meet a second active row).
 --    Expire every non-picked cart in the pair that is now empty.
@@ -170,10 +174,16 @@ WHERE p.id = cart.id
   AND cart.status = 'expired'
   AND EXISTS (SELECT 1 FROM public.entry_cart_items i WHERE i.cart_id = cart.id);
 
--- 3b. A cart whose contents changed must not be paid through an open session.
+-- 3b. A cart whose contents changed must not be paid through an open session,
+--     on either side of a move. The app never has to do this by hand because
+--     deleting a cart item fires trg_cart_item_delete_sever_session and
+--     changing its dog/class/entry fires trg_cart_item_identity_sever_session.
+--     Moving an item by updating its cart_id fires NEITHER, so the source
+--     cart would keep a session for contents it no longer holds; clear both
+--     sides here.
 UPDATE public.entry_carts cart
 SET stripe_checkout_session_id = NULL
-FROM myk9_650_moved_into m
+FROM myk9_650_changed_carts m
 WHERE m.cart_id = cart.id
   AND cart.stripe_checkout_session_id IS NOT NULL;
 

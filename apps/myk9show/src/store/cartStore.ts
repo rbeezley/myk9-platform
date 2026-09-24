@@ -12,8 +12,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
-import { onAccountIdentity } from '@/lib/accountBoundary';
-import { cartBelongsElsewhere } from './cartStore.owner';
+import { onAccountBoundary } from '@/lib/accountBoundary';
 
 import type {
   CartState,
@@ -1027,7 +1026,6 @@ export const useCartStore = create<CartState>()(
         name: 'myk9-cart-storage',
         partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
-          ownerAuthUserId: state.ownerAuthUserId,
           cartRecoveryInfo: state.cart
             ? {
                 id: state.cart.id,
@@ -1043,11 +1041,7 @@ export const useCartStore = create<CartState>()(
 );
 
 // The persisted cart must not outlive the account that built it (MYK9-651).
-onAccountIdentity(change => {
-  const { ownerAuthUserId, reset } = useCartStore.getState();
-  if (cartBelongsElsewhere(ownerAuthUserId, change)) reset();
-  useCartStore.setState({ ownerAuthUserId: change.userId });
-});
+onAccountBoundary(() => useCartStore.getState().reset());
 
 // Stable empty references to prevent infinite re-render loops in Zustand selectors
 const EMPTY_ITEMS: CartItemWithDetails[] = [];

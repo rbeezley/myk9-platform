@@ -1,24 +1,27 @@
 /**
- * Announces the signed-in identity (`@/lib/accountBoundary`) when the session
- * first settles and whenever it CHANGES (MYK9-651). Its first subscriber is the
- * cart store, which is `persist`ed and whose `reset()` had no production
- * caller, so a signed-out tab kept the departed user's cart in memory and on
- * disk and handed it to the next account on the device.
+ * Raises the account boundary (`@/lib/accountBoundary`) whenever the SIGNED-IN
+ * IDENTITY changes (MYK9-651). Its first subscriber is the cart store, which is
+ * `persist`ed and whose `reset()` had no production caller, so a signed-out tab
+ * kept the departed user's cart in memory and on disk and handed it to the next
+ * account on the device.
  *
  * Same boundary as `useClearQueryCacheOnAccountChange`:
  *
- * 1. A change is compared by `user.id`, never by object, so a token refresh
- *    (a fresh `User` for the same id) announces nothing.
- * 2. It waits for `authReady`, since `userId` is null for everyone before the
+ * 1. It fires on an identity CHANGE, compared by `user.id`, never on a token
+ *    refresh (which hands back a fresh `User` for the same id).
+ * 2. The first ready observation of a signed-IN user is a baseline, not a
+ *    change, so a page load (offline included) keeps the draft it restored.
+ * 3. It waits for `authReady`, since `userId` is null for everyone before the
  *    session restore settles.
- * 3. The first settled observation is announced as `initial`, not as a change.
- *    A page load (offline included) must keep a draft that belongs to the
- *    restored account, so the subscriber compares the identity it persisted
- *    with this one rather than resetting blindly; that is also what catches
- *    account A's data on a tab that opens with account B already signed in.
+ *
+ * One difference: a first ready observation of a signed-OUT viewer fires too.
+ * Nobody is signed in, so anything device-local still keyed to an account
+ * belongs to a session that ended without passing through here (a tab closed
+ * while signed in, then the session expired), and there is no one it could
+ * belong to.
  */
 import { useEffect, useRef } from 'react';
-import { announceAccountIdentity } from '@/lib/accountBoundary';
+import { notifyAccountBoundary } from '@/lib/accountBoundary';
 
 export interface NotifyAccountBoundaryOptions {
   /** Auth has finished its initial session restore. */
@@ -31,17 +34,16 @@ export function useNotifyAccountBoundary({
   authReady,
   userId,
 }: NotifyAccountBoundaryOptions): void {
-  // `undefined` means "nothing announced yet", distinct from a signed-out `null`.
+  // `undefined` means "no baseline yet", distinct from a signed-out `null`.
   const previousUserId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!authReady) return;
 
     const priorUserId = previousUserId.current;
-    if (priorUserId === undefined) {
-      announceAccountIdentity({ userId, initial: true });
-    } else if (priorUserId !== userId) {
-      announceAccountIdentity({ userId, initial: false });
+    const isBaseline = priorUserId === undefined;
+    if ((isBaseline && userId === null) || (!isBaseline && priorUserId !== userId)) {
+      notifyAccountBoundary();
     }
 
     previousUserId.current = userId;

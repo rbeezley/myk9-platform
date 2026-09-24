@@ -54,7 +54,7 @@ cd apps/myk9show && pnpm vitest run src/path/to/first.test.ts src/path/to/second
 cd apps/myk9show && pnpm vitest run -t "pattern"
 ```
 
-Redirect check output to a file and echo the real exit status — a pipe through `tail`/`grep` reports the filter's exit code, not the runner's: `pnpm test > .logs/suite.log 2>&1; echo "EXIT=$?"`. `.logs/` at the worktree root is gitignored and per-worktree, so two sessions never share a log file.
+Redirect check output to a file and echo the real exit status — a pipe through `tail`/`grep` reports the filter's exit code, not the runner's: `pnpm test > .logs/suite.log 2>&1; echo "EXIT=$?"`. `.logs/` at the worktree root is gitignored and per-worktree, so two sessions never share a log file — never log to `/tmp/<name>.log`, which every session on this Mac shares.
 
 ## Architecture Decisions
 
@@ -238,6 +238,12 @@ One up-front confirmation covers a sequence of related pushes in the same sessio
 ## Debugging seed-data / config bugs
 
 Survey every related table in one query pass before writing a migration or code fix — the role table(s), the permission/config table(s), and the join/link table(s) together. The full recipe, and when to collapse the systematic-debugging ceremony, is [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 3.
+
+## Planning
+
+Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans when they exist. **Every plan must include a testing phase** — a phase isn't complete until its tests pass. Directly under the `# Title`, add `> **Status:** Active` (`Active` / `Complete` / `Abandoned`) and register one row in [`docs/README.md`](docs/README.md); on merge, flip to `Complete`, `git mv` into `docs/archive/`, drop the index row. Full lifecycle rules: [`docs/README.md`](docs/README.md).
+
+**OpenSpec carve-out.** When a single unit of buildable work goes through the opsx skills, the OpenSpec change (`openspec/changes/<id>/`) _is_ the plan — do not also author a `docs/plan-*.md` for the same work. When each format applies, and how to cross-link if both exist: [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 1.
 
 ## Browser automation session ownership
 

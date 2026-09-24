@@ -15,6 +15,8 @@ Round 1 review also found `stale-package-dist` and `inflight-check` mis-labeled 
 
 Nothing that is still a live trap only a human could have known about is removed to buy room.
 
+**2026-09-24 consolidation (Deduplicated).** `pipe-exit-code`, `shared-tmp-log`, `stale-red-check` and `watcher-first-failure` left `CLAUDE.md` § LESSONS as Deduplicated: the shared rulebook already states each in full (Commands; Workflow § Gates 4; Worktree rule 7). `vercel-rate-limit` left as Retired: since #2393 myK9Show does not build from Git, so the failed-`main`-build half no longer exists, and § Vercel quota carries the preview half. Their narratives stay below. The same pass moved Planning into the shared rulebook, replacing two drifted harness copies.
+
 **Why the shared block counts twice.** `docs/agents/shared-rules.md` (~4,200 words) is generated verbatim into both `CLAUDE.md` and `AGENTS.md`, and the test charges it to each. That is deliberate, not double-counting: Claude Code loads `CLAUDE.md` whole into every session and every subagent, Codex loads `AGENTS.md` whole, and neither ever loads the union. The per-session token cost each ceiling exists to bound is one WHOLE file, so a de-duplicated "union" budget would measure a number no harness ever pays. The consequence to keep in mind is that a sentence added to the shared rulebook costs two budgets, which is the correct price signal: it is read by two harnesses.
 
 ## no-docker

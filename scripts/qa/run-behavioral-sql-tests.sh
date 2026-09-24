@@ -101,6 +101,7 @@ TEST_FILES=(
   "$TEST_DIR/show_email_delivery_history_test.sql"
   "$TEST_DIR/soft_delete_dog_cascade_test.sql"
   "$TEST_DIR/force_delete_dog_test.sql"
+  "$TEST_DIR/myk9_607_608_dog_delete_audit_restore_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"
   "$TEST_DIR/withdraw_own_entry_test.sql"
   "$TEST_DIR/withdraw_or_pull_own_entry_test.sql"

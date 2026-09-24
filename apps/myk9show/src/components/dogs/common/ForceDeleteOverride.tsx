@@ -34,6 +34,8 @@ interface ForceDeleteOverrideProps {
  * 20260817150000 forbids it — and it is the only case where a restored entry
  * gets its old placement back. Do not flatten this to "placements are
  * recalculated": that is false for exactly the classes a human cared most about.
+ * The "unless" clause is MYK9-607: a placement the secretary re-assigned while
+ * the dog was deleted is newer than the snapshot, so restore_dog skips it.
  *
  * INTENT: the restore line is PARTIAL on purpose (MYK9-596). restore_dog brings
  * back the dog and its entries and nothing else — entry_cart_items and
@@ -59,7 +61,7 @@ export function ForceDeleteOverride({
       <p className="mt-2 text-sm text-foreground">
         Placements re-derive on their own in classes myK9 ranks. A class the secretary placed by
         hand keeps its placements, and that is the only case where a restored entry gets its old
-        placement back.
+        placement back — unless the secretary has since given that placement to another dog.
       </p>
       <div className="mt-3 flex items-start gap-2">
         <Checkbox

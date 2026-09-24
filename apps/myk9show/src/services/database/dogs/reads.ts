@@ -18,6 +18,7 @@ import {
   normalizeDogRegistrationOrganization,
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
+import { parseRestoreDogResult } from './restoreDogResult';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -938,8 +939,8 @@ export const restoreDog = async (id: string, restoredBy?: string) => {
       throw createDatabaseError(error, 'dog', 'restore');
     }
 
-    const restored = Array.isArray(data) ? data[0] : data;
-    return { data: restored ?? null, error: null };
+    // jsonb since 20260924074100: counts plus any placement NOT re-applied (MYK9-607).
+    return { data: parseRestoreDogResult(data), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dog', 'restore');

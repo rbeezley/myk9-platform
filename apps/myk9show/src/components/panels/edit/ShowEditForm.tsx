@@ -344,7 +344,6 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
             data.organization === 'AKC' || data.organization === 'UKC' ? data.organization : null
           }
           isActive={activeTab === 'premium'}
-          handleSelectChange={handleSelectChange}
           handleCheckboxChange={handleCheckboxChange}
           handleValueChange={handleValueChange}
         />

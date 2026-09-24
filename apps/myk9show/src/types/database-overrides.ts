@@ -131,6 +131,12 @@ type ListClubRoleRequests = WithReturnFields<
  */
 type MoveUpEntry = WithOptionalArg<GeneratedFunctions['move_up_entry'], 'p_reason', string | null>;
 
+/** `20260920130937` adds the authorized, version-returning show style command. */
+type UpdateShowStyle = {
+  Args: { p_show_id: string; p_style: string };
+  Returns: number;
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -141,6 +147,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       withdraw_own_entry: WithdrawOwnEntry;
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
+      update_show_style: UpdateShowStyle;
     };
   };
 };

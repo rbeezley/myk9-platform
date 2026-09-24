@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from './helpers/testUsers';
+import { installExhibitorFixture } from './helpers/exhibitorFixture';
 
 /**
  * The header brand must never render as "myK9S…".
@@ -13,11 +14,19 @@ const PHONE_WIDTHS = [360, 375, 390, 414] as const;
 // Below 360 the wordmark is deliberately hidden and the mark carries the brand.
 const NARROW_WIDTH = 320;
 
-// A show the seeded secretary manages. The exhibitor cases above are BLIND to
-// the header Actions button (MYK9-630): it never renders on
+// Where the secretary case measures the header Actions button. The exhibitor
+// cases above are BLIND to it (MYK9-630): it never renders on
 // `/exhibitor/entries`, so the labelled trigger shipped having squeezed the
 // wordmark to "myK9S..." at every phone width with nothing red.
-const SECRETARY_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+//
+// A GLOBAL route, not a show. For a secretary the button renders here from
+// role alone ("Create a show", "Open Show Management"), and the trigger is the
+// same component at the same width on every route. This case used to open the
+// seeded show `dededede-…0010`; when staging was emptied on 2026-09-20 that
+// show vanished, the page fell to "We couldn't load this show", the button
+// withdrew, and a header-geometry spec went red over missing data
+// (docs/plan-hermetic-e2e-fixtures.md).
+const SECRETARY_ROUTE = '/secretary/dashboard';
 
 /**
  * Intrinsic width of the wordmark, measured by cloning the live node so every
@@ -152,6 +161,8 @@ test.describe('header wordmark fits', () => {
     await page.getByRole('button', { name: 'Switch to dark mode' }).click();
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
+    // The fixture stops the /onboarding redirect; see exhibitorFixture.ts.
+    await installExhibitorFixture(page);
     await signInAsExhibitor(page, '/exhibitor/entries');
 
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
@@ -174,6 +185,7 @@ test.describe('header wordmark fits', () => {
           json: [{ id: 'header-cart-fixture', entry_cart_items: [{ count: cartCount }] }],
         });
       });
+      await installExhibitorFixture(page);
       const countRead = page.waitForResponse(response => isCartCount(response.url()));
       await signInAsExhibitor(page, '/exhibitor/entries');
       await countRead;
@@ -227,21 +239,21 @@ test.describe('header wordmark fits', () => {
     });
   }
 
-  test('signed in as a secretary on a show — the Actions button must not squeeze the wordmark', async ({
+  test('signed in as a secretary — the Actions button must not squeeze the wordmark', async ({
     page,
   }) => {
-    await signInAsSecretary(page, `/shows/${SECRETARY_SHOW_ID}`);
+    await signInAsSecretary(page, SECRETARY_ROUTE);
 
     const trigger = page.getByTestId('header-actions-trigger');
     // Positive control: without this the whole test passes on a page where the
     // button never rendered, which is exactly how the bug got through.
-    await expect(trigger, 'a secretary on a show must get the Actions button').toBeVisible();
+    await expect(trigger, 'a secretary must get the Actions button from role alone').toBeVisible();
 
     for (const width of PHONE_WIDTHS) {
       await page.setViewportSize({ width, height: 812 });
       await page.evaluate(() => document.fonts.ready);
       // The header keeps reflowing for about a second after a viewport change:
-      // the hamburger appears, the show scope resolves and the Actions button
+      // the hamburger appears, the roles resolve and the Actions button
       // takes its final width. Measured before that settles, the wordmark
       // reports its FULL width and the truncation never shows -- on the pre-fix
       // build an unsettled read gave 105/114/114 where the settled one gives
@@ -249,7 +261,7 @@ test.describe('header wordmark fits', () => {
       // `expect.poll` toward "it fits": that passes on the first frame, and so
       // passes on the very regression it is there to catch.
       await waitForSettledTriggerWidth(trigger, width);
-      assertWordmarkFits(await measureWordmark(page), `secretary on a show @ ${width}`);
+      assertWordmarkFits(await measureWordmark(page), `secretary @ ${width}`);
 
       const bounds = await trigger.boundingBox();
       expect(bounds, `Actions trigger @ ${width}`).not.toBeNull();
@@ -274,12 +286,18 @@ test.describe('header wordmark fits', () => {
 
     // From `sm` up the written label comes back, where the header has the room.
     await page.setViewportSize({ width: 1280, height: 900 });
-    await expect(trigger).toHaveText(/Actions/);
-    assertWordmarkFits(await measureWordmark(page), 'secretary on a show @ 1280');
-    const desktop = await trigger.boundingBox();
-    expect(desktop!.width, 'the labelled desktop trigger is wider than the icon').toBeGreaterThan(
-      56
-    );
+    // Poll the WIDTH. `toHaveText(/Actions/)` is not a sync point here: the
+    // icon-only trigger already carries "Actions" as its `sr-only` label, so it
+    // matched before the media query flipped and the box read 44px (CI config,
+    // 2026-09-23). Polling toward "labelled" is safe in this direction -- the
+    // regression it guards is a label that never comes back, which still times
+    // out red.
+    await expect
+      .poll(async () => (await trigger.boundingBox())?.width ?? 0, {
+        message: 'the labelled desktop trigger is wider than the icon',
+      })
+      .toBeGreaterThan(56);
+    assertWordmarkFits(await measureWordmark(page), 'secretary @ 1280');
     await test.info().attach('header-desktop-secretary-actions', {
       body: await page.locator('nav').first().screenshot(),
       contentType: 'image/png',
@@ -298,6 +316,7 @@ test.describe('header wordmark fits', () => {
   });
 
   test('exactly one appearance control at every width', async ({ page }) => {
+    await installExhibitorFixture(page);
     await signInAsExhibitor(page, '/exhibitor/entries');
     for (const width of [375, 640, 768, 1024]) {
       await page.setViewportSize({ width, height: 812 });

@@ -164,7 +164,7 @@ async function searchAndSelectDog(page: Page) {
   await search.fill(DOG_SEARCH);
   await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
 
-  // Anchor on the exact call name: the MYK9-109 load fixture repeats call names,
+  // Anchor on the exact call name: the opt-in MYK9-109 load fixture repeats call names,
   // so an unanchored /Select Ranger/i can resolve to more than one row.
   const dogCheckbox = page.getByRole('checkbox', {
     name: new RegExp(`^Select ${DOG_SEARCH}$`, 'i'),

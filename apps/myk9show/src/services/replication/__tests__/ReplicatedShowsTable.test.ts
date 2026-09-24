@@ -729,6 +729,38 @@ describe('ReplicatedShowsTable', () => {
       );
     });
 
+    it('keeps style out of the generic full-row update contract', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', { name: 'Renamed Show', style: 'heritage' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.not.objectContaining({ style: expect.anything() })
+      );
+      expect((await table.get('show-1'))?.style).toBe('monogram');
+    });
+
     it('should update lastModified timestamp on update', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',

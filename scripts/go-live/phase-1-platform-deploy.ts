@@ -177,10 +177,15 @@ export function checkVercelConfig(rootDir: string): Phase1Check {
 
     try {
       const config = JSON.parse(readFileSync(configPath, 'utf8')) as {
-        git?: { deploymentEnabled?: { main?: boolean } };
+        git?: { deploymentEnabled?: boolean | { main?: boolean } };
       };
+      const deploymentEnabled = config.git?.deploymentEnabled;
+      // `false` turns off Git deploys for every branch, which covers main.
+      const mainDisabled =
+        deploymentEnabled === false ||
+        (typeof deploymentEnabled === 'object' && deploymentEnabled.main === false);
 
-      if (config.git?.deploymentEnabled?.main !== false) {
+      if (!mainDisabled) {
         missingGuards.push(relativePath);
       }
     } catch {

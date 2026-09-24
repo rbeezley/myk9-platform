@@ -36,6 +36,7 @@ import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 import {
+  excludePersistedClasses,
   normalizeWizardClassSelections,
   type NormalizedWizardClassSelection,
 } from './classConfigurationValidation';
@@ -177,11 +178,11 @@ export function useShowCreationWizardActions({
       // Filter out classes that already exist in the DB to avoid duplicates.
       let classesToCreate = allClasses;
       if (editMode?.mode === 'add-classes') {
-        const existingClassKeys = new Set(
-          existingDBClasses.map(c => `${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
-        classesToCreate = allClasses.filter(
-          c => !existingClassKeys.has(`${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
+        classesToCreate = excludePersistedClasses(
+          allClasses,
+          normalizedClasses,
+          trials,
+          existingDBClasses
         );
         logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
           total: allClasses.length,

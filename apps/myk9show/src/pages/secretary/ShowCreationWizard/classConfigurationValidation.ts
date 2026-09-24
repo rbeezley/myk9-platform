@@ -119,3 +119,63 @@ export function normalizeWizardClassSelections(
   if (invalidClasses.length > 0) throw new InvalidWizardClassConfigurationError(invalidClasses);
   return normalized;
 }
+
+export interface PersistedClassIdentity {
+  trialId: string;
+  element?: string | null | undefined;
+  level?: string | null | undefined;
+  section?: string | null | undefined;
+}
+
+function persistedIdentityKey(
+  trialId: string,
+  element: unknown,
+  level: unknown,
+  section: unknown
+): string {
+  return [trialId, element ?? '', level ?? '', section ?? ''].map(String).join('|');
+}
+
+/**
+ * Add-classes mode: drop classes that already exist. `trial.classes` carries the persisted rows
+ * verbatim (buildEditModeDraft), but the writer receives their CANONICAL triple, which differs
+ * from the stored text for a legacy row (level “Novice A”, section '' → Novice / A). Match each
+ * wizard item on the text it was loaded with, then exclude its canonical form as well, so a
+ * legacy row is never re-created as a canonical duplicate.
+ */
+export function excludePersistedClasses<
+  T extends {
+    trialId: string;
+    element?: string | undefined;
+    level?: string | undefined;
+    section?: string | undefined;
+  },
+>(
+  classes: readonly T[],
+  normalizedClasses: readonly NormalizedWizardClassSelection[],
+  trials: readonly WizardTrial[],
+  persisted: readonly PersistedClassIdentity[]
+): T[] {
+  const persistedKeys = new Set(
+    persisted.map(row => persistedIdentityKey(row.trialId, row.element, row.level, row.section))
+  );
+  const trialsById = new Map(trials.map(trial => [trial.id, trial]));
+  for (const selection of normalizedClasses) {
+    const loaded = trialsById.get(selection.trialId)?.classes[selection.sourceIndex]
+      ?.customizations;
+    if (!loaded) continue;
+    const loadedKey = persistedIdentityKey(
+      selection.trialId,
+      loaded.element,
+      loaded.level,
+      loaded.section
+    );
+    if (!persistedKeys.has(loadedKey)) continue;
+    const { element, level, section } = selection.triple;
+    persistedKeys.add(persistedIdentityKey(selection.trialId, element, level, section));
+  }
+  return classes.filter(
+    cls =>
+      !persistedKeys.has(persistedIdentityKey(cls.trialId, cls.element, cls.level, cls.section))
+  );
+}

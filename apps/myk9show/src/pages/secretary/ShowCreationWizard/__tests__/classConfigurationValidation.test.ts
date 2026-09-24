@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  excludePersistedClasses,
   InvalidWizardClassConfigurationError,
   normalizeWizardClassSelections,
 } from '../classConfigurationValidation';
@@ -197,5 +198,58 @@ describe('normalizeWizardClassSelections', () => {
       level: 'B',
       section: '',
     });
+  });
+});
+
+describe('excludePersistedClasses (add-classes mode)', () => {
+  it('does not re-create a legacy persisted row under its canonical triple', () => {
+    const legacy = { className: 'Container Novice A', element: 'Container', level: 'Novice A' };
+    const added = {
+      className: 'Interior Novice A',
+      element: 'Interior',
+      level: 'Novice',
+      section: 'A',
+    };
+    const trials: WizardTrial[] = [
+      {
+        id: 'trial-1',
+        trialType: 'Scent Work',
+        dateTime: '2026-06-01T09:00:00',
+        eventNumber: 'EVT-1',
+        classes: [
+          { templateId: '', customizations: { ...legacy, section: '' } },
+          { templateId: 'template-1', customizations: added },
+        ],
+      },
+    ];
+    const normalized = normalizeWizardClassSelections('AKC', trials);
+    const written = normalized.map(selection => ({
+      trialId: selection.trialId,
+      element: selection.triple.element,
+      level: selection.triple.level,
+      section: selection.triple.section,
+    }));
+
+    const toCreate = excludePersistedClasses(written, normalized, trials, [
+      { trialId: 'trial-1', element: 'Container', level: 'Novice A', section: '' },
+    ]);
+
+    expect(toCreate).toEqual([
+      { trialId: 'trial-1', element: 'Interior', level: 'Novice', section: 'A' },
+    ]);
+  });
+
+  it('treats a NULL persisted level as the empty level of a standalone class', () => {
+    const trials = [
+      trial('Scent Work', { className: 'Detective', element: 'Detective', level: null }),
+    ];
+    const normalized = normalizeWizardClassSelections('AKC', trials);
+    const written = [{ trialId: 'trial-1', element: 'Detective', level: '', section: '' }];
+
+    expect(
+      excludePersistedClasses(written, normalized, trials, [
+        { trialId: 'trial-1', element: 'Detective', level: null, section: null },
+      ])
+    ).toEqual([]);
   });
 });

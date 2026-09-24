@@ -8,9 +8,13 @@ import { ShowDeskCompactContext } from '../ShowDeskCompactContext';
 
 const mocks = vi.hoisted(() => ({
   publishInfo: {
-    publishedUrl: 'https://example.com/premium.pdf' as string | null,
+    publishedLocator: 'https://example.com/premium.pdf' as string | null,
+    hasPublishedPremium: true,
+    publishedPath: null as string | null,
     publishedAt: '2026-07-20T12:00:00.000Z' as string | null,
     updatedAt: '2026-07-20T12:00:00.000Z' as string | null,
+    experienceIsPublished: true as boolean | null,
+    versionedSchemaAvailable: true,
   },
   sync: {
     status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' | 'conflict',
@@ -63,7 +67,7 @@ function renderContext() {
 
 describe('ShowDeskCompactContext', () => {
   beforeEach(() => {
-    mocks.publishInfo.publishedUrl = 'https://example.com/premium.pdf';
+    mocks.publishInfo.publishedLocator = 'https://example.com/premium.pdf';
     mocks.publishInfo.publishedAt = '2026-07-20T12:00:00.000Z';
     mocks.publishInfo.updatedAt = '2026-07-20T12:00:00.000Z';
     mocks.sync.status = 'synced';
@@ -90,7 +94,8 @@ describe('ShowDeskCompactContext', () => {
   });
 
   it('shows a compact resolving exception when the premium is unpublished', () => {
-    mocks.publishInfo.publishedUrl = null;
+    mocks.publishInfo.publishedLocator = null;
+    mocks.publishInfo.hasPublishedPremium = false;
     mocks.publishInfo.publishedAt = null;
 
     renderContext();
@@ -100,6 +105,20 @@ describe('ShowDeskCompactContext', () => {
       'href',
       '/shows/show-1#setup-publish'
     );
+  });
+
+  it('does not mark durable published metadata as unpublished', () => {
+    mocks.publishInfo.publishedLocator = 'show-1/artifact-1.pdf';
+    mocks.publishInfo.hasPublishedPremium = true;
+    mocks.publishInfo.publishedAt = '2026-07-20T12:00:00.000Z';
+    mocks.publishInfo.updatedAt = '2026-07-20T12:00:00.000Z';
+
+    renderContext();
+
+    expect(screen.queryByText('Premium list is not published')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Show data changed after the premium was published')
+    ).not.toBeInTheDocument();
   });
 
   it('does not expose cached publish state while management scope is denied', () => {

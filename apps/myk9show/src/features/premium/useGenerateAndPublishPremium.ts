@@ -1,16 +1,25 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
 import { useQueryClient } from '@tanstack/react-query';
-import { publishExperience } from '@/features/experience/publishExperience';
 import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
+import {
+  classifyPremiumPublishError,
+  GENERIC_PREMIUM_PUBLISH_FAILURE,
+  premiumPublishFailureMessage,
+} from './premiumPublishErrors';
+import {
+  GENERATED_PREMIUM_INTENT_KEY,
+  runPremiumPublishOperation,
+} from './premiumPublishCoordinator';
 
-const PUBLISH_FAILURE_MESSAGE = "We couldn't publish the premium list. Please try again.";
+const PUBLISH_FAILURE_MESSAGE = GENERIC_PREMIUM_PUBLISH_FAILURE;
 
 export interface PremiumPublishShowState {
   inFlight: boolean;
   failed: boolean;
+  failureMessage?: string;
 }
 
 interface PremiumPublishStore {
@@ -18,7 +27,7 @@ interface PremiumPublishStore {
   byShowId: Record<string, PremiumPublishShowState>;
   begin: (showId: string) => void;
   succeed: (showId: string) => void;
-  fail: (showId: string) => void;
+  fail: (showId: string, failureMessage: string) => void;
 }
 
 const IDLE: PremiumPublishShowState = { inFlight: false, failed: false };
@@ -45,8 +54,12 @@ function patch(
 export const usePremiumPublishStore = create<PremiumPublishStore>()(set => ({
   byShowId: {},
   begin: showId => set(state => patch(state, showId, { inFlight: true, failed: false })),
-  succeed: showId => set(state => patch(state, showId, IDLE)),
-  fail: showId => set(state => patch(state, showId, { inFlight: false, failed: true })),
+  succeed: showId =>
+    set(state => ({
+      ...patch(state, showId, IDLE),
+    })),
+  fail: (showId, failureMessage) =>
+    set(state => patch(state, showId, { inFlight: false, failed: true, failureMessage })),
 }));
 
 export function premiumPublishStateFor(
@@ -94,8 +107,13 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     }
     begin(showId);
     try {
-      const premium = await generate(showId);
-      await publishExperience({ showId, premium, inkSaver: false });
+      await runPremiumPublishOperation({
+        showId,
+        mode: 'generated',
+        intentKey: GENERATED_PREMIUM_INTENT_KEY,
+        inkSaver: false,
+        createPremium: () => generate(showId),
+      });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
         queryClient.invalidateQueries({
@@ -108,9 +126,10 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
       ]);
       succeed(showId);
       notifications.success('Premium list published');
-    } catch {
-      fail(showId);
-      notifications.error('Could not publish the premium list');
+    } catch (error) {
+      const classified = classifyPremiumPublishError(error, 'generation');
+      fail(showId, premiumPublishFailureMessage(classified));
+      notifications.error(premiumPublishFailureMessage(classified));
     }
   }, [showId, begin, succeed, fail, generate, queryClient]);
 
@@ -118,6 +137,6 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     run,
     isBusy: showState.inFlight,
     publishFailed: showState.failed,
-    failureMessage: PUBLISH_FAILURE_MESSAGE,
+    failureMessage: showState.failureMessage ?? PUBLISH_FAILURE_MESSAGE,
   };
 }

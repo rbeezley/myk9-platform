@@ -200,8 +200,20 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
   }
 
+  /**
+   * Conflict rebuilds replay a local row over the server's, so they must omit
+   * the RPC-owned publication fields exactly as updateShow does: the local
+   * copy may predate a publish from another device, and
+   * guard_premium_publication_state rejects any non-RPC change to them
+   * (MYK9-694), which would leave the edit unable to sync.
+   */
   protected override rebuildUpdatePayload(show: ReplicatedShow): Record<string, unknown> {
-    return this.toSupabaseRow(show);
+    const payload = this.toSupabaseRow(show);
+    delete payload.experience_is_published;
+    delete payload.experience_published_at;
+    delete payload.experience_published_style;
+    delete payload.experience_published_content;
+    return payload;
   }
 
   /**
@@ -242,7 +254,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToShow,
-      rebuildUpdatePayload: show => this.toSupabaseRow(show),
+      rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.clubId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
@@ -338,7 +350,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       throw new Error(`Show ${showId} not found`);
     }
 
-    const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, updates);
+    const safeUpdates = { ...updates };
+    delete safeUpdates.experienceIsPublished;
+    delete safeUpdates.experiencePublishedAt;
+    delete safeUpdates.experiencePublishedStyle;
+    delete safeUpdates.experiencePublishedContent;
+    const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, safeUpdates);
     // Style is an RPC-owned field. Never let a stale generic Show edit carry it
     // back to Supabase or overwrite a newer Preview save.
     delete resolvedUpdates.style;

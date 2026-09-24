@@ -62,7 +62,7 @@ export function ShowDeskCompactContext({
    * `networkMode`, so it inherits 'online' and pauses offline, returning
    * undefined with `isLoading` false.
    *
-   * `classifyPremiumPublishState` reads an absent URL as "not published", so an
+   * `classifyPremiumPublishState` reads an absent committed locator as "not published", so an
    * unread response produced a persistent amber "Premium list is not published"
    * warning on shows whose premium went out weeks ago. Same defect class as the
    * counts above, with the polarity inverted: a false ALARM rather than a false
@@ -71,7 +71,7 @@ export function ShowDeskCompactContext({
    */
   const publishInfoKnown = publishInfo !== undefined;
   const publishState = classifyPremiumPublishState({
-    publishedPremiumUrl: publishInfo?.publishedUrl,
+    publishedPremiumUrl: publishInfo?.publishedLocator,
     publishedPremiumAt: publishInfo?.publishedAt,
     updatedAt: publishInfo?.updatedAt,
   });

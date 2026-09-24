@@ -22,7 +22,15 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { getShowStyle } from '@/features/registries';
-import { publishExperience } from '@/features/experience/publishExperience';
+import {
+  premiumPublishDraftKey,
+  runPremiumPublishOperation,
+} from '@/features/premium/premiumPublishCoordinator';
+import {
+  classifyPremiumPublishError,
+  PremiumPublishError,
+  premiumPublishFailureMessage,
+} from '@/features/premium/premiumPublishErrors';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import {
   SHOW_EDIT_TAB_PARAM,
@@ -393,32 +401,57 @@ function AuthorizedShowManagementShell({
               generatedPremium?: GeneratedPremium;
               inkSaver?: boolean;
             };
-            const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
-            if (!localShow) {
-              throw new Error('Show was not available in the local store.');
-            }
-            // Persist judge assignments to judge_assignments table
-            await persistShowJudgeAssignments(id, showData.assignedJudges || []);
-            queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
-            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-              current?.map(s => (s.id === id ? localShow : s))
-            );
+            const persistShowChanges = async () => {
+              const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
+              if (!localShow) {
+                throw new Error('Show was not available in the local store.');
+              }
+              // Persist judge assignments to judge_assignments table
+              await persistShowJudgeAssignments(id, showData.assignedJudges || []);
+              queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
+              queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
+                current?.map(s => (s.id === id ? localShow : s))
+              );
+            };
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
-              await publishExperience({
-                showId: id,
-                premium: applyShowFormDataToPremium(
+              // Save the edits first. Publication can fail before it ever asks
+              // for the premium (reservation denied, RPC unavailable, or a
+              // lost-response retry that reconciles as already committed), and
+              // none of those may discard what the secretary just typed.
+              await persistShowChanges();
+              try {
+                const premium = applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,
                   showData as Partial<ShowInput>
-                ),
-                inkSaver: Boolean(publishableShowData.inkSaver),
-              });
+                );
+                await runPremiumPublishOperation({
+                  showId: id,
+                  mode: 'draft',
+                  intentKey: premiumPublishDraftKey({
+                    premium,
+                    inkSaver: Boolean(publishableShowData.inkSaver),
+                  }),
+                  inkSaver: Boolean(publishableShowData.inkSaver),
+                  createPremium: async () => premium,
+                });
+              } catch (error) {
+                const classified = classifyPremiumPublishError(error, 'experience-snapshot');
+                throw new PremiumPublishError(
+                  premiumPublishFailureMessage(classified),
+                  classified.stage,
+                  classified.code,
+                  error
+                );
+              }
               queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
               queryClient.invalidateQueries({
                 queryKey: ['shows', id, 'published-experience-content'],
               });
               queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(id) });
               queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+            } else {
+              await persistShowChanges();
             }
           }
           notifications.success('Show changes saved');

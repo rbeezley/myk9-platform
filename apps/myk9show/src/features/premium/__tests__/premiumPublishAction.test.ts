@@ -13,7 +13,8 @@ const PUBLISHED_AT = '2026-09-01T10:00:00Z';
 
 function info(overrides: Partial<PublishInfo> = {}): PublishInfo {
   return {
-    publishedUrl: 'https://example.test/premium.pdf',
+    publishedLocator: 'https://example.test/premium.pdf',
+    hasPublishedPremium: true,
     publishedAt: PUBLISHED_AT,
     updatedAt: PUBLISHED_AT,
     experienceIsPublished: true,
@@ -27,10 +28,25 @@ describe('derivePremiumPublish — what the card and the menu both read', () => 
   it('offers a first publish when nothing is published', () => {
     const { action, hasPublishedPremium } = derivePremiumPublish({
       ...manager,
-      info: info({ publishedUrl: null, publishedAt: null }),
+      info: info({ publishedLocator: null, hasPublishedPremium: false, publishedAt: null }),
     });
     expect(hasPublishedPremium).toBe(false);
     expect(action).toEqual({ label: 'Generate & publish premium' });
+  });
+
+  it('disables publishing until the private-publication migration is available', () => {
+    const { action } = derivePremiumPublish({
+      ...manager,
+      info: info({
+        publishedLocator: null,
+        hasPublishedPremium: false,
+        publishedAt: null,
+        versionedSchemaAvailable: false,
+      }),
+    });
+    expect(action.disabledReason).toBe(
+      'Premium publishing setup is still being deployed. Try again shortly.'
+    );
   });
 
   it('GREYS the action when the premium is published and up to date', () => {

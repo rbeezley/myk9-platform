@@ -1,18 +1,30 @@
 import { act, fireEvent, screen, waitFor } from '@/test/utils/testUtils';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 import { publishInfoQueryKey } from '../usePublishInfo';
+import { resetPremiumPublishCoordinatorForTests } from '../premiumPublishCoordinator';
+import { generatedPremium } from './fixtures/generatedPremium';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
+const invokeMock = vi.hoisted(() => vi.fn());
 const generateMock = vi.hoisted(() => vi.fn());
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const notificationErrorMock = vi.hoisted(() => vi.fn());
+const getUserMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    data: { user: { id: 'user-a' } },
+    error: null,
+  }))
+);
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
+    functions: { invoke: invokeMock },
+    auth: { getUser: getUserMock },
+    rpc: vi.fn(async () => ({ data: { status: 'reserved', version: 1 }, error: null })),
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -73,12 +85,21 @@ function createPlaceholderQueryClient() {
 }
 
 describe('PremiumDownloadCard', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     // The publish flow's in-flight/failed state is a module-scope store now
     // (two triggers in two subtrees share it), so it has to be reset like any
     // other global between tests.
     usePremiumPublishStore.setState({ byShowId: {} });
+    resetPremiumPublishCoordinatorForTests();
     maybeSingleMock.mockReset();
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue({ data: { url: 'https://signed.test/current.pdf' }, error: null });
+    getUserMock.mockReset();
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-a' } }, error: null });
     generateMock.mockReset();
     publishExperienceMock.mockReset();
     notificationErrorMock.mockReset();
@@ -118,7 +139,8 @@ describe('PremiumDownloadCard', () => {
     queryClient.setQueryData(
       publishInfoQueryKey('show-1'),
       {
-        publishedUrl: 'https://example.test/cached-premium.pdf',
+        publishedLocator: 'https://example.test/cached-premium.pdf',
+        hasPublishedPremium: true,
         publishedAt: '2026-05-09T12:00:00.000Z',
         updatedAt: '2026-05-09T12:00:00.000Z',
         experienceIsPublished: true,
@@ -131,10 +153,7 @@ describe('PremiumDownloadCard', () => {
       renderCard(false, 'show-1', true, queryClient);
       void queryClient.refetchQueries({ queryKey: publishInfoQueryKey('show-1') });
 
-      expect(screen.getByRole('link', { name: /download pdf/i })).toHaveAttribute(
-        'href',
-        'https://example.test/cached-premium.pdf'
-      );
+      expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
       await waitFor(() =>
         expect(
           screen.getAllByText("You're offline — publishing needs a connection").length
@@ -185,10 +204,8 @@ describe('PremiumDownloadCard', () => {
     const queryClient = createPlaceholderQueryClient();
     const view = renderCard(false, 'show-a', true, queryClient);
 
-    expect(await screen.findByRole('link', { name: /download pdf/i })).toHaveAttribute(
-      'href',
-      'https://example.test/show-a.pdf'
-    );
+    expect(await screen.findByRole('button', { name: /download pdf/i })).toBeInTheDocument();
+    expect(invokeMock).not.toHaveBeenCalled();
 
     view.rerender(
       <PremiumDownloadCard showId="show-b" showStaleBadge={false} canManageShow={true} />
@@ -201,7 +218,8 @@ describe('PremiumDownloadCard', () => {
   it('hides cached management state while scope is unresolved, then restores it when allowed', async () => {
     const queryClient = createPlaceholderQueryClient();
     queryClient.setQueryData(publishInfoQueryKey('show-a'), {
-      publishedUrl: 'https://example.test/show-a.pdf',
+      publishedLocator: 'https://example.test/show-a.pdf',
+      hasPublishedPremium: true,
       publishedAt: '2026-05-09T12:00:00.000Z',
       updatedAt: '2026-05-09T12:00:00.000Z',
       experienceIsPublished: true,
@@ -209,20 +227,17 @@ describe('PremiumDownloadCard', () => {
 
     const view = renderCard(false, 'show-a', false, queryClient);
 
-    expect(screen.queryByRole('link', { name: /download pdf/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /download pdf/i })).toBeNull();
     expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
 
     view.rerender(
       <PremiumDownloadCard showId="show-a" showStaleBadge={false} canManageShow={true} />
     );
 
-    expect(await screen.findByRole('link', { name: /download pdf/i })).toHaveAttribute(
-      'href',
-      'https://example.test/show-a.pdf'
-    );
+    expect(await screen.findByRole('button', { name: /download pdf/i })).toBeInTheDocument();
   });
 
-  it('opens published premium lists in a new tab', async () => {
+  it('mints a fresh URL only after click and opens the published PDF in a new tab', async () => {
     maybeSingleMock.mockResolvedValue({
       data: {
         published_premium_url: 'https://example.test/premium.pdf',
@@ -232,14 +247,77 @@ describe('PremiumDownloadCard', () => {
       error: null,
     });
 
-    renderCard();
+    const blankTab = { opener: window, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(blankTab as unknown as Window);
+    const { user } = renderCard();
 
-    const link = await screen.findByRole('link', { name: /download pdf/i });
-    expect(link).toHaveAttribute('href', 'https://example.test/premium.pdf');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(link).not.toHaveAttribute('download');
+    const downloadButton = await screen.findByRole('button', { name: /download pdf/i });
+    expect(invokeMock).not.toHaveBeenCalled();
+    await user.click(downloadButton);
+    await waitFor(() => expect(blankTab.location.href).toBe('https://signed.test/current.pdf'));
+    expect(invokeMock).toHaveBeenCalledWith('get-premium-download', {
+      body: { show_id: 'show-1' },
+    });
+    expect(blankTab.opener).toBeNull();
     expect(screen.getByText(/premium pdf published may 9, 2026/i)).toBeInTheDocument();
+  });
+
+  it('keeps publication status and republish available when download signing fails', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_path: 'show-1/artifact-1.pdf',
+        published_premium_url: 'https://example.test/premium.pdf',
+        published_premium_at: '2026-05-09T12:00:00.000Z',
+        updated_at: '2026-05-09T12:05:01.000Z',
+        experience_is_published: true,
+      },
+      error: null,
+    });
+    invokeMock.mockResolvedValueOnce({ data: null, error: new Error('download unavailable') });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /download pdf/i }));
+
+    expect(await screen.findByText(/couldn't prepare the premium pdf/i)).toBeInTheDocument();
+    expect(screen.getByText(/premium pdf published may 9, 2026/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /republish premium/i })).toBeEnabled();
+  });
+
+  it('keeps an in-flight download result scoped to the show that started it', async () => {
+    const queryClient = createPlaceholderQueryClient();
+    const publishedInfo = {
+      publishedLocator: 'show-a/artifact-1.pdf',
+      hasPublishedPremium: true,
+      publishedAt: '2026-05-09T12:00:00.000Z',
+      updatedAt: '2026-05-09T12:00:00.000Z',
+      experienceIsPublished: true,
+    };
+    queryClient.setQueryData(publishInfoQueryKey('show-a'), publishedInfo);
+    queryClient.setQueryData(publishInfoQueryKey('show-b'), publishedInfo);
+
+    let rejectSigning!: (error: Error) => void;
+    invokeMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectSigning = reject;
+      })
+    );
+    const blankTab = { opener: window, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(blankTab as unknown as Window);
+    const view = renderCard(false, 'show-a', true, queryClient);
+    const { user } = view;
+
+    await user.click(screen.getByRole('button', { name: /download pdf/i }));
+    expect(screen.getByRole('button', { name: /preparing pdf/i })).toBeDisabled();
+
+    view.rerender(
+      <PremiumDownloadCard showId="show-b" showStaleBadge={false} canManageShow={true} />
+    );
+    expect(screen.getByRole('button', { name: /download pdf/i })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await act(async () => rejectSigning(new Error('show A signing failed')));
+    expect(screen.getByRole('button', { name: /download pdf/i })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('surfaces a republish action when published premium data is stale', async () => {
@@ -256,7 +334,7 @@ describe('PremiumDownloadCard', () => {
 
     expect(await screen.findByRole('button', { name: /republish premium/i })).toBeInTheDocument();
     expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
   });
 
   it('refreshes the published timestamp and clears the stale warning after republishing', async () => {
@@ -279,7 +357,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-10T12:06:00.000Z',
@@ -315,7 +393,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-10T12:06:00.000Z',
@@ -365,7 +443,7 @@ describe('PremiumDownloadCard', () => {
     });
 
     expect(generateMock).toHaveBeenCalledTimes(1);
-    resolveGeneration?.({});
+    resolveGeneration?.(generatedPremium());
     await waitFor(() => expect(publishExperienceMock).toHaveBeenCalledTimes(1));
   });
 
@@ -382,7 +460,7 @@ describe('PremiumDownloadCard', () => {
       .mockRejectedValueOnce(
         new Error('Edge Function returned 500: {"detail":"permission denied"}')
       )
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-09T12:01:00.000Z',
@@ -392,19 +470,42 @@ describe('PremiumDownloadCard', () => {
     await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /we couldn't publish the premium list\. please try again\./i
+      /you do not have permission to publish this show's premium list/i
     );
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     expect(
       screen.queryByText(/permission denied|edge function returned 500/i)
     ).not.toBeInTheDocument();
-    expect(notificationErrorMock).toHaveBeenCalledWith('Could not publish the premium list');
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary."
+    );
 
     await user.click(screen.getByRole('button', { name: /try again/i }));
     await waitFor(() => {
       expect(generateMock).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows specific guidance when the show organization is missing', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+    generateMock.mockRejectedValueOnce(
+      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
+    );
+
+    const { user } = renderCard();
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /set this show's organization to akc or ukc in show settings/i
+    );
   });
 
   it('disables retry while the publish read is paused offline', async () => {
@@ -454,7 +555,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock
       .mockRejectedValueOnce(new Error('Edge Function returned 500: {"detail":"db down"}'))
       .mockResolvedValueOnce({
@@ -482,7 +583,7 @@ describe('PremiumDownloadCard', () => {
     await waitFor(() => {
       expect(generateMock).toHaveBeenCalledTimes(2);
       expect(publishExperienceMock).toHaveBeenCalledTimes(2);
-      expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
@@ -524,7 +625,9 @@ describe('PremiumDownloadCard', () => {
 
     renderCard(true);
 
-    expect(await screen.findByRole('link', { name: /download pdf/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /download pdf/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /republish|publish landing page/i })
+    ).not.toBeInTheDocument();
   });
 });

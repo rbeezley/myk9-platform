@@ -179,8 +179,10 @@ async function mountOnAThenGoToB() {
   const reads = installPublishReads();
   const view = renderShowSurfaces();
 
-  const downloadA = await screen.findByRole('link', { name: 'Download PDF' });
-  expect(downloadA).toHaveAttribute('href', SHOW_A_PDF);
+  // Positive control, matched by text for the same reason as
+  // expectNoShowAState: after the private-bucket cutover (MYK9-694) the card's
+  // Download PDF is a button that fetches a signed URL, not a public link.
+  expect(await screen.findByText('Download PDF')).toBeInTheDocument();
   expect(await readPremiumMenuItem(view.user)).toContain(PREMIUM_UP_TO_DATE_REASON);
 
   await view.user.click(screen.getByRole('button', { name: 'go to show B' }));

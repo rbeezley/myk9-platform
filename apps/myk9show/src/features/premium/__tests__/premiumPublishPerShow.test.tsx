@@ -6,13 +6,18 @@ import {
   useGenerateAndPublishPremium,
   usePremiumPublishStore,
 } from '../useGenerateAndPublishPremium';
+import { PremiumPublishError } from '../premiumPublishErrors';
+import { resetPremiumPublishCoordinatorForTests } from '../premiumPublishCoordinator';
+import { generatedPremium } from './fixtures/generatedPremium';
 
 const SHOW_A = 'show-a';
 const SHOW_B = 'show-b';
 
 const edges = vi.hoisted(() => ({
   generate: vi.fn(),
-  publishExperience: vi.fn(async () => undefined),
+  getUser: vi.fn(async () => ({ data: { user: { id: 'user-a' } }, error: null })),
+  rpc: vi.fn(async () => ({ data: { status: 'reserved', version: 1 }, error: null })),
+  publishExperience: vi.fn(async (_options: Record<string, unknown>) => undefined),
   release: {} as Record<string, (value?: unknown) => void>,
 }));
 
@@ -27,6 +32,10 @@ vi.mock('../useGeneratePremium', () => ({
 
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: edges.publishExperience,
+}));
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { rpc: edges.rpc, auth: { getUser: edges.getUser } },
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -47,7 +56,12 @@ function pending(showId: string) {
 
 beforeEach(() => {
   usePremiumPublishStore.setState({ byShowId: {} });
+  resetPremiumPublishCoordinatorForTests();
   edges.generate.mockReset();
+  edges.getUser.mockReset();
+  edges.getUser.mockResolvedValue({ data: { user: { id: 'user-a' } }, error: null });
+  edges.rpc.mockReset();
+  edges.rpc.mockResolvedValue({ data: { status: 'reserved', version: 1 }, error: null });
   edges.publishExperience.mockClear();
   edges.release = {};
 });
@@ -56,7 +70,7 @@ describe('premium publish state is per SHOW, not global', () => {
   it('lets a second show publish while the first is still in flight', async () => {
     edges.generate.mockImplementation(async (showId: string) => {
       await pending(showId);
-      return { showId };
+      return generatedPremium();
     });
 
     const a = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
@@ -75,7 +89,7 @@ describe('premium publish state is per SHOW, not global', () => {
   it('refuses a SECOND trigger for the same show, with busy visible on both', async () => {
     edges.generate.mockImplementation(async (showId: string) => {
       await pending(showId);
-      return { showId };
+      return generatedPremium();
     });
 
     // Two triggers on the same show — the card's button and the header item.
@@ -112,5 +126,138 @@ describe('premium publish state is per SHOW, not global', () => {
     // "Try again" notice the moment B started.
     expect(a.result.current.publishFailed).toBe(true);
     expect(b.result.current.publishFailed).toBe(false);
+  });
+
+  it('regenerates on retry and reuses the staged artifact for an identical complete intent', async () => {
+    const generated = generatedPremium();
+    edges.generate.mockResolvedValue(generated);
+    edges.rpc
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 1 }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 2 }, error: null });
+    edges.publishExperience
+      .mockRejectedValueOnce(new PremiumPublishError('snapshot failed', 'experience-snapshot'))
+      .mockResolvedValueOnce(undefined);
+
+    const hook = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
+
+    await act(async () => {
+      await hook.result.current.run();
+    });
+    expect(hook.result.current.publishFailed).toBe(true);
+
+    await act(async () => {
+      await hook.result.current.run();
+    });
+
+    expect(edges.generate).toHaveBeenCalledTimes(2);
+    expect(edges.publishExperience).toHaveBeenCalledTimes(2);
+    const firstAttempt = edges.publishExperience.mock.calls[0]?.[0] as
+      { showId: string; attempt: { artifactId: string } } | undefined;
+    const secondAttempt = edges.publishExperience.mock.calls[1]?.[0];
+    if (!firstAttempt || !secondAttempt) throw new Error('publish attempt arguments missing');
+    expect(firstAttempt).toMatchObject({
+      showId: SHOW_A,
+      attempt: { artifactId: expect.any(String), publishVersion: 1 },
+    });
+    expect(secondAttempt).toMatchObject({
+      showId: SHOW_A,
+      attempt: {
+        artifactId: firstAttempt.attempt.artifactId,
+        publisherId: 'user-a',
+        publishVersion: 2,
+      },
+    });
+    expect(hook.result.current.publishFailed).toBe(false);
+  });
+
+  it('uses a new staged artifact when regenerated source data changed', async () => {
+    edges.generate
+      .mockResolvedValueOnce(generatedPremium())
+      .mockResolvedValueOnce(generatedPremium('Updated venue'));
+    edges.rpc
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 1 }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 2 }, error: null });
+    edges.publishExperience.mockRejectedValueOnce(new Error('response lost'));
+
+    const hook = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
+    await act(async () => void (await hook.result.current.run()));
+    await act(async () => void (await hook.result.current.run()));
+
+    const firstAttempt = edges.publishExperience.mock.calls[0]?.[0].attempt as {
+      artifactId: string;
+      publishVersion: number;
+    };
+    const retryAttempt = edges.publishExperience.mock.calls[1]?.[0].attempt as typeof firstAttempt;
+    expect(retryAttempt.publishVersion).toBe(2);
+    expect(retryAttempt.artifactId).not.toBe(firstAttempt.artifactId);
+  });
+
+  it('keeps a recoverable staged attempt when a retry generation fails temporarily', async () => {
+    edges.rpc
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 1 }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 2 }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 3 }, error: null });
+    edges.generate
+      .mockResolvedValueOnce(generatedPremium())
+      .mockRejectedValueOnce(new Error('temporary generation failure'))
+      .mockResolvedValueOnce(generatedPremium());
+    edges.publishExperience
+      .mockRejectedValueOnce(new Error('response lost'))
+      .mockResolvedValueOnce(undefined);
+
+    const hook = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
+    await act(async () => void (await hook.result.current.run()));
+    await act(async () => void (await hook.result.current.run()));
+    expect(edges.publishExperience).toHaveBeenCalledTimes(1);
+    await act(async () => void (await hook.result.current.run()));
+
+    const firstAttempt = edges.publishExperience.mock.calls[0]?.[0].attempt as {
+      artifactId: string;
+    };
+    const finalAttempt = edges.publishExperience.mock.calls[1]?.[0].attempt as {
+      artifactId: string;
+      publishVersion: number;
+    };
+    expect(finalAttempt.artifactId).toBe(firstAttempt.artifactId);
+    expect(finalAttempt.publishVersion).toBe(3);
+  });
+
+  it('does not reuse a failed staged attempt after the signed-in account changes', async () => {
+    edges.getUser
+      .mockResolvedValueOnce({ data: { user: { id: 'user-a' } }, error: null })
+      .mockResolvedValueOnce({ data: { user: { id: 'user-b' } }, error: null });
+    edges.rpc
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 1 }, error: null })
+      .mockResolvedValueOnce({ data: { status: 'reserved', version: 2 }, error: null });
+    edges.generate.mockResolvedValue(generatedPremium());
+    edges.publishExperience.mockRejectedValueOnce(new Error('response lost'));
+
+    const hook = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
+    await act(async () => void (await hook.result.current.run()));
+    await act(async () => void (await hook.result.current.run()));
+
+    const firstAttempt = edges.publishExperience.mock.calls[0]?.[0].attempt as {
+      artifactId: string;
+      publishVersion: number;
+      publisherId: string;
+    };
+    const retryAttempt = edges.publishExperience.mock.calls[1]?.[0].attempt as typeof firstAttempt;
+    expect(firstAttempt.publisherId).toBe('user-a');
+    expect(retryAttempt.publisherId).toBe('user-b');
+    expect(retryAttempt.publishVersion).toBe(2);
+    expect(retryAttempt.artifactId).not.toBe(firstAttempt.artifactId);
+  });
+
+  it('reserves an ordered version before generation resolves', async () => {
+    edges.generate.mockImplementation(async (showId: string) => {
+      await pending(showId);
+      return generatedPremium();
+    });
+    const hook = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
+
+    act(() => void hook.result.current.run());
+    await waitFor(() => expect(edges.rpc).toHaveBeenCalledTimes(1));
+    expect(edges.generate).toHaveBeenCalledTimes(1);
+    expect(edges.publishExperience).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 20260923154300: guard people.auth_user_id, email and status (MYK9-710)
+-- Migration 20260923154300: guard people.auth_user_id and email (MYK9-710)
 --
 -- THE TAKEOVER THIS CLOSES. A secretary could take over any account, site
 -- admins included:
@@ -18,17 +18,18 @@
 --      one of the victim's roles, site_admin included, to the new identity.
 --
 -- WHAT THIS MIGRATION DOES. One BEFORE UPDATE trigger on `people`, firing only
--- when `auth_user_id`, `email` or `status` is in the SET list, refuses an
--- unprivileged caller who:
+-- when `auth_user_id` or `email` is in the SET list, refuses an unprivileged
+-- caller who:
 --
 --   (a) changes `auth_user_id` at all (link, unlink or relink);
 --   (b) changes `email` on a row that has a sign-in identity, or that holds any
---       `user_roles` row (an identity existed, or roles are waiting for one);
---   (d) changes `status`, which is account suspension (063's auth hook reads
---       it). 097 made that site-admin-only; 20260728130000 consolidated the
---       update policies and dropped the guard, so a suspended user could
---       reinstate themselves and a secretary could suspend any manageable
---       person. This restores 097's intent.
+--       `user_roles` row (an identity existed, or roles are waiting for one).
+--
+-- `status` (account suspension) is NOT touched here. It is already guarded by
+-- `people_protect_status_trigger` (157, latest body 20260524121000), which
+-- allows `can_manage_show_person(OLD.id) OR is_site_admin()` and so already
+-- refuses a person reinstating their own row. Narrowing it to site admins is a
+-- product decision, raised separately rather than folded into this fix.
 --
 -- Step 2 dies at (a) and at (b). Ordinary directory maintenance is untouched:
 -- a secretary can still edit a mail-in person's name, phone and email, because
@@ -86,10 +87,9 @@ begin
     lower(btrim(coalesce(new.email, ''))) is distinct from lower(btrim(coalesce(old.email, '')));
 
   -- Nothing guarded moved: the overwhelmingly common save (the app assigns
-  -- email and status on nearly every write whether or not they changed).
+  -- email on nearly every write whether or not it changed).
   if new.auth_user_id is not distinct from old.auth_user_id
-     and not v_email_changed
-     and new.status is not distinct from old.status then
+     and not v_email_changed then
     return new;
   end if;
 
@@ -116,18 +116,12 @@ begin
             hint = 'people.email is the adoption key at signup for a person with an identity or roles (MYK9-710).';
   end if;
 
-  if new.status is distinct from old.status then
-    raise exception 'Only a site admin can suspend or reinstate an account.'
-      using errcode = '42501',
-            hint = 'people.status is account suspension (MYK9-710, restoring 097).';
-  end if;
-
   return new;
 end;
 $$;
 
 comment on function public.people_guard_identity_columns() is
-  'MYK9-710: refuses non-site-admin client changes to people.auth_user_id, to people.email on a row with an identity or roles, and to people.status. Server paths (GoTrue signup/sync, service_role, postgres) are exempt via the role GUC.';
+  'MYK9-710: refuses non-site-admin client changes to people.auth_user_id, and to people.email on a row with an identity or roles. Server paths (GoTrue signup/sync, service_role, postgres) are exempt via the role GUC.';
 
 -- A trigger function needs no EXECUTE from anyone at fire time. Revoke PUBLIC
 -- as well as the two roles: a revoke from anon alone is inert while the default
@@ -143,7 +137,7 @@ revoke all on function public.people_guard_identity_columns() from authenticated
 drop trigger if exists people_authz_guard_identity_columns on public.people;
 
 create trigger people_authz_guard_identity_columns
-  before update of auth_user_id, email, status on public.people
+  before update of auth_user_id, email on public.people
   for each row
   execute function public.people_guard_identity_columns();
 

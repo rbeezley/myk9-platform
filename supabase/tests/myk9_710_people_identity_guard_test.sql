@@ -196,12 +196,6 @@ select pg_temp.expect('secretary cannot change the email of an unlinked role hol
     $s$update public.people set email = 'attacker@example.test' where id = '00000000-0000-0000-0000-000000710015'$s$),
   '42501');
 
--- Suspension (restores 097): a secretary cannot suspend a manageable person...
-select pg_temp.expect('secretary cannot change a person''s status',
-  pg_temp.run_as('00000000-0000-0000-0000-000000710101',
-    $s$update public.people set status = 'suspended' where id = '00000000-0000-0000-0000-000000710014'$s$),
-  '42501');
-
 -- Step 3: the attacker signs up at the address they tried to plant. Nothing
 -- was planted, so this creates a fresh person and adopts no one.
 insert into auth.users (
@@ -245,13 +239,22 @@ begin
 end;
 $$;
 
--- ...and a person cannot reinstate themselves.
-update public.people set status = 'suspended' where id = '00000000-0000-0000-0000-000000710011';
+-- Regression pin for the EXISTING status guard (people_protect_status,
+-- 20260524121000), which this migration deliberately leaves alone: a suspended
+-- person who is not a manager of their own row cannot reinstate themselves.
+-- Suspension and reinstatement run as a site admin, the path the app uses.
+select pg_temp.expect('site admin can suspend the secretary',
+  pg_temp.run_as('00000000-0000-0000-0000-000000710103',
+    $s$update public.people set status = 'suspended' where id = '00000000-0000-0000-0000-000000710011'$s$),
+  'ok:1');
 select pg_temp.expect('a suspended person cannot reinstate themselves',
   pg_temp.run_as('00000000-0000-0000-0000-000000710101',
     $s$update public.people set status = 'active' where id = '00000000-0000-0000-0000-000000710011'$s$),
   '42501');
-update public.people set status = 'active' where id = '00000000-0000-0000-0000-000000710011';
+select pg_temp.expect('site admin can reinstate the secretary',
+  pg_temp.run_as('00000000-0000-0000-0000-000000710103',
+    $s$update public.people set status = 'active' where id = '00000000-0000-0000-0000-000000710011'$s$),
+  'ok:1');
 
 -- ---------------------------------------------------------------------------
 -- What must keep working.
@@ -265,12 +268,12 @@ select pg_temp.expect('secretary can edit a mail-in person''s name, phone and em
         where id = '00000000-0000-0000-0000-000000710014'$s$),
   'ok:1');
 
--- An ordinary save that re-sends the SAME email and status (recased, padded)
--- on a linked person is not a change.
-select pg_temp.expect('re-saving an unchanged email and status on a linked person still works',
+-- An ordinary save that re-sends the SAME email (recased, padded) and the same
+-- auth_user_id on a linked person is not a change.
+select pg_temp.expect('re-saving an unchanged email and link on a linked person still works',
   pg_temp.run_as('00000000-0000-0000-0000-000000710101',
     $s$update public.people
-          set email = '  MYK9-710-Victim@Example.TEST ', status = status, auth_user_id = auth_user_id,
+          set email = '  MYK9-710-Victim@Example.TEST ', auth_user_id = auth_user_id,
               city = 'Resaved'
         where id = '00000000-0000-0000-0000-000000710012'$s$),
   'ok:1');
@@ -302,7 +305,7 @@ begin
 end;
 $$;
 
--- A site admin can unlink and relink, change a guarded email, and suspend.
+-- A site admin can unlink and relink, and change a guarded email.
 select pg_temp.expect('site admin can unlink an identity',
   pg_temp.run_as('00000000-0000-0000-0000-000000710103',
     $s$update public.people set auth_user_id = null where id = '00000000-0000-0000-0000-000000710012'$s$),
@@ -316,10 +319,6 @@ select pg_temp.expect('site admin can change an unlinked role holder''s email',
   pg_temp.run_as('00000000-0000-0000-0000-000000710103',
     $s$update public.people set email = 'myk9-710-invitee-new@example.test'
         where id = '00000000-0000-0000-0000-000000710015'$s$),
-  'ok:1');
-select pg_temp.expect('site admin can suspend an account',
-  pg_temp.run_as('00000000-0000-0000-0000-000000710103',
-    $s$update public.people set status = 'suspended' where id = '00000000-0000-0000-0000-000000710014'$s$),
   'ok:1');
 
 -- The invite flow: a person with a pre-assigned role is adopted at signup and

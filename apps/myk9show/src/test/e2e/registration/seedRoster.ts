@@ -65,13 +65,18 @@ export async function searchForSeededDog(page: Page, dog: SeededSearchDog): Prom
   );
   await page.getByPlaceholder(/Search all dogs/i).fill(dog.callName);
   const response = await responsePromise;
+  // A failed request is a broken endpoint (auth, RLS, backend), not missing
+  // seed data, so say which before reading the body as rows.
+  expect(response.ok(), `dogs search ${response.status()}: ${await response.text()}`).toBe(true);
   const rows = (await response.json()) as Array<{ id: string; call_name?: string }>;
-  expect(rows, `Shared staging seed drift: missing ${dog.callName} (${dog.id})`).toEqual(
+  // Target-neutral: this runs on shared staging and on the nightly isolated DB.
+  expect(rows, `Seed drift: missing ${dog.callName} (${dog.id}) in /rest/v1/dogs search`).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: dog.id })])
   );
+  const escapedName = dog.callName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   await expect(
-    page.getByRole('checkbox', { name: new RegExp(`^Select ${dog.callName}$`, 'i') })
-  ).toBeVisible();
+    page.getByRole('checkbox', { name: new RegExp(`^Select ${escapedName}$`, 'i') })
+  ).toBeVisible({ timeout: 10000 });
 }
 
 /**

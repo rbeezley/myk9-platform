@@ -235,9 +235,11 @@ describe('useReportData', () => {
       }
     });
 
+    // MYK9-721: the re-read runs offline now -- it reads the replica, where the
+    // hydrated people rows already live -- and the cached report stays ready.
+    await waitFor(() => expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(result.current.dataState).toBe('ready'));
     expect(mapReportEntries(result.current.entries ?? [])[0]?.handler).toBe('Unknown');
-    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(1);
   });
 
   it('returns null show when show is null', () => {
@@ -561,24 +563,43 @@ describe('useReportData', () => {
         React.createElement(QueryClientProvider, { client: queryClient }, children);
     };
 
-    it('reports "unavailable", not "loading" and not an empty result, when offline', async () => {
-      // The defect this guards: with networkMode 'online' a query with no
-      // connectivity settles at isPending && !isFetching, so isLoading is
-      // FALSE and isError is FALSE while data stays undefined. Every caller
-      // that spelled `entries ?? []` then read that as "this class has no
-      // dogs" and printed it.
+    it('reads the replica offline instead of pausing on a cold load (MYK9-721)', async () => {
+      // The defect this guards: with the default networkMode 'online' a query
+      // with no connectivity PAUSES without ever calling its queryFn, so a cold
+      // offline load never read the replica and every report was refused
+      // although the rows were on the device.
       onlineManager.setOnline(false);
-      mockGetTrialsByShow.mockResolvedValue({ data: [], error: null } as never);
+      mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({
+        data: [{ id: 'class-1', trial_id: 'trial-1' }],
+        error: null,
+      } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({
+        data: [{ id: 'entry-1', class_id: 'class-1' }],
+        error: null,
+      } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
         wrapper: onlineWrapper(),
       });
 
-      await waitFor(() => expect(result.current.dataState).toBe('unavailable'));
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.entries).toHaveLength(1);
+    });
+
+    it('reports "error", not an empty report, when a never-synced replica read fails offline', async () => {
+      onlineManager.setOnline(false);
+      mockGetTrialsByShow.mockResolvedValue({
+        data: [],
+        error: new Error('trial_select_by_show_online_verify'),
+      } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('error'));
       expect(result.current.isReady).toBe(false);
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.isError).toBe(false);
-      expect(result.current.entries).toBeUndefined();
     });
 
     it('is ready only once all three reads have landed', async () => {
@@ -627,10 +648,46 @@ describe('useReportData', () => {
         result.current.refetch();
       });
 
-      // The refetches park at fetchStatus 'paused' with data still in place.
+      // MYK9-721: the refetches re-read the replica offline; while they run,
+      // the rows already in place stay printable (readiness rule 7).
+      expect(result.current.dataState).toBe('ready');
       await waitFor(() => expect(result.current.entries).toBeDefined());
       expect(result.current.dataState).toBe('ready');
       expect(result.current.isReady).toBe(true);
+    });
+
+    it('reads "refreshing" while an ONLINE refetch replaces settled rows (MYK9-721)', async () => {
+      mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({
+        data: [{ id: 'class-1' }],
+        error: null,
+      } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({
+        data: [{ id: 'entry-1' }],
+        error: null,
+      } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+
+      let release: () => void = () => {};
+      mockGetEntriesByShowFromReplication.mockImplementation(
+        () =>
+          new Promise(resolve => {
+            release = () => resolve({ data: [{ id: 'entry-2' }], error: null } as never);
+          })
+      );
+      act(() => {
+        result.current.refetch();
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('refreshing'));
+      expect(result.current.isReady).toBe(false);
+      act(() => release());
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.entries?.[0]?.id).toBe('entry-2');
     });
 
     it('reports "error" rather than an empty report when a read fails', async () => {

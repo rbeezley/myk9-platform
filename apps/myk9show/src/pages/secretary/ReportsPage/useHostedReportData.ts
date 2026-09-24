@@ -13,11 +13,23 @@
  * state and the report would print placeholder text instead of data. The fetch has
  * to finish BEFORE the markup is produced, which means it belongs to the host.
  *
- * This hook lives in its own module because ReportPreview.tsx sits at the 500-line
- * ceiling the code-quality ratchet enforces.
+ * MYK9-721: called ONCE, by ReportsPage, which hands the result to ReportPreview.
+ * `hostedState` comes from the same `resolveReportReadiness` rule as the report
+ * rows, so Print and the preview gate on one answer. Both reads here are
+ * online-only PostgREST (no replica holds entry-form or judge-supply rows), so
+ * they keep the default 'online' network mode: offline they pause, a paused read
+ * with no rows is `unavailable`, and a paused refetch over settled rows is
+ * printable.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
+import {
+  readinessOf,
+  resolveReportReadiness,
+  useIsOnline,
+  type ReadinessQuery,
+  type ReportDataState,
+} from '@/hooks/queries/reportReadiness';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
 import type { ReportAsyncData, ReportEntryFormData } from '@/lib/reports/types';
 
@@ -38,13 +50,18 @@ export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   /**
-   * True while a report that needs hosted data is still fetching it. The preview
-   * must not render markup yet — doing so bakes the empty state into the iframe
-   * and never revisits it, which is the blank-form failure this whole module
-   * exists to prevent.
+   * Readiness of the hosted reads the selected report needs; `ready` when it
+   * needs none. The preview writes markup only at `ready`: writing earlier
+   * bakes the empty state into the iframe and never revisits it, which is the
+   * blank-form failure this module exists to prevent.
    */
-  isHostedDataPending: boolean;
+  hostedState: ReportDataState;
+  /** Ask the hosted reads again (the preview's Try again). */
+  refetch: () => void;
 }
+
+/** For hosts that render no hosted report (tests, and the default prop). */
+export const NO_HOSTED_REPORT_DATA: HostedReportData = { hostedState: 'ready', refetch: () => {} };
 
 export function useHostedReportData({
   reportType,
@@ -52,6 +69,8 @@ export function useHostedReportData({
   trialId,
   dogId,
 }: HostedReportDataOptions): HostedReportData {
+  const isOnline = useIsOnline();
+  const queryClient = useQueryClient();
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
   const needsSupplies = JUDGE_SUPPLY_REPORT_IDS.has(reportType) && Boolean(showId);
 
@@ -67,6 +86,12 @@ export function useHostedReportData({
     queryFn: () => trialJudgeSuppliesService.listForShow(showId as string),
     enabled: needsSupplies,
   });
+
+  const needed: ReadinessQuery[] = [
+    ...(needsEntryForm ? [entryForm.readiness] : []),
+    ...(needsSupplies ? [readinessOf(supplies)] : []),
+  ];
+  const hostedState = resolveReportReadiness(needed, { isOnline });
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
     ? {
@@ -90,7 +115,12 @@ export function useHostedReportData({
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
-    isHostedDataPending:
-      (needsEntryForm && entryForm.isLoading) || (needsSupplies && supplies.isLoading),
+    hostedState,
+    refetch: () => {
+      if (needsEntryForm) {
+        void queryClient.invalidateQueries({ queryKey: ['entry-form-data', showId] });
+      }
+      if (needsSupplies) void supplies.refetch();
+    },
   };
 }

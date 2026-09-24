@@ -17,25 +17,42 @@ import {
   getHandlerPeopleHydrationRevision,
   subscribeHandlerPeopleHydration,
 } from '@/services/database/entries/handlerHydration';
+import {
+  replicatedClassesTable,
+  replicatedDogsTable,
+  replicatedEntriesTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
+import {
+  readinessOf,
+  resolveReportReadiness,
+  useIsOnline,
+  type ReportDataState,
+} from './reportReadiness';
 
-/**
- * Why the report data cannot be described by `isLoading` / `isError` alone.
- *
- * - `loading`     -- a fetch is genuinely in flight.
- * - `unavailable` -- no connectivity, so the question was never asked. Distinct
- *                    from an empty answer, and the distinction is the whole
- *                    point: an empty answer prints as a blank roster.
- * - `stale`       -- rows are present but belong to the PREVIOUS selection.
- * - `error`       -- the request was made and failed.
- * - `ready`       -- every row is present and current.
- */
-export type ReportDataState = 'loading' | 'unavailable' | 'stale' | 'error' | 'ready';
+export type { ReportDataState } from './reportReadiness';
 
 export interface UseReportDataOptions {
   show: Show | null;
   trialId: string | 'all';
   classId: string | 'all';
 }
+
+/**
+ * MYK9-721: all three reads are replica-first -- IndexedDB, with PostgREST only
+ * as the cold-store fallback and the empty-result verifier. React Query's
+ * default `networkMode: 'online'` PAUSES a query offline without ever calling
+ * it, so on a cold offline load the replica was never read and every report
+ * was refused although the rows were on the device. 'always' lets the read run;
+ * a replica that has never synced still cannot pass for an empty report,
+ * because the read services verify an empty local result online and fail when
+ * they cannot (`errorOnOnlineVerificationFailure`), which surfaces as `error`.
+ * Same shape as useAtShowClassList / useHasAnyEntryForShow.
+ */
+const REPLICA_READ_OPTIONS = {
+  ...cacheStrategies.moderate,
+  networkMode: 'always',
+} as const;
 
 function subscribeToHandlerPeopleRevision(onStoreChange: () => void): () => void {
   return subscribeHandlerPeopleHydration(() => onStoreChange());
@@ -142,6 +159,38 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     [classId, showId, trialId]
   );
 
+  const isOnline = useIsOnline();
+  // Set by a replica notice, consumed by the next entries read. See below.
+  const replicaNoticedRef = useRef(false);
+
+  // MYK9-721: the replica is the source of every row here, so a change to it is
+  // a change to the report. Re-read on every notice from the tables these reads
+  // join (trials, classes, entries, dogs), as useAtShowClassList does, and never
+  // on the initial emit. The re-read after a notice skips the network refresh:
+  // the replica already holds the change, and a refresh that itself writes rows
+  // would notify again and restart the read forever. The online refetch is what
+  // makes the page read `refreshing`, so Print waits for the fresh rows.
+  useEffect(() => {
+    if (!showId) return;
+    const invalidate = () => {
+      replicaNoticedRef.current = true;
+      for (const queryKey of [
+        queryKeys.showTrials(showId),
+        queryKeys.showClasses(showId),
+        ['reports', showId],
+      ]) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    };
+    const unsubscribes = [
+      replicatedTrialsTable.subscribe(invalidate, { emitCurrent: false }),
+      replicatedClassesTable.subscribe(invalidate, { emitCurrent: false }),
+      replicatedEntriesTable.subscribe(invalidate, { emitCurrent: false }),
+      replicatedDogsTable.subscribe(invalidate, { emitCurrent: false }),
+    ];
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [queryClient, showId]);
+
   useEffect(() => {
     if (previousHandlerPeopleRevision.current === handlerPeopleRevision) return;
     previousHandlerPeopleRevision.current = handlerPeopleRevision;
@@ -158,7 +207,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       return data ?? [];
     },
     enabled: !!showId,
-    ...cacheStrategies.moderate,
+    ...REPLICA_READ_OPTIONS,
   });
 
   // A show detail can already carry its replicated trials while this scoped
@@ -204,7 +253,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       return data ?? [];
     },
     enabled: selectedTrialIsInShow && (trialsQuery.isSuccess || reportTrials !== undefined),
-    ...cacheStrategies.moderate,
+    ...REPLICA_READ_OPTIONS,
   });
 
   const entriesQuery = useQuery({
@@ -221,7 +270,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         // must mask raw cached scores when that optional request is unavailable.
         // Retain the bounded refresh that show reports used before selecting
         // scoped reads, so an online partial cache still has a chance to fill.
-        await refreshShowEntriesForRead(showId);
+        // Skipped when a replica notice asked for this read: see the subscription.
+        if (!replicaNoticed) await refreshShowEntriesForRead(showId);
         if (trialId === 'all') {
           const { data, error } = await getEntriesByShowFromReplication(showId);
           if (error) throw error;
@@ -232,6 +282,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
       };
 
+      const replicaNoticed = replicaNoticedRef.current;
+      replicaNoticedRef.current = false;
       let revision = getHandlerPeopleHydrationRevision();
       let data = await readEntries();
       // React Query can ignore invalidation while the first fetch has no cached
@@ -255,7 +307,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
               reportTrials?.some(trial => trial.id === reportClass.trial_id)
           )
         )),
-    ...cacheStrategies.moderate,
+    ...REPLICA_READ_OPTIONS,
   });
 
   const entries = entriesQuery.data?.entries;
@@ -264,44 +316,16 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // reports printable when registration reads are incomplete; the emergency
   // packet gates on this flag at its own safety boundary.
   const registrationsReadComplete = entriesQuery.data?.registrationsReadComplete ?? true;
-  const queries = [trialsQuery, classesQuery, entriesQuery];
-
   // Why this is an enum and not two booleans: every report on this page can end
-  // up as PAPER, and three separate React Query states all present as
-  // "not loading, not erroring, no data" -- which `(entries ?? [])` then reads
-  // as "this class has no dogs".
-  //
-  //  - PAUSED. The client runs networkMode:'online' (lib/queryClient.ts), so a
-  //    query with no connectivity settles at isPending && !isFetching, and
-  //    `isLoading` is false. The secretary is in a rented hall on venue wifi;
-  //    this is the normal case here, not the exotic one.
-  //  - DISABLED-UPSTREAM. classes waits on trials and entries waits on classes,
-  //    so a paused trials query leaves both downstream queries idle, which is
-  //    also not "loading".
-  //  - PLACEHOLDER. `placeholderData: previousData => previousData` is the
-  //    configured default on the application client (lib/queryClient.ts), and
-  //    changing the Trial select changes the classes and entries
-  //    keys. React Query then reports status:'success' while serving the
-  //    PREVIOUS trial's rows, so the old trial's dogs would render under the
-  //    new trial's header until the fetch lands.
-  //
-  // Callers must not be able to reach a print or a PDF download without having
-  // answered which of these they are in, so the state is one value they have to
-  // read rather than a condition they can forget to add.
-  // Paused only matters when the rows are MISSING. A background refetch that
-  // pauses on a query already holding complete data leaves that data intact and
-  // correct for the current selection -- it is a warm cache, not an unanswered
-  // question, and treating it as unavailable would take the whole page away
-  // from a secretary standing in a hall whose wifi just dropped. That is the
-  // case this page most needs to survive, so it must stay printable.
-  //
-  // Placeholder is checked BEFORE that, because placeholder rows are complete
-  // but belong to the PREVIOUS selection -- present, and wrong.
-  const hasEveryRowSet =
-    reportTrials !== undefined &&
-    classesQuery.data !== undefined &&
-    entriesQuery.data !== undefined;
-
+  // up as PAPER, and several React Query states all present as "not loading,
+  // not erroring, no data" -- which `(entries ?? [])` then reads as "this class
+  // has no dogs". DISABLED-UPSTREAM (classes waits on trials, entries on
+  // classes) and PLACEHOLDER (`placeholderData: previousData => previousData`
+  // on the application client serves the PREVIOUS trial's rows under the new
+  // trial's key) are two of them; the rule table in `resolveReportReadiness`
+  // names the rest. Callers must not be able to reach a print or a PDF download
+  // without having answered which one they are in, so the state is one value
+  // they have to read rather than a condition they can forget to add.
   const selectedClassIsInScope =
     classId === 'all' ||
     classesQuery.data === undefined ||
@@ -311,28 +335,26 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         (trialId === 'all' || reportClass.trial_id === trialId) &&
         reportTrials?.some(trial => trial.id === reportClass.trial_id)
     );
-  const hasInvalidScope = !selectedTrialIsInShow || !selectedClassIsInScope;
-  // A show detail can provide a complete replicated trial set even when the
-  // auxiliary scoped trial verification is unavailable. That verification
-  // failure must not make otherwise complete cached report rows unprintable.
-  const hasBlockingQueryError =
-    (trialsQuery.isError && reportTrials === undefined) ||
-    classesQuery.isError ||
-    entriesQuery.isError;
-
-  const dataState: ReportDataState = hasInvalidScope
-    ? 'error'
-    : hasBlockingQueryError
-      ? 'error'
-      : queries.some(q => q.isPlaceholderData)
-        ? 'stale'
-        : hasEveryRowSet
-          ? 'ready'
-          : queries.some(q => q.fetchStatus === 'paused')
-            ? 'unavailable'
-            : 'loading';
+  const dataState: ReportDataState = resolveReportReadiness(
+    [
+      readinessOf(trialsQuery, {
+        // A show detail can provide a complete replicated trial set even when
+        // the scoped trial read is pending or failed. That read must not make
+        // otherwise complete cached report rows unprintable, so it only counts
+        // once it is the source of the trials this report uses.
+        hasData: reportTrials !== undefined,
+        fetchStatus: hasCurrentReportTrials ? trialsQuery.fetchStatus : 'idle',
+        isError: trialsQuery.isError && reportTrials === undefined,
+      }),
+      readinessOf(classesQuery),
+      readinessOf(entriesQuery),
+    ],
+    { isOnline, hasInvalidScope: !selectedTrialIsInShow || !selectedClassIsInScope }
+  );
 
   const refetch = () => {
+    // An explicit retry asks the network again, even after a replica notice.
+    replicaNoticedRef.current = false;
     void trialsQuery.refetch();
     void classesQuery.refetch();
     void entriesQuery.refetch();

@@ -104,6 +104,7 @@ const MyEntriesPage: React.FC = () => {
     selectedStatus,
     setSelectedStatus,
     statusCounts,
+    statusCountsAllWindows,
     setSelectedTab,
     entryStats,
     tabCounts,
@@ -454,6 +455,7 @@ const MyEntriesPage: React.FC = () => {
                     selectedStatus={selectedStatus}
                     onSelectStatus={setSelectedStatus}
                     statusCounts={statusCounts}
+                    statusCountsAllWindows={statusCountsAllWindows}
                   />
 
                   <div className="space-y-4">

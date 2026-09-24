@@ -11,19 +11,19 @@ import { isPendingEntry } from '@/utils/entryPredicates';
 import { type EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
 import {
-  ENTRY_TAB_DEFS,
   TAB_PREDICATES,
   isEntryStatusFilter,
   isEntryTabFilter,
   legacyTabAsStatusFilter,
 } from './entryTabDefs';
+import { deriveStatusCounts, deriveTabCounts } from './entryFilterCounts';
 import {
   applyEntryScope,
   clearEntryScopeParams,
   parseEntryScope,
   type EntryScopeMatch,
 } from './entryScopeFilter';
-import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
+import type { WaitlistSurface } from './waitlistSurface';
 import type { MyEntry, MyEntryStats, EntryStatusFilter, EntryTabFilter } from './my-entries-types';
 import { isExhibitorInEntry, orderMatchesStatusFilter } from './statusFilterPredicate';
 
@@ -97,6 +97,8 @@ interface UseMyEntriesFiltersReturn {
   tabCounts: Record<EntryTabFilter, number>;
   /** Per-status counts WITHIN the active tab — a chip promises what it shows. */
   statusCounts: Record<EntryStatusFilter, number>;
+  /** The same per-status counts across every When window (MYK9-657). */
+  statusCountsAllWindows: Record<EntryStatusFilter, number>;
   /**
    * How the inbound `?showId=/?entryIds=` scope resolved. `kind: 'none'` is the
    * ordinary unscoped visit; anything else means the list below is narrower
@@ -334,8 +336,6 @@ export function useMyEntriesFilters({
   // adds up to what the page is currently showing. `upcoming + completed` is
   // exactly `all` — the partition invariant Phase A exists to create.
   const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
-    const now = new Date();
-    const statusFiltered = filterEntriesByStatus(scopedEntries, selectedStatus);
     const positionCount =
       (selectedStatus === 'any' || selectedStatus === 'waitlist') &&
       (scopeMatch.kind === 'none' || scopeMatch.kind === 'unmatched')
@@ -344,36 +344,38 @@ export function useMyEntriesFilters({
     // Every badge counts with the exact predicate its tab filters by, so a
     // count can no longer describe a list the panel would refuse to produce.
     // Active wait-list positions belong to All and Upcoming, never Completed.
-    return Object.fromEntries(
-      ENTRY_TAB_DEFS.map(tab => [
-        tab.id,
-        statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length +
-          (tab.id === 'completed' ? 0 : positionCount),
-      ])
-    ) as Record<EntryTabFilter, number>;
+    return deriveTabCounts(scopedEntries, selectedStatus, new Date(), positionCount);
   }, [scopedEntries, selectedStatus, scopeMatch.kind, activeWaitlistPositionCount]);
 
   // ...and status counts describe the list within the ACTIVE tab, so a chip
   // never promises rows the current tab would hide. The two counts read each
-  // other's axis on purpose: each answers "how many will I see if I click this".
+  // other's axis on purpose: each answers "how many will I see if I click this"
+  // — and the strip now SAYS so (MYK9-657, `entryFilterCounts`).
   //
   // The `waitlist` chip is the one count that is NOT derived from `entries`
   // alone: `waitlist_entries` is a separate table with its own rows, and a
   // position there need not have a waitlisted entry (often has no entry at
   // all). Both halves go through `resolveWaitlistSurface`, which also decides
   // whether the positions section renders — one rule, three readers.
-  const waitlistSurface = useMemo<WaitlistSurface>(() => {
+  //
+  // The same derivation across ALL windows is what lets a Status chip reading
+  // 0 inside a narrowing window say "0 in Completed" instead of a bare 0 that
+  // reads as "you have none of these".
+  const { statusCounts, waitlistSurface, statusCountsAllWindows } = useMemo(() => {
     const now = new Date();
-    const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
-    return resolveWaitlistSurface({
-      waitlistEntryCount: inTab.filter(entry => orderMatchesStatusFilter(entry, 'waitlist')).length,
+    const positions = {
       activePositionCount: activeWaitlistPositionCount,
       displayedPositionCount: displayedWaitlistPositionCount,
       isLoadingPositions: waitlistPositionsLoading,
-      selectedTab,
-      selectedStatus,
       isScoped: scopeMatch.kind !== 'none' && scopeMatch.kind !== 'unmatched',
-    });
+    };
+    const inTab = deriveStatusCounts(scopedEntries, selectedTab, selectedStatus, now, positions);
+    const allWindows = deriveStatusCounts(scopedEntries, 'all', selectedStatus, now, positions);
+    return {
+      statusCounts: inTab.counts,
+      waitlistSurface: inTab.surface,
+      statusCountsAllWindows: allWindows.counts,
+    };
   }, [
     scopedEntries,
     selectedTab,
@@ -383,20 +385,6 @@ export function useMyEntriesFilters({
     displayedWaitlistPositionCount,
     waitlistPositionsLoading,
   ]);
-
-  const statusCounts = useMemo<Record<EntryStatusFilter, number>>(() => {
-    const now = new Date();
-    const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
-    const visiblePositions =
-      waitlistSurface.chipCount -
-      inTab.filter(entry => orderMatchesStatusFilter(entry, 'waitlist')).length;
-    return {
-      any: inTab.length + visiblePositions,
-      pending: inTab.filter(entry => orderMatchesStatusFilter(entry, 'pending')).length,
-      accepted: inTab.filter(entry => orderMatchesStatusFilter(entry, 'accepted')).length,
-      waitlist: waitlistSurface.chipCount,
-    };
-  }, [scopedEntries, selectedTab, waitlistSurface]);
 
   const visibleActivePositions = waitlistSurface.showPositions ? activeWaitlistPositionCount : 0;
   const visibleOfferUpdates = waitlistSurface.showPositions
@@ -419,6 +407,7 @@ export function useMyEntriesFilters({
     entryStats,
     tabCounts,
     statusCounts,
+    statusCountsAllWindows,
     scopeMatch,
     clearScope,
     waitlistSurface,

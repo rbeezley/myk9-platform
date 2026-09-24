@@ -196,6 +196,50 @@ describe('BasicsSection auto-locate on blur', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('locates a newer address left while an older lookup is still running', async () => {
+    const pending: Array<(v: unknown) => void> = [];
+    mockGeocode.mockImplementation(() => new Promise(r => pending.push(r)));
+    render(<Harness initial={{}} />);
+
+    await typeAndLeave(ADDRESS);
+    await typeAndLeave('99 Elm St, Peoria, IL');
+    expect(mockGeocode).toHaveBeenCalledTimes(2);
+    expect(mockGeocode).toHaveBeenLastCalledWith('99 Elm St, Peoria, IL');
+
+    // The older answer lands first and must not win or end the newer lookup.
+    await act(async () => {
+      pending[0]({ status: 'found', lat: 1, lng: 2 });
+    });
+    expect(pinsSet()).toEqual([]);
+    expect(screen.getByRole('button', { name: /locate address/i })).toBeDisabled();
+
+    await act(async () => {
+      pending[1]({ status: 'found', lat: 40.69, lng: -89.59 });
+    });
+    expect(pinsSet()).toEqual([{ latitude: 40.69, longitude: -89.59 }]);
+    expect(screen.getByRole('button', { name: /locate address/i })).toBeEnabled();
+  });
+
+  it('does not start a second lookup for an address that is already being located', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockGeocode.mockReturnValue(new Promise(r => (resolve = r)));
+    render(<Harness initial={{ location: ADDRESS }} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /locate address/i }));
+    });
+    await act(async () => {
+      fireEvent.focus(field());
+      fireEvent.blur(field());
+    });
+    expect(mockGeocode).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolve({ status: 'found', lat: 1, lng: 2 });
+    });
+    expect(pinsSet()).toEqual([{ latitude: 1, longitude: 2 }]);
+  });
+
   describe('with Places suggestions configured', () => {
     const SUGGESTION = {
       placeId: 'p1',
@@ -240,15 +284,21 @@ describe('BasicsSection auto-locate on blur', () => {
       expect(mockGeocode).not.toHaveBeenCalled();
     });
 
-    it('does not geocode while the suggestion list is open', async () => {
+    it('locates the typed address when the field is left without picking a suggestion', async () => {
+      // Clicking an option never blurs the field (its mousedown is prevented),
+      // so a blur with the list open is the secretary dismissing it.
+      mockGeocode.mockResolvedValue({ status: 'found', lat: 38.5, lng: -90.8 });
       render(<Harness initial={{}} />);
 
-      await typeUntilSuggestions('Purina');
+      await typeUntilSuggestions('Purina Farms, Gray Summit, MO');
       await act(async () => {
         fireEvent.blur(field());
       });
 
-      expect(mockGeocode).not.toHaveBeenCalled();
+      expect(screen.queryByRole('option')).not.toBeInTheDocument();
+      expect(mockGeocode).toHaveBeenCalledTimes(1);
+      expect(mockGeocode).toHaveBeenCalledWith('Purina Farms, Gray Summit, MO');
+      expect(pinsSet()).toEqual([{ latitude: 38.5, longitude: -90.8 }]);
     });
 
     it('does not geocode while a picked suggestion is still resolving', async () => {

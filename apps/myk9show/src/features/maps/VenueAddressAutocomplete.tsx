@@ -27,9 +27,8 @@ interface VenueAddressAutocompleteProps {
   /** Fires when a suggestion resolves to an address with coordinates. */
   onPlaceSelected: (selection: VenuePlaceSelection) => void;
   /**
-   * Fires when focus leaves the field and the secretary is done with it: no
-   * suggestion list open and no picked suggestion still resolving (MYK9-686
-   * auto-locate — a pick sets its own pin).
+   * Fires when focus leaves the field with no picked suggestion still
+   * resolving (MYK9-686 auto-locate — a pick sets its own pin).
    */
   onSettledBlur?: (() => void) | undefined;
   placeholder?: string;
@@ -134,13 +133,14 @@ export function VenueAddressAutocomplete({
     }
   };
 
+  // Picking an option never blurs the field (its mousedown is prevented), so a
+  // blur with the list open is the secretary dismissing it: the typed text stands.
   const handleBlur = () => {
-    const listWasOpen = open;
     // A field that lost focus never pops a list open afterwards.
     if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
     abortRef.current?.abort();
     close();
-    if (!listWasOpen && !selectingRef.current) onSettledBlur?.();
+    if (!selectingRef.current) onSettledBlur?.();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {

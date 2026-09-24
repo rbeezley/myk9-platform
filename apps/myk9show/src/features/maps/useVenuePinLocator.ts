@@ -65,15 +65,17 @@ export function useVenueAutoLocate({
 }: {
   address: string;
   hasPin: boolean;
-  locator: Pick<VenuePinLocator, 'isLocating' | 'locate'>;
+  locator: Pick<VenuePinLocator, 'locate'>;
 }) {
   const lastAttemptRef = useRef<string | null>(null);
-  const { isLocating, locate } = locator;
+  const { locate } = locator;
 
+  // No in-flight check here: a newer address supersedes an older lookup, and
+  // the locate itself ignores a repeat of the address it is already locating.
   return useCallback(() => {
     const key = address.trim();
-    if (!key || hasPin || isLocating || lastAttemptRef.current === key) return;
+    if (!key || hasPin || lastAttemptRef.current === key) return;
     lastAttemptRef.current = key;
     void locate();
-  }, [address, hasPin, isLocating, locate]);
+  }, [address, hasPin, locate]);
 }

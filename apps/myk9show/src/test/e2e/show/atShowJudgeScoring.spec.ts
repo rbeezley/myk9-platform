@@ -41,8 +41,13 @@ const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
 const ENTRY_ID = 'dededede-0000-0000-0000-000000000052';
 const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
-const UNASSIGNED_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000036';
-const UNASSIGNED_ENTRY_ID = 'a1090000-0000-0000-0002-000000000005';
+// A lean-seed class with NO judge assignment and a real entry in it
+// (seed-demo.sql section 4, MYK9-515's full-class fixture on Trial 4). This was
+// a MYK9-109 load entry until MYK9-558 made that fixture opt-in; the scheduled
+// judge replay runs on a plain reseed, so it must not depend on it.
+// seedDemoStagingConsumersContract.test.ts pins both ids to the seed.
+const UNASSIGNED_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000045';
+const UNASSIGNED_ENTRY_ID = 'dededede-0000-0000-0000-000000000069';
 const UNASSIGNED_SCORE_PATH = `/at-show/${SHOW_ID}/class/${UNASSIGNED_CLASS_ID}/score/${UNASSIGNED_ENTRY_ID}`;
 // Mirrors @myk9/replication constants (packages/replication/src/constants.ts,
 // core/DatabaseManager.ts).

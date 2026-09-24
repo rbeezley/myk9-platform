@@ -192,7 +192,8 @@ computes the actual cross-runner simultaneous peak instead of summing unrelated
 shard-local maxima. The separate `if: always()` cleanup job first cancels scoring
 queries that began inside the database-clock rehearsal ownership window, requires zero
 scoring workers across the target and three unchanged rollback samples, then reseeds
-and verifies `516|504|0` after success or failure. Before either reseed, the workflow
+with `seed-demo.sql` alone (which removes the load fixture, MYK9-558) and verifies
+`13|0|0` after success or failure. Before either reseed, the workflow
 removes canonical-show emergency packet objects through the service-role Storage API,
 then deletes their audit rows; the SQL seed refuses metadata-only deletion. Pre-existing scoring work is never
 canceled; it blocks reseeding instead. If the quiet-window gate fails, cleanup leaves
@@ -278,11 +279,14 @@ credentials, storage state, database headers, or raw provider exports.
 
 ## Fixture lifecycle
 
-`supabase/seed-demo.sql` creates 63 deterministic load dogs across the eight
-non-finalized demo classes: 504 load entries plus the 10 hand-authored entries.
-It excludes the finalized/released class and aborts unless the show total is
-exactly 516. Re-run the canonical reset/reseed before and after an approved
-rehearsal; verify the postcondition both times.
+`supabase/seed-load-fixture.sql` creates 63 deterministic load dogs across the
+eight non-finalized demo classes: 504 load entries on top of the 13 hand-authored
+entries `supabase/seed-demo.sql` seeds, plus the three mid-size load shows. It is
+opt-in since MYK9-558: apply it AFTER `seed-demo.sql`, and rerun `seed-demo.sql`
+alone to remove it. It excludes the finalized/released class and aborts unless
+the show total is exactly 517. Before an approved rehearsal run both files and
+verify `517|504|0`; afterwards run `seed-demo.sql` alone and verify `13|0|0`.
+The prepare job of `load-rehearsal.yml` applies both files itself.
 
 The browser runner scores deterministic entries through the live scoresheet,
 changes check-in through the live status dialog, samples request/page metrics,
@@ -302,8 +306,8 @@ evidence. Missing G9 metrics fail closed.
 
 After a forced workflow cancellation, verify that the cleanup job completed.
 If GitHub itself prevented cleanup from running, manually restore the approved
-target with the canonical reseed and verify `516|504|0` before leaving the load
-window.
+target with the canonical reseed (`seed-demo.sql` alone) and verify `13|0|0`
+before leaving the load window.
 
 ## Known coverage caveats
 

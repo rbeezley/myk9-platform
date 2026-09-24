@@ -70,9 +70,11 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   // roles is deliberately EMPTY. getRoleScope() scopes every 'secretary' grant to
   // one resolved club, so granting the role here would scope all three to the
   // canonical demo club — the shared-club situation that makes per-show scoping
-  // impossible in the first place. seed-demo.sql grants each one a club-level
-  // secretary role on its OWN load club instead, conditionally, so a missing
-  // account never breaks a reseed.
+  // impossible in the first place. supabase/seed-load-fixture.sql (the opt-in
+  // MYK9-109 load fixture, applied only for a load rehearsal) grants each one a
+  // club-level secretary role on its OWN load club instead, conditionally, so a
+  // missing account never breaks it. On a plain reseed these accounts hold no
+  // role at all.
   //
   // optional: the rehearsal harness fails closed when these passwords are unset,
   // so provisioning them is a deliberate step rather than a prerequisite for
@@ -502,7 +504,7 @@ async function main(): Promise<void> {
   console.log('Password: loaded from local/CI env; not printed');
   console.log('\nAccounts:');
   // roles[0] is not guaranteed: the per-show load secretaries carry no roles
-  // here on purpose, because seed-demo.sql grants each one a club-level
+  // here on purpose, because seed-load-fixture.sql grants each one a club-level
   // secretary role on its OWN load club. Indexing blindly crashed this summary
   // AFTER the accounts were created, turning a successful --apply into a
   // non-zero exit that read like a failure.

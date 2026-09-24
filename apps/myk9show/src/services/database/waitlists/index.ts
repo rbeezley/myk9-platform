@@ -11,3 +11,4 @@ export {
   promoteWaitlistEntry,
   removeFromWaitlist,
 } from './reads';
+export { getWaitlistReportRows, WaitlistNotDownloadedError } from './reportRows';

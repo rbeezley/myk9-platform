@@ -75,7 +75,7 @@ export function getEntryManagementCountSummary(
     // Match the Financial Report's inclusion rule: waitlisted/withdrawn/
     // scratched/not_accepted entries are never counted as money owed, even
     // if their payment status happens to still read "pending".
-    if (isEntryIncludedInFinancialReport(entry, 'current')) {
+    if (isEntryIncludedInFinancialReport(entry)) {
       const effectivePaymentStatus = getEffectivePaymentStatus(moneyRoot);
       counts.outstanding += computeOutstandingAmount(moneyRoot.totalFee, {
         isWaived: Boolean(moneyRoot.comped) || effectivePaymentStatus === PaymentStatus.WAIVED,

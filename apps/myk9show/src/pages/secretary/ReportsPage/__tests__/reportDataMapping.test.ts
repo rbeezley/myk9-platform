@@ -437,7 +437,7 @@ describe('mapScopedReportEntries', () => {
       kind: 'show',
       showId: 'show-1',
     });
-    const totals = calculateFinancialReportTotals(reportEntries, 'current');
+    const totals = calculateFinancialReportTotals(reportEntries);
 
     expect(reportEntries[0]).toMatchObject({
       discountAmount: 10,
@@ -524,7 +524,7 @@ describe('mapScopedReportEntries', () => {
       kind: 'show',
       showId: 'show-1',
     });
-    const totals = calculateFinancialReportTotals(reportEntries, 'current');
+    const totals = calculateFinancialReportTotals(reportEntries);
 
     expect(reportEntries[0]).toMatchObject({
       paymentStatus: 'pending',

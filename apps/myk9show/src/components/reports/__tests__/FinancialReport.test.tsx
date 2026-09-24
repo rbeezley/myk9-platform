@@ -87,7 +87,7 @@ const baseProps: ReportProps = {
       totalFaults: null,
       finalPlacement: null,
       entryFee: 25,
-      entryStatus: 'waitlist',
+      entryStatus: 'withdrawn',
       paymentStatus: PaymentStatus.PENDING,
       trialNumber: '2',
     },
@@ -126,19 +126,21 @@ describe('FinancialReport', () => {
     expect(screen.getAllByText('$30.00').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('filters to waitlisted when sortOrder=waitlist', () => {
+  // MYK9-718: there is no "Waitlisted Entries" variant to ask for. A leftover
+  // sortOrder from an old link prints the current entries, never an empty page.
+  it('prints the current entries whatever sortOrder it is handed', () => {
     render(<FinancialReport {...baseProps} sortOrder="waitlist" />);
-    expect(screen.getByText('Daisy')).toBeInTheDocument();
-    expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
-    expect(screen.queryByText('Jane Mitchell')).not.toBeInTheDocument();
+    expect(screen.getByText('Current Entries')).toBeInTheDocument();
+    expect(screen.queryByText('Waitlisted Entries')).not.toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    expect(screen.queryByText('Daisy')).not.toBeInTheDocument();
   });
 
-  it('shows empty state when no entries match filter', () => {
+  it('shows empty state when every entry is excluded', () => {
     render(
       <FinancialReport
         {...baseProps}
-        sortOrder="waitlist"
-        entries={baseProps.entries.filter(e => e.entryStatus === 'accepted')}
+        entries={baseProps.entries.filter(e => e.entryStatus === 'withdrawn')}
       />
     );
     expect(screen.getByText(/No entries match/i)).toBeInTheDocument();

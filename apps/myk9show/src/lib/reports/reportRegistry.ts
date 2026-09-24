@@ -385,11 +385,10 @@ export const reportRegistry: ReportDefinition[] = [
     name: 'Financial Report',
     phase: 'anytime',
     scopes: ['show'],
-    sortOptions: [
-      { value: 'current', label: 'Current Entries' },
-      { value: 'waitlist', label: 'Waitlisted Entries' },
-    ],
-    defaultSort: 'current',
+    // MYK9-718: the "Waitlisted Entries" variant is gone -- waitlisted dogs are
+    // not entries and carry no money. The Waitlist Report lists them.
+    sortOptions: [],
+    defaultSort: '',
     component: FinancialReport,
     enabled: true,
   },
@@ -446,6 +445,9 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: WaitlistReport,
     enabled: true,
+    // Waitlisted dogs are in `waitlist_entries`, not `entries` (MYK9-717): a show
+    // can have a waitlist and no confirmed entries yet.
+    rendersWithoutEntries: true,
   },
   {
     id: 'steward-report',

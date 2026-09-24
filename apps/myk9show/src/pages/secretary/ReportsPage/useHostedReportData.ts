@@ -20,9 +20,15 @@
  * they keep the default 'online' network mode: offline they pause, a paused read
  * with no rows is `unavailable`, and a paused refetch over settled rows is
  * printable.
+ *
+ * MYK9-717: the Waitlist Report's rows come from `waitlist_entries`, which the
+ * report rows never carry. That read is a replica read (`networkMode:
+ * 'always'`, see useWaitlistReportQuery), and joins the same rule.
  */
+import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
+import { queryKeys } from '@/lib/queryClient';
 import {
   readinessOf,
   resolveReportReadiness,
@@ -30,7 +36,8 @@ import {
   type ReportDataState,
 } from '@/hooks/queries/reportReadiness';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import type { ReportAsyncData, ReportEntryFormData } from '@/lib/reports/types';
+import type { ReportAsyncData, ReportEntryFormData, ReportWaitlistRow } from '@/lib/reports/types';
+import { useWaitlistReportQuery } from './useWaitlistReportQuery';
 
 /** Report ids whose component needs entry-form data passed in. */
 export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);
@@ -38,16 +45,22 @@ export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);
 /** Report ids whose component needs judge-supply rows passed in. */
 export const JUDGE_SUPPLY_REPORT_IDS = new Set(['judge-supply-checklist']);
 
+/** Report ids whose component needs waitlist rows passed in. */
+export const WAITLIST_REPORT_IDS = new Set(['waitlist-report']);
+
 export interface HostedReportDataOptions {
   reportType: string;
   showId: string | undefined;
   trialId?: string | undefined;
   dogId?: string | undefined;
+  /** The page's settled class ids; `undefined` while they are not settled. */
+  classIds?: readonly string[] | undefined;
 }
 
 export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
+  waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   /**
    * Readiness of the hosted reads the selected report needs; `ready` when it
    * needs none. The preview writes markup only at `ready`: writing earlier
@@ -67,10 +80,12 @@ export function useHostedReportData({
   showId,
   trialId,
   dogId,
+  classIds,
 }: HostedReportDataOptions): HostedReportData {
   const queryClient = useQueryClient();
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
   const needsSupplies = JUDGE_SUPPLY_REPORT_IDS.has(reportType) && Boolean(showId);
+  const needsWaitlist = WAITLIST_REPORT_IDS.has(reportType) && Boolean(showId);
 
   const entryForm = useEntryFormData({
     showId: showId ?? '',
@@ -85,9 +100,12 @@ export function useHostedReportData({
     enabled: needsSupplies,
   });
 
+  const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);
+
   const needed: ReadinessQuery[] = [
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
+    ...(needsWaitlist ? [readinessOf(waitlistQuery)] : []),
   ];
   const hostedState = resolveReportReadiness(needed);
 
@@ -110,15 +128,31 @@ export function useHostedReportData({
       }
     : undefined;
 
+  // Memoized: the preview rewrites its frame whenever this identity changes.
+  const { data: waitlistRows, isLoading: waitlistLoading, isError: waitlistError } = waitlistQuery;
+  const waitlist = useMemo<ReportAsyncData<ReportWaitlistRow[]> | undefined>(
+    () =>
+      needsWaitlist
+        ? { data: waitlistRows ?? [], isLoading: waitlistLoading, isError: waitlistError }
+        : undefined,
+    [needsWaitlist, waitlistRows, waitlistLoading, waitlistError]
+  );
+
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
+    ...(waitlist ? { waitlist } : {}),
     hostedState,
     refetch: () => {
       if (needsEntryForm) {
         void queryClient.invalidateQueries({ queryKey: ['entry-form-data', showId] });
       }
       if (needsSupplies) void supplies.refetch();
+      if (needsWaitlist) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.showWaitlistReport(showId ?? ''),
+        });
+      }
     },
   };
 }

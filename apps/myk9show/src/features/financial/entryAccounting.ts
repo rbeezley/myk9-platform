@@ -22,7 +22,6 @@ import {
   calculateFinancialReportTotals,
   isEntryIncludedInFinancialReport,
   type FinancialReportBucket,
-  type FinancialReportMode,
 } from '@/components/reports/financialReportTotals';
 
 const CENTS_PER_DOLLAR = 100;
@@ -80,7 +79,6 @@ export interface EntryAccountingProjection {
  *  rules to the printable report's `buildFinancialReportLine`. */
 export function buildEntryAccountingLine(
   entry: ReportEntry,
-  mode: FinancialReportMode = 'current',
   // MYK9-639: where this run's money is recorded. Defaults to the entry, which
   // is the answer for everything that was never moved up.
   moneyRoot: ReportEntry = entry
@@ -97,7 +95,7 @@ export function buildEntryAccountingLine(
     outstandingCents: dollarsToCents(line.outstanding),
     waivedCents: dollarsToCents(line.waived),
     netRetainedCents: dollarsToCents(line.netRetained),
-    includedInPrintableReport: isEntryIncludedInFinancialReport(entry, mode),
+    includedInPrintableReport: isEntryIncludedInFinancialReport(entry),
   };
 }
 
@@ -151,20 +149,17 @@ export function centifyReportBucket(bucket: FinancialReportBucket): EntryAccount
  * only the printable report's filtered subset (delegated to the report function
  * so closeout parity holds by construction).
  */
-export function calculateEntryAccounting(
-  entries: ReportEntry[],
-  mode: FinancialReportMode = 'current'
-): EntryAccountingProjection {
+export function calculateEntryAccounting(entries: ReportEntry[]): EntryAccountingProjection {
   // MYK9-639: one line per RUN, dollars from the root. `totals` is still the
   // broader figure (it keeps withdrawn/scratched, which the printable report
   // filters out) — what it no longer does is count a move-up pair twice.
   const attribution = buildMoneyAttribution(entries);
   const lines = attribution.live.map(entry =>
-    buildEntryAccountingLine(entry, mode, attribution.rootById.get(entry.id) ?? entry)
+    buildEntryAccountingLine(entry, attribution.rootById.get(entry.id) ?? entry)
   );
   const totals = sumEntryAccountingLines(lines);
   const printableReportTotals = centifyReportBucket(
-    calculateFinancialReportTotals(entries, mode).summary
+    calculateFinancialReportTotals(entries).summary
   );
   return { lines, totals, printableReportTotals };
 }

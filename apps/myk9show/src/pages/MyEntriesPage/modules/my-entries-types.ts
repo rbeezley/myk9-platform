@@ -21,7 +21,7 @@ export interface EntryClass {
   /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
   entryStatus?: EntryStatus | undefined;
   /** Canonical kind retained beside the lossy UI enum for honest display copy. */
-  entryStatusKind?: EntryStatusKind | undefined;
+  entryStatusKind: EntryStatusKind;
   /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
   classId?: string | undefined;
   /**

@@ -17,6 +17,7 @@ const CLASS_ROW: EntryClass = {
   number: '101',
   fee: 30,
   status: 'entered',
+  entryStatusKind: 'accepted',
 };
 
 const ENTRY: MyEntry = {

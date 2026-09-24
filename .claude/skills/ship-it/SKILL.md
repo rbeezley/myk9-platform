@@ -218,30 +218,11 @@ Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as St
 
 ---
 
-## Step 5: Handoff summary
+## Step 5: Report
 
-After `ship-pr` finishes (or arms auto-merge and stops), report. If the shell's CWD was the removed worktree, `cd "/Users/richardbeezley/AI Projects/myk9-platform"` first. Include the follow-ups section only when the merged diff needs an operator action:
+`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped, say the PR is **pending**, not shipped.
 
-```bash
-# `grep ... | wc -l`, not `grep -c ... || echo 0`: grep -c prints 0 AND exits 1, giving "0\n0".
-MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep '^supabase/migrations/' | wc -l | tr -d ' ')
-FUNCTIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -E '^(supabase|apps/[^/]+/supabase)/functions/' | sed -E 's|.*/functions/([^/]+)/.*|\1|' | sort -u)
-```
-
-```
-## Ship It — Complete
-
-Plan:   <path>
-PR:     #<number> — <title> (merged <mergedAt> | auto-merge armed)
-Shipped:
-- <one bullet per completed plan task>
-
-[If MIGRATIONS_CHANGED > 0 or FUNCTIONS_CHANGED]
-Post-merge follow-ups (operator action, use the `deploy` skill; each needs confirmation):
-- supabase db push            # <N> new migration(s); BEFORE functions that call new RPCs/columns
-- supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-- Frontend goes live only on the next Deploy myK9Show run.
-```
+After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation. The frontend goes live only on the next Deploy myK9Show run.
 
 ---
 
@@ -250,5 +231,5 @@ Post-merge follow-ups (operator action, use the `deploy` skill; each needs confi
 - Never add scope beyond the plan.
 - Max 10 test-fix iterations — escalate if hit.
 - If harden returns FAIL, stop before `ship-pr`.
-- Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically; list them in the handoff.
+- Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically; point to the `deploy` skill.
 - Pre-existing typecheck failures in files this branch did not touch: stop and report, do not fix silently.

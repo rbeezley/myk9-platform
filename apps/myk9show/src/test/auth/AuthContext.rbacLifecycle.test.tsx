@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -10,9 +11,16 @@ import {
   mockUser,
   renderWithAuthProvider as renderWithProvider,
 } from './AuthContext.testHarness';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
+import { useHasAnyEntryForShow } from '@/features/at-show/useHasAnyEntryForShow';
+import { useExhibitorUpcomingShows } from '@/features/at-show/useExhibitorUpcomingShows';
+import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
+import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
+import { usePersonIdentity } from '@/context/usePersonIdentity';
 
-const { mockRbacService, mockUseAuth } = vi.hoisted(() => ({
+const { mockRbacService, mockUseAuth, mockGetUserEntries } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
+  mockGetUserEntries: vi.fn(),
   mockRbacService: {
     getUserPermissions: vi.fn(),
     getUserRoles: vi.fn(),
@@ -32,8 +40,13 @@ vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: mockRbacService,
 }));
 
+vi.mock('@/services/database/entries', () => ({
+  getUserEntries: mockGetUserEntries,
+}));
+
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { loadRbacPermissionsCache, saveRbacPermissionsCache } from '@/context/rbacPermissionsCache';
+import { loadPersonIdentityCache, savePersonIdentityCache } from '@/context/personIdentityCache';
 
 const renderWithAuthProvider = (children: ReactNode, initialRoute = '/') =>
   renderWithProvider(AuthProvider, children, initialRoute);
@@ -42,6 +55,7 @@ describe('AuthContext RBAC lifecycle', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    mockSupabase.from.mockImplementation(() => createChainableQuery());
     mockUseAuth.mockReturnValue(mockAuthReturn);
     mockRbacService.getUserPermissions.mockResolvedValue({
       roles: [],
@@ -53,9 +67,11 @@ describe('AuthContext RBAC lifecycle', () => {
     mockRbacService.getUserRolesByEmail.mockResolvedValue([]);
     mockRbacService.hasPermission.mockResolvedValue(false);
     mockRbacService.checkPermission.mockResolvedValue(false);
+    mockGetUserEntries.mockReset();
   });
 
   afterEach(() => {
+    onlineManager.setOnline(true);
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -437,6 +453,414 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(screen.getByTestId('offline-from-cache')).not.toHaveTextContent('live');
     expect(screen.getByText('secretary surface')).toBeInTheDocument();
     expect(screen.queryByText('denied')).not.toBeInTheDocument();
+  });
+
+  it('cold boot offline: restores the persisted person id while profile lookup is paused', async () => {
+    savePersonIdentityCache(mockUser.id, 'person-cached');
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="cached-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="cached-user-with-roles-id">
+            {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+          <span data-testid="cached-user-roles">
+            {auth.userWithRoles?.roles.join(',') ?? 'none'}
+          </span>
+          <span data-testid="cached-person-state">{auth.personIdentityState}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cached-person-id')).toHaveTextContent('person-cached');
+      expect(screen.getByTestId('cached-user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+    });
+    expect(screen.getByTestId('cached-person-state')).toHaveTextContent('unresolved');
+    expect(screen.getByTestId('cached-user-with-roles-id')).toHaveTextContent('none');
+  });
+
+  it('saves a confirmed profile identity to the account-scoped cache', async () => {
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      id: 'person-live',
+                      first_name: 'Live',
+                      last_name: 'Profile',
+                      email: mockUser.email,
+                      status: 'active',
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="saved-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="saved-user-with-roles-id">
+            {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('saved-person-id')).toHaveTextContent('person-live');
+      expect(screen.getByTestId('saved-user-with-roles-id')).toHaveTextContent('person-live');
+      expect(loadPersonIdentityCache(mockUser.id)?.personId).toBe('person-live');
+    });
+  });
+
+  it('clears the cache when the authoritative profile confirms no person', async () => {
+    savePersonIdentityCache(mockUser.id, 'person-stale');
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="missing-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="missing-person-state">{auth.personIdentityState}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('missing-person-state')).toHaveTextContent('missing');
+      expect(screen.getByTestId('missing-person-id')).toHaveTextContent('none');
+      expect(loadPersonIdentityCache(mockUser.id)).toBeNull();
+    });
+  });
+
+  it('feeds a restored identity through all account entry consumers while offline', async () => {
+    savePersonIdentityCache(mockUser.id, 'person-cached');
+    // Keep the real profile query paused while the account-level consumers use
+    // their replica-capable `networkMode: 'always'` reads below. The provider
+    // must restore personId from cache; this test intentionally does not mock
+    // AuthContext's identity fields.
+    onlineManager.setOnline(false);
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    mockGetUserEntries.mockResolvedValue({
+      data: [
+        {
+          id: 'entry-1',
+          show_id: 'show-heartland',
+          entry_status: 'accepted',
+          check_in_status: null,
+          entry_fee: 30,
+          payment_status: 'pending',
+          show: {
+            id: 'show-heartland',
+            name: 'Heartland',
+            start_date: '2099-10-10',
+            end_date: '2099-10-11',
+          },
+        },
+      ],
+      error: null,
+      source: 'replica-offline',
+    });
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      const hasAny = useHasAnyEntryForShow('show-heartland');
+      const upcoming = useExhibitorUpcomingShows();
+      const entered = useAccountEnteredShowIds(auth.personId);
+      const balance = useMyEntryBalanceSummary();
+      return (
+        <div>
+          <span data-testid="integration-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="integration-user-with-roles-id">
+            {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+          <span data-testid="integration-user-roles">
+            {auth.userWithRoles?.roles.join(',') ?? 'none'}
+          </span>
+          <span data-testid="integration-identity-state">{auth.personIdentityState}</span>
+          <span data-testid="integration-identity-usable">
+            {auth.hasUsablePersonId?.toString() ?? 'false'}
+          </span>
+          <span data-testid="integration-has-entry">{hasAny.hasAnyEntryForShow.toString()}</span>
+          <span data-testid="integration-upcoming">{upcoming.upcomingShows.length}</span>
+          <span data-testid="integration-entered">{entered.all.length}</span>
+          <span data-testid="integration-balance">{balance.data?.kind ?? 'pending'}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    expect(onlineManager.isOnline()).toBe(false);
+    await waitFor(() => {
+      expect(screen.getByTestId('integration-person-id')).toHaveTextContent('person-cached');
+      expect(screen.getByTestId('integration-user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      expect(screen.getByTestId('integration-identity-state')).toHaveTextContent('unresolved');
+      expect(screen.getByTestId('integration-identity-usable')).toHaveTextContent('true');
+      expect(screen.getByTestId('integration-has-entry')).toHaveTextContent('true');
+      expect(screen.getByTestId('integration-upcoming')).toHaveTextContent('1');
+      expect(screen.getByTestId('integration-entered')).toHaveTextContent('1');
+      expect(screen.getByTestId('integration-balance')).toHaveTextContent('unknown');
+    });
+    expect(screen.getByTestId('integration-user-with-roles-id')).toHaveTextContent('none');
+    expect(mockGetUserEntries).toHaveBeenCalledTimes(4);
+    expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
+  });
+
+  it('keeps all four account reads disabled when no identity cache exists', async () => {
+    onlineManager.setOnline(false);
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    mockGetUserEntries.mockResolvedValue({ data: [], error: null, source: 'replica-offline' });
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      useHasAnyEntryForShow('show-heartland');
+      useExhibitorUpcomingShows();
+      useAccountEnteredShowIds(auth.personId);
+      useMyEntryBalanceSummary();
+      return <span data-testid="no-cache-person-id">{auth.personId ?? 'none'}</span>;
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('no-cache-person-id')).toHaveTextContent('none');
+    });
+    expect(mockGetUserEntries).not.toHaveBeenCalled();
+  });
+
+  it('uses the cached person id before RBAC hydrates without granting a role', async () => {
+    savePersonIdentityCache(mockUser.id, 'person-cached');
+    mockRbacService.getUserPermissions.mockRejectedValue(new Error('offline'));
+    mockGetUserEntries.mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'replica-offline',
+    });
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      const upcoming = useExhibitorUpcomingShows();
+      return (
+        <div>
+          <span data-testid="rbac-independent-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="rbac-independent-role">
+            {auth.hasRole(UserRole.EXHIBITOR).toString()}
+          </span>
+          <span data-testid="rbac-independent-upcoming">{upcoming.upcomingShows.length}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rbac-independent-person-id')).toHaveTextContent('person-cached');
+      expect(screen.getByTestId('rbac-independent-upcoming')).toHaveTextContent('0');
+      expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
+    });
+    expect(screen.getByTestId('rbac-independent-role')).toHaveTextContent('false');
+  });
+
+  it('clears person identity cache on account switch and sign-out', async () => {
+    savePersonIdentityCache(mockUser.id, 'person-a');
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return <span data-testid="cache-account">{auth.user?.id ?? 'signed-out'}</span>;
+    };
+    const view = renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => expect(loadPersonIdentityCache(mockUser.id)).not.toBeNull());
+
+    mockUseAuth.mockReturnValue({
+      ...mockAuthReturn,
+      user: { ...mockUser, id: 'user-b' },
+    });
+    view.rerender(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cache-account')).toHaveTextContent('user-b');
+      expect(loadPersonIdentityCache(mockUser.id)).toBeNull();
+    });
+
+    savePersonIdentityCache('user-b', 'person-b');
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
+    view.rerender(<TestComponent />);
+
+    await waitFor(() => expect(loadPersonIdentityCache('user-b')).toBeNull());
+  });
+
+  it('preserves the current account cache through pre-session boot and transition', async () => {
+    savePersonIdentityCache('user-a', 'person-a');
+    savePersonIdentityCache('user-b', 'person-b');
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return <span data-testid="boot-account">{auth.user?.id ?? 'signed-out'}</span>;
+    };
+    const view = renderWithAuthProvider(<TestComponent />);
+
+    expect(screen.getByTestId('boot-account')).toHaveTextContent('signed-out');
+
+    mockUseAuth.mockReturnValue({
+      ...mockAuthReturn,
+      user: { ...mockUser, id: 'user-a' },
+    });
+    view.rerender(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId('boot-account')).toHaveTextContent('user-a'));
+
+    mockUseAuth.mockReturnValue({
+      ...mockAuthReturn,
+      user: { ...mockUser, id: 'user-b' },
+    });
+    view.rerender(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('boot-account')).toHaveTextContent('user-b');
+      expect(loadPersonIdentityCache('user-a')).toBeNull();
+      expect(loadPersonIdentityCache('user-b')?.personId).toBe('person-b');
+    });
+  });
+
+  it('does not expose account A person data while switching to account B', async () => {
+    const profiles: Record<string, { id: string }> = {
+      'user-a': { id: 'person-a' },
+      'user-b': { id: 'person-b' },
+    };
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: (_field: string, authUserId: string) => ({
+                maybeSingle: () =>
+                  Promise.resolve({ data: profiles[authUserId] ?? null, error: null }),
+              }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          placeholderData: (previousData: unknown) => previousData,
+        },
+      },
+    });
+    const TestComponent = ({ userId }: { userId: string }) => {
+      const identity = usePersonIdentity(userId);
+      return <span data-testid="switched-person-id">{identity.personId ?? 'none'}</span>;
+    };
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <TestComponent userId="user-a" />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('switched-person-id')).toHaveTextContent('person-a')
+    );
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <TestComponent userId="user-b" />
+      </QueryClientProvider>
+    );
+    expect(screen.getByTestId('switched-person-id')).not.toHaveTextContent('person-a');
+    await waitFor(() =>
+      expect(screen.getByTestId('switched-person-id')).toHaveTextContent('person-b')
+    );
   });
 
   it('cold boot offline with no cache still settles at zero roles with an error', async () => {

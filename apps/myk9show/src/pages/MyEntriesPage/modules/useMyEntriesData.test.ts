@@ -3,15 +3,11 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { shouldRenderOwnEntry, useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
-}));
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
   AuditAction: { READ: 'READ', UPDATE: 'UPDATE' },
@@ -61,6 +57,14 @@ const entryRow = () => ({
   registration: { id: 'reg-1', confirmation_number: 'ABC123' },
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 const renderData = () =>
   renderHook(() =>
     useMyEntriesData({ persistCheckInStatus: vi.fn().mockResolvedValue(undefined) })
@@ -95,9 +99,11 @@ describe('useMyEntriesData — entry_close_date is a calendar date, not an insta
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   afterEach(() => {
@@ -139,9 +145,11 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   it("carries the trial's own zone onto every class row", async () => {
@@ -183,9 +191,11 @@ describe('useMyEntriesData — move-up lineage reaches card-level money math', (
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   it('preserves moved_from_entry_id on the live destination class', async () => {
@@ -209,9 +219,11 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   // INTENT (PRODUCT.md principle 4, "Offline is normal, not broken"): the error
@@ -327,15 +339,53 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
   });
 });
 
+describe('useMyEntriesData — unloaded entries keep a stable identity fence', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-A', email: 'a@test.com' },
+      userWithRoles: { databaseUserId: 'person-A' },
+      personId: 'person-A',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+      isAuthenticated: true,
+    });
+  });
+
+  it('keeps the pending empty entries array referentially stable across rerender', async () => {
+    const pendingRead = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValue(pendingRead.promise);
+
+    const { result, rerender } = renderData();
+    const pendingEntries = result.current.entries;
+
+    expect(pendingEntries).toEqual([]);
+    rerender();
+    expect(result.current.entries).toBe(pendingEntries);
+    expect(getUserEntries).toHaveBeenCalledWith('person-A');
+
+    await act(async () => {
+      pendingRead.resolve({ source: 'confirmed', data: [], error: null });
+      await pendingRead.promise;
+    });
+  });
+});
+
 describe('useMyEntriesData — preserved entries must not cross an identity change', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-A', email: 'a@test.com' },
       userWithRoles: { databaseUserId: 'person-A' },
+      personId: 'person-A',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-A');
   });
 
   // Raised by Codex review on PR #1696. Preserving entries across a failed
@@ -357,9 +407,11 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-B', email: 'b@test.com' },
       userWithRoles: { databaseUserId: 'person-B' },
+      personId: 'person-B',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-B');
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       source: 'confirmed',
       data: null,
@@ -395,5 +447,77 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
 
     expect(result.current.isError).toBe(true);
     expect(result.current.entries).toHaveLength(1);
+  });
+
+  it('ignores a deferred A response and refresh finalizer after switching to B', async () => {
+    const accountARefresh = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    const accountBRead = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    const accountARow = {
+      ...entryRow(),
+      id: 'entry-a',
+      show_id: 'show-a',
+      dog: { id: 'dog-a', name: 'Aster', call_name: 'Aster' },
+      show: { ...entryRow().show, id: 'show-a', name: 'Account A Show' },
+    };
+    const accountBRow = {
+      ...entryRow(),
+      id: 'entry-b',
+      show_id: 'show-b',
+      dog: { id: 'dog-b', name: 'Briar', call_name: 'Briar' },
+      show: { ...entryRow().show, id: 'show-b', name: 'Account B Show' },
+    };
+
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ source: 'confirmed', data: [accountARow], error: null })
+      .mockImplementation((personId: string) =>
+        personId === 'person-A' ? accountARefresh.promise : accountBRead.promise
+      );
+
+    const { result, rerender } = renderData();
+    await waitFor(() => expect(result.current.entries[0]?.showName).toBe('Account A Show'));
+
+    await act(async () => {
+      void result.current.refreshEntries();
+    });
+    await waitFor(() => expect(getUserEntries).toHaveBeenCalledWith('person-A'));
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-B', email: 'b@test.com' },
+      userWithRoles: { databaseUserId: 'person-B' },
+      personId: 'person-B',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+      isAuthenticated: true,
+    });
+    act(() => rerender());
+
+    // The old A rows are hidden in the identity-change render, before B's read
+    // can answer. This is the important synchronous half of the fence.
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.balanceSummary.kind).toBe('unknown');
+    const hiddenEntries = result.current.entries;
+    act(() => rerender());
+    expect(result.current.entries).toBe(hiddenEntries);
+
+    await act(async () => {
+      accountBRead.resolve({ source: 'confirmed', data: [accountBRow], error: null });
+    });
+    await waitFor(() => expect(result.current.entries[0]?.showName).toBe('Account B Show'));
+
+    await act(async () => {
+      accountARefresh.resolve({ source: 'confirmed', data: [accountARow], error: null });
+      await accountARefresh.promise;
+    });
+
+    expect(result.current.entries[0]?.showName).toBe('Account B Show');
+    expect(result.current.refreshing).toBe(false);
   });
 });

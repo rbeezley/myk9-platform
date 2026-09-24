@@ -8,14 +8,15 @@ import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
+import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
@@ -46,9 +47,13 @@ import {
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
 } from './modules';
+import {
+  getMyEntriesPresentation,
+  type MyEntriesPresentation,
+} from './modules/entriesIdentityState';
 
 const MyEntriesPage: React.FC = () => {
-  const { user, userWithRoles, firstName } = useAuthContext();
+  const { user, firstName } = useAuthContext();
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
   const { status: syncStatus } = useReplicationSync();
 
@@ -58,6 +63,7 @@ const MyEntriesPage: React.FC = () => {
     balanceSummary,
     source: entriesSource,
     identityState,
+    readState,
     isLoading,
     isError,
     refreshing,
@@ -65,6 +71,12 @@ const MyEntriesPage: React.FC = () => {
     updateEntryCheckIn,
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
+  });
+  const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
+    identityState,
+    readState,
+    entryCount: entries.length,
+    isLoading,
   });
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -132,15 +144,24 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Resolve the exhibitor's person id from the same source entry loading and the
-  // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
-  // ownership from only userWithRoles.databaseUserId would disable the dog query
-  // for exhibitors whose id comes from the legacy lookup, making the zero-state
-  // wrongly treat them as having no dogs. See useMyEntriesData's personId.
-  const currentUserPersonId = useCurrentUserPersonId();
-  const ownerId = currentUserPersonId ?? userWithRoles?.databaseUserId ?? '';
+  const ownerId = useEntriesPersonId() ?? '';
 
-  const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
+  const {
+    data: dogs = [],
+    isLoading: dogsLoading,
+    isPlaceholderData: dogsIsPlaceholder,
+  } = useDogsByOwnerQuery(ownerId, !!ownerId);
+
+  const {
+    dogs: visibleDogs,
+    hasDogs,
+    currentUserPersonId,
+  } = deriveMyEntriesDogState({
+    ownerId,
+    dogs,
+    isLoading: dogsLoading,
+    isPlaceholderData: dogsIsPlaceholder,
+  });
 
   // Tri-state dog ownership for the first-run zero-state. Resolving it eagerly
   // off `dogs.length` flashes "Add Your First Dog" at an exhibitor who *does*
@@ -150,8 +171,6 @@ const MyEntriesPage: React.FC = () => {
   //   - settled     → the real answer
   // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
   // commits to the no-dogs branch before ownership is known.
-  const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
-
   const upcomingClassCountByDog = useMemo(() => countUpcomingClassesByDog(entries), [entries]);
 
   const isInitialEntriesSyncing =
@@ -314,16 +333,18 @@ const MyEntriesPage: React.FC = () => {
               whole stack and present one calm, adaptive call-to-action instead.
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
-            {identityState !== 'resolved' ? (
+            {entriesPresentation === 'identity-pending' ||
+            entriesPresentation === 'identity-missing' ? (
               /* We do not know whose entries these are yet, so the empty list
                  below proves nothing. Rendering FirstRunZeroState here told an
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
-              <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
-            ) : entries.length === 0 &&
-              !waitlistSurface.hasPositions &&
-              !isLoading &&
-              entriesSource !== 'confirmed' ? (
+              <EntriesIdentityPendingCard
+                onRetry={refreshEntries}
+                refreshing={refreshing}
+                identityState={identityState === 'missing' ? 'missing' : 'unresolved'}
+              />
+            ) : entriesPresentation === 'unconfirmed-empty' && !waitlistSurface.hasPositions ? (
               /* `!isLoading` matters: `source` starts unconfirmed because a read
                  that has not happened has confirmed nothing, so without it the
                  first paint of every load claims we could not reach the
@@ -345,7 +366,7 @@ const MyEntriesPage: React.FC = () => {
                 onRetry={refreshEntries}
                 refreshing={refreshing}
               />
-            ) : entries.length === 0 && !waitlistSurface.hasPositions ? (
+            ) : entriesPresentation === 'confirmed-empty' && !waitlistSurface.hasPositions ? (
               /* `entries.length === 0` is not the same as "no standing". An
                  exhibitor can hold a `waitlist_entries` row with no entry row
                  at all, and "Welcome! Let's get you set up" printed above a
@@ -380,7 +401,7 @@ const MyEntriesPage: React.FC = () => {
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
-                    dogs={(dogs ?? []) as OverviewDog[]}
+                    dogs={visibleDogs as OverviewDog[]}
                     upcomingClassCountByDog={upcomingClassCountByDog}
                     onAddDog={dialogs.openAddDog}
                   />
@@ -536,7 +557,7 @@ const MyEntriesPage: React.FC = () => {
         onResultRevealSeen={reveal.markSeen}
         addDogOpen={dialogs.addDogOpen}
         onCloseAddDog={dialogs.closeAddDog}
-        currentUserPersonId={currentUserPersonId ?? undefined}
+        currentUserPersonId={currentUserPersonId}
       />
     </>
   );

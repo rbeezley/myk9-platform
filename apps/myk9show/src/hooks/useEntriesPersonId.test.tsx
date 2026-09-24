@@ -21,18 +21,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useEntriesPersonId } from './useEntriesPersonId';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 vi.mock('@/hooks/useAuthContext');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
-}));
 
-function mockIdentity(resolved: string | null, databaseUserId: string | null) {
-  (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue(resolved);
+function mockIdentity(
+  personId: string | null,
+  databaseUserId: string | null = null,
+  personIdentityState: 'unresolved' | 'resolved' | 'missing' = personId ? 'resolved' : 'unresolved'
+) {
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 'user-1' },
     userWithRoles: databaseUserId ? { databaseUserId } : undefined,
+    personId,
+    personIdentityState,
     isAuthenticated: true,
   });
 }
@@ -41,24 +42,27 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('useEntriesPersonId', () => {
   it('uses the resolved person id', () => {
-    mockIdentity('person-1', 'person-1');
+    mockIdentity('person-1');
     expect(renderHook(() => useEntriesPersonId()).result.current).toBe('person-1');
   });
 
-  // The `?? userWithRoles.databaseUserId` arm the two original expressions
-  // carried is deliberately NOT here, and this pins its absence: with the
-  // resolver answering null, a `databaseUserId` on the auth record must NOT
-  // resurrect an id. Carrying that arm forward would have preserved, in the one
-  // place meant to end the duplication, a fallback that could never fire —
-  // `useCurrentUserPersonId` returns `databaseUserId` first (round-1 review
-  // confirmed this independently).
-  it('does not re-derive an id from the auth record behind the resolver', () => {
-    mockIdentity(null, 'person-db');
+  it('ignores stale role data when confirmed identity is missing', () => {
+    mockIdentity(null, 'person-stale-role', 'missing');
+    expect(renderHook(() => useEntriesPersonId()).result.current).toBeNull();
+  });
+
+  it('ignores stale role data while identity is unresolved', () => {
+    mockIdentity(null, 'person-stale-role', 'unresolved');
     expect(renderHook(() => useEntriesPersonId()).result.current).toBeNull();
   });
 
   it('answers null — never undefined — when neither source knows', () => {
-    mockIdentity(null, null);
+    mockIdentity(null);
     expect(renderHook(() => useEntriesPersonId()).result.current).toBeNull();
+  });
+
+  it('uses the durable identity before RBAC hydrates', () => {
+    mockIdentity('person-cached', null, 'unresolved');
+    expect(renderHook(() => useEntriesPersonId()).result.current).toBe('person-cached');
   });
 });

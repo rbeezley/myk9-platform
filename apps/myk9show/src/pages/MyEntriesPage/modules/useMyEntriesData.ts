@@ -7,6 +7,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
+import type { PersonIdentityState } from '@/context/authContextTypes';
+import {
+  deriveAccountEntryReadState,
+  type AccountEntryReadState,
+} from '@/features/account-entry-read/accountEntryReadState';
 import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -62,6 +67,7 @@ interface UseMyEntriesDataReturn {
    * offline, so an empty list under an unresolved identity proves nothing.
    */
   identityState: EntriesIdentityState;
+  readState: AccountEntryReadState;
   isLoading: boolean;
   isError: boolean;
   refreshing: boolean;
@@ -73,6 +79,13 @@ interface UseMyEntriesDataReturn {
     notes?: string
   ) => Promise<void>;
 }
+
+/**
+ * Stable identity-fence value. Callers use `entries` in memo and effect
+ * dependencies, so an unloaded identity must not create a new empty array on
+ * every render while its account read is pending.
+ */
+const EMPTY_MY_ENTRIES: MyEntry[] = [];
 
 interface PersistCheckInStatusInput {
   entryId: string;
@@ -150,7 +163,7 @@ function getOwnEntryPaymentStatus(
 export function useMyEntriesData({
   persistCheckInStatus,
 }: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, loading: authLoading, personIdentityState } = useAuthContext();
   // The one resolver, shared with My Payments and both ringside hooks, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
@@ -161,7 +174,10 @@ export function useMyEntriesData({
     authLoading,
     hasUser: Boolean(user?.id),
     personId,
+    personIdentityState,
   });
+  const entryPersonIdentityState: PersonIdentityState =
+    personIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const [entries, setEntries] = useState<MyEntry[]>([]);
   // Before the first read lands, the balance is UNKNOWN, not zero: a zeroed
   // `known` summary is the "$0.00, paid up" claim this page is not entitled to
@@ -173,8 +189,25 @@ export function useMyEntriesData({
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const currentIdentity =
+    user?.id && user.is_anonymous !== true && personId ? `${user.id}::${personId}` : null;
+  /** Incremented synchronously when the account identity changes. */
+  const requestGenerationRef = useRef(0);
+  const currentIdentityRef = useRef<string | null>(currentIdentity);
+  /** Identity that the loading/error state belongs to. */
+  const stateIdentityRef = useRef<string | null>(currentIdentity);
   /** The `user.id::personId` the rows in `entries` were loaded for. */
   const loadedIdentityRef = useRef<string | null>(null);
+
+  // Suppress prior-account rows in the render that observes a new identity;
+  // the effect below then starts the new read. The generation fences every
+  // late continuation from the prior request, including its `finally` block.
+  if (currentIdentityRef.current !== currentIdentity) {
+    currentIdentityRef.current = currentIdentity;
+    requestGenerationRef.current += 1;
+    stateIdentityRef.current = null;
+    loadedIdentityRef.current = null;
+  }
 
   /**
    * Transforms database entry to MyEntry format
@@ -345,7 +378,14 @@ export function useMyEntriesData({
     // this, a signed-in-as-B fetch that fails would leave A's dogs, shows and
     // balance rendered on B's page. Clearing happens BEFORE the fetch, so a
     // rejection cannot leave the previous exhibitor's data behind.
-    const identity = user?.id && personId ? `${user.id}::${personId}` : null;
+    const identity = currentIdentity;
+    const requestGeneration = requestGenerationRef.current;
+    const isCurrentIdentity = () => currentIdentityRef.current === identity;
+
+    if (!isCurrentIdentity()) return;
+
+    const isCurrentRequest = () =>
+      requestGenerationRef.current === requestGeneration && isCurrentIdentity();
 
     if (identity !== loadedIdentityRef.current) {
       loadedIdentityRef.current = null;
@@ -353,6 +393,9 @@ export function useMyEntriesData({
       setBalanceSummary(UNKNOWN_ENTRY_BALANCE_SUMMARY);
       setSource('replica-after-error');
       setIsError(false);
+      setRefreshing(false);
+      stateIdentityRef.current = identity;
+      setIsLoading(true);
     }
 
     // `user?.id` and `personId` are restated rather than inferred from
@@ -365,6 +408,8 @@ export function useMyEntriesData({
 
     try {
       const { data, error, source: rowSource } = await getUserEntries(personId);
+
+      if (!isCurrentRequest()) return;
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -395,15 +440,16 @@ export function useMyEntriesData({
       loadedIdentityRef.current = identity;
       setIsError(false);
     } catch (error) {
+      if (!isCurrentRequest()) return;
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
       // Same contract as the `error` branch above: preserve the last good read.
       // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
       // positive claim about what the exhibitor owes, not an absence of data.
       setIsError(true);
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest()) setIsLoading(false);
     }
-  }, [user?.id, personId, transformEntry]);
+  }, [currentIdentity, personId, transformEntry, user?.id]);
 
   // Initial load
   useEffect(() => {
@@ -423,6 +469,13 @@ export function useMyEntriesData({
    * Refreshes entries data
    */
   const refreshEntries = useCallback(async () => {
+    const refreshIdentity = currentIdentity;
+    const refreshGeneration = requestGenerationRef.current;
+    const isCurrentRefresh = () =>
+      currentIdentityRef.current === refreshIdentity &&
+      requestGenerationRef.current === refreshGeneration;
+    if (!isCurrentRefresh()) return;
+
     setRefreshing(true);
     try {
       await loadMyEntries();
@@ -431,9 +484,21 @@ export function useMyEntriesData({
       // one escape would otherwise leave the retry button spinning and disabled
       // beside the error card — the one state the exhibitor needs it working in
       // (PR #2301 P3).
-      setRefreshing(false);
+      if (isCurrentRefresh()) setRefreshing(false);
     }
-  }, [loadMyEntries]);
+  }, [currentIdentity, loadMyEntries]);
+
+  const hasCurrentEntries =
+    currentIdentity !== null && loadedIdentityRef.current === currentIdentity;
+  const visibleEntries = hasCurrentEntries ? entries : EMPTY_MY_ENTRIES;
+  const visibleBalanceSummary = hasCurrentEntries ? balanceSummary : UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  const visibleSource = hasCurrentEntries ? source : 'replica-after-error';
+  const visibleIsLoading =
+    currentIdentity !== null && stateIdentityRef.current !== currentIdentity ? true : isLoading;
+  const visibleIsError =
+    currentIdentity !== null && stateIdentityRef.current === currentIdentity ? isError : false;
+  const visibleRefreshing =
+    currentIdentity !== null && stateIdentityRef.current === currentIdentity ? refreshing : false;
 
   /**
    * Updates check-in status for a class entry
@@ -442,7 +507,9 @@ export function useMyEntriesData({
     async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
       // After grouping, entry.id is the first class row's id and may differ from
       // classId. Find the grouped card that contains the target class instead.
-      const entry = entries.find(e => e.id === entryId || e.classes.some(c => c.id === classId));
+      const entry = visibleEntries.find(
+        e => e.id === entryId || e.classes.some(c => c.id === classId)
+      );
       const classEntry = entry?.classes.find(c => c.id === classId);
 
       if (!entry || !classEntry) return;
@@ -527,17 +594,28 @@ export function useMyEntriesData({
         },
       });
     },
-    [entries, persistCheckInStatus, user?.id]
+    [persistCheckInStatus, user?.id, visibleEntries]
   );
 
+  const readState = deriveAccountEntryReadState({
+    hasUser: Boolean(user?.id),
+    personId: personId ?? null,
+    personIdentityState: entryPersonIdentityState,
+    isPending:
+      stateIdentityRef.current === currentIdentity ? visibleIsLoading : currentIdentity !== null,
+    isError: visibleIsError,
+    source: visibleSource,
+  });
+
   return {
-    entries,
-    balanceSummary,
-    source,
+    entries: visibleEntries,
+    balanceSummary: visibleBalanceSummary,
+    source: visibleSource,
     identityState,
-    isLoading,
-    isError,
-    refreshing,
+    readState,
+    isLoading: visibleIsLoading,
+    isError: visibleIsError,
+    refreshing: visibleRefreshing,
     refreshEntries,
     updateEntryCheckIn,
   };

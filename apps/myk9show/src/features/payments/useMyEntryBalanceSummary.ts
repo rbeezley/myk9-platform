@@ -32,6 +32,9 @@ export function useMyEntryBalanceSummary() {
     // `getUserEntries` view deadline, so the default turns a dead network into
     // a ~46s spinner before the replica fallback is ever shown.
     retry: 1,
+    // The balance belongs to the durable person identity in the key. Do not
+    // carry account A's amount into account B while B's read is pending.
+    placeholderData: () => undefined,
     // `getUserEntries` is network-first with the replicated snapshot as its
     // offline fallback (MYK9-536), but React Query's default
     // `networkMode: 'online'` parks this query at `fetchStatus: 'paused'`

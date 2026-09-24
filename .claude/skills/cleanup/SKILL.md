@@ -30,11 +30,21 @@ git worktree list
 - **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks the harness's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
   ```bash
   MAIN="/absolute/path/to/main/repo"
-  # worktree remove is the last command
-  git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
+  WT="/absolute/path/to/stale-worktree"
+  # worktree remove is the last command, and runs only if nothing else holds the tree
+  pnpm -s qa:worktree-liveness "$WT" --window 5 && git -C "$MAIN" worktree remove --force "$WT"
   ```
   Leave the local branch: `git branch -D` is a denied command in this repo's Claude Code permissions (Codex may run it per `AGENTS.md`, before the worktree removal). The harness recovers the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
+- **Liveness comes from processes, never from a session's `isRunning` or `lastActivityAt`** (MYK9-599). On 2026-09-15 one session read `isRunning: true` from `list_sessions` and `false` from `get_session` a minute later, with nothing changed. Another read `true` while its worktree no longer existed. `lastActivityAt` advanced in lockstep across idle sessions, so it is a heartbeat, not activity. Neither field has a documented narrower meaning, so do not use either one for any decision. A false `true` blocks cleanup forever, and a false `false` removes a live agent's tree. For each candidate, run:
+  ```bash
+  pnpm -s qa:worktree-liveness "<absolute worktree path>"   # --window 15 --threshold 10 are the defaults
+  ```
+  It finds processes whose cwd is inside the tree (`lsof -d cwd`) and every descendant (from the `ps` parent-pid table, as `pgrep -P` would find them). It samples their CPU twice, 15s apart, with `ps -o time=`, and lists files under the tree they hold open for writing (`lsof -p`). The verdict is **FREE** (exit 0) when nothing holds the tree. It is **BUSY** (exit 1) at 10% of one core or more, or with any write handle. It is **QUIET** (exit 3) when the tree is held below that with no writes; exit 2 means the check could not run. 10% separates polling from work: the idle session measured on 2026-09-15 accrued 0.69s over 15s (4.6%), which is MCP polling. Report a BUSY tree and do not offer to remove it. QUIET is not proof of abandonment, because a session waiting on a model reply is quiet too. It is the precondition for _asking_, together with a clean tree and a branch tip whose SHA equals the merged PR's `headRefOid`, never a branch-name match.
+- **Stopping a holder, after the user confirms.** Stop the session through the harness when it offers a stop, otherwise `kill <pid>` (SIGTERM) on the holder and on the children the check listed. Use `kill -9` only when a process is still alive after that and the user agrees. Then re-run `qa:worktree-liveness` and remove the tree only on **FREE** (exit 0), chained in one command so the gap between the check and the removal is as short as it can be:
+  ```bash
+  pnpm -s qa:worktree-liveness "$WT" --window 5 && git -C "$MAIN" worktree remove "$WT"
+  ```
 - **Reap dev servers first.** Before removing a worktree, run §2 scoped to that worktree path and kill any survivors — otherwise they keep listening on their ports as zombies after the directory is gone.
 - Report how many were found; only remove after explicit user confirmation.
 
@@ -180,7 +190,7 @@ Action needed:
 ## Rules
 
 - Run all checks even if early ones find issues
-- NEVER auto-remove worktrees — always ask first (another agent may be using it)
+- NEVER auto-remove worktrees — always ask first (another agent may be using it). Judge "in use" with `qa:worktree-liveness`, never with a session's `isRunning` or `lastActivityAt`, and remove only on a fresh FREE.
 - NEVER auto-kill dev servers whose worktree still exists — ask first (another agent may be using it). Auto-killing IS allowed when both the worktree directory is gone AND its name is absent from `git worktree list`.
 - **Reap dev servers before removing their worktree** — `git worktree remove` does not kill child processes, so dev servers outlive their source tree and become 404-serving zombies
 - Always ask before: committing, pushing, deploying, deleting unmerged branches

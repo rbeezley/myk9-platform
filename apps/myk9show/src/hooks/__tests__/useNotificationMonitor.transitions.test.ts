@@ -126,6 +126,11 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
       .length;
   }
 
+  /** The next refetches succeed with this snapshot, fetched "now". */
+  function refetchFresh(snapshot: NotificationSnapshot) {
+    mockRefetch.mockImplementation(async () => ({ data: snapshot, dataUpdatedAt: Date.now() }));
+  }
+
   function loadSnapshot(snapshot: NotificationSnapshot) {
     mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
   }
@@ -276,20 +281,18 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
         classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
         entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
       };
-      mockRefetch.mockResolvedValue({ data: whileAway });
+      refetchFresh(whileAway);
       await setVisibility('visible');
       await emitShowChange();
       expect(mockDeliver).not.toHaveBeenCalled();
 
-      mockRefetch.mockResolvedValue({
-        data: {
-          ...whileAway,
-          entries: [
-            entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
-            entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
-            entry(),
-          ],
-        },
+      refetchFresh({
+        ...whileAway,
+        entries: [
+          entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+          entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+          entry(),
+        ],
       });
       await emitShowChange();
       expect(mockDeliver).toHaveBeenCalledTimes(1);
@@ -303,17 +306,59 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
       renderHook(() => useNotificationMonitor());
 
       await setVisibility('hidden');
-      mockRefetch.mockResolvedValue({ data: { classes: [classRow()], entries: [entry()] } });
+      refetchFresh({ classes: [classRow()], entries: [entry()] });
       await setVisibility('visible');
       expect(mockRefetch).toHaveBeenCalledOnce();
 
-      mockRefetch.mockResolvedValue({
-        data: { classes: [classRow({ status: 'In Progress' })], entries: [entry()] },
-      });
+      refetchFresh({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
       await emitShowChange();
 
       expect(countOf('class_starting')).toBe(1);
       expect(mockDeliver).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('keeps the away baseline through a failed refetch that returns cached data', async () => {
+    await withVisibility(async setVisibility => {
+      const before: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete' })],
+        entries: [entry()],
+      };
+      loadSnapshot(before);
+      renderHook(() => useNotificationMonitor());
+
+      await setVisibility('hidden');
+      // Back during a network failure: React Query hands back the cached
+      // snapshot, last updated before the app went away, with the error.
+      mockRefetch.mockResolvedValueOnce({
+        data: before,
+        dataUpdatedAt: Date.now() - 60_000,
+        isError: true,
+      });
+      await setVisibility('visible');
+      expect(mockRefetch).toHaveBeenCalledOnce();
+
+      // The next successful fetch carries what changed while away.
+      const whileAway: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+        entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
+      };
+      refetchFresh(whileAway);
+      await emitShowChange();
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      const later: NotificationSnapshot = {
+        ...whileAway,
+        entries: [
+          entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+          entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      };
+      refetchFresh(later);
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledTimes(1);
+      expect(countOf('your_turn')).toBe(1);
     });
   });
 

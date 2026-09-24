@@ -446,6 +446,9 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: WaitlistReport,
     enabled: true,
+    // Waitlisted dogs are in `waitlist_entries`, not `entries` (MYK9-717): a sold-out
+    // show can have a waitlist and no confirmed entries yet.
+    rendersWithoutEntries: true,
   },
   {
     id: 'steward-report',

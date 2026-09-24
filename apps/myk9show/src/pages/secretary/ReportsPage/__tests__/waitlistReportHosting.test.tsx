@@ -8,18 +8,31 @@
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const { mockGetWaitlistReportRows } = vi.hoisted(() => ({ mockGetWaitlistReportRows: vi.fn() }));
+const { mockGetWaitlistReportRows, hydration } = vi.hoisted(() => ({
+  mockGetWaitlistReportRows: vi.fn(),
+  hydration: { revision: 0, listeners: new Set<() => void>() },
+}));
 
 vi.mock('@/services/database/waitlists', () => ({
   getWaitlistReportRows: mockGetWaitlistReportRows,
 }));
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  getHandlerPeopleHydrationRevision: () => hydration.revision,
+  subscribeHandlerPeopleHydration: (listener: () => void) => {
+    hydration.listeners.add(listener);
+    return () => hydration.listeners.delete(listener);
+  },
+}));
 
 import { useHostedReportData } from '../useHostedReportData';
+import { ReportPreview } from '../ReportPreview';
 import { buildShowReportProps } from '../reportDataMapping';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
+import { queryKeys } from '@/lib/queryClient';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -48,10 +61,11 @@ function wrapper(client: QueryClient) {
 
 function renderHosted() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderHook(
+  const hook = renderHook(
     () => useHostedReportData({ reportType: 'waitlist-report', showId: 'show-1' }),
     { wrapper: wrapper(client) }
   );
+  return { ...hook, client };
 }
 
 function renderReportMarkup(hosted: ReturnType<typeof useHostedReportData>): string {
@@ -72,7 +86,11 @@ function renderReportMarkup(hosted: ReturnType<typeof useHostedReportData>): str
 }
 
 describe('Waitlist Report hosting (MYK9-717)', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hydration.revision = 0;
+    hydration.listeners.clear();
+  });
 
   it('prints the waitlisted dogs of a show, not its confirmed entries', async () => {
     mockGetWaitlistReportRows.mockResolvedValue([
@@ -108,5 +126,65 @@ describe('Waitlist Report hosting (MYK9-717)', () => {
       wrapper: wrapper(client),
     });
     expect(mockGetWaitlistReportRows).not.toHaveBeenCalled();
+  });
+
+  it('previews a waitlist for a show with no confirmed entries yet', async () => {
+    mockGetWaitlistReportRows.mockResolvedValue([
+      { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: 'Jane Mitchell' },
+    ]);
+    const { container } = render(
+      <ReportPreview
+        reportType="waitlist-report"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={[]}
+        trialId="all"
+        classId="all"
+        dogId="all"
+        sortOrder=""
+        isLoading={false}
+        isError={false}
+        dataState="ready"
+      />
+    );
+
+    expect(screen.queryByText(/No entries found/i)).toBeNull();
+    const frame = container.querySelector('iframe') as HTMLIFrameElement;
+    await waitFor(() => expect(frame.contentDocument?.body.textContent).toContain('Buddy'));
+  });
+
+  it('re-reads after a waitlist mutation invalidates the show', async () => {
+    mockGetWaitlistReportRows.mockResolvedValueOnce([
+      { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: null },
+    ]);
+    const { result, client } = renderHosted();
+    await waitFor(() => expect(result.current.waitlist?.data).toHaveLength(1));
+
+    // What useWaitListMutations does after promote / remove / close.
+    mockGetWaitlistReportRows.mockResolvedValueOnce([]);
+    await act(() => client.invalidateQueries({ queryKey: queryKeys.show('show-1') }));
+
+    await waitFor(() => expect(result.current.waitlist?.data).toEqual([]));
+    expect(mockGetWaitlistReportRows).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-reads when handler names finish hydrating in the background', async () => {
+    mockGetWaitlistReportRows.mockResolvedValueOnce([
+      { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: null },
+    ]);
+    const { result } = renderHosted();
+    await waitFor(() => expect(result.current.waitlist?.data[0]?.callName).toBe('Buddy'));
+    expect(mockGetWaitlistReportRows).toHaveBeenCalledTimes(1);
+
+    mockGetWaitlistReportRows.mockResolvedValueOnce([
+      { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: 'Jane Mitchell' },
+    ]);
+    act(() => {
+      hydration.revision += 1;
+      hydration.listeners.forEach(listener => listener());
+    });
+
+    await waitFor(() => expect(result.current.waitlist?.data[0]?.handler).toBe('Jane Mitchell'));
   });
 });

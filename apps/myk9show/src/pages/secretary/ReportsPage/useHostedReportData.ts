@@ -16,7 +16,13 @@
  * This hook lives in its own module because ReportPreview.tsx sits at the 500-line
  * ceiling the code-quality ratchet enforces.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
+import {
+  getHandlerPeopleHydrationRevision,
+  subscribeHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
 import { getWaitlistReportRows } from '@/services/database/waitlists';
@@ -74,11 +80,33 @@ export function useHostedReportData({
     enabled: needsSupplies,
   });
 
+  const queryClient = useQueryClient();
+  const waitlistKey = queryKeys.showWaitlistReport(showId ?? '');
   const waitlistQuery = useQuery({
-    queryKey: ['waitlist-report', showId ?? ''] as const,
+    queryKey: waitlistKey,
     queryFn: () => getWaitlistReportRows(showId as string),
     enabled: needsWaitlist,
+    // A local replica read: re-read on every open so the paper matches the Waitlist tab.
+    staleTime: 0,
   });
+
+  // Handler names can arrive after the first read returned (loadHandlerPeople
+  // answers from cache and finishes in the background); re-read when they do.
+  const handlerPeopleRevision = useSyncExternalStore(
+    subscribeHandlerPeopleHydration,
+    getHandlerPeopleHydrationRevision,
+    getHandlerPeopleHydrationRevision
+  );
+  const seenRevision = useRef(handlerPeopleRevision);
+  const waitlistKeyShowId = waitlistKey[1];
+  useEffect(() => {
+    if (handlerPeopleRevision === seenRevision.current) return;
+    seenRevision.current = handlerPeopleRevision;
+    if (!needsWaitlist) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.showWaitlistReport(waitlistKeyShowId),
+    });
+  }, [handlerPeopleRevision, needsWaitlist, queryClient, waitlistKeyShowId]);
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
     ? {

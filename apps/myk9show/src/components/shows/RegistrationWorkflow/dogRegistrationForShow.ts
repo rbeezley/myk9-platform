@@ -111,3 +111,26 @@ export function resolveRegistrationForShow(
 function indefiniteArticle(registry: string): 'a' | 'an' {
   return /^[AEFHILMNORSX]/.test(registry) ? 'an' : 'a';
 }
+
+/**
+ * The organization, NORMALIZED for display. Every live
+ * `dog_registrations.organization` row holds the long form
+ * ("AKC (American Kennel Club)"), which rendered raw makes a 50-character pill
+ * that wraps to two lines on a 375px phone. `normalizeOrganization` is the same
+ * function the matching uses, so a label can never name a registry the
+ * resolver would not have matched. Falls back to the raw value if it
+ * normalizes to nothing — showing something odd beats showing an empty chip.
+ */
+export function registrationOrganizationLabel(registration: Registration): string {
+  return normalizeOrganization(registration.organization) ?? registration.organization;
+}
+
+/** "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ". */
+export function registrationLabel(registration: Registration): string {
+  const organization = registrationOrganizationLabel(registration);
+  const number = registration.registrationNumber?.trim();
+  return number ? `${organization}: ${number}` : organization;
+}
+
+/** The marker's words, shared with the staff row's accessible description. */
+export const USED_FOR_THIS_SHOW = 'Used for this show';

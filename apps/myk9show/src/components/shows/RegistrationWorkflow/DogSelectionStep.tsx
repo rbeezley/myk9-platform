@@ -3,7 +3,6 @@ import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
@@ -12,7 +11,6 @@ import {
   getDogBreedLabel,
   getDogDistinctRegisteredName,
   Dog,
-  type Registration,
 } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -22,26 +20,8 @@ import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
-import { normalizeOrganization } from '@/features/dogs/identity';
+import { RegistrationChipsForShow } from './RegistrationChipsForShow';
 import '@/styles/myk9-registration-workflow.css';
-
-/**
- * "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ".
- *
- * The organization is NORMALIZED for display. Every live
- * `dog_registrations.organization` row holds the long form
- * ("AKC (American Kennel Club)"), which rendered raw makes a 50-character pill
- * that wraps to two lines on a 375px phone. `normalizeOrganization` is the same
- * function the matching uses, so the chip can never name a registry the resolver
- * would not have matched. Falls back to the raw value if it normalizes to
- * nothing — showing something odd beats showing an empty chip.
- */
-function registrationLabel(registration: Registration): string {
-  const organization =
-    normalizeOrganization(registration.organization) ?? registration.organization;
-  const number = registration.registrationNumber?.trim();
-  return number ? `${organization}: ${number}` : organization;
-}
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
@@ -243,49 +223,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </p>
                       </div>
 
-                      {/* INTENT: the registry the show uses is decided by the show,
-                        not by the exhibitor (MYK9-490). The other registrations stay
-                        VISIBLE but de-emphasized — a tester read three equal chips as
-                        an unmade choice, and hiding them would instead read as her
-                        dog's other numbers having been lost (MYK9-569). Text size
-                        stays at text-xs: do not shrink it further (MYK9-368). */}
-                      {(forShow.used || forShow.others.length > 0) && (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          {forShow.used && (
-                            <Badge
-                              data-registration-role="used"
-                              variant="outline"
-                              className="max-w-full whitespace-normal break-words border-primary bg-primary/10 text-xs font-semibold text-foreground"
-                            >
-                              {registrationLabel(forShow.used)}
-                              {/* Without a separator the accessible name runs the
-                                number into the marker: "SR12345601Used for this
-                                show". */}
-                              <span className="sr-only">, </span>
-                              <span className="ml-1.5 font-normal text-muted-foreground">
-                                Used for this show
-                              </span>
-                            </Badge>
-                          )}
-                          {forShow.others.map(reg => (
-                            <Badge
-                              key={reg.id}
-                              data-registration-role="other"
-                              variant="outline"
-                              className={cn(
-                                'max-w-full whitespace-normal break-words text-xs',
-                                // De-emphasis is the TOKEN COLOUR only. Never
-                                // opacity on text: muted-foreground at 60%
-                                // composites to ~2.5:1 at 12px, under the 4.5:1
-                                // AA floor the token itself was fixed to meet.
-                                forShow.resolved && 'border-border/60 text-muted-foreground'
-                              )}
-                            >
-                              {registrationLabel(reg)}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      <RegistrationChipsForShow forShow={forShow} className="mt-2" />
 
                       {forShow.missingRegistrationMessage && (
                         // role="status": the registry resolves after the first

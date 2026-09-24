@@ -6,7 +6,7 @@
  * stale profile or suspension data authoritative.
  */
 
-import { RBAC_CACHE_TTL_MS } from './rbacPermissionsCache';
+import { OFFLINE_SESSION_CACHE_TTL_MS } from './offlineSessionCacheTtl';
 
 /**
  * Exactly as long as the cached roles it pairs with (LESSONS
@@ -14,7 +14,7 @@ import { RBAC_CACHE_TTL_MS } from './rbacPermissionsCache';
  * show with roles but no personId, so every account entries read stayed
  * disabled. An authoritative lookup still overwrites or clears it.
  */
-export const PERSON_IDENTITY_CACHE_TTL_MS = RBAC_CACHE_TTL_MS;
+export const PERSON_IDENTITY_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
 
 const KEY_PREFIX = 'myk9show:person-identity-cache:';
 

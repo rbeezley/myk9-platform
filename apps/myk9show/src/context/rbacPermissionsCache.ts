@@ -12,9 +12,10 @@
  * grant data access the user does not actually have.
  */
 import type { UserPermissionsResponse } from '@/types/rbac-types';
+import { OFFLINE_SESSION_CACHE_TTL_MS } from './offlineSessionCacheTtl';
 
 /** Entries older than this are ignored — a show weekend plus travel margin. */
-export const RBAC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const RBAC_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
 
 const KEY_PREFIX = 'myk9show:rbac-cache:';
 

@@ -1,6 +1,6 @@
 # Linear backlog in batches — 2026-09-23
 
-> **Status:** Active
+> **Status:** Complete (superseded by plan-backlog-batches-2026-09-24.md)
 
 Supersedes the "one PR per issue" rule of [`plan-linear-backlog-burndown-2026-09.md`](plan-linear-backlog-burndown-2026-09.md). The 92 open MyK9-platform issues (excluding MYK9-703) are sorted; the 53 that are agent work are grouped by the files they touch into about 19 PRs. Each PR closes every issue it covers by listing it on its own line as `Fixes MYK9-<n>`. Review tier is per PR (`pnpm qa:review-tier --base origin/main`), so a batch is reviewed once, after it is complete. Merging does not deploy; production moves on a `Deploy myK9Show` run (MYK9-703).
 

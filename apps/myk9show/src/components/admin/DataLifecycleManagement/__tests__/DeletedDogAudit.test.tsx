@@ -96,9 +96,12 @@ const FORCED_ROW = {
   force_delete_audit: {
     logged_at: '2026-09-24T07:41:00.123+00:00',
     actor_name: 'Restore Admin',
-    entry_ids: ['entry-paid', 'entry-scored'],
+    entry_ids: ['entry-paid', 'entry-refunded', 'entry-scored'],
     paid_entry_ids: ['entry-paid'],
-    stripe_payment_intent_ids: ['pi_myk9608_stranded'],
+    // entry-refunded was refunded in myK9 before the override: its intent is
+    // recorded, but nothing is owed on it.
+    stripe_payment_intent_ids: ['pi_myk9608_refunded', 'pi_myk9608_stranded'],
+    paid_payment_intent_ids: ['pi_myk9608_stranded'],
     waitlist_rows_removed: 0,
     cart_items_removed: 0,
     refund_issued: false,
@@ -164,13 +167,14 @@ describe('Deleted Items — dogs (MYK9-607, MYK9-608)', () => {
     const forced = within(rowFor('Stranded Formally'));
     expect(
       forced.getByText(
-        'Force-deleted over the paid/scored guard by Restore Admin. No refund was issued.'
+        'Force-deleted over the paid/scored guard by Restore Admin. The override issued no refund.'
       )
     ).toBeInTheDocument();
     expect(
-      forced.getByText('Entries removed (2, 1 paid): entry-paid, entry-scored')
+      forced.getByText('Entries removed (3, 1 paid): entry-paid, entry-refunded, entry-scored')
     ).toBeInTheDocument();
-    expect(forced.getByText(/Captured payments: pi_myk9608_stranded\./)).toBeInTheDocument();
+    expect(forced.getByText(/Paid and not refunded: pi_myk9608_stranded\./)).toBeInTheDocument();
+    expect(forced.queryByText(/pi_myk9608_refunded/)).not.toBeInTheDocument();
     expect(forced.getByText(/never the Stripe dashboard/)).toBeInTheDocument();
 
     expect(

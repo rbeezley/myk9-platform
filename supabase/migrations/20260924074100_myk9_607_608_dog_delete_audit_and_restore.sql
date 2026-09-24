@@ -30,6 +30,15 @@
 --      (dog_force_delete_audit) that restore_dog and get_deleted_dogs both use,
 --      so the two readers cannot disagree about which row describes a deletion.
 --
+--      Newest-first is not enough on its own: force-delete, restore, then an
+--      ORDINARY soft_delete_dog in one transaction gives the second deletion the
+--      same deleted_at, and no audit row of its own, so the force-delete row
+--      would be read as describing it (old entries, old payments, and a stale
+--      placement snapshot for the next restore). So restore_dog now CLOSES the
+--      row it restored from, stamping metadata.restored_at / restored_by, and
+--      the helper only matches a row that has not been restored. One audit row
+--      then describes exactly one delete/restore cycle.
+--
 --   C. MYK9-608 — nothing in the app could read any of it. get_deleted_dogs()
 --      returned SETOF public.dogs, which cannot carry who deleted the dog, so
 --      Admin -> Deleted Items showed no deleter for either delete path; and the
@@ -40,6 +49,15 @@
 --      recover a stranded charge: when, by whom, which entries, which of them
 --      were paid, and the Stripe payment intents. Consolidation: this extends
 --      the existing Deleted Items read; there is no new audit page.
+--
+--      The audit's stripe_payment_intent_ids lists EVERY entry's intent, including
+--      entries already refunded in myK9 before the override (which is what the
+--      dialog tells the admin to do). Presenting those as money to recover would
+--      be wrong, so force_delete_dog now also records paid_payment_intent_ids —
+--      the intents of entries still payment_status='paid' at delete time, the
+--      same predicate as paid_entry_ids — and Deleted Items shows only those.
+--      Rows written before this migration have no such key and show none (there
+--      are no force-delete audit rows on the live database as of writing).
 --
 --      It returns an EXPLICIT column list, not d.*: the old SETOF dogs shape
 --      re-expanded to every column the table ever gains, and no caller reads
@@ -55,10 +73,11 @@
 --     row is admin-only).
 --
 -- force_delete_dog is copied from the LATEST migration that defines it
--- (20260916181700_force_delete_dog_audit_and_waitlist.sql); the ONLY change is
--- the created_at column on its audit INSERT. restore_dog is copied from the
--- same migration; its changes are the helper call, the conflict skip and the
--- jsonb result. get_deleted_dogs is rebuilt from 20260616140000.
+-- (20260916181700_force_delete_dog_audit_and_waitlist.sql); the ONLY changes
+-- are the created_at column on its audit INSERT and the paid_payment_intent_ids
+-- metadata key. restore_dog is copied from the same migration; its changes are
+-- the helper call, closing the audit row, the conflict skip and the jsonb
+-- result. get_deleted_dogs is rebuilt from 20260616140000.
 
 BEGIN;
 
@@ -86,6 +105,10 @@ AS $$
     AND a.action_type = 'deleted'
     AND a.metadata ->> 'override' = 'force_delete_dog'
     AND (a.metadata ->> 'deleted_at')::timestamptz = p_deleted_at
+    -- A row restore_dog already restored from describes a deletion that has
+    -- been undone; a later deletion with the same deleted_at is a different
+    -- event (MYK9-607).
+    AND NOT (a.metadata ? 'restored_at')
   -- created_at is clock_timestamp() from this migration on, so it is strictly
   -- ordered even inside one transaction. id is a last, arbitrary-but-stable
   -- tiebreak for any row written before that.
@@ -99,13 +122,15 @@ GRANT EXECUTE ON FUNCTION public.dog_force_delete_audit(uuid, timestamptz) TO se
 
 COMMENT ON FUNCTION public.dog_force_delete_audit(uuid, timestamptz) IS
   'Internal. The force_delete_dog audit row for one specific deletion of a dog, '
-  'matched on the dog id and the deleted_at the deletion stamped, newest first by '
+  'matched on the dog id and the deleted_at the deletion stamped, skipping rows '
+  'restore_dog has closed (metadata.restored_at), newest first by '
   'clock_timestamp()-based created_at (MYK9-607). Shared by restore_dog and '
   'get_deleted_dogs so they cannot pick different rows.';
 
 -- ---------------------------------------------------------------------------
--- 2. force_delete_dog — body copied from 20260916181700; the only change is
---    `created_at = clock_timestamp()` on the audit INSERT (item B).
+-- 2. force_delete_dog — body copied from 20260916181700; the only changes are
+--    `created_at = clock_timestamp()` on the audit INSERT (item B) and the
+--    paid_payment_intent_ids metadata key (item C).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.force_delete_dog(p_dog_id uuid)
   RETURNS void
@@ -122,6 +147,7 @@ DECLARE
   v_trial_ids UUID[];
   v_paid_entry_ids UUID[];
   v_payment_intent_ids TEXT[];
+  v_paid_payment_intent_ids TEXT[];
   v_placements JSONB;
   v_cart_item_count INT;
   v_waitlist_class_ids UUID[];
@@ -166,6 +192,13 @@ BEGIN
         FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL),
       '{}'::text[]
     ),
+    -- MYK9-608: only the intents still owed a refund. An entry refunded in myK9
+    -- before the override keeps its intent id but is not payment_status='paid'.
+    COALESCE(
+      array_agg(DISTINCT e.stripe_payment_intent_id)
+        FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL AND e.payment_status = 'paid'),
+      '{}'::text[]
+    ),
     COALESCE(
       jsonb_agg(
         jsonb_build_object(
@@ -178,7 +211,8 @@ BEGIN
       '[]'::jsonb
     )
   INTO
-    v_entry_ids, v_trial_ids, v_paid_entry_ids, v_payment_intent_ids, v_placements
+    v_entry_ids, v_trial_ids, v_paid_entry_ids, v_payment_intent_ids,
+    v_paid_payment_intent_ids, v_placements
   FROM public.entries e
   WHERE e.dog_id = p_dog_id
     AND e.deleted_at IS NULL;
@@ -269,6 +303,7 @@ BEGIN
       'trial_ids', to_jsonb(v_trial_ids),
       'paid_entry_ids', to_jsonb(v_paid_entry_ids),
       'stripe_payment_intent_ids', to_jsonb(v_payment_intent_ids),
+      'paid_payment_intent_ids', to_jsonb(v_paid_payment_intent_ids),
       'placements', v_placements,
       'waitlist_rows_removed', COALESCE(v_waitlist_count, 0),
       'cart_items_removed', COALESCE(v_cart_item_count, 0),
@@ -300,6 +335,7 @@ AS $$
 DECLARE
   v_deleted_at timestamptz;
   v_placements jsonb;
+  v_audit_id uuid;
   v_entries_restored integer;
   v_reapplied integer := 0;
   v_skipped jsonb := '[]'::jsonb;
@@ -327,9 +363,21 @@ BEGIN
   -- soft_delete_dog writes no such row, so v_placements is NULL and everything
   -- below is a no-op. (This read relies on the definer owner's BYPASSRLS — see
   -- the dependency note over the INSERT in force_delete_dog.)
-  SELECT a.metadata -> 'placements'
-  INTO v_placements
+  SELECT a.id, a.metadata -> 'placements'
+  INTO v_audit_id, v_placements
   FROM public.dog_force_delete_audit(p_dog_id, v_deleted_at) a;
+
+  -- Close the row: this deletion is undone, so the row must never again be
+  -- read as describing a later deletion that happens to share its deleted_at
+  -- (MYK9-607). Additive — nothing the override recorded is changed.
+  IF v_audit_id IS NOT NULL THEN
+    UPDATE public.activity_log
+    SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+      'restored_at', to_jsonb(clock_timestamp()),
+      'restored_by', to_jsonb((SELECT auth.uid()))
+    )
+    WHERE id = v_audit_id;
+  END IF;
 
   IF v_placements IS NOT NULL AND jsonb_typeof(v_placements) = 'array' THEN
     -- One statement, so the conflict check reads the class as it stood before
@@ -445,6 +493,8 @@ AS $$
         'paid_entry_ids', COALESCE(a.metadata -> 'paid_entry_ids', '[]'::jsonb),
         'stripe_payment_intent_ids',
           COALESCE(a.metadata -> 'stripe_payment_intent_ids', '[]'::jsonb),
+        'paid_payment_intent_ids',
+          COALESCE(a.metadata -> 'paid_payment_intent_ids', '[]'::jsonb),
         'waitlist_rows_removed', COALESCE((a.metadata ->> 'waitlist_rows_removed')::integer, 0),
         'cart_items_removed', COALESCE((a.metadata ->> 'cart_items_removed')::integer, 0),
         'refund_issued', COALESCE((a.metadata ->> 'refund_issued')::boolean, false)
@@ -518,7 +568,9 @@ COMMENT ON FUNCTION public.restore_dog(uuid) IS
   'classes re-derive through the entries trigger (MYK9-596, 20260817150000). '
   'A snapshot placement another live entry in the class now holds is NOT '
   're-applied — the secretary set that after the delete — and is listed in '
-  'the result''s placements_skipped (MYK9-607). Returns jsonb: dog_id, '
+  'the result''s placements_skipped (MYK9-607). Stamps restored_at on the audit '
+  'row it restored from, so that row never describes a later deletion. '
+  'Returns jsonb: dog_id, '
   'entries_restored, placements_reapplied, placements_skipped.';
 
 COMMENT ON FUNCTION public.get_deleted_dogs() IS
@@ -526,7 +578,8 @@ COMMENT ON FUNCTION public.get_deleted_dogs() IS
   'Returns the deleter''s email and name for both delete paths (NULL for rows '
   'without deleted_by) and, for a force-deleted dog, the audit facts from '
   'dog_force_delete_audit: when, by whom, which entries, which were paid, and '
-  'the Stripe payment intents (MYK9-608).';
+  'the Stripe payment intents, with paid_payment_intent_ids naming only those '
+  'not refunded at delete time (MYK9-608).';
 
 COMMIT;
 

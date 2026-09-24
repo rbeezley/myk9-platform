@@ -58,6 +58,10 @@ export function formatDeleter(name: unknown, email: unknown): string | null {
  * who overrode the paid/scored guard, which entries went with the dog, and the
  * payments it stranded. An ordinary delete has no audit object and no lines.
  *
+ * Only `paid_payment_intent_ids` is offered as money to recover: an entry the
+ * admin refunded in myK9 before the override (as the dialog tells them to)
+ * keeps its intent in `stripe_payment_intent_ids` but is owed nothing.
+ *
  * INTENT: the recovery line says restore-then-refund-in-myK9, and never the
  * Stripe dashboard. A dashboard refund writes no refund_amount, so the club is
  * still paid out in full — the same warning ForceDeleteOverride gives.
@@ -68,17 +72,17 @@ export function describeForceDeleteAudit(audit: unknown): string[] | undefined {
   const actor = typeof a.actor_name === 'string' && a.actor_name.trim() ? a.actor_name : 'an admin';
   const entryIds = stringList(a.entry_ids);
   const paidIds = stringList(a.paid_entry_ids);
-  const paymentIntents = stringList(a.stripe_payment_intent_ids);
+  const unrefunded = stringList(a.paid_payment_intent_ids);
 
-  const lines = [`Force-deleted over the paid/scored guard by ${actor}. No refund was issued.`];
+  const lines = [`Force-deleted over the paid/scored guard by ${actor}. The override issued no refund.`];
   if (entryIds.length > 0) {
     lines.push(
       `Entries removed (${entryIds.length}, ${paidIds.length} paid): ${entryIds.join(', ')}`
     );
   }
-  if (paymentIntents.length > 0) {
+  if (unrefunded.length > 0) {
     lines.push(
-      `Captured payments: ${paymentIntents.join(', ')}. To refund, restore the dog and use each paid entry's Refund action in myK9 — never the Stripe dashboard.`
+      `Paid and not refunded: ${unrefunded.join(', ')}. To refund, restore the dog and use each paid entry's Refund action in myK9 — never the Stripe dashboard.`
     );
   }
   return lines;

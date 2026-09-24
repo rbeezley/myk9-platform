@@ -15,8 +15,15 @@
 --   3. MYK9-608. get_deleted_dogs() names the deleter for BOTH delete paths
 --      and carries the force-delete audit facts (entries, paid entries, Stripe
 --      payment intents) for a force-deleted dog, and nothing for an ordinary
---      soft delete. Non-admins get no rows; anon cannot call any of it, and no
---      API role can call the internal match helper.
+--      soft delete. An intent whose entry was refunded in myK9 BEFORE the
+--      override is recorded but is not offered as money to recover.
+--      Non-admins get no rows.
+--   4. Force-delete, restore, then an ORDINARY soft delete, in one transaction:
+--      the second deletion shares the first one's deleted_at. The restored-from
+--      audit row is closed, so it neither describes the second deletion in
+--      Deleted Items nor feeds its stale placement to the next restore.
+--   5. ACLs: anon cannot call any of it, and no API role can call the internal
+--      match helper.
 --
 -- All fixtures roll back.
 
@@ -78,14 +85,16 @@ VALUES
   ('00000000-0000-0000-0000-000000607051', 'Restored', 'Beagle', '00000000-0000-0000-0000-000000607011'),
   ('00000000-0000-0000-0000-000000607052', 'Survivor', 'Beagle', '00000000-0000-0000-0000-000000607011'),
   ('00000000-0000-0000-0000-000000607053', 'Stranded', 'Beagle', '00000000-0000-0000-0000-000000607011'),
-  ('00000000-0000-0000-0000-000000607054', 'Ordinary', 'Beagle', '00000000-0000-0000-0000-000000607011');
+  ('00000000-0000-0000-0000-000000607054', 'Ordinary', 'Beagle', '00000000-0000-0000-0000-000000607011'),
+  ('00000000-0000-0000-0000-000000607055', 'Cycled', 'Beagle', '00000000-0000-0000-0000-000000607011');
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
 VALUES
   ('00000000-0000-0000-0000-000000607051', 'AKC', 'SW607101', 'Restored Formally'),
   ('00000000-0000-0000-0000-000000607052', 'AKC', 'SW607102', 'Survivor Formally'),
   ('00000000-0000-0000-0000-000000607053', 'AKC', 'SW607103', 'Stranded Formally'),
-  ('00000000-0000-0000-0000-000000607054', 'AKC', 'SW607104', 'Ordinary Formally');
+  ('00000000-0000-0000-0000-000000607054', 'AKC', 'SW607104', 'Ordinary Formally'),
+  ('00000000-0000-0000-0000-000000607055', 'AKC', 'SW607105', 'Cycled Formally');
 
 -- Hand-set placements: d51 is 1st in both manual classes, d52 2nd.
 INSERT INTO public.entries (
@@ -97,6 +106,17 @@ VALUES
   ('00000000-0000-0000-0000-000000607082', '00000000-0000-0000-0000-000000607041', '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021', '00000000-0000-0000-0000-000000607052', 'pending', 'confirmed', true, 'qualified', 0, 20, 2),
   ('00000000-0000-0000-0000-000000607083', '00000000-0000-0000-0000-000000607042', '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021', '00000000-0000-0000-0000-000000607051', 'pending', 'confirmed', true, 'qualified', 0, 30, 1),
   ('00000000-0000-0000-0000-000000607084', '00000000-0000-0000-0000-000000607042', '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021', '00000000-0000-0000-0000-000000607052', 'pending', 'confirmed', true, 'qualified', 0, 20, 2);
+
+-- d55: hand-placed 4th in c42 but NOT scored and not paid, so the ORDINARY
+-- delete path (MK002) accepts it in section 4.
+INSERT INTO public.entries (
+  id, class_id, trial_id, show_id, dog_id, payment_status, entry_status, final_placement
+)
+VALUES (
+  '00000000-0000-0000-0000-000000607086', '00000000-0000-0000-0000-000000607042',
+  '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
+  '00000000-0000-0000-0000-000000607055', 'pending', 'confirmed', 4
+);
 
 -- The paid ONLINE entry. Only service_role may write this shape
 -- (trg_entries_protect_payment_fields_insert); the role is dropped at once.
@@ -110,6 +130,16 @@ VALUES (
   '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
   '00000000-0000-0000-0000-000000607053', 'paid', 'online', 'pi_myk9608_stranded', 35.00
 );
+-- Refunded in myK9 before the override, as the dialog tells the admin to do.
+INSERT INTO public.entries (
+  id, class_id, trial_id, show_id, dog_id, payment_status, payment_method,
+  stripe_payment_intent_id, entry_fee
+)
+VALUES (
+  '00000000-0000-0000-0000-000000607087', '00000000-0000-0000-0000-000000607041',
+  '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021',
+  '00000000-0000-0000-0000-000000607053', 'refunded', 'online', 'pi_myk9608_refunded', 35.00
+);
 RESET ROLE;
 
 DO $$
@@ -122,7 +152,8 @@ BEGIN
   END IF;
 
   IF (SELECT array_agg(final_placement ORDER BY id) FROM public.entries
-      WHERE class_id IN ('00000000-0000-0000-0000-000000607041', '00000000-0000-0000-0000-000000607042'))
+      WHERE class_id IN ('00000000-0000-0000-0000-000000607041', '00000000-0000-0000-0000-000000607042')
+        AND dog_id IN ('00000000-0000-0000-0000-000000607051', '00000000-0000-0000-0000-000000607052'))
      IS DISTINCT FROM ARRAY[1, 2, 1, 2] THEN
     RAISE EXCEPTION 'FIXTURE the manual classes did not start hand-placed 1/2';
   END IF;
@@ -133,6 +164,18 @@ BEGIN
       AND payment_status = 'paid' AND stripe_payment_intent_id = 'pi_myk9608_stranded'
   ) THEN
     RAISE EXCEPTION 'FIXTURE the paid online entry was not seeded';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-000000607087'
+      AND payment_status = 'refunded' AND stripe_payment_intent_id = 'pi_myk9608_refunded'
+  ) THEN
+    RAISE EXCEPTION 'FIXTURE the refunded online entry was not seeded';
+  END IF;
+
+  IF (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000607086') IS DISTINCT FROM 4 THEN
+    RAISE EXCEPTION 'FIXTURE d55 did not start hand-placed 4th';
   END IF;
 END;
 $$;
@@ -225,12 +268,12 @@ BEGIN
      OR (v_result ->> 'entries_restored')::integer IS DISTINCT FROM 2
      OR (v_result ->> 'placements_reapplied')::integer IS DISTINCT FROM 1
      OR jsonb_array_length(v_result -> 'placements_skipped') IS DISTINCT FROM 1
-     OR NOT (v_result -> 'placements_skipped' @> jsonb_build_array(jsonb_build_object(
+     OR NOT COALESCE(v_result -> 'placements_skipped' @> jsonb_build_array(jsonb_build_object(
        'entry_id', '00000000-0000-0000-0000-000000607081',
        'class_id', '00000000-0000-0000-0000-000000607041',
        'class_name', 'MYK9-607 Re-placed Class',
        'final_placement', 1
-     ))) THEN
+     )), false) THEN
     RAISE EXCEPTION 'FAIL restore_dog did not report the skipped placement: %', v_result;
   END IF;
   RAISE NOTICE 'PASS restore_dog names the skipped placement, its class and its place';
@@ -351,19 +394,112 @@ BEGIN
     RAISE EXCEPTION 'FAIL an ordinary soft delete carries force-delete audit facts: %', v_ordinary;
   END IF;
 
-  IF NOT (v_forced -> 'force_delete_audit' -> 'entry_ids' ? '00000000-0000-0000-0000-000000607085')
-     OR NOT (v_forced -> 'force_delete_audit' -> 'paid_entry_ids' ? '00000000-0000-0000-0000-000000607085')
-     OR NOT (v_forced -> 'force_delete_audit' -> 'stripe_payment_intent_ids' ? 'pi_myk9608_stranded')
+  -- COALESCE every `?`: on a missing key it is NULL, and NOT NULL would let
+  -- the IF fall through as if the assertion held.
+  IF NOT COALESCE(v_forced -> 'force_delete_audit' -> 'entry_ids' ? '00000000-0000-0000-0000-000000607085', false)
+     OR NOT COALESCE(v_forced -> 'force_delete_audit' -> 'paid_entry_ids' ? '00000000-0000-0000-0000-000000607085', false)
+     OR NOT COALESCE(v_forced -> 'force_delete_audit' -> 'stripe_payment_intent_ids' ? 'pi_myk9608_stranded', false)
      OR (v_forced -> 'force_delete_audit' ->> 'refund_issued') IS DISTINCT FROM 'false'
      OR (v_forced -> 'force_delete_audit' ->> 'logged_at') IS NULL THEN
     RAISE EXCEPTION 'FAIL the force-deleted dog does not carry its audit facts: %', v_forced;
   END IF;
   RAISE NOTICE 'PASS a force-deleted dog carries its entries, paid entries and stranded payment intent';
+
+  IF NOT COALESCE(v_forced -> 'force_delete_audit' -> 'stripe_payment_intent_ids' ? 'pi_myk9608_refunded', false)
+     OR NOT COALESCE(v_forced -> 'force_delete_audit' -> 'paid_payment_intent_ids' ? 'pi_myk9608_stranded', false)
+     OR COALESCE(v_forced -> 'force_delete_audit' -> 'paid_payment_intent_ids' ? 'pi_myk9608_refunded', true) THEN
+    RAISE EXCEPTION
+      'FAIL paid_payment_intent_ids does not separate the unrefunded intent from the one refunded before the override: %',
+      v_forced -> 'force_delete_audit';
+  END IF;
+  RAISE NOTICE 'PASS an intent refunded before the override is not offered as money to recover';
 END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4. ACLs. DROP + CREATE resets them, and default privileges re-grant anon.
+-- 4. Force-delete, restore, then an ORDINARY delete in the same transaction.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000607102', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000607102","role":"authenticated"}', true);
+
+SELECT public.force_delete_dog('00000000-0000-0000-0000-000000607055');
+SELECT count(*) FROM public.restore_dog('00000000-0000-0000-0000-000000607055');
+
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000607086') IS DISTINCT FROM 4 THEN
+    RAISE EXCEPTION 'FIXTURE d55 did not get its 4th back on the first restore';
+  END IF;
+END;
+$$;
+
+-- The secretary takes d55's placement away; then the dog is deleted the
+-- ORDINARY way, which writes no audit row and shares the first deleted_at.
+UPDATE public.entries SET final_placement = NULL
+WHERE id = '00000000-0000-0000-0000-000000607086';
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000607102', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000607102","role":"authenticated"}', true);
+
+SELECT public.soft_delete_dog('00000000-0000-0000-0000-000000607055');
+
+SELECT set_config(
+  'myk9_607.cycled_row',
+  (SELECT to_jsonb(g)::text FROM public.get_deleted_dogs() g
+   WHERE g.id = '00000000-0000-0000-0000-000000607055'),
+  true
+);
+
+SELECT count(*) FROM public.restore_dog('00000000-0000-0000-0000-000000607055');
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_row jsonb := NULLIF(current_setting('myk9_607.cycled_row'), '')::jsonb;
+BEGIN
+  IF v_row IS NULL THEN
+    RAISE EXCEPTION 'FIXTURE the ordinarily deleted dog was not listed';
+  END IF;
+
+  IF (
+    SELECT (metadata ->> 'deleted_at')::timestamptz FROM public.activity_log
+    WHERE record_type = 'dog' AND record_id = '00000000-0000-0000-0000-000000607055'
+  ) IS DISTINCT FROM (SELECT now()) THEN
+    RAISE EXCEPTION 'FIXTURE the force-delete audit row does not share the transaction deleted_at';
+  END IF;
+
+  IF v_row -> 'force_delete_audit' IS DISTINCT FROM 'null'::jsonb THEN
+    RAISE EXCEPTION
+      'FAIL an ordinary deletion was described by the earlier, restored force-delete audit row: %', v_row;
+  END IF;
+  RAISE NOTICE 'PASS a restored force-delete audit row does not describe a later ordinary deletion';
+
+  IF (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000607086') IS NOT NULL THEN
+    RAISE EXCEPTION
+      'FAIL restoring the ordinary deletion re-applied the stale force-delete snapshot (placement %)',
+      (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000607086');
+  END IF;
+  RAISE NOTICE 'PASS restoring the ordinary deletion did not re-apply the stale snapshot';
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.activity_log
+    WHERE record_type = 'dog' AND record_id = '00000000-0000-0000-0000-000000607055'
+      AND metadata ? 'restored_at'
+      AND metadata ->> 'restored_by' = '00000000-0000-0000-0000-000000607102'
+  ) THEN
+    RAISE EXCEPTION 'FAIL restore_dog did not close the audit row it restored from';
+  END IF;
+  RAISE NOTICE 'PASS restore_dog closes the audit row it restored from, naming the restorer';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 5. ACLs. DROP + CREATE resets them, and default privileges re-grant anon.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN

@@ -43,7 +43,9 @@ test.describe('Show management workflow', () => {
   test('secretary can reach the canonical show wizard from the browse page', async ({ page }) => {
     await signInAsSecretary(page, '/shows');
 
-    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await Promise.all([
       page.waitForURL(/\/secretary\/create-show\/wizard/),
       page.getByRole('button', { name: 'Add Show', exact: true }).click(),

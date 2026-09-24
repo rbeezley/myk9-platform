@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildExperienceSnapshot, getLiveExperienceSnapshot } from '../experienceSnapshot';
 
 describe('experienceSnapshot', () => {
-  it('builds a published snapshot from generated premium data and URL', () => {
+  it('builds a published snapshot from generated premium data and trusted path', () => {
     const snapshot = buildExperienceSnapshot({
       premium: {
         style: 'heritage',
@@ -19,12 +19,15 @@ describe('experienceSnapshot', () => {
           additionalNotes: null,
         },
       },
-      premiumUrl: 'https://example.com/premium.pdf',
-      publishedAt: '2026-05-09T14:00:00.000Z',
+      premiumPath: 'show-1/artifact-1.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
     });
 
     expect(snapshot.style).toBe('heritage');
-    expect(snapshot.outputs.premiumUrl).toBe('https://example.com/premium.pdf');
+    expect(snapshot.outputs.premiumPath).toBe('show-1/artifact-1.pdf');
+    expect(snapshot.outputs.premiumUrl).toBe(
+      'https://trusted.example/premium-published/show-1/artifact-1.pdf'
+    );
     expect(snapshot.narratives.showHours).toBe('Doors open at 7:00 AM.');
   });
 

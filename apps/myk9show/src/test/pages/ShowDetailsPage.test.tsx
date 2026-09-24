@@ -5,13 +5,16 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
 import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
+import type { GeneratedPremium } from '@/types/premium-types';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
+const runPremiumPublishOperationMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const updateShowMutationMock = vi.hoisted(() => vi.fn());
 const saveShowDraftStyleMock = vi.hoisted(() => vi.fn());
 const showStoreState = vi.hoisted(() => ({ shows: [] as Array<Record<string, unknown>> }));
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
+const notificationsErrorMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
@@ -198,9 +201,13 @@ vi.mock('@/services/database/judges', () => ({
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
 }));
+vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
+  premiumPublishDraftKey: vi.fn(() => 'draft-intent-key'),
+  runPremiumPublishOperation: (args: unknown) => runPremiumPublishOperationMock(args),
+}));
 vi.mock('@/lib/notifications', () => ({
   notifications: {
-    error: vi.fn(),
+    error: notificationsErrorMock,
     success: notificationsSuccessMock,
   },
 }));
@@ -459,11 +466,16 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
+    runPremiumPublishOperationMock.mockReset();
+    runPremiumPublishOperationMock.mockImplementation(
+      async (operation: { createPremium: () => Promise<unknown> }) => operation.createPremium()
+    );
     updateShowLocallyMock.mockReset();
     updateShowMutationMock.mockReset();
     saveShowDraftStyleMock.mockReset();
     showStoreState.shows = [];
     notificationsSuccessMock.mockReset();
+    notificationsErrorMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
         ...mockShow,
@@ -1173,33 +1185,34 @@ describe('ShowDetailsPage', () => {
       'show-1',
       expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
     );
-    expect(publishExperienceMock).toHaveBeenCalledWith(
+    expect(runPremiumPublishOperationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         showId: 'show-1',
+        mode: 'draft',
+        intentKey: 'draft-intent-key',
         inkSaver: false,
-        premium: expect.objectContaining({
-          style: 'heritage',
-          show: expect.objectContaining({
-            name: 'Bluegrass Classic Renamed',
-            venue: 'Lexington, KY',
-            preEntryFee: 31.5,
-            dayOfFee: 41,
-            acceptChecks: true,
-            acceptCash: true,
-          }),
-          trials: expect.arrayContaining([
-            expect.objectContaining({
-              judges: [
-                {
-                  name: 'Fresh Judge',
-                  elements: ['Container', 'Interior'],
-                },
-              ],
-            }),
-          ]),
-        }),
+        createPremium: expect.any(Function),
       })
     );
+    const draftOperation = runPremiumPublishOperationMock.mock.calls[0]?.[0] as {
+      createPremium: () => Promise<GeneratedPremium>;
+    };
+    await expect(draftOperation.createPremium()).resolves.toMatchObject({
+      style: 'heritage',
+      show: expect.objectContaining({
+        name: 'Bluegrass Classic Renamed',
+        venue: 'Lexington, KY',
+        preEntryFee: 31.5,
+        dayOfFee: 41,
+        acceptChecks: true,
+        acceptCash: true,
+      }),
+      trials: expect.arrayContaining([
+        expect.objectContaining({
+          judges: [{ name: 'Fresh Judge', elements: ['Container', 'Interior'] }],
+        }),
+      ]),
+    });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'show-1', 'publish-info'],
     });
@@ -1226,6 +1239,50 @@ describe('ShowDetailsPage', () => {
     )?.[1] as (current: unknown) => Record<string, unknown>;
     expect(detailUpdater({ id: 'show-1', style: 'monogram', trials: embeddedTrials })).toEqual(
       expect.objectContaining({ style: 'heritage', trials: embeddedTrials })
+    );
+  });
+
+  it('keeps the editor open and surfaces calm recovery copy when premium publish fails', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    runPremiumPublishOperationMock.mockRejectedValueOnce(
+      new Error('organization is missing: internal configuration details')
+    );
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() => {
+          void onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'draft',
+            organization: null,
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            publishExperience: true,
+            generatedPremium: makeGeneratedPremium('heritage'),
+          }).catch(error => {
+            notificationsErrorMock('Failed to save changes', {
+              description: error instanceof Error ? error.message : String(error),
+            });
+          });
+        }}
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    await waitFor(() => {
+      expect(notificationsErrorMock).toHaveBeenCalledWith('Failed to save changes', {
+        description: "Set this show's organization to AKC or UKC in Show settings, then try again.",
+      });
+    });
+    expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeInTheDocument();
+    expect(notificationsErrorMock.mock.calls[0]?.[1]?.description).not.toContain(
+      'internal configuration'
     );
   });
 

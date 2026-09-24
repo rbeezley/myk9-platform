@@ -39,16 +39,12 @@ import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
-}));
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
   AuditAction: { READ: 'READ', UPDATE: 'UPDATE' },
@@ -152,10 +148,10 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-exhibitor', email: 'exhibitor@myk9t.com' },
-      userWithRoles: { databaseUserId: 'person-exhibitor' },
+      personId: 'person-exhibitor',
+      personIdentityState: 'resolved',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-exhibitor');
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       source: 'confirmed',
       data: [paidEntryRow(), pendingAddOnRow()],

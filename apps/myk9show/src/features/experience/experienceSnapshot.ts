@@ -7,25 +7,30 @@ export interface ShowExperienceSnapshot {
   narratives: GeneratedPremium['narratives'];
   supplemental: PremiumSupplemental;
   outputs: {
-    premiumUrl: string | null;
+    /** New snapshots persist both values committed together by PostgreSQL. */
+    premiumPath?: string | null;
+    /** Legacy snapshots may still carry a URL from before MYK9-694. */
+    premiumUrl?: string | null;
   };
 }
 
 export function buildExperienceSnapshot({
   premium,
+  premiumPath,
   premiumUrl,
   publishedAt,
 }: {
   premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'>;
-  premiumUrl: string | null;
-  publishedAt: string;
+  premiumPath: string | null;
+  premiumUrl: string;
+  publishedAt?: string;
 }): ShowExperienceSnapshot {
   return {
     style: premium.style,
-    generatedAt: publishedAt,
+    generatedAt: publishedAt ?? '',
     narratives: premium.narratives,
     supplemental: premium.supplemental,
-    outputs: { premiumUrl },
+    outputs: { premiumPath, premiumUrl },
   };
 }
 

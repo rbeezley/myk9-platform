@@ -58,6 +58,8 @@ export const PREMIUM_BUSY_REASON = 'Already publishing';
 export const PREMIUM_LOADING_REASON = 'Checking the premium’s publish state…';
 export const PREMIUM_OFFLINE_REASON = "You're offline — publishing needs a connection";
 export const PREMIUM_UNAVAILABLE_REASON = 'Publish state could not be read';
+export const PREMIUM_SETUP_REQUIRED_REASON =
+  'Premium publishing setup is still being deployed. Try again shortly.';
 const PUBLISH_LABEL = 'Generate & publish premium';
 
 export function derivePremiumPublish({
@@ -66,13 +68,15 @@ export function derivePremiumPublish({
   isBusy,
   showStaleBadge,
 }: PremiumPublishInput): PremiumPublishFacts {
-  const publishedUrl = info?.publishedUrl;
+  const publishedLocator = info?.publishedLocator;
   const publishedAt = info?.publishedAt;
-  const hasPublishedPremium = Boolean(publishedUrl && publishedAt);
+  const hasPublishedPremium = Boolean(
+    (info?.hasPublishedPremium ?? Boolean(publishedLocator)) && publishedAt
+  );
   const stale =
     showStaleBadge &&
     classifyPremiumPublishState({
-      publishedPremiumUrl: publishedUrl,
+      publishedPremiumUrl: publishedLocator,
       publishedPremiumAt: publishedAt,
       updatedAt: info?.updatedAt,
     }) === 'published-stale';
@@ -96,9 +100,11 @@ export function derivePremiumPublish({
         ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_OFFLINE_REASON }
         : infoState === 'loading' || info === undefined
           ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_LOADING_REASON }
-          : hasPublishedPremium && !needsRepublish
-            ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_UP_TO_DATE_REASON }
-            : { label };
+          : info.versionedSchemaAvailable === false
+            ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_SETUP_REQUIRED_REASON }
+            : hasPublishedPremium && !needsRepublish
+              ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_UP_TO_DATE_REASON }
+              : { label };
 
   return { hasPublishedPremium, stale, landingUnpublished, needsRepublish, action };
 }

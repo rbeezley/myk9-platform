@@ -83,9 +83,12 @@ export interface Show {
   events: string[];
   source: 'myK9Show' | 'external';
   // Published premium PDF — set by the Publish-for-Exhibitors flow.
-  // Stable public Storage URL across re-publishes; null = never published.
+  // New publications use the immutable Storage path; the URL is a legacy
+  // compatibility field and is cleared by the canonical commit.
+  publishedPremiumPath?: string | null;
   publishedPremiumUrl?: string | null;
   publishedPremiumAt?: string | null;
+  publishedPremiumVersion?: number | null;
   updatedAt?: string | null;
   // Entry information
   entryOpenDate: string;

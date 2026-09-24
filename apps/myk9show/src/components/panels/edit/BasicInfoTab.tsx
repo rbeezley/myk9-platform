@@ -8,35 +8,59 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
-import { fetchPersonIdentity } from '@/services/database/users';
+import {
+  decidePersonEmailLock,
+  fetchPersonEmailLockFacts,
+  type PersonEmailLock,
+} from '@/services/database/users';
 import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
 /**
- * Whether this person can sign in. Read here rather than taken from the
- * caller: the admin roster comes from the `get_admin_user_list` RPC, which
- * does not return `auth_user_id` at all, so a passed-down flag would be false
- * for every linked user on the app's main user-management surface — the one
- * place this matters most (MYK9-136).
+ * Whether the editor may offer to change this person's email: see
+ * `decidePersonEmailLock` for the rule and its database twin (MYK9-136,
+ * MYK9-710). The facts are read here rather than taken from the caller: the
+ * admin roster comes from the `get_admin_user_list` RPC, which does not return
+ * `auth_user_id` at all, and no caller loads roles or entries for the person.
  *
- * Unknown reads as "editable". The refusal itself lives in `updateUser`, which
- * fails closed; this only decides whether to offer an edit that would be
- * refused.
+ * Unknown reads as "editable". The refusal itself lives in the database, and
+ * the panel reports a refused save; this only decides whether to offer an edit
+ * that would be refused.
  */
-function usePersonHasSignInAccount(personId?: string) {
+function usePersonEmailLock(
+  personId: string | undefined,
+  isSiteAdmin: boolean
+): PersonEmailLock | { locked: 'pending' } {
   const query = useQuery({
-    queryKey: ['personSignInLinkage', personId],
+    queryKey: ['personEmailLockFacts', personId],
     queryFn: async () => {
       if (!personId) return null;
-      return fetchPersonIdentity(personId);
+      return fetchPersonEmailLockFacts(personId);
     },
     enabled: !!personId,
-    staleTime: 30_000,
+    // Read fresh on every open: an entry or role added since the last open
+    // changes the answer, and the database refuses the save if we guess wrong.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    // Opt out of the global `placeholderData: prev => prev` (lib/queryClient.ts,
+    // MYK9-709), which would show the previous person's facts for this one.
+    placeholderData: () => undefined,
   });
-  return Boolean(query.data?.authUserId);
+  // While the fresh read is in flight, show neither a cached nor a borrowed
+  // answer: a neutral read-only field until the facts for THIS open arrive.
+  if (query.isFetching || query.isPlaceholderData) return { locked: 'pending' };
+  return decidePersonEmailLock({ isSiteAdmin, facts: query.data ?? null });
 }
+
+const EMAIL_LOCK_NOTE = {
+  pending: 'Checking whether this email can be changed...',
+  'sign-in': "This is the address they sign in with, so it can't be changed here.",
+  'site-admin-only':
+    'Only a site admin can change this email once the person has entries or a sign-in account.',
+} as const;
 
 interface BasicInfoTabProps {
   personId?: string;
@@ -47,11 +71,14 @@ interface BasicInfoTabProps {
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   personId,
+  hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
-  const hasSignInAccount = usePersonHasSignInAccount(personId);
+  // `admin:manage` is held by site_admin only, which is who the database lets
+  // change a locked email.
+  const emailLock = usePersonEmailLock(personId, hasAdminPermission);
 
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
@@ -116,13 +143,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </FormField>
       </div>
 
-      {/* Email — read-only once the person can sign in. Their contact address
-          and their sign-in address are the same value, and nothing here can
-          change the latter, so editing it would only make the two disagree
-          (MYK9-136). Mirrors the self-service profile and account pages, which
-          have always shown the sign-in address as read-only. */}
+      {/* Email — read-only once the person can sign in (their contact address
+          IS their sign-in address, MYK9-136), and for anyone but a site admin
+          once the person has entries or roles (MYK9-710): the database refuses
+          those edits, so the editor does not offer them. */}
       <FormField label="Email Address" fieldId="email" required error={emailError}>
-        {hasSignInAccount ? (
+        {emailLock.locked !== false ? (
           <>
             <Input
               {...emailInputProps}
@@ -131,7 +157,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              This is the address they sign in with, so it can&apos;t be changed here.
+              {EMAIL_LOCK_NOTE[emailLock.locked === 'pending' ? 'pending' : emailLock.reason]}
             </p>
           </>
         ) : (

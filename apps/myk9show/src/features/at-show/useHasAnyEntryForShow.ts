@@ -62,6 +62,9 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
     // `getUserEntries` view deadline, so the default turns a dead network into
     // a ~46s spinner at the ringside front door.
     retry: 1,
+    // Entry rows are account-scoped. Never let the previous account's result
+    // answer the access gate while this account's read is still in flight.
+    placeholderData: () => undefined,
     enabled: !!personId && !!showId,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks

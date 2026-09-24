@@ -1,11 +1,13 @@
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { PREMIUM_UP_TO_DATE_REASON } from './premiumPublishAction';
+import { getFreshPremiumDownloadUrl } from './usePublishInfo';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
 // never fire: the one link that carried `#setup-publish-premium` was a router
@@ -76,8 +78,42 @@ export function PremiumDownloadCard({
     action,
     infoState,
   } = usePremiumPublishControl(showId, showStaleBadge, canManageShow);
-  const publishedUrl = info?.publishedUrl;
+  const activeShowId = useRef(showId);
+  activeShowId.current = showId;
+  const [downloadState, setDownloadState] = useState<{
+    showId: string;
+    isDownloading: boolean;
+    failed: boolean;
+  } | null>(null);
+  const isDownloading = downloadState?.showId === showId && downloadState.isDownloading;
+  const downloadFailed = downloadState?.showId === showId && downloadState.failed;
   const publishedAt = info?.publishedAt;
+
+  const downloadPublishedPremium = async () => {
+    const downloadShowId = showId;
+    const pendingTab = window.open('about:blank', '_blank');
+    if (!pendingTab) {
+      setDownloadState({ showId: downloadShowId, isDownloading: false, failed: true });
+      return;
+    }
+    pendingTab.opener = null;
+    setDownloadState({ showId: downloadShowId, isDownloading: true, failed: false });
+    try {
+      const url = await getFreshPremiumDownloadUrl(downloadShowId);
+      pendingTab.location.href = url;
+    } catch {
+      pendingTab.close();
+      if (activeShowId.current === downloadShowId) {
+        setDownloadState({ showId: downloadShowId, isDownloading: false, failed: true });
+      }
+    } finally {
+      if (activeShowId.current === downloadShowId) {
+        setDownloadState(current =>
+          current?.showId === downloadShowId ? { ...current, isDownloading: false } : current
+        );
+      }
+    }
+  };
 
   const publishedLabel = publishedAt
     ? new Date(publishedAt).toLocaleDateString('en-US', {
@@ -171,14 +207,21 @@ export function PremiumDownloadCard({
               )}
             </div>
           )}
-          <a
-            href={publishedUrl ?? ''}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ size: 'touch', className: 'shrink-0 whitespace-nowrap' })}
+          <Button
+            type="button"
+            size="touch"
+            variant="outline"
+            className="shrink-0 whitespace-nowrap"
+            onClick={downloadPublishedPremium}
+            disabled={isDownloading}
           >
-            Download PDF
-          </a>
+            {isDownloading ? 'Preparing PDF…' : 'Download PDF'}
+          </Button>
+          {downloadFailed && (
+            <p role="alert" className="basis-full text-sm text-destructive">
+              Couldn't prepare the premium PDF. Try again.
+            </p>
+          )}
         </>
       )}
     </Card>

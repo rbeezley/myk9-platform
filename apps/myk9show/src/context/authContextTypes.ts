@@ -5,6 +5,8 @@ import type {
   UserRoleWithDetails as RbacUserRoleWithDetails,
 } from '@/types/rbac-types';
 
+export type PersonIdentityState = 'unresolved' | 'resolved' | 'missing';
+
 export interface UserRoleWithDetails {
   role_id: string;
   role?: {
@@ -86,4 +88,10 @@ export interface AuthContextType {
   refreshPermissions: () => Promise<void>;
   firstName: string | null;
   lastName: string | null;
+  /** Whether the authoritative person lookup resolved, confirmed no row, or is unavailable. */
+  personIdentityState?: PersonIdentityState;
+  /** Whether a person id is available for account-scoped replicated reads. */
+  hasUsablePersonId?: boolean;
+  /** The cached or authoritative person id used by account-scoped reads. */
+  personId?: string | null;
 }

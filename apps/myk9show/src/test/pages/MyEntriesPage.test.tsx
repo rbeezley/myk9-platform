@@ -277,6 +277,9 @@ const seedAuthWithPerson = () =>
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: mockUser,
     userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+    personId: 'person-1',
+    personIdentityState: 'resolved',
+    hasUsablePersonId: true,
     isAuthenticated: true,
   });
 
@@ -380,6 +383,9 @@ describe('MyEntriesPage UI Improvements', () => {
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       userWithRoles: null,
+      personId: null,
+      personIdentityState: 'unresolved',
+      hasUsablePersonId: false,
       isAuthenticated: true,
     });
   });
@@ -651,11 +657,17 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.queryByRole('button', { name: /add another dog/i })).not.toBeInTheDocument();
     });
 
-    it('enables the dog query off the legacy person id when databaseUserId is absent', async () => {
-      // Mirrors entry loading: when the auth record has no databaseUserId but the
-      // legacy lookup resolves a person id, dogs must still load — otherwise the
-      // zero-state would wrongly treat a dog-owning exhibitor as having none.
-      mockUseCurrentUserPersonId.mockReturnValue('legacy-person-1');
+    it('enables the dog query from the durable person id when role data is absent', async () => {
+      // My Shows uses the same durable AuthContext identity as its entry read;
+      // legacy role data must not be a second source of account ownership.
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: null,
+        personId: 'person-durable-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
+        isAuthenticated: true,
+      });
       mockUseDogsByOwnerQuery.mockReturnValue({
         data: [{ id: 'dog-1', name: 'Koda' }],
         isLoading: false,
@@ -665,12 +677,50 @@ describe('MyEntriesPage UI Improvements', () => {
       // hasDogs resolves true → leads with browsing, no first-dog CTA.
       expect(await screen.findByText(/find a show/i)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
-      // The query was enabled with the legacy id (second arg = enabled flag).
-      expect(mockUseDogsByOwnerQuery).toHaveBeenCalledWith('legacy-person-1', true);
+      // The query was enabled with the durable id (second arg = enabled flag).
+      expect(mockUseDogsByOwnerQuery).toHaveBeenCalledWith('person-durable-1', true);
     });
   });
 
   describe('Entry Loading', () => {
+    it('keeps cached rows visible while the profile refresh is unresolved', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-cached' },
+        personId: 'person-cached',
+        personIdentityState: 'unresolved',
+        hasUsablePersonId: true,
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
+        data: [
+          makeResultRow({
+            id: 'entry-cached-1',
+            registration_id: 'reg-cached-1',
+            show_id: 'show-cached-1',
+            dog: { id: 'dog-cached-1', name: 'Koda', call_name: 'Koda' },
+            show: { ...makeResultRow().show, id: 'show-cached-1', name: 'Cached Spring Trial' },
+          }),
+          makeResultRow({
+            id: 'entry-cached-2',
+            registration_id: 'reg-cached-2',
+            show_id: 'show-cached-2',
+            dog: { id: 'dog-cached-2', name: 'Milo', call_name: 'Milo' },
+            show: { ...makeResultRow().show, id: 'show-cached-2', name: 'Cached Summer Trial' },
+          }),
+        ],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByText('Cached Spring Trial')).toBeInTheDocument();
+      expect(screen.getByText('Cached Summer Trial')).toBeInTheDocument();
+      expect(screen.queryByText(/Getting your shows ready/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+    });
+
     it('does not load entries when no person id source is available', async () => {
       renderWithProviders(<MyEntriesPage />);
 
@@ -684,10 +734,13 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(getUserEntries).not.toHaveBeenCalled();
     });
 
-    it('loads entries with databaseUserId when the legacy person lookup is empty', async () => {
+    it('loads entries from the durable person id when role data is absent', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
 
@@ -702,7 +755,10 @@ describe('MyEntriesPage UI Improvements', () => {
       const user = userEvent.setup();
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -743,7 +799,10 @@ describe('MyEntriesPage UI Improvements', () => {
       const user = userEvent.setup();
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -768,7 +827,10 @@ describe('MyEntriesPage UI Improvements', () => {
     it('keeps a pending entry marked Payment Due under a paid order (MYK9-495)', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -836,7 +898,10 @@ describe('MyEntriesPage UI Improvements', () => {
     it('opens the result reveal from a resultEntryId query param when the result is visible', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -856,7 +921,10 @@ describe('MyEntriesPage UI Improvements', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -891,7 +959,10 @@ describe('MyEntriesPage UI Improvements', () => {
     it('ignores a resultEntryId query param when the result is not visible', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
-        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        userWithRoles: null,
+        personId: 'person-1',
+        personIdentityState: 'resolved',
+        hasUsablePersonId: true,
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

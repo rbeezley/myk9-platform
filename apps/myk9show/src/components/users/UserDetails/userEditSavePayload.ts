@@ -1,4 +1,5 @@
 import type { User as UserType } from '@/types/user-types';
+import type { UserFormData } from './userDetailsTypes';
 
 /**
  * The person-update payload the secretary's edit panel sends, lifted out of
@@ -30,5 +31,24 @@ export function buildUserEditSavePayload(userData: Partial<UserType>): Partial<U
     ...(userData.juniorHandlerNumbers !== undefined && {
       juniorHandlerNumbers: userData.juniorHandlerNumbers,
     }),
+  };
+}
+
+/**
+ * The page's displayed values after a SUCCESSFUL save. Applied only once the
+ * update resolves, so a refused save leaves the stored values on screen.
+ */
+export function buildSavedFormDataUpdates(userData: Partial<UserType>): Partial<UserFormData> {
+  const addressValue = userData.address || userData.streetAddress || '';
+  return {
+    ...(userData.firstName !== undefined && {
+      name: `${userData.firstName} ${userData.lastName || ''}`.trim(),
+    }),
+    ...(userData.email !== undefined && { email: userData.email }),
+    ...(userData.phone !== undefined && { phone: userData.phone }),
+    ...(addressValue && { address: addressValue }),
+    ...(userData.city !== undefined && { city: userData.city }),
+    ...(userData.state !== undefined && { state: userData.state }),
+    ...(userData.zipCode !== undefined && { zipCode: userData.zipCode }),
   };
 }

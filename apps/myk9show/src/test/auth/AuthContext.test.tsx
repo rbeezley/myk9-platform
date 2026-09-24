@@ -33,6 +33,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
 }));
 
 import { AuthProvider } from '@/context/AuthContext';
+import { loadPersonIdentityCache, savePersonIdentityCache } from '@/context/personIdentityCache';
 
 const renderWithAuthProvider = (children: React.ReactNode, initialRoute = '/') =>
   renderWithProvider(AuthProvider, children, initialRoute);
@@ -312,6 +313,23 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
         expect(screen.getByTestId('database-user-id')).toHaveTextContent('person-test-secretary');
+      });
+      expect(loadPersonIdentityCache(mockUser.id)?.personId).toBe('person-test-secretary');
+    });
+
+    it('clears a cached pairing when the authoritative profile confirms no person', async () => {
+      savePersonIdentityCache(mockUser.id, 'stale-person');
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'people'
+          ? createChainableQuery({ data: null, error: null })
+          : createChainableQuery()
+      );
+
+      renderWithAuthProvider(<span data-testid="missing-profile">ready</span>);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('missing-profile')).toBeInTheDocument();
+        expect(loadPersonIdentityCache(mockUser.id)).toBeNull();
       });
     });
   });

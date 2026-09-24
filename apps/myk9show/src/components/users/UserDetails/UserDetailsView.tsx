@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
-import { buildUserEditSavePayload } from './userEditSavePayload';
+import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditSavePayload';
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { getErrorMessage } from '@myk9/core';
@@ -201,31 +201,23 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     loadUsers();
   };
 
+  // EditPanelWrapper keeps the panel open and reports the error only when this
+  // throws, so a refused save (e.g. MYK9-710's email lock) must propagate. The
+  // page's displayed values change only once the update has succeeded.
   const handleUserEditSave = async (userData: Partial<UserType>) => {
+    logger.debug('Saving user data', 'users', { userId: person.id });
     try {
-      const addressValue = userData.address || userData.streetAddress || '';
-      const definedUpdates: Partial<typeof formData> = {};
-      if (userData.firstName !== undefined)
-        definedUpdates.name = `${userData.firstName} ${userData.lastName || ''}`.trim();
-      if (userData.email !== undefined) definedUpdates.email = userData.email;
-      if (userData.phone !== undefined) definedUpdates.phone = userData.phone;
-      if (addressValue) definedUpdates.address = addressValue;
-      if (userData.city !== undefined) definedUpdates.city = userData.city;
-      if (userData.state !== undefined) definedUpdates.state = userData.state;
-      if (userData.zipCode !== undefined) definedUpdates.zipCode = userData.zipCode;
-
-      setFormData(prev => ({ ...prev, ...definedUpdates }));
-      logger.debug('Saving user data', 'users', { userId: person.id });
-
-      const updates = buildUserEditSavePayload(userData);
-
-      await updateUserMutation.mutateAsync({ id: person.id, updates });
-      notifications.success('User updated successfully');
-      logger.info('User data saved successfully', 'users', { userId: person.id });
+      await updateUserMutation.mutateAsync({
+        id: person.id,
+        updates: buildUserEditSavePayload(userData),
+      });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to save user data', { description: getErrorMessage(error) });
+      throw error;
     }
+    setFormData(prev => ({ ...prev, ...buildSavedFormDataUpdates(userData) }));
+    notifications.success('User updated successfully');
+    logger.info('User data saved successfully', 'users', { userId: person.id });
   };
 
   const handleFileUpload = (file: File) => {

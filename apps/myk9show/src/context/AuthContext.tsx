@@ -1,18 +1,8 @@
-/**
- * Consolidated Auth Context
- *
- * Combines all auth functionality:
- * - Basic authentication (signIn, signOut, etc.)
- * - Role-based access control (RBAC)
- * - Mock user support for development
- * - Database-driven permissions via RBACService
- * - Admin functions for role management
- */
+/** Consolidated auth, RBAC, mock-user, and role-administration context. */
 
 import React, { createContext, ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
@@ -41,8 +31,9 @@ import {
 import { toDbRoles, useRbacAdminActions, useRbacLifecycle } from './useRbacLifecycle';
 import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCacheBoundary';
 import { useClearQueryCacheOnAccountChange } from '@/hooks/useClearQueryCacheOnAccountChange';
+import { usePersonIdentity } from './usePersonIdentity';
 
-export type { AuthContextType, UserRoleWithDetails } from './authContextTypes';
+export type { AuthContextType, PersonIdentityState, UserRoleWithDetails } from './authContextTypes';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,32 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
-  // Get user profile data from public.people table
-  const { data: userProfile } = useQuery({
-    queryKey: ['userProfile', auth.user?.id],
-    queryFn: async () => {
-      if (!auth.user?.id) return null;
-
-      const { data, error } = await supabase
-        .from('people')
-        .select('id, first_name, last_name, email, status')
-        .eq('auth_user_id', auth.user.id)
-        .maybeSingle();
-
-      if (error) {
-        logger.warn('Could not fetch user profile', 'context', {
-          code: error.code,
-          message: error.message,
-        });
-        return null;
-      }
-
-      return data;
-    },
-    enabled: !!auth.user?.id,
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 60 * 1000, // Poll every minute for suspension checks
-  });
+  const identity = usePersonIdentity(auth.user?.id);
+  const { userProfile, personId, personIdentityState, hasUsablePersonId } = identity;
 
   // Enforce account suspension — sign out if status is 'suspended'
   useEffect(() => {
@@ -374,6 +341,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       firstName: userProfile?.first_name ?? null,
       lastName: userProfile?.last_name ?? null,
+      personIdentityState,
+      hasUsablePersonId,
+      personId,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -406,6 +376,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshPermissions,
       userProfile?.first_name,
       userProfile?.last_name,
+      personId,
+      personIdentityState,
+      hasUsablePersonId,
     ]
   );
 

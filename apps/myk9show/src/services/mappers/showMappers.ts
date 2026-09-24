@@ -262,10 +262,14 @@ export const mapDatabaseToShow = (
       '', // Direct field or relation
     logoUrl:
       dbShow.logo_url || ((dbShow.club as Record<string, unknown>)?.logo_url as string) || '',
+    publishedPremiumPath:
+      ((dbShow as Record<string, unknown>).published_premium_path as string | null) ?? null,
     publishedPremiumUrl:
       ((dbShow as Record<string, unknown>).published_premium_url as string | null) ?? null,
     publishedPremiumAt:
       ((dbShow as Record<string, unknown>).published_premium_at as string | null) ?? null,
+    publishedPremiumVersion:
+      ((dbShow as Record<string, unknown>).published_premium_version as number | null) ?? null,
     updatedAt: ((dbShow as Record<string, unknown>).updated_at as string | null) ?? null,
     coverImageUrl:
       dbShow.cover_image_url ||

@@ -23,15 +23,11 @@ import { UnconfirmedReadNotice, UNCONFIRMED_READ_HEADLINE } from './UnconfirmedR
 import { getUserEntries } from '@/services/database/entries';
 import type { UserEntriesSource } from '@/services/database/entries/userEntriesRead';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
-}));
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
   AuditAction: { READ: 'READ', UPDATE: 'UPDATE' },
@@ -151,10 +147,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 'user-exhibitor', email: 'exhibitor@myk9t.com' },
-    userWithRoles: { databaseUserId: 'person-exhibitor' },
+    personId: 'person-exhibitor',
+    personIdentityState: 'resolved',
     isAuthenticated: true,
   });
-  (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-exhibitor');
 });
 
 afterEach(() => {

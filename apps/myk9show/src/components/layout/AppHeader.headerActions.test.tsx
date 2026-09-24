@@ -4,12 +4,20 @@ import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
+import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { usePremiumPublishStore } from '@/features/premium/useGenerateAndPublishPremium';
+import { resetPremiumPublishCoordinatorForTests } from '@/features/premium/premiumPublishCoordinator';
 
 const viewer = vi.hoisted(() => ({
   canManage: true,
   canOperate: true,
   isStaff: true,
+}));
+const notificationsMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
 }));
 
 vi.mock('@/hooks/useTheme', () => ({
@@ -84,12 +92,18 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 // The premium flow's two edges, so the REAL `useGenerateAndPublishPremium` runs
 // and the test measures the binding rather than a stub of it.
 const premiumEdges = vi.hoisted(() => ({
-  generate: vi.fn(async (showId: string) => ({ showId, pdfUrl: 'blob:premium' })),
+  generate: vi.fn(async () => generatedPremium()),
   publishExperience: vi.fn(async () => undefined),
+  runPremiumPublishOperation: vi.fn(
+    async (operation: { createPremium: () => Promise<unknown> }) => {
+      await operation.createPremium();
+      return undefined;
+    }
+  ),
   // The publish read the Premium List card renders from. The menu item now
   // reads the SAME one, so these fixtures drive both.
   publishInfo: {
-    publishedUrl: null as string | null,
+    publishedLocator: null as string | null,
     publishedAt: null as string | null,
     updatedAt: null as string | null,
     experienceIsPublished: true as boolean | null,
@@ -110,6 +124,16 @@ vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: premiumEdges.publishExperience,
 }));
 
+vi.mock('@/features/premium/premiumPublishCoordinator', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/features/premium/premiumPublishCoordinator')
+  >('@/features/premium/premiumPublishCoordinator');
+  return {
+    ...actual,
+    runPremiumPublishOperation: premiumEdges.runPremiumPublishOperation,
+  };
+});
+
 vi.mock('@/features/premium/usePublishInfo', async () => {
   const actual = await vi.importActual<typeof import('@/features/premium/usePublishInfo')>(
     '@/features/premium/usePublishInfo'
@@ -125,7 +149,7 @@ vi.mock('@/features/premium/usePublishInfo', async () => {
 });
 
 vi.mock('@/lib/notifications', () => ({
-  notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+  notifications: notificationsMock,
 }));
 
 function LocationProbe() {
@@ -150,9 +174,11 @@ beforeEach(() => {
   viewer.canOperate = true;
   viewer.isStaff = true;
   premiumEdges.generate.mockClear();
+  premiumEdges.runPremiumPublishOperation.mockClear();
   premiumEdges.publishExperience.mockClear();
+  notificationsMock.error.mockClear();
   premiumEdges.publishInfo = {
-    publishedUrl: null,
+    publishedLocator: null,
     publishedAt: null,
     updatedAt: null,
     experienceIsPublished: true,
@@ -161,6 +187,7 @@ beforeEach(() => {
   // The publish store is module scope; a leaked in-flight id would latch the
   // next test's click into a silent no-op.
   usePremiumPublishStore.setState({ byShowId: {} });
+  resetPremiumPublishCoordinatorForTests();
 });
 
 afterEach(() => {
@@ -367,12 +394,36 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
 
     await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
     await waitFor(() =>
-      expect(premiumEdges.publishExperience).toHaveBeenCalledWith(
-        expect.objectContaining({ showId: 'show-1' })
+      expect(premiumEdges.runPremiumPublishOperation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          showId: 'show-1',
+          mode: 'generated',
+          intentKey: 'generated-current-sources',
+          inkSaver: false,
+          createPremium: expect.any(Function),
+        })
       )
     );
     // And it did NOT move the secretary off the section they were working on.
     expect(screen.getByTestId('probe-pathname')).toHaveTextContent(SECTION_ROUTE);
+  });
+
+  it('shows the actionable correction when publishing from the header fails', async () => {
+    premiumEdges.generate.mockRejectedValueOnce(
+      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
+    );
+    const user = userEvent.setup();
+    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByTestId('header-action-show-generate-publish-premium'));
+
+    await waitFor(() =>
+      expect(notificationsMock.error).toHaveBeenCalledWith(
+        "Set this show's organization to AKC or UKC in Show settings, then try again."
+      )
+    );
   });
 
   it('is not a link at all, so there is no hash for the router to drop', async () => {
@@ -424,7 +475,7 @@ describe('the premium item says what the Premium List card says', () => {
     // The card renders no publish button at all in this state. The menu used to
     // offer an enabled item that would regenerate a live PDF.
     premiumEdges.publishInfo = {
-      publishedUrl: 'https://example.test/premium.pdf',
+      publishedLocator: 'https://example.test/premium.pdf',
       publishedAt: '2026-09-01T10:00:00Z',
       updatedAt: '2026-09-01T10:00:00Z',
       experienceIsPublished: true,
@@ -454,7 +505,7 @@ describe('the premium item says what the Premium List card says', () => {
 
   it('is enabled and says "Republish premium" when the show data moved on', async () => {
     premiumEdges.publishInfo = {
-      publishedUrl: 'https://example.test/premium.pdf',
+      publishedLocator: 'https://example.test/premium.pdf',
       publishedAt: '2026-09-01T10:00:00Z',
       updatedAt: '2026-09-02T10:00:00Z',
       experienceIsPublished: true,

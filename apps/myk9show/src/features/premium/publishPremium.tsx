@@ -3,35 +3,67 @@ import { supabase } from '@/services/database/supabaseClient';
 import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { classifyPremiumPublishError } from './premiumPublishErrors';
 
 const BUCKET = 'premium-published';
 
 export interface PublishPremiumOptions {
   inkSaver?: boolean;
+  /** Stable for one publish attempt so an atomic commit can be retried. */
+  artifactId?: string;
+}
+
+export interface StagedPremiumArtifact {
+  path: string;
 }
 
 /**
- * Render the premium PDF in the browser, upload it to public Storage, and
- * stamp the show row so the exhibitor-facing download link can pick it up.
+ * Render the premium PDF in the browser and stage it in private Storage.
+ * Database publication is deliberately performed by publishExperience's
+ * atomic RPC after the complete snapshot has been built.
  *
  * Browser-side render avoids paying the LLM cost on every visitor request —
  * the edge function (which calls Anthropic) runs once per publish, not once
- * per page-load. The public URL we return is stable across re-publishes:
- * the file at `<show_id>.pdf` is overwritten so existing links never break.
+ * per page-load. Each staged artifact is immutable, so a failed republish
+ * cannot replace the last-good committed bytes.
  */
 export async function publishPremium(
   showId: string,
   premium: GeneratedPremium,
   opts?: PublishPremiumOptions
-): Promise<{ url: string; publishedAt: string }> {
-  const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
+): Promise<StagedPremiumArtifact> {
   const inkSaver = opts?.inkSaver ?? false;
+  const blob = await renderPremiumPdf(showId, premium, inkSaver);
 
-  // Render and upload BEFORE updating DB columns. A failed render must not
-  // invalidate the previously-published premium.
-  let blob: Blob;
+  const artifactId = opts?.artifactId ?? crypto.randomUUID();
+  const path = `${showId}/${artifactId}.pdf`;
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: 'application/pdf',
+    upsert: false,
+    cacheControl: '3600',
+  });
+  if (uploadError && !isAlreadyStagedError(uploadError)) {
+    console.error('[premium-publish] PDF upload failed', { showId, path, error: uploadError });
+    throw classifyPremiumPublishError(uploadError, 'pdf-upload');
+  }
+  if (uploadError) {
+    console.info('[premium-publish] PDF artifact already staged; retrying its commit', {
+      showId,
+      path,
+    });
+  }
+
+  return { path };
+}
+
+export async function renderPremiumPdf(
+  showId: string,
+  premium: GeneratedPremium,
+  inkSaver: boolean
+): Promise<Blob> {
+  const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
   try {
-    blob = await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+    return await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
   } catch (err) {
     console.error('[premium-publish] PDF render failed', {
       showId,
@@ -40,31 +72,28 @@ export async function publishPremium(
       inkSaver,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw err;
+    throw classifyPremiumPublishError(err, 'pdf-render');
   }
+}
 
-  const path = `${showId}.pdf`;
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, blob, {
-    contentType: 'application/pdf',
-    upsert: true,
-    cacheControl: '3600',
-  });
-  if (uploadError) throw uploadError;
-
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  const url = urlData.publicUrl;
-  const publishedAt = new Date().toISOString();
-
-  // Cast: the new columns land in the generated types after migration 189
-  // is applied to the live DB. Until then this bypasses the stale schema.
-  const { error: updateError } = await supabase
-    .from('shows')
-    .update({
-      published_premium_url: url,
-      published_premium_at: publishedAt,
-    } as unknown as Record<string, never>)
-    .eq('id', showId);
-  if (updateError) throw updateError;
-
-  return { url, publishedAt };
+function isAlreadyStagedError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error ?? '');
+  const status =
+    typeof error === 'object' && error !== null && 'status' in error
+      ? Number((error as { status?: unknown }).status)
+      : undefined;
+  const statusCode =
+    typeof error === 'object' && error !== null && 'statusCode' in error
+      ? Number((error as { statusCode?: unknown }).statusCode)
+      : undefined;
+  return (
+    status === 409 ||
+    statusCode === 409 ||
+    /already exists|duplicate|already uploaded/i.test(message)
+  );
 }

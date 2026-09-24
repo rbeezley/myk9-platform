@@ -70,6 +70,9 @@ export function useAccountEnteredShowIds(
     // `getUserEntries` view deadline, so the default turns a dead network into
     // a ~46s spinner before the replica fallback is ever shown.
     retry: 1,
+    // Show membership is account-scoped. A previous account's ids must not
+    // keep the Entered tab selected while this account's read is pending.
+    placeholderData: () => undefined,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks
     // this query at `fetchStatus: 'paused'` while offline and never calls

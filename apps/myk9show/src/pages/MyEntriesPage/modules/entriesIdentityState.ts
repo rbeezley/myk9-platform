@@ -17,11 +17,15 @@
  * @module MyEntriesPage/modules/entriesIdentityState
  */
 
+import type { AccountEntryReadState } from '@/features/account-entry-read/accountEntryReadState';
+
 export type EntriesIdentityState =
   /** Auth itself has not settled. Nothing is known yet. */
   | 'pending-auth'
   /** Signed in, but the person id has not resolved — offline, or still in flight. */
   | 'unresolved'
+  /** The authoritative profile lookup completed and found no person row. */
+  | 'missing'
   /** We know who this is; an empty list is now a fact we can state. */
   | 'resolved';
 
@@ -32,6 +36,44 @@ export interface DeriveEntriesIdentityStateInput {
   hasUser: boolean;
   /** The resolved `people.id`, or null while unresolved/absent. */
   personId: string | null | undefined;
+  /** AuthContext's explicit profile lookup state, when available. */
+  personIdentityState?: 'unresolved' | 'resolved' | 'missing' | undefined;
+}
+
+export type MyEntriesPresentation =
+  'known-rows' | 'identity-pending' | 'identity-missing' | 'unconfirmed-empty' | 'confirmed-empty';
+
+export interface MyEntriesPresentationInput {
+  identityState: EntriesIdentityState;
+  readState: AccountEntryReadState;
+  entryCount: number;
+  isLoading: boolean;
+}
+
+/**
+ * Choose the page branch without turning a missing read into an empty-account
+ * claim. Existing rows are useful evidence even while the identity refresh is
+ * unresolved; only an authoritative empty read can show the first-run state.
+ */
+export function getMyEntriesPresentation({
+  identityState,
+  readState,
+  entryCount,
+}: MyEntriesPresentationInput): MyEntriesPresentation {
+  if (entryCount > 0) return 'known-rows';
+  if (identityState === 'missing') return 'identity-missing';
+  // A cached person id lets the replica read run, but an unresolved
+  // authoritative profile still leaves the account identity unconfirmed. An
+  // empty result from that read is therefore not entitled to the first-run
+  // claim, even when the replica reports a confirmed source.
+  if (identityState === 'pending-auth' || identityState === 'unresolved') {
+    return 'identity-pending';
+  }
+  if (readState === 'identity-unresolved' || readState === 'read-pending') {
+    return 'identity-pending';
+  }
+  if (readState === 'confirmed') return 'confirmed-empty';
+  return 'unconfirmed-empty';
 }
 
 /**
@@ -42,12 +84,18 @@ export function deriveEntriesIdentityState({
   authLoading,
   hasUser,
   personId,
+  personIdentityState,
 }: DeriveEntriesIdentityStateInput): EntriesIdentityState {
   if (authLoading) return 'pending-auth';
   // Signed out is the route guard's problem, not this page's. Treating it as
   // `unresolved` keeps this function from ever returning `resolved` for a
   // caller with no user, which is what gates the first-run claim.
   if (!hasUser) return 'unresolved';
+  if (personIdentityState === 'missing') return 'missing';
+  // A cached person id is enough to read the replica, but it is not evidence
+  // that the authoritative profile lookup completed. Keep the page truthful
+  // until that lookup resolves.
+  if (personIdentityState === 'unresolved') return 'unresolved';
   if (!personId) return 'unresolved';
   return 'resolved';
 }

@@ -91,6 +91,17 @@ function typecheckedFiles(): Set<string> {
  */
 const DELIBERATELY_UNRUN: Readonly<Record<string, string>> = {};
 
+/**
+ * Production edge entrypoints explicitly included in the edge TypeScript
+ * project for compile-time coverage. These are not Vitest tests and therefore
+ * must stay a small, reasoned allowlist rather than weakening the test parity
+ * assertion below.
+ */
+const PRODUCTION_ENTRYPOINTS_TYPECHECKED: Readonly<Record<string, string>> = {
+  '../../supabase/functions/get-premium-download/index.ts':
+    'Typecheck the production handler because its private-download authorization and response path are security-sensitive; it is exercised through focused helper tests rather than imported by Vitest.',
+};
+
 function edgeTestFilesOnDisk(): Set<string> {
   return new Set(
     ['supabase/functions/**/*.test.ts', '../../supabase/functions/**/*.test.ts']
@@ -139,10 +150,32 @@ describe('edge-function tests are typechecked', () => {
 
   it('does not typecheck edge-function files vitest excludes', () => {
     const run = vitestEdgeTestFiles();
+    const explicitProductionEntrypoints = new Set(
+      Object.keys(PRODUCTION_ENTRYPOINTS_TYPECHECKED).map(f => path.resolve(APP_ROOT, f))
+    );
     const extra = [...typecheckedFiles()].filter(
-      file => !run.has(file) && !DECLARATION_ONLY.has(file)
+      file =>
+        !run.has(file) && !DECLARATION_ONLY.has(file) && !explicitProductionEntrypoints.has(file)
     );
 
     expect(rel(extra)).toEqual([]);
+  });
+
+  it('keeps the production-entrypoint allowlist present, typechecked, and reasoned', () => {
+    const typechecked = typecheckedFiles();
+    const explicitProductionEntrypoints = Object.keys(PRODUCTION_ENTRYPOINTS_TYPECHECKED).map(f =>
+      path.resolve(APP_ROOT, f)
+    );
+    const missing = explicitProductionEntrypoints.filter(file => !typechecked.has(file));
+    const stale = explicitProductionEntrypoints.filter(file => !ts.sys.fileExists(file));
+    const alsoVitestTests = explicitProductionEntrypoints.filter(file =>
+      vitestEdgeTestFiles().has(file)
+    );
+
+    expect(rel(missing)).toEqual([]);
+    expect(rel(stale)).toEqual([]);
+    expect(rel(alsoVitestTests)).toEqual([]);
+    for (const reason of Object.values(PRODUCTION_ENTRYPOINTS_TYPECHECKED))
+      expect(reason.trim().length).toBeGreaterThan(10);
   });
 });

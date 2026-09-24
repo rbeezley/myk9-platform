@@ -84,7 +84,9 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     const scoredCount = Number(cls.scoredCount);
     return entryCount > 0 && scoredCount < entryCount && needsCascade(cls.status);
   }).length;
-  const reconciliation = summarizeShowDayReconciliation(input.entries);
+  // Only the pull/refund figures gate close-out, and they do not depend on when
+  // an entry was taken, so no desk window is needed here.
+  const reconciliation = summarizeShowDayReconciliation(input.entries, null);
   const hasSubmittedResults = input.submissions.some(row =>
     SUBMITTED_STATUSES.has(normalizeStatus(row.status))
   );

@@ -29,8 +29,11 @@
 --      manage -- the round-1 defect, pinned.
 --   5. reverse_move_up_entry refuses once the run has STARTED (an area time
 --      alone, with is_scored false and result_status still 'pending').
+--  2b. A stale Undo of the middle of an A -> B -> C chain is refused while C
+--      is live; undoing C first restores B (MYK9-640).
 --   6. The full round trip: move up -> move back -> move up AGAIN into the same
---      class. The second move-up is what the relaxed
+--      class, and after C -> B -> A the dog holds exactly one live run carrying
+--      exactly one fee (MYK9-640). The second move-up is what the relaxed
 --      entries_dog_class_unique_idx exists for; under the old predicate the
 --      tombstone the reverse leaves made it die 23505.
 --   7. Moving a dog into a class they already hold a live entry in is refused
@@ -291,6 +294,11 @@ DECLARE
   v_message text;
   v_source_status text;
   v_middle_status text;
+  b_deleted timestamptz;
+  c_status text;
+  c_deleted timestamptz;
+  c_link uuid;
+  c_class uuid;
 BEGIN
   v_new_id := public.move_up_entry(
     '00000000-0000-0000-0000-000000639072',
@@ -317,7 +325,32 @@ BEGIN
       v_source_status, v_middle_status;
   END IF;
 
+  -- MYK9-640: the third row. The refusal is caught in a sub-block, whose
+  -- savepoint would roll back anything the function wrote before raising, so
+  -- "unchanged" here is the positive control that the chain under test really
+  -- has a live terminal C pointing at B -- the state that makes B stale.
+  SELECT entry_status, deleted_at, moved_from_entry_id, class_id
+    INTO STRICT c_status, c_deleted, c_link, c_class
+    FROM public.entries WHERE id = v_new_id;
+  IF c_status <> 'confirmed' OR c_deleted IS NOT NULL
+     OR c_link <> '00000000-0000-0000-0000-000000639072'
+     OR c_class <> '00000000-0000-0000-0000-000000639033' THEN
+    RAISE EXCEPTION 'FAIL the terminal C is not the live successor of B: % / % / % / %',
+      c_status, c_deleted, c_link, c_class;
+  END IF;
+
+  -- Undoing the terminal C is legitimate, and puts B back as the live run.
   PERFORM public.reverse_move_up_entry(v_new_id);
+
+  SELECT entry_status, deleted_at INTO STRICT v_middle_status, b_deleted
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639072';
+  SELECT deleted_at INTO STRICT c_deleted
+    FROM public.entries WHERE id = v_new_id;
+  IF v_middle_status <> 'confirmed' OR b_deleted IS NOT NULL OR c_deleted IS NULL THEN
+    RAISE EXCEPTION 'FAIL reversing the terminal C did not restore B: % / % / %',
+      v_middle_status, b_deleted, c_deleted;
+  END IF;
+
   RAISE NOTICE 'PASS stale reverse refuses a nonterminal destination';
 END;
 $$;
@@ -565,6 +598,9 @@ DECLARE
   s_fee       numeric;
   d_deleted   timestamptz;
   v_again     uuid;
+  v_live_runs bigint;
+  v_obligations bigint;
+  v_owed      numeric;
 BEGIN
   v_restored := public.reverse_move_up_entry('00000000-0000-0000-0000-000000639072');
   IF v_restored <> '00000000-0000-0000-0000-000000639061' THEN
@@ -588,6 +624,22 @@ BEGIN
   END IF;
   IF d_deleted IS NULL THEN
     RAISE EXCEPTION 'FAIL the destination was not soft-deleted';
+  END IF;
+
+  -- MYK9-640: after C -> B (case 2b) and B -> A (here), the dog holds exactly
+  -- ONE live run in this show, and exactly one live row carries the fee. A
+  -- stale reversal that deleted the middle link would leave two live runs; one
+  -- that moved money would leave zero or two obligations.
+  SELECT count(e.id), count(e.id) FILTER (WHERE e.entry_fee > 0), sum(e.entry_fee)
+    INTO STRICT v_live_runs, v_obligations, v_owed
+    FROM public.entries e
+   WHERE e.dog_id = '00000000-0000-0000-0000-000000639041'
+     AND e.show_id = '00000000-0000-0000-0000-000000639011'
+     AND e.deleted_at IS NULL
+     AND e.entry_status <> 'moved';
+  IF v_live_runs <> 1 OR v_obligations <> 1 OR v_owed <> 35.00 THEN
+    RAISE EXCEPTION 'FAIL the C -> B -> A chain did not end in one live run and one fee: % / % / %',
+      v_live_runs, v_obligations, v_owed;
   END IF;
 
   -- The second move-up into the SAME class. Under the old index predicate the

@@ -23,6 +23,7 @@ import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import type { RemoveFromClassEligibility } from '@/services/database/entries/withdrawEligibility';
 import { withdrawalReasonLabel } from '@/features/registries';
 import { getStatusDescriptor } from '@/components/status';
+import { isRemovedEntryEditStatus } from './entryEditRemoval';
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
@@ -95,9 +96,8 @@ export function EntryEditClassRow({
   onClearHandlerIdChange,
   onJumpHeightChange,
 }: EntryEditClassRowProps) {
-  const isPulled = status === 'scratched';
   const isWithdrawn = status === 'withdrawn';
-  const isRemoved = isPulled || isWithdrawn;
+  const isRemoved = isRemovedEntryEditStatus(status);
   // `entries_withdrawal_reason_code_check` allows exactly NULL, 'in_season' and
   // 'judge_change', and `withdrawalReasonLabel` covers both codes — so the null
   // branch here is not a fallback for some other code, it is the real state of

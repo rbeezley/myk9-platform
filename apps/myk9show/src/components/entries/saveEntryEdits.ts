@@ -13,6 +13,7 @@
  */
 import { updateEntryDetails, updateEntryHandler } from '@/services/database/entries';
 import { jumpHeightErrorMessage } from '@/services/database/entries/jumpHeightErrors';
+import { isRemovedEntryEditStatus } from './entryEditRemoval';
 
 /** The subset of the dialog's `EntryClass` this needs; satisfied structurally. */
 export interface SavableEntryClass {
@@ -91,10 +92,13 @@ export async function saveEntryEdits(
     // the dialog's `hasChanges()`, so without this the RPC fired for a height
     // nobody changed — and on a checked-in entry that raised 42501 AFTER the
     // handler write had committed, reporting a half-saved dialog as a failure.
+    //
+    // MYK9-652: a row Withdrawn OR Pulled in this session has left the class,
+    // so a height edited before that is not written.
     if (
       edits.jumpHeight &&
       edits.jumpHeight !== (classEntry.jumpHeight ?? '') &&
-      edits.status !== 'withdrawn'
+      !isRemovedEntryEditStatus(edits.status)
     ) {
       const { error } = await updateEntryDetails({
         entryId: classEntry.id,

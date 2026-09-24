@@ -408,9 +408,14 @@ function AuthorizedShowManagementShell({
               }
               // Persist judge assignments to judge_assignments table
               await persistShowJudgeAssignments(id, showData.assignedJudges || []);
-              queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
+              // `localShow` is a StoreShow and carries no `trials`; merge rather
+              // than replace, or the query's embedded trials are wiped (MYK9-676).
+              queryClient.setQueryData<Show>(showQueryKeys.detail(id), current => ({
+                ...current,
+                ...localShow,
+              }));
               queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-                current?.map(s => (s.id === id ? localShow : s))
+                current?.map(s => (s.id === id ? { ...s, ...localShow } : s))
               );
             };
 

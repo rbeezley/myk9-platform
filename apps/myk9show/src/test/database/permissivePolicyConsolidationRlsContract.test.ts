@@ -140,6 +140,20 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'same pinned-role widening. The helper is SECURITY DEFINER and granted only to ' +
     'authenticated/service_role; anon remains excluded by the existing table grant contract. ' +
     'The SELECT policy names, commands and TO public role remain unchanged.',
+  '20260924051700_myk9_660_667_668_manager_reads_catalog_writes_official_hoist.sql':
+    'MYK9-660 / MYK9-667 / MYK9-668. From this inventory it touches enrollments ' +
+    '(enrollments_select) and volunteer_roles (volunteer_roles_manage_insert/update/delete). It ' +
+    'also widens the waitlist_entries and result_submissions SELECT policies (not reviewed ' +
+    'tables) and adds a COMMENT, with no predicate change, to judge_availability_select and to ' +
+    'vaccinations_select. enrollments_select replaces the correlated per-row is_show_official(show_id) ' +
+    'with `show_id IN (SELECT official_show_ids())`, an uncorrelated SECURITY DEFINER set that ' +
+    'keeps all three is_show_official arms (site admin; club-scoped secretary/chairman/steward; ' +
+    'show-scoped steward) and is granted to authenticated/service_role only — anon holds no ' +
+    'privilege on enrollments. The other enrollments_select arms are carried over byte-identical. ' +
+    'volunteer_roles_manage_* narrow from any-club club admin/secretary or platform admin to ' +
+    'is_site_admin() via ALTER POLICY; volunteer_roles_select is untouched. Same policy names, ' +
+    'commands and roles throughout — predicates only, so the consolidation counts and overlap ' +
+    'groups this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

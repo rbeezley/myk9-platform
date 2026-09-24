@@ -88,6 +88,7 @@ const launchCriticalSqlTests = [
   'sign_in_email_invariant_test.sql',
   'myk9_710_people_identity_guard_test.sql',
   'myk9_711_712_status_and_signup_grants_test.sql',
+  'myk9_660_667_manager_reads_catalog_writes_test.sql',
   'myk9_664_people_private_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',

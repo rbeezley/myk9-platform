@@ -220,3 +220,124 @@ describe('useEntryWindowTimezone — a failed read is not a wait (N-F3)', () => 
     });
   });
 });
+
+/**
+ * MYK9-679. `tablesStatus.trials` is not a latch, and offline it never moves.
+ *
+ *   P-F3 — offline, `triggerSync` returns before touching `tablesStatus`, so
+ *   `trials` stays 'idle' (an aborted sync also lands on 'idle'). With no
+ *   cached trials that read as "still loading" forever.
+ *   P-F4 — every full sync resets `trials` to 'syncing', so readiness flapped
+ *   false on each autosync for a show with no trials in the store.
+ *
+ * Mutation checks: drop the offline term from `isUnavailable` → the offline
+ * cases go red (isUnavailable false); read `trialsSyncStatus === 'success'`
+ * without the latch → the autosync case goes red on the 'syncing' rerender.
+ */
+async function mountWithSignals(initial: { syncStatus: SyncStatus; online?: boolean }) {
+  vi.resetModules();
+  vi.doMock('@/store/trialStore', () => ({
+    useTrialStore: (
+      selector: (state: { trials: StubTrial[]; trialsReadStatus: ReadStatus }) => unknown
+    ) => selector({ trials: [], trialsReadStatus: 'ready' }),
+  }));
+  const { ReplicationSyncContext } = await import('@/context/ReplicationSyncContext');
+  const { NetworkStatusContext } = await import('@/hooks/useNetworkStatus');
+  const { useEntryWindowTimezone } = await import('../useEntryWindowTimezone');
+
+  const signals = { ...initial };
+  const wrapper = ({ children }: { children: React.ReactNode }) => {
+    const synced = React.createElement(
+      ReplicationSyncContext.Provider,
+      {
+        value: {
+          status: {
+            isSyncing: signals.syncStatus === 'syncing',
+            lastSyncAt: null,
+            error: null,
+            tablesStatus: { trials: signals.syncStatus },
+          },
+          triggerSync: async () => {},
+          syncTable: async () => {},
+        },
+      },
+      children
+    );
+    if (signals.online === undefined) return synced;
+    return React.createElement(
+      NetworkStatusContext.Provider,
+      {
+        value: {
+          isOnline: signals.online,
+          quality: null,
+          showOfflineMessage: !signals.online,
+          retryConnection: () => {},
+        },
+      },
+      synced
+    );
+  };
+
+  const hook = renderHook(() => useEntryWindowTimezone('show-1'), { wrapper });
+  return {
+    get current() {
+      return hook.result.current;
+    },
+    update(next: { syncStatus?: SyncStatus; online?: boolean }) {
+      Object.assign(signals, next);
+      hook.rerender();
+    },
+  };
+}
+
+describe('useEntryWindowTimezone — offline is not a wait (MYK9-679 P-F3)', () => {
+  it('reports unavailable when offline with no cached trials and the sync never ran', async () => {
+    const hook = await mountWithSignals({ syncStatus: 'idle', online: false });
+    expect(hook.current).toEqual({
+      timeZone: 'America/New_York',
+      isReady: false,
+      isUnavailable: true,
+    });
+  });
+
+  it('falls back to navigator.onLine without a network provider', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const hook = await mountWithSignals({ syncStatus: 'idle' });
+      expect(hook.current).toMatchObject({ isReady: false, isUnavailable: true });
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('goes back to an honest wait once the connection returns', async () => {
+    const hook = await mountWithSignals({ syncStatus: 'idle', online: false });
+    expect(hook.current.isUnavailable).toBe(true);
+    hook.update({ online: true, syncStatus: 'syncing' });
+    expect(hook.current).toMatchObject({ isReady: false, isUnavailable: false });
+  });
+
+  it('online, an idle sync is still a wait, not a failure', async () => {
+    const hook = await mountWithSignals({ syncStatus: 'idle', online: true });
+    expect(hook.current).toMatchObject({ isReady: false, isUnavailable: false });
+  });
+});
+
+describe('useEntryWindowTimezone — a re-entered sync does not un-ready it (MYK9-679 P-F4)', () => {
+  it('stays ready across an autosync once trials have synced this session', async () => {
+    const hook = await mountWithSignals({ syncStatus: 'success', online: true });
+    expect(hook.current.isReady).toBe(true);
+
+    hook.update({ syncStatus: 'syncing' });
+    expect(hook.current).toMatchObject({ isReady: true, isUnavailable: false });
+
+    hook.update({ syncStatus: 'success' });
+    expect(hook.current.isReady).toBe(true);
+  });
+
+  it('a latched zone is not taken down by a later failed refresh', async () => {
+    const hook = await mountWithSignals({ syncStatus: 'success', online: true });
+    hook.update({ syncStatus: 'error' });
+    expect(hook.current).toMatchObject({ isReady: true, isUnavailable: false });
+  });
+});

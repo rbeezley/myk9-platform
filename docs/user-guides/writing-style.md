@@ -24,18 +24,18 @@ Every guide section, KB article, and macro should feel like a calm, competent co
 
 ### Use dog-show terminology, not software terminology
 
-| Say this            | Not this                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| Entry               | Registration (in the software sense; "registration" to a dog person means the AKC/UKC number)     |
-| Approved / Accepted | Confirmed, processed                                                                              |
-| Pulled              | Scratched (preferred label — "scratch" is still understood but "pulled" is the platform standard) |
-| Move up             | Class transfer                                                                                    |
-| Run order           | Class order, sequence                                                                             |
-| Armband number      | Entry number, bib                                                                                 |
-| Secretary dashboard | Mission Control, management panel                                                                 |
-| Check in            | Self-check-in, marking present                                                                    |
-| Show day            | Day of (avoid as a heading)                                                                       |
-| Send to AKC         | Submit, export, transmit                                                                          |
+| Say this            | Not this                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Entry               | Registration (in the software sense; "registration" to a dog person means the AKC/UKC number)        |
+| Approved / Accepted | Confirmed, processed                                                                                 |
+| Pulled              | Scratched ("scratch" and "pull" are one act and the word is Pull; never use Pulled for a withdrawal) |
+| Move up             | Class transfer                                                                                       |
+| Run order           | Class order, sequence                                                                                |
+| Armband number      | Entry number, bib                                                                                    |
+| Secretary dashboard | Mission Control, management panel                                                                    |
+| Check in            | Self-check-in, marking present                                                                       |
+| Show day            | Day of (avoid as a heading)                                                                          |
+| Send to AKC         | Submit, export, transmit                                                                             |
 
 ### Use task language in headings and buttons
 

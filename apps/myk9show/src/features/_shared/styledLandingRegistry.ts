@@ -29,14 +29,19 @@ export interface StyledLandingProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /**
-   * True when the show's entry window has not OPENED yet.
+   * True when entries are not open YET: the window has not opened, or no
+   * window was ever set (`isEntryWindowNotOpen`). Either way, no Enter CTA.
+   * Closed is judged by the landing's own countdown, not by this.
+   *
+   * It was named `entryNotYetOpen` until MYK9-649, when a windowless show was
+   * still reported as "not yet open" to keep this CTA hidden.
    *
    * The landings only ever checked `entryClosed`, so a show whose entries open
    * in three months advertised "Enter This Show" to every anonymous visitor and
    * sent them to a dead end. `getEntryStatus` has always handled `not_yet_open`
    * correctly -- it was just computed after the public branch had returned.
    */
-  entryNotYetOpen?: boolean | undefined;
+  entryWindowNotOpen?: boolean | undefined;
 }
 
 export const STYLED_LANDING_BY_STYLE: Record<ShowStyle, ComponentType<StyledLandingProps>> = {

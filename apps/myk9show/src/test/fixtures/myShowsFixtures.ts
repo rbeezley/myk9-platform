@@ -12,6 +12,7 @@ import type { UserEvent } from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from '@/pages/MyEntriesPage/modules/groupEntriesByOrder';
 import type { EntryClass, MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 /** The instant every fixture is reckoned against: Saturday 24 Oct 2026, midday Central. */
 export const NOW = new Date('2026-10-24T17:00:00Z');
@@ -25,7 +26,7 @@ export function day(iso: string): Date {
 }
 
 export function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     classId: 'class-1',
     name: 'Container Novice A',
@@ -40,7 +41,7 @@ export function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     paymentMethod: 'online',
     ...overrides,
-  };
+  });
 }
 
 export function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {

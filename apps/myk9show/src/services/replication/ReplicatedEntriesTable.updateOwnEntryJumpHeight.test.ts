@@ -17,6 +17,29 @@ import {
   JumpHeightUnavailableError,
   UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC,
 } from '@/services/database/entries/jumpHeightErrors';
+import type { Database } from '@/types/supabase';
+
+/**
+ * MYK9-611, compile-level half of the null-version guard (the runtime half is
+ * "falls back to a NULL precondition" below). `pnpm typecheck` runs this file,
+ * so these are real assertions: without the `database-overrides.ts` widening
+ * the first declaration is TS2322, the pressure that makes `?? 0` look like the
+ * fix. The second pins the widening as NULL specifically, never `any`.
+ */
+type JumpHeightArgs = Database['public']['Functions']['update_own_entry_jump_height']['Args'];
+
+const COLD_ROW_ARGS: JumpHeightArgs = {
+  p_entry_id: 'entry-1',
+  p_jump_height: '12"',
+  p_expected_version: null,
+};
+
+const WIDENED_TO_NULL_ONLY: JumpHeightArgs = {
+  p_entry_id: 'entry-1',
+  p_jump_height: '12"',
+  // @ts-expect-error a version is a number or null — never a string, and never `any`.
+  p_expected_version: '7',
+};
 
 const supabaseMocks = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 
@@ -33,6 +56,13 @@ function mockColdRead(result: { data: unknown; error: unknown }) {
   supabaseMocks.from.mockReturnValue(node);
   return node;
 }
+
+describe('update_own_entry_jump_height RPC arg types (MYK9-611)', () => {
+  it('accepts a null p_expected_version without a cast', () => {
+    expect(COLD_ROW_ARGS.p_expected_version).toBeNull();
+    expect(WIDENED_TO_NULL_ONLY.p_entry_id).toBe('entry-1');
+  });
+});
 
 describe('ReplicatedEntriesTable.updateOwnEntryJumpHeight', () => {
   const cachedEntry = {

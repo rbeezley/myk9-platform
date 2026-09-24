@@ -71,7 +71,7 @@ export function getEntryCloseSubmitBlocker({
  * workflows (secretary/club_admin/site_admin) and explicit late-entry overrides
  * legitimately set up entries before the public open date, so they pass through.
  * Open date is inclusive: the whole open day onward is allowed, mirroring
- * entryStatusUtils' not_yet_open branch and canRegisterForShow.
+ * entryStatusUtils' not_yet_open branch.
  */
 export function getEntryOpenSubmitBlocker({
   entryOpenDate,

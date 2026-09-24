@@ -28,8 +28,8 @@ export interface ShowPublicLandingProps {
    * explicit.
    */
   hasEntryClassInventory: boolean | null;
-  /** True when the entry window has not opened yet. */
-  entryNotYetOpen: boolean;
+  /** True when the entry window has not opened yet, or was never set (MYK9-649). */
+  entryWindowNotOpen: boolean;
   /** True when a cached show is being shown because the refresh failed. */
   refreshFailed?: boolean | undefined;
   onRetry?: (() => void) | undefined;
@@ -52,7 +52,7 @@ export function ShowPublicLanding({
   landingTrials,
   offeredClasses = [],
   hasEntryClassInventory,
-  entryNotYetOpen,
+  entryWindowNotOpen,
   refreshFailed,
   onRetry,
   styleMode = 'public',
@@ -199,7 +199,7 @@ export function ShowPublicLanding({
         trial={landingTrials[0] ?? null}
         allTrials={landingTrials}
         hasEntryClassInventory={hasEntryClassInventory}
-        entryNotYetOpen={entryNotYetOpen}
+        entryWindowNotOpen={entryWindowNotOpen}
       />
     </>
   );

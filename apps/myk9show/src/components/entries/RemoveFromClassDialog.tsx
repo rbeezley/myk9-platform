@@ -72,16 +72,27 @@ export interface RemoveFromClassDialogProps {
    */
   withdrawDisabledReason?: string | null;
   pullDisabledReason?: string | null;
+  /**
+   * Where focus goes when the dialog closes; the primitive's own restore (to
+   * the trigger) when omitted. A caller whose trigger unmounts on success
+   * supplies a surviving target (MYK9-658).
+   */
+  finalFocus?: (() => HTMLElement | boolean | null) | undefined;
   onOpenChange: (open: boolean) => void;
   onConfirm: (choice: { kind: RemoveFromClassKind; reason: WithdrawalReasonCode | null }) => void;
 }
 
 type Step = 'choose' | 'reason' | 'confirm';
 
-export function RemoveFromClassDialog({ open, onOpenChange, ...rest }: RemoveFromClassDialogProps) {
+export function RemoveFromClassDialog({
+  open,
+  onOpenChange,
+  finalFocus,
+  ...rest
+}: RemoveFromClassDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent finalFocus={finalFocus ?? true}>
         {/* Keyed on the class ID, and unmounted while closed, so the half-made
             choice can never be carried into a DIFFERENT class's dialog. The ID,
             not the name: two classes in one show can share a display name

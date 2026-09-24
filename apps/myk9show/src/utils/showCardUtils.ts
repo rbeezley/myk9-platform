@@ -11,10 +11,25 @@ export function getShowCardStatus(show: Show, entryStatus: EntryStatus): ShowCar
   if (dateStatus === 'past') return 'completed';
   if (dateStatus === 'active') return 'in_progress';
 
-  if (entryStatus === 'accepting') return 'accepting';
-  if (entryStatus === 'closing_soon') return 'closing_soon';
-  if (entryStatus === 'closed') return 'closed';
+  switch (entryStatus) {
+    case 'accepting':
+    case 'closing_soon':
+    case 'closed':
+      return entryStatus;
+    // 'upcoming' is the SHOW's date status (it has not started), not a claim
+    // about entries; the entry badge beside it carries that.
+    case 'not_yet_open':
+    case 'submitted':
+    case 'setup_incomplete':
+    case 'window_unknown':
+      return 'upcoming';
+    default:
+      return unknownEntryStatus(entryStatus);
+  }
+}
 
+function unknownEntryStatus(entryStatus: never): ShowCardStatus {
+  void entryStatus;
   return 'upcoming';
 }
 

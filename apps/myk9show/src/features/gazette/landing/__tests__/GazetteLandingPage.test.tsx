@@ -75,7 +75,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -90,7 +90,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 
@@ -105,7 +105,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryNotYetOpen={false}
+        entryWindowNotOpen={false}
       />
     );
 

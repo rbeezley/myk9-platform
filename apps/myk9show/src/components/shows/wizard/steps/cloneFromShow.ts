@@ -4,7 +4,7 @@
  */
 import { getClassesByTrialId } from '@/services/database/classes';
 import type { CloneHydrationSnapshot } from '@/store/wizardStore';
-import type { Class, Show } from '@/types/show-types';
+import type { Class, Show, ShowTrial } from '@/types/show-types';
 import type { ClassTemplate } from '@/types/template.types';
 
 interface ClonePerson {
@@ -16,7 +16,7 @@ interface ClonePerson {
   judgeQualifications?: Array<{ organization: string }> | null | undefined;
 }
 
-export async function getCloneSourceTrials(show: Show): Promise<Show['trials']> {
+export async function getCloneSourceTrials(show: Show): Promise<ShowTrial[]> {
   if (!show.trials?.length) return [];
 
   return await Promise.all(
@@ -40,7 +40,7 @@ export async function getCloneSourceTrials(show: Show): Promise<Show['trials']> 
 /** Build the atomic snapshot the wizard store applies once every source class has loaded. */
 export function buildCloneSnapshot(args: {
   show: Show;
-  sourceTrials: Show['trials'];
+  sourceTrials: ShowTrial[];
   people: readonly ClonePerson[];
   templates: ClassTemplate[];
 }): CloneHydrationSnapshot {

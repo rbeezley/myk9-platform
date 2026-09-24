@@ -1,11 +1,10 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   canViewShow,
   canCreateShow,
   canEditShow,
   canDeleteShow,
   canManageEntries,
-  canRegisterForShow,
   canViewJudgeAssignments,
   canEnterResults,
   getAccessibleTabs,
@@ -197,107 +196,6 @@ describe('canManageEntries', () => {
     expect(canManageEntries(SECRETARY, buildShowWithRelationship({ userCanManage: true }))).toBe(
       true
     );
-  });
-});
-
-describe('canRegisterForShow', () => {
-  const fixedNow = new Date('2026-06-15T12:00:00');
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  function withFixedNow<T>(fn: () => T): T {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedNow);
-    try {
-      return fn();
-    } finally {
-      vi.useRealTimers();
-    }
-  }
-
-  it.each<[string, Partial<Show>, boolean]>([
-    [
-      'entries not yet open -> false',
-      {
-        entryOpenDate: '2026-07-01',
-        entryCloseDate: '2026-08-01',
-        startDate: '2026-08-05',
-        status: 'Upcoming',
-      },
-      false,
-    ],
-    [
-      'entries open, show upcoming, before close -> true',
-      {
-        entryOpenDate: '2026-01-01',
-        entryCloseDate: '2026-08-01',
-        startDate: '2026-08-05',
-        status: 'Upcoming',
-      },
-      true,
-    ],
-    [
-      'entry close date has passed -> false',
-      {
-        entryOpenDate: '2026-01-01',
-        entryCloseDate: '2026-06-01',
-        startDate: '2026-08-05',
-        status: 'Upcoming',
-      },
-      false,
-    ],
-    [
-      'show has already started -> false',
-      {
-        entryOpenDate: '2026-01-01',
-        entryCloseDate: '2026-08-01',
-        startDate: '2026-06-01',
-        status: 'Upcoming',
-      },
-      false,
-    ],
-    [
-      'show is not in Upcoming status -> false',
-      {
-        entryOpenDate: '2026-01-01',
-        entryCloseDate: '2026-08-01',
-        startDate: '2026-08-05',
-        status: 'Completed',
-      },
-      false,
-    ],
-    [
-      'entry close date is today (inclusive through end of day) -> true',
-      {
-        entryOpenDate: '2026-01-01',
-        entryCloseDate: '2026-06-15',
-        startDate: '2026-08-05',
-        status: 'Upcoming',
-      },
-      true,
-    ],
-  ])('%s', (_label, overrides, expected) => {
-    withFixedNow(() => {
-      expect(canRegisterForShow(EXHIBITOR, buildShow(overrides))).toBe(expected);
-    });
-  });
-
-  it('no user -> false', () => {
-    withFixedNow(() => {
-      expect(
-        canRegisterForShow(
-          null,
-          buildShow({
-            entryOpenDate: '2026-01-01',
-            entryCloseDate: '2026-08-01',
-            startDate: '2026-08-05',
-            status: 'Upcoming',
-          })
-        )
-      ).toBe(false);
-    });
   });
 });
 

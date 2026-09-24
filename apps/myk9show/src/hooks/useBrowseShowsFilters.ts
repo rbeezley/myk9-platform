@@ -225,6 +225,9 @@ export function useBrowseShowsFilters({
       filtered = filtered.filter(show => {
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
         const status = getEntryStatus(show, hasUserEntries);
+        // Each bucket names the ONE status it holds. `not_yet_open`,
+        // `window_unknown`, `submitted` and `setup_incomplete` match no bucket:
+        // a show with no entry window is never filed as open (MYK9-649).
         switch (filters.entryStatus) {
           case 'open':
             return status.status === 'accepting';

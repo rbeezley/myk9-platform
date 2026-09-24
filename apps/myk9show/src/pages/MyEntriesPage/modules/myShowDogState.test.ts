@@ -10,6 +10,7 @@ import {
 import { deriveClassRowState, deriveDogChip, type DogChipState } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { EntryClass, MyEntry } from './my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const SATURDAY = new Date('2026-10-24T00:00:00');
 const SUNDAY = new Date('2026-10-25T00:00:00');
@@ -18,7 +19,7 @@ const PACIFIC = 'America/Los_Angeles';
 const SATURDAY_MORNING = new Date('2026-10-24T16:00:00Z');
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     entryStatus: EntryStatus.ACCEPTED,
     classId: 'class-1',
@@ -32,7 +33,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     paymentMethod: 'online',
     ...overrides,
-  };
+  });
 }
 
 function makeRow(classes: EntryClass[], overrides: Partial<MyEntry> = {}): MyEntry {

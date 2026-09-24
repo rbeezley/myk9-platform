@@ -1,6 +1,6 @@
 // Entry Sync UI Components for Phase 3 Local-First Implementation
 // These components provide comprehensive sync status monitoring, payment processing,
-// conflict resolution, offline entry creation, and performance metrics.
+// conflict resolution, and performance metrics.
 
 export {
   EntrySyncStatusBar,
@@ -21,8 +21,6 @@ export {
   EntryConflictResolutionWizard,
   default as EntryConflictResolutionWizardDefault,
 } from './EntryConflictResolutionWizard';
-
-export { OfflineEntryForm, default as OfflineEntryFormDefault } from './OfflineEntryForm';
 
 export { EntrySyncMetrics, default as EntrySyncMetricsDefault } from './EntrySyncMetrics';
 

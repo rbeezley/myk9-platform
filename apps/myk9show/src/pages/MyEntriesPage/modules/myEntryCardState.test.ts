@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date('2026-09-01T12:00:00');
 
@@ -40,7 +41,7 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'class-entry-1',
     classId: 'class-1',
     name: 'Container Search',
@@ -48,7 +49,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     fee: 30,
     status: 'entered',
     ...overrides,
-  };
+  });
 }
 
 describe('deriveMyEntryCardState', () => {

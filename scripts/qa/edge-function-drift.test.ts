@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  ACTIONABLE,
   classify,
   collectSources,
   parseDeployed,
@@ -121,6 +122,21 @@ describe('classify', () => {
       ['lonely', 'never-deployed'],
       ['twin', 'dual-location'],
     ]);
+  });
+
+  it('reports a deployed slug with no source dir as orphan-deploy (Codex review round 2)', () => {
+    const rows = classify(
+      [src('kept', '2026-03-01T00:00:00Z')],
+      [dep('kept', '2026-04-01T00:00:00Z'), dep('removed-from-repo', '2026-02-01T00:00:00Z')]
+    );
+    expect(rows.map(r => [r.name, r.status])).toEqual([
+      ['kept', 'current'],
+      ['removed-from-repo', 'orphan-deploy'],
+    ]);
+    const orphan = rows.find(r => r.name === 'removed-from-repo')!;
+    expect(orphan.dirs).toEqual([]);
+    expect(orphan.deployedDateMs).toBe(ms('2026-02-01T00:00:00Z'));
+    expect(ACTIONABLE.has('orphan-deploy')).toBe(true);
   });
 });
 
@@ -257,6 +273,12 @@ describe('against real git history', () => {
       })
     );
     expect(await runCli(shallow, ['--deployed', file])).toBe(0);
+    // A deployed slug whose source dir is gone is a finding, not a clean run.
+    const withOrphan = JSON.parse(readFileSync(file, 'utf8')) as unknown[];
+    withOrphan.push({ slug: 'deleted-fn', updated_at: ms('2026-07-01T00:00:00Z') });
+    writeFileSync(file, JSON.stringify(withOrphan));
+    expect(await runCli(shallow, ['--deployed', file])).toBe(1);
+    expect(logs.join('\n')).toMatch(/^orphan-deploy\s+deleted-fn/m);
   });
 
   it('runCli --content settles an unknown row by what is deployed', async () => {

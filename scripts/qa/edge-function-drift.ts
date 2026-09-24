@@ -26,7 +26,8 @@
  * Both modes only READ the project: nothing here deploys.
  *
  * Exit 0: every function is current (sub-day gaps are ordering noise).
- * Exit 1: at least one stale, unknown, never-deployed or dual-location row.
+ * Exit 1: at least one stale, unknown, never-deployed, orphan-deploy or
+ *         dual-location row.
  * Exit 2: the check itself could not run, including any `--content` download
  *         that failed (a row it could not compare is `check-failed`, never
  *         left at its dated status).
@@ -43,7 +44,14 @@ export const IGNORE_REVS_FILE = '.git-blame-ignore-revs';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type DriftStatus =
-  'current' | 'sub-day' | 'stale' | 'unknown' | 'never-deployed' | 'dual-location' | 'check-failed';
+  | 'current'
+  | 'sub-day'
+  | 'stale'
+  | 'unknown'
+  | 'never-deployed'
+  | 'orphan-deploy'
+  | 'dual-location'
+  | 'check-failed';
 
 export interface SourceFunction {
   name: string;
@@ -173,13 +181,25 @@ export function classify(
       });
     }
   }
-  return rows;
+  // Deployed slugs no source dir claims: live code nothing in the repo maintains.
+  for (const d of [...deployed].sort((a, b) => a.slug.localeCompare(b.slug))) {
+    if (byName.has(d.slug)) continue;
+    rows.push({
+      name: d.slug,
+      dirs: [],
+      deployedDateMs: d.updatedAtMs,
+      status: 'orphan-deploy',
+      note: 'deployed, but no source dir in either function dir — delete the deploy or restore its source',
+    });
+  }
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export const ACTIONABLE: ReadonlySet<DriftStatus> = new Set([
   'stale',
   'unknown',
   'never-deployed',
+  'orphan-deploy',
   'dual-location',
 ]);
 

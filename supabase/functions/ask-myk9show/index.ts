@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
   const startTime = Date.now();
   // Set once a log row is reserved, so the catch can record what failed on it.
-  let markReservedRow: ((marker: string) => Promise<unknown>) | null = null;
+  let markReservedRow: (marker: string) => Promise<unknown> = async () => undefined;
 
   try {
     const authHeader = req.headers.get('authorization');
@@ -444,7 +444,7 @@ Deno.serve(async (req: Request) => {
     const failure = classifyAskQFailure(error);
     console.error('ask-myk9show error:', failure.logMarker, (error as Error).message);
     // Best effort: a failed audit write must not mask the answer to the client.
-    await markReservedRow?.(failure.logMarker).catch(() => undefined);
+    await markReservedRow(failure.logMarker).catch(() => undefined);
     return jsonResponse(failure.body, failure.httpStatus);
   }
 });

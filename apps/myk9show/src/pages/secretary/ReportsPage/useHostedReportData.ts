@@ -20,11 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
 import { getWaitlistReportRows } from '@/services/database/waitlists';
-import type {
-  ReportAsyncData,
-  ReportEntryFormData,
-  ReportWaitlistRow,
-} from '@/lib/reports/types';
+import type { ReportAsyncData, ReportEntryFormData, ReportWaitlistRow } from '@/lib/reports/types';
 
 /** Report ids whose component needs entry-form data passed in. */
 export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);

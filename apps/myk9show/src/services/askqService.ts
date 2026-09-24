@@ -57,20 +57,33 @@ async function sendAuthenticatedQuery(
     throw new Error('Not authenticated');
   }
 
-  const response = await fetch(functionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(request),
-    signal: signal || null,
-  });
+  let response: Response;
+  try {
+    response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(request),
+      signal: signal || null,
+    });
+  } catch (err) {
+    // An abort is the user's own cancel, not an outage.
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new AskQUnavailableError();
+  }
 
   if (response.status === 429) {
     const data = await response.json();
     throw new RateLimitError(data.remaining, data.limit, data.resetsAt);
+  }
+
+  // MYK9-684: a server-side failure carries no message the user can act on,
+  // and its raw body ("Internal server error") read as a broken app.
+  if (response.status >= 500) {
+    throw new AskQUnavailableError();
   }
 
   if (!response.ok) {
@@ -165,5 +178,16 @@ export class RateLimitError extends Error {
     this.remaining = remaining;
     this.limit = limit;
     this.resetsAt = resetsAt;
+  }
+}
+
+export const ASKQ_UNAVAILABLE_MESSAGE =
+  "AskQ can't answer right now. Please try again in a few minutes.";
+
+/** The AskQ service failed or could not be reached; the question may be retried. */
+export class AskQUnavailableError extends Error {
+  constructor() {
+    super(ASKQ_UNAVAILABLE_MESSAGE);
+    this.name = 'AskQUnavailableError';
   }
 }

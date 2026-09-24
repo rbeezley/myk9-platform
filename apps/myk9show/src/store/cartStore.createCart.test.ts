@@ -161,7 +161,10 @@ describe('cartStore.createCart', () => {
 
     const result = await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
 
-    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, {
+      showId: SHOW_ID,
+      isCurrent: expect.any(Function),
+    });
     expect(result).toEqual({ id: 'cart-existing', items: [{ id: 'item-1' }] });
     // The drafted cart is never expired, and no second shell is inserted in
     // its place: that is what orphaned an exhibitor's items.
@@ -199,7 +202,10 @@ describe('cartStore.ensureCart', () => {
 
     const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
 
-    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, {
+      showId: SHOW_ID,
+      isCurrent: expect.any(Function),
+    });
     expect(result).toEqual({ kind: 'ready', cart: recovered });
     expect(insertCalls()).toEqual([]);
   });
@@ -270,7 +276,10 @@ describe('cartStore.ensureCart', () => {
     const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
 
     expect(result).toEqual({ kind: 'failed', error: CART_OPEN_FAILED_MESSAGE });
-    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, {
+      showId: SHOW_ID,
+      isCurrent: expect.any(Function),
+    });
   });
 
   it('coalesces the WHOLE load-then-create opener, not just the create', async () => {

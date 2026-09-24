@@ -64,11 +64,15 @@ export interface FakeQueryInfo {
   payload: unknown;
 }
 
+type QueryResult = { data: unknown; error: unknown };
+
 interface Hold {
   match: (query: FakeQueryInfo) => boolean;
   release: () => void;
   gate: Promise<void>;
   used: boolean;
+  /** Replaces the response the client receives (the server still ran). */
+  respond: QueryResult | undefined;
 }
 
 export interface FakeCartDb {
@@ -79,8 +83,13 @@ export interface FakeCartDb {
   entries: Row[];
   log: FakeQueryInfo[];
   from: (table: string) => FakeQuery;
-  /** Park the NEXT query matching `match` until the returned release runs. */
-  hold: (match: (query: FakeQueryInfo) => boolean) => () => void;
+  /**
+   * Park the RESPONSE of the next query matching `match` until the returned
+   * release runs. The query itself is evaluated when it is issued, as a real
+   * server would, so a held read returns the rows as they were at that moment.
+   * `respond` replaces what the client receives (e.g. a PostgREST error).
+   */
+  hold: (match: (query: FakeQueryInfo) => boolean, respond?: QueryResult) => () => void;
 }
 
 const uniqueViolation = (index: string) => ({
@@ -177,12 +186,12 @@ class FakeQuery {
       payload: this.payload,
     };
     this.db.log.push(info);
+    const result = this.execute();
     const hold = holds.get(this.db)?.find(h => !h.used && h.match(info));
-    if (hold) {
-      hold.used = true;
-      await hold.gate;
-    }
-    return this.execute();
+    if (!hold) return result;
+    hold.used = true;
+    await hold.gate;
+    return hold.respond ?? result;
   }
 
   private rows(): Row[] {
@@ -239,7 +248,7 @@ class FakeQuery {
     return { data: rows[0], error: null };
   }
 
-  private execute(): { data: unknown; error: unknown } {
+  private execute(): QueryResult {
     if (this.op === 'select') {
       let rows = this.matching();
       if (this.orderBy) {
@@ -332,12 +341,12 @@ export function createFakeCartDb(
     entries: [...(seed.entries ?? [])],
     log: [],
     from: (table: string) => new FakeQuery(db, table, nextId),
-    hold: match => {
+    hold: (match, respond) => {
       let release = () => {};
       const gate = new Promise<void>(resolve => {
         release = resolve;
       });
-      const entry: Hold = { match, release, gate, used: false };
+      const entry: Hold = { match, release, gate, used: false, respond };
       holds.set(db, [...(holds.get(db) ?? []), entry]);
       return () => entry.release();
     },

@@ -12,6 +12,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
+import { onAccountBoundary } from '@/lib/accountBoundary';
 
 import type {
   CartState,
@@ -37,7 +38,12 @@ import {
 } from './cartStore.recovery';
 import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
-import { ensureCartOnce, isActiveCartUniqueViolation } from './cartStore.ensureCart';
+import {
+  ensureCartOnce,
+  isActiveCartUniqueViolation,
+  resetEnsureCartInFlight,
+} from './cartStore.ensureCart';
+import { captureCartWriteGuard, guardedSet, invalidateCartWrites } from './cartStore.session';
 import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
 import { findRecoverableCart } from './cartStore.pickCart';
 
@@ -67,7 +73,9 @@ export const useCartStore = create<CartState>()(
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
-          set({ isLoading: true, error: null });
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
+          write({ isLoading: true, error: null });
 
           try {
             // Use order + limit(1) so duplicate active carts (e.g. from React
@@ -89,7 +97,7 @@ export const useCartStore = create<CartState>()(
             }
 
             if (!cartData) {
-              set({ cart: null, isLoading: false });
+              write({ cart: null, isLoading: false });
               return null;
             }
 
@@ -126,7 +134,7 @@ export const useCartStore = create<CartState>()(
               show: cartData.show as CartWithDetails['show'],
             };
 
-            set({
+            write({
               cart: cartWithDetails,
               isLoading: false,
               lastSyncedAt: new Date().toISOString(),
@@ -137,13 +145,13 @@ export const useCartStore = create<CartState>()(
               timeUntilExpiry !== null &&
               timeUntilExpiry < EXPIRATION_WARNING_MINUTES * 60 * 1000
             ) {
-              set({ expirationWarning: true });
+              write({ expirationWarning: true });
             }
 
             return cartWithDetails;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to load cart';
-            set({ error: message, isLoading: false });
+            write({ error: message, isLoading: false });
             logger.error(
               'Failed to load cart',
               'cartStore',
@@ -158,7 +166,9 @@ export const useCartStore = create<CartState>()(
         // /cart be visited directly (deep link, refresh, new tab). Recovery
         // deliberately excludes submitted/abandoned carts; those are terminal.
         loadActiveCart: async (exhibitorId: string, options = {}) => {
-          set({ isLoading: true, error: null, loadInitiated: true });
+          const guard = captureCartWriteGuard(options.isCurrent);
+          const write = guardedSet<CartState>(set, guard);
+          write({ isLoading: true, error: null, loadInitiated: true });
 
           // The newest cart WITH items, not merely the newest (MYK9-650).
           const lookup = await findRecoverableCart({ exhibitorId, showId: options.showId });
@@ -169,7 +179,7 @@ export const useCartStore = create<CartState>()(
               { exhibitorId },
               ensureError(lookup.error)
             );
-            set({ cart: null, isLoading: false });
+            write({ cart: null, isLoading: false });
             return null;
           }
           let data: RecoverableCartRow | null = lookup.kind === 'found' ? lookup.cart : null;
@@ -193,7 +203,9 @@ export const useCartStore = create<CartState>()(
                   .join(',')}`;
                 let recoveryPromise = recoveryCartInFlight.get(recoveryKey);
                 if (!recoveryPromise) {
-                  recoveryPromise = get().createCart(options.showId, exhibitorId);
+                  recoveryPromise = get().createCart(options.showId, exhibitorId, {
+                    isCurrent: guard,
+                  });
                   recoveryCartInFlight.set(recoveryKey, recoveryPromise);
                 }
                 let recoveryCart: CartWithDetails | null;
@@ -216,7 +228,7 @@ export const useCartStore = create<CartState>()(
             }
 
             if (!data) {
-              set({ cart: null, isLoading: false });
+              write({ cart: null, isLoading: false });
               return null;
             }
           }
@@ -234,7 +246,7 @@ export const useCartStore = create<CartState>()(
             // `created_at desc` read (review C P2-1).
             const recovered = await recoverCartHold(data, exhibitorId);
             if (recovered.kind === 'failed') {
-              set({ cart: null, isLoading: false });
+              write({ cart: null, isLoading: false });
               return null;
             }
             data = recovered.row;
@@ -253,12 +265,12 @@ export const useCartStore = create<CartState>()(
 
           if (cartError) {
             logger.error('Error loading recovered cart', 'cartStore', { exhibitorId }, cartError);
-            set({ cart: null, isLoading: false });
+            write({ cart: null, isLoading: false });
             return null;
           }
 
           if (!cartData) {
-            set({ cart: null, isLoading: false });
+            write({ cart: null, isLoading: false });
             return null;
           }
 
@@ -272,7 +284,7 @@ export const useCartStore = create<CartState>()(
               { cartId: cartData.id },
               ensureError(error)
             );
-            set({ cart: null, isLoading: false });
+            write({ cart: null, isLoading: false });
             return null;
           }
 
@@ -309,7 +321,7 @@ export const useCartStore = create<CartState>()(
             show: cartData.show as CartWithDetails['show'],
           };
 
-          set({
+          write({
             cart: cartWithDetails,
             isLoading: false,
             lastSyncedAt: new Date().toISOString(),
@@ -324,11 +336,14 @@ export const useCartStore = create<CartState>()(
          * create one — as a single coalesced unit, resolving `ready` or
          * `failed` and never nothing-with-no-reason (MYK9-581).
          */
-        ensureCart: (showId: string, exhibitorId: string) =>
-          ensureCartOnce(showId, exhibitorId, {
+        ensureCart: (showId: string, exhibitorId: string) => {
+          // A failure reported after the user changed must not land either.
+          const write = guardedSet<CartState>(set, captureCartWriteGuard());
+          return ensureCartOnce(showId, exhibitorId, {
             loadActiveCart: (exhibitorIdArg, options) =>
               get().loadActiveCart(exhibitorIdArg, options),
-            createCart: (showIdArg, exhibitorIdArg) => get().createCart(showIdArg, exhibitorIdArg),
+            createCart: (showIdArg, exhibitorIdArg, options) =>
+              get().createCart(showIdArg, exhibitorIdArg, options),
             // `createCart` logs and swallows its PostgREST error, leaving the
             // message on the store; reading it back is the only way the opener's
             // own log line can name the real failure (review C P3-1).
@@ -338,7 +353,7 @@ export const useCartStore = create<CartState>()(
             // throw escapes before that, so clearing it here is what keeps a
             // rejected entries-reconcile read from leaving the step mid-load.
             onFailure: (message: string, cause?: unknown) => {
-              set({ error: message, isLoading: false });
+              write({ error: message, isLoading: false });
               logger.error(
                 'Failed to open cart',
                 'cartStore',
@@ -346,11 +361,14 @@ export const useCartStore = create<CartState>()(
                 ensureError(cause ?? new Error(message))
               );
             },
-          }),
+          });
+        },
 
         // Create a new cart
-        createCart: async (showId: string, exhibitorId: string) => {
-          set({ isLoading: true, error: null });
+        createCart: async (showId: string, exhibitorId: string, options = {}) => {
+          const guard = captureCartWriteGuard(options.isCurrent);
+          const write = guardedSet<CartState>(set, guard);
+          write({ isLoading: true, error: null });
 
           try {
             const expiresAt = new Date(
@@ -387,7 +405,7 @@ export const useCartStore = create<CartState>()(
                   'cartStore',
                   { showId, exhibitorId }
                 );
-                return get().loadActiveCart(exhibitorId, { showId });
+                return get().loadActiveCart(exhibitorId, { showId, isCurrent: guard });
               }
               logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);
               throw cartError;
@@ -399,7 +417,7 @@ export const useCartStore = create<CartState>()(
               show: cartData.show as CartWithDetails['show'],
             };
 
-            set({
+            write({
               cart: cartWithDetails,
               isLoading: false,
               lastSyncedAt: new Date().toISOString(),
@@ -409,7 +427,7 @@ export const useCartStore = create<CartState>()(
             return cartWithDetails;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to create cart';
-            set({ error: message, isLoading: false });
+            write({ error: message, isLoading: false });
             logger.error(
               'Failed to create cart',
               'cartStore',
@@ -422,10 +440,12 @@ export const useCartStore = create<CartState>()(
 
         // Add item to cart
         addItem: async (item: NewCartItem) => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
             // Says WHICH add was dropped and what the store held instead. The
-            // bare `set({ error })` was invisible in logs, so a chip clicked
+            // bare `write({ error })` was invisible in logs, so a chip clicked
             // before the cart finished loading looked to the exhibitor like a
             // failed add and to us like nothing at all (MYK9-542).
             logger.warn('addItem called with no active cart; the click was dropped', 'cartStore', {
@@ -433,7 +453,7 @@ export const useCartStore = create<CartState>()(
               loadInitiated: get().loadInitiated,
               isLoading: get().isLoading,
             });
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return false;
           }
 
@@ -473,7 +493,7 @@ export const useCartStore = create<CartState>()(
                 );
                 const refreshedItems = await loadCartItemsByCartId(cart.id);
                 const refreshedTotals = calculateCartTotals(refreshedItems);
-                set({
+                write({
                   cart: {
                     ...cart,
                     items: refreshedItems,
@@ -516,7 +536,7 @@ export const useCartStore = create<CartState>()(
             // first left the local list one row short of the DB, and the next
             // click on that chip then collided on the unique index (MYK9-530).
             // The stored totals are a cache; loadCart recomputes them from items.
-            set({
+            write({
               cart: {
                 ...cart,
                 items: updatedItems,
@@ -541,7 +561,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to add item';
-            set({ error: message });
+            write({ error: message });
             logger.error('Failed to add cart item', 'cartStore', { item }, ensureError(error));
             return false;
           }
@@ -549,9 +569,11 @@ export const useCartStore = create<CartState>()(
 
         // Remove item from cart
         removeItem: async (itemId: string) => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return false;
           }
 
@@ -590,7 +612,7 @@ export const useCartStore = create<CartState>()(
             // longer exists, and the next click on that chip took the REMOVE
             // branch and deleted nothing (MYK9-530 review, P3-a). The stored
             // totals are a cache; loadCart recomputes them from items.
-            set({
+            write({
               cart: {
                 ...cart,
                 items: updatedItems,
@@ -615,7 +637,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to remove item';
-            set({ error: message });
+            write({ error: message });
             logger.error('Failed to remove cart item', 'cartStore', { itemId }, ensureError(error));
             return false;
           }
@@ -623,9 +645,11 @@ export const useCartStore = create<CartState>()(
 
         // Update item in cart
         updateItem: async (itemId: string, updates: Partial<NewCartItem>) => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return false;
           }
 
@@ -688,7 +712,7 @@ export const useCartStore = create<CartState>()(
               throw cartUpdateError;
             }
 
-            set({
+            write({
               cart: {
                 ...cart,
                 items: updatedItems,
@@ -705,7 +729,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update item';
-            set({ error: message });
+            write({ error: message });
             logger.error(
               'Failed to update cart item',
               'cartStore',
@@ -718,9 +742,11 @@ export const useCartStore = create<CartState>()(
 
         // Clear all items from cart
         clearCart: async () => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return false;
           }
 
@@ -762,7 +788,7 @@ export const useCartStore = create<CartState>()(
               );
             }
 
-            set({
+            write({
               cart: {
                 ...cart,
                 items: [],
@@ -777,7 +803,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to clear cart';
-            set({ error: message });
+            write({ error: message });
             logger.error('Failed to clear cart', 'cartStore', {}, ensureError(error));
             return false;
           }
@@ -792,9 +818,11 @@ export const useCartStore = create<CartState>()(
 
         // Extend cart expiration by another 30 minutes
         extendExpiration: async () => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return false;
           }
 
@@ -818,7 +846,7 @@ export const useCartStore = create<CartState>()(
               throw updateError;
             }
 
-            set({
+            write({
               cart: { ...cart, expires_at: newExpiresAt },
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
@@ -827,7 +855,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to extend expiration';
-            set({ error: message });
+            write({ error: message });
             logger.error('Failed to extend cart expiration', 'cartStore', {}, ensureError(error));
             return false;
           }
@@ -835,6 +863,8 @@ export const useCartStore = create<CartState>()(
 
         // Abandon cart (mark as abandoned)
         abandonCart: async () => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) return true;
 
@@ -849,7 +879,7 @@ export const useCartStore = create<CartState>()(
               throw updateError;
             }
 
-            set({
+            write({
               cart: null,
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
@@ -858,7 +888,7 @@ export const useCartStore = create<CartState>()(
             return true;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to abandon cart';
-            set({ error: message });
+            write({ error: message });
             logger.error('Failed to abandon cart', 'cartStore', {}, ensureError(error));
             return false;
           }
@@ -886,9 +916,11 @@ export const useCartStore = create<CartState>()(
           exhibitorId: string,
           waitlistCartItemIds: Set<string>
         ): Promise<CheckoutResult | null> => {
+          const guard = captureCartWriteGuard();
+          const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            set({ error: 'No active cart' });
+            write({ error: 'No active cart' });
             return null;
           }
 
@@ -938,7 +970,7 @@ export const useCartStore = create<CartState>()(
             return { confirmed, waitlisted };
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Checkout failed';
-            set({ error: message });
+            write({ error: message });
             logger.error('checkoutWithWaitlist failed', 'cartStore', {}, ensureError(error));
             return null;
           }
@@ -947,8 +979,17 @@ export const useCartStore = create<CartState>()(
         setError: (error: string | null) => set({ error }),
 
         reset: () => {
+          // Drop every write still in flight (MYK9-651) and forget in-flight
+          // openers, so a user signing back in starts fresh rather than joining
+          // an opener whose writes are now dropped.
+          invalidateCartWrites();
+          resetEnsureCartInFlight();
+          recoveryCartInFlight.clear();
+          // `partialize` derives the persisted recovery ids from `cart`, so
+          // clearing `cart` rewrites the persisted slice with none of them.
           set({
             cart: null,
+            cartRecoveryInfo: null,
             isLoading: false,
             loadInitiated: false,
             error: null,
@@ -974,6 +1015,9 @@ export const useCartStore = create<CartState>()(
     { name: 'CartStore', enabled: import.meta.env.DEV }
   )
 );
+
+// The persisted cart must not outlive the account that built it (MYK9-651).
+onAccountBoundary(() => useCartStore.getState().reset());
 
 // Stable empty references to prevent infinite re-render loops in Zustand selectors
 const EMPTY_ITEMS: CartItemWithDetails[] = [];

@@ -101,11 +101,15 @@ If your club needs any of those done, ask your secretary — or grant secretary 
 
 ## Section 3 — Grant Show Access to a Secretary
 
-Show access is managed from the **Members** page, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
+Show access is managed from the **Members** page, on its **Show Access** tab and in each member's action menu, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
 
-When you grant an active member show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
+When you appoint someone to show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
 
-**The person must already be an active club member before you can grant club-wide show access.** If they are not yet in the members list, add them first (see Section 6). Lapsed, suspended, and resigned members cannot receive or retain effective club-wide show access.
+**The person does not need to be a club member.** Appointment is the grant, and club membership is not checked, so you can appoint a hired or professional secretary who is not on your roster. A member whose membership lapses, is suspended, or is resigned keeps show access until you revoke it.
+
+**To appoint anyone with a myK9Show account:** open **Members**, go to the **Show Access** tab, click **Appoint Secretary**, search for the person by name or email, select them, and click **Appoint**.
+
+**To appoint someone already on your member list:**
 
 1. In the sidebar, open **Members**.
 2. Find the person you want to make secretary.
@@ -116,9 +120,9 @@ When you grant an active member show access, they can manage any of your club's 
 
 The member's row now shows a **Show Manager** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
 
-**To revoke access:** open the same **⋮** menu and click **Revoke Show Access**. The person loses management access immediately — they remain a club member.
+**To revoke access:** open the same **⋮** menu and click **Revoke Show Access**, or use **Revoke** on the **Show Access** tab. The person loses management access immediately. If they are a club member, they stay one.
 
-> **Note:** Show access is club-wide — an active member you authorize can manage all of your club's shows, not just one. If you need to assign an external professional to one specific show, contact your platform administrator; that show-scoped assignment is separate from club membership. Judges are assigned to shows or classes separately and do not need to be club members.
+> **Note:** Show access is club-wide — anyone you appoint can manage all of your club's shows, not just one. There is no show-by-show secretary access: naming someone as an official on one show is paperwork only and grants nothing. Judges are assigned to shows or classes separately and do not need to be club members.
 
 ---
 

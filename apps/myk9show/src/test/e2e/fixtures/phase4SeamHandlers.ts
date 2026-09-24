@@ -8,11 +8,10 @@
  * ---------------------------------------------------------------------------
  * DATA PATH INVENTORY (verified against app source 2026-06-15)
  * ---------------------------------------------------------------------------
- * Seam 1 — scratch/pull:
- *   request  PATCH /rest/v1/entries?id=eq.<id> { entry_status:'scratch-requested' }
- *   approve  PATCH /rest/v1/entries?id=eq.<id>&entry_status=eq.scratch-requested
+ * Seam 1 — pull (no approval step: MYK9-632, MYK9-609):
+ *   pull     PATCH /rest/v1/entries?id=eq.<id>
  *            { entry_status:'scratched', check_in_status:'pulled' }  (`.single()`)
- *            services/database/entries/lifecycle.ts
+ *            services/database/entries/lifecycle.ts (pullEntry)
  * Seam 2 — waitlist:
  *   promote  POST /rest/v1/rpc/promote_waitlist_entry
  *            -> creates entries.entry_status='pending-payment' and keeps row offered
@@ -185,7 +184,7 @@ function handleEntriesWrite(
     return { response: singleOrArray(req, state.entries[id], 201), seam: 'waitlist' };
   }
 
-  // PATCH (scratch request / approve)
+  // PATCH (pull / withdrawal / other entry fields)
   const id = extractEqFilter(req.url, 'id');
   if (!id || !state.entries[id]) {
     return { response: error(500, `Unexpected entries PATCH target: ${id}`), seam: 'scratch' };
@@ -196,22 +195,14 @@ function handleEntriesWrite(
   }
   const entry = state.entries[id];
 
-  // Secretary approve is guarded by entry_status=eq.scratch-requested in the URL
-  // and reads back with `.single()`. A guard miss returns zero rows, which under
-  // `.single()` is a PGRST116 error (data:null) — approvePullRequest THROWS
-  // on it, so the race-loser sees an error, not a silent success.
+  // PostgREST filter semantics: a PATCH guarded by `entry_status=eq.<x>` in the
+  // URL that misses matches zero rows, which under `.single()` is a PGRST116
+  // error (data:null) — so a race-loser sees an error, not a silent success.
   const guard = extractEqFilter(req.url, 'entry_status');
   if (guard && entry.entry_status !== guard) {
     return { response: noRow(req), seam: 'scratch' };
   }
 
-  if (body.entry_status === 'scratch-requested') {
-    entry.entry_status = 'scratch-requested';
-    entry.special_requests =
-      typeof body.special_requests === 'string' ? body.special_requests : null;
-    entry.updated_at = clock(options).toISOString();
-    return { response: singleOrArray(req, entry), seam: 'scratch' };
-  }
   if (body.entry_status === 'scratched') {
     entry.entry_status = 'scratched';
     entry.check_in_status = 'pulled';

@@ -524,7 +524,6 @@ const EntryManagementPage: React.FC = () => {
                 <Card>
                   <CardContent className="pt-6">
                     <PullManagementTab
-                      showId={selectedShowId}
                       processedEntries={pulledEntries}
                       processedEntriesUnknown={Boolean(loadError)}
                       processedEntriesLoading={isLoading}

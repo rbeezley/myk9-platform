@@ -31,7 +31,6 @@ import {
 import { useNotificationStore, type AlertEntry } from '@/store/notificationStore';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { useMessageStore } from '@/store/messageStore';
-import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
@@ -40,11 +39,8 @@ import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
 import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
-import {
-  initialComposeShowId,
-  readRouteShowId,
-  selectComposeShows,
-} from '@/features/messages/messageComposeShows';
+import { useMessageComposeShows } from '@/features/messages/hooks/useMessageComposeShows';
+import { initialComposeShowId, readRouteShowId } from '@/features/messages/messageComposeShows';
 import type {
   MessageShowDeliveryLane,
   MessageShowRecipientType,
@@ -195,7 +191,6 @@ export function MessageCenterPanel() {
 
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles);
-  const shows = useShowStore(s => s.shows);
   const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -212,7 +207,7 @@ export function MessageCenterPanel() {
     ? 'announcement'
     : 'targeted';
   // MYK9-641: only shows this person may post to, opening on the one they are on.
-  const staffShows = selectComposeShows(shows, currentShowIds, userWithRoles, hasRole);
+  const staffShows = useMessageComposeShows(currentShowIds);
   const routeShowId = readRouteShowId(location.pathname, location.search);
   const selectedComposeShowId = composeShowId || initialComposeShowId(staffShows, '');
   const {

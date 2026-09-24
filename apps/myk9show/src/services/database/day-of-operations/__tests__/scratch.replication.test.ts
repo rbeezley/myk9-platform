@@ -1,7 +1,7 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockSupabase } from '@/test/mocks/supabase';
-import { getPendingPullRequests, getPullableEntries, getPulledEntries } from '../scratch';
+import { getPullableEntries, getPulledEntries } from '../scratch';
 
 const replicationMocks = vi.hoisted(() => ({
   getEntriesByShow: vi.fn(),
@@ -156,21 +156,6 @@ describe('scratch day-of read queries', () => {
         entry_status: 'scratched',
         special_requests: 'Pulled at gate',
         updated_at: '2026-06-07T10:00:00.000Z',
-      }),
-    ]);
-  });
-
-  it('loads pending scratch requests from the replica oldest first', async () => {
-    const result = await getPendingPullRequests('show-1');
-
-    expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
-    expect(mockSupabase.from).not.toHaveBeenCalled();
-    expect(result.data).toEqual([
-      expect.objectContaining({
-        id: 'pending-scratch-1',
-        entry_status: 'scratch-requested',
-        special_requests: 'Handler conflict',
-        created_at: '2026-06-01T09:00:00.000Z',
       }),
     ]);
   });

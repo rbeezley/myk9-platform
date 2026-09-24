@@ -196,6 +196,7 @@ describe('countUpcomingClassesByDog', () => {
       number: '1',
       fee: 0,
       status: 'entered',
+      entryStatusKind: 'completed',
       entryStatus: EntryStatus.COMPLETED,
       isScored: true,
       resultStatus: 'qualified',
@@ -206,6 +207,7 @@ describe('countUpcomingClassesByDog', () => {
       number: '2',
       fee: 0,
       status: 'entered',
+      entryStatusKind: 'accepted',
       entryStatus: EntryStatus.ACCEPTED,
       isScored: false,
     };

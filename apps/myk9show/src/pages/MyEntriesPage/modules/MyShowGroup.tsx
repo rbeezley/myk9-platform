@@ -334,6 +334,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                   classWhen,
                   dogName: leavingDog.dogName,
                   dogId: leavingDog.dogId,
+                  dogCardId: leavingDog.id,
                   showId: group.showId,
                 })
               }

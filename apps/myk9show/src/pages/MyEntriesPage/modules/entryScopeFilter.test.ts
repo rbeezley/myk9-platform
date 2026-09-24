@@ -4,7 +4,14 @@ import { applyEntryScope, clearEntryScopeParams, parseEntryScope } from './entry
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 function makeClass(id: string): EntryClass {
-  return { id, name: 'Novice A', number: '1', fee: 30, status: 'entered' };
+  return {
+    id,
+    name: 'Novice A',
+    number: '1',
+    fee: 30,
+    status: 'entered',
+    entryStatusKind: 'accepted',
+  };
 }
 
 function makeEntry(id: string, showId: string, classIds: string[]): MyEntry {

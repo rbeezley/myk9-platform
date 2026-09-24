@@ -67,16 +67,20 @@ test.describe('Exhibitor post-payment lifecycle', () => {
     await expect(page.getByRole('dialog', { name: 'Record Withdrawal Reason' })).toBeHidden();
   });
 
-  test('pulls tab (scratch/DNS requests) renders its empty state cleanly', async ({ page }) => {
+  test('pulls tab renders the pulled-entries list without an approval queue', async ({ page }) => {
     await signInAsSecretary(page, `${ENTRIES_PATH}?tab=pulls`);
     await expect(page).toHaveURL(/tab=pulls/);
 
-    // No pull/scratch request is seeded for this show — assert the tab loads
-    // and shows a "nothing pending" state rather than an error, proving the
-    // scratch-approval surface itself is reachable even with zero fixtures.
+    // A pull is the exhibitor's own act (MYK9-632), so the tab is the refund
+    // reconciliation list only: no Pending queue, no Approve/Deny (MYK9-609).
+    // Whether the seed holds a pulled entry is not this spec's business: the
+    // list must resolve to a pulled/withdrawn row or the honest empty state,
+    // never to the "couldn't load" card.
     await expect(page.getByText('Pull Management')).toBeVisible({ timeout: 20_000 });
     await expect(
-      page.getByText(/no pending pull/i).or(page.getByText(/no pull requests/i))
+      page.getByText('No Pulled Entries').or(page.getByText(/^(Pulled|Withdrawn): /).first())
     ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Couldn't load this show's entries")).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: /^Pending \(/ })).toHaveCount(0);
   });
 });

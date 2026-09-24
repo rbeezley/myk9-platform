@@ -98,7 +98,6 @@ export interface ClassStoreState {
   getClassesByTrialId: (trialId: string) => SyncableClassData[];
 
   // Local-First Entry Actions
-  addEntry: (entryData: EntryInput) => Promise<SyncableEntryData>;
   updateEntry: (id: string, updates: Partial<EntryInput>) => Promise<SyncableEntryData | null>;
   deleteEntry: (id: string) => Promise<void>;
   getEntryById: (id: string) => SyncableEntryData | null;

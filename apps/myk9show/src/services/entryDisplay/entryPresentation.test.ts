@@ -40,14 +40,16 @@ describe('deriveEntryPresentation — context-aware wording', () => {
     expect(exh.actionHint).toBe('Contact the show secretary to re-enter');
   });
 
-  it('surfaces the pull-request approval queue to the secretary', () => {
+  it('renders a legacy pull request with hints each side can act on (MYK9-609)', () => {
     expect(present('scratch-requested', secretary)).toEqual({
       kind: 'pending',
       // MYK9-632: the stored value keeps both spellings; the word is Pull.
       statusLine: 'Pull requested',
-      actionHint: 'Approve or decline the pull request',
+      actionHint: 'Pull the entry, or leave it entered',
     });
-    expect(present('scratch-requested', exhibitor).actionHint).toBe('Awaiting secretary approval');
+    expect(present('scratch-requested', exhibitor).actionHint).toBe(
+      'You can pull it yourself from My Entries'
+    );
     // Underscore spelling (still permitted by the CHECK constraint) is identical.
     expect(present('scratch_requested', secretary)).toEqual(
       present('scratch-requested', secretary)
@@ -121,9 +123,9 @@ describe('deriveEntryPresentation — kind-level lines', () => {
       const exh = present(raw, exhibitor);
 
       expect(sec.statusLine).toBe('Pull requested');
-      expect(sec.actionHint).toBe('Approve or decline the pull request');
+      expect(sec.actionHint).toBe('Pull the entry, or leave it entered');
       expect(exh.statusLine).toBe('Pull requested');
-      expect(exh.actionHint).toBe('Awaiting secretary approval');
+      expect(exh.actionHint).toBe('You can pull it yourself from My Entries');
 
       for (const text of [sec.statusLine, sec.actionHint, exh.statusLine, exh.actionHint]) {
         expect(text ?? '').not.toMatch(/scratch/i);

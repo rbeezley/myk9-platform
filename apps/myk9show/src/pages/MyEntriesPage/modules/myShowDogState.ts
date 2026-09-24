@@ -14,6 +14,7 @@
 import { isAccountedFor } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { mapEntryStatusKindToUi } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 import {
   isClassCheckInAvailableToday,
@@ -25,6 +26,13 @@ import {
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import { getEntryStatusBadgeLabel, getStatusBadgeValue } from './myEntriesUtils';
 import { getPartiallyScoredState, isSettledWithoutScore } from './myEntriesStats.helpers';
+import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
+import {
+  isLiveByLifecycle,
+  isSettledByOutcome,
+  settledLifecycleKind,
+  type SettledLifecycleKind,
+} from './myShowLifecycle';
 
 /* ------------------------------------------------------------------ rows -- */
 
@@ -52,35 +60,17 @@ export interface ClassRowState {
 }
 
 /**
- * A row that is settled without ever being scored — absent, excused, withdrawn.
- * `isAccountedFor` calls these done; `isScored` stays false, so they must not
- * render as a result.
+ * The row kind each settled lifecycle renders as. `moved` and `not_accepted`
+ * keep their own kinds rather than reading as a withdrawal: a move-up's source
+ * row went somewhere, and a decline is the secretary's, not the exhibitor's.
+ *
+ * WHICH rows are settled is `settledLifecycleKind` (`./myShowLifecycle`), the
+ * one predicate the chip and the stats helpers share (MYK9-624). It keys on
+ * the lossless `entryStatusKind`, never the UI enum, which folds a terminal
+ * `absent` row onto PENDING — the row then fell through to the day math and
+ * offered "check in with the secretary" on the trial day (MYK9-582).
  */
-function isAbsentClass(cls: MyShowClass): boolean {
-  return isAccountedFor(cls) && cls.isScored !== true;
-}
-
-/**
- * Settled lifecycle kinds, and the row kind each one renders as.
- *
- * Keyed on `entryStatusKind` — the LOSSLESS classification `entryDisplay`
- * emits — and never on `entryStatus`, the UI enum beside it. That enum has no
- * `absent` member, so `mapEntryStatusKindToUi` folds a terminal
- * `entry_status='absent'` row onto `PENDING`: a predicate reading it cannot
- * see the row at all, and the row then fell through to the day math and
- * offered "check in with the secretary" on the trial day — the very complaint
- * MYK9-582 was filed against, surviving inside the branch meant to fix it.
- *
- * `moved` and `not_accepted` keep their own kinds rather than reading as a
- * withdrawal: a move-up's source row went somewhere, and a decline is the
- * secretary's, not the exhibitor's.
- *
- * The keys are exactly the lifecycle states `isExpectedEntry` excludes —
- * `entryAccounting.EXCLUDED_ENTRY_STATUSES`, all five of them.
- * `myShowDogState.lifecycle.test.ts` drives every member of that exported set
- * through the real mappers and asserts each lands on a settled row kind.
- */
-const SETTLED_ROW_KINDS: Readonly<Partial<Record<EntryStatusKind, ClassRowKind>>> = {
+const SETTLED_ROW_KINDS: Readonly<Record<SettledLifecycleKind, ClassRowKind>> = {
   withdrawn: 'withdrawn',
   scratched: 'scratched',
   absent: 'absent',
@@ -88,44 +78,10 @@ const SETTLED_ROW_KINDS: Readonly<Partial<Record<EntryStatusKind, ClassRowKind>>
   not_accepted: 'not-accepted',
 };
 
-/**
- * The row kind for a class the show will never put in the ring, or `undefined`
- * when the row is still live.
- *
- * Two rows survive a settled KIND and stay live:
- *
- *  - `promotion-expired`. It classifies as `not_accepted`, but the owner
- *    decided (2026-06-18, `entryStatusUiAdapter.mapEntryStatus`) that it stays
- *    in the review lane rather than reading as a decline. `EntryClass` does not
- *    carry the raw `entry_status`, so the ONLY record of that override on this
- *    row is the disagreement it creates: kind `not_accepted` beside
- *    `EntryStatus.PENDING`. The guard is scoped to that ONE kind on purpose —
- *    a terminal `absent` row also projects onto PENDING, because the enum has
- *    no `absent` member, and a blanket check swallowed it. `paid`, the other
- *    override, classifies as `accepted` and is not settled at all.
- *  - A row with no `entryStatusKind`. The field is optional on `EntryClass`,
- *    and while `useMyEntriesData` — this page's only producer, including its
- *    optimistic check-in path, which spreads the existing row — always
- *    populates it, an unclassified row must read as live rather than be
- *    silently settled.
- *
- * Deliberately blind to `check_in_status = 'pulled'`, which `isExpectedEntry`
- * also excludes. That is a DAY-OF state with its own row kind and its own
- * "change" link, and folding it in here would take both away.
- */
+/** The row kind for a class the show will never put in the ring, or `undefined`. */
 function settledRowKind(cls: MyShowClass): ClassRowKind | undefined {
-  const settled = cls.entryStatusKind ? SETTLED_ROW_KINDS[cls.entryStatusKind] : undefined;
-  if (!settled) return undefined;
-  if (settled === 'not-accepted' && cls.entryStatus === EntryStatus.PENDING) return undefined;
-  return settled;
-}
-
-/**
- * A class still live by LIFECYCLE — the filter the dog chip's day-of scans run
- * over. See `settledRowKind` for why `check_in_status` is not consulted.
- */
-function isLiveByLifecycle(cls: MyShowClass): boolean {
-  return settledRowKind(cls) === undefined;
+  const settled = settledLifecycleKind(cls);
+  return settled ? SETTLED_ROW_KINDS[settled] : undefined;
 }
 
 /**
@@ -139,11 +95,12 @@ function isLiveByLifecycle(cls: MyShowClass): boolean {
  */
 export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): ClassRowState {
   if (cls.isScored === true) return { kind: 'result' };
-  // A RECORDED absence outranks the lifecycle on purpose: a row withdrawn on
-  // paper but marked absent/excused in the ring has an outcome the exhibitor
-  // should see, and `ResultBadge` names it exactly. The lifecycle branch below
+  // A RECORDED outcome without a score (absent, excused, or a WD result)
+  // outranks the lifecycle on purpose: a row withdrawn on paper but marked
+  // absent/excused in the ring has an outcome the exhibitor should see, and
+  // `ResultBadge` names it exactly (ABS / EX / WD). The lifecycle branch below
   // only speaks for rows with no outcome at all.
-  if (isAbsentClass(cls)) return { kind: 'absent' };
+  if (isSettledByOutcome(cls)) return { kind: 'absent' };
   // Settled by lifecycle — before any check-in state can speak for it, and
   // before the day math, which otherwise offered such a row "check in with the
   // secretary" on the trial day and nothing at all before it (MYK9-582). A
@@ -231,10 +188,8 @@ export interface DogChipContext {
  * Classes that could still carry a check-in state — not settled, not excluded.
  *
  * Lifecycle exclusion runs through `isLiveByLifecycle`, the SAME predicate the
- * rows use, not `isExpectedEntry`. The shared helper reads the lossy
- * `entryStatus` enum, which has no `absent` member, so an absent class counted
- * as live here and held the chip on "Accepted" over a dog already checked in
- * (MYK9-582 review round 3).
+ * rows and the stats helpers use (MYK9-624), never the lossy `entryStatus`
+ * enum, which has no `absent` member (MYK9-582 review round 3).
  */
 function checkInBearingClasses(dog: MyShowDog): MyShowClass[] {
   return liveClasses(dog.classes).filter(cls => !isAccountedFor(cls));
@@ -302,6 +257,12 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
     return { kind: 'scored', label: 'Scored', status: 'completed' };
   }
 
+  // Nothing left live: every class is settled by lifecycle (or by a WD
+  // result). The dog's own `entryStatus` can still carry the ORDER's accepted
+  // status here, which put "Accepted" over rows that all read withdrawn
+  // (MYK9-621), so the chip speaks for the settled rows instead.
+  if (live.length === 0 && dog.classes.length > 0) return settledChip(dog.classes, ctx);
+
   return {
     kind: 'status',
     label: entryStatusLabel(dog, ctx),
@@ -315,7 +276,10 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
  * whose badge derives its own text (ACCEPTED chief among them), so fall back to
  * the canonical exhibitor label rather than rendering an empty chip.
  */
-function entryStatusLabel(dog: MyShowDog, ctx: DogChipContext): string {
+function entryStatusLabel(
+  dog: Pick<MyShowDog, 'entryStatus' | 'entryStatusKind'>,
+  ctx: DogChipContext
+): string {
   const badgeLabel = getEntryStatusBadgeLabel(dog.entryStatus, {
     statusKind: dog.entryStatusKind,
     isPastShow: ctx.isPastShow,
@@ -324,4 +288,30 @@ function entryStatusLabel(dog: MyShowDog, ctx: DogChipContext): string {
   return (
     badgeLabel ?? getEntryStatusStateLabel(dog.entryStatus ?? EntryStatus.PENDING, 'exhibitor')
   );
+}
+
+/**
+ * The chip for a dog with no live class, folded from its settled rows with the
+ * same precedence the grouping uses, so it names what happened to the classes.
+ */
+function settledChip(classes: MyShowClass[], ctx: DogChipContext): DogChipState {
+  let entryStatus: EntryStatus | undefined;
+  let entryStatusKind: EntryStatusKind | undefined;
+  for (const cls of classes) {
+    const kind: EntryStatusKind = settledLifecycleKind(cls) ?? cls.entryStatusKind;
+    const status = mapEntryStatusKindToUi(kind);
+    if (entryStatus === undefined) {
+      entryStatus = status;
+      entryStatusKind = kind;
+      continue;
+    }
+    entryStatusKind = dominantStatusKind(entryStatus, entryStatusKind, status, kind);
+    entryStatus = dominantStatus(entryStatus, status);
+  }
+  const settled = { entryStatus: entryStatus ?? EntryStatus.CANCELLED, entryStatusKind };
+  return {
+    kind: 'status',
+    label: entryStatusLabel(settled, ctx),
+    status: getStatusBadgeValue(settled.entryStatus, settled.entryStatusKind),
+  };
 }

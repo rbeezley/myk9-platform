@@ -2,9 +2,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptEntry,
-  approvePullRequest,
   denyMoveUpRequest,
-  denyPullRequest,
   rejectEntry,
   removeEntryAsManager,
   restoreEntryStatus,
@@ -223,43 +221,6 @@ describe('Entry lifecycle transitions', () => {
         expect.objectContaining({
           withdrawal_reason: 'Pulled day-of',
           special_requests: 'Pulled day-of',
-        })
-      );
-    });
-
-    it('approvePullRequest transitions to scratched + pulled with audit log', async () => {
-      await approvePullRequest('entry-1');
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'scratched',
-          check_in_status: 'pulled',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          changes: { entryStatus: { from: 'scratch-requested', to: 'scratched' } },
-          metadata: expect.objectContaining({ action: 'approve_scratch_request' }),
-        })
-      );
-    });
-
-    it('denyPullRequest restores confirmed status and records denial reason', async () => {
-      await denyPullRequest('entry-1', 'Late notice');
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'confirmed',
-          special_requests: 'Pull denied: Late notice',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          changes: { entryStatus: { from: 'scratch-requested', to: 'confirmed' } },
-          metadata: expect.objectContaining({
-            action: 'deny_scratch_request',
-            reason: 'Late notice',
-          }),
         })
       );
     });

@@ -29,7 +29,7 @@ export const PHASE4_IDS = {
   dogB: 'phase4-dog-ziva',
   classOpen: 'phase4-class-novice-a', // has open capacity (scratch/result/question)
   classFull: 'phase4-class-excellent-b', // at capacity (waitlist pressure)
-  entryScratch: 'phase4-entry-scratch', // confirmed, eligible for pull/scratch request
+  entryScratch: 'phase4-entry-scratch', // confirmed, eligible for a pull
   entryQuestion: 'phase4-entry-question', // confirmed, has a question thread
   entryWithdraw: 'phase4-entry-withdraw', // paid, to be refunded/withdrawn
   entryResult: 'phase4-entry-result', // scored, result hidden until release
@@ -50,8 +50,7 @@ export const PHASE4_ROUTES = {
   secretaryResultsControl: `/secretary/shows/${PHASE4_IDS.show}/results`,
 } as const;
 
-export type EntryStatus =
-  'confirmed' | 'pending-payment' | 'scratch-requested' | 'scratched' | 'withdrawn' | 'pending';
+export type EntryStatus = 'confirmed' | 'pending-payment' | 'scratched' | 'withdrawn' | 'pending';
 
 export type CheckInStatus = 'not-checked-in' | 'checked-in' | 'pulled';
 

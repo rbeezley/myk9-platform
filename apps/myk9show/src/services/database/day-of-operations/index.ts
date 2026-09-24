@@ -6,7 +6,6 @@ export type {
   DayOfEntryDogResult,
   MoveUpRequest,
   ClassWithCapacity,
-  PullRecord,
   CreateDayOfEntryDogInput,
 } from './types';
 
@@ -15,12 +14,4 @@ export { createDayOfEntryDog } from './late-entry-dog';
 
 export { getMoveUpEligibleEntries, getPendingMoveUpRequests, denyMoveUpRequest } from './move-up';
 
-export {
-  pullEntry,
-  getPullableEntries,
-  getPulledEntries,
-  getPendingPullRequests,
-  approvePullRequest,
-  denyPullRequest,
-  updateRefundStatus,
-} from './scratch';
+export { pullEntry, getPullableEntries, getPulledEntries, updateRefundStatus } from './scratch';

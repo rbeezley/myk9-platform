@@ -14,9 +14,10 @@ import {
   useResultReveal,
 } from './useResultReveal';
 import type { EntryClass, MyEntry, MyEntryDogGroup } from './my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 function classRow(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'class-row-1',
     name: 'Novice Container',
     number: '101',
@@ -26,7 +27,7 @@ function classRow(overrides: Partial<EntryClass> = {}): EntryClass {
     resultsReleasedAt: '2026-08-20T18:00:00.000Z',
     finalPlacement: 2,
     ...overrides,
-  };
+  });
 }
 
 function dogGroup(overrides: Partial<MyEntryDogGroup> = {}): MyEntryDogGroup {

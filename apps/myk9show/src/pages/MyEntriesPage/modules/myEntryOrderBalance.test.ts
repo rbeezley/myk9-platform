@@ -8,6 +8,7 @@ import {
 import type { EntryBalanceSource } from '@/features/payments/entryBalanceSummary';
 import type { EntryClass, MyEntry, MyEntryBalance } from './my-entries-types';
 import type { OrderBalanceContext } from './myEntryOrderBalance';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date('2026-09-01T12:00:00Z');
 
@@ -24,7 +25,7 @@ function makeCtx(overrides: Partial<OrderBalanceContext> = {}): OrderBalanceCont
 }
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     name: 'Container Search',
     number: '101',
@@ -32,7 +33,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     status: 'entered',
     entryStatus: EntryStatus.ACCEPTED,
     ...overrides,
-  };
+  });
 }
 
 function makeSource(overrides: Partial<EntryBalanceSource> = {}): EntryBalanceSource {

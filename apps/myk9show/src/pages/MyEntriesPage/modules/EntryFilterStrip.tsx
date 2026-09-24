@@ -8,9 +8,10 @@
  * announced as filters.
  *
  * Both axes are also now NAMED. Nothing on the page previously said that one
- * row was time and the other status, which mattered because the status counts
- * re-scope to the selected time window (see `statusCounts`) — a composition
- * the strip performed invisibly.
+ * row was time and the other status, which mattered because each row's counts
+ * re-scope to the other row's selection (see `statusCounts`). MYK9-657 made
+ * that composition visible: a sentence under the strip names it, and a Status
+ * chip reading 0 inside a narrowing window says "0 in Completed".
  *
  * What did NOT change: the partition invariant (`upcoming + completed === all`,
  * pinned in useMyEntriesFilters.test.ts), the composition rules, the counts, or
@@ -24,6 +25,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { ENTRY_STATUS_FILTER_DEFS, ENTRY_TAB_DEFS } from './entryTabDefs';
+import { describeFilterScope, statusChipCountText } from './entryFilterCounts';
 import type { EntryStatusFilter, EntryTabFilter } from './my-entries-types';
 
 interface FilterOption<T extends string> {
@@ -38,7 +40,8 @@ interface EntryFilterChipGroupProps<T extends string> {
   options: readonly FilterOption<T>[];
   value: T;
   onSelect: (id: T) => void;
-  counts: Record<T, number>;
+  /** The visible count for one chip — a number, or a scoped "0 in Completed". */
+  countText: (id: T) => string;
 }
 
 function EntryFilterChipGroup<T extends string>({
@@ -47,7 +50,7 @@ function EntryFilterChipGroup<T extends string>({
   options,
   value,
   onSelect,
-  counts,
+  countText,
 }: EntryFilterChipGroupProps<T>) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
@@ -81,7 +84,7 @@ function EntryFilterChipGroup<T extends string>({
               {/* Was `opacity-70`, which measured 2.98:1 in light and 3.03:1 in
                   dark against a 4.5:1 floor — and the count IS the
                   information. A full-strength token instead of a dimmed one. */}
-              <span className="tabular-nums text-xs">{counts[option.id]}</span>
+              <span className="tabular-nums text-xs">{countText(option.id)}</span>
             </button>
           );
         })}
@@ -98,6 +101,11 @@ interface EntryFilterStripProps {
   onSelectStatus: (status: EntryStatusFilter) => void;
   /** Counts WITHIN the active tab, so a chip never promises rows it cannot show. */
   statusCounts: Record<EntryStatusFilter, number>;
+  /**
+   * The same counts across every When window, so a Status chip reading 0 in a
+   * narrowing window can say where ("0 in Completed") rather than "none".
+   */
+  statusCountsAllWindows: Record<EntryStatusFilter, number>;
 }
 
 const TAB_OPTIONS: readonly FilterOption<EntryTabFilter>[] = ENTRY_TAB_DEFS.map(tab => ({
@@ -112,25 +120,34 @@ export const EntryFilterStrip: React.FC<EntryFilterStripProps> = ({
   selectedStatus,
   onSelectStatus,
   statusCounts,
-}) => (
-  <div data-testid="entry-filter-strip" className="flex flex-col gap-3">
-    <EntryFilterChipGroup
-      label="When"
-      ariaLabel="Filter by time"
-      options={TAB_OPTIONS}
-      value={selectedTab}
-      onSelect={onSelectTab}
-      counts={tabCounts}
-    />
-    <EntryFilterChipGroup
-      label="Status"
-      ariaLabel="Filter by entry status"
-      options={ENTRY_STATUS_FILTER_DEFS}
-      value={selectedStatus}
-      onSelect={onSelectStatus}
-      counts={statusCounts}
-    />
-  </div>
-);
+  statusCountsAllWindows,
+}) => {
+  // MYK9-657: each row's counts are scoped to the other row's choice, which
+  // the strip used to do silently. Say so, in one plain sentence.
+  const scopeNote = describeFilterScope(selectedTab, selectedStatus);
+  return (
+    <div data-testid="entry-filter-strip" className="flex flex-col gap-3">
+      <EntryFilterChipGroup
+        label="When"
+        ariaLabel="Filter by time"
+        options={TAB_OPTIONS}
+        value={selectedTab}
+        onSelect={onSelectTab}
+        countText={id => String(tabCounts[id])}
+      />
+      <EntryFilterChipGroup
+        label="Status"
+        ariaLabel="Filter by entry status"
+        options={ENTRY_STATUS_FILTER_DEFS}
+        value={selectedStatus}
+        onSelect={onSelectStatus}
+        countText={id =>
+          statusChipCountText(id, statusCounts[id], statusCountsAllWindows[id], selectedTab)
+        }
+      />
+      {scopeNote && <p className="text-xs text-muted-foreground">{scopeNote}</p>}
+    </div>
+  );
+};
 
 export default EntryFilterStrip;

@@ -41,6 +41,7 @@ const target = {
   classWhen: 'Sat, Nov 14 · Trial 2',
   dogName: 'Juni',
   dogId: 'dog-juni',
+  dogCardId: 'e-juni',
   showId: 'show-flint',
 };
 

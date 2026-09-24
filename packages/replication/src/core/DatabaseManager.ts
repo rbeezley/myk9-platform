@@ -92,14 +92,20 @@ export async function waitForActiveTransactions(): Promise<void> {
 }
 
 /**
+ * Indexes an earlier schema created on `replicated_tables` that nothing reads.
+ * The upgrade deletes any a device still carries.
+ */
+export const RETIRED_REPLICATED_TABLE_INDEXES = [
+  'tableName_data.class_id',
+  'tableName_data.trial_id',
+  'tableName_data.show_id',
+  'tableName_data.armband_number',
+] as const;
+
+/**
  * Create the IndexedDB object stores during upgrade
  */
-function createObjectStores(
-  db: IDBPDatabase,
-  oldVersion: number,
-  transaction: IDBTransaction,
-  logger: Logger
-): void {
+function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logger: Logger): void {
   // Create replicated_tables store if it doesn't exist
   if (!db.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)) {
     logger.log(`[DatabaseManager] Creating REPLICATED_TABLES store...`);
@@ -110,35 +116,16 @@ function createObjectStores(
     store.createIndex('tableName', 'tableName', { unique: false });
     store.createIndex('tableName_lastSyncedAt', ['tableName', 'lastSyncedAt'], { unique: false });
     store.createIndex('isDirty', 'isDirty', { unique: false });
-
-    // Performance indexes for hot query paths
-    store.createIndex('tableName_data.class_id', ['tableName', 'data.class_id'], { unique: false });
-    store.createIndex('tableName_data.trial_id', ['tableName', 'data.trial_id'], { unique: false });
-    store.createIndex('tableName_data.show_id', ['tableName', 'data.show_id'], { unique: false });
-    store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], {
-      unique: false,
-    });
-  } else if (oldVersion < 3) {
-    // Upgrade from v1/v2 to v3: Add query performance indexes if missing
+  } else {
+    // v8 (MYK9-616): drop the compound `data.*` indexes. Their only reader,
+    // `ReplicatedTableQueryManager.queryIndex`, was deleted by MYK9-551, so
+    // each one cost a write on every row `put` and served no read. Deleting an
+    // index leaves the store's records untouched, so dirty rows survive.
     const store = transaction.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
-
-    if (!store.indexNames.contains('tableName_data.class_id')) {
-      store.createIndex('tableName_data.class_id', ['tableName', 'data.class_id'], {
-        unique: false,
-      });
-    }
-    if (!store.indexNames.contains('tableName_data.trial_id')) {
-      store.createIndex('tableName_data.trial_id', ['tableName', 'data.trial_id'], {
-        unique: false,
-      });
-    }
-    if (!store.indexNames.contains('tableName_data.show_id')) {
-      store.createIndex('tableName_data.show_id', ['tableName', 'data.show_id'], { unique: false });
-    }
-    if (!store.indexNames.contains('tableName_data.armband_number')) {
-      store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], {
-        unique: false,
-      });
+    for (const indexName of RETIRED_REPLICATED_TABLE_INDEXES) {
+      if (store.indexNames.contains(indexName)) {
+        store.deleteIndex(indexName);
+      }
     }
   }
 
@@ -232,7 +219,7 @@ export class DatabaseManager {
         this.logger.log(
           `[DatabaseManager] Upgrade callback triggered - oldVersion: ${oldVersion}, newVersion: ${newVersion}`
         );
-        createObjectStores(db, oldVersion, transaction as unknown as IDBTransaction, this.logger);
+        createObjectStores(db, transaction as unknown as IDBTransaction, this.logger);
       },
       blocked: () => {
         this.logger.warn(

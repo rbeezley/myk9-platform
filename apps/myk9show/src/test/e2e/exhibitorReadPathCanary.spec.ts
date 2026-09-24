@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Response } from '@playwright/test';
+import { dataAbsent, judgeRead } from './helpers/liveCanary';
 import { signInAsExhibitor } from './helpers/testUsers';
 
 /**
@@ -29,49 +30,21 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * replication internals rather than to what the exhibitor sees (Codex review,
  * #2392).
  *
- * In the nightly regression run (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true),
- * absence FAILS too: that run targets a seeded database, so an empty one is
- * exactly what the nightly exists to report, once a night instead of on every
- * pull request.
+ * The absent/broken classifier lives in helpers/liveCanary.ts, shared with
+ * walkRegressionCanaries.spec.ts. In the nightly regression run
+ * (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true), absence FAILS too: that run
+ * targets a seeded database, so an empty one is exactly what the nightly
+ * exists to report, once a night instead of on every pull request.
  */
 
 // Every read judged for breakage. Only the first two are REQUIRED to happen;
 // see "WHAT IT PROVES" above.
 const READ_PATH = ['exhibitor_profiles', 'view_authenticated_entry_results', 'shows', 'dogs'];
-const DATA_REQUIRED = process.env.MYK9_PLAYWRIGHT_REGRESSION_ENABLED === 'true';
 
 function readPathTable(response: Response): string | undefined {
   const match = /\/rest\/v1\/([^?/]+)/.exec(response.url());
   const table = match?.[1];
   return table && READ_PATH.includes(table) ? table : undefined;
-}
-
-/**
- * THE one place a live read is judged. Absence is a positive finding: a read
- * counts as "no data" ONLY when it succeeded AND parsed to a well-formed
- * result with zero rows. Every other outcome — an error status, unparseable
- * JSON, a payload of the wrong shape — is breakage.
- *
- * Two Codex rounds on #2392 each found a different path where something that
- * was not a successful empty read still defaulted to zero and skipped as
- * data-absent (a read never issued; malformed JSON). Both came from judging
- * reads in more than one place with "0" as the fallback. There is no fallback
- * here: a read that is not provably empty is not empty.
- */
-type ReadOutcome = { ok: true; rows: number } | { ok: false; reason: string };
-
-async function judgeRead(response: Response): Promise<ReadOutcome> {
-  if (response.status() >= 400) return { ok: false, reason: `HTTP ${response.status()}` };
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return { ok: false, reason: `HTTP ${response.status()} with unparseable JSON` };
-  }
-  if (Array.isArray(body)) return { ok: true, rows: body.length };
-  // `.single()` / `.maybeSingle()` reads answer with one object.
-  if (body !== null && typeof body === 'object') return { ok: true, rows: 1 };
-  return { ok: false, reason: `unexpected payload: ${JSON.stringify(body).slice(0, 60)}` };
 }
 
 test('exhibitor read path works against live data', async ({ page }) => {
@@ -110,16 +83,7 @@ test('exhibitor read path works against live data', async ({ page }) => {
     .toBe(true);
   assertNoBrokenRead();
 
-  const absent = (what: string) => {
-    const note =
-      `staging data is missing (${what}); the exhibitor read path was NOT exercised. ` +
-      'This is not a verdict on the diff. Reseed staging (seed-reset skill) to restore coverage.';
-    if (DATA_REQUIRED) throw new Error(`nightly: ${note}`);
-    test.info().annotations.push({ type: 'staging-data-absent', description: note });
-    test.skip(true, note);
-  };
-
-  if (profileRows === 0) absent('the demo exhibitor has no exhibitor_profiles row');
+  if (profileRows === 0) dataAbsent('the demo exhibitor has no exhibitor_profiles row');
 
   // Profile present: the onboarding gate must let the exhibitor through.
   const heading = page.getByRole('heading', { name: 'My Shows', level: 1 });
@@ -143,7 +107,7 @@ test('exhibitor read path works against live data', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   assertNoBrokenRead();
-  if (entryRows === 0) absent('the demo exhibitor has no entries');
+  if (entryRows === 0) dataAbsent('the demo exhibitor has no entries');
 
   // Entries came back from the real view: they must reach the page.
   await expect(

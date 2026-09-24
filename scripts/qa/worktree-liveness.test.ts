@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -245,6 +245,33 @@ describe('measure, against real processes', () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/FREE/);
     expect(r.stdout).toMatch(/process chain running this check has its cwd here/);
+  });
+
+  it.each([
+    ['ps fails', 'ps', 'echo "ps: denied" >&2; exit 1'],
+    ['ps prints an empty table', 'ps', 'exit 0'],
+    ['lsof prints a partial table', 'lsof', 'exit 1'],
+    ['lsof crashes', 'lsof', 'exit 2'],
+  ])('fails closed with exit 2, never FREE, when %s', (_label, bin, body) => {
+    const wt = tree();
+    const stubs = join(wt, '..', 'stub bin');
+    mkdirSync(stubs);
+    writeFileSync(join(stubs, bin), `#!/bin/sh\n${body}\n`);
+    chmodSync(join(stubs, bin), 0o755);
+    const r = spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        '--disable-warning=MODULE_TYPELESS_PACKAGE_JSON',
+        join(import.meta.dirname, 'worktree-liveness.ts'),
+        wt,
+        '--window',
+        '1',
+      ],
+      { encoding: 'utf8', env: { ...process.env, PATH: `${stubs}:${process.env.PATH}` } }
+    );
+    expect(r.status).toBe(2);
+    expect(r.stdout).not.toMatch(/FREE/);
   });
 
   it('runCli refuses a missing path or a bad flag with exit 2', () => {

@@ -18,8 +18,8 @@
  * Usage:
  *   pnpm qa:edge-function-drift                      # asks the Supabase CLI
  *   pnpm qa:edge-function-drift --deployed list.json # `functions list -o json`
- *   pnpm qa:edge-function-drift --content            # settle every non-current row
- *                                                    # by download + byte compare
+ *   pnpm qa:edge-function-drift --content            # check every deployed row by
+ *                                                    # download + formatted compare
  *
  * Dates never see a `_shared/*` edit (it touches no function dir); `--content`
  * does, because a download carries every `_shared` file the function bundles.
@@ -27,7 +27,9 @@
  *
  * Exit 0: every function is current (sub-day gaps are ordering noise).
  * Exit 1: at least one stale, unknown, never-deployed or dual-location row.
- * Exit 2: the check itself could not run.
+ * Exit 2: the check itself could not run, including any `--content` download
+ *         that failed (a row it could not compare is `check-failed`, never
+ *         left at its dated status).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
@@ -41,7 +43,7 @@ export const IGNORE_REVS_FILE = '.git-blame-ignore-revs';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type DriftStatus =
-  'current' | 'sub-day' | 'stale' | 'unknown' | 'never-deployed' | 'dual-location';
+  'current' | 'sub-day' | 'stale' | 'unknown' | 'never-deployed' | 'dual-location' | 'check-failed';
 
 export interface SourceFunction {
   name: string;
@@ -343,13 +345,17 @@ export async function resolveByContent(
     const scratch = mkdtempSync(join(tmpdir(), 'edge fn drift '));
     try {
       if (!download(row.name, scratch)) {
-        out.push({ ...row, note: `content check failed: download error; ${row.note}` });
+        out.push({ ...row, status: 'check-failed', note: 'content check failed: download error' });
         continue;
       }
       const got = join(scratch, 'supabase/functions');
       const files = filesUnder(got);
       if (!files.some(f => f.startsWith(`${row.name}/`))) {
-        out.push({ ...row, note: `content check failed: no ${row.name}/ files downloaded` });
+        out.push({
+          ...row,
+          status: 'check-failed',
+          note: `content check failed: no ${row.name}/ files downloaded`,
+        });
         continue;
       }
       const differing: string[] = [];
@@ -418,6 +424,10 @@ export async function runCli(
         '--content to download each deploy and compare it with source (read-only), or\n' +
         '`git fetch --unshallow` (a large fetch; ask first) and re-run.'
     );
+  }
+  if (rows.some(r => r.status === 'check-failed')) {
+    console.error('edge-function-drift: a content check could not run; the result is incomplete');
+    return 2;
   }
   return rows.some(r => ACTIONABLE.has(r.status)) ? 1 : 0;
 }

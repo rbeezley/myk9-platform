@@ -280,6 +280,10 @@ describe('against real git history', () => {
       return true;
     };
     expect(await runCli(shallow, ['--deployed', file, '--content'], mirror)).toBe(0);
+    // One download failing makes the whole run incomplete: exit 2, not 0.
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const flaky: Downloader = (name, workdir) => name !== 'beta' && mirror(name, workdir);
+    expect(await runCli(shallow, ['--deployed', file, '--content'], flaky)).toBe(2);
   });
 });
 
@@ -383,13 +387,15 @@ describe('resolveByContent', () => {
     });
   });
 
-  it('a failed or empty download leaves the dated status and says so', async () => {
+  it('a failed or empty download is check-failed, never left at its dated status', async () => {
     const root = repo(SOURCE);
-    const [failed] = await resolveByContent([row('unknown')], root, () => false, identity);
-    expect(failed).toMatchObject({ status: 'unknown' });
+    // Codex review: a date-current row that could not be compared stayed
+    // `current`, so --content exited 0 without having compared it.
+    const [failed] = await resolveByContent([row('current')], root, () => false, identity);
+    expect(failed).toMatchObject({ status: 'check-failed' });
     expect(failed!.note).toMatch(/download error/);
-    const [empty] = await resolveByContent([row('stale')], root, () => true, identity);
-    expect(empty).toMatchObject({ status: 'stale' });
+    const [empty] = await resolveByContent([row('current')], root, () => true, identity);
+    expect(empty).toMatchObject({ status: 'check-failed' });
     expect(empty!.note).toMatch(/no fn\/ files/);
   });
 

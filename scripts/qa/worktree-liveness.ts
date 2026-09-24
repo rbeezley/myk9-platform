@@ -165,16 +165,35 @@ export function decide(
   return cpuPercent >= thresholdPercent || writeCount > 0 ? 'busy' : 'quiet';
 }
 
-function run(cmd: string, args: readonly string[]): string {
-  // lsof exits 1 when some process could not be inspected, yet prints every
-  // one it could; only a missing binary is a failure.
+/**
+ * Fails closed: FREE is chained straight into `git worktree remove`, so a
+ * probe that did not run must never read as "nothing holds the tree". lsof
+ * exits 1 when some process could not be inspected yet prints every one it
+ * could, so callers pass the statuses they accept and a positive control.
+ */
+function run(cmd: string, args: readonly string[], okStatuses: readonly number[]): string {
   const r = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (r.error) throw new Error(`${cmd}: ${r.error.message}`);
+  if (r.status === null || !okStatuses.includes(r.status)) {
+    const why = r.status === null ? `signal ${r.signal}` : `exit ${r.status}`;
+    throw new Error(`${cmd} failed (${why}): ${r.stderr.trim().split('\n')[0] ?? ''}`);
+  }
   return r.stdout;
 }
 
 function psTable(): Map<number, ProcessInfo> {
-  return parsePsTable(run('ps', ['-A', '-o', 'pid=,ppid=,time=,comm=']));
+  const table = parsePsTable(run('ps', ['-A', '-o', 'pid=,ppid=,time=,comm='], [0]));
+  if (!table.has(process.pid)) throw new Error('ps did not list this process; cannot trust it');
+  return table;
+}
+
+function cwdTable(): LsofFile[] {
+  const files = parseLsofFields(run('lsof', ['-a', '-d', 'cwd', '-F', 'pn'], [0, 1]));
+  // Positive control: this process has a cwd, so a listing without it is partial.
+  if (!files.some(f => f.pid === process.pid)) {
+    throw new Error('lsof did not list this process; cannot trust its cwd table');
+  }
+  return files;
 }
 
 function sleep(seconds: number): void {
@@ -189,7 +208,7 @@ export function measure(
   const root = realpathSync(worktree);
   // lsof first, ps second: a holder that starts in between is then still in
   // the table, and one that exits in between is only dropped.
-  const cwdPids = parseLsofFields(run('lsof', ['-a', '-d', 'cwd', '-F', 'pn']))
+  const cwdPids = cwdTable()
     .filter(f => isUnder(f.name, root))
     .map(f => f.pid);
   const before = psTable();
@@ -222,7 +241,8 @@ export function measure(
   const cpuPercent = (accrued / windowSeconds) * 100;
 
   const writes = parseLsofFields(
-    run('lsof', ['-a', '-p', watched.map(p => p.pid).join(','), '-F', 'pfan'])
+    // Exit 1 here also means a watched process exited during the window.
+    run('lsof', ['-a', '-p', watched.map(p => p.pid).join(','), '-F', 'pfan'], [0, 1])
   )
     .filter(f => /[wu]/.test(f.access) && isUnder(f.name, root))
     .map(f => ({ pid: f.pid, path: f.name }));

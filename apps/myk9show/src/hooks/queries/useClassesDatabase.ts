@@ -19,7 +19,6 @@ import {
 import {
   getAllEntries,
   getEntriesByClassId,
-  createEntry,
   updateEntry,
   deleteEntry,
   hardDeleteEntry,
@@ -27,12 +26,7 @@ import {
   getDeletedEntries,
   entryInvalidationKeys,
 } from '@/services/database/entries';
-import type {
-  DbClassInsert,
-  DbClassUpdate,
-  DbEntryInsert,
-  DbEntryUpdate,
-} from '@/types/database-mappings';
+import type { DbClassInsert, DbClassUpdate, DbEntryUpdate } from '@/types/database-mappings';
 
 // ===== QUERY KEYS =====
 
@@ -275,33 +269,6 @@ export const useDeleteClassMutation = () => {
 };
 
 // ===== ENTRY MUTATIONS =====
-
-/**
- * Create a new entry
- */
-export const useCreateEntryMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (entryData: DbEntryInsert) => {
-      const { data, error } = await createEntry(entryData);
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: newEntry => {
-      if (newEntry?.class_id) {
-        entryInvalidationKeys({
-          classId: newEntry.class_id,
-          ...(newEntry.show_id ? { showId: newEntry.show_id } : {}),
-          ...(newEntry.dog_id ? { dogId: newEntry.dog_id } : {}),
-        }).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
-        queryClient.invalidateQueries({ queryKey: classKeys.detail(newEntry.class_id) });
-      } else {
-        entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
-      }
-    },
-  });
-};
 
 /**
  * Update an entry

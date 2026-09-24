@@ -3,7 +3,6 @@ import {
   replicatedClassesTable,
   replicatedEntriesTable,
   type ReplicatedClass,
-  type ReplicatedEntry,
 } from '@/services/replication';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
@@ -191,60 +190,6 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
   },
 
   // Local-First Entry Implementation
-  addEntry: async (entryData: EntryInput): Promise<SyncableEntryData> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      // Create in replicated table
-      const id = crypto.randomUUID();
-      const replicatedEntry: ReplicatedEntry = {
-        id,
-        classId: entryData.classId,
-        armband: entryData.armband,
-        handler: entryData.handler,
-        status: entryData.status,
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: getLastModifiedBy(),
-        _syncStatus: 'pending',
-        _localOnly: true,
-      };
-
-      // Reachable only via useClassStoreCompat, which nothing consumes; MYK9-614
-      // deletes this path. Deliberately NOT opted into the MYK9-575 cold-insert
-      // guard, so reviving it throws loudly in dev instead of seeding the
-      // show-scoped replica from an account-level surface.
-      await replicatedEntriesTable.set(id, replicatedEntry, true);
-
-      // Create full entry with local-only fields
-      const newEntry: SyncableEntryData = {
-        id,
-        ...entryData,
-        status: entryData.status as SyncableEntryData['status'],
-        score: entryData.score || '',
-        time: entryData.time || '',
-        placement: entryData.placement || '',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: getLastModifiedBy(),
-        _syncStatus: 'pending',
-        _localOnly: true,
-      };
-
-      // Optimistic update - add to store immediately
-      set(state => ({
-        entries: [...state.entries, newEntry],
-        isLoading: false,
-      }));
-
-      return newEntry;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to add entry';
-      set({ error: errorMessage, isLoading: false });
-      throw error;
-    }
-  },
-
   updateEntry: async (
     id: string,
     updates: Partial<EntryInput>

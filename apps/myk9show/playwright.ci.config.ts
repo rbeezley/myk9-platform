@@ -72,6 +72,11 @@ const REGRESSION_SPECS = [
   // demo exhibitor's data FAILS instead of skipping: an empty staging is an
   // operational condition, reported once a night, not on every PR.
   '**/exhibitorReadPathCanary.spec.ts',
+  // Walk regression canaries (MYK9-730): one live assertion per fix the
+  // secretary and exhibitor walks verified. Also launched by name in
+  // scripts/qa/run-nightly-health.sh against shared staging, where missing data
+  // skips; here, on the seeded database, it fails.
+  '**/walkRegressionCanaries.spec.ts',
   // Admin-authed: Nightly supplies every E2E_* credential, PR smoke only gets
   // E2E_SECRETARY_*, so this cannot live in PR_SMOKE_SPECS.
   '**/admin/userRosterDrilldown.spec.ts',

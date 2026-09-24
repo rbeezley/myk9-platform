@@ -38,7 +38,8 @@ import {
 import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import { ensureCartOnce, isActiveCartUniqueViolation } from './cartStore.ensureCart';
-import { recoverCartHold } from './cartStore.recoverHold';
+import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
+import { findRecoverableCart } from './cartStore.pickCart';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -159,27 +160,19 @@ export const useCartStore = create<CartState>()(
         loadActiveCart: async (exhibitorId: string, options = {}) => {
           set({ isLoading: true, error: null, loadInitiated: true });
 
-          let cartLookupQuery = supabase
-            .from('entry_carts')
-            .select('id, show_id, status, expires_at')
-            .eq('exhibitor_id', exhibitorId)
-            .in('status', ['active', 'expired']);
-
-          if (options.showId) {
-            cartLookupQuery = cartLookupQuery.eq('show_id', options.showId);
-          }
-
-          const { data: initialData, error } = await cartLookupQuery
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          let data = initialData;
-
-          if (error) {
-            logger.error('Error finding active cart', 'cartStore', { exhibitorId }, error);
+          // The newest cart WITH items, not merely the newest (MYK9-650).
+          const lookup = await findRecoverableCart({ exhibitorId, showId: options.showId });
+          if (lookup.kind === 'error') {
+            logger.error(
+              'Error finding active cart',
+              'cartStore',
+              { exhibitorId },
+              ensureError(lookup.error)
+            );
             set({ cart: null, isLoading: false });
             return null;
           }
+          let data: RecoverableCartRow | null = lookup.kind === 'found' ? lookup.cart : null;
           let recoverableEntriesForCart: RecoverableEntryRow[] | undefined;
           if (!data) {
             // A submitted unpaid entry may no longer have the cart shell that

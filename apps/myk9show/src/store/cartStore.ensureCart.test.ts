@@ -55,7 +55,7 @@ class MockBuilder {
     if (this.op === 'insert' || this.op === 'write') return this;
     // The lookup is the only read that asks for the narrow column list; the
     // recovered-cart re-read embeds the show.
-    this.setOp(columns === 'id, show_id, status, expires_at' ? 'lookup' : 'reread');
+    this.setOp(columns === RECOVERABLE_CART_LOOKUP_COLUMNS ? 'lookup' : 'reread');
     return this;
   }
   eq() {
@@ -97,7 +97,12 @@ class MockBuilder {
     return Promise.resolve(this.result());
   }
   then(resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) {
-    return Promise.resolve(this.result()).then(resolve, reject);
+    const result = this.result();
+    // The recoverable-cart lookup reads a LIST (MYK9-650); `script.lookup`
+    // names the one row it should find.
+    const shaped =
+      this.op === 'lookup' ? { ...result, data: result.data ? [result.data] : [] } : result;
+    return Promise.resolve(shaped).then(resolve, reject);
   }
 }
 
@@ -118,6 +123,7 @@ import { logger } from '@/services/LoggingService';
 import { loadCartItemsByCartId } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import { useCartStore } from './cartStore';
+import { RECOVERABLE_CART_LOOKUP_COLUMNS } from './cartStore.pickCart';
 import {
   CART_OPEN_FAILED_MESSAGE,
   CART_OPEN_TIMED_OUT_MESSAGE,

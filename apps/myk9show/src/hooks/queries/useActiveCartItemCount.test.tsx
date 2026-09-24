@@ -31,7 +31,9 @@ vi.mock('@/lib/supabase', () => {
   });
   builder.order = vi.fn(chain);
   builder.limit = vi.fn(chain);
-  builder.maybeSingle = vi.fn(() => Promise.resolve(calls.result));
+  // The lookup reads a LIST of candidate carts and picks one (MYK9-650).
+  builder.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+    Promise.resolve(calls.result).then(resolve, reject);
   return { supabase: { from: vi.fn(() => builder) } };
 });
 
@@ -52,7 +54,16 @@ describe('useActiveCartItemCount', () => {
 
   it('queries active OR expired carts and does not filter on expires_at', async () => {
     calls.result = {
-      data: { id: 'cart-1', entry_cart_items: [{ count: 4 }] },
+      data: [
+        {
+          id: 'cart-1',
+          show_id: 'show-1',
+          status: 'expired',
+          expires_at: '2026-06-01T00:00:00.000Z',
+          created_at: '2026-06-01T00:00:00.000Z',
+          entry_cart_items: [{ count: 4 }],
+        },
+      ],
       error: null,
     };
 
@@ -66,7 +77,7 @@ describe('useActiveCartItemCount', () => {
   });
 
   it('returns 0 when there is no recoverable cart', async () => {
-    calls.result = { data: null, error: null };
+    calls.result = { data: [], error: null };
 
     const { result } = renderHook(() => useActiveCartItemCount('exhibitor-1'), {
       wrapper: wrapper(),

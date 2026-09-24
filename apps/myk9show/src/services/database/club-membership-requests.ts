@@ -9,10 +9,7 @@
  * SECURITY DEFINER RPC; the table has no client write grants.
  */
 import { supabase } from './supabaseClient';
-import {
-  RoleRequestAlreadyPendingError,
-  RoleRequestStandingDenialError,
-} from './role-requests';
+import { RoleRequestAlreadyPendingError, RoleRequestStandingDenialError } from './role-requests';
 
 /** submit_club_membership_request's SQLSTATE for "already an active member". */
 const ALREADY_MEMBER_ERROR_CODE = 'MK685';

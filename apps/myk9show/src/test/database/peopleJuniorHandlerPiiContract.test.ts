@@ -73,11 +73,7 @@ function peopleSelectChains(source: string): string[] {
  * round 2 noted that `.select(VARIABLE)` sailed through regardless of what the
  * variable held, which is the same blind spot as `select('*')` wearing a hat.
  */
-const VOUCHED_COLUMN_CONSTANTS = new Set([
-  'PEOPLE_MAPPER_COLUMNS',
-  'PEOPLE_DIRECTORY_COLUMNS',
-  'COUNT_COLUMN',
-]);
+const VOUCHED_COLUMN_CONSTANTS = new Set(['PEOPLE_MAPPER_COLUMNS', 'COUNT_COLUMN']);
 
 /** 'star' | 'opaque' | null — why this chain's select cannot be vouched for. */
 function selectProblem(chain: string): 'star' | 'opaque' | null {
@@ -255,10 +251,11 @@ describe('no public or anon-facing app read carries the columns', () => {
       ['star']
     );
     expect(problems("untypedFrom(supabase, 'people').select('*').is(1);")).toEqual(['star']);
-    // An opaque constant is refused; the two vouched ones are not.
+    // An opaque constant is refused; the vouched one is not. PEOPLE_DIRECTORY_COLUMNS
+    // was retired by MYK9-664 and is opaque again.
     expect(problems(".from('people').select(SOME_MYSTERY_LIST).is(1);")).toEqual(['opaque']);
     expect(problems(".from('people').select(PEOPLE_MAPPER_COLUMNS).is(1);")).toEqual([]);
-    expect(problems(".from('people').select(PEOPLE_DIRECTORY_COLUMNS).is(1);")).toEqual([]);
+    expect(problems(".from('people').select(PEOPLE_DIRECTORY_COLUMNS).is(1);")).toEqual(['opaque']);
     expect(problems(".from('people').select('id, first_name').is(1);")).toEqual([]);
     // A star on a different table is not ours.
     expect(problems(".from('dogs').select('*').is(1);")).toEqual([]);
@@ -266,17 +263,93 @@ describe('no public or anon-facing app read carries the columns', () => {
 
   it('positive control: the app DOES read the columns somewhere', () => {
     // Otherwise the absence assertions above are satisfied by a feature that was
-    // never wired up (LESSON dead-suite-reds).
-    const readers = [
-      'services/database/users/juniorHandlerProfiles.ts',
-      'hooks/queries/useEntryFormData.ts',
-    ];
-    for (const relativePath of readers) {
-      const source = jsWithoutComments(readFileSync(resolve(SRC_DIR, relativePath), 'utf8'));
-      expect(source, `${relativePath} should select the junior handler columns`).toContain(
-        'junior_handler_numbers'
-      );
-      expect(source).toContain('date_of_birth');
+    // never wired up (LESSON dead-suite-reds). Since MYK9-664 the one reader is
+    // the people_private module.
+    const source = jsWithoutComments(
+      readFileSync(resolve(SRC_DIR, 'services/database/users/personPrivate.ts'), 'utf8')
+    );
+    expect(source).toContain("from('people_private')");
+    expect(source).toContain('junior_handler_numbers');
+    expect(source).toContain('date_of_birth');
+  });
+});
+
+/**
+ * MYK9-664. A show manager must not read a handler's date of birth or junior
+ * numbers. The database enforces it (the columns are gone from `people`;
+ * `people_private` RLS admits only the person and site admins). These pin the
+ * app side, so nobody reintroduces a read that would 400 today and leak after a
+ * well-meant "fix".
+ */
+/** A select list with every `relation(...)` embed removed, nested ones included. */
+function withoutEmbeds(select: string): string {
+  let out = select;
+  for (let previous = ''; previous !== out;) {
+    previous = out;
+    out = out.replace(/[\w!]+\s*\([^()]*\)/g, '');
+  }
+  return out;
+}
+
+/**
+ * The quoted select list of a people chain, minus embeds: people's OWN columns.
+ * An embed such as `dogs(..., date_of_birth)` is a dog's birthday, not the person's.
+ */
+function ownSelectColumns(chain: string): string {
+  const select = /\.\s*select\s*\(\s*(['"`])([\s\S]*?)\1/.exec(chain)?.[2] ?? '';
+  return withoutEmbeds(select);
+}
+
+describe('MYK9-664: the values live only in people_private', () => {
+  it('the migration moves the data and drops both columns from people', () => {
+    const file = migrationFiles().find(f => f.startsWith('20260924051700'));
+    expect(file).toBeDefined();
+    const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
+    expect(sql).toMatch(
+      /INSERT INTO public\.people_private \(person_id, date_of_birth, junior_handler_numbers\)/i
+    );
+    expect(sql).toMatch(
+      /ALTER TABLE public\.people\s+DROP COLUMN date_of_birth,\s+DROP COLUMN junior_handler_numbers/i
+    );
+  });
+
+  it('no app or edge-function read of `people` names either column', () => {
+    const offenders: string[] = [];
+    for (const root of SCAN_ROOTS) {
+      for (const file of walk(root)) {
+        if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+        const source = jsWithoutComments(readFileSync(file, 'utf8'));
+        for (const chain of peopleSelectChains(source)) {
+          if (PII_COLUMNS.some(column => ownSelectColumns(chain).includes(column))) {
+            offenders.push(`${file}: ${chain.slice(0, 120)}`);
+          }
+        }
+      }
     }
+    expect(offenders).toEqual([]);
+  });
+
+  it('only the people_private module touches the table', () => {
+    const readers: string[] = [];
+    for (const root of SCAN_ROOTS) {
+      for (const file of walk(root)) {
+        if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+        if (jsWithoutComments(readFileSync(file, 'utf8')).includes("'people_private'")) {
+          readers.push(file.slice(file.indexOf(`${sep}src${sep}`) + 1));
+        }
+      }
+    }
+    expect(readers).toEqual([`src${sep}services${sep}database${sep}users${sep}personPrivate.ts`]);
+  });
+
+  it('positive control: the column scan sees a people read that names a moved column', () => {
+    const chains = peopleSelectChains(".from('people').select('id, date_of_birth').eq('id', x);");
+    expect(chains).toHaveLength(1);
+    expect(ownSelectColumns(chains[0]!)).toContain('date_of_birth');
+    // ...and does not mistake a dog's birthday in an embed for the person's.
+    const [embed] = peopleSelectChains(
+      ".from('people').select('id, dogs!dogs_owner_id_fkey(id, date_of_birth)').eq('id', x);"
+    );
+    expect(ownSelectColumns(embed!)).not.toContain('date_of_birth');
   });
 });

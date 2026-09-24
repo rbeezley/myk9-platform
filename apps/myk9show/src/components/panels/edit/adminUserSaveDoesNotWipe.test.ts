@@ -38,8 +38,12 @@ const ADMIN_LIST_ROW = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 
-/** The full row `/people/:id` loads, through PEOPLE_DIRECTORY_COLUMNS. */
-const DIRECTORY_ROW = {
+/**
+ * A row that (wrongly) still carries the two values, as a pre-MYK9-664 people
+ * row did. MYK9-664 moved them to `people_private`; the editor must not seed
+ * from them even if some read hands them over.
+ */
+const ROW_CARRYING_PII = {
   ...ADMIN_LIST_ROW,
   street_address: '1 Main St',
   city: 'Springfield',
@@ -71,10 +75,15 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(update.phone).toBe('555-0200');
   });
 
-  it('still round-trips them from a surface that DID load them', () => {
-    const update = saveThrough(DIRECTORY_ROW);
-    expect(update.date_of_birth).toBe('2011-03-04');
-    expect(update.junior_handler_numbers).toEqual({ AKC: '7654321' });
+  it('never seeds the stored values into the form, so it never sends them back (MYK9-664)', () => {
+    const user = mapDbUserToUser(ROW_CARRYING_PII as Parameters<typeof mapDbUserToUser>[0]);
+    const form = userToFormData(user);
+    expect(form.dateOfBirth).toBe('');
+    expect(form.juniorHandlerNumbers).toEqual({});
+
+    const update = saveThrough(ROW_CARRYING_PII);
+    expect('date_of_birth' in update).toBe(false);
+    expect('junior_handler_numbers' in update).toBe(false);
   });
 
   it('lets an admin SET a date of birth on a row that arrived without one', () => {
@@ -113,13 +122,15 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect('junior_handler_numbers' in update, 'the untouched map must not be emitted').toBe(false);
   });
 
-  it('lets a surface that loaded them CLEAR them', () => {
-    const update = saveThrough(DIRECTORY_ROW, form => ({
+  it('a blank form cannot clear what the editor cannot see', () => {
+    // Write-only: blank means "keep what is on file". A manager saving a phone
+    // number must never send a null date of birth over a stored one.
+    const update = saveThrough(ROW_CARRYING_PII, form => ({
       ...form,
       dateOfBirth: '',
-      juniorHandlerNumbers: {},
+      juniorHandlerNumbers: { AKC: '  ', UKC: '' },
     }));
-    expect(update.date_of_birth).toBeNull();
-    expect(update.junior_handler_numbers).toEqual({});
+    expect('date_of_birth' in update).toBe(false);
+    expect('junior_handler_numbers' in update).toBe(false);
   });
 });

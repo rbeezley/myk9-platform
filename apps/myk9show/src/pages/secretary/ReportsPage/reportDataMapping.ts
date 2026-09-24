@@ -18,7 +18,6 @@ import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
-import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
 import {
   projectHandlerIdentity,
   resolveHandlerPerson,
@@ -197,9 +196,11 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
  *
  * Derived per entry, never stored: the same person is a junior at a March trial
  * and an adult at a November one, and the three registries do not even measure
- * on the same day (juniorHandlerPolicy.ts). Returns an empty object — not
- * `handlerIsJunior: false` — whenever the answer is unknown, so a missing
- * hydration read cannot print as "definitely an adult".
+ * on the same day. Since MYK9-664 the derivation runs in the database
+ * (`entry_handler_junior_flags`, the SQL twin of `deriveJuniorStatus`), because
+ * the secretary printing this may not read the date of birth. Returns an empty
+ * object — not `handlerIsJunior: false` — whenever the answer is unknown, so a
+ * missing hydration read cannot print as "definitely an adult".
  */
 function resolveHandlerJunior(
   e: ReportDbEntry,
@@ -207,8 +208,6 @@ function resolveHandlerJunior(
   trial?: DbTrial
 ): Pick<ReportEntry, 'handlerIsJunior'> {
   if (!trial) return {};
-  const registryId = resolveConfiguredRegistryId(trial.registry_id);
-  if (!registryId) return {};
   const person = e.handler_person;
   if (!person) return {};
 
@@ -223,17 +222,9 @@ function resolveHandlerJunior(
   });
   if (!handlerPerson) return {};
 
-  const status = deriveJuniorStatus({
-    dateOfBirth: handlerPerson.date_of_birth ?? null,
-    trialDate: trial.date ?? null,
-    registryId,
-  });
-  // Only an affirmative 'junior' marks. 'adult', and every flavour of 'unknown'
-  // (no date of birth — which is EVERY person until the column is populated — an
-  // ASCA trial, a date after the trial), print the plain name.
-  if (status.kind !== 'junior') return {};
-
-  return { handlerIsJunior: true };
+  // Only an affirmative true marks. false (adult) and null (no date of birth,
+  // an ASCA trial, a date after the trial) print the plain name.
+  return handlerPerson.is_junior === true ? { handlerIsJunior: true } : {};
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {

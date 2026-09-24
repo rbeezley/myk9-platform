@@ -4693,13 +4693,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -4717,13 +4715,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name: string
           id?: string
-          junior_handler_numbers?: Json
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -4741,13 +4737,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name?: string
           id?: string
-          junior_handler_numbers?: Json
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -4759,6 +4753,38 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      people_private: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          junior_handler_numbers: Json
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_private_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       performance_metrics: {
         Row: {
@@ -12372,6 +12398,13 @@ export type Database = {
         Args: { p_event_type: string; p_waitlist_entry_id: string }
         Returns: string
       }
+      entry_handler_junior_flags: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          entry_id: string
+          is_junior: boolean
+        }[]
+      }
       ensure_show_lifecycle_email_steps: {
         Args: { p_show_id: string }
         Returns: undefined
@@ -12662,13 +12695,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13031,6 +13062,14 @@ export type Database = {
       hard_delete_show: { Args: { p_show_id: string }; Returns: undefined }
       has_effective_premium_access: {
         Args: { p_evaluated_at?: string; p_person_id: string }
+        Returns: boolean
+      }
+      handler_is_junior: {
+        Args: {
+          p_date_of_birth: string
+          p_registry_id: string
+          p_trial_date: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -13410,13 +13449,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13580,6 +13617,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_person_private_details: {
+        Args: { p_details: Json; p_person_id: string }
+        Returns: undefined
+      }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
@@ -13592,13 +13633,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null

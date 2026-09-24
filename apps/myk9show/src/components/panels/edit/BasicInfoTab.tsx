@@ -172,7 +172,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       </FormField>
 
       {/* MYK9-570. Junior handler status is derived from the date of birth and the
-          trial date, so this block sets the inputs, never a flag. */}
+          trial date, so this block sets the inputs, never a flag. MYK9-664: and
+          it only SETS them — a manager never sees the stored date of birth. */}
       <Separator />
       <div className="space-y-4">
         <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -180,6 +181,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </h4>
         <JuniorHandlerFields
           idPrefix="user-edit"
+          writeOnly
           dateOfBirth={data.dateOfBirth ?? ''}
           juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
           dateOfBirthError={dateOfBirthError}

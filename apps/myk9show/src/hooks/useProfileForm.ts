@@ -7,8 +7,12 @@ import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
-import { juniorHandlerNumbersForSave } from '@/features/registries/juniorHandlerPolicy';
-import { PEOPLE_DIRECTORY_COLUMNS } from '@/services/database/users/peopleColumns';
+import {
+  juniorHandlerNumbersForSave,
+  juniorHandlerNumbersPatch,
+} from '@/features/registries/juniorHandlerPolicy';
+import { PEOPLE_MAPPER_COLUMNS } from '@/services/database/users/peopleColumns';
+import { loadPersonPrivateDetails } from '@/services/database/users/personPrivate';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -79,17 +83,30 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('people')
-        // Explicit, not `*`: MYK9-570 put PII on this table, and a star is
-        // invisible to the contract test that keeps it off other surfaces. This
-        // IS the surface that collects it, so it names the junior columns.
-        .select(PEOPLE_DIRECTORY_COLUMNS)
+        .select(PEOPLE_MAPPER_COLUMNS)
         .eq('auth_user_id', authUserId!)
         .is('deleted_at', null)
         .maybeSingle();
 
       if (error || !data) return null;
 
-      return mapDbUserToUser(data);
+      const person = mapDbUserToUser(data);
+      // MYK9-664: the person's own date of birth and junior numbers live in
+      // `people_private`, which RLS lets them (and site admins) read. A failed
+      // read leaves both undefined rather than failing the whole profile.
+      const own = await loadPersonPrivateDetails([person.id])
+        .then(byId => ({ loaded: true as const, details: byId.get(person.id) }))
+        .catch(() => ({ loaded: false as const, details: undefined }));
+      return {
+        ...person,
+        // Whether the stored values were actually read. A save must not send
+        // blanks (which clear) on the strength of a read that failed.
+        privateDetailsLoaded: own.loaded,
+        ...(own.details?.dateOfBirth && { dateOfBirth: own.details.dateOfBirth }),
+        ...(own.details?.juniorHandlerNumbers && {
+          juniorHandlerNumbers: own.details.juniorHandlerNumbers,
+        }),
+      };
     },
     enabled: !!authUserId,
   });
@@ -206,10 +223,13 @@ export function useProfileForm() {
         city: values.city.trim(),
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
-        // MYK9-570. '' clears the date; the numbers are reassembled into the
-        // registry-keyed map the column stores, omitting blanks.
-        dateOfBirth: values.dateOfBirth,
-        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
+        // MYK9-570 / MYK9-664. '' clears the date. The person sees what is
+        // stored, so every registry key is sent and a blank input clears it.
+        dateOfBirth:
+          person.privateDetailsLoaded || values.dateOfBirth ? values.dateOfBirth : undefined,
+        juniorHandlerNumbers: juniorHandlerNumbersPatch(values.juniorHandlerNumbers, {
+          clearBlanks: person.privateDetailsLoaded,
+        }),
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around

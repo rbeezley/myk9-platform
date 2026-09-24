@@ -31,6 +31,12 @@ export interface JuniorHandlerFieldsProps {
   /** Prefix for the generated input ids, so two instances never collide. */
   idPrefix?: string;
   disabled?: boolean;
+  /**
+   * MYK9-664: the host may SET these but not see what is stored (a show
+   * manager's person editor). The inputs start blank, and the wording says a
+   * blank leaves the stored value alone, so nobody mistakes blank for "none".
+   */
+  writeOnly?: boolean;
 }
 
 /**
@@ -52,6 +58,7 @@ export function JuniorHandlerFields({
   dateOfBirthError,
   idPrefix = 'junior-handler',
   disabled = false,
+  writeOnly = false,
 }: JuniorHandlerFieldsProps): React.JSX.Element {
   const dobId = `${idPrefix}-date-of-birth`;
   const hintId = `${idPrefix}-date-of-birth-hint`;
@@ -77,8 +84,9 @@ export function JuniorHandlerFields({
           </p>
         ) : (
           <p id={hintId} className="text-xs text-muted-foreground">
-            Only used to work out junior handler status on the day of each trial, and to fill in
-            registry paperwork. Never shown on public pages or results.
+            {writeOnly
+              ? "For the handler's privacy, a saved date of birth is never shown here. Enter one to set or replace it; leave it blank to keep what's on file. It is only used to work out junior handler status at each trial."
+              : 'Only used to work out junior handler status on the day of each trial, and to fill in registry paperwork. Never shown on public pages or results.'}
           </p>
         )}
       </div>
@@ -95,7 +103,11 @@ export function JuniorHandlerFields({
               value={juniorHandlerNumbers[registryId] ?? ''}
               disabled={disabled}
               autoComplete="off"
-              placeholder="Leave blank if they don't have one"
+              placeholder={
+                writeOnly
+                  ? "Leave blank to keep what's on file"
+                  : "Leave blank if they don't have one"
+              }
               onChange={event => onJuniorHandlerNumberChange(registryId, event.target.value)}
             />
           </div>

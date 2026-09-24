@@ -96,6 +96,8 @@ BEGIN
     ('paperwork_prints','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('pedigree_ancestors','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('people','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-664: self/site-admin read under RLS; every write goes through set_person_private_details().
+    ('people_private','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('performance_metrics','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('permission_audit_log','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('permissions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -235,7 +237,7 @@ BEGIN
       'login_attempts','manual_results','medications','nationals_advancement',
       'nationals_rankings','nationals_scores','notification_preferences','notification_queue',
       'notifications','ofa_screenings','offline_scoring','onboarding_requests','operator_alerts',
-      'organization_agreements','paperwork_prints','pedigree_ancestors','people',
+      'organization_agreements','paperwork_prints','pedigree_ancestors','people','people_private',
       'performance_metrics','permission_audit_log','permissions','platform_settings',
       'platform_waitlist','premium_generation_attempts','premium_generations','promo_codes',
       'push_notification_queue','push_subscriptions','result_submissions',

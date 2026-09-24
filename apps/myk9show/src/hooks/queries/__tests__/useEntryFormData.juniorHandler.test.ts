@@ -4,6 +4,10 @@
  * These two facts are not kept in sync by anything, so this exercises the whole
  * fetch — not a pure helper — against a table-routed Supabase mock. A unit test
  * of the policy cannot see a resolution that picks the wrong person.
+ *
+ * MYK9-664: the date of birth and numbers come from `people_private`, whose RLS
+ * returns rows only to the person themself and site admins. The mock's
+ * `people_private` rows stand for "what RLS let this caller see".
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -33,8 +37,6 @@ const SARAH = {
   zip_code: null,
   phone: null,
   email: null,
-  date_of_birth: '2009-05-05',
-  junior_handler_numbers: { AKC: 'SARAH-NUMBER' },
 };
 
 const KID = {
@@ -47,9 +49,17 @@ const KID = {
   zip_code: null,
   phone: null,
   email: null,
-  date_of_birth: '2012-04-02',
-  junior_handler_numbers: { AKC: 'KID-NUMBER' },
 };
+
+/** Both people's private rows, as a site admin (or each person, for their own) sees them. */
+const PRIVATE_ROWS = [
+  {
+    person_id: SARAH.id,
+    date_of_birth: '2009-05-05',
+    junior_handler_numbers: { AKC: 'SARAH-NUMBER' },
+  },
+  { person_id: KID.id, date_of_birth: '2012-04-02', junior_handler_numbers: { AKC: 'KID-NUMBER' } },
+];
 
 type EntryRow = {
   id: string;
@@ -57,7 +67,11 @@ type EntryRow = {
   handler_id: string | null;
 };
 
-function routeTables(entries: EntryRow[], people: unknown[]) {
+function routeTables(
+  entries: EntryRow[],
+  people: unknown[],
+  privateRows: unknown[] = PRIVATE_ROWS
+) {
   const rows: Record<string, unknown[]> = {
     shows: [],
     trials: [{ id: 'trial-1', date: '2026-04-12', trial_number: 'Trial 1' }],
@@ -83,6 +97,7 @@ function routeTables(entries: EntryRow[], people: unknown[]) {
     dog_registrations: [],
     pedigree_ancestors: [],
     people,
+    people_private: privateRows,
   };
   mocks.from.mockImplementation((table: string) =>
     createChainableQuery({ data: rows[table] ?? [], error: null })
@@ -220,19 +235,35 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(dog.handlerDateOfBirth).toBeNull();
   });
 
-  it('asks the people read for the junior columns at all', async () => {
-    // Guards the select string: if these columns stop being requested the whole
-    // feature goes quietly inert and every other assertion here still passes.
+  it('reads the junior values from people_private, never from people', async () => {
+    // Guards both select strings: people must not be asked for columns it no
+    // longer has, and if people_private stops being read the feature goes
+    // quietly inert with every other assertion here still passing.
     routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [KID]);
     const { result } = renderEntryFormData();
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
 
-    const peopleQuery = mocks.from.mock.results
-      .filter((_, index) => mocks.from.mock.calls[index]?.[0] === 'people')
-      .map(r => r.value)[0];
-    const selectArg = peopleQuery.select.mock.calls[0][0] as string;
-    expect(selectArg).toContain('date_of_birth');
-    expect(selectArg).toContain('junior_handler_numbers');
-    expect(selectArg).toContain('first_name');
+    const selectFor = (table: string) =>
+      mocks.from.mock.results
+        .filter((_, index) => mocks.from.mock.calls[index]?.[0] === table)
+        .map(r => r.value.select.mock.calls[0][0] as string)[0];
+    const peopleSelect = selectFor('people');
+    expect(peopleSelect).toContain('first_name');
+    expect(peopleSelect).not.toContain('date_of_birth');
+    expect(peopleSelect).not.toContain('junior_handler_numbers');
+    const privateSelect = selectFor('people_private');
+    expect(privateSelect).toContain('date_of_birth');
+    expect(privateSelect).toContain('junior_handler_numbers');
+  });
+
+  it('prints no junior values for a caller RLS shows no private row to (a secretary)', async () => {
+    routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [SARAH, KID], []);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.handler).toBe('Chris Kid');
+    expect(dog.handlerDateOfBirth).toBeNull();
+    expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
   });
 });

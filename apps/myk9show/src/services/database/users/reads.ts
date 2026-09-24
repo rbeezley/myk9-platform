@@ -9,10 +9,18 @@ import {
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
 } from './signInEmailGuard';
 import { hydrateVisibleRoles } from './roleLabels';
-import { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+import { savePersonPrivateDetails, type PersonPrivatePatch } from './personPrivate';
+
+/**
+ * A person update: the `people` columns plus, optionally, the MYK9-664 private
+ * details, which live in `people_private` and are written through their own RPC.
+ * See `PersonPrivatePatch` for the patch semantics.
+ */
+export type PersonUpdate = DbUserUpdate & PersonPrivatePatch;
 
 // Re-exported so existing importers keep working; the lists live in peopleColumns.ts.
-export { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+export { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -31,7 +39,7 @@ export const getAllUsers = async ({ includeRoleLabels = true }: GetAllUsersOptio
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`${PEOPLE_DIRECTORY_COLUMNS}, ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .select(`${PEOPLE_MAPPER_COLUMNS}, ${JUDGE_QUALIFICATIONS_SELECT}`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
@@ -81,7 +89,7 @@ export const getUserById = async (id: string) => {
       .from('people')
       .select(
         `
-        ${PEOPLE_DIRECTORY_COLUMNS},
+        ${PEOPLE_MAPPER_COLUMNS},
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -146,18 +154,31 @@ export const createUser = async (userData: DbUserInsert) => {
 };
 
 // Update user
-export const updateUser = async (id: string, updates: DbUserUpdate) => {
+export const updateUser = async (id: string, updates: PersonUpdate) => {
   const startTime = Date.now();
 
   try {
+    // MYK9-664: the date of birth and junior numbers are not `people` columns.
+    // Split them off before the UPDATE and write them after it succeeds, through
+    // the RPC that lets a show manager set them without reading them back.
+    const {
+      date_of_birth: dateOfBirth,
+      junior_handler_numbers: juniorHandlerNumbers,
+      ...peopleUpdates
+    } = updates;
+    const privatePatch: PersonPrivatePatch = {
+      ...(dateOfBirth !== undefined && { date_of_birth: dateOfBirth }),
+      ...(juniorHandlerNumbers !== undefined && { junior_handler_numbers: juniorHandlerNumbers }),
+    };
+
     // MYK9-136: an email change on a person with an auth identity would orphan
     // that identity — they keep signing in with the old address. Every write
     // path to `people.email` funnels through here (three mappers plus the show
     // wizard's direct call), so this is the one place the check belongs.
     let requireUnlinked = false;
-    const payload: DbUserUpdate = { ...updates };
-    if (updates.email !== undefined) {
-      const decision = await checkSignInEmailChange(id, updates.email);
+    const payload: DbUserUpdate = { ...peopleUpdates };
+    if (peopleUpdates.email !== undefined) {
+      const decision = await checkSignInEmailChange(id, peopleUpdates.email);
       if (!decision.allowed) {
         throw Object.assign(new Error(decision.message), { code: decision.code });
       }
@@ -210,6 +231,8 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
       }
       throw createDatabaseError(error, 'user', 'update');
     }
+
+    await savePersonPrivateDetails(id, privatePatch);
 
     return { data, error: null };
   } catch (error) {

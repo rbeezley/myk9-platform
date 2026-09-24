@@ -336,6 +336,31 @@ export function juniorHandlerNumbersForSave(
   return out;
 }
 
+/**
+ * MYK9-664: the numbers as a MERGE patch for `set_person_private_details()`,
+ * which sets each present key and removes a key whose value is blank.
+ *
+ *  - `clearBlanks: true` — the caller can see what is stored (the person's own
+ *    profile), so every registry key is sent and a blank input clears it.
+ *  - `clearBlanks: false` — the caller cannot (a show manager's write-only
+ *    form), so only filled inputs are sent and a blank leaves the stored number
+ *    alone. Returns undefined when there is nothing to send.
+ */
+export function juniorHandlerNumbersPatch(
+  numbers: Partial<Record<RegistryId, string>> | null | undefined,
+  { clearBlanks }: { clearBlanks: boolean }
+): Record<string, string> | undefined {
+  if (!clearBlanks) {
+    const filled = juniorHandlerNumbersForSave(numbers);
+    return Object.keys(filled).length > 0 ? filled : undefined;
+  }
+  const out: Record<string, string> = {};
+  for (const registryId of Object.keys(RULES) as RegistryId[]) {
+    out[registryId] = numbers?.[registryId]?.trim() ?? '';
+  }
+  return out;
+}
+
 /** The registries the app offers a junior handler number input for. */
 export function registriesIssuingJuniorHandlerNumbers(): readonly RegistryId[] {
   return (Object.keys(RULES) as RegistryId[]).filter(id => RULES[id].issuesJuniorHandlerNumber);

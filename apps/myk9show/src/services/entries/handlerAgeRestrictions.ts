@@ -6,9 +6,11 @@ import type { EntryValidationError } from './EntryValidator';
  * the 500-line limit, and so the rule can be tested without assembling a whole
  * `EntryValidationContext`.
  *
- * MYK9-570 note: this reads `dateOfBirth`, which is now backed by
- * `people.date_of_birth`. It used to read a `birthDate` alias that no mapper
- * ever populated, so the block could not fire at all. It is still gated on
+ * MYK9-570 note: this reads `dateOfBirth`. It used to read a `birthDate` alias
+ * that no mapper ever populated, so the block could not fire at all. Since
+ * MYK9-664 the value lives in `people_private` and no people mapper carries it,
+ * so a `User` here has it only when a caller loaded it for a viewer allowed to
+ * read it (the person themself, a site admin). It is still gated on
  * `class.handlerAgeRestrictions`, which nothing in the app sets today — so
  * backing the column changed no behaviour, and this stays inert until a class
  * carries a restriction.

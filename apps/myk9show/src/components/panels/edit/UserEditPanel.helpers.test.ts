@@ -18,58 +18,53 @@ describe('UserEditPanel account lifecycle boundary', () => {
 });
 
 /**
- * MYK9-570. The secretary's person edit round-trips the date of birth and the
- * registry junior handler numbers. The numbers live in the form as one flat
- * input per registry and in the database as a keyed map, so the two converters
- * are where a value goes missing.
+ * MYK9-570 / MYK9-664. The secretary's person editor SETS a handler's date of
+ * birth and junior handler numbers but never reads them back: the form always
+ * starts blank, and only what was typed is sent, as a merge patch.
  */
-describe('junior handler fields round-trip', () => {
+describe('junior handler fields are write-only', () => {
   const user: Partial<UserType> = {
     id: 'person-1',
     firstName: 'Mariana',
     lastName: 'Rivera',
     email: 'mariana@example.com',
     roles: [],
+    // Even when a caller hands the panel stored values, they are not shown.
     dateOfBirth: '2011-03-04',
     juniorHandlerNumbers: { AKC: '7654321', UKC: 'UKC-42' },
   };
 
-  it('unpacks the keyed map into one input per registry', () => {
+  it('starts blank whatever the source carried', () => {
     const form = userToFormData(user);
-    expect(form.dateOfBirth).toBe('2011-03-04');
-    expect(form.juniorHandlerNumbers).toEqual({ AKC: '7654321', UKC: 'UKC-42' });
+    expect(form.dateOfBirth).toBe('');
+    expect(form.juniorHandlerNumbers).toEqual({});
   });
 
-  it('reassembles them and survives a full round-trip unchanged', () => {
-    const back = formDataToUser(userToFormData(user));
-    expect(back.dateOfBirth).toBe('2011-03-04');
-    expect(back.juniorHandlerNumbers).toEqual({ AKC: '7654321', UKC: 'UKC-42' });
-  });
-
-  it('omits a blank number instead of storing an empty string', () => {
-    const form = userToFormData({ ...user, juniorHandlerNumbers: { AKC: '7654321' } });
-    expect(formDataToUser(form).juniorHandlerNumbers).toEqual({ AKC: '7654321' });
-  });
-
-  it('reads a raw snake_case people row too', () => {
+  it('starts blank from a raw snake_case row too', () => {
     const form = userToFormData({
       id: 'person-2',
       date_of_birth: '2012-01-02',
       junior_handler_numbers: { AKC: '111' },
     } as unknown as Parameters<typeof userToFormData>[0]);
-    expect(form.dateOfBirth).toBe('2012-01-02');
-    expect(form.juniorHandlerNumbers).toEqual({ AKC: '111' });
+    expect(form.dateOfBirth).toBe('');
+    expect(form.juniorHandlerNumbers).toEqual({});
   });
 
-  it('does not drop a registry key the form does not render an input for', () => {
-    // The CHECK admits AKC, UKC and ASCA; the form only offers inputs for the
-    // two registries that issue a number. Rebuilding the map from those two
-    // inputs silently deleted the third on every unrelated save.
-    const withAsca = { ...user, juniorHandlerNumbers: { AKC: '7654321', ASCA: 'ASCA-9' } };
-    expect(formDataToUser(userToFormData(withAsca)).juniorHandlerNumbers).toEqual({
-      AKC: '7654321',
-      ASCA: 'ASCA-9',
+  it('an untouched form sends neither field, so it cannot clear what is stored', () => {
+    const back = formDataToUser(userToFormData(user));
+    expect('dateOfBirth' in back).toBe(false);
+    expect('juniorHandlerNumbers' in back).toBe(false);
+  });
+
+  it('sends what was typed, trimmed, and only the registries that were filled', () => {
+    const back = formDataToUser({
+      ...userToFormData(user),
+      dateOfBirth: '2011-03-04',
+      juniorHandlerNumbers: { AKC: ' 7654321 ', UKC: '   ' },
     });
+    expect(back.dateOfBirth).toBe('2011-03-04');
+    // UKC is blank, so it is absent from the patch: the stored UKC number stays.
+    expect(back.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
   });
 
   it('rejects a future date of birth and accepts a blank one', () => {

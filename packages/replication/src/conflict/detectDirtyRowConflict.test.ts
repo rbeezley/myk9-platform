@@ -47,6 +47,58 @@ describe('detectDirtyRowConflict', () => {
 
     expect(result).toEqual({ hasConflict: true, fields: ['checkInStatus'] });
   });
+
+  // MYK9-740, from the failing Regression trace: a judge's offline score upload
+  // committed but the page reloaded before its response arrived. On the next
+  // sync the server echoed the judge's own write back, and the only "difference"
+  // was how the timestamp was spelled — the client stamped `…Z`, PostgREST
+  // returned `…+00:00`. That surfaced "This record was changed elsewhere" for
+  // the judge's own score.
+  it('does not conflict when the server echoes the same instant in another ISO spelling', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null, scoringCompletedAt: null, result_status: null },
+      local: {
+        id: '1',
+        scoring_completed_at: '2026-09-24T21:19:38.574Z',
+        scoringCompletedAt: '2026-09-24T21:19:38.574Z',
+        result_status: 'nq',
+      },
+      remote: {
+        id: '1',
+        scoring_completed_at: '2026-09-24T21:19:38.574+00:00',
+        scoringCompletedAt: '2026-09-24T21:19:38.574+00:00',
+        result_status: 'nq',
+      },
+    });
+
+    expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
+  it('still conflicts when two timestamps name different instants', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.575+00:00' },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
+  });
+
+  it('does not treat a zone-less or date-only string as an instant', () => {
+    // Without a zone the instant depends on the device's timezone, so these
+    // are compared as text, exactly as before.
+    const result = detectDirtyRowConflict({
+      base: { id: '1', ring_time: null, trial_date: null },
+      local: { id: '1', ring_time: '2026-09-24T21:19:38', trial_date: '2026-09-24' },
+      remote: {
+        id: '1',
+        ring_time: '2026-09-24T21:19:38.000',
+        trial_date: '2026-09-24T00:00:00Z',
+      },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['ring_time', 'trial_date'] });
+  });
 });
 
 describe('mergeNonConflictingServerFields', () => {

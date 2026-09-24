@@ -106,5 +106,27 @@ export function mergeNonConflictingServerFields<T extends object>({
 
 function deepEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
+  if (isSameInstant(left, right)) return true;
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * An ISO-8601 date-time that names its zone (`Z` or `±hh:mm`). Only these are
+ * unambiguous instants; a zone-less or date-only string depends on the device's
+ * timezone and keeps comparing as text.
+ */
+const ZONED_ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * MYK9-740: the client stamps timestamps with `toISOString()` (`…Z`) while
+ * PostgREST returns `timestamptz` as `…+00:00`. When the server echoes a write
+ * this client already made, the two spellings name the same instant and must
+ * not read as a same-field conflict.
+ */
+function isSameInstant(left: unknown, right: unknown): boolean {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  if (!ZONED_ISO_INSTANT.test(left) || !ZONED_ISO_INSTANT.test(right)) return false;
+  const leftMs = Date.parse(left);
+  const rightMs = Date.parse(right);
+  return Number.isFinite(leftMs) && leftMs === rightMs;
 }

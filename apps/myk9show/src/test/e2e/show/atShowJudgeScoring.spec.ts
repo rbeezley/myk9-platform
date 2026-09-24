@@ -303,6 +303,31 @@ test.describe('At-show judge scoring authorization', () => {
     // through the same guarded RPC path.
     await expect.poll(() => readPendingMutationCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
 
+    // MYK9-740: going online fires the upload runner's drain before the reload
+    // below can start. In run 36057233283 that drain's request left the page
+    // 18ms into the reload: the browser abandoned it, but the server had already
+    // committed it, and the post-reload replay was counted on top (3 calls for
+    // one score). That race is the harness's, not the scenario's — this test
+    // claims the queued score survives a restart — so hold every ringside write
+    // the OLD document makes, unanswered. The reload cancels it before it
+    // reaches the guard or the server. Once the reloaded document commits
+    // (`framenavigated`), writes pass through to the guard, so every call
+    // counted below is post-restart. What a lost response does in the field is
+    // covered where it can be made deterministic:
+    // supabase/tests/myk9_740_ringside_replay_idempotent_test.sql.
+    let restarted = false;
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame()) restarted = true;
+    });
+    await page.route('**/rest/v1/rpc/ringside_update_entry', async route => {
+      if (restarted) {
+        await route.fallback();
+        return;
+      }
+      // Never answered: the reload abandons it.
+      await new Promise<void>(() => {});
+    });
+
     await context.setOffline(false);
     await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
     await page.reload();

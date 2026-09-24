@@ -58,16 +58,6 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
   ),
 }));
 
-const upcomingAssignments = vi.hoisted(() => ({
-  byPerson: {} as Record<string, Array<{ show_id: string; show_name: string }>>,
-}));
-
-vi.mock('@/hooks/queries/useJudgeAnalyticsQuery', () => ({
-  useUpcomingJudgeAssignments: (personId: string | undefined) => ({
-    data: personId ? upcomingAssignments.byPerson[personId] : undefined,
-  }),
-}));
-
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
   useMessageShowClassOptions: () => ({ data: [] }),
 }));
@@ -110,7 +100,6 @@ function openCompose(route: string) {
 
 beforeEach(() => {
   authContext = heartlandSecretary();
-  upcomingAssignments.byPerson = {};
   useNotificationStore.setState({
     preferences: { ...DEFAULT_PREFERENCES },
     recentAlerts: [],
@@ -182,31 +171,6 @@ describe('MessageCenterPanel compose show scope (MYK9-641)', () => {
     useAnnouncementStore.setState({ currentShowIds: ['blue-sky-weekend'] });
 
     const dialog = openCompose('/');
-
-    expect(within(dialog).getByTestId('message-show-composer')).toHaveTextContent(
-      'Composer for blue-sky-weekend'
-    );
-  });
-
-  it("offers a judge the shows they are assigned to, beyond today's context", () => {
-    authContext = {
-      user: { id: 'judge-auth-1', email: 'judge@test.com' },
-      userWithRoles: {
-        id: 'judge-auth-1',
-        databaseUserId: 'judge-person-1',
-        roles: ['judge'],
-        scopes: [],
-        user_metadata: {},
-      },
-      isSecretary: false,
-      isAdmin: false,
-      hasRole: (role: string) => role === 'judge',
-    };
-    upcomingAssignments.byPerson['judge-person-1'] = [
-      { show_id: 'blue-sky-weekend', show_name: 'Blue Sky Scent Work Weekend' },
-    ];
-
-    const dialog = openCompose('/judge/dashboard');
 
     expect(within(dialog).getByTestId('message-show-composer')).toHaveTextContent(
       'Composer for blue-sky-weekend'

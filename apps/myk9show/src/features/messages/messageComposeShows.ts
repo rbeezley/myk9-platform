@@ -22,15 +22,14 @@ interface ComposeShowSource extends MessageShowScope {
  *
  * So the list is the club-scoped `selectMessageShows` set — never the raw show
  * store, which also holds every show loaded for public browsing — plus, for a
- * judge, the shows they are assigned to (the same confirmed/invited
- * `judge_assignments` rows the policy reads) and the shows in their current
- * context (the announcement subscription: the show selected in Mission Control
- * and today's shows), which keeps a show-day judge working when the online
- * assignment read has not answered.
+ * judge, the shows in their current context (the announcement subscription:
+ * the show selected in Mission Control and today's shows). The client has no
+ * judge-assignment set to scope that arm further; the server's judge arm is the
+ * boundary there, as it was before this change.
  */
 export function selectComposeShows(
   shows: readonly ComposeShowSource[] | null | undefined,
-  judgeShows: { assigned: readonly ComposeShowOption[]; contextShowIds: readonly string[] },
+  contextShowIds: readonly string[],
   userWithRoles: UserWithRoles | null | undefined,
   hasRole: (role: UserRole) => boolean
 ): ComposeShowOption[] {
@@ -41,12 +40,6 @@ export function selectComposeShows(
 
   const namesById = new Map((shows ?? []).map(show => [show.id, show.name]));
   const offered = new Set(options.map(option => option.id));
-  for (const show of judgeShows.assigned) {
-    if (offered.has(show.id)) continue;
-    offered.add(show.id);
-    options.push({ id: show.id, name: namesById.get(show.id) ?? show.name });
-  }
-  const { contextShowIds } = judgeShows;
   contextShowIds.forEach((showId, index) => {
     if (offered.has(showId)) return;
     offered.add(showId);

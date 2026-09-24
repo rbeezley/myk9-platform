@@ -97,6 +97,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_710_people_identity_guard_test.sql"
   "$TEST_DIR/myk9_711_712_status_and_signup_grants_test.sql"
   "$TEST_DIR/myk9_660_667_manager_reads_catalog_writes_test.sql"
+  "$TEST_DIR/myk9_664_people_private_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
   "$TEST_DIR/support_triage_atomic_send_test.sql"
   "$TEST_DIR/support_ticket_creation_atomicity_test.sql"

@@ -8,7 +8,10 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import {
+  loadPersonPrivateDetails,
+  type PersonPrivateDetails,
+} from '@/services/database/users/personPrivate';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import type {
   EntryFormDog,
@@ -35,6 +38,14 @@ function buildSecretary(person: Record<string, unknown>): EntryFormSecretary {
     state: (person.state as string) ?? null,
     zipCode: (person.zip_code as string) ?? null,
   };
+}
+
+/** The private row RLS let this caller read for `person`, if any (MYK9-664). */
+function privateDetailsFor(
+  byPersonId: Map<string, PersonPrivateDetails>,
+  person: { id?: string | null } | null | undefined
+): PersonPrivateDetails | undefined {
+  return person?.id ? byPersonId.get(person.id) : undefined;
 }
 
 /**
@@ -229,12 +240,17 @@ async function fetchEntryFormData(
   }
   const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
 
-  const { data: personsRaw } = await supabase
-    .from('people')
-    .select(
-      'id, first_name, last_name, street_address, city, state, zip_code, phone, email, date_of_birth, junior_handler_numbers'
-    )
-    .in('id', allPersonIds);
+  const [{ data: personsRaw }, privateByPersonId] = await Promise.all([
+    supabase
+      .from('people')
+      .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
+      .in('id', allPersonIds),
+    // MYK9-664: a handler's date of birth and junior number are readable only by
+    // the handler themself and site admins. For anyone else (a secretary
+    // printing the show's forms) RLS returns no row, so the junior number is
+    // simply not printed. A failed read degrades the same way.
+    loadPersonPrivateDetails(allPersonIds).catch(() => new Map<string, PersonPrivateDetails>()),
+  ]);
 
   const personMap = new Map((personsRaw ?? []).map(p => [p.id, p]));
 
@@ -362,6 +378,7 @@ async function fetchEntryFormData(
     const handler =
       handlerIdentity.name && handlerIdentity.name !== ownerFullName ? handlerIdentity.name : null;
     const handlerRaw = handlerIdentity.person;
+    const handlerPrivate = privateDetailsFor(privateByPersonId, handlerRaw);
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;
@@ -378,10 +395,8 @@ async function fetchEntryFormData(
       dam: pedigree?.dam ?? null,
       owner,
       handler,
-      handlerDateOfBirth: handlerRaw?.date_of_birth ?? null,
-      handlerJuniorHandlerNumbers: normalizeJuniorHandlerNumbers(
-        handlerRaw?.junior_handler_numbers
-      ),
+      handlerDateOfBirth: handlerPrivate?.dateOfBirth ?? null,
+      handlerJuniorHandlerNumbers: handlerPrivate?.juniorHandlerNumbers,
       armband,
       entries: dogEntries,
       agreementDate,

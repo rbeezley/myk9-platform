@@ -31,5 +31,9 @@ export {
 } from './signInEmailGuard';
 export type { SignInEmailChangeDecision, PersonIdentitySnapshot } from './signInEmailGuard';
 
+export type { PersonUpdate } from './reads';
+export { loadPersonPrivateDetails } from './personPrivate';
+export type { PersonPrivateDetails, PersonPrivatePatch } from './personPrivate';
+
 export { decidePersonEmailLock, fetchPersonEmailLockFacts } from './personEmailLock';
 export type { PersonEmailLock, PersonEmailLockFacts } from './personEmailLock';

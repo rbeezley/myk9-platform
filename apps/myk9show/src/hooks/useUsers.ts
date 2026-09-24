@@ -74,10 +74,13 @@ export function useUpdatePerson() {
         state: person.state || null,
         zip_code: person.zipCode || null,
         profile_image: person.profileImage || null,
-        // MYK9-570: this payload is hand-listed, so a new people column that is
-        // not named here is silently discarded on every save from /people/:id.
-        date_of_birth: person.dateOfBirth || null,
-        junior_handler_numbers: person.juniorHandlerNumbers ?? {},
+        // MYK9-570 / MYK9-664: written to `people_private` by `updateUser`.
+        // Forwarded only when the caller set them: an absent value means "leave
+        // what is stored", and a manager's form never holds the stored value.
+        ...(person.dateOfBirth !== undefined && { date_of_birth: person.dateOfBirth || null }),
+        ...(person.juniorHandlerNumbers !== undefined && {
+          junior_handler_numbers: person.juniorHandlerNumbers,
+        }),
       });
       if (error || !data) {
         // Keep the code alongside the message — the friendly-error helpers key

@@ -101,10 +101,11 @@ export type ReportDbEntry = DbEntry & {
     payment_status?: string | null;
   } | null;
   /**
-   * MYK9-570: the handler's junior handler columns, hydrated from `people` by
-   * `loadJuniorHandlerProfiles`. Absent when the hydration read did not run or
-   * did not complete — which is NOT the same as "not a junior", so the mapper
-   * leaves the entry unmarked rather than marking it an adult.
+   * MYK9-570 / MYK9-664: the handler's name and the junior flag this entry
+   * recorded at creation, hydrated by `loadEntryHandlerJuniorFlags`. Absent
+   * when the hydration read did not run or did not complete — which is NOT the
+   * same as "not a junior", so the mapper leaves the entry unmarked rather than
+   * marking it an adult. The date of birth is never on this client.
    */
   handler_person?: {
     /**
@@ -114,8 +115,8 @@ export type ReportDbEntry = DbEntry & {
      */
     first_name?: string | null;
     last_name?: string | null;
-    date_of_birth?: string | null;
-    junior_handler_numbers?: Record<string, string> | undefined;
+    /** Recorded at entry: true = junior at this entry's trial, false = adult, null = unknown. */
+    is_junior?: boolean | null;
   } | null;
 };
 

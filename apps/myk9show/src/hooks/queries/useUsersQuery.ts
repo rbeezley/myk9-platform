@@ -13,13 +13,13 @@ import {
   getUsersByRole,
   getUsersWithDogCounts,
   getUsersStatistics,
+  type PersonUpdate,
 } from '@/services/database/users';
-import type { DbUser, DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
+import type { DbUser, DbUserInsert } from '@/types/database-mappings';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
 import { extractRoles } from '@/services/mappers/userMappers';
-import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 
 export interface AdminUser extends User {
   lastSignInAt: string | null;
@@ -51,11 +51,8 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   country: dbUser.country || undefined,
   profileImage: dbUser.profile_image || undefined,
   user_id: dbUser.auth_user_id || undefined,
-  // MYK9-570: the two junior handler inputs. Both mappers read them, so both
-  // must map them — a field dropped at one hop is invisible to a unit test of
-  // the other (LESSON last-hop-drop).
-  dateOfBirth: dbUser.date_of_birth || undefined,
-  juniorHandlerNumbers: normalizeJuniorHandlerNumbers(dbUser.junior_handler_numbers),
+  // MYK9-664: no dateOfBirth / juniorHandlerNumbers — they live in
+  // `people_private`, not on the row this maps (see personPrivate.ts).
   roles: extractRoles(dbUser as unknown as Record<string, unknown>),
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
@@ -65,8 +62,8 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
 });
 
 // UI to Database mapper for User updates
-export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
-  const dbUpdate: DbUserUpdate = {};
+export const mapUserToDbUpdate = (user: Partial<User>): PersonUpdate => {
+  const dbUpdate: PersonUpdate = {};
 
   if (user.firstName !== undefined) dbUpdate.first_name = user.firstName;
   if (user.lastName !== undefined) dbUpdate.last_name = user.lastName;
@@ -80,11 +77,12 @@ export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
   if (user.profileImage !== undefined) dbUpdate.profile_image = user.profileImage;
-  // MYK9-570. An empty string clears the date rather than failing the date CHECK.
+  // MYK9-570 / MYK9-664: written to `people_private` by `updateUser` through
+  // the RPC. An empty string clears the date. The numbers are a MERGE patch: a
+  // blank value removes that registry's number, an absent key keeps it.
   if (user.dateOfBirth !== undefined) dbUpdate.date_of_birth = user.dateOfBirth || null;
-  // The column is NOT NULL DEFAULT '{}', so "no numbers" is an empty object.
   if (user.juniorHandlerNumbers !== undefined)
-    dbUpdate.junior_handler_numbers = user.juniorHandlerNumbers ?? {};
+    dbUpdate.junior_handler_numbers = user.juniorHandlerNumbers;
   // roles are managed via user_roles table, not the people table (people.roles was dropped in migration 066)
   if (user.status !== undefined) dbUpdate.status = user.status;
 

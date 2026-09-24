@@ -10,7 +10,7 @@ import {
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
-import { loadJuniorHandlerProfiles } from '@/services/database/users/juniorHandlerProfiles';
+import { loadEntryHandlerJuniorFlags } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import {
@@ -59,43 +59,44 @@ interface HydratedReportEntries {
 }
 
 /**
- * MYK9-570: hydrate each entry with its handler's junior handler columns.
+ * MYK9-570 / MYK9-664: hydrate each entry with its handler's name and the
+ * junior flag that entry recorded at creation for THAT entry's trial.
  *
  * The replica carries `entries.handler_id` but nothing from `people`, so the
- * catalog cannot know a handler's date of birth without asking. Deliberately
- * ANCILLARY — a failed read leaves `handler_person` undefined, which the mapper
- * reads as "unknown", so the catalog prints without junior marks instead of
- * refusing to print.
+ * catalog cannot know whether a handler is a junior without asking. The date of
+ * birth itself never reaches this client (MYK9-664): the database returns the
+ * stored per-entry flag, and only for shows the caller manages. The replica does
+ * not carry `entries.handler_is_junior` on purpose: the column has no grant (the
+ * entries views would show it to exhibitors too), and the name check below needs
+ * an online `people` read anyway. Deliberately ANCILLARY — a
+ * failed read leaves `handler_person` undefined, which the mapper reads as
+ * "unknown", so the catalog prints without junior marks instead of refusing to
+ * print.
  */
 async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<ReportDbEntry[]> {
-  const handlerIds = [
-    ...new Set(
-      entries
-        .map(entry => (entry as { handler_id?: string | null }).handler_id)
-        .filter((id): id is string => Boolean(id))
-    ),
-  ];
-  if (handlerIds.length === 0) return entries;
+  const refs = entries.flatMap(entry => {
+    const handlerId = (entry as { handler_id?: string | null }).handler_id;
+    return handlerId && entry.id ? [{ entryId: entry.id, handlerId }] : [];
+  });
+  if (refs.length === 0) return entries;
 
-  const { byPersonId, readComplete } = await loadJuniorHandlerProfiles(handlerIds);
+  const { byEntryId, readComplete } = await loadEntryHandlerJuniorFlags(refs);
   // A partial read is NOT a partial answer here. An entry whose handler happened
   // to fall in a failed batch would come back with no `handler_person` and print
   // as an ordinary adult, so the catalog would mark some juniors and silently
   // miss others with nothing on the page to say so. Marking none of them is the
   // honest outcome, and it is what an offline secretary already gets.
-  if (!readComplete || byPersonId.size === 0) return entries;
+  if (!readComplete || byEntryId.size === 0) return entries;
 
   return entries.map(entry => {
-    const handlerId = (entry as { handler_id?: string | null }).handler_id;
-    const profile = handlerId ? byPersonId.get(handlerId) : undefined;
+    const profile = entry.id ? byEntryId.get(entry.id) : undefined;
     if (!profile) return entry;
     return {
       ...entry,
       handler_person: {
         first_name: profile.firstName,
         last_name: profile.lastName,
-        date_of_birth: profile.dateOfBirth,
-        junior_handler_numbers: profile.juniorHandlerNumbers,
+        is_junior: profile.isJunior,
       },
     };
   });

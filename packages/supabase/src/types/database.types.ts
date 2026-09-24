@@ -1965,6 +1965,7 @@ export type Database = {
           final_placement: number | null
           handler: string | null
           handler_id: string | null
+          handler_is_junior: boolean | null
           has_video_review: boolean | null
           id: string
           is_day_of_show: boolean | null
@@ -2060,6 +2061,7 @@ export type Database = {
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
+          handler_is_junior?: boolean | null
           has_video_review?: boolean | null
           id?: string
           is_day_of_show?: boolean | null
@@ -2155,6 +2157,7 @@ export type Database = {
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
+          handler_is_junior?: boolean | null
           has_video_review?: boolean | null
           id?: string
           is_day_of_show?: boolean | null
@@ -4693,13 +4696,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -4717,13 +4718,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name: string
           id?: string
-          junior_handler_numbers?: Json
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -4741,13 +4740,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name?: string
           id?: string
-          junior_handler_numbers?: Json
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -4759,6 +4756,38 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      people_private: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          junior_handler_numbers: Json
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_private_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       performance_metrics: {
         Row: {
@@ -12680,13 +12709,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13201,6 +13228,10 @@ export type Database = {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
       }
+      recompute_entry_handler_junior_flags: {
+        Args: { p_entry_ids: string[] }
+        Returns: number
+      }
       recompute_order_refund_totals: {
         Args: { p_payment_intent_id: string }
         Returns: {
@@ -13247,6 +13278,13 @@ export type Database = {
           p_event_id: string
         }
         Returns: boolean
+      }
+      recorded_entry_handler_junior_flags: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          entry_id: string
+          is_junior: boolean
+        }[]
       }
       refresh_class_scoring_state: {
         Args: { p_class_id: string }
@@ -13413,13 +13451,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13598,13 +13634,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13718,6 +13752,15 @@ export type Database = {
           p_jump_height: string
         }
         Returns: number
+      }
+      update_person_details: {
+        Args: {
+          p_people?: Json
+          p_person_id: string
+          p_private?: Json
+          p_require_unlinked?: boolean
+        }
+        Returns: Json
       }
       update_show_style: {
         Args: { p_show_id: string; p_style: string }

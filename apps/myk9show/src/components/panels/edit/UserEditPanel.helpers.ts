@@ -2,10 +2,7 @@ import { z } from 'zod';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
 import type { UserFormData } from './UserEditPanel.types';
-import {
-  juniorHandlerNumbersForSave,
-  normalizeJuniorHandlerNumbers,
-} from '@/features/registries/juniorHandlerPolicy';
+import { juniorHandlerNumbersPatch } from '@/features/registries/juniorHandlerPolicy';
 
 /**
  * MYK9-570. A date of birth is optional, but a present one must be a real past
@@ -60,7 +57,6 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
     zipCode: z.string(),
     dateOfBirth: dateOfBirthSchema,
     juniorHandlerNumbers: z.record(z.string(), z.string()),
-    juniorHandlerFieldsLoaded: z.boolean(),
     profileImage: z.string().optional(),
     judgeQualifications: z.array(judgeQualificationSchema),
     roles: z.array(z.string()),
@@ -106,20 +102,10 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     city: user.city || '',
     state: user.state || '',
     zipCode: user.zipCode || (userRecord.zip_code as string) || '',
-    // MYK9-570. Accept the snake_case row shape too — this panel is fed both a
-    // mapped `User` and, on some callers, a raw people row.
-    dateOfBirth: user.dateOfBirth || (userRecord.date_of_birth as string) || '',
-    juniorHandlerNumbers:
-      normalizeJuniorHandlerNumbers(
-        user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers
-      ) ?? {},
-    // Did the SOURCE carry these at all? `undefined` on both means the read did
-    // not select them, not that the person has none.
-    juniorHandlerFieldsLoaded:
-      user.dateOfBirth !== undefined ||
-      user.juniorHandlerNumbers !== undefined ||
-      userRecord.date_of_birth !== undefined ||
-      userRecord.junior_handler_numbers !== undefined,
+    // MYK9-664: write-only. Never seeded from the person, even when the caller
+    // could read the value: the stored date of birth does not reach this panel.
+    dateOfBirth: '',
+    juniorHandlerNumbers: {},
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -145,26 +131,20 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
 };
 
 /**
- * The junior handler half of a save — each field included on its own merits.
+ * The junior handler half of a save (MYK9-570 / MYK9-664).
  *
- * Numbers are trimmed, blanks dropped, every registry key preserved, including
- * ones this form renders no input for.
- *
- * A field is emitted when the row this form was seeded from CARRIED it, or when
- * this form now holds a value for THAT field. Gated per field, not per block: a
- * single flag over both meant that filling one of them on a surface that loaded
- * neither wrote the other back as blank (round-3 P2), and a null date of birth
- * makes `deriveJuniorStatus` return 'unknown' — so entering a junior number on
- * `/admin/users` destroyed the very thing that makes it print.
+ * The panel is write-only for these fields, so a blank input means "leave what
+ * is stored", never "clear it": a manager who cannot see a handler's date of
+ * birth must not be able to wipe it by saving an unrelated phone number. Only
+ * what was typed is emitted, and the numbers go as a merge patch.
  */
 function juniorHandlerFieldsToSave(
   formData: UserFormData
 ): Pick<Partial<UserType>, 'dateOfBirth' | 'juniorHandlerNumbers'> {
-  const loaded = formData.juniorHandlerFieldsLoaded;
-  const numbers = juniorHandlerNumbersForSave(formData.juniorHandlerNumbers);
+  const numbers = juniorHandlerNumbersPatch(formData.juniorHandlerNumbers, { clearBlanks: false });
   return {
-    ...(loaded || formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
-    ...(loaded || Object.keys(numbers).length > 0 ? { juniorHandlerNumbers: numbers } : {}),
+    ...(formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
+    ...(numbers ? { juniorHandlerNumbers: numbers } : {}),
   };
 }
 
@@ -178,10 +158,7 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   city: formData.city,
   state: formData.state,
   zipCode: formData.zipCode,
-  // MYK9-570: emitted only when this form has something to say about them —
-  // either the row it was seeded from carried them, or somebody typed one. A
-  // form that never loaded them emits NOTHING, so a save from a surface with a
-  // narrower read cannot blank a column it never showed.
+  // MYK9-570 / MYK9-664: emitted only when somebody typed one (write-only).
   ...juniorHandlerFieldsToSave(formData),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,

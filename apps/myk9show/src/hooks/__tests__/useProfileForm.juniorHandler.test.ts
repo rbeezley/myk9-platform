@@ -1,6 +1,8 @@
 /**
  * MYK9-570. The exhibitor's own account page round-trips the date of birth and
- * the registry junior handler numbers.
+ * the registry junior handler numbers. MYK9-664 moved both to `people_private`,
+ * which the person (and only they, besides site admins) can read, so the page
+ * loads them from there and saves them as a patch in which a blank clears.
  *
  * Assertion-first on the SAVE PAYLOAD, not on the form state: the values reach
  * the database through one hand-listed object, and a field present in the form
@@ -18,6 +20,11 @@ const mockEqAuthUserId = vi.fn().mockReturnValue({ is: mockIsDeletedAt });
 const mockSelect = vi.fn().mockReturnValue({ eq: mockEqAuthUserId });
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: () => ({ select: mockSelect }) },
+}));
+
+const mockLoadPrivate = vi.fn();
+vi.mock('@/services/database/users/personPrivate', () => ({
+  loadPersonPrivateDetails: (ids: string[]) => mockLoadPrivate(ids),
 }));
 
 vi.mock('@/lib/queryClient', () => ({
@@ -51,9 +58,11 @@ const dbPersonData = {
   email: 'test@example.com',
   auth_user_id: 'auth-user-123',
   profile_image: null,
-  date_of_birth: '2011-03-04',
-  junior_handler_numbers: { AKC: '7654321' },
 };
+
+const ownPrivate = new Map([
+  ['person-123', { dateOfBirth: '2011-03-04', juniorHandlerNumbers: { AKC: '7654321' } }],
+]);
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -75,9 +84,18 @@ describe('useProfileForm junior handler fields', () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue({});
     mockMaybeSingle.mockResolvedValue({ data: dbPersonData, error: null });
+    mockLoadPrivate.mockResolvedValue(ownPrivate);
   });
 
-  it('pre-fills the date of birth and the AKC number from the person row', async () => {
+  it('never asks people for the columns MYK9-664 moved off it', async () => {
+    await loaded();
+    const columns = String(mockSelect.mock.calls[0]?.[0]);
+    expect(columns).not.toContain('date_of_birth');
+    expect(columns).not.toContain('junior_handler_numbers');
+    expect(mockLoadPrivate).toHaveBeenCalledWith(['person-123']);
+  });
+
+  it("pre-fills the date of birth and the AKC number from the person's own private row", async () => {
     const result = await loaded();
     expect(result.current.values.dateOfBirth).toBe('2011-03-04');
     expect(result.current.values.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
@@ -111,20 +129,34 @@ describe('useProfileForm junior handler fields', () => {
     expect(mockMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         dateOfBirth: '2011-03-05',
-        juniorHandlerNumbers: { AKC: '7654321', UKC: 'UKC-42' },
+        // Every registry key: the person sees what is stored, so a blank clears.
+        juniorHandlerNumbers: { AKC: '7654321', UKC: 'UKC-42', ASCA: '' },
       })
     );
   });
 
-  it('omits a cleared number from the map rather than writing an empty string', async () => {
+  it('sends a cleared number as a blank, which the merge patch removes', async () => {
     const result = await loaded();
     act(() => result.current.setValue('juniorHandlerNumbers', { AKC: '' }));
     await act(async () => {
       await result.current.save();
     });
     expect(mockMutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ juniorHandlerNumbers: {} })
+      expect.objectContaining({ juniorHandlerNumbers: { AKC: '', UKC: '', ASCA: '' } })
     );
+  });
+
+  it('when the private read failed, a save sends no blanks that would clear stored values', async () => {
+    mockLoadPrivate.mockRejectedValue(new Error('offline'));
+    const result = await loaded();
+    expect(result.current.values.dateOfBirth).toBe('');
+    act(() => result.current.setValue('phone', '555-9999'));
+    await act(async () => {
+      await result.current.save();
+    });
+    const payload = mockMutateAsync.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.dateOfBirth).toBeUndefined();
+    expect(payload.juniorHandlerNumbers).toBeUndefined();
   });
 
   it('setValue takes an updater, and stores the result rather than the function', async () => {

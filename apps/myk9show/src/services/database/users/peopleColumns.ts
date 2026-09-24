@@ -16,8 +16,12 @@
 
 /**
  * Every column the two user mappers read (`mapDatabaseToUser` for the userStore,
- * `mapDbUserToUser` for React Query) EXCEPT the junior-handler PII. Keep in sync
- * with both mappers; the column-shape test in `userQueries.test.ts` pins it.
+ * `mapDbUserToUser` for React Query). Keep in sync with both mappers; the
+ * column-shape test in `userQueries.test.ts` pins it.
+ *
+ * MYK9-664 moved the junior-handler PII off `people` entirely, into
+ * `people_private` (see personPrivate.ts), so there is no longer a wider
+ * "directory" list that carries it.
  *
  * ONE string literal, not a `+` concatenation: the typed PostgREST client parses
  * the select string at the type level, and a concatenation is plain `string` to
@@ -25,12 +29,3 @@
  */
 export const PEOPLE_MAPPER_COLUMNS =
   'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by' as const;
-
-/**
- * The mapper columns PLUS the junior-handler PII, for the three surfaces that
- * actually collect or print it: the people directory (which feeds the
- * secretary's person edit panel), `getUserById`, and the person's own profile.
- * Everything else reads `PEOPLE_MAPPER_COLUMNS`.
- */
-export const PEOPLE_DIRECTORY_COLUMNS =
-  `${PEOPLE_MAPPER_COLUMNS}, date_of_birth, junior_handler_numbers` as const;

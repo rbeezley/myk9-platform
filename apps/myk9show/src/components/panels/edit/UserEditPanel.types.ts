@@ -22,35 +22,18 @@ export interface UserFormData extends Record<string, unknown> {
   state: string;
   zipCode: string;
   /**
-   * MYK9-570: ISO `YYYY-MM-DD`, or '' when unknown. Junior handler status is
-   * derived from this per trial; there is no junior checkbox to set.
+   * MYK9-570 / MYK9-664: a date of birth to SET, ISO `YYYY-MM-DD`, or '' to
+   * leave what is stored alone. WRITE-ONLY: this panel is the show manager's
+   * person editor, and a manager may set a handler's date of birth but never
+   * read it back, so the form always starts blank.
    */
   dateOfBirth: string;
   /**
-   * MYK9-570: registry-issued junior handler numbers keyed by `RegistryId`. The
-   * WHOLE map, not one field per rendered input — the form renders inputs only
-   * for the registries that issue a number, and rebuilding the map from those
-   * dropped any other stored key on save.
+   * MYK9-570 / MYK9-664: junior handler numbers to SET, keyed by `RegistryId`.
+   * Write-only for the same reason; a blank input leaves the stored number
+   * alone (the save is a merge patch, see `juniorHandlerNumbersPatch`).
    */
   juniorHandlerNumbers: Record<string, string>;
-  /**
-   * MYK9-570 round-2 review: did the row this form was seeded from actually
-   * CARRY the junior handler fields?
-   *
-   * `/admin/users` loads through the `get_admin_user_list` RPC, whose signature
-   * returns neither column. They arrived undefined, rendered blank, and were
-   * then saved back as `null` / `{}` — a site admin fixing a phone number wiped
-   * a handler's date of birth and AKC junior number. Partial rows are legitimate
-   * (see `MappableDbUser`), so the form has to remember which half it got.
-   *
-   * False means "blank because it was never loaded" — do not write it back.
-   * Nothing flips this flag: it records what the SOURCE ROW carried and does not
-   * change as the form is edited. Typing is handled separately, per field, at
-   * save time (`juniorHandlerFieldsToSave`), so an admin can still FILL either
-   * field in on a surface that loaded neither — and filling one does not write
-   * the other back as blank.
-   */
-  juniorHandlerFieldsLoaded: boolean;
   profileImage?: string;
   judgeQualifications: JudgeQualification[];
   roles: string[];

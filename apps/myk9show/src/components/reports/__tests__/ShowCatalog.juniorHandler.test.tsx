@@ -82,6 +82,13 @@ describe('ShowCatalog junior handler mark', () => {
   });
 });
 
+/**
+ * MYK9-664: the catalog no longer sees a date of birth. Each entry records its
+ * junior flag at creation (`recorded_entry_handler_junior_flags`, computed from
+ * the SQL twin of `deriveJuniorStatus`; the age/registry rules are pinned in
+ * supabase/tests/myk9_664_people_private_test.sql), and the mapper only decides
+ * whether the flagged person is the handler the paperwork prints.
+ */
 describe('end to end from the db row the catalog is fed', () => {
   const trial: DbTrial = {
     id: 't1',
@@ -91,7 +98,7 @@ describe('end to end from the db row the catalog is fed', () => {
   } as DbTrial;
 
   function dbEntry(
-    dateOfBirth: string | null,
+    isJunior: boolean | null,
     person: Partial<{ first_name: string; last_name: string }> = {}
   ): ReportDbEntry {
     return {
@@ -105,16 +112,15 @@ describe('end to end from the db row the catalog is fed', () => {
         first_name: 'Mariana',
         last_name: 'Rivera',
         ...person,
-        date_of_birth: dateOfBirth,
-        junior_handler_numbers: { AKC: '7654321' },
+        is_junior: isJunior,
       },
       dog: { id: 'd1', call_name: 'Buddy', breed: 'Golden Retriever', registrations: [] },
     } as unknown as ReportDbEntry;
   }
 
-  it('marks a handler who is 17 on the trial date and not one who is 18', () => {
-    const [junior] = mapReportEntries([dbEntry('2008-09-18')], trial);
-    const [adult] = mapReportEntries([dbEntry('2008-04-11')], trial);
+  it('marks a handler the database flags junior, and not one it flags adult', () => {
+    const [junior] = mapReportEntries([dbEntry(true)], trial);
+    const [adult] = mapReportEntries([dbEntry(false)], trial);
     expect(junior?.handlerIsJunior).toBe(true);
     expect(adult?.handlerIsJunior).toBeUndefined();
 
@@ -124,24 +130,12 @@ describe('end to end from the db row the catalog is fed', () => {
 
   it('marks an ID-only assigned junior from the canonical hydrated handler identity', () => {
     const entry = {
-      ...dbEntry('2012-04-02'),
+      ...dbEntry(true),
       handler: null,
       handler_id: 'handler-1',
-      handler_person: {
-        first_name: 'Mariana',
-        last_name: 'Rivera',
-        date_of_birth: '2012-04-02',
-        junior_handler_numbers: { AKC: '7654321' },
-      },
       handler_identity: {
         name: 'Mariana Rivera',
-        person: {
-          id: 'handler-1',
-          first_name: 'Mariana',
-          last_name: 'Rivera',
-          date_of_birth: '2012-04-02',
-          junior_handler_numbers: { AKC: '7654321' },
-        },
+        person: { id: 'handler-1', first_name: 'Mariana', last_name: 'Rivera' },
         source: 'assigned-person' as const,
       },
     } as unknown as ReportDbEntry;
@@ -157,10 +151,9 @@ describe('end to end from the db row the catalog is fed', () => {
   it('refuses to mark when handler_id names someone other than the printed handler', () => {
     // The P1 from round 1. `entries.handler` is free text, `entries.handler_id` is
     // a FK, and a rename leaves the id behind. Here the paperwork says "Grandma
-    // Smith" while handler_id points at a 14-year-old who holds an AKC junior
-    // number. Marking her would claim junior eligibility for an adult on official
-    // AKC paperwork and disclose a minor's registry number.
-    const entry = dbEntry('2012-04-02', { first_name: 'Ada', last_name: 'Smith' });
+    // Smith" while handler_id points at a 14-year-old. Marking her would claim
+    // junior eligibility for an adult on official AKC paperwork.
+    const entry = dbEntry(true, { first_name: 'Ada', last_name: 'Smith' });
     (entry as { handler?: string }).handler = 'Grandma Smith';
 
     const [mapped] = mapReportEntries([entry], trial);
@@ -173,30 +166,20 @@ describe('end to end from the db row the catalog is fed', () => {
 
   it('still marks when the name matches, allowing punctuation and "Last, First"', () => {
     for (const printed of ['Mariana Rivera', 'mariana  rivera', 'Rivera, Mariana']) {
-      const entry = dbEntry('2012-04-02');
+      const entry = dbEntry(true);
       (entry as { handler?: string }).handler = printed;
       expect(mapReportEntries([entry], trial)[0]?.handlerIsJunior, printed).toBe(true);
     }
   });
 
   it('refuses to mark when the hydrated person carries no name at all', () => {
-    const entry = dbEntry('2012-04-02');
-    (entry as { handler_person?: Record<string, unknown> }).handler_person = {
-      date_of_birth: '2012-04-02',
-      junior_handler_numbers: { AKC: '7654321' },
-    };
+    const entry = dbEntry(true);
+    (entry as { handler_person?: Record<string, unknown> }).handler_person = { is_junior: true };
     expect(mapReportEntries([entry], trial)[0]?.handlerIsJunior).toBeUndefined();
   });
 
-  it('does not mark when the hydrated person has no date of birth', () => {
-    // Every person has a NULL date of birth until the column is populated, so an
-    // unguarded derivation would stamp "Jr." on every catalog line in the system.
-    expect(mapReportEntries([dbEntry(null)], trial)[0]?.handlerIsJunior).toBeUndefined();
-  });
-
-  it('does not mark on an ASCA trial, whose rulebook states no upper age bound', () => {
-    const ascaTrial = { ...trial, registry_id: 'ASCA' } as DbTrial;
-    const [mapped] = mapReportEntries([dbEntry('2012-04-02')], ascaTrial);
+  it('does not mark when the database could not derive it (no date of birth, ASCA)', () => {
+    const [mapped] = mapReportEntries([dbEntry(null)], trial);
     expect(mapped?.handlerIsJunior).toBeUndefined();
 
     render(<ShowCatalog {...propsWith([mapped as ReportEntry])} />);
@@ -204,7 +187,7 @@ describe('end to end from the db row the catalog is fed', () => {
   });
 
   it('leaves the entry unmarked when the handler person was never hydrated', () => {
-    const entry = { ...dbEntry('2008-09-18') };
+    const entry = { ...dbEntry(true) };
     delete (entry as { handler_person?: unknown }).handler_person;
     const [mapped] = mapReportEntries([entry], trial);
     expect(mapped?.handlerIsJunior).toBeUndefined();

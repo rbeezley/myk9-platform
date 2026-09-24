@@ -132,6 +132,18 @@ BEGIN
     RAISE EXCEPTION 'You are already a member of this club' USING ERRCODE = 'MK685';
   END IF;
 
+  -- A suspension is the club's decision, not a lapse: a join request must not
+  -- become a way around it. Same code as a standing denial (the club said no).
+  IF EXISTS (
+    SELECT 1 FROM public.club_members
+    WHERE club_id = p_club_id
+      AND person_id = v_person_id
+      AND membership_status = 'suspended'
+  ) THEN
+    RAISE EXCEPTION 'Your membership in this club is suspended. Contact the club directly.'
+      USING ERRCODE = 'MK571';
+  END IF;
+
   -- Standing denial, same shape and same code as the club-routed secretary
   -- ask (MK571): the club already said no, and only adding the person to the
   -- roster directly (the active-member check above) lifts it.
@@ -341,12 +353,26 @@ BEGIN
     RAISE EXCEPTION 'Reviewer profile was not found' USING ERRCODE = '42501';
   END IF;
 
+  -- A suspension that landed while the ask was pending is not lifted by it:
+  -- the admin lifts a suspension from the member list, deliberately.
+  IF EXISTS (
+    SELECT 1 FROM public.club_members
+    WHERE club_id = v_club_id
+      AND person_id = v_person_id
+      AND membership_status = 'suspended'
+  ) THEN
+    RAISE EXCEPTION 'This person''s membership is suspended. Lift the suspension from the member list instead.'
+      USING ERRCODE = '23514';
+  END IF;
+
   -- Reactivating an existing lapsed/resigned row keeps its type, dues and
-  -- notes (same rule as the founder grant in 20260919205500).
+  -- notes (same rule as the founder grant in 20260919205500). Only those two
+  -- statuses are reactivated here; suspended was refused above.
   INSERT INTO public.club_members (club_id, person_id, membership_status)
   VALUES (v_club_id, v_person_id, 'active')
   ON CONFLICT (club_id, person_id) DO UPDATE
-    SET membership_status = 'active';
+    SET membership_status = 'active'
+    WHERE public.club_members.membership_status IN ('lapsed', 'resigned');
 
   UPDATE public.club_membership_requests
   SET status = 'approved',

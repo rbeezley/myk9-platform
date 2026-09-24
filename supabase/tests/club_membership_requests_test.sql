@@ -18,6 +18,8 @@
 --   8. email_log_access_request_once_idx rejects a second claim for the same
 --      (email_type, related_id, recipient), case-insensitively, and does not
 --      touch other email types.
+--   9. A suspended member cannot ask to rejoin, and approving an ask that was
+--      pending when the suspension landed does not lift the suspension.
 --
 -- People are inserted before auth.users so handle_new_user adopts each one
 -- by email (same order as club_routed_role_requests_test.sql).
@@ -35,7 +37,8 @@ VALUES
   ('00000000-0000-0000-0000-000000000d12', 'Mary', 'Member', 'myk9-685-mary@example.test'),
   ('00000000-0000-0000-0000-000000000d13', 'Oscar', 'Outside', 'myk9-685-oscar@example.test'),
   ('00000000-0000-0000-0000-000000000d15', 'Dana', 'Denied', 'myk9-685-dana@example.test'),
-  ('00000000-0000-0000-0000-000000000d16', 'Other', 'Admin', 'myk9-685-other-admin@example.test');
+  ('00000000-0000-0000-0000-000000000d16', 'Other', 'Admin', 'myk9-685-other-admin@example.test'),
+  ('00000000-0000-0000-0000-000000000d17', 'Sam', 'Suspended', 'myk9-685-sam@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -57,6 +60,9 @@ VALUES
    now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000000d06', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-685-other-admin@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000d07', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-685-sam@example.test', '', now(),
    now(), now(), '{}', '{}', false, false, false);
 
 DO $$
@@ -70,7 +76,8 @@ BEGIN
     '00000000-0000-0000-0000-000000000d12',
     '00000000-0000-0000-0000-000000000d13',
     '00000000-0000-0000-0000-000000000d15',
-    '00000000-0000-0000-0000-000000000d16'
+    '00000000-0000-0000-0000-000000000d16',
+    '00000000-0000-0000-0000-000000000d17'
   ]::uuid[])
     AND auth_user_id IS NULL;
 
@@ -378,6 +385,102 @@ BEGIN
   END;
 
   RAISE NOTICE 'PASS denial note and status read back to the requester';
+END;
+$$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 9. Suspension survives the membership-request path.
+-- ============================================================================
+
+-- Sam asks while still a (lapsed) former member; the club then suspends him.
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES ('00000000-0000-0000-0000-000000000d21', '00000000-0000-0000-0000-000000000d17', 'lapsed');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d07', true);
+
+DO $$
+BEGIN
+  IF public.submit_club_membership_request('00000000-0000-0000-0000-000000000d21', NULL) IS NULL THEN
+    RAISE EXCEPTION 'FAIL a lapsed former member could not ask to rejoin';
+  END IF;
+  RAISE NOTICE 'PASS a lapsed former member can ask to rejoin';
+END;
+$$;
+
+RESET ROLE;
+
+UPDATE public.club_members SET membership_status = 'suspended'
+WHERE club_id = '00000000-0000-0000-0000-000000000d21'
+  AND person_id = '00000000-0000-0000-0000-000000000d17';
+
+SELECT set_config(
+  'myk9_685.sam_request_id',
+  (SELECT id::text FROM public.club_membership_requests
+   WHERE person_id = '00000000-0000-0000-0000-000000000d17' AND status = 'pending'),
+  true
+);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d01', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.approve_club_membership_request(
+      current_setting('myk9_685.sam_request_id')::uuid, NULL
+    );
+    RAISE EXCEPTION 'FAIL approving a membership ask lifted a suspension';
+  EXCEPTION WHEN SQLSTATE '23514' THEN
+    RAISE NOTICE 'PASS approving an ask does not lift a suspension (23514)';
+  END;
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT membership_status FROM public.club_members
+      WHERE club_id = '00000000-0000-0000-0000-000000000d21'
+        AND person_id = '00000000-0000-0000-0000-000000000d17') <> 'suspended' THEN
+    RAISE EXCEPTION 'FAIL the suspension did not survive the approval attempt';
+  END IF;
+  RAISE NOTICE 'PASS the membership is still suspended';
+END;
+$$;
+
+-- The pending ask is withdrawn by denial; a fresh ask from the suspended
+-- member is refused at the door.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d01', true);
+DO $$
+BEGIN
+  PERFORM public.deny_club_membership_request(
+    current_setting('myk9_685.sam_request_id')::uuid, NULL
+  );
+END;
+$$;
+
+RESET ROLE;
+
+-- Clear the denial so only the suspension can block the next ask.
+UPDATE public.club_membership_requests SET status = 'approved'
+WHERE id = current_setting('myk9_685.sam_request_id')::uuid;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d07', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.submit_club_membership_request('00000000-0000-0000-0000-000000000d21', NULL);
+    RAISE EXCEPTION 'FAIL a suspended member could ask to rejoin';
+  EXCEPTION WHEN SQLSTATE 'MK571' THEN
+    RAISE NOTICE 'PASS a suspended member cannot ask to rejoin (MK571)';
+  END;
 END;
 $$;
 

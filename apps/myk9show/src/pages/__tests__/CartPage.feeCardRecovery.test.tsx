@@ -519,6 +519,13 @@ describe('MYK9-423 fee-card payment recovery', () => {
               })
             );
           }
+          // The load re-checks each cart class's status (MYK9-656); these are open.
+          if (table === 'classes')
+            return json(
+              databaseEntries
+                .map(entry => ({ id: entry.class_id, name: entry.className, status: 'upcoming' }))
+                .filter(matches)
+            );
           // Unrelated display metadata stays at its empty/default state.
           if (table === 'platform_settings' || table === 'shows' || table === 'clubs')
             return json([]);

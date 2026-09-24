@@ -53,6 +53,7 @@ export interface FakeClassRow {
   level: string | null;
   trial_id: string;
   allow_waitlist: boolean | null;
+  max_entries?: number | null;
   status: string | null;
 }
 
@@ -79,6 +80,8 @@ export interface FakeCartDb {
   carts: FakeCartRow[];
   items: FakeCartItemRow[];
   classes: FakeClassRow[];
+  /** `dogs` rows for the cart item embed: id, name, call_name. */
+  dogs: Array<{ id: string; name: string; call_name: string | null }>;
   /** Entries rows the reconcile / class-start reads see. */
   entries: Row[];
   log: FakeQueryInfo[];
@@ -234,6 +237,7 @@ class FakeQuery {
     }
     if (this.table === 'entry_cart_items') {
       out.class = this.db.classes.find(c => c.id === row.class_id);
+      out.dog = this.db.dogs.find(d => d.id === row.dog_id);
     }
     return out;
   }
@@ -329,6 +333,7 @@ export function createFakeCartDb(
     carts?: FakeCartRow[];
     items?: FakeCartItemRow[];
     classes?: FakeClassRow[];
+    dogs?: Array<{ id: string; name: string; call_name: string | null }>;
     entries?: Row[];
   } = {}
 ): FakeCartDb {
@@ -338,6 +343,7 @@ export function createFakeCartDb(
     carts: [...(seed.carts ?? [])],
     items: [...(seed.items ?? [])],
     classes: [...(seed.classes ?? [])],
+    dogs: [...(seed.dogs ?? [])],
     entries: [...(seed.entries ?? [])],
     log: [],
     from: (table: string) => new FakeQuery(db, table, nextId),

@@ -108,6 +108,18 @@ export interface CheckoutResult {
   waitlisted: WaitlistEntryResult[];
 }
 
+/**
+ * A cart line removed on load because its class can no longer be entered
+ * (MYK9-656). Kept so the exhibitor is told what left their cart and why.
+ */
+export interface DroppedCartItem {
+  itemId: string;
+  dogName: string | null;
+  className: string | null;
+  /** `getClassEntryWindow`'s sentence, e.g. "This class was cancelled". */
+  reason: string;
+}
+
 // Cart state interface
 export interface CartState {
   // Data
@@ -130,6 +142,14 @@ export interface CartState {
 
   // Expiration tracking
   expirationWarning: boolean;
+
+  /**
+   * Lines removed from a loaded cart because their class closed (MYK9-656).
+   * Accumulates across loads until the exhibitor dismisses it, so moving from
+   * the wizard to /cart does not silently lose the explanation.
+   */
+  droppedClosedClassItems: DroppedCartItem[];
+  dismissDroppedClosedClassItems: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

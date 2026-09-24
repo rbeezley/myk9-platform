@@ -319,18 +319,18 @@ Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip 
 
 **Reports to generate:**
 
-| Report                   | Recipient                | Frequency           |
-| ------------------------ | ------------------------ | ------------------- |
-| Results Catalog          | Self, club chairman      | Once after closeout |
-| Judge Report (per judge) | Each judge + AKC         | Once per trial      |
-| Trial Secretary Report   | AKC submission packet    | Once per trial      |
-| Result Labels            | Qualifying dogs' ribbons | Once per show       |
+| Report                     | Recipient                | Frequency           |
+| -------------------------- | ------------------------ | ------------------- |
+| Results Catalog            | Self, club chairman      | Once after closeout |
+| Judge Report (per judge)   | Each judge + AKC         | Once per trial      |
+| AKC Trial Secretary Report | AKC submission packet    | Once per trial      |
+| Result Labels              | Qualifying dogs' ribbons | Once per show       |
 
 **Rough steps (qa-draft):**
 
 1. Open **Reports** from the Show Desk closeout section.
 2. Select the trial.
-3. Generate and download/print each report in order: Results Catalog → Judge Report → Trial Secretary Report → Result Labels.
+3. Generate and download/print each report in order: Results Catalog → Judge Report → AKC Trial Secretary Report → Result Labels.
 
 **Screenshots:** Each report type rendered.
 

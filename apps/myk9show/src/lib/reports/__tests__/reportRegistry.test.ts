@@ -30,6 +30,19 @@ describe('reportRegistry', () => {
     expect(getEnabledReports()).toHaveLength(37);
   });
 
+  // MYK9-661: under the show-phase headings a registry form sits beside generic
+  // reports, so its name is the only thing saying whose paperwork it is. Pins the
+  // convention, not today's names, so the next form added bare fails here.
+  it('names every registry-scoped report with its registry first', () => {
+    const scoped = reportRegistry.filter(r => r.registryId !== undefined);
+    expect(scoped.length).toBeGreaterThan(0);
+    for (const report of scoped) {
+      expect(report.name, `${report.id} should name its registry`).toMatch(
+        new RegExp(`^${report.registryId} `)
+      );
+    }
+  });
+
   it('has all unique IDs', () => {
     const ids = reportRegistry.map(r => r.id);
     const unique = new Set(ids);

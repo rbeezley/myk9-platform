@@ -254,12 +254,12 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 **Reports**, filtered to your registry. The main ones:
 
-| Registry | Reports                                                                                                                            |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| All      | Steward's Report · Financial Report                                                                                                |
-| AKC      | Trial Secretary Report · Trial Secretary Certification · Trial Chairman Report · AKC Judge's Report · Judge's Certification Report |
-| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                                        |
-| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                                   |
+| Registry | Reports                                                                                                                                                                |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All      | Steward's Report · Financial Report                                                                                                                                    |
+| AKC      | AKC Trial Secretary Report · AKC Trial Secretary Certification · AKC Trial Chairman Report · AKC Judge's Report · AKC Judge's Certification Report · AKC High in Trial |
+| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                                                                            |
+| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                                                                       |
 
 Each renders the registry's own instructions and layout.
 
@@ -276,7 +276,7 @@ Each renders the registry's own instructions and layout.
 
 ## 23 · High in Trial
 
-**Reports → High in Trial**, then narrow it to a trial. AKC trials only.
+**Reports → AKC High in Trial**, then narrow it to a trial. AKC trials only.
 
 The report works out who is eligible and ranks them for you. One section per difficulty level, showing the elements counted, each team's faults and time per element, and the totals they were ranked on.
 

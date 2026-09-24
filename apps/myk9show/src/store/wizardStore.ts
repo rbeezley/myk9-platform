@@ -316,6 +316,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             return state;
           }
 
+          const show = { ...initialState.show, ...snapshot.show };
           return {
             ...initialState,
             cloneGeneration: generation,
@@ -324,11 +325,13 @@ export const useWizardStore = create<WizardState & WizardActions>()(
               sourceShowId: snapshot.sourceShowId,
               sourceShowName: snapshot.sourceShowName,
             },
-            show: { ...initialState.show, ...snapshot.show },
+            show,
             judgeDetails: snapshot.judgeDetails,
+            // Same default addTrial applies: a legacy source trial without a type.
             trials: snapshot.trials.map(trial => ({
               ...trial,
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[show.organization],
             })),
             isDirty: true,
           };

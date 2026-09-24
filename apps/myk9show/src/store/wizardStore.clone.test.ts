@@ -110,4 +110,14 @@ describe('wizard store clone hydration', () => {
     expect(useWizardStore.getState().show.name).toBe('Existing draft');
     expect(useWizardStore.getState().cloneHydration.status).toBe('idle');
   });
+
+  it("defaults a cloned trial's missing trial type from the cloned organization, as addTrial does", () => {
+    const generation = useWizardStore.getState().beginCloneHydration('source-1', 'Cloned show');
+    const legacy = snapshot('source-1', 'Cloned show');
+    legacy.trials = [{ ...legacy.trials[0]!, trialType: undefined }];
+
+    useWizardStore.getState().completeCloneHydration(generation, legacy);
+
+    expect(useWizardStore.getState().trials[0]!.trialType).toBe('Nosework');
+  });
 });

@@ -8,7 +8,14 @@
  * was taken at the desk. This runs the real warm projection into the real
  * summary. LESSONS `last-hop-drop`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  createDatabaseError: vi.fn(),
+  logQuery: vi.fn(),
+  supabase: { from: vi.fn() },
+}));
+
 import { toSecretaryEntry } from '@/services/database/entries/secretaryReadReplication';
 import { summarizeShowDayReconciliation } from '../showDayReconciliationSummary';
 

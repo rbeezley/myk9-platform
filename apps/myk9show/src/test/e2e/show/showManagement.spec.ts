@@ -26,9 +26,7 @@ async function openFirstShowFromBrowse(page: Page): Promise<string> {
 }
 
 test.describe('Show management workflow', () => {
-  test('public browse uses the current Shows page instead of legacy create-show test IDs', async ({
-    page,
-  }) => {
+  test('public browse redirects to the current Shows page', async ({ page }) => {
     await page.goto('/shows/browse', { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/shows$/);
@@ -37,7 +35,6 @@ test.describe('Show management workflow', () => {
     });
     await expect(page.getByRole('textbox', { name: /Search shows/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^Browse All/ })).toBeVisible();
-    await expect(page.locator('[data-testid="create-new-show-button"]')).toHaveCount(0);
   });
 
   test('secretary can reach the canonical show wizard from the browse page', async ({ page }) => {
@@ -75,7 +72,6 @@ test.describe('Show management workflow', () => {
     // MYK9-630 phase 2: the five standalone page links above the tab strip are
     // deleted -- every one of those pages IS a tab now, and the tabs are the
     // only horizontal row on the page.
-    await expect(page.locator('[data-testid="canonical-show-management-nav"]')).toHaveCount(0);
     for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Submit Results']) {
       await expect(page.getByRole('link', { name: label, exact: true })).toHaveCount(0);
     }
@@ -94,8 +90,6 @@ test.describe('Show management workflow', () => {
     // Each tab is a real page: selecting one changes the URL.
     await page.getByRole('tab', { name: /^Show Day/ }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${showId}/show-day`));
-
-    await expect(page.locator('[data-testid="show-trials-tab"]')).toHaveCount(0);
   });
 
   test('secretary trial and class add actions route to the incremental wizard modes', async ({

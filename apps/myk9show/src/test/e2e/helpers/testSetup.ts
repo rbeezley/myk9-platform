@@ -60,16 +60,6 @@ export class TestSetup {
       )
       .toBe(creds.email);
 
-    // Wait for any loading spinners to disappear
-    await this.page
-      .waitForSelector('[data-testid="loading-spinner"]', {
-        state: 'hidden',
-        timeout: 5000,
-      })
-      .catch(() => {
-        logger.debug('No loading spinner detected', 'app', {});
-      });
-
     await expect(this.page).not.toHaveURL(/\/sign-in/);
 
     const finalUrl = this.page.url();
@@ -85,14 +75,6 @@ export class TestSetup {
   }
 
   /**
-   * Navigate to class creation for a trial
-   */
-  async goToClassCreation(trialId: string = 'trial-123') {
-    await this.page.goto(`/trials/${trialId}/classes/create`);
-    await this.page.waitForLoadState('domcontentloaded');
-  }
-
-  /**
    * Clear all test data
    */
   async clearTestData() {
@@ -103,153 +85,6 @@ export class TestSetup {
         sessionStorage.clear();
       } catch {
         // Handle cases where localStorage is not accessible (like file:// protocol or cross-origin)
-      }
-    });
-  }
-
-  /**
-   * Wait for loading to complete
-   */
-  async waitForLoading() {
-    // Wait for any loading spinners to disappear
-    await this.page
-      .waitForSelector('[data-testid="loading-spinner"]', {
-        state: 'hidden',
-        timeout: 5000,
-      })
-      .catch(() => {
-        // Ignore if no loading spinner exists
-      });
-
-    await this.page.waitForLoadState('networkidle');
-  }
-
-  /**
-   * Take a screenshot with timestamp
-   */
-  async takeScreenshot(name: string) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    await this.page.screenshot({
-      path: `test-results/screenshots/${name}-${timestamp}.png`,
-      fullPage: true,
-    });
-  }
-
-  /**
-   * Check for console errors
-   */
-  async checkConsoleErrors() {
-    const errors: string[] = [];
-
-    this.page.on('console', msg => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
-
-    return errors;
-  }
-
-  /**
-   * Mock API responses for testing
-   */
-  async mockApiResponses() {
-    // Mock dog search API
-    await this.page.route('**/api/dogs/search**', async route => {
-      const url = new URL(route.request().url());
-      const query = url.searchParams.get('q') || '';
-
-      const dogs = await this.page.evaluate(() => {
-        const stored = localStorage.getItem('test_dogs');
-        return stored ? JSON.parse(stored) : [];
-      });
-
-      interface MockDog {
-        callName: string;
-        registeredName: string;
-        breed: string;
-      }
-
-      const filtered = (dogs as MockDog[]).filter(
-        (dog: MockDog) =>
-          dog.callName.toLowerCase().includes(query.toLowerCase()) ||
-          dog.registeredName.toLowerCase().includes(query.toLowerCase()) ||
-          dog.breed.toLowerCase().includes(query.toLowerCase())
-      );
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(filtered),
-      });
-    });
-
-    // Mock registration API
-    await this.page.route('**/api/registrations**', async route => {
-      const method = route.request().method();
-
-      if (method === 'POST') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            id: `reg-${Date.now()}`,
-            confirmationNumber: `CONF-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-          }),
-        });
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([]),
-        });
-      }
-    });
-
-    // Mock payment API
-    await this.page.route('**/api/payments/**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          transactionId: `txn-${Date.now()}`,
-        }),
-      });
-    });
-
-    // Mock handlers API
-    await this.page.route('**/api/handlers/search**', async route => {
-      const handlers = [
-        { id: 'handler-1', name: 'Professional Handler 1', phone: '555-0001' },
-        { id: 'handler-2', name: 'Professional Handler 2', phone: '555-0002' },
-        { id: 'handler-3', name: 'John Smith', phone: '555-0003' },
-      ];
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(handlers),
-      });
-    });
-
-    // Mock template API endpoints
-    await this.page.route('**/api/templates/**', async route => {
-      const method = route.request().method();
-
-      if (method === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([]),
-        });
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true }),
-        });
       }
     });
   }

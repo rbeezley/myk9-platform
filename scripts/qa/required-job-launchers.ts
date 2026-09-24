@@ -116,6 +116,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     command: 'vitest run scripts/backup --sequence.shuffle',
   },
   { pkgDir: '.', script: 'qa:e2e-map:check', command: 'node scripts/check-e2e-suite-map.js' },
+  { pkgDir: '.', script: 'qa:e2e-testid-audit', command: 'bash scripts/qa/e2e-testid-audit.sh' },
   {
     pkgDir: '.',
     script: 'qa:sql:behavioral:test',

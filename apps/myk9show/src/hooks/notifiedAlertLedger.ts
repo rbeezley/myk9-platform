@@ -27,8 +27,6 @@
 
 const STORAGE_PREFIX = 'myk9-notified-alerts:v1';
 export const ALERT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-/** Hard cap so a pathological session cannot grow the record without bound. */
-const MAX_RECORDS = 2000;
 
 type Records = Record<string, number>;
 
@@ -68,7 +66,9 @@ export function notifiedAlertStorageKey(userId: string): string {
 
 /** Alert keys, one per distinct thing a user can be told about. */
 export const alertKey = {
-  resultsPosted: (classId: string) => `results_posted:${classId}`,
+  /** Keyed by the release time too, so an un-release and re-release is a new event. */
+  resultsReleased: (classId: string, releasedAt: string) =>
+    `results_posted:${classId}:${releasedAt}`,
   classStarting: (classId: string) => `class_starting:${classId}`,
   checkInReminder: (classId: string, entryId: string) => `check_in_reminder:${classId}:${entryId}`,
   yourTurn: (classId: string, inRingEntryId: string, entryId: string) =>
@@ -91,12 +91,12 @@ function readRecords(storageKey: string): Records {
   }
 }
 
+/**
+ * The window is the only eviction. A record whose event is still inside it is
+ * never dropped, because the monitor would announce that event again.
+ */
 function prune(records: Records, now: number): Records {
-  const kept = Object.entries(records)
-    .filter(([, at]) => now - at < ALERT_WINDOW_MS)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, MAX_RECORDS);
-  return Object.fromEntries(kept);
+  return Object.fromEntries(Object.entries(records).filter(([, at]) => now - at < ALERT_WINDOW_MS));
 }
 
 function writeRecords(storageKey: string, records: Records): void {

@@ -15,10 +15,20 @@ function stored(userId: string): Record<string, number> {
 
 describe('notifiedAlertLedger', () => {
   it('remembers a mark across ledgers for the same user', () => {
-    createNotifiedAlertLedger('user-a').mark(alertKey.resultsPosted('class-1'));
+    createNotifiedAlertLedger('user-a').mark(
+      alertKey.resultsReleased('class-1', '2026-09-01T00:00:00.000Z')
+    );
 
-    expect(createNotifiedAlertLedger('user-a').has(alertKey.resultsPosted('class-1'))).toBe(true);
-    expect(createNotifiedAlertLedger('user-b').has(alertKey.resultsPosted('class-1'))).toBe(false);
+    expect(
+      createNotifiedAlertLedger('user-a').has(
+        alertKey.resultsReleased('class-1', '2026-09-01T00:00:00.000Z')
+      )
+    ).toBe(true);
+    expect(
+      createNotifiedAlertLedger('user-b').has(
+        alertKey.resultsReleased('class-1', '2026-09-01T00:00:00.000Z')
+      )
+    ).toBe(false);
   });
 
   it('prunes records older than 30 days when a ledger opens', () => {
@@ -33,6 +43,18 @@ describe('notifiedAlertLedger', () => {
     expect(Object.keys(stored('user-a'))).toEqual(['recent']);
     expect(later.has('old')).toBe(false);
     expect(later.has('recent')).toBe(true);
+  });
+
+  it('never evicts a record whose event is inside the window, however many there are', () => {
+    const start = 1_000_000_000_000;
+    const records = Object.fromEntries(Array.from({ length: 2500 }, (_, i) => [`k${i}`, start]));
+    window.localStorage.setItem(notifiedAlertStorageKey('user-a'), JSON.stringify(records));
+
+    const later = createNotifiedAlertLedger('user-a', () => start + ALERT_WINDOW_MS - 1);
+    later.mark('one-more');
+
+    expect(Object.keys(stored('user-a'))).toHaveLength(2501);
+    expect(later.has('k0')).toBe(true);
   });
 
   it('stamps a record no earlier than its event, so it outlives the event in the window', () => {

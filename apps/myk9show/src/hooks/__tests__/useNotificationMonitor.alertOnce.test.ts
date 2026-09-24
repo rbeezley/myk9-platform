@@ -137,7 +137,20 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
     mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
   }
 
-  const finalized: NotificationSnapshot = {
+  // "Results posted" means released: exhibitors cannot see results before
+  // the secretary releases them (the public results release gate).
+  const RELEASED_AT = daysAgoIso(1);
+  const released: NotificationSnapshot = {
+    classes: [
+      classRow({
+        status: 'Complete',
+        is_scoring_finalized: true,
+        results_released_at: RELEASED_AT,
+      }),
+    ],
+    entries: [entry({ is_scored: true })],
+  };
+  const finalizedUnreleased: NotificationSnapshot = {
     classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
     entries: [entry({ is_scored: true })],
   };
@@ -160,8 +173,8 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
     ],
   };
 
-  it('delivers results for an already-finalized class on the first load only', () => {
-    loadSnapshot(finalized);
+  it('delivers results for an already-released class on the first load only', () => {
+    loadSnapshot(released);
 
     renderHook(() => useNotificationMonitor()).unmount();
     expect(countOf('results_posted')).toBe(1);
@@ -171,12 +184,12 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
     expect(mockDeliver).not.toHaveBeenCalled();
   });
 
-  it('delivers results for a class finalized while mounted', () => {
+  it('delivers results for a class released while mounted', () => {
     loadSnapshot({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
     const { rerender } = renderHook(() => useNotificationMonitor());
     expect(countOf('results_posted')).toBe(0);
 
-    loadSnapshot(finalized);
+    loadSnapshot(released);
     rerender();
 
     expect(countOf('results_posted')).toBe(1);
@@ -219,7 +232,7 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
   });
 
   it('keeps the record per user, so another account on the same browser is alerted', () => {
-    loadSnapshot(finalized);
+    loadSnapshot(released);
     renderHook(() => useNotificationMonitor()).unmount();
     expect(countOf('results_posted')).toBe(1);
 
@@ -267,21 +280,35 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
     expect(countOf('results_posted')).toBe(1);
   });
 
-  it('falls back to the trial date when results have no release time', () => {
+  it('does not alert or record a finalized class until its results are released', () => {
+    loadSnapshot(finalizedUnreleased);
+    renderHook(() => useNotificationMonitor()).unmount();
+    expect(countOf('results_posted')).toBe(0);
+    expect(window.localStorage.length).toBe(0);
+
+    loadSnapshot(released);
+    renderHook(() => useNotificationMonitor()).unmount();
+    renderHook(() => useNotificationMonitor()).unmount();
+    expect(countOf('results_posted')).toBe(1);
+  });
+
+  it('treats an un-release and re-release as a new event', () => {
+    loadSnapshot(released);
+    renderHook(() => useNotificationMonitor()).unmount();
+
     loadSnapshot({
+      ...released,
       classes: [
         classRow({
           status: 'Complete',
           is_scoring_finalized: true,
-          trial: { show_id: 'show-1', date: daysAgoIso(45).slice(0, 10) },
+          results_released_at: daysAgoIso(0),
         }),
       ],
-      entries: [entry({ is_scored: true })],
     });
+    renderHook(() => useNotificationMonitor()).unmount();
 
-    renderHook(() => useNotificationMonitor());
-
-    expect(countOf('results_posted')).toBe(0);
+    expect(countOf('results_posted')).toBe(2);
   });
 
   it('does not announce class-starting or check-in for a trial outside the window', () => {
@@ -320,7 +347,7 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
   });
 
   it('does not record an alert that delivery suppressed', () => {
-    loadSnapshot(finalized);
+    loadSnapshot(released);
     mockDeliver.mockReturnValue(false);
     renderHook(() => useNotificationMonitor()).unmount();
 
@@ -345,8 +372,8 @@ describe('useNotificationMonitor alerts once per user, not once per page load', 
     };
     try {
       window.localStorage = throwing as unknown as Storage;
-      mockRefetch.mockResolvedValue({ data: finalized });
-      loadSnapshot(finalized);
+      mockRefetch.mockResolvedValue({ data: released });
+      loadSnapshot(released);
 
       renderHook(() => useNotificationMonitor());
       expect(countOf('results_posted')).toBe(1);

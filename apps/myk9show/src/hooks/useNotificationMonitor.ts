@@ -51,7 +51,6 @@ interface ClassRow {
   id: string;
   name: string;
   status: string | null;
-  is_scoring_finalized: boolean;
   results_released_at: string | null;
   trial?: { show_id: string; date: string | null } | null;
 }
@@ -59,14 +58,6 @@ interface ClassRow {
 /** When the class ran: its trial date. Classes carry no date of their own. */
 function classDayMs(classRow: ClassRow): number | null {
   return eventTimeMs(classRow.trial?.date);
-}
-
-/**
- * When results were posted: the release time. `classes` has no finalized
- * timestamp, so an unreleased finalized class falls back to its trial date.
- */
-function resultsPostedMs(classRow: ClassRow): number | null {
-  return eventTimeMs(classRow.results_released_at) ?? classDayMs(classRow);
 }
 
 interface NotificationSnapshot {
@@ -162,7 +153,7 @@ export function useNotificationMonitor(): void {
       const { data: classRows, error: classError } = await supabase
         .from('classes')
         .select(
-          `id, name, status, is_scoring_finalized, results_released_at,
+          `id, name, status, results_released_at,
          trial:trials!inner(show_id, date)`
         )
         .in('trial.show_id', showIds);
@@ -357,9 +348,13 @@ export function useNotificationMonitor(): void {
           }
         }
 
-        if (classRow.is_scoring_finalized && userEntries.length > 0) {
-          const resultsKey = alertKey.resultsPosted(classId);
-          const postedAt = resultsPostedMs(classRow);
+        // "Results posted" fires on RELEASE, not finalization: exhibitors cannot
+        // see results before the secretary releases them (the public results
+        // release gate), and finalized and released are separate states.
+        const releasedAt = classRow.results_released_at;
+        if (releasedAt && userEntries.length > 0) {
+          const resultsKey = alertKey.resultsReleased(classId, releasedAt);
+          const postedAt = eventTimeMs(releasedAt);
           deliverOnce(ledgerNow, resultsKey, postedAt, deliverRef.current, () => {
             const results = buildResultsPostedPayload({
               dogName: userEntries
@@ -371,7 +366,7 @@ export function useNotificationMonitor(): void {
               classId,
               userEntries,
               nextResultStatuses,
-              classRow.results_released_at
+              releasedAt
             );
             return results;
           });

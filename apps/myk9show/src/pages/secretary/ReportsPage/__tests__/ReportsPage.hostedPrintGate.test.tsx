@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { act, createTestQueryClient, render, screen, waitFor } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
+import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import ReportsPage from '../index';
 
 const mocks = vi.hoisted(() => ({
@@ -97,6 +98,7 @@ const printButton = () => screen.getByRole('button', { name: /^print$/i });
 
 describe('ReportsPage Print gate for hosted reports (MYK9-717)', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     mocks.getWaitlistReportRows.mockReset();
     mocks.listForShow.mockReset();
     mocks.printIframe.mockClear();
@@ -151,5 +153,37 @@ describe('ReportsPage Print gate for hosted reports (MYK9-717)', () => {
 
     await act(async () => supplies.resolve([]));
     await waitFor(() => expect(printButton()).toBeEnabled());
+  });
+
+  it('refetches when the replica catches up after the server invalidation, blocking Print meanwhile', async () => {
+    const waitlistListeners: Array<() => void> = [];
+    vi.spyOn(replicatedWaitlistEntriesTable, 'subscribe').mockImplementation(listener => {
+      waitlistListeners.push(listener as () => void);
+      return () => {};
+    });
+    const OLD = [WAITLIST_ROW];
+    const NEW = [{ ...WAITLIST_ROW, id: 'wl-2', callName: 'Rex' }];
+    mocks.getWaitlistReportRows.mockResolvedValue(OLD);
+    const queryClient = renderReport('waitlist-report');
+    await waitFor(() => expect(printButton()).toBeEnabled());
+
+    // The promote's server answer invalidates the show; the replica still holds OLD.
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.show('show-1') });
+    });
+    await waitFor(() => expect(printButton()).toBeEnabled());
+    const readsBeforeSync = mocks.getWaitlistReportRows.mock.calls.length;
+
+    // The replica then syncs the promote and notifies its subscribers.
+    const synced = deferred<unknown[]>();
+    mocks.getWaitlistReportRows.mockReturnValueOnce(synced.promise);
+    expect(waitlistListeners.length).toBeGreaterThan(0);
+    act(() => waitlistListeners.forEach(listener => listener()));
+
+    await waitFor(() => expect(printButton()).toBeDisabled());
+    expect(mocks.getWaitlistReportRows.mock.calls.length).toBe(readsBeforeSync + 1);
+    await act(async () => synced.resolve(NEW));
+    await waitFor(() => expect(printButton()).toBeEnabled());
+    expect(queryClient.getQueryData(queryKeys.showWaitlistReport('show-1'))).toEqual(NEW);
   });
 });

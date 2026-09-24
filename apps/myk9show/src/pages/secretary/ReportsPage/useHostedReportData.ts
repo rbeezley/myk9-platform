@@ -17,16 +17,10 @@
  * the preview frame gate on the same `isHostedDataBusy`, so neither can act on a
  * report whose hosted data is loading or refreshing (MYK9-717).
  */
-import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/queryClient';
-import {
-  getHandlerPeopleHydrationRevision,
-  subscribeHandlerPeopleHydration,
-} from '@/services/database/entries/handlerHydration';
+import { useQuery } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import { getWaitlistReportRows } from '@/services/database/waitlists';
+import { useWaitlistReportQuery } from './useWaitlistReportQuery';
 import type { ReportAsyncData, ReportEntryFormData, ReportWaitlistRow } from '@/lib/reports/types';
 
 /** Report ids whose component needs entry-form data passed in. */
@@ -82,33 +76,7 @@ export function useHostedReportData({
     enabled: needsSupplies,
   });
 
-  const queryClient = useQueryClient();
-  const waitlistKey = queryKeys.showWaitlistReport(showId ?? '');
-  const waitlistQuery = useQuery({
-    queryKey: waitlistKey,
-    queryFn: () => getWaitlistReportRows(showId as string),
-    enabled: needsWaitlist,
-    // A local replica read: re-read on every open so the paper matches the Waitlist tab.
-    staleTime: 0,
-  });
-
-  // Handler names can arrive after the first read returned (loadHandlerPeople
-  // answers from cache and finishes in the background); re-read when they do.
-  const handlerPeopleRevision = useSyncExternalStore(
-    subscribeHandlerPeopleHydration,
-    getHandlerPeopleHydrationRevision,
-    getHandlerPeopleHydrationRevision
-  );
-  const seenRevision = useRef(handlerPeopleRevision);
-  const waitlistKeyShowId = waitlistKey[1];
-  useEffect(() => {
-    if (handlerPeopleRevision === seenRevision.current) return;
-    seenRevision.current = handlerPeopleRevision;
-    if (!needsWaitlist) return;
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.showWaitlistReport(waitlistKeyShowId),
-    });
-  }, [handlerPeopleRevision, needsWaitlist, queryClient, waitlistKeyShowId]);
+  const waitlistQuery = useWaitlistReportQuery(showId, needsWaitlist);
 
   const entryFormData: ReportEntryFormData | undefined = needsEntryForm
     ? {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -9,7 +9,11 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useVenueLocate } from './useVenueLocate';
+import {
+  useVenuePinLocator,
+  type VenueFlyTarget,
+  type VenuePinLocator,
+} from './useVenuePinLocator';
 import { VenueLocateNotice } from './VenueLocateNotice';
 import { normalizePinValue, type VenuePinValue } from './normalizePinValue';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from './tiles';
@@ -32,16 +36,16 @@ interface VenuePinMapProps {
   onChange: (value: VenuePinValue) => void;
   /** Full venue address used by the "Locate address" action. */
   address: string;
+  /**
+   * The locate state, when the form owns it (the show wizard auto-locates on
+   * address blur through the same hook). Omitted, the map owns its own.
+   */
+  locator?: VenuePinLocator | undefined;
   className?: string;
 }
 
-interface FlyTarget extends VenuePinValue {
-  /** Distinguishes successive geocodes to the same coordinates. */
-  nonce: number;
-}
-
 /** Re-centers only on geocode results — drags and clicks must not yank the view. */
-function FlyToTarget({ target }: { target: FlyTarget | null }) {
+function FlyToTarget({ target }: { target: VenueFlyTarget | null }) {
   const map = useMap();
   useEffect(() => {
     if (target) {
@@ -66,30 +70,9 @@ function ClickToPlace({ onChange }: { onChange: (v: VenuePinValue) => void }) {
  * Geocoding failures are non-blocking: a notice appears and the pin can be
  * placed manually, or skipped entirely.
  */
-export function VenuePinMap({ value, onChange, address, className }: VenuePinMapProps) {
-  const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
-
-  const handleLocated = useCallback(
-    (pin: VenuePinValue) => {
-      onChange(pin);
-      setFlyTarget({ ...pin, nonce: Date.now() });
-    },
-    [onChange]
-  );
-  const { isLocating, notice, locate, clearNotice } = useVenueLocate({
-    address,
-    value,
-    onLocated: handleLocated,
-  });
-
-  // A pin placed by hand answers the failure notice (MYK9-686 manual fallback).
-  const placeManually = useCallback(
-    (pin: VenuePinValue) => {
-      clearNotice();
-      onChange(pin);
-    },
-    [clearNotice, onChange]
-  );
+export function VenuePinMap({ value, onChange, address, locator, className }: VenuePinMapProps) {
+  const ownLocator = useVenuePinLocator({ address, value, onChange });
+  const { isLocating, notice, locate, flyTarget, placeManually } = locator ?? ownLocator;
 
   const handleDragEnd = useCallback(
     (event: L.DragEndEvent) => {

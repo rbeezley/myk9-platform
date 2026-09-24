@@ -56,12 +56,22 @@ export function useVenueLocate({ address, value, onLocated }: UseVenueLocateOpti
     latestAddressRef.current = address;
   }, [address]);
 
+  // The newest lookup owns the spinner and the answer; an older one that lands
+  // later is superseded, and asking again for the address already in flight is
+  // a no-op (Nominatim: one request per action).
+  const inFlightRef = useRef<{ address: string } | null>(null);
+
   const locate = useCallback(async () => {
+    if (inFlightRef.current?.address === address) return;
+    const request = { address };
+    inFlightRef.current = request;
     setNotice(null);
     setIsLocating(true);
     const valueAtRequest = latestValueRef.current;
     const addressAtRequest = address;
     const result = await geocodeAddress(address);
+    if (inFlightRef.current !== request) return;
+    inFlightRef.current = null;
     setIsLocating(false);
     if (latestValueRef.current !== valueAtRequest) return;
     if (latestAddressRef.current !== addressAtRequest) return;

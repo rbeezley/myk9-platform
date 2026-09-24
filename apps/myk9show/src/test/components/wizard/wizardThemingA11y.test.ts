@@ -14,6 +14,9 @@ const stepsDir = path.join(__dirname, '../../../components/shows/wizard/steps');
 const read = (p: string) => readFileSync(p, 'utf8');
 
 const reviewStep = read(path.join(stepsDir, 'ReviewStep.tsx'));
+// The Review error and warning cards were extracted into a sibling (MYK9-686);
+// the token guard follows the markup to its new home.
+const reviewNoticeCards = read(path.join(stepsDir, 'ReviewNoticeCards.tsx'));
 const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
 // Step 1 was regrouped into per-concern section files under steps/sections/.
 // The date-range validation error (the pinned destructive token) now lives in
@@ -76,9 +79,10 @@ const contrastRatio = (
 
 describe('Show creation wizard — dark-mode theming guards', () => {
   it('ReviewStep error card and stats use semantic tokens (no hand-paired dark: variants)', () => {
-    expect(reviewStep).toContain('border-destructive/30');
-    expect(reviewStep).toContain('bg-destructive/10');
-    expect(reviewStep).toContain('text-destructive');
+    expect(reviewNoticeCards).toContain('border-destructive/30');
+    expect(reviewNoticeCards).toContain('bg-destructive/10');
+    expect(reviewNoticeCards).toContain('text-destructive');
+    expect(reviewNoticeCards).toContain('border-warning/30 bg-warning/10');
     expect(reviewStep).toContain('text-info');
     expect(reviewStep).toContain('text-success');
     // This used to assert `dark:text-purple-400` was PRESENT -- directly
@@ -87,6 +91,7 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     // now deleted. Assert the absence the title always claimed.
     expect(reviewStep).not.toContain('text-purple-600');
     expect(reviewStep).not.toContain('dark:text-purple-400');
+    expect(reviewNoticeCards).not.toMatch(/dark:|text-purple|text-red-|text-amber-/);
   });
 
   it('ReviewStep no longer uses non-adapting gray text utilities', () => {

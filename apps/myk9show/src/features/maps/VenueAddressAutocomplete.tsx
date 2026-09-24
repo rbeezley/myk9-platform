@@ -6,6 +6,7 @@ import {
   formatVenueLocation,
   isPlacesAutocompleteConfigured,
   newPlacesSessionToken,
+  type PlaceDetails,
   type PlaceSuggestion,
 } from './placesAutocomplete';
 
@@ -25,6 +26,12 @@ interface VenueAddressAutocompleteProps {
   onChange: (location: string) => void;
   /** Fires when a suggestion resolves to an address with coordinates. */
   onPlaceSelected: (selection: VenuePlaceSelection) => void;
+  /**
+   * Fires when focus leaves the field and the secretary is done with it: no
+   * suggestion list open and no picked suggestion still resolving (MYK9-686
+   * auto-locate — a pick sets its own pin).
+   */
+  onSettledBlur?: (() => void) | undefined;
   placeholder?: string;
   rows?: number;
 }
@@ -43,6 +50,7 @@ export function VenueAddressAutocomplete({
   value,
   onChange,
   onPlaceSelected,
+  onSettledBlur,
   placeholder,
   rows = 3,
 }: VenueAddressAutocompleteProps) {
@@ -55,6 +63,7 @@ export function VenueAddressAutocomplete({
   const sessionTokenRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const selectingRef = useRef(false);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -105,7 +114,13 @@ export function VenueAddressAutocomplete({
     sessionTokenRef.current = null;
     close();
 
-    const details = token ? await fetchPlaceDetails(suggestion.placeId, token) : null;
+    selectingRef.current = true;
+    let details: PlaceDetails | null = null;
+    try {
+      details = token ? await fetchPlaceDetails(suggestion.placeId, token) : null;
+    } finally {
+      selectingRef.current = false;
+    }
     if (details) {
       onPlaceSelected({
         location: formatVenueLocation(details),
@@ -117,6 +132,15 @@ export function VenueAddressAutocomplete({
       // place the pin via the map's Locate button.
       onChange(suggestion.text || suggestion.mainText);
     }
+  };
+
+  const handleBlur = () => {
+    const listWasOpen = open;
+    // A field that lost focus never pops a list open afterwards.
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+    close();
+    if (!listWasOpen && !selectingRef.current) onSettledBlur?.();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -142,7 +166,7 @@ export function VenueAddressAutocomplete({
         value={value}
         onChange={e => handleInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={close}
+        onBlur={handleBlur}
         placeholder={placeholder}
         rows={rows}
         className="border border-border bg-input rounded-md"

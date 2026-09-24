@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Trophy, Edit, Building2, FileText, AlertTriangle, Users } from 'lucide-react';
+import { Calendar, Trophy, Edit, Building2, FileText, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -13,6 +13,7 @@ import { formatTrialTypeLabel } from '@/types/template.types';
 import { countLabel } from '@/utils/pluralize';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
+import { ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
 
 interface ReviewStepProps {
   className?: string;
@@ -128,58 +129,45 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     .filter(id => !assignedJudgeIdSet.has(id))
     .map(id => judgeDetails[id]?.name || 'Unknown Judge');
 
+  // Find Shows plots only pinned venues, so a typed address alone hides the show there.
+  const missingVenuePin =
+    Boolean(show.location?.trim()) && (show.latitude == null || show.longitude == null);
+
   return (
     <div className={className}>
       <div className="space-y-6">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Validation Errors */}
-          {errors.length > 0 && (
-            <Card className="border-destructive/30 bg-destructive/10 ">
-              <CardContent className="pt-4">
-                <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-destructive mb-2">
-                      Please address the following issues:
-                    </h4>
-                    <ul className="space-y-1">
-                      {errors.map((error, index) => (
-                        <li key={index} className="text-sm text-destructive ">
-                          • {error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {errors.length > 0 && <ReviewErrorCard errors={errors} />}
 
           {/* Unassigned pool judges — non-blocking warning */}
           {unassignedPoolJudgeNames.length > 0 && (
-            <Card className="border-warning/30 bg-warning/10">
-              <CardContent className="pt-4">
-                <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-warning mb-1">
-                      {unassignedPoolJudgeNames.length === 1
-                        ? '1 judge is not assigned to any class'
-                        : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`}
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge
-                      dashboard until assigned to a class. Go back to Classes to assign them, or
-                      continue and assign judges later.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Assign judges to classes
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ReviewWarningCard
+              title={
+                unassignedPoolJudgeNames.length === 1
+                  ? '1 judge is not assigned to any class'
+                  : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`
+              }
+              actionLabel="Assign judges to classes"
+              onAction={() => setCurrentStep(2)}
+            >
+              {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge dashboard
+              until assigned to a class. Go back to Classes to assign them, or continue and assign
+              judges later.
+            </ReviewWarningCard>
+          )}
+
+          {/* MYK9-686: location text with no pin is allowed, but never silent. */}
+          {missingVenuePin && (
+            <ReviewWarningCard
+              title="No map pin"
+              actionLabel="Place the map pin"
+              onAction={() => setCurrentStep(0)}
+              data-testid="review-missing-pin-warning"
+            >
+              This show won’t appear on the Find Shows map. Go back to Basics and locate the address
+              or click the map.
+            </ReviewWarningCard>
           )}
 
           {/* Overview Stats — flat warm-paper summary; ink counts on card-white,

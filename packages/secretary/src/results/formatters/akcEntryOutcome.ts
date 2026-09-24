@@ -12,8 +12,8 @@
 //   entry_status     no-status | draft | submitted | paid | confirmed |
 //                    checked-in | at-gate | in-ring | competing | completed |
 //                    withdrawn | scratched | absent | moved | not_accepted |
-//                    pending-payment | promotion-expired | scratch-requested |
-//                    scratch_requested | move-up-requested | move_up_requested
+//                    pending-payment | promotion-expired | move-up-requested |
+//                    move_up_requested
 //   check_in_status  no-status | checked-in | conflict | pulled | at-gate |
 //                    come-to-gate | in-ring | completed
 //   result_status    pending | qualified | nq | absent | excused | withdrawn
@@ -48,7 +48,7 @@ export type AKCEntryOutcome =
 /**
  * Case- and separator-insensitive read of a LIFECYCLE column. `entry_status`
  * genuinely carries both spellings of the same state ('not_accepted' /
- * 'not-accepted', 'scratch_requested' / 'scratch-requested'), so folding is
+ * 'not-accepted', 'move_up_requested' / 'move-up-requested'), so folding is
  * required there.
  *
  * `result_status` deliberately does NOT go through this. Normalizing widens
@@ -84,8 +84,7 @@ export function parseAKCResultStatus(value: string | null | undefined): AKCResul
 }
 
 // A dog pulled from the running order before the class, or whose entry was
-// withdrawn/scratched, is reported to AKC as withheld. `scratch-requested` is
-// deliberately absent: a request is not a scratch until a secretary acts on it.
+// withdrawn/scratched, is reported to AKC as withheld.
 const WITHDRAWN_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
 
 /**
@@ -97,7 +96,7 @@ const WITHDRAWN_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
  * These differ from `withdrawn` / `scratched` / `absent`, which ARE reported:
  * those dogs held an accepted entry and AKC accounts for them.
  *
- * A pending REQUEST — 'scratch-requested', 'move-up-requested' — is not in
+ * A pending REQUEST — 'move-up-requested' — is not in
  * this set. The entry is live until a secretary acts on the request.
  */
 const NON_PARTICIPATING_ENTRY_STATUSES = new Set([

@@ -376,7 +376,6 @@ const VALID_ENTRY_STATUSES: readonly EntryStatus[] = [
   'scratched',
   'absent',
   'moved',
-  'scratch-requested',
   'move-up-requested',
   'pending-payment',
   'promotion-expired',

@@ -16,8 +16,6 @@ import {
   denyMoveUpRequest,
   getPullableEntries,
   pullEntry,
-  approvePullRequest,
-  denyPullRequest,
 } from '../../day-of-operations';
 import { getEntryCountsByStatus } from '../../entries/secretary';
 import { getNextArmbandForShow } from '../../armbands';
@@ -206,33 +204,6 @@ describe('entry_status enum values used by query layer', () => {
 
       expect(chain.update).toHaveBeenCalledWith(
         expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
-      );
-    });
-
-    it('approvePullRequest matches "scratch-requested" and writes scratched/pulled', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
-      await approvePullRequest('entry-1');
-
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
-      );
-      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'scratch-requested');
-    });
-
-    it('denyPullRequest reverts to "confirmed"', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
-      await denyPullRequest('entry-1');
-
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'confirmed' })
       );
     });
   });

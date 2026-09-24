@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import TitleProgressSection from '../TitleProgressSection';
 import { computeTitleProgress } from '@/services/titleEngine';
@@ -8,13 +8,21 @@ import {
   buildAkcScentWorkTitles,
 } from '@/services/__tests__/fixtures/akcScentWorkTitles';
 
-const progress = vi.hoisted(() => ({
-  value: {
-    progressBySport: {} as Record<string, unknown[]>,
-    earnedAbbreviations: [] as string[],
-    isLoading: false,
-  },
-}));
+// Written from inside tests, so reset from a factory before every test: CI
+// shuffles test order within a file (MYK9-669).
+const { progress, resetProgress } = vi.hoisted(() => {
+  const defaults = () => ({
+    value: {
+      progressBySport: {} as Record<string, unknown[]>,
+      earnedAbbreviations: [] as string[],
+      isLoading: false,
+    },
+  });
+  const progress = defaults();
+  return { progress, resetProgress: (): void => void Object.assign(progress, defaults()) };
+});
+
+beforeEach(resetProgress);
 
 vi.mock('@/hooks/useTitleProgress', () => ({
   useTitleProgress: () => progress.value,

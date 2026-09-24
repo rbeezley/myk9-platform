@@ -4,16 +4,24 @@
  * every figure on it must come from the calculator that prices the charge.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { calculatePlatformFeeCents, type PlatformFeeRates } from '@/store/cartStore.helpers';
 import FeesPage from '../FeesPage';
 
-const rates = vi.hoisted(() => ({
-  current: { percent: 7, flatCents: 0, minCents: 0 } as PlatformFeeRates | null,
-  state: 'ready' as 'loading' | 'unavailable' | 'absent' | 'ready',
-}));
+// Written from inside tests (and `readyAt`), so reset from a factory before
+// every test: CI shuffles test order within a file (MYK9-669).
+const { rates, resetRates } = vi.hoisted(() => {
+  const defaults = () => ({
+    current: { percent: 7, flatCents: 0, minCents: 0 } as PlatformFeeRates | null,
+    state: 'ready' as 'loading' | 'unavailable' | 'absent' | 'ready',
+  });
+  const rates = defaults();
+  return { rates, resetRates: (): void => void Object.assign(rates, defaults()) };
+});
+
+beforeEach(resetRates);
 
 vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
   usePlatformFeeRatesQuery: () => ({ rates: rates.current, state: rates.state }),

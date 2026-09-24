@@ -122,12 +122,12 @@ as the real secretary, and screenshots each surface. Gated by
 `PHASE4_SEAM_FIXTURE_READY` (off in CI — flaky e2e path); the seam logic stays
 proven by `src/test/phase4-seam/*`. Captured live (passing):
 
-| Screenshot                        | Surface                       | Result                                                                                                  |
-| --------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `phase4-dynamic-show-detail`      | `/shows/:id`                  | Full render                                                                                             |
-| `phase4-dynamic-entry-management` | `/shows/:id/entry-management` | Full render — 5 fixture entries, statuses, $150 revenue                                                 |
-| `phase4-dynamic-scratch-pull`     | `…?entryTab=scratches`        | Pull Management with the pending pull request (reason, handler, Approve/Deny) + Pending(1)/Processed(1) |
-| `phase4-dynamic-results-control`  | `/shows/:id/results-control`  | Page loads; Results Visibility list is skeleton (needs more served reads)                               |
+| Screenshot                        | Surface                       | Result                                                                                              |
+| --------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `phase4-dynamic-show-detail`      | `/shows/:id`                  | Full render                                                                                         |
+| `phase4-dynamic-entry-management` | `/shows/:id/entry-management` | Full render — 5 fixture entries, statuses, $150 revenue                                             |
+| `phase4-dynamic-scratch-pull`     | `…?entryTab=scratches`        | Pull Management's pulled-entries list with refund reconciliation (no approval queue since MYK9-609) |
+| `phase4-dynamic-results-control`  | `/shows/:id/results-control`  | Page loads; Results Visibility list is skeleton (needs more served reads)                           |
 
 ### Follow-ups — all three SHIPPED 2026-06-23
 

@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from './helpers/testUsers';
 import { installExhibitorFixture } from './helpers/exhibitorFixture';
+import { RECOVERABLE_CART_LOOKUP_SELECT_PARAM } from '@/store/cartStore.pickCart.constants';
 
 /**
  * The header brand must never render as "myK9S…".
@@ -172,17 +173,28 @@ test.describe('header wordmark fits', () => {
     test(`signed in — ${cartCount} cart items`, async ({ page }) => {
       // Fix the read-only badge response, not the shared account's real cart.
       // Its changing cart state used to decide whether CI exercised four controls.
+      // The badge reads through the shared recoverable-cart lookup (MYK9-650), so
+      // match its exact select and answer with the full row shape it picks from.
       const isCartCount = (url: string) => {
         const request = new URL(url);
         return (
           request.pathname === '/rest/v1/entry_carts' &&
-          request.searchParams.get('select') === 'id,entry_cart_items(count)'
+          request.searchParams.get('select') === RECOVERABLE_CART_LOOKUP_SELECT_PARAM
         );
       };
       await page.route('**/rest/v1/entry_carts?*', async route => {
         if (!isCartCount(route.request().url())) return route.continue();
         await route.fulfill({
-          json: [{ id: 'header-cart-fixture', entry_cart_items: [{ count: cartCount }] }],
+          json: [
+            {
+              id: 'header-cart-fixture',
+              show_id: '00000000-0000-4000-8000-00000000c0a7',
+              status: 'active',
+              expires_at: null,
+              created_at: '2026-09-01T00:00:00.000Z',
+              entry_cart_items: [{ count: cartCount }],
+            },
+          ],
         });
       });
       await installExhibitorFixture(page);

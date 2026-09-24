@@ -22,7 +22,6 @@ export const ENTRY_LIFECYCLE_STATUS_VALUES = [
   'absent', // Dog did not appear
   'moved', // Entry moved to a different class (source record)
   // Secretary-approval workflow
-  'scratch-requested', // Exhibitor requested scratch; awaiting secretary approval
   'move-up-requested', // Exhibitor requested move-up; awaiting secretary approval
   // Waitlist promotion flow
   'pending-payment', // Promoted from waitlist, awaiting Stripe checkout

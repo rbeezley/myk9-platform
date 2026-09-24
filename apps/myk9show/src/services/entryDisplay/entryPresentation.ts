@@ -71,23 +71,6 @@ const RAW_WORDING = new Map<string, VoicedWording>([
       },
     },
   ],
-  // MYK9-632: RAW_WORDING outranks KIND_WORDING, so these four strings were the
-  // ones actually rendered for a pull REQUEST — the stored value keeps both of
-  // its spellings, the word a person reads is Pull.
-  [
-    'scratch-requested',
-    {
-      secretary: { line: 'Pull requested', hint: 'Approve or decline the pull request' },
-      exhibitor: { line: 'Pull requested', hint: 'Awaiting secretary approval' },
-    },
-  ],
-  [
-    'scratch_requested',
-    {
-      secretary: { line: 'Pull requested', hint: 'Approve or decline the pull request' },
-      exhibitor: { line: 'Pull requested', hint: 'Awaiting secretary approval' },
-    },
-  ],
   [
     'pending-payment',
     {

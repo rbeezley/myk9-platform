@@ -112,8 +112,6 @@ function canonicalEntryStatus(value: unknown): EntryStatus {
       return 'not_accepted';
     case 'cancelled':
       return 'withdrawn';
-    case 'scratch_requested':
-      return 'scratch-requested';
     case 'move_up_requested':
       return 'move-up-requested';
     default:

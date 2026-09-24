@@ -48,8 +48,6 @@ export const ENTRY_STATUS_VALUES = [
   'scratched',
   'absent',
   'moved',
-  'scratch-requested',
-  'scratch_requested',
   'move-up-requested',
   'move_up_requested',
   'pending-payment',
@@ -141,18 +139,6 @@ export const ENTRY_STATUS_DESCRIPTORS = {
   scratched: descriptor('scratched', 'Pulled', 'complete', 'text-muted-foreground'),
   absent: descriptor('absent', 'Absent', 'complete', 'text-muted-foreground'),
   moved: descriptor('moved', 'Moved', 'complete', 'text-muted-foreground'),
-  'scratch-requested': descriptor(
-    'scratch-requested',
-    'Scratch requested',
-    'needs-attention',
-    'text-warning'
-  ),
-  scratch_requested: descriptor(
-    'scratch_requested',
-    'Scratch requested',
-    'needs-attention',
-    'text-warning'
-  ),
   'move-up-requested': descriptor(
     'move-up-requested',
     'Move-up requested',

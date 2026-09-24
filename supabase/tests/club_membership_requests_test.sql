@@ -11,7 +11,7 @@
 --   4. list_club_membership_requests: this club's admin sees the ask; another
 --      club's admin naming this club gets 42501; a NULL club is 42501.
 --   5. Approval writes an ACTIVE club_members row and grants NO role; the
---      requester's own status reads is_member = true; a second ask is MK685.
+--      requester's own status reads 'member'; a second ask is MK685.
 --   6. A denial keeps its note, reads back as 'denied', and blocks a
 --      resubmission (MK571).
 --   7. anon cannot execute the submit RPC.
@@ -22,6 +22,12 @@
 --      that makes ON CONFLICT ... WHERE match nothing), approval raises and
 --      the request stays pending. A member the club added directly while the
 --      ask was pending is still approved (the active row is confirmed).
+--  11. get_my_club_membership_request_status returns exactly one state:
+--      'none' for someone who never asked, 'pending' while an ask waits,
+--      'member' for an active row, 'suspended' for a suspended row (even with
+--      an ask pending), and 'none' again for a former member whose old ask
+--      was approved -- the case a client used to infer, wrongly, for a
+--      suspended member.
 --
 -- People are inserted before auth.users so handle_new_user adopts each one
 -- by email (same order as club_routed_role_requests_test.sql).
@@ -320,13 +326,12 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d02
 
 DO $$
 DECLARE
-  v_member boolean;
-  v_status text;
+  v_state text;
 BEGIN
-  SELECT is_member, request_status INTO v_member, v_status
+  SELECT state INTO v_state
   FROM public.get_my_club_membership_request_status('00000000-0000-0000-0000-000000000d21');
-  IF v_member IS NOT TRUE OR v_status IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'FAIL requester status after approval: member=%, status=%', v_member, v_status;
+  IF v_state IS DISTINCT FROM 'member' THEN
+    RAISE EXCEPTION 'FAIL requester state after approval: %', v_state;
   END IF;
 
   BEGIN
@@ -336,7 +341,7 @@ BEGIN
     RAISE NOTICE 'PASS an active member cannot ask again (MK685)';
   END;
 
-  RAISE NOTICE 'PASS requester reads is_member after approval';
+  RAISE NOTICE 'PASS requester reads state member after approval';
 END;
 $$;
 
@@ -377,16 +382,14 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000d05
 
 DO $$
 DECLARE
-  v_member boolean;
-  v_status text;
+  v_state text;
   v_note text;
 BEGIN
-  SELECT is_member, request_status, reviewer_note INTO v_member, v_status, v_note
+  SELECT state, reviewer_note INTO v_state, v_note
   FROM public.get_my_club_membership_request_status('00000000-0000-0000-0000-000000000d21');
-  IF v_member OR v_status IS DISTINCT FROM 'denied'
+  IF v_state IS DISTINCT FROM 'denied'
      OR v_note IS DISTINCT FROM 'Membership is limited to residents of the county.' THEN
-    RAISE EXCEPTION 'FAIL denied status read back as member=%, status=%, note=%',
-      v_member, v_status, v_note;
+    RAISE EXCEPTION 'FAIL denied state read back as %, note=%', v_state, v_note;
   END IF;
 
   BEGIN
@@ -577,6 +580,72 @@ BEGIN
 END;
 $$;
 RESET ROLE;
+
+-- ============================================================================
+-- 11. One server-computed state.
+-- ============================================================================
+
+CREATE FUNCTION pg_temp.myk9_685_state_as(p_auth uuid) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE v_state text;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', p_auth::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT state INTO v_state
+  FROM public.get_my_club_membership_request_status('00000000-0000-0000-0000-000000000d21');
+  RESET ROLE;
+  RETURN v_state;
+END $$;
+
+DO $$
+DECLARE
+  v_state text;
+BEGIN
+  -- Oscar never asked this club.
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d03');
+  IF v_state IS DISTINCT FROM 'none' THEN
+    RAISE EXCEPTION 'FAIL someone who never asked reads %, expected none', v_state;
+  END IF;
+
+  -- Mary was approved and is active.
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d02');
+  IF v_state IS DISTINCT FROM 'member' THEN
+    RAISE EXCEPTION 'FAIL an active member reads %, expected member', v_state;
+  END IF;
+
+  -- Sam is suspended (section 9).
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d07');
+  IF v_state IS DISTINCT FROM 'suspended' THEN
+    RAISE EXCEPTION 'FAIL a suspended member reads %, expected suspended', v_state;
+  END IF;
+
+  -- Lee's ask is still pending (section 10).
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d08');
+  IF v_state IS DISTINCT FROM 'pending' THEN
+    RAISE EXCEPTION 'FAIL a pending asker reads %, expected pending', v_state;
+  END IF;
+
+  -- Lee is suspended while the ask is pending: suspended wins.
+  UPDATE public.club_members SET membership_status = 'suspended'
+  WHERE club_id = '00000000-0000-0000-0000-000000000d21'
+    AND person_id = '00000000-0000-0000-0000-000000000d18';
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d08');
+  IF v_state IS DISTINCT FROM 'suspended' THEN
+    RAISE EXCEPTION 'FAIL a suspended member with a pending ask reads %, expected suspended', v_state;
+  END IF;
+
+  -- Mary's membership lapses: her old approved ask no longer applies.
+  UPDATE public.club_members SET membership_status = 'lapsed'
+  WHERE club_id = '00000000-0000-0000-0000-000000000d21'
+    AND person_id = '00000000-0000-0000-0000-000000000d12';
+  v_state := pg_temp.myk9_685_state_as('00000000-0000-0000-0000-000000000d02');
+  IF v_state IS DISTINCT FROM 'none' THEN
+    RAISE EXCEPTION 'FAIL a former member reads %, expected none', v_state;
+  END IF;
+
+  RAISE NOTICE 'PASS the status RPC returns one state: none, member, suspended, pending, none after lapse';
+END;
+$$;
 
 -- ============================================================================
 -- 7. anon cannot execute the submit RPC.

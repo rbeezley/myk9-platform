@@ -6,29 +6,22 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { RoleRequestStatus } from '@/services/database/role-requests';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import {
   classifySubmitError,
   GENERIC_SUBMIT_ERROR,
-  stateFromStatus,
   type ClubRequestController,
   type ClubRequestState,
+  type ServerRequestState,
 } from './clubRequestState';
-
-export interface MyClubRequestStatus {
-  status: RoleRequestStatus | null;
-  reviewerNote: string | null;
-  /** Set when the server says the person already holds what this asks for. */
-  hasAccessMessage?: string | null;
-}
 
 interface Options {
   queryKey: readonly unknown[];
   /** A state that short-circuits the query (signed out, already has access). */
   preState: ClubRequestState | null;
-  fetchStatus: () => Promise<MyClubRequestStatus | null>;
+  /** The server's answer, already mapped to exactly one state. */
+  fetchStatus: () => Promise<ServerRequestState>;
   submitRequest: (note: string) => Promise<string>;
   successMessage: string;
   logContext: Record<string, unknown>;
@@ -83,16 +76,15 @@ export function useClubRequestController(options: Options): ClubRequestControlle
   let state: ClubRequestState;
   if (options.preState) {
     state = options.preState;
-  } else if (statusQuery.data?.hasAccessMessage) {
-    state = { kind: 'has-access', message: statusQuery.data.hasAccessMessage };
+  } else if (deniedThisSession) {
+    // The submit itself was refused as a standing denial (MK571).
+    state = { kind: 'denied', reviewerNote: null };
+  } else if (statusQuery.data) {
+    state = statusQuery.data;
+  } else if (statusQuery.isError) {
+    state = { kind: 'error' };
   } else {
-    state = stateFromStatus({
-      isLoading: statusQuery.isLoading,
-      isError: statusQuery.isError,
-      status: statusQuery.data?.status ?? null,
-      reviewerNote: statusQuery.data?.reviewerNote ?? null,
-      deniedThisSession,
-    });
+    state = { kind: 'loading' };
   }
 
   // Between a successful submit and the status refetch, the server already

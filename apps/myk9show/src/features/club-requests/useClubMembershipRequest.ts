@@ -21,17 +21,24 @@ export function useClubMembershipRequest(club: Pick<Club, 'id' | 'name'>): ClubR
   return useClubRequestController({
     queryKey: [MEMBERSHIP_REQUEST_QUERY_KEY, club.id, authUserId],
     preState: authUserId ? null : { kind: 'signed-out' },
+    // The server returns exactly one state; this is a lookup, not a decision.
     fetchStatus: async () => {
-      const result = await getMyClubMembershipRequestStatus(club.id);
-      // An approval is only final while the membership is still active. A
-      // member who later lapsed, resigned or was removed may ask again (the
-      // server allows it), so their old approval must not hide the form.
-      const formerMember = result.status === 'approved' && !result.isMember;
-      return {
-        status: formerMember ? null : result.status,
-        reviewerNote: formerMember ? null : result.reviewerNote,
-        hasAccessMessage: result.isMember ? `You are already a member of ${club.name}.` : null,
-      };
+      const { state, reviewerNote } = await getMyClubMembershipRequestStatus(club.id);
+      switch (state) {
+        case 'member':
+          return { kind: 'has-access', message: `You are already a member of ${club.name}.` };
+        case 'suspended':
+          return {
+            kind: 'blocked',
+            message: `Your membership in ${club.name} is suspended. Please contact the club directly.`,
+          };
+        case 'pending':
+          return { kind: 'pending' };
+        case 'denied':
+          return { kind: 'denied', reviewerNote };
+        case 'none':
+          return { kind: 'available' };
+      }
     },
     submitRequest: note => submitClubMembershipRequest({ clubId: club.id, note }),
     successMessage: 'Request sent. The club can review it from Club Members.',

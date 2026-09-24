@@ -12,7 +12,6 @@ import { supabase } from './supabaseClient';
 import {
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
-  type RoleRequestStatus,
 } from './role-requests';
 
 /** submit_club_membership_request's SQLSTATE for "already an active member". */
@@ -27,9 +26,16 @@ export class AlreadyClubMemberError extends Error {
   }
 }
 
+/**
+ * The caller's one membership state at a club, computed by the server
+ * (get_my_club_membership_request_status): an active roster row, a
+ * suspended one, a pending or denied ask, or nothing blocking a new ask.
+ */
+export type ClubMembershipState = 'member' | 'suspended' | 'pending' | 'denied' | 'none';
+
 export interface ClubMembershipRequestStatus {
-  isMember: boolean;
-  status: RoleRequestStatus | null;
+  state: ClubMembershipState;
+  /** Set only for 'denied'. */
   reviewerNote: string | null;
 }
 
@@ -77,11 +83,8 @@ export async function getMyClubMembershipRequestStatus(
 
   if (error) throw error;
   const row = (data ?? [])[0];
-  return {
-    isMember: row?.is_member ?? false,
-    status: row?.request_status ?? null,
-    reviewerNote: row?.reviewer_note ?? null,
-  };
+  if (!row) throw new Error('get_my_club_membership_request_status returned no row');
+  return { state: row.state, reviewerNote: row.reviewer_note };
 }
 
 export async function listClubMembershipRequests(clubId: string): Promise<ClubMembershipRequest[]> {

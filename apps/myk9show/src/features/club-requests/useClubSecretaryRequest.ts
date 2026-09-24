@@ -50,7 +50,19 @@ export function useClubSecretaryRequest(club: Pick<Club, 'id' | 'name'>): ClubRe
     queryKey: [SECRETARY_REQUEST_QUERY_KEY, club.id, authUserId],
     preState,
     // The AUTH uid, never databaseUserId: role_requests.auth_user_id is auth.users.id.
-    fetchStatus: () => getMyClubSecretaryRequestStatus(club.id, authUserId!),
+    fetchStatus: async () => {
+      const latest = await getMyClubSecretaryRequestStatus(club.id, authUserId!);
+      switch (latest?.status) {
+        case 'approved':
+          return { kind: 'approved' };
+        case 'denied':
+          return { kind: 'denied', reviewerNote: latest.reviewerNote };
+        case 'pending':
+          return { kind: 'pending' };
+        default:
+          return { kind: 'available' };
+      }
+    },
     submitRequest: note => submitClubSecretaryRequest({ clubId: club.id, note }),
     successMessage: 'Request sent. The club can review it from Members > Show Access.',
     logContext: { clubId: club.id, request: 'secretary' },

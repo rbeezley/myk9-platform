@@ -8,7 +8,6 @@
 import {
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
-  type RoleRequestStatus,
 } from '@/services/database/role-requests';
 import { AlreadyClubMemberError } from '@/services/database/club-membership-requests';
 
@@ -20,6 +19,8 @@ export type ClubRequestState =
   | { kind: 'error' }
   /** Nothing to ask for: the person already has what this request grants. */
   | { kind: 'has-access'; message: string }
+  /** The server says no new ask is possible; tell them who to contact. */
+  | { kind: 'blocked'; message: string }
   | { kind: 'pending' }
   | { kind: 'approved' }
   | { kind: 'denied'; reviewerNote: string | null }
@@ -35,22 +36,14 @@ export interface ClubRequestController {
   retry: () => void;
 }
 
-/** Folds the server status into a state, after the has-access checks ran. */
-export function stateFromStatus(args: {
-  isLoading: boolean;
-  isError: boolean;
-  status: RoleRequestStatus | null;
-  reviewerNote: string | null;
-  deniedThisSession: boolean;
-}): ClubRequestState {
-  if (args.deniedThisSession) return { kind: 'denied', reviewerNote: args.reviewerNote };
-  if (args.status === 'approved') return { kind: 'approved' };
-  if (args.status === 'denied') return { kind: 'denied', reviewerNote: args.reviewerNote };
-  if (args.status === 'pending') return { kind: 'pending' };
-  if (args.isError) return { kind: 'error' };
-  if (args.isLoading) return { kind: 'loading' };
-  return { kind: 'available' };
-}
+/**
+ * The states a server status read can produce. Each request type maps its
+ * server answer to one of these directly; nothing is inferred on the client.
+ */
+export type ServerRequestState = Extract<
+  ClubRequestState,
+  { kind: 'has-access' | 'blocked' | 'pending' | 'approved' | 'denied' | 'available' }
+>;
 
 export type SubmitFailure = 'already-pending' | 'standing-denial' | 'already-member' | 'unknown';
 

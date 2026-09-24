@@ -78,8 +78,7 @@ describe('RequestAccessPage — existing club', () => {
     mockAuth.userWithRoles = signedIn();
     vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue(null);
     vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
-      isMember: false,
-      status: null,
+      state: 'none',
       reviewerNote: null,
     });
   });
@@ -138,8 +137,7 @@ describe('RequestAccessPage — existing club', () => {
 
   it('shows an existing pending request instead of another submit button', async () => {
     vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
-      isMember: false,
-      status: 'pending',
+      state: 'pending',
       reviewerNote: null,
     });
     const user = await chooseClub();
@@ -166,8 +164,7 @@ describe('RequestAccessPage — existing club', () => {
 
   it('tells a current member they already belong instead of offering the form', async () => {
     vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
-      isMember: true,
-      status: 'approved',
+      state: 'member',
       reviewerNote: null,
     });
     const user = await chooseClub();
@@ -180,17 +177,38 @@ describe('RequestAccessPage — existing club', () => {
     expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
   });
 
-  it('lets a former member whose old request was approved ask again', async () => {
+  it('tells a suspended member to contact the club, with no form to send', async () => {
     vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
-      isMember: false,
-      status: 'approved',
+      state: 'suspended',
       reviewerNote: null,
     });
     const user = await chooseClub();
 
     await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
 
-    expect(await screen.findByRole('button', { name: 'Send request' })).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Your membership in Heartland Dog Club is suspended. Please contact the club directly.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/message to the club/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a membership denial with the club’s note and no form', async () => {
+    vi.mocked(getMyClubMembershipRequestStatus).mockResolvedValue({
+      state: 'denied',
+      reviewerNote: 'Membership is limited to county residents.',
+    });
+    const user = await chooseClub();
+
+    await user.click(screen.getByRole('button', { name: 'Ask to join as a member' }));
+
+    expect(
+      await screen.findByText('The club did not approve your membership request.')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/limited to county residents/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
   });
 
   it('shows a secretary approval that the auth scopes have not caught up with yet', async () => {

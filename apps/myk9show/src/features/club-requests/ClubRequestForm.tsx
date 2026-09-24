@@ -82,6 +82,8 @@ export const ClubRequestForm: React.FC<ClubRequestFormProps> = ({
       return (
         <StatusBox icon={<CheckCircle2 className="h-5 w-5 text-primary" />} title={state.message} />
       );
+    case 'blocked':
+      return <StatusBox title={state.message} />;
     case 'approved':
       return (
         <StatusBox

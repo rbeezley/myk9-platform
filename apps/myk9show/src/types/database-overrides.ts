@@ -160,8 +160,8 @@ type UpdateShowStyle = {
  * `update_show_style` is. NULL `p_requester_note` / `p_note` mean "no note"
  * (the SQL stores `NULLIF(btrim(...), '')`); `list_club_membership_requests`
  * returns only pending rows, and `requester_email` is `people.email`, which is
- * nullable. `get_my_club_membership_request_status` returns exactly one row,
- * with `request_status` / `reviewer_note` NULL when the caller never asked.
+ * nullable. `get_my_club_membership_request_status` returns exactly one row:
+ * one `state`, and a `reviewer_note` only for 'denied'.
  */
 type ClubMembershipRequestFunctions = {
   submit_club_membership_request: {
@@ -171,8 +171,7 @@ type ClubMembershipRequestFunctions = {
   get_my_club_membership_request_status: {
     Args: { p_club_id: string };
     Returns: {
-      is_member: boolean;
-      request_status: 'pending' | 'approved' | 'denied' | null;
+      state: 'member' | 'suspended' | 'pending' | 'denied' | 'none';
       reviewer_note: string | null;
     }[];
   };

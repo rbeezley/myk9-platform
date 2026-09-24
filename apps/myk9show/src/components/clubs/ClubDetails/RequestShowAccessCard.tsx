@@ -64,6 +64,10 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
     );
   }
 
+  if (state.kind === 'blocked') {
+    return <p className="text-sm text-muted-foreground">{state.message}</p>;
+  }
+
   if (state.kind === 'pending') {
     return (
       <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">

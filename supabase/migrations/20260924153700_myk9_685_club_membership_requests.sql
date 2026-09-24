@@ -188,17 +188,25 @@ REVOKE ALL ON FUNCTION public.submit_club_membership_request(uuid, text) FROM PU
 GRANT EXECUTE ON FUNCTION public.submit_club_membership_request(uuid, text) TO authenticated;
 
 -- ============================================================================
--- 3. get_my_club_membership_request_status — the requester's own view.
---    club_members_select's own-row arm compares person_id to auth.uid(), which
---    never matches (people.id is not auth.uid()), so a member cannot read
---    their own roster row through RLS. This function answers "am I a member,
---    and where is my latest ask" for the caller only.
+-- 3. get_my_club_membership_request_status — the requester's own view, as
+--    ONE state the page renders as-is (no client-side inference):
+--      'member'    — an active roster row;
+--      'suspended' — a suspended roster row (contact the club; no new ask);
+--      'pending'   — the latest ask is waiting for review;
+--      'denied'    — the latest ask was denied (standing; reviewer_note set);
+--      'none'      — nothing blocks a new ask: never asked, or a former
+--                    member (lapsed, resigned or removed) whose old approved
+--                    ask no longer describes anything.
+--    An approved ask always writes an active row, so "approved" is 'member'
+--    while it holds and 'none' once the membership ends; it is not a state
+--    of its own. Precedence mirrors submit_club_membership_request's guards.
+--    club_members_select could not answer this for the member themself
+--    before 20260924172900 (MYK9-723); this stays the single source anyway.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.get_my_club_membership_request_status(p_club_id uuid)
 RETURNS TABLE (
-  is_member boolean,
-  request_status text,
+  state text,
   reviewer_note text
 )
 LANGUAGE plpgsql
@@ -208,6 +216,9 @@ SET search_path = ''
 AS $$
 DECLARE
   v_person_id uuid;
+  v_member_status text;
+  v_latest_status text;
+  v_latest_note text;
 BEGIN
   IF (SELECT auth.uid()) IS NULL THEN
     RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
@@ -219,29 +230,39 @@ BEGIN
     AND deleted_at IS NULL;
 
   IF v_person_id IS NULL OR p_club_id IS NULL THEN
-    RETURN QUERY SELECT false, NULL::text, NULL::text;
+    RETURN QUERY SELECT 'none'::text, NULL::text;
     RETURN;
   END IF;
 
-  RETURN QUERY
-  SELECT
-    EXISTS (
-      SELECT 1 FROM public.club_members cm
-      WHERE cm.club_id = p_club_id
-        AND cm.person_id = v_person_id
-        AND cm.membership_status = 'active'
-    ),
-    latest.status,
-    latest.reviewer_note
-  FROM (SELECT 1) AS one
-  LEFT JOIN LATERAL (
-    SELECT r.status, r.reviewer_note
-    FROM public.club_membership_requests r
-    WHERE r.club_id = p_club_id
-      AND r.person_id = v_person_id
-    ORDER BY r.created_at DESC
-    LIMIT 1
-  ) AS latest ON true;
+  SELECT cm.membership_status INTO v_member_status
+  FROM public.club_members cm
+  WHERE cm.club_id = p_club_id
+    AND cm.person_id = v_person_id;
+
+  IF v_member_status = 'active' THEN
+    RETURN QUERY SELECT 'member'::text, NULL::text;
+    RETURN;
+  END IF;
+
+  IF v_member_status = 'suspended' THEN
+    RETURN QUERY SELECT 'suspended'::text, NULL::text;
+    RETURN;
+  END IF;
+
+  SELECT r.status, r.reviewer_note INTO v_latest_status, v_latest_note
+  FROM public.club_membership_requests r
+  WHERE r.club_id = p_club_id
+    AND r.person_id = v_person_id
+  ORDER BY r.created_at DESC
+  LIMIT 1;
+
+  IF v_latest_status = 'pending' THEN
+    RETURN QUERY SELECT 'pending'::text, NULL::text;
+  ELSIF v_latest_status = 'denied' THEN
+    RETURN QUERY SELECT 'denied'::text, v_latest_note;
+  ELSE
+    RETURN QUERY SELECT 'none'::text, NULL::text;
+  END IF;
 END;
 $$;
 

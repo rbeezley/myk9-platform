@@ -347,7 +347,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           <Separator orientation="vertical" className="h-6" />
           <div>
             <h1 className="text-2xl font-bold">Add Classes</h1>
-            <p className="text-muted-foreground">
+            <p className="min-w-0 break-all text-muted-foreground">
               {effectiveTrialId ? `Trial: ${effectiveTrialId}` : 'No trial selected'}
             </p>
           </div>
@@ -615,7 +615,8 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       {currentStep !== 'complete' && (
         <Card className="mt-6">
           {/* Wraps on a phone: Previous, the template summary and Next do not
-              fit one 340px row (classCreation.spec.ts, 390x844). */}
+              fit one 340px row (classCreation.spec.ts, 390x844). The primary
+              action carries ml-auto so it stays on the right when it wraps. */}
           <CardContent className="flex flex-wrap justify-between items-center gap-3 py-4">
             <Button
               variant="outline"
@@ -633,7 +634,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
             </div>
 
             {currentStep === 'review' ? (
-              <div className="flex flex-col items-end gap-1">
+              <div className="ml-auto flex flex-col items-end gap-1">
                 <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
                   {isCreating ? (
                     <>
@@ -654,7 +655,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 )}
               </div>
             ) : (
-              <Button onClick={handleNext}>
+              <Button onClick={handleNext} className="ml-auto">
                 Next
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

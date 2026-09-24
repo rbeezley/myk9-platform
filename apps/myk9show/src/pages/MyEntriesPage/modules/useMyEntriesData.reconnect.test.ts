@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -79,4 +79,68 @@ describe('useMyEntriesData — confirming a cached identity re-reads an unconfir
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(getUserEntries).toHaveBeenCalledTimes(1);
   });
+
+  // Both review lenses on #2434: a read still in flight at confirmation (a
+  // captive-portal read timing out) lands as a replica read AFTER the network
+  // returned, and was never re-read.
+  it('re-reads when a read in flight at confirmation lands unconfirmed', async () => {
+    const first = deferred<ReadResult>();
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ source: 'confirmed', data: [], error: null });
+    const { rerender } = renderData();
+    expect(getUserEntries).toHaveBeenCalledTimes(1);
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue(auth('resolved'));
+    rerender();
+    await act(async () => {
+      first.resolve({ source: 'replica-after-error', data: [], error: null });
+    });
+
+    await waitFor(() => expect(getUserEntries).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not re-read when a read in flight at confirmation lands confirmed', async () => {
+    const first = deferred<ReadResult>();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValueOnce(first.promise);
+    const { result, rerender } = renderData();
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue(auth('resolved'));
+    rerender();
+    await act(async () => {
+      first.resolve({ source: 'confirmed', data: [], error: null });
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(getUserEntries).toHaveBeenCalledTimes(1);
+  });
+
+  it('never lets an older read overwrite a newer one', async () => {
+    const slow = deferred<ReadResult>();
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(slow.promise)
+      .mockResolvedValueOnce({ source: 'confirmed', data: [], error: null });
+    const { result } = renderData();
+
+    await act(async () => {
+      await result.current.refreshEntries();
+    });
+    expect(result.current.source).toBe('confirmed');
+
+    await act(async () => {
+      slow.resolve({ source: 'replica-after-error', data: [], error: null });
+    });
+    expect(result.current.source).toBe('confirmed');
+  });
 });
+
+type ReadResult = { source: string; data: unknown[]; error: Error | null };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(res => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}

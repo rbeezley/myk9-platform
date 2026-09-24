@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { AKC_SCENT_WORK_TEMPLATE } from '@/data/templates/akcScentWorkTemplate';
 import { signInAsSecretary } from '../uat/shared/auth';
 
-const TRIAL_ID = 'trial-123';
+// A real-length id: the header has to fit a 36-character UUID at 390px, which
+// the old 'trial-123' never tested (review of #2434).
+const TRIAL_ID = '6d1f4c2a-9b3e-4f7a-8c5d-2e1b0a9f8c7d';
 const TEMPLATE_STORAGE = 'myk9show-template-storage';
 const seededTemplate = {
   ...AKC_SCENT_WORK_TEMPLATE,

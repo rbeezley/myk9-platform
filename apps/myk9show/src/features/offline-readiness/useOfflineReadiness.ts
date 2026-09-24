@@ -10,7 +10,7 @@ import {
 import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { settleAtShowSync, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -216,28 +216,29 @@ export function useOfflineReadiness(showId: string | undefined) {
       // (the engine only force-syncs a COMPLETELY empty replica) and then
       // rewrites totalRows down to the reduced local count — which would turn
       // the badge falsely green. Rewinding re-fetches without clearing rows.
+      //
+      // Rewind ONLY each short scope's watermark, and keep its counts. Other
+      // syncs of the same scopes are routinely in flight here (the page's own
+      // mount-time syncAtShowData, a live-signal entries sync), and both the
+      // adapter and the tables hand an in-flight operation back to a new
+      // caller. The old rewind wiped the whole scope map, including the
+      // expected-row counts readiness is judged by, so racing one of those
+      // syncs left the badge on "Couldn't save" for good (MYK9-738).
       const missing = readiness?.missing ?? [];
-      const REWIND = { lastIncrementalSyncAt: 0, scopes: {} };
-      // The page's own mount-time sync is usually still running when this is
-      // clicked. Rewinding under it clears the expected-row counts it just
-      // wrote, and syncAtShowData below would then hand back that same
-      // pre-rewind operation, so nothing restores them: the badge stays
-      // "Couldn't save" for good (offline-cold-boot.spec.ts, first test).
-      await settleAtShowSync(showId);
+      const rewind = (
+        table: { updateSyncMetadata: typeof replicatedTrialsTable.updateSyncMetadata },
+        scopeValue: string
+      ) => table.updateSyncMetadata({ lastIncrementalSyncAt: 0 }, { scopeValue });
+      const classScopes = missing.includes('classes')
+        ? (await replicatedTrialsTable.getTrialsByShow(showId)).map(trial => trial.id)
+        : [];
       await Promise.all([
-        missing.includes('trials') ? replicatedTrialsTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('entries') ? replicatedEntriesTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('classes') ? replicatedClassesTable.updateSyncMetadata(REWIND) : null,
+        missing.includes('trials') ? rewind(replicatedTrialsTable, showId) : null,
+        missing.includes('entries') ? rewind(replicatedEntriesTable, showId) : null,
+        ...classScopes.map(trialId => rewind(replicatedClassesTable, trialId)),
+        // Shows sync runs unscoped, so its watermark lives in scopes[''].
+        missing.includes('show') ? rewind(replicatedShowsTable, '') : null,
       ]);
-      if (readiness?.missing.includes('show')) {
-        await replicatedShowsTable.updateSyncMetadata({
-          lastIncrementalSyncAt: 0,
-          // sync('') reads scopes['']; resetting only the table-global
-          // watermark would still skip the missing show. Clearing the scope
-          // map costs a re-fetch, never cached rows.
-          scopes: {},
-        });
-      }
       await Promise.all([
         syncAtShowData(showId),
         // Shows sync is club-scoped; the unscoped incremental sync is what the

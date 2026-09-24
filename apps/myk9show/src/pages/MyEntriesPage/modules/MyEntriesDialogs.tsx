@@ -408,7 +408,7 @@ interface MyEntriesDialogGroupProps {
   onUpdateCheckInStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
   editDialog: EditDialogState;
   onCloseEdit: () => void;
-  onEntryUpdated: () => void;
+  onEntryUpdated: () => void | Promise<void>;
   receiptDialog: ReceiptDialogState;
   onCloseReceipt: () => void;
   leaveClassDialog: LeaveClassDialogState;

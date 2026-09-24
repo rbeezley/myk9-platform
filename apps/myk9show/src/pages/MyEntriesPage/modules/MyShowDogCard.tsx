@@ -27,6 +27,7 @@ import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import { MyShowClassRow } from './MyShowClassRow';
 import type { MyEntry } from './my-entries-types';
 import { deriveDogChip } from './myShowDogState';
+import { dogCardAnchorId } from './dogCardAnchor';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import type { RefundNote } from './showMoneyState';
 
@@ -80,7 +81,16 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           {/* ArmbandBadge's own unassigned path renders a muted dash, so the
               "not a filled pill yet" rule is one implementation, not two. */}
           <ArmbandBadge armband={dog.armband} className="h-10 min-w-10 text-base" />
-          <span className="myk9-entries-dog-card-name">{dog.dogName}</span>
+          {/* MYK9-658: where focus lands after leaving one of this card's
+              classes. Programmatically focusable only, and unique per card. */}
+          <span
+            id={dogCardAnchorId(dog.id)}
+            tabIndex={-1}
+            data-dog-card-anchor=""
+            className="myk9-entries-dog-card-name"
+          >
+            {dog.dogName}
+          </span>
         </div>
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />

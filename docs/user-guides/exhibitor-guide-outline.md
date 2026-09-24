@@ -293,17 +293,17 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 
 ---
 
-## Section 9 — Withdraw an Entry
+## Section 9 — Leave a Class: Withdraw or Pull
 
-**User outcome:** Exhibitor requests to withdraw from a show.
+**User outcome:** Exhibitor leaves a class, saying which act it is.
 
 **Rough steps (qa-draft):**
 
-1. Withdrawal is handled by the trial secretary — you cannot withdraw directly in the app.
-2. From your entry on My Shows, use **Messages** to contact the secretary.
-3. Let them know you need to withdraw and which class. The secretary will pull the entry and handle any refund.
+1. On My Shows, tap **Leave class…** on the class row (MYK9-631).
+2. Choose **Withdraw** (a rulebook reason: in season or judge change) or **Pull** (any other reason).
+3. Confirm; the row reads **withdrawn** or **pulled**.
 
-**Note:** This is a secretary-only action. Documenting the workaround (contact secretary) is correct and intentional — do not document a self-serve withdraw path that does not exist.
+**Note:** Withdraw and Pull are different acts with different refund owners (docs/INTENT.md, "Say Which Act Happened"). Never describe a withdrawal as a pull, or the reverse. "Pulled at the show" is the day-of ring pull, a different state.
 
 **KB articles:** None (covered by macro M-13)
 

@@ -69,6 +69,7 @@ function legacyGroupedMyShowsAmountDueCents(): number {
         number: '1',
         fee: source.totalFee,
         status: 'entered',
+        entryStatusKind: 'accepted',
       },
     ];
     return {

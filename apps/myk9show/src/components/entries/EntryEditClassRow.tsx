@@ -22,6 +22,7 @@ import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import type { RemoveFromClassEligibility } from '@/services/database/entries/withdrawEligibility';
 import { withdrawalReasonLabel } from '@/features/registries';
+import { getStatusDescriptor } from '@/components/status';
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
@@ -104,7 +105,12 @@ export function EntryEditClassRow({
   // what every row reads as until migration 20260918041700 lands). It renders
   // the bare word.
   const reason = isWithdrawn ? withdrawalReasonLabel(reasonCode) : null;
-  const removedLabel = isWithdrawn ? (reason ? `Withdrawn · ${reason}` : 'Withdrawn') : 'Pulled';
+  // MYK9-623: the lifecycle WORD is the entry status grammar's, the same
+  // descriptor the My Shows chip and row read, so the sheet can never name a
+  // state differently from the card behind it. A stored `scratched` reads
+  // "Pulled" there (docs/INTENT.md: scratch and pull are one act).
+  const stateWord = isRemoved ? getStatusDescriptor('entry', status).label : '';
+  const removedLabel = reason ? `${stateWord} · ${reason}` : stateWord;
   // One affordance opens the chooser; it is offered while EITHER
   // act is available, and the dialog greys out the one that is
   // not. Offering nothing because a paid entry cannot be

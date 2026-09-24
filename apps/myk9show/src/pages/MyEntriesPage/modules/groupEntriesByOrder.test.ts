@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryClass } from './my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date('2026-09-01T12:00:00Z');
 
@@ -42,14 +43,14 @@ function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     name: 'Container Search',
     number: '101',
     fee: 25,
     status: 'entered',
     ...overrides,
-  };
+  });
 }
 
 describe('groupEntriesByOrder — dog-level merge (unchanged from groupEntriesByShowAndDog)', () => {

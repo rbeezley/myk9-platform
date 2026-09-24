@@ -3,6 +3,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { groupEntriesByShow, indexOrdersById } from './groupEntriesByShow';
 import type { EntryClass, MyEntry } from './my-entries-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
 
@@ -30,7 +31,7 @@ function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  return withFixtureKind({
     id: 'c1',
     name: 'Container Search',
     number: '101',
@@ -39,7 +40,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     paymentMethod: 'online',
     ...overrides,
-  };
+  });
 }
 
 function group(rows: MyEntry[]) {

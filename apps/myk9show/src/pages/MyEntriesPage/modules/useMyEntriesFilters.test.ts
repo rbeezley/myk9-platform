@@ -479,6 +479,7 @@ describe('useMyEntriesFilters inbound receipt scope', () => {
     number: '1',
     fee: 30,
     status: 'entered',
+    entryStatusKind: 'accepted',
   };
   const scopedEntry = makeEntry({
     ...runningTodayShow,
@@ -790,7 +791,14 @@ describe('status filter over a multi-order show', () => {
     entryStatus: EntryStatus
   ): MyEntry {
     const classes: EntryClass[] = [
-      { id: `${id}-c1`, name: 'Container Novice A', number: '', fee: 25, status: 'entered' },
+      {
+        id: `${id}-c1`,
+        name: 'Container Novice A',
+        number: '',
+        fee: 25,
+        status: 'entered',
+        entryStatusKind: 'accepted',
+      },
     ];
     return makeEntry({
       id,
@@ -868,6 +876,7 @@ describe('status filter keeps an order that holds ANY matching dog (Codex, PR #2
     number: '1',
     fee: 30,
     status: 'entered',
+    entryStatusKind: 'pending',
     entryStatus: EntryStatus.PENDING,
     paymentStatus: PaymentStatus.PAID_ONLINE,
   };
@@ -877,6 +886,7 @@ describe('status filter keeps an order that holds ANY matching dog (Codex, PR #2
     number: '2',
     fee: 30,
     status: 'entered',
+    entryStatusKind: 'accepted',
     entryStatus: EntryStatus.ACCEPTED,
     paymentStatus: PaymentStatus.PAID_ONLINE,
   };

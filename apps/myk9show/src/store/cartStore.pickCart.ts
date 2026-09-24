@@ -38,17 +38,12 @@
  * `expires_at` filter, so a lapsed hold on an active row is still recovered.
  */
 import { supabase } from '@/lib/supabase';
+import {
+  RECOVERABLE_CART_LOOKUP_COLUMNS,
+  RECOVERABLE_CART_STATUSES,
+} from './cartStore.pickCart.constants';
 
-/** Terminal carts (submitted / abandoned) are never recovered. */
-export const RECOVERABLE_CART_STATUSES = ['active', 'expired'] as const;
-
-/**
- * The lookup's column list. `entry_cart_items(count)` is the same embedded
- * count the badge has always used; the items' RLS is scoped to the viewer's own
- * carts, so it counts exactly the rows `/cart` will load.
- */
-export const RECOVERABLE_CART_LOOKUP_COLUMNS =
-  'id, show_id, status, expires_at, created_at, entry_cart_items(count)';
+export { RECOVERABLE_CART_LOOKUP_COLUMNS, RECOVERABLE_CART_STATUSES };
 
 /**
  * Upper bound on candidates read per lookup. Live data has at most a handful of

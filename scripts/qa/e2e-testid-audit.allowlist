@@ -1,0 +1,10 @@
+# e2e-testid-audit allowlist: ids an e2e spec asserts that the app builds by
+# interpolation, so the static audit cannot see them. One tab-separated row:
+#   <id> TAB <producer path, repo-relative> TAB <template, verbatim> TAB <reason>
+# Every row is re-verified on each run (producer exists and still contains the
+# template, id matches it, a spec still references it, id not statically
+# present); a row that stops holding fails the audit as STALE ALLOWLIST.
+result-ABS	packages/scoring-ui/src/components/ResultChoiceChips.tsx	result-${opt.value}	RESULT_OPTIONS includes ABS; atShowJudgeScoring records an absence
+wizard-step-circle-0	apps/myk9show/src/components/shows/wizard/components/HorizontalProgressIndicator.tsx	wizard-step-circle-${step.id}	registration wizard step ids are the step index (useRegistrationWizardState)
+wizard-step-circle-1	apps/myk9show/src/components/shows/wizard/components/HorizontalProgressIndicator.tsx	wizard-step-circle-${step.id}	registration wizard step ids are the step index (useRegistrationWizardState)
+wizard-step-connector-0	apps/myk9show/src/components/shows/wizard/components/HorizontalProgressIndicator.tsx	wizard-step-connector-${step.id}	connector after the first registration wizard step (step index 0)

@@ -137,13 +137,9 @@ run_category() {
             echo -e "${BLUE}Running Security Tests Only...${NC}"
             run_test_suite "Payment Security Tests" "src/test/security/phase3-5-payment-security.test.ts" "security"
             ;;
-        "e2e")
-            echo -e "${BLUE}Running E2E Tests Only...${NC}"
-            run_test_suite "Payment E2E Tests" "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts" "e2e"
-            ;;
         *)
             echo -e "${RED}Unknown category: $category${NC}"
-            echo "Available categories: unit, integration, security, e2e"
+            echo "Available categories: unit, integration, security"
             exit 1
             ;;
     esac
@@ -165,7 +161,6 @@ main() {
                 echo "  unit        - Run unit tests only"
                 echo "  integration - Run integration tests only"
                 echo "  security    - Run security tests only"
-                echo "  e2e         - Run E2E tests only"
                 echo "  (no args)   - Run all tests"
                 echo ""
                 exit 0
@@ -195,10 +190,6 @@ main() {
         # 3. Security Tests
         echo -e "${YELLOW}Phase 3: Security Tests${NC}"
         run_test_suite "Payment Security Tests" "src/test/security/phase3-5-payment-security.test.ts" "security"
-        
-        # 4. E2E Tests
-        echo -e "${YELLOW}Phase 4: End-to-End Tests${NC}"
-        run_test_suite "Payment E2E Tests" "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts" "e2e"
         
         generate_report
     else

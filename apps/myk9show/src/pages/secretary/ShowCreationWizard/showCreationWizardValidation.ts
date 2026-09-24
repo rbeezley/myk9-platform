@@ -6,6 +6,7 @@ import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
   InvalidWizardClassConfigurationError,
   normalizeWizardClassSelections,
+  type PersistedClassIdentity,
 } from './classConfigurationValidation';
 
 interface ShowData {
@@ -114,7 +115,8 @@ export function getTrialValidationMessages(
 export function getClassValidationMessages(
   trials: Trial[],
   trialView: WizardTrialView,
-  organization: string
+  organization: string,
+  persistedClasses: readonly PersistedClassIdentity[] = []
 ): string[] {
   const messages: string[] = [];
 
@@ -134,7 +136,7 @@ export function getClassValidationMessages(
 
   if (totalClasses > 0) {
     try {
-      normalizeWizardClassSelections(organization, trials);
+      normalizeWizardClassSelections(organization, trials, persistedClasses);
     } catch (error) {
       if (!(error instanceof InvalidWizardClassConfigurationError)) throw error;
       messages.push(error.message);
@@ -151,7 +153,9 @@ export function getValidationMessagesForStep(
   step: number,
   show: ShowData,
   trials: Trial[],
-  trialView: WizardTrialView
+  trialView: WizardTrialView,
+  /** Add-classes mode: the show's stored classes, retained rather than re-validated. */
+  persistedClasses: readonly PersistedClassIdentity[] = []
 ): string[] {
   switch (step) {
     case 0:
@@ -159,7 +163,7 @@ export function getValidationMessagesForStep(
     case 1:
       return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(trials, trialView, show.organization);
+      return getClassValidationMessages(trials, trialView, show.organization, persistedClasses);
     case 3:
       // Review step shows its own validation
       return [];

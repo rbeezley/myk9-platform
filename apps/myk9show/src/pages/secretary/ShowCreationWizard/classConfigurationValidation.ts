@@ -49,77 +49,6 @@ function isUnresolvedClassPart(value: string): boolean {
   return /^unknown(?:\s+(?:element|level|section))?$/i.test(value);
 }
 
-/** Validate the full wizard class set before any create/edit writer performs its first mutation. */
-export function normalizeWizardClassSelections(
-  organization: string | null | undefined,
-  trials: readonly WizardTrial[]
-): NormalizedWizardClassSelection[] {
-  const registryId = deriveRegistryId(organization);
-  const sport = getScentWorkSport(registryId);
-  const invalidClasses: InvalidWizardClass[] = [];
-  const normalized: NormalizedWizardClassSelection[] = [];
-  const seen = new Set<string>();
-
-  for (const trial of trials) {
-    for (const [index, selection] of trial.classes.entries()) {
-      const customizations = selection.customizations ?? {};
-      const className = textValue(customizations.className) || `Class ${index + 1}`;
-      const element = textValue(customizations.element);
-      const level = textValue(customizations.level);
-      const section = textValue(customizations.section);
-
-      if (!element || isUnresolvedClassPart(element)) {
-        invalidClasses.push({ className, reason: 'registry element is missing or unresolved' });
-        continue;
-      }
-      if (isUnresolvedClassPart(level)) {
-        invalidClasses.push({ className, reason: 'registry level is unresolved' });
-        continue;
-      }
-      if (isUnresolvedClassPart(section)) {
-        invalidClasses.push({ className, reason: 'registry section is unresolved' });
-        continue;
-      }
-
-      let triple: CanonicalWizardClassTriple;
-      if (isScentWorkTrial(trial.trialType)) {
-        const result = normalizeScentWorkTriple(sport, { element, level, section });
-        if (!result.valid) {
-          invalidClasses.push({ className, reason: `${result.reason} for ${registryId} registry` });
-          continue;
-        }
-        triple = { registryId, ...result.triple };
-      } else {
-        // Unclassified/custom disciplines keep their own sport-specific vocabulary. Missing or
-        // sentinel identity parts are still rejected above; only configured scent disciplines
-        // receive registry-matrix validation.
-        if (!level) {
-          invalidClasses.push({ className, reason: 'registry level is missing' });
-          continue;
-        }
-        triple = { registryId, element, level, section };
-      }
-
-      const semanticKey = [registryId, trial.id, triple.element, triple.level, triple.section]
-        .map(value => value.trim().toLocaleLowerCase())
-        .join('|');
-      if (seen.has(semanticKey)) continue;
-      seen.add(semanticKey);
-      normalized.push({
-        trialId: trial.id,
-        sourceIndex: index,
-        className,
-        templateId: selection.templateId,
-        ...(selection.judgeId === undefined ? {} : { judgeId: selection.judgeId }),
-        triple,
-      });
-    }
-  }
-
-  if (invalidClasses.length > 0) throw new InvalidWizardClassConfigurationError(invalidClasses);
-  return normalized;
-}
-
 export interface PersistedClassIdentity {
   trialId: string;
   element?: string | null | undefined;
@@ -127,55 +56,128 @@ export interface PersistedClassIdentity {
   section?: string | null | undefined;
 }
 
-function persistedIdentityKey(
-  trialId: string,
-  element: unknown,
-  level: unknown,
-  section: unknown
-): string {
+/** Raw (as-stored) identity. NULL and undefined read as '', the way the class store serves them. */
+function storedIdentityKey(trialId: string, element: unknown, level: unknown, section: unknown) {
   return [trialId, element ?? '', level ?? '', section ?? ''].map(String).join('|');
 }
 
-/**
- * Add-classes mode: drop classes that already exist. `trial.classes` carries the persisted rows
- * verbatim (buildEditModeDraft), but the writer receives their CANONICAL triple, which differs
- * from the stored text for a legacy row (level “Novice A”, section '' → Novice / A). Match each
- * wizard item on the text it was loaded with, then exclude its canonical form as well, so a
- * legacy row is never re-created as a canonical duplicate.
- */
-export function excludePersistedClasses<
-  T extends {
-    trialId: string;
-    element?: string | undefined;
-    level?: string | undefined;
-    section?: string | undefined;
-  },
->(
-  classes: readonly T[],
-  normalizedClasses: readonly NormalizedWizardClassSelection[],
-  trials: readonly WizardTrial[],
-  persisted: readonly PersistedClassIdentity[]
-): T[] {
-  const persistedKeys = new Set(
-    persisted.map(row => persistedIdentityKey(row.trialId, row.element, row.level, row.section))
-  );
-  const trialsById = new Map(trials.map(trial => [trial.id, trial]));
-  for (const selection of normalizedClasses) {
-    const loaded = trialsById.get(selection.trialId)?.classes[selection.sourceIndex]
-      ?.customizations;
-    if (!loaded) continue;
-    const loadedKey = persistedIdentityKey(
-      selection.trialId,
-      loaded.element,
-      loaded.level,
-      loaded.section
-    );
-    if (!persistedKeys.has(loadedKey)) continue;
-    const { element, level, section } = selection.triple;
-    persistedKeys.add(persistedIdentityKey(selection.trialId, element, level, section));
+type ResolvedClass = { valid: true; triple: CanonicalWizardClassTriple } | InvalidWizardClass;
+
+/** Resolve one wizard class item to its canonical triple, or the reason it has none. */
+function resolveClassTriple(
+  registryId: RegistryId,
+  sport: ReturnType<typeof getScentWorkSport>,
+  trialType: string | undefined,
+  className: string,
+  customizations: Record<string, unknown>
+): ResolvedClass {
+  const element = textValue(customizations.element);
+  const level = textValue(customizations.level);
+  const section = textValue(customizations.section);
+
+  if (!element || isUnresolvedClassPart(element)) {
+    return { className, reason: 'registry element is missing or unresolved' };
   }
-  return classes.filter(
-    cls =>
-      !persistedKeys.has(persistedIdentityKey(cls.trialId, cls.element, cls.level, cls.section))
+  if (isUnresolvedClassPart(level)) return { className, reason: 'registry level is unresolved' };
+  if (isUnresolvedClassPart(section)) {
+    return { className, reason: 'registry section is unresolved' };
+  }
+
+  if (isScentWorkTrial(trialType)) {
+    const result = normalizeScentWorkTriple(sport, { element, level, section });
+    if (!result.valid) return { className, reason: `${result.reason} for ${registryId} registry` };
+    return { valid: true, triple: { registryId, ...result.triple } };
+  }
+  // Unclassified/custom disciplines keep their own sport-specific vocabulary. Missing or
+  // sentinel identity parts are still rejected above; only configured scent disciplines
+  // receive registry-matrix validation.
+  if (!level) return { className, reason: 'registry level is missing' };
+  return { valid: true, triple: { registryId, element, level, section } };
+}
+
+function semanticKey(trialId: string, triple: CanonicalWizardClassTriple): string {
+  return [triple.registryId, trialId, triple.element, triple.level, triple.section]
+    .map(value => value.trim().toLocaleLowerCase())
+    .join('|');
+}
+
+/**
+ * Validate and canonicalize the classes the wizard will WRITE, before any create/edit writer
+ * performs its first mutation.
+ *
+ * `persisted` (add-classes mode) lists the show's stored classes. buildEditModeDraft loads them
+ * into `trials` verbatim; an item whose loaded identity matches a stored row is RETAINED — it is
+ * not validated (a legacy row the current catalog rejects must not block unrelated work) and is
+ * never returned, so it is never re-written. When a retained row does resolve, its canonical
+ * triple still de-duplicates new items, so a legacy row is not re-created in canonical form.
+ */
+export function normalizeWizardClassSelections(
+  organization: string | null | undefined,
+  trials: readonly WizardTrial[],
+  persisted: readonly PersistedClassIdentity[] = []
+): NormalizedWizardClassSelection[] {
+  const registryId = deriveRegistryId(organization);
+  const sport = getScentWorkSport(registryId);
+  const storedKeys = new Set(
+    persisted.map(row => storedIdentityKey(row.trialId, row.element, row.level, row.section))
   );
+  const invalidClasses: InvalidWizardClass[] = [];
+  const normalized: NormalizedWizardClassSelection[] = [];
+  const seen = new Set<string>();
+
+  const items = trials.flatMap(trial =>
+    trial.classes.map((selection, index) => {
+      const customizations = selection.customizations ?? {};
+      const retained = storedKeys.has(
+        storedIdentityKey(
+          trial.id,
+          customizations.element,
+          customizations.level,
+          customizations.section
+        )
+      );
+      const className = textValue(customizations.className) || `Class ${index + 1}`;
+      return { trial, selection, index, customizations, className, retained };
+    })
+  );
+
+  for (const item of items.filter(candidate => candidate.retained)) {
+    const resolved = resolveClassTriple(
+      registryId,
+      sport,
+      item.trial.trialType,
+      item.className,
+      item.customizations
+    );
+    if ('valid' in resolved) seen.add(semanticKey(item.trial.id, resolved.triple));
+  }
+
+  for (const item of items.filter(candidate => !candidate.retained)) {
+    const { trial, selection, index, className } = item;
+    const resolved = resolveClassTriple(
+      registryId,
+      sport,
+      trial.trialType,
+      className,
+      item.customizations
+    );
+    if (!('valid' in resolved)) {
+      invalidClasses.push(resolved);
+      continue;
+    }
+    const key = semanticKey(trial.id, resolved.triple);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      trialId: trial.id,
+      sourceIndex: index,
+      className,
+      templateId: selection.templateId,
+      ...(selection.judgeId === undefined ? {} : { judgeId: selection.judgeId }),
+      triple: resolved.triple,
+    });
+  }
+
+  if (invalidClasses.length > 0) throw new InvalidWizardClassConfigurationError(invalidClasses);
+  return normalized;
 }

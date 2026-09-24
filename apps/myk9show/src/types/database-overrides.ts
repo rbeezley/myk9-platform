@@ -82,6 +82,22 @@ type WithdrawOwnEntry = WithArg<
 >;
 
 /**
+ * `update_own_entry_jump_height(p_entry_id uuid, p_jump_height text,
+ * p_expected_version integer)` —
+ * `supabase/migrations/20260916194700_update_own_entry_jump_height_rpc.sql`.
+ *
+ * Same NULL contract as `withdraw_own_entry`: the 40001 raise is guarded by
+ * `IF p_expected_version IS NOT NULL AND …` and the UPDATE's WHERE by
+ * `p_expected_version IS NULL OR e.version = …`. The client sends NULL only
+ * when the row's version cannot be read; never `?? 0`, which is a real version.
+ */
+type UpdateOwnEntryJumpHeight = WithArg<
+  GeneratedFunctions['update_own_entry_jump_height'],
+  'p_expected_version',
+  number | null
+>;
+
+/**
  * `list_club_role_requests(p_club_id uuid)` —
  * `supabase/migrations/20260915231500_club_routed_role_requests.sql`.
  *
@@ -142,9 +158,13 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
     Functions: Omit<
       GeneratedFunctions,
-      'withdraw_own_entry' | 'list_club_role_requests' | 'move_up_entry'
+      | 'withdraw_own_entry'
+      | 'update_own_entry_jump_height'
+      | 'list_club_role_requests'
+      | 'move_up_entry'
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
+      update_own_entry_jump_height: UpdateOwnEntryJumpHeight;
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;

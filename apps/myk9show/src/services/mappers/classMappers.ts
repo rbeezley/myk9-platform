@@ -9,7 +9,6 @@ import type {
   DbClassInsert,
   DbClassUpdate,
   DbEntry,
-  DbEntryInsert,
   DbEntryUpdate,
 } from '@/types/database-mappings';
 import type {
@@ -286,20 +285,6 @@ export const mapDatabaseClassesArray = (dbClasses: DbClassWithRelations[]): Sync
 };
 
 // ===== ENTRY MAPPERS =====
-
-/**
- * Convert EntryInput to database insert format
- */
-export const mapEntryInputToInsert = (entryData: EntryInput): DbEntryInsert => {
-  return {
-    class_id: entryData.classId,
-    dog_id: entryData.dogId || null,
-    show_id: entryData.showId || null,
-    armband: entryData.armband,
-    entry_status: mapEntryStatus(entryData.status),
-    handler: entryData.handler,
-  };
-};
 
 /**
  * Convert partial EntryInput to database update format

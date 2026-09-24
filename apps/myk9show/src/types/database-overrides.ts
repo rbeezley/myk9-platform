@@ -155,7 +155,7 @@ type UpdateShowStyle = {
 
 /**
  * Club membership requests (MYK9-685) —
- * `supabase/migrations/20260924153700_myk9_685_club_membership_requests.sql`.
+ * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
  * `update_show_style` is. NULL `p_requester_note` / `p_note` mean "no note"
  * (the SQL stores `NULLIF(btrim(...), '')`); `list_club_membership_requests`

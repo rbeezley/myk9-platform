@@ -52,6 +52,24 @@ interface NotificationSnapshot {
   classes: unknown[];
 }
 
+/** What the monitor last saw of one class, to tell a change from a state. */
+interface ObservedClass {
+  finalized: boolean;
+  inProgress: boolean;
+  entryIds: ReadonlySet<string>;
+  inRingEntryId: string | null;
+}
+
+/** The previous snapshot, for the user it was taken for. */
+interface Observed {
+  userId: string | null;
+  classes: ReadonlyMap<string, ObservedClass>;
+}
+
+function isUnchecked(entry: ShowEntry): boolean {
+  return !entry.checkInStatus || entry.checkInStatus === 'no-status';
+}
+
 function isRevealableResult(
   resultStatus: string | null | undefined,
   resultsReleasedAt: string | null | undefined
@@ -147,18 +165,35 @@ export function useNotificationMonitor(): void {
   });
 
   const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
-  const notifiedClassStarting = useRef<Set<string>>(new Set());
-  const notifiedResultsPosted = useRef<Set<string>>(new Set());
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
   const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
-  const lastInRingEntryByClassRef = useRef<Map<string, string>>(new Map());
+  // INTENT (MYK9-735): the in-app monitor alerts only on changes it observes
+  // while mounted. The first snapshot after mount, or after the signed-in user
+  // changes, is a silent baseline. Server push (push-trigger-scoring,
+  // push-trigger-class-status, push-trigger-run-proximity) covers what happened
+  // while the user was away; alerting on STATE here re-announced weeks-old
+  // results on every sign-in.
+  const observedRef = useRef<Observed | null>(null);
+  // Set when the app is hidden: backgrounded time counts as "away" too, so the
+  // first snapshot processed while visible again is a baseline.
+  const awaySinceLastBaselineRef = useRef(false);
+  // When the app last became visible. Only a snapshot fetched successfully at or
+  // after it ends the away baseline; cached data handed back with a refetch
+  // error predates it and stays a baseline.
+  const visibleSinceRef = useRef<number | null>(null);
+  // The live refresh, while the subscription effect is active; used to take the
+  // post-away baseline the moment the app is visible again.
+  const refreshNowRef = useRef<(() => void) | null>(null);
+  const userIdRef = useRef<string | null>(userWithRoles?.id ?? null);
 
   const deliverRef = useRef(deliver);
   const preferencesRef = useRef(preferences);
   const userDogIdsRef = useRef(userDogIds);
   const watchSetRef = useRef(watchSet);
+  const currentUserId = userWithRoles?.id ?? null;
   useLayoutEffect(() => {
+    userIdRef.current = currentUserId;
     deliverRef.current = deliver;
     preferencesRef.current = preferences;
     userDogIdsRef.current = userDogIds;
@@ -209,7 +244,7 @@ export function useNotificationMonitor(): void {
   }, []);
 
   const processSnapshot = useCallback(
-    (snapshot: NotificationSnapshot) => {
+    (snapshot: NotificationSnapshot, fetchedAt: number) => {
       const classLookup = new Map<string, ClassRow>();
       const entriesByClass = new Map<string, ShowEntry[]>();
       const nextDogNames = new Map<string, string>();
@@ -250,7 +285,6 @@ export function useNotificationMonitor(): void {
       }
 
       const nextContexts = new Map<string, ClassContext>();
-      const nextInRingEntryByClass = new Map<string, string>();
       for (const [classId, entries] of entriesByClass) {
         const classRow = classLookup.get(classId);
         nextContexts.set(classId, {
@@ -265,39 +299,60 @@ export function useNotificationMonitor(): void {
       dogNameMap.current = nextDogNames;
       entryResultStatusMapRef.current = nextResultStatuses;
 
+      const nextObserved = new Map<string, ObservedClass>();
+      for (const [classId, classRow] of classLookup) {
+        const entries = entriesByClass.get(classId) ?? [];
+        nextObserved.set(classId, {
+          finalized: Boolean(classRow.is_scoring_finalized),
+          inProgress: classRow.status === 'In Progress',
+          entryIds: new Set(entries.map(entry => entry.id)),
+          inRingEntryId: entries.find(entry => entry.checkInStatus === 'in-ring')?.id ?? null,
+        });
+      }
+
+      const userId = userIdRef.current;
+      const previous = observedRef.current;
+      observedRef.current = { userId, classes: nextObserved };
+      // Baseline: the first snapshot after mount, after a user change, or after
+      // the app was hidden (every snapshot while hidden is a baseline too).
+      const wasAway = awaySinceLastBaselineRef.current;
+      const visibleSince = visibleSinceRef.current;
+      if (wasAway && visibleSince !== null && fetchedAt >= visibleSince) {
+        awaySinceLastBaselineRef.current = false;
+      }
+      if (!previous || previous.userId !== userId || wasAway) return;
+
       for (const [classId, context] of nextContexts) {
         const classRow = classLookup.get(classId);
-        if (!classRow) continue;
+        const before = previous.classes.get(classId);
+        const now = nextObserved.get(classId);
+        // A class first seen in this snapshot (e.g. a newly selected show) is
+        // part of the baseline, not a change.
+        if (!classRow || !before || !now) continue;
         const userEntries = context.entries.filter(entry => userDogIdsRef.current.has(entry.dogId));
 
-        if (
-          classRow.status === 'In Progress' &&
-          !notifiedClassStarting.current.has(classId) &&
-          userEntries.length > 0
-        ) {
-          notifiedClassStarting.current.add(classId);
+        const startedNow = now.inProgress && !before.inProgress;
+        if (startedNow && userEntries.length > 0) {
           const starting = buildClassStartingPayload({ className: context.className });
           starting.actionUrl = `/classes/${classId}`;
           deliverRef.current(starting);
+        }
 
+        if (now.inProgress) {
           for (const entry of userEntries) {
-            if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
-              const reminder = buildCheckInReminderPayload({
-                dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
-                className: context.className,
-              });
-              reminder.actionUrl = `/classes/${classId}`;
-              deliverRef.current(reminder);
-            }
+            // Remind for every unchecked entry when the class just started, and
+            // for an unchecked entry that appeared while it was running.
+            if (!isUnchecked(entry) || (!startedNow && before.entryIds.has(entry.id))) continue;
+            const reminder = buildCheckInReminderPayload({
+              dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
+              className: context.className,
+            });
+            reminder.actionUrl = `/classes/${classId}`;
+            deliverRef.current(reminder);
           }
         }
 
-        if (
-          classRow.is_scoring_finalized &&
-          !notifiedResultsPosted.current.has(classId) &&
-          userEntries.length > 0
-        ) {
-          notifiedResultsPosted.current.add(classId);
+        if (now.finalized && !before.finalized && userEntries.length > 0) {
           const results = buildResultsPostedPayload({
             dogName: userEntries
               .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')
@@ -313,23 +368,37 @@ export function useNotificationMonitor(): void {
           deliverRef.current(results);
         }
 
-        const inRingEntry = context.entries.find(entry => entry.checkInStatus === 'in-ring');
-        if (inRingEntry) {
-          nextInRingEntryByClass.set(classId, inRingEntry.id);
-          if (lastInRingEntryByClassRef.current.get(classId) !== inRingEntry.id) {
-            notifyUpcomingDogs(classId, inRingEntry.id);
-          }
+        if (now.inRingEntryId && now.inRingEntryId !== before.inRingEntryId) {
+          notifyUpcomingDogs(classId, now.inRingEntryId);
         }
       }
-
-      lastInRingEntryByClassRef.current = nextInRingEntryByClass;
     },
     [notifyUpcomingDogs]
   );
 
   useEffect(() => {
-    if (snapshotQuery.data) processSnapshot(snapshotQuery.data);
-  }, [snapshotQuery.data, processSnapshot]);
+    if (snapshotQuery.data) {
+      const fetchedAt = snapshotQuery.isError ? 0 : snapshotQuery.dataUpdatedAt;
+      processSnapshot(snapshotQuery.data, fetchedAt);
+    }
+  }, [snapshotQuery.data, snapshotQuery.dataUpdatedAt, snapshotQuery.isError, processSnapshot]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        awaySinceLastBaselineRef.current = true;
+        visibleSinceRef.current = null;
+      } else if (awaySinceLastBaselineRef.current) {
+        visibleSinceRef.current = Date.now();
+        // Take the baseline now rather than at the next poll, so a change
+        // after the user is back is compared against it and still alerts. A
+        // change during this one round trip is covered by server push.
+        refreshNowRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   const refetchSnapshot = snapshotQuery.refetch;
   useEffect(() => {
@@ -357,7 +426,9 @@ export function useNotificationMonitor(): void {
       inFlight = true;
       try {
         const result = await refetchSnapshot();
-        if (!disposed && result.data) processSnapshot(result.data);
+        if (!disposed && result.data) {
+          processSnapshot(result.data, result.isError ? 0 : result.dataUpdatedAt);
+        }
       } catch {
         // The 30-second query poll and next signal repair a transient failure.
       } finally {
@@ -378,8 +449,10 @@ export function useNotificationMonitor(): void {
     };
 
     const unsubscribes = showIds.map(showId => subscribeToShowChanges(showId, nudge));
+    refreshNowRef.current = () => void refresh();
     return () => {
       disposed = true;
+      refreshNowRef.current = null;
       if (timer) clearTimeout(timer);
       for (const unsubscribe of unsubscribes) unsubscribe();
     };

@@ -11,6 +11,7 @@ import {
   buildYourTurnPayload,
 } from '@myk9/notifications';
 import { useNotificationMonitor } from '../useNotificationMonitor';
+import { classRow, entry, type NotificationSnapshot } from './notificationMonitorFixtures';
 
 const {
   mockDeliver,
@@ -19,6 +20,7 @@ const {
   mockUseQueryResult,
   mockRefetch,
   mockUnsubscribe,
+  mockAuth,
 } = vi.hoisted(() => {
   const mockDeliver = vi.fn();
   const mockPreferences = {
@@ -42,13 +44,9 @@ const {
     mockUseQueryResult,
     mockRefetch,
     mockUnsubscribe: vi.fn(),
+    mockAuth: { userId: 'auth-user-1' },
   };
 });
-
-interface NotificationSnapshot {
-  classes: Array<Record<string, unknown>>;
-  entries: Array<Record<string, unknown>>;
-}
 
 let showChangeHandler: ShowChangeListener | undefined;
 
@@ -75,8 +73,8 @@ vi.mock('@/store/showStore', () => ({
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { databaseUserId: 'user-1', id: 'auth-user-1' },
-    user: { id: 'auth-user-1' },
+    userWithRoles: { databaseUserId: 'user-1', id: mockAuth.userId },
+    user: { id: mockAuth.userId },
   }),
 }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
@@ -92,32 +90,16 @@ vi.mock('@myk9/notifications', () => ({
   buildCheckInReminderPayload: vi.fn(() => ({ id: '3', type: 'check_in_reminder' })),
   buildResultsPostedPayload: vi.fn(() => ({ id: '4', type: 'results_posted' })),
 }));
+// The favorites query would otherwise read the snapshot `useQuery` mock above.
+vi.mock('@/features/at-show/dogFavoritesSync', () => ({
+  useFavoriteArmbandsByShow: () => new Map<string, ReadonlySet<number>>(),
+}));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
 
-function entry(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'owned-entry',
-    dog_id: 'dog-1',
-    class_id: 'class-1',
-    show_id: 'show-1',
-    check_in_status: 'checked-in',
-    armband: '27',
-    is_scored: false,
-    result_status: null,
-    dog_call_name: 'Ditto',
-    ...overrides,
-  };
-}
-
-function classRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'class-1',
-    name: 'Container Novice A',
-    status: 'Pending',
-    is_scoring_finalized: false,
-    results_released_at: null,
-    ...overrides,
-  };
+/** The first snapshot after mount is a silent baseline (MYK9-735); alerts need a change after it. */
+function mountWithBaseline(snapshot: NotificationSnapshot) {
+  mockUseQueryResult.mockReturnValue({ data: snapshot, refetch: mockRefetch });
+  return renderHook(() => useNotificationMonitor());
 }
 
 async function emitShowChange() {
@@ -134,6 +116,7 @@ describe('useNotificationMonitor', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mockPreferences.enabled = true;
+    mockAuth.userId = 'auth-user-1';
     mockUseShowDayData.mockReturnValue({ activeShows: [{ showId: 'show-1' }] });
     mockUseQueryResult.mockReturnValue({ data: null, refetch: mockRefetch });
     mockRefetch.mockResolvedValue({ data: null });
@@ -169,7 +152,10 @@ describe('useNotificationMonitor', () => {
         entries: [entry({ check_in_status: 'no-status' })],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({
+      classes: [classRow()],
+      entries: [entry({ check_in_status: 'no-status' })],
+    });
 
     await emitShowChange();
 
@@ -199,7 +185,7 @@ describe('useNotificationMonitor', () => {
         ],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
 
     await emitShowChange();
 
@@ -227,7 +213,7 @@ describe('useNotificationMonitor', () => {
         ],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
 
     await emitShowChange();
     expect(buildYourTurnPayload).toHaveBeenCalledOnce();
@@ -251,7 +237,7 @@ describe('useNotificationMonitor', () => {
         entries: [entry({ is_scored: true, result_status: 'qualified' })],
       },
     });
-    renderHook(() => useNotificationMonitor());
+    mountWithBaseline({ classes: [classRow({ status: 'Complete' })], entries: [entry()] });
 
     await emitShowChange();
 

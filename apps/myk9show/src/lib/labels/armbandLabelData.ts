@@ -25,6 +25,11 @@ export function filterEntries(
   entries: ArmbandLabelEntry[],
   filter: LabelFilterConfig
 ): ArmbandLabelEntry[] {
+  // "Early" vs "Day of Show" is the REGISTRY bucket (`is_day_of_show`,
+  // MYK9-642), reviewed for MYK9-677 and kept: it chooses which armbands to
+  // print, not whose money is in the cash box, so a mail-in keyed after entries
+  // closed prints with the day-of batch the registry counts it in. The
+  // closeout card's desk-money question keys on submission time instead.
   let result = entries.filter(e => {
     if (e.isDayOfShow && !filter.dayOfShowEntries) return false;
     if (!e.isDayOfShow && !filter.earlyEntries) return false;

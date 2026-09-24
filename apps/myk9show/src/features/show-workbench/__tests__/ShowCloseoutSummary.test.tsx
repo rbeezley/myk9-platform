@@ -83,10 +83,11 @@ describe('ShowCloseoutSummary', () => {
     render(
       <ShowCloseoutSummary
         showId="show-1"
+        deskWindow={{ showStartDate: '2026-09-17', timeZone: 'America/New_York' }}
         entries={[
           {
             id: 'late-cash',
-            is_day_of_show: true,
+            submitted_at: '2026-09-17T14:00:00Z',
             entry_fee: 35,
             payment_status: 'paid',
             payment_method: 'cash',
@@ -106,7 +107,7 @@ describe('ShowCloseoutSummary', () => {
     // The reconciliation half alone drives the rolled-up chip here (no incidents).
     expect(await screen.findByText('1 pulled · 1 review')).toBeInTheDocument();
     expect(
-      within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
+      within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 taken at the show')
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Collected at-show late-entry fees' })).getByText(
@@ -156,7 +157,7 @@ describe('ShowCloseoutSummary', () => {
       },
     ]);
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} />);
+    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
 
     expect(await screen.findByText('1 reportable')).toBeInTheDocument();
     expect(
@@ -174,7 +175,7 @@ describe('ShowCloseoutSummary', () => {
   });
 
   it('renders a calm empty incident state', async () => {
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} />);
+    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
 
     expect(await screen.findByText('Nothing to reconcile')).toBeInTheDocument();
     expect(
@@ -185,7 +186,7 @@ describe('ShowCloseoutSummary', () => {
   it('renders a loading state without empty-state copy', () => {
     mockListShowIncidentCloseout.mockReturnValueOnce(new Promise(() => undefined));
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} />);
+    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
 
     expect(screen.getByText('Checking incidents')).toBeInTheDocument();
     expect(screen.getByText('Checking the incident log...')).toBeInTheDocument();
@@ -197,7 +198,7 @@ describe('ShowCloseoutSummary', () => {
   it('renders an error state without empty-state copy', async () => {
     mockListShowIncidentCloseout.mockRejectedValueOnce(new Error('network failed'));
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} />);
+    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
 
     expect(await screen.findByText('Check incidents')).toBeInTheDocument();
     expect(

@@ -154,6 +154,9 @@ function judgeTrialLabels(assigned: readonly LandingTrial[]): string[] {
   const labels = assigned.map(trial =>
     formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
   );
+  // INTENT: same-name, same-day trials render with identical labels by design (Richard, 2026-09-24,
+  // MYK9-704): the data has no public discriminator and the case is a secretary data-entry error.
+  // Both assignments are still listed, so none is hidden; do not add a synthetic suffix.
   return labels.map((label, index) => {
     const shared = labels.filter(other => other === label).length > 1;
     const day = shared ? formatWeekdayMonthDay(assigned[index]?.date) : '';

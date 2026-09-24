@@ -173,6 +173,19 @@ describe('buildLandingData', () => {
       expect(data.judges[0]?.trials).toEqual(['Trial 1 (Sat, Oct 31)', 'Trial 1 (Sun, Nov 1)']);
     });
 
+    // INTENT (Richard, 2026-09-24): same name AND same day is a data-entry
+    // error with no public discriminator. Both trials stay listed, labelled
+    // identically: never collapsed, never given a synthetic suffix.
+    it('lists two distinct same-name, same-day trials twice with identical labels', () => {
+      const sameDay = [
+        judgeTrial('t-a', 'Trial 1', '2026-10-31'),
+        judgeTrial('t-b', 'Trial 1', '2026-10-31'),
+      ];
+      const data = buildLandingData(show, sameDay[0], sameDay, 12);
+
+      expect(data.judges[0]?.trials).toEqual(['Trial 1 (Sat, Oct 31)', 'Trial 1 (Sat, Oct 31)']);
+    });
+
     it('lists a trial once when the judge is assigned to the same trial ID twice', () => {
       const duplicated = [
         judgeTrial('t-1', 'Trial 1', '2026-10-31'),

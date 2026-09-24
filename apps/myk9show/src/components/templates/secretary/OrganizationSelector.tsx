@@ -234,7 +234,7 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {template.defaults?.judgingTimeEstimate || 'N/A'} min judging
+                              {template.defaults?.judgingTimeEstimate || 'N/A'} min per run
                             </Badge>
                           </div>
                         </div>

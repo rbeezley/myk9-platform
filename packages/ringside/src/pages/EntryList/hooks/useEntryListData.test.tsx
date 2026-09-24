@@ -368,7 +368,7 @@ describe('useEntryListData — subscription lifecycle', () => {
     });
     const deps = makeDeps({ subscribeToReplicationChanges });
 
-    const { result } = renderHook(
+    renderHook(
       () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
       {
         wrapper: makeWrapper(),

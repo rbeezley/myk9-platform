@@ -21,7 +21,7 @@ import type {
   FilterTriggerButtonProps,
   ClassDetailsPopoverProps,
 } from '../pageProps';
-import { EntryListHeader } from './EntryListHeader';
+import { EntryListHeader, type EntryListHeaderProps } from './EntryListHeader';
 
 const StubHamburgerMenu: ComponentType<HamburgerMenuProps> = ({ currentPage }) => (
   <button data-testid="hamburger" data-current-page={currentPage}>
@@ -66,7 +66,7 @@ const baseClassInfo: ClassInfo = {
   visibilityPreset: 'open',
 } as unknown as ClassInfo;
 
-const defaultProps = {
+const defaultProps: EntryListHeaderProps = {
   classInfo: baseClassInfo,
   isRefreshing: false,
   isSyncing: false,
@@ -91,7 +91,7 @@ const defaultProps = {
   ClassDetailsPopover: StubPopover,
 };
 
-const renderHeader = (override: Partial<typeof defaultProps> = {}) =>
+const renderHeader = (override: Partial<EntryListHeaderProps> = {}) =>
   render(
     <MemoryRouter>
       <EntryListHeader {...defaultProps} {...override} />

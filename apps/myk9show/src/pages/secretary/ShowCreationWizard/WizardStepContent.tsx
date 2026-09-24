@@ -27,6 +27,7 @@ interface WizardStepContentProps {
   existingTrialsReadError?: string | null | undefined;
   /** Retry the existing-show trial snapshot read. */
   onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
+  persistedOrganization?: string | undefined;
 }
 
 /**
@@ -48,11 +49,18 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   existingTrialsReadStatus,
   existingTrialsReadError,
   onRetryExistingTrials,
+  persistedOrganization,
 }) => {
   const stepProps = { className: '' };
   switch (currentStep) {
     case 0:
-      return <ShowDetailsStep {...stepProps} />;
+      return (
+        <ShowDetailsStep
+          {...stepProps}
+          mode={editMode?.mode ?? 'create'}
+          persistedOrganization={persistedOrganization}
+        />
+      );
     case 1: {
       return (
         <TrialConfigurationStep
@@ -98,6 +106,12 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
         />
       );
     default:
-      return <ShowDetailsStep {...stepProps} />;
+      return (
+        <ShowDetailsStep
+          {...stepProps}
+          mode={editMode?.mode ?? 'create'}
+          persistedOrganization={persistedOrganization}
+        />
+      );
   }
 };

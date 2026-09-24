@@ -82,6 +82,7 @@ TEST_FILES=(
   "$TEST_DIR/show_officials_label_not_permission_test.sql"
   "$TEST_DIR/show_announcements_scope_test.sql"
   "$TEST_DIR/show_message_tenant_isolation_test.sql"
+  "$TEST_DIR/show_organization_immutability_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"
   "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"

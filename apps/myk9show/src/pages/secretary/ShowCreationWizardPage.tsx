@@ -73,6 +73,7 @@ const ShowCreationWizardPage: React.FC = () => {
     goToStep,
     resetWizard,
     loadDraft,
+    cloneHydration,
     show,
     trials,
     lastSaved,
@@ -227,12 +228,13 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Navigation handlers
   const handleBack = useCallback(() => {
+    if (cloneHydration.status === 'hydrating') return;
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     } else {
       handleClose();
     }
-  }, [currentStep, setCurrentStep, handleClose]);
+  }, [cloneHydration.status, currentStep, setCurrentStep, handleClose]);
 
   // Scroll the validation banner into view. scrollIntoView is a no-op stub in
   // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
@@ -245,6 +247,7 @@ const ShowCreationWizardPage: React.FC = () => {
   }, []);
 
   const handleNext = useCallback(async () => {
+    if (cloneHydration.status === 'hydrating') return;
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
@@ -292,6 +295,7 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   }, [
     currentStep,
+    cloneHydration.status,
     markStepCompleted,
     setCurrentStep,
     show,
@@ -302,7 +306,7 @@ const ShowCreationWizardPage: React.FC = () => {
   ]);
 
   // Step navigation validation
-  const canGoBack = !isLoading;
+  const canGoBack = !isLoading && cloneHydration.status !== 'hydrating';
 
   // Get validation messages for current step
   const validationMessages = getValidationMessagesForStep(
@@ -320,7 +324,7 @@ const ShowCreationWizardPage: React.FC = () => {
   // validation banner + inline "N items remaining" hint. Decoupled from
   // completedSteps to avoid auto-advance from markStepCompleted side effects
   // during re-renders.
-  const canGoNext = !isLoading;
+  const canGoNext = !isLoading && cloneHydration.status !== 'hydrating';
 
   // First-mount scroll: on the first failed Next the banner mounts on the
   // triggered render, so handleNext defers the scroll here. Guarded by the ref
@@ -455,6 +459,11 @@ const ShowCreationWizardPage: React.FC = () => {
                       editMode?.mode === 'add-trials' ? trialsReadError : undefined
                     }
                     onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
+                    persistedOrganization={
+                      editModeResolution.state === 'resolved'
+                        ? editModeResolution.show.organization
+                        : undefined
+                    }
                   />
                 )}
               </div>

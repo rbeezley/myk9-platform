@@ -16,12 +16,30 @@ const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
 };
 
 export type ShowDraft = WizardState['show'];
+export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
+
+export interface CloneHydrationState {
+  status: CloneHydrationStatus;
+  sourceShowId: string | null;
+  sourceShowName: string | null;
+  failureReason?: 'load-failed' | undefined;
+}
+
+export interface CloneHydrationSnapshot {
+  sourceShowId: string;
+  sourceShowName: string;
+  show: Partial<WizardState['show']>;
+  judgeDetails: WizardState['judgeDetails'];
+  trials: Array<Omit<WizardState['trials'][number], 'id'>>;
+}
 
 interface WizardState {
   currentStep: number;
   completedSteps: number[];
   isDirty: boolean;
   lastSaved: Date | null;
+  cloneHydration: CloneHydrationState;
+  cloneGeneration: number;
 
   // Show data
   show: {
@@ -103,6 +121,10 @@ interface WizardActions {
 
   // State management
   setDirty: (isDirty: boolean) => void;
+  beginCloneHydration: (sourceShowId: string, sourceShowName: string) => number;
+  failCloneHydration: (generation: number) => void;
+  cancelCloneHydration: (generation: number) => void;
+  completeCloneHydration: (generation: number, snapshot: CloneHydrationSnapshot) => void;
   saveProgress: () => void;
   resetWizard: () => void;
   loadDraft: (draft: Partial<WizardState>) => void;
@@ -113,6 +135,8 @@ const initialState: WizardState = {
   completedSteps: [],
   isDirty: false,
   lastSaved: null,
+  cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
+  cloneGeneration: 0,
   show: {
     name: '',
     organization: 'AKC',
@@ -148,16 +172,19 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       ...initialState,
 
       // Navigation
-      setCurrentStep: step => set({ currentStep: step }),
+      setCurrentStep: step =>
+        set(state => (state.cloneHydration.status === 'hydrating' ? state : { currentStep: step })),
 
       markStepCompleted: step => {
+        if (get().cloneHydration.status === 'hydrating') return;
         const { completedSteps } = get();
         if (completedSteps.includes(step)) return;
         set({ completedSteps: [...completedSteps, step].sort((a, b) => a - b) });
       },
 
       goToStep: step => {
-        const { completedSteps } = get();
+        const { completedSteps, cloneHydration } = get();
+        if (cloneHydration.status === 'hydrating') return;
         // Only allow navigation to completed steps or the next step
         const maxAllowedStep = completedSteps.length > 0 ? Math.max(...completedSteps) + 1 : 0;
 
@@ -245,17 +272,94 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       // State management
       setDirty: isDirty => set({ isDirty }),
 
+      beginCloneHydration: (sourceShowId, sourceShowName) => {
+        const generation = get().cloneGeneration + 1;
+        set({
+          cloneGeneration: generation,
+          cloneHydration: { status: 'hydrating', sourceShowId, sourceShowName },
+        });
+        return generation;
+      },
+
+      failCloneHydration: generation =>
+        set(state => {
+          if (state.cloneGeneration !== generation || state.cloneHydration.status !== 'hydrating') {
+            return state;
+          }
+          return {
+            cloneHydration: {
+              ...state.cloneHydration,
+              status: 'failed',
+              failureReason: 'load-failed',
+            },
+          };
+        }),
+
+      // Cancels a pending clone or dismisses a failed one; the draft is never touched.
+      cancelCloneHydration: generation =>
+        set(state => {
+          const { status } = state.cloneHydration;
+          if (
+            state.cloneGeneration !== generation ||
+            (status !== 'hydrating' && status !== 'failed')
+          ) {
+            return state;
+          }
+          return {
+            cloneGeneration: state.cloneGeneration + 1,
+            cloneHydration: initialState.cloneHydration,
+          };
+        }),
+
+      completeCloneHydration: (generation, snapshot) =>
+        set(state => {
+          if (
+            state.cloneGeneration !== generation ||
+            state.cloneHydration.status !== 'hydrating' ||
+            state.cloneHydration.sourceShowId !== snapshot.sourceShowId
+          ) {
+            return state;
+          }
+
+          const show = { ...initialState.show, ...snapshot.show };
+          return {
+            ...initialState,
+            cloneGeneration: generation,
+            cloneHydration: {
+              status: 'ready',
+              sourceShowId: snapshot.sourceShowId,
+              sourceShowName: snapshot.sourceShowName,
+            },
+            show,
+            judgeDetails: snapshot.judgeDetails,
+            // Same default addTrial applies: a legacy source trial without a type.
+            trials: snapshot.trials.map(trial => ({
+              ...trial,
+              id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[show.organization],
+            })),
+            isDirty: true,
+          };
+        }),
+
       saveProgress: () =>
         set({
           lastSaved: new Date(),
           isDirty: false,
         }),
 
-      resetWizard: () => set(initialState),
+      resetWizard: () =>
+        set(state => ({ ...initialState, cloneGeneration: state.cloneGeneration + 1 })),
 
       loadDraft: draft =>
         set(state => {
-          const merged = { ...state, ...draft, isDirty: false };
+          const merged = {
+            ...state,
+            ...draft,
+            cloneGeneration: state.cloneGeneration + 1,
+            cloneHydration: initialState.cloneHydration,
+            isDirty: false,
+          };
           return ensureShowDefaults(merged);
         }),
     }),
@@ -277,6 +381,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         const state = ensureShowDefaults({
           ...current,
           ...(persisted as Partial<WizardState>),
+          cloneHydration: initialState.cloneHydration,
+          cloneGeneration: current.cloneGeneration,
         });
         // Zustand persist serializes Date via JSON.stringify → ISO string.
         const rawLastSaved: unknown = state.lastSaved;

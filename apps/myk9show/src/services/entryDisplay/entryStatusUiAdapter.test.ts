@@ -8,7 +8,8 @@ describe('mapEntryStatus — raw entry_status → UI enum (single classifier)', 
     expect(mapEntryStatus('accepted')).toBe(EntryStatus.ACCEPTED);
     expect(mapEntryStatus('submitted')).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus('pending')).toBe(EntryStatus.PENDING);
-    expect(mapEntryStatus('waitlisted')).toBe(EntryStatus.WAITLIST);
+    // MYK9-754: forbidden by the CHECK constraint, so it lands on unknown.
+    expect(mapEntryStatus('waitlisted')).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus('not_accepted')).toBe(EntryStatus.REJECTED);
     expect(mapEntryStatus('rejected')).toBe(EntryStatus.REJECTED);
     expect(mapEntryStatus('withdrawn')).toBe(EntryStatus.CANCELLED);

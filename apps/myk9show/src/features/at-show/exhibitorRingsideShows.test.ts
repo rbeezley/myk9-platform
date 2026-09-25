@@ -86,8 +86,11 @@ describe('selectExhibitorUpcomingShows', () => {
     expect(selectExhibitorUpcomingShows([pulled], NOW)).toEqual([]);
   });
 
-  it('keeps a waitlisted entry — the exhibitor still needs show-day access', () => {
-    expect(selectExhibitorUpcomingShows([row({ entry_status: 'waitlisted' })], NOW)).toEqual([
+  // A wait-listed dog is a waitlist_entries row, never an entries status
+  // (MYK9-754). Once promoted it is an entry awaiting payment, and still needs
+  // show-day access.
+  it('keeps an entry promoted off the wait list and awaiting payment', () => {
+    expect(selectExhibitorUpcomingShows([row({ entry_status: 'pending-payment' })], NOW)).toEqual([
       { showId: 'show-1', showName: 'Autumn Classic' },
     ]);
   });

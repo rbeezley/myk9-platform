@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { SEAT_HOLDING_ENTRY_STATUSES } from '@/utils/waitlistCountSelectors';
 
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
@@ -43,6 +44,23 @@ function capacityStatusLists(body: string): string[][] {
 }
 
 const compact = (sql: string) => sql.replace(/\s+/g, ' ');
+
+/** The values `entries_entry_status_check` allows, from the LATEST migration that sets it. */
+function entryStatusCheckValues(): { file: string; values: string[] } {
+  const marker = 'ADD CONSTRAINT entries_entry_status_check CHECK';
+  const files = readdirSync(MIGRATIONS_DIR)
+    .filter(name => name.endsWith('.sql'))
+    .sort();
+  for (let i = files.length - 1; i >= 0; i -= 1) {
+    const sql = readFileSync(resolve(MIGRATIONS_DIR, files[i]!), 'utf8');
+    const start = sql.lastIndexOf(marker);
+    if (start === -1) continue;
+    const list = sql.slice(sql.indexOf('(', start + marker.length), sql.indexOf(');', start));
+    const values = [...list.replace(/--[^\n]*/g, '').matchAll(/'([^']+)'/g)].map(m => m[1]!);
+    return { file: files[i]!, values };
+  }
+  throw new Error('no migration sets entries_entry_status_check');
+}
 
 describe('class_entry_availability parity', () => {
   const availability = latestDefinition('class_entry_availability');
@@ -88,5 +106,25 @@ describe('class_entry_availability parity', () => {
     const started = '(e.is_in_ring IS TRUE OR e.is_scored IS TRUE)';
     expect(compact(submit.body)).toContain(started);
     expect(compact(availability.body)).toContain(started);
+  });
+
+  // MYK9-754: every client seat count (the Waitlist tab's "Entered", both
+  // move-up capacity guards) reads SEAT_HOLDING_ENTRY_STATUSES. If it drifts
+  // from the server's count, a move-up or promote is offered into a class the
+  // server calls full.
+  it("pins the client's seat-holding status set to the server's capacity count", () => {
+    const [evaluateList] = capacityStatusLists(evaluate.body);
+    expect([...SEAT_HOLDING_ENTRY_STATUSES].sort()).toEqual(evaluateList);
+  });
+
+  it('only counts statuses the entries CHECK constraint allows', () => {
+    const check = entryStatusCheckValues();
+    // Positive control: the latest constraint, and a list that parsed.
+    expect(check.file >= '20260924094300').toBe(true);
+    expect(check.values).toContain('pending-payment');
+    expect(check.values).not.toContain('waitlisted');
+    for (const status of SEAT_HOLDING_ENTRY_STATUSES) {
+      expect(check.values).toContain(status);
+    }
   });
 });

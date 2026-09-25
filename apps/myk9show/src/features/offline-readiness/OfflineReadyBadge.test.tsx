@@ -50,6 +50,17 @@ describe('OfflineReadyBadge', () => {
     expect(primeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('names the missing signals for diagnosis on the not-ready badge (MYK9-766)', () => {
+    hookState.readiness = { ready: false, missing: ['entries', 'classes'], asOf: null };
+
+    render(<OfflineReadyBadge showId="show-1" />);
+
+    expect(screen.getByRole('button', { name: /not offline ready/i })).toHaveAttribute(
+      'data-offline-missing',
+      'entries,classes'
+    );
+  });
+
   it('names the action in visible text, not only in the hover title', () => {
     // This badge is the recovery control on ringside tablets, where there is no
     // hover at all. "Not offline ready" stated the problem; what tapping would

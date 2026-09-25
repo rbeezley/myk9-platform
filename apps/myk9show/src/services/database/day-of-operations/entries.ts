@@ -18,6 +18,7 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import { generateUUID } from '@/utils/idUtils';
+import { SEAT_HOLDING_ENTRY_STATUSES } from '@/utils/waitlistCountSelectors';
 import type { DayOfEntry, DayOfEntryDogOwner } from './types';
 
 function isNotDeleted(row: {
@@ -89,10 +90,12 @@ export const getClassesWithCapacity = async (showId: string) => {
           (cls as { classNumber?: string | null }).classNumber ??
           null;
         const trialId = cls.trialId ?? cls.trial_id;
+        // The seats the server's capacity gate counts (MYK9-754), not only
+        // confirmed and checked-in.
         const accepted = activeShowEntries.filter(entry => {
           const entryClassId = entry.classId ?? entry.class_id;
-          const status = entry.entryStatus ?? entry.entry_status;
-          return entryClassId === cls.id && (status === 'confirmed' || status === 'checked-in');
+          const status = entry.entryStatus ?? entry.entry_status ?? '';
+          return entryClassId === cls.id && SEAT_HOLDING_ENTRY_STATUSES.has(status);
         }).length;
         const limit = cls.maxEntries ?? 999;
 

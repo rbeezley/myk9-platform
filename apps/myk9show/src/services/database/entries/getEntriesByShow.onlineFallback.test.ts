@@ -26,6 +26,7 @@ const {
     getEntriesByShow: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
     getSyncMetadata: vi.fn(),
+    getReplicatedRow: vi.fn(),
   },
   mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
   mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
@@ -83,6 +84,11 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     // Cached entries below come from a show scope that has synced before.
     mockEntriesTable.getSyncMetadata.mockReset();
     mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mockEntriesTable.getReplicatedRow.mockReset();
+    mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: false,
+    }));
     onlineRows = [defaultOnlineRow];
     mockLoadHandlerPeople.mockReset();
     mockLoadHandlerPeople.mockResolvedValue(new Map());
@@ -200,6 +206,36 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
       'entry-online-1',
       'entry-online-2',
+    ]);
+    // The online row as-is, with its class relation, not the clean local copy.
+    expect((result.data[0] as Record<string, unknown>).class).toEqual({ id: 'c1' });
+  });
+
+  it('keeps the local rows, unverified and without an online merge, while a write is unsaved', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: false });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-checked-in-offline',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+    mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: true,
+    }));
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.verified).toBe(false);
+    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+      'entry-checked-in-offline',
     ]);
   });
 

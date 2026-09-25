@@ -17,6 +17,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import {
   areEntryRowsFromSyncedShows,
   hasShowEntriesSynced,
+  hasUnsavedWritesAmong,
 } from '@/services/replication/entriesShowSyncState';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -784,6 +785,7 @@ export const getEntriesByShow = async (showId: string) => {
   // this show through the conflict-aware sync path before treating it as complete.
   // Failed/offline sync must not discard the entries already available locally.
   const refreshCompleted = await refreshShowEntriesForRead(showId);
+  let unverified = false;
   const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
@@ -809,13 +811,22 @@ export const getEntriesByShow = async (showId: string) => {
           ...registrationJoin(entry, enrollmentsMap),
         })
       );
-      return { data, error: null, locallyDeletedIds, scopeUnsynced: !scopeSynced };
+      return {
+        data,
+        error: null,
+        locallyDeletedIds,
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(entries)),
+      };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
     operation: 'select_by_show',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    onUnverified: () => {
+      unverified = true;
+    },
   });
   if (result.error) return { ...result, resultsReadComplete: false, verified: false };
   const released = await withReleasedShowResults(showId, result.data);
@@ -823,7 +834,7 @@ export const getEntriesByShow = async (showId: string) => {
     ...result,
     data: released.entries,
     resultsReadComplete: released.resultsReadComplete,
-    verified: refreshCompleted,
+    verified: refreshCompleted && !unverified,
   };
 };
 
@@ -861,6 +872,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         error: null,
         locallyDeletedIds,
         scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
       };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
@@ -972,6 +984,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       // MYK9-746: rows from a show that never synced are not the whole trial.
       const scopeUnsynced = !(await areEntryRowsFromSyncedShows(inTrial));
+      const unsavedLocalWrites = scopeUnsynced && (await hasUnsavedWritesAmong(inTrial));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
@@ -981,7 +994,7 @@ export const getEntriesByTrial = async (trialId: string) => {
           ...registrationJoin(entry, enrollmentsMap),
         })
       );
-      return { data, error: null, locallyDeletedIds, scopeUnsynced };
+      return { data, error: null, locallyDeletedIds, scopeUnsynced, unsavedLocalWrites };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
     table: 'entries',
@@ -1018,6 +1031,7 @@ export const getEntriesByClass = async (classId: string) => {
       const locallyDeletedIds = entries.filter(e => !isLiveEntry(e)).map(e => e.id);
       // MYK9-746: rows from a show that never synced are not the whole class.
       const scopeUnsynced = !(await areEntryRowsFromSyncedShows(entries));
+      const unsavedLocalWrites = scopeUnsynced && (await hasUnsavedWritesAmong(entries));
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareNumberAscNullsLast(entry => entry.runOrder)
@@ -1045,7 +1059,13 @@ export const getEntriesByClass = async (classId: string) => {
         }
         return e;
       });
-      return { data: backfilledData, error: null, locallyDeletedIds, scopeUnsynced };
+      return {
+        data: backfilledData,
+        error: null,
+        locallyDeletedIds,
+        scopeUnsynced,
+        unsavedLocalWrites,
+      };
     },
     postgrest: () => postgrestGetEntriesByClass(classId),
     table: 'entries',

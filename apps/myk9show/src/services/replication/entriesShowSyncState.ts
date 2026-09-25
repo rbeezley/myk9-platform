@@ -48,7 +48,14 @@ export async function hasUnsavedLocalEntryWrites(
   showId: string,
   table: ShowEntryRowStateReader = replicatedEntriesTable
 ): Promise<boolean> {
-  const rows = await table.getEntriesByShow(showId);
+  return hasUnsavedWritesAmong(await table.getEntriesByShow(showId), table);
+}
+
+/** Does any of these local rows hold a write the server has not seen yet? */
+export async function hasUnsavedWritesAmong(
+  rows: readonly { id: string }[],
+  table: Pick<ShowEntryRowStateReader, 'getReplicatedRow'> = replicatedEntriesTable
+): Promise<boolean> {
   const states = await Promise.all(rows.map(row => table.getReplicatedRow(row.id)));
   return states.some(state => state?.isDirty === true);
 }

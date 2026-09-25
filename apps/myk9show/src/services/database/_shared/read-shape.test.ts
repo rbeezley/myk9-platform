@@ -96,40 +96,82 @@ describe('read-shape helpers', () => {
       expect(result).toEqual({ data: [{ id: 'one' }, { id: 'two' }], error: null });
     });
 
-    it('keeps a queued local write over the server copy and a local-only create', async () => {
+    it('returns the online rows as-is over a stale clean local row, relations included', async () => {
+      // A clean row cached by write-path hydration, older than the server's
+      // copy and mapped without its dog; nothing on this device is unsaved.
+      const online = [
+        { id: 'one', check_in_status: 'not-checked-in', dog: { name: 'Scout' } },
+        { id: 'two', check_in_status: 'not-checked-in', dog: { name: 'Pip' } },
+      ];
+
       const result = await readWithReplicationFallback({
         replication: async () => ({
-          data: [
-            { id: 'one', check_in_status: 'checked-in' },
-            { id: 'local-create', check_in_status: 'not-checked-in' },
-          ],
+          data: [{ id: 'one', check_in_status: 'checked-in', dog: null }],
           error: null,
           scopeUnsynced: true,
+          unsavedLocalWrites: false,
         }),
-        postgrest: vi.fn().mockResolvedValue({
-          data: [
-            { id: 'one', check_in_status: 'not-checked-in' },
-            { id: 'two', check_in_status: 'not-checked-in' },
-          ],
-          error: null,
-        }),
+        postgrest: vi.fn().mockResolvedValue({ data: online, error: null }),
         table: 'entries',
-        operation: 'select_by_show',
+        operation: 'select_by_class',
         errorData: [],
         verifyOnlineWhenEmpty: true,
       });
 
+      expect(result).toEqual({ data: online, error: null });
+    });
+
+    it('returns the local rows unverified, without an online read, while a write is unsaved', async () => {
+      const postgrest = vi.fn();
+      const onUnverified = vi.fn();
+
+      const result = await readWithReplicationFallback({
+        replication: async () => ({
+          data: [{ id: 'one', check_in_status: 'checked-in' }],
+          error: null,
+          scopeUnsynced: true,
+          unsavedLocalWrites: true,
+        }),
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+        onUnverified,
+      });
+
+      expect(postgrest).not.toHaveBeenCalled();
       expect(result).toEqual({
-        data: [
-          { id: 'one', check_in_status: 'checked-in' },
-          { id: 'two', check_in_status: 'not-checked-in' },
-          { id: 'local-create', check_in_status: 'not-checked-in' },
-        ],
+        data: [{ id: 'one', check_in_status: 'checked-in' }],
         error: null,
       });
+      expect(onUnverified).toHaveBeenCalledOnce();
+    });
+
+    it('returns the caller error while a write is unsaved when verification is required', async () => {
+      const postgrest = vi.fn();
+
+      const result = await readWithReplicationFallback({
+        replication: async () => ({
+          data: [{ id: 'one' }],
+          error: null,
+          scopeUnsynced: true,
+          unsavedLocalWrites: true,
+        }),
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_show_report',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+        errorOnOnlineVerificationFailure: true,
+      });
+
+      expect(postgrest).not.toHaveBeenCalled();
+      expect(result.error).not.toBeNull();
     });
 
     it('keeps the local rows of a never-synced scope when the online read returns an error', async () => {
+      const onUnverified = vi.fn();
       const result = await readWithReplicationFallback({
         replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: true }),
         postgrest: vi.fn().mockResolvedValue({
@@ -140,9 +182,11 @@ describe('read-shape helpers', () => {
         operation: 'select_by_show',
         errorData: [],
         verifyOnlineWhenEmpty: true,
+        onUnverified,
       });
 
       expect(result).toEqual({ data: [{ id: 'one' }], error: null });
+      expect(onUnverified).toHaveBeenCalledOnce();
     });
 
     it('fails a never-synced scope closed when verification is required and fails', async () => {

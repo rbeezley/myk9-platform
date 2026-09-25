@@ -37,6 +37,7 @@ const {
     getEntriesByClass: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
     getSyncMetadata: vi.fn(),
+    getReplicatedRow: vi.fn(),
   },
   mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
   mockClassesTable: {
@@ -109,7 +110,20 @@ beforeEach(() => {
   // Local rows below come from a show scope that has synced, unless a test says not.
   mockEntriesTable.getSyncMetadata.mockReset();
   mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+  // No local row carries an unsaved write unless a test says so.
+  mockEntriesTable.getReplicatedRow.mockReset();
+  mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+    id,
+    isDirty: false,
+  }));
 });
+
+function markDirty(...ids: string[]) {
+  mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+    id,
+    isDirty: ids.includes(id),
+  }));
+}
 
 describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
@@ -157,10 +171,20 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
     const result = await getEntriesByClass('c1');
 
     expect(onlineCallCount).toBe(1);
-    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
-      'entry-online-1',
-      'entry-online-2',
-    ]);
+    // The online rows as-is: the clean local copy never replaces one, so the
+    // class relation the online read carries survives.
+    expect(result.data).toMatchObject([defaultOnlineRow, SECOND_ONLINE_ROW]);
+  });
+
+  it('returns the report error, without an online read, while the class holds an unsaved write', async () => {
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([SINGLE_LOCAL_WRITE]);
+    markDirty(SINGLE_LOCAL_WRITE.id);
+
+    const result = await getEntriesByClass('c1');
+
+    expect(onlineCallCount).toBe(0);
+    expect(result.error).not.toBeNull();
   });
 
   it('projects the owner as handler identity when replicated assignment is blank', async () => {
@@ -268,10 +292,18 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     const result = await getEntriesByTrial('t1');
 
     expect(onlineCallCount).toBe(1);
-    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
-      'entry-online-1',
-      'entry-online-2',
-    ]);
+    expect(result.data).toMatchObject([defaultOnlineRow, SECOND_ONLINE_ROW]);
+  });
+
+  it('returns the report error, without an online read, while the trial holds an unsaved write', async () => {
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+    mockEntriesTable.getAll.mockResolvedValue([SINGLE_LOCAL_WRITE]);
+    markDirty(SINGLE_LOCAL_WRITE.id);
+
+    const result = await getEntriesByTrial('t1');
+
+    expect(onlineCallCount).toBe(0);
+    expect(result.error).not.toBeNull();
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

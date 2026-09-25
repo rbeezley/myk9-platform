@@ -269,6 +269,7 @@ jobs:
           pnpm qa:dist-fresh:test
           pnpm qa:inflight:test
           pnpm qa:edge-function-drift:test
+          pnpm qa:worktree-liveness:test
           pnpm qa:primary-checkout:test
           pnpm qa:ci-concurrency:test
           pnpm qa:shared-rules:test
@@ -647,27 +648,19 @@ jobs:
   # build above intentionally runs without shared-project configuration.
   # Build this once and share it between the a11y and E2E smoke jobs.
   #
-  # `github.actor != 'dependabot[bot]'` (MYK9-520): GitHub withholds repository
-  # secrets from `pull_request` runs whose triggering actor is Dependabot. ALL
-  # THREE of smoke-build, a11y and e2e-myk9show are affected: THIS job reads
-  # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY directly, and the downstream
-  # a11y / E2E jobs additionally need real E2E_* login credentials. Confirmed
-  # by pushing a human commit to a dependabot branch: that flips `github.actor`
-  # and all three jobs then run and pass (see MYK9-520 evidence). Deleting the
-  # guard outright would trade a silent SKIP for a silent auth/build failure on
-  # every future dependency PR, so it stays -- but the `run-smoke` label
-  # (read by `smoke-scope` above) can now override it, giving a maintainer who
-  # labels a dependency bump a REAL conclusion instead of an invisible one --
-  # PROVIDED the same secrets are also registered under this repo's Dependabot
-  # secrets scope (Settings -> Secrets and variables -> Dependabot); that is a
-  # maintainer action outside this PR. Until it's done, labelling a Dependabot
-  # PR still runs this job under empty secret values: THIS job builds against
-  # an empty VITE_SUPABASE_URL/ANON_KEY and can go GREEN on a meaningless
-  # build, which then feeds a meaningless artifact to a11y/e2e-myk9show --
-  # which DO still fail loudly on missing E2E_* credentials. A green
-  # smoke-build alone is therefore not evidence of anything; only all three
-  # reporting real (non-empty-secret) conclusions is. See
-  # .github/dependabot.yml for when to add the label.
+  # `github.actor != 'dependabot[bot]' || run-smoke` (MYK9-520): a
+  # Dependabot-triggered `pull_request` run gets only the Dependabot-scope
+  # secrets, never the repository's Actions secrets. ALL THREE of smoke-build,
+  # a11y and e2e-myk9show need secrets: THIS job reads VITE_SUPABASE_URL /
+  # VITE_SUPABASE_ANON_KEY, the other two the E2E_* logins. Those are
+  # registered in the Dependabot scope, and .github/dependabot.yml applies the
+  # `run-smoke` label to every PR it opens, so a Dependabot bump runs all three
+  # jobs. An unlabelled Dependabot PR still skips (the actor guard stays so a
+  # PR without the label never builds against secrets it may not have). Each
+  # job's actor-gated "Verify Dependabot-run secrets are available" step fails
+  # loudly if a secret is missing from that scope, instead of building against
+  # an empty value and going green. Never `pull_request_target` here: it would
+  # run the PR's code with the repository's secrets and a write token.
   smoke-build:
     name: Smoke build
     runs-on: ubuntu-latest

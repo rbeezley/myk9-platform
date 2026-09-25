@@ -185,7 +185,13 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:edge-function-drift:test',
-    command: 'vitest run scripts/qa/edge-function-drift.test.ts',
+    command:
+      'vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:worktree-liveness:test',
+    command: 'vitest run scripts/qa/worktree-liveness.test.ts',
   },
   {
     pkgDir: '.',

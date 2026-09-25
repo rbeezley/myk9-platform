@@ -15,7 +15,7 @@ import type {
   SystemHealthSnapshot,
   SystemHealthSnapshotRow,
 } from './systemHealthTypes';
-import { healthCheckStaleAfterMs, LEGACY_HEALTH_CHECK_STALE_AFTER_MS } from './healthCheckCadence';
+import { healthCheckStaleAfterMs, LEGACY_HEALTH_CHECK_STALE_AFTER_MS } from '../../../supabase/functions/_shared/healthCheckCadence';
 import {
   HEALTH_CHECK_REMEDIATION,
   inferRemediationFromText,

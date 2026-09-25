@@ -86,12 +86,20 @@ function reservedTop(element: HTMLElement): number {
   );
 }
 
+/** Sub-pixel layout can leave an edge a fraction past the fold (a 390x600
+ * wizard puts the clone button's bottom at 600.5); that is not off screen, and
+ * revealing it moved the page by 1px on mount. */
+const FOLD_TOLERANCE_PX = 1;
+
 /** On screen and not under the chrome. Half the placement gap is tolerated:
  * enough that a control sitting in it is not re-scrolled, not so much that
  * its focus ring could sit under the step indicator. */
 function isClearOfChrome(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect();
-  return rect.top >= reservedTop(element) - GAP_PX / 2 && rect.bottom <= window.innerHeight;
+  return (
+    rect.top >= reservedTop(element) - GAP_PX / 2 &&
+    rect.bottom <= window.innerHeight + FOLD_TOLERANCE_PX
+  );
 }
 
 function isKeyboardFocus(element: HTMLElement): boolean {
@@ -113,6 +121,25 @@ function isKeyboardFocus(element: HTMLElement): boolean {
 export function focusWithoutJump(element: HTMLElement): void {
   if (!isClearOfChrome(element)) element.scrollIntoView({ block: 'nearest' });
   element.focus({ preventScroll: true });
+}
+
+const FIRST_CONTROL_SELECTOR =
+  'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
+
+/**
+ * The step's delayed entry focus (shortly after mount or a step change): the
+ * step's first control, via {@link focusWithoutJump}. Skipped when the
+ * secretary moved first — scrolled the page since `scrollYAtStart`, or already
+ * put focus in the form or in a dialog. Pulling them back to the first field
+ * then is the jump MYK9-764 is about (measured: a page scrolled to 969 was
+ * smooth-scrolled back to 198 by this focus).
+ */
+export function focusStepEntry(content: HTMLElement, scrollYAtStart: number): void {
+  if (Math.abs(window.scrollY - scrollYAtStart) > FOLD_TOLERANCE_PX) return;
+  const active = document.activeElement;
+  if (active && (content.contains(active) || active.closest('[role="dialog"]'))) return;
+  const first = content.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR);
+  if (first) focusWithoutJump(first);
 }
 
 /**

@@ -38,7 +38,7 @@ import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreati
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
 import {
-  focusWithoutJump,
+  focusStepEntry,
   revealFocusedBelowChrome,
   useWizardChromeHeight,
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
@@ -180,17 +180,12 @@ const ShowCreationWizardPage: React.FC = () => {
   // dropping it: `handleClose` still raises the same dialog for the deliberate exit,
   // which is the action that warrants a confirmation.
 
-  // Focus first input when step changes
+  // Focus the step's first control shortly after mount or a step change,
+  // unless the secretary has already scrolled or focused something (MYK9-764).
   useEffect(() => {
+    const scrollYAtStart = window.scrollY;
     const timer = setTimeout(() => {
-      if (stepContentRef.current) {
-        const firstInput = stepContentRef.current.querySelector<HTMLInputElement>(
-          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
-        );
-        if (firstInput && typeof firstInput.focus === 'function') {
-          focusWithoutJump(firstInput);
-        }
-      }
+      if (stepContentRef.current) focusStepEntry(stepContentRef.current, scrollYAtStart);
     }, 350);
 
     return () => clearTimeout(timer);

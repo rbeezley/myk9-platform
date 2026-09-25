@@ -9,6 +9,7 @@ import { replicatedJudgeAssignmentsTable } from '@/services/replication/Replicat
 import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { withReplicationFallback } from '../_shared/replication-fallback';
+import { readWithReplicationFallback } from '../_shared/read-shape';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -122,29 +123,31 @@ export const getPublicShows = async () => {
   }
 };
 
-// Get all shows with club and trial information (excluding soft-deleted)
-export const getAllShows = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap] = await Promise.all([
-          replicatedShowsTable.getAllShows(),
-          loadClubsMap(),
-          loadTrialsByShowMap(),
-          loadClassesByTrialMap(),
-          loadJudgeAssignmentsByShowMap(),
-        ]);
-        const data = mapShowsWithJoins(shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap);
-        return { data, error: null };
-      },
-      postgrestGetAllShows,
-      'show',
-      'select_all_detailed'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
-};
+// Get all shows with club and trial information (excluding soft-deleted).
+// An empty local list is checked against the server before it is believed: on
+// a fresh device the replica answers `[]` until its first sync lands, and the
+// show wizard's clone card vanished on that false empty and reappeared a second
+// later, shifting the form by 182px (MYK9-764). Offline, the empty local list
+// still stands.
+export const getAllShows = async () =>
+  readWithReplicationFallback<Record<string, unknown>[]>({
+    replication: async () => {
+      const [shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap] = await Promise.all([
+        replicatedShowsTable.getAllShows(),
+        loadClubsMap(),
+        loadTrialsByShowMap(),
+        loadClassesByTrialMap(),
+        loadJudgeAssignmentsByShowMap(),
+      ]);
+      const data = mapShowsWithJoins(shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap);
+      return { data, error: null };
+    },
+    postgrest: postgrestGetAllShows,
+    table: 'show',
+    operation: 'select_all_detailed',
+    errorData: [],
+    verifyOnlineWhenEmpty: true,
+  });
 
 /** The classes a trial row carries. PostgREST returns the embed under `class`
  *  (the alias in the select) and the replicated mapper writes the same key, so

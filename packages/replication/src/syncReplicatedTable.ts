@@ -72,6 +72,18 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
 
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;
+  /**
+   * Remove clean local rows the server no longer has, but ONLY after a FULL
+   * fetch (an incremental fetch returns changed rows only, so its ids prove
+   * nothing about the rest). Also forces a full sync whenever this device holds
+   * more server-backed rows than the server counts, so a server-side hard
+   * delete leaves the device on its next sync rather than the 24h self-heal.
+   *
+   * Only for adapters whose full fetch returns every row of the table's local
+   * scope (no scope filter narrower than what the device stores), or rows of
+   * other scopes would be removed. MYK9-775 (judge_assignments).
+   */
+  cleanupStaleRowsOnFullSync?: boolean;
   afterSuccessfulSync?: (context: {
     scope: SyncScope;
     serverIds: Set<string>;
@@ -185,8 +197,18 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // let it stand in for an evicted row and hide the gap (MYK9-752).
     const partialReplica =
       expectedRemoteRows !== undefined && countServerBackedRows(localRows) < expectedRemoteRows;
+    // More server-backed rows here than on the server: something was deleted
+    // there. Only acted on when a full sync can clean it up (MYK9-775).
+    const overReplica =
+      adapter.cleanupStaleRowsOnFullSync === true &&
+      expectedRemoteRows !== undefined &&
+      countServerBackedRows(localRows) > expectedRemoteRows;
     const forceFullSync =
-      options.forceFullSync === true || localRows.length === 0 || partialReplica || fullSyncStale;
+      options.forceFullSync === true ||
+      localRows.length === 0 ||
+      partialReplica ||
+      overReplica ||
+      fullSyncStale;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
@@ -208,6 +230,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         ? rawSince - (options.incrementalBufferMs ?? 0)
         : 0;
 
+    const fetchStartedAt = Date.now();
     const remoteRows = await adapter.fetchRemoteRows({
       scope,
       since,
@@ -354,6 +377,17 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     if (adapter.shouldCleanupStaleRows) {
       rowsAffected += await table.removeStaleEntries(serverIds);
+    } else if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      forceFullSync &&
+      // Only a fetch known to be COMPLETE proves a row is gone: a capped or
+      // paged response (PostgREST max_rows) returns the oldest rows only, and
+      // cleaning up after it would delete the newest (MYK9-775 review P2). No
+      // server count, no cleanup.
+      expectedRemoteRows !== undefined &&
+      serverIds.size >= expectedRemoteRows
+    ) {
+      rowsAffected += await table.removeStaleEntries(serverIds, { syncedBefore: fetchStartedAt });
     }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
@@ -384,6 +418,34 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       },
       { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );
+
+    // An incremental fetch can hide a deletion behind an equal count (one row
+    // deleted and one added since the last sync): the pre-fetch check saw the
+    // counts agree. After merging the new row the device holds MORE than the
+    // server counts, so run the full fetch and cleanup now, in this sync, rather
+    // than leave the deleted row until the next one (MYK9-775, Codex P2).
+    // Bounded: the re-run is already a full sync, so it cannot recurse.
+    if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      !forceFullSync &&
+      expectedRemoteRows !== undefined &&
+      countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows
+    ) {
+      const full = await syncReplicatedTable(table, adapter, scope, {
+        ...options,
+        forceFullSync: true,
+        skipMutationUpload: true,
+      });
+      // One sync to the caller: keep this pass's work and any upload failure
+      // (the re-run skips the upload, so it cannot report one itself).
+      return {
+        ...full,
+        rowsAffected: rowsAffected + full.rowsAffected,
+        conflictsResolved: conflictsResolved + (full.conflictsResolved ?? 0),
+        duration: Date.now() - startedAt,
+        ...(uploadError ? { uploadError } : {}),
+      };
+    }
 
     return {
       tableName: table.getTableName(),

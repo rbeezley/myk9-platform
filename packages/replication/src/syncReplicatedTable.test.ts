@@ -157,6 +157,175 @@ describe('syncReplicatedTable', () => {
     expect(await table.get('3')).toMatchObject({ name: 'Stale Dirty' });
   });
 
+  // MYK9-775: hard-deleted rows (judge_assignments) never left other devices.
+  describe('cleanupStaleRowsOnFullSync', () => {
+    function countedAdapter(remote: RemoteEntry[], remoteCount: number) {
+      const adapter: SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async () => remote),
+        getRemoteRowCount: vi.fn(async () => remoteCount),
+        getRemoteId: r => String(r.id),
+        getRemoteUpdatedAt: r => parseUpdatedAtMs(r.updated_at),
+        toLocalRow: r => ({ id: String(r.id), name: r.name }),
+        cleanupStaleRowsOnFullSync: true,
+      };
+      return adapter;
+    }
+
+    it('forces a full sync when the device holds more rows than the server, and removes the deleted one', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('2', { id: '2', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([{ id: 1, name: 'Kept', updated_at: 2000 }], 1);
+      // The cleanup cutoff is strict (synced BEFORE the fetch began).
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('1')).toMatchObject({ name: 'Kept' });
+      expect(await table.get('2')).toBeNull();
+    });
+
+    it('never cleans up after an incremental fetch, whose ids prove nothing about the rest', async () => {
+      await table.set('1', { id: '1', name: 'Unchanged' });
+      await table.set('2', { id: '2', name: 'Also unchanged' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      // Counts agree, so this is an incremental sync returning one changed row.
+      const adapter = countedAdapter([{ id: 1, name: 'Unchanged', updated_at: 2000 }], 2);
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('incremental-sync');
+      expect(await table.get('2')).toMatchObject({ name: 'Also unchanged' });
+    });
+
+    it('keeps a pending local create and a row that finished uploading mid-fetch', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      // A pending create is stored dirty, as createAssignment does.
+      await table.set('local-1', { id: 'local-1', name: 'Pending create', _localOnly: true }, true);
+      await table.set('gone', { id: 'gone', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([], 1);
+      adapter.fetchRemoteRows = vi.fn(async () => {
+        // An upload lands while the fetch is in flight: the row is now clean
+        // and synced, but the fetch that started earlier did not return it.
+        await new Promise(resolve => setTimeout(resolve, 5));
+        await table.set('uploaded', { id: 'uploaded', name: 'Just uploaded' });
+        return [{ id: 1, name: 'Kept', updated_at: 2000 }];
+      });
+      // The cutoff is strict (synced BEFORE the fetch began), so let the clock
+      // move past the rows seeded above.
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('local-1')).toMatchObject({ name: 'Pending create' });
+      expect(await table.get('uploaded')).toMatchObject({ name: 'Just uploaded' });
+      expect(await table.get('gone')).toBeNull();
+    });
+
+    it('removes an uploaded create (clean, still flagged _localOnly) the server has since deleted', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('uploaded', { id: 'uploaded', name: 'Deleted elsewhere', _localOnly: true });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([{ id: 1, name: 'Kept', updated_at: 2000 }], 1);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('uploaded')).toBeNull();
+    });
+
+    it('does not clean up after a truncated fetch (fewer rows than the server counts)', async () => {
+      await table.set('old', { id: 'old', name: 'Old' });
+      await table.set('newest', { id: 'newest', name: 'Newest, beyond the row cap' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      // Server counts 2, but the capped response returns only the oldest one.
+      const adapter = countedAdapter([{ id: 'old', name: 'Old', updated_at: 2000 }], 2);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('newest')).toMatchObject({ name: 'Newest, beyond the row cap' });
+    });
+
+    it('does not clean up when the server count is unavailable', async () => {
+      await table.set('1', { id: '1', name: 'A' });
+      await table.set('2', { id: '2', name: 'B' });
+      const adapter = countedAdapter([{ id: 1, name: 'A', updated_at: 2000 }], 1);
+      adapter.getRemoteRowCount = vi.fn(async () => undefined);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('2')).toMatchObject({ name: 'B' });
+    });
+
+    it('catches a deletion hidden behind an equal count (one deleted, one added) in the same sync', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('2', { id: '2', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      // Server: 1 and 3 (2 deleted, 3 added) — the same count as the device.
+      const adapter = countedAdapter([], 2);
+      adapter.fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) =>
+        forceFullSync
+          ? [
+              { id: 1, name: 'Kept', updated_at: 2000 },
+              { id: 3, name: 'Added', updated_at: 2000 },
+            ]
+          : [{ id: 3, name: 'Added', updated_at: 2000 }]
+      );
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('3')).toMatchObject({ name: 'Added' });
+      expect(await table.get('2')).toBeNull();
+      expect(adapter.fetchRemoteRows).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the first pass upload error when the equal-count check re-runs in full', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('2', { id: '2', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([], 2);
+      adapter.fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) =>
+        forceFullSync
+          ? [
+              { id: 1, name: 'Kept', updated_at: 2000 },
+              { id: 3, name: 'Added', updated_at: 2000 },
+            ]
+          : [{ id: 3, name: 'Added', updated_at: 2000 }]
+      );
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      const result = await syncReplicatedTable(
+        table,
+        adapter,
+        {},
+        { uploadPendingMutations: vi.fn(async () => Promise.reject(new Error('upload down'))) }
+      );
+
+      expect(result.operation).toBe('full-sync');
+      expect(result.uploadError).toMatch(/upload down/);
+      expect(await table.get('2')).toBeNull();
+    });
+
+    it('does not force full syncs for an adapter that has not opted in', async () => {
+      await table.set('1', { id: '1', name: 'A' });
+      await table.set('2', { id: '2', name: 'B' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([], 1);
+      delete adapter.cleanupStaleRowsOnFullSync;
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('incremental-sync');
+      expect(await table.get('2')).toMatchObject({ name: 'B' });
+    });
+  });
+
   it('uploads pending mutations before fetching remote rows by default', async () => {
     const uploadPendingMutations = vi.fn(async () => undefined);
     const adapter = makeAdapter([]);

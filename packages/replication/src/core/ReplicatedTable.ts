@@ -1043,7 +1043,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.queryManager.getAllLocalIds();
   }
 
-  async removeStaleEntries(serverIds: Set<string>): Promise<number> {
+  async removeStaleEntries(
+    serverIds: Set<string>,
+    options: { syncedBefore?: number } = {}
+  ): Promise<number> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
@@ -1055,7 +1058,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger.log(`[${this.tableName}] Preserving dirty row ${row.id}`);
     }
 
-    for (const row of selectStaleCleanRows(rows, serverIds)) {
+    for (const row of selectStaleCleanRows(rows, serverIds, options)) {
       await tx.store.delete([row.tableName, row.id]);
       removedCount++;
       this.logger.log(`[${this.tableName}] Removed stale entry: ${row.id}`);

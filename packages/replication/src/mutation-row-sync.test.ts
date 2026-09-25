@@ -97,3 +97,63 @@ describe('markReplicatedRowSynced', () => {
     });
   });
 });
+
+describe('markReplicatedRowSynced — own upload step (MYK9-770)', () => {
+  beforeEach(async () => {
+    await databaseManager.reset();
+  });
+
+  afterEach(async () => {
+    await databaseManager.reset();
+  });
+
+  const baseRow: ReplicatedRow<{ id: string }> = {
+    tableName: 'entries',
+    id: 'entry-1',
+    data: { id: 'entry-1' },
+    version: 2,
+    lastSyncedAt: 1,
+    lastAccessedAt: 1,
+    isDirty: true,
+    syncStatus: 'pending',
+    serverVersion: 1,
+  };
+  const upload: PendingMutation = {
+    id: 'armband',
+    tableName: 'entries',
+    operation: 'UPDATE',
+    rowId: 'entry-1',
+    data: { id: 'entry-1' },
+    timestamp: 1,
+    sequenceNumber: 1,
+    retries: 0,
+    status: 'pending',
+    authUserId: 'user-1',
+    serverVersion: 1,
+  };
+
+  it('records the step an OCC-guarded upload moved the token through', async () => {
+    const db = await databaseManager.getDatabase('row-sync-step-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, baseRow);
+    await markReplicatedRowSynced(db, upload, 2);
+    const stored = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'entries',
+      'entry-1',
+    ])) as ReplicatedRow<unknown>;
+    expect(stored.serverVersion).toBe(2);
+    expect(stored.lastOwnUpload).toEqual({ from: 1, to: 2 });
+  });
+
+  it('records nothing for an upload that carried no precondition', async () => {
+    const db = await databaseManager.getDatabase('row-sync-step-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, baseRow);
+    const unguarded: PendingMutation = { ...upload };
+    delete unguarded.serverVersion;
+    await markReplicatedRowSynced(db, unguarded, 2);
+    const stored = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'entries',
+      'entry-1',
+    ])) as ReplicatedRow<unknown>;
+    expect(stored.lastOwnUpload).toBeUndefined();
+  });
+});

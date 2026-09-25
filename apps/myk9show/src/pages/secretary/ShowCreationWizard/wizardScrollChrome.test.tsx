@@ -91,11 +91,46 @@ describe('wizard sticky chrome vs focus (MYK9-764)', () => {
   it('re-reveals a keyboard-focused control the browser left under the chrome', () => {
     document.documentElement.style.scrollPaddingTop = '48px';
     const under = mountInput({ top: 150, bottom: 190 }, '200px');
+    vi.spyOn(under.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
     revealFocusedBelowChrome({ target: under.input });
     expect(under.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
 
     const clear = mountInput({ top: 400, bottom: 440 }, '200px');
+    vi.spyOn(clear.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
     revealFocusedBelowChrome({ target: clear.input });
     expect(clear.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('leaves a clicked (not :focus-visible) control where the secretary clicked it', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    const clicked = mountInput({ top: 150, bottom: 190 }, '200px');
+    vi.spyOn(clicked.input, 'matches').mockReturnValue(false); // e.g. a clicked button
+    revealFocusedBelowChrome({ target: clicked.input });
+    expect(clicked.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('tolerates half the placement gap, no more', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    // Reserved 248px; half the 8px gap is tolerated.
+    const inside = mountInput({ top: 244, bottom: 284 }, '200px');
+    vi.spyOn(inside.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
+    revealFocusedBelowChrome({ target: inside.input });
+    expect(inside.scrollIntoView).not.toHaveBeenCalled();
+
+    const beyond = mountInput({ top: 243, bottom: 283 }, '200px');
+    vi.spyOn(beyond.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
+    revealFocusedBelowChrome({ target: beyond.input });
+    expect(beyond.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  it('ignores focus inside a portalled overlay that bubbled up to the form', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    const form = document.createElement('div');
+    document.body.append(form);
+    const overlayItem = mountInput({ top: 10, bottom: 50 });
+    vi.spyOn(overlayItem.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
+    revealFocusedBelowChrome({ target: overlayItem.input, currentTarget: form });
+    expect(overlayItem.scrollIntoView).not.toHaveBeenCalled();
+    form.remove();
   });
 });

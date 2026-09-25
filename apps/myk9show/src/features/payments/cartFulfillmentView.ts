@@ -13,8 +13,7 @@
  */
 
 import type { CartItemWithDetails } from '@/store/cartStore';
-import type { JudgeDayCapacity } from '@/types/waitlist-types';
-import { splitCartItemsByJudgeDayCapacity } from './cartCapacitySplit';
+import { splitCartItemsByJudgeDayCapacity, type CartJudgeDayCapacity } from './cartCapacitySplit';
 
 export type CartItemFulfillment =
   /** Will be charged and confirmed at checkout. */
@@ -67,7 +66,7 @@ function sumFees(items: CartItemWithDetails[]): number {
  */
 export function buildCartFulfillmentView(
   items: CartItemWithDetails[],
-  judgeDays: JudgeDayCapacity[] | null,
+  judgeDays: readonly CartJudgeDayCapacity[] | null,
   fullClassIds: readonly string[] = []
 ): CartFulfillmentView {
   if (items.length === 0) {

@@ -104,129 +104,137 @@ function errorMessage(error: unknown): string {
   return (error as { message?: string }).message ?? String(error);
 }
 
+/**
+ * One read of a show's class availability: the visible classes joined to the
+ * server's counts. Shared by the registration wizard (`useClassAvailability`)
+ * and the cart's wait-list/pay split (`useCartCapacity`) under the same query
+ * key, so both read one cache entry and one invalidation refreshes both.
+ */
+export async function fetchShowClassAvailability(
+  showId: string | undefined
+): Promise<ClassAvailability[]> {
+  if (!showId) return [];
+
+  try {
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select(
+        `
+        id,
+        name,
+        element,
+        level,
+        section,
+        status,
+        max_entries,
+        allow_waitlist,
+        trial_id,
+        trials!inner (
+          id,
+          name,
+          date,
+          show_id
+        )
+      `
+      )
+      .eq('trials.show_id', showId)
+      .order('level');
+
+    if (classError) {
+      logger.error(
+        'Error fetching classes',
+        'useClassAvailability',
+        { showId },
+        classError as Error
+      );
+      throw new Error(errorMessage(classError));
+    }
+
+    if (!classData || classData.length === 0) {
+      return [];
+    }
+
+    const { data: countRows, error: countError } = await supabase.rpc(
+      'get_show_class_availability',
+      { p_show_id: showId }
+    );
+
+    if (countError) {
+      logger.error(
+        'Error fetching class availability counts',
+        'useClassAvailability',
+        { showId },
+        countError as Error
+      );
+      throw new Error(errorMessage(countError));
+    }
+
+    const countsByClass = new Map((countRows ?? []).map(count => [count.class_id, count]));
+
+    return (classData as ClassWithTrialRow[]).map(cls => {
+      const counts = countsByClass.get(cls.id);
+      if (!counts) {
+        logger.error('No availability counts for a visible class', 'useClassAvailability', {
+          showId,
+          classId: cls.id,
+        });
+        throw new Error(CLASS_AVAILABILITY_UNREADABLE);
+      }
+
+      const trial = cls.trials;
+      const entryLimit = cls.max_entries ?? 0;
+      const judgeId = counts.judge_id;
+      const judgeDayAvailable = counts.judge_day_available ?? 0;
+      const spotsAvailable = counts.class_full
+        ? 0
+        : judgeId
+          ? judgeDayAvailable
+          : Math.max(0, entryLimit - counts.entry_count);
+
+      return {
+        classId: cls.id,
+        className: cls.name,
+        element: cls.element,
+        level: cls.level ?? 'Open',
+        section: cls.section,
+        status: cls.status,
+        hasStarted: counts.has_started,
+        trialId: trial.id,
+        trialName: trial.name,
+        trialDate: trial.date,
+        entryLimit,
+        currentEntries: counts.entry_count,
+        spotsAvailable,
+        waitlistCount: counts.waitlist_count,
+        isFull: counts.class_full || counts.judge_day_full,
+        hasWaitlist: counts.waitlist_count > 0,
+        allowsWaitlist: counts.allow_waitlist,
+        judgeId,
+        judgeDayFull: counts.judge_day_full,
+        judgeDayAvailable,
+      };
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
+    logger.error(
+      'Failed to fetch class availability',
+      'useClassAvailability',
+      { showId },
+      err as Error
+    );
+    throw new Error(message);
+  }
+}
+
 export function useClassAvailability(
   showId: string | undefined,
   options: UseClassAvailabilityOptions = {}
 ): UseClassAvailabilityResult {
   const { enabled = true } = options;
 
-  const fetchClassAvailability = useCallback(async (): Promise<ClassAvailability[]> => {
-    if (!showId) return [];
-
-    try {
-      const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select(
-          `
-          id,
-          name,
-          element,
-          level,
-          section,
-          status,
-          max_entries,
-          allow_waitlist,
-          trial_id,
-          trials!inner (
-            id,
-            name,
-            date,
-            show_id
-          )
-        `
-        )
-        .eq('trials.show_id', showId)
-        .order('level');
-
-      if (classError) {
-        logger.error(
-          'Error fetching classes',
-          'useClassAvailability',
-          { showId },
-          classError as Error
-        );
-        throw new Error(errorMessage(classError));
-      }
-
-      if (!classData || classData.length === 0) {
-        return [];
-      }
-
-      const { data: countRows, error: countError } = await supabase.rpc(
-        'get_show_class_availability',
-        { p_show_id: showId }
-      );
-
-      if (countError) {
-        logger.error(
-          'Error fetching class availability counts',
-          'useClassAvailability',
-          { showId },
-          countError as Error
-        );
-        throw new Error(errorMessage(countError));
-      }
-
-      const countsByClass = new Map((countRows ?? []).map(count => [count.class_id, count]));
-
-      return (classData as ClassWithTrialRow[]).map(cls => {
-        const counts = countsByClass.get(cls.id);
-        if (!counts) {
-          logger.error('No availability counts for a visible class', 'useClassAvailability', {
-            showId,
-            classId: cls.id,
-          });
-          throw new Error(CLASS_AVAILABILITY_UNREADABLE);
-        }
-
-        const trial = cls.trials;
-        const entryLimit = cls.max_entries ?? 0;
-        const judgeId = counts.judge_id;
-        const judgeDayAvailable = counts.judge_day_available ?? 0;
-        const spotsAvailable = counts.class_full
-          ? 0
-          : judgeId
-            ? judgeDayAvailable
-            : Math.max(0, entryLimit - counts.entry_count);
-
-        return {
-          classId: cls.id,
-          className: cls.name,
-          element: cls.element,
-          level: cls.level ?? 'Open',
-          section: cls.section,
-          status: cls.status,
-          hasStarted: counts.has_started,
-          trialId: trial.id,
-          trialName: trial.name,
-          trialDate: trial.date,
-          entryLimit,
-          currentEntries: counts.entry_count,
-          spotsAvailable,
-          waitlistCount: counts.waitlist_count,
-          isFull: counts.class_full || counts.judge_day_full,
-          hasWaitlist: counts.waitlist_count > 0,
-          allowsWaitlist: counts.allow_waitlist,
-          judgeId,
-          judgeDayFull: counts.judge_day_full,
-          judgeDayAvailable,
-        };
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
-      logger.error(
-        'Failed to fetch class availability',
-        'useClassAvailability',
-        { showId },
-        err as Error
-      );
-      throw new Error(message);
-    }
-  }, [showId]);
-
   const query = useQuery({
     queryKey: classAvailabilityQueryKey(showId),
-    queryFn: fetchClassAvailability,
+    queryFn: () => fetchShowClassAvailability(showId),
     enabled: Boolean(showId && enabled),
   });
 

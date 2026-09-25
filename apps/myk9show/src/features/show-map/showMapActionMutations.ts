@@ -13,6 +13,7 @@ import {
 } from '@/services/show-day/checkInStatus';
 import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
+import { SEAT_HOLDING_ENTRY_STATUSES } from '@/utils/waitlistCountSelectors';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
 import { destinationEntryStatusFor } from './moveUpRequestStatuses';
@@ -309,9 +310,10 @@ export async function moveUpShowMapEntry({
   // INTENT: This is an offline-first local capacity guard. It can under-count if
   // the replica is incomplete; server sync/conflict review remains the backstop
   // for concurrent move-ups or stale devices.
+  // It counts the seats the server's capacity gate counts (MYK9-754).
   const acceptedCount = targetEntries.filter(entry => {
-    const status = entry.entryStatus ?? entry.entry_status;
-    return status === 'confirmed' || status === 'checked-in';
+    if (entry.deletedAt ?? entry.deleted_at) return false;
+    return SEAT_HOLDING_ENTRY_STATUSES.has(entry.entryStatus ?? entry.entry_status ?? '');
   }).length;
   const limit = targetClass.maxEntries ?? 999;
   if (acceptedCount >= limit) {

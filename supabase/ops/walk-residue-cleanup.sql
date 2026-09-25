@@ -285,6 +285,15 @@ BEGIN
   -- stripe_orders.entry_ids has no foreign key, so no lock can stop an order
   -- created after the record from naming a scoped entry. Such an order would
   -- be left pointing at a deleted id; refuse instead.
+  --
+  -- ACCEPTED RESIDUAL RACE (owner decision, Richard, 2026-09-25; Codex P2 on
+  -- #2453): an order inserted after this check and before COMMIT is not seen.
+  -- Closing it would mean an ACCESS EXCLUSIVE-class lock on stripe_orders for
+  -- the whole apply, blocking every checkout on the shared database. This is
+  -- an operator-run step on walk-only dogs, the window is the few statements
+  -- between here and COMMIT, and a walk's own order can only be created by that
+  -- walk, which has finished before the operator records it. Accepted, not
+  -- guarded. See docs/operations/walk-residue-cleanup.md.
   SELECT count(*) INTO v_late
   FROM public.stripe_orders o
   WHERE o.entry_ids && ARRAY(SELECT id FROM wr_entries)

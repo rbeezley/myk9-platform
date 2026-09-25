@@ -67,3 +67,9 @@ WALK_RESIDUE_TEST_DB_URL=postgresql://postgres@localhost:<port>/postgres \
 ```
 
 It proves the script's scoping, refusals and record/apply handshake. It cannot prove the live catalog has no other reference; the run-time `pg_constraint` survey is what covers that on staging.
+
+## Accepted residual race
+
+The apply step's last check refuses when an order created after the record names one of the run's entries. An order inserted after that check but before `COMMIT` is not seen, because `stripe_orders.entry_ids` has no foreign key for a row lock to hold. Closing that window would need a table lock on `stripe_orders` for the whole apply, which blocks every checkout on the shared database.
+
+Richard accepted the race on 2026-09-25 (Codex P2 on #2453). The script is operator-run, it scopes only walk-only dogs, the window is a few statements long, and a walk's own orders come from that walk, which has finished before anyone records it. Don't run apply while a walk is in progress.

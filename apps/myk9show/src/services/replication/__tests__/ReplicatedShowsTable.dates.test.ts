@@ -119,7 +119,7 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(lastPayload()).toMatchObject({ entry_open_date: null, entry_close_date: null });
   });
 
-  it('normalizes a create and a conflict rebuild the same way', async () => {
+  it('normalizes a create the same way', async () => {
     process.env.TZ = 'America/Los_Angeles';
     const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
     const created = await table.createShow({ ...SERVER_SHAPED_FIELDS, entryOpenDate: eveningPick });
@@ -128,13 +128,49 @@ describe('ReplicatedShowsTable date writes', () => {
       created.id,
       expect.objectContaining({ entry_open_date: '2026-10-01', start_date: '2026-11-07' })
     );
+  });
 
-    const rebuild = (
-      table as unknown as { rebuildUpdatePayload: (s: ReplicatedShow) => Record<string, unknown> }
-    ).rebuildUpdatePayload({ ...serverShapedShow(), entryCloseDate: eveningPick });
-    expect(rebuild).toMatchObject({
-      entry_open_date: '2026-10-01',
-      entry_close_date: '2026-10-01',
+  // Codex P2: a stored non-midnight value (legacy, or written by a path that
+  // does not normalize) names its UTC calendar day, the one the entry guards
+  // read. An edit that does not touch it must keep that day, not reread it as
+  // the local day, which in Los Angeles is a day earlier.
+  describe('an untouched stored non-midnight date keeps its UTC day', () => {
+    const LEGACY_CLOSE = '2026-10-02T02:30:00+00:00';
+
+    beforeEach(async () => {
+      process.env.TZ = 'America/Los_Angeles';
+      await table.set('show-1', { ...serverShapedShow(), entryCloseDate: LEGACY_CLOSE });
+    });
+
+    it('on an unrelated edit', async () => {
+      await table.updateShow('show-1', { name: 'Renamed' });
+      expect(lastPayload()).toMatchObject({ entry_close_date: '2026-10-02' });
+    });
+
+    it('on a full-row save that re-sends it unchanged, while a changed date is typed', async () => {
+      const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
+      await table.updateShow('show-1', {
+        ...SERVER_SHAPED_FIELDS,
+        entryOpenDate: eveningPick,
+        entryCloseDate: LEGACY_CLOSE,
+      });
+      expect(lastPayload()).toMatchObject({
+        entry_open_date: '2026-10-01',
+        entry_close_date: '2026-10-02',
+      });
+    });
+
+    it('on a conflict rebuild of the edited local row', async () => {
+      const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
+      await table.updateShow('show-1', { entryOpenDate: eveningPick });
+      const localRow = await table.get('show-1');
+      const rebuild = (
+        table as unknown as { rebuildUpdatePayload: (s: ReplicatedShow) => Record<string, unknown> }
+      ).rebuildUpdatePayload(localRow as ReplicatedShow);
+      expect(rebuild).toMatchObject({
+        entry_open_date: '2026-10-01',
+        entry_close_date: '2026-10-02',
+      });
     });
   });
 });

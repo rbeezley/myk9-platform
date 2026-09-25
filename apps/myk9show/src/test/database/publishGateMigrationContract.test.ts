@@ -108,6 +108,41 @@ describe('enforce_show_publish_gate migration text', () => {
     expect(sql).not.toMatch(/NEW\.entry_open_date\s*>\s*NEW\.entry_close_date/);
   });
 
+  // Codex P2: every stored date is midnight UTC of its UTC calendar day, so a
+  // client can read a stored value's day without guessing its shape.
+  describe('legacy date normalization', () => {
+    const MIGRATION = readFileSync(
+      resolve(MIGRATIONS_DIR, '20260925023700_myk9_716_publish_requires_entry_window.sql'),
+      'utf8'
+    );
+    const NORMALIZE = /UPDATE public\.shows\n {3}SET start_date[\s\S]*?;/;
+
+    it('rewrites all four date columns to midnight UTC of their UTC day, before the gate changes', () => {
+      const statement = MIGRATION.match(NORMALIZE)?.[0] ?? '';
+      for (const column of ['start_date', 'end_date', 'entry_open_date', 'entry_close_date']) {
+        const day = `\\(${column}\\s+AT TIME ZONE 'UTC'\\)::date::timestamp AT TIME ZONE 'UTC'`;
+        expect(statement).toMatch(new RegExp(`${column}\\s+=\\s+${day}`));
+        expect(statement).toMatch(new RegExp(`${column}\\s+IS DISTINCT FROM\\s+${day}`));
+      }
+      const at = MIGRATION.indexOf(statement);
+      expect(at).toBeGreaterThan(MIGRATION.indexOf('BEGIN;'));
+      expect(at).toBeLessThan(
+        MIGRATION.indexOf('CREATE OR REPLACE FUNCTION public.enforce_show_publish_gate()')
+      );
+      expect(at).toBeLessThan(MIGRATION.indexOf('CREATE TRIGGER trg_enforce_show_publish_gate'));
+    });
+
+    it('is exercised verbatim by the behavioral SQL test', () => {
+      const statement = MIGRATION.match(NORMALIZE)?.[0];
+      const sqlTest = readFileSync(
+        resolve(MIGRATIONS_DIR, '../tests/show_publish_gate_trigger_test.sql'),
+        'utf8'
+      );
+      expect(statement).toBeTruthy();
+      expect(sqlTest).toContain(statement);
+    });
+  });
+
   it('raises the published-window refusal verbatim', () => {
     expect(migrationSql()).toContain(sqlEscaped(ENTRY_WINDOW_PUBLISHED_MESSAGE));
   });

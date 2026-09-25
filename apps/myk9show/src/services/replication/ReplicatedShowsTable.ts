@@ -23,33 +23,12 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
-import { toLocalDateOnly } from '@/utils/date-format';
+import { withStoredDays, withTypedDays } from './showCalendarDays';
 
 /**
  * Database row type from Supabase schema
  */
 type ShowRow = Database['public']['Tables']['shows']['Row'];
-
-/**
- * MYK9-716: shows' date columns are timestamptz holding midnight UTC of the
- * typed calendar day, and every server guard reads
- * `(col AT TIME ZONE 'UTC')::date`. A date picker emits a raw instant (local
- * midnight, or an evening time) that can land on a different UTC day, so each
- * date becomes its calendar day through `toLocalDateOnly` -- the same helper
- * and semantics as the wizard's online create (buildCreateShowPayload). A
- * value already date-only or midnight UTC (a row read back from the server)
- * keeps its day in every timezone.
- */
-function withCalendarDays<T extends Partial<ReplicatedShow>>(show: T): T {
-  const day = (value: string | undefined) => (value ? toLocalDateOnly(value) : value);
-  return {
-    ...show,
-    ...('startDate' in show && { startDate: day(show.startDate) }),
-    ...('endDate' in show && { endDate: day(show.endDate) }),
-    ...('entryOpenDate' in show && { entryOpenDate: day(show.entryOpenDate) }),
-    ...('entryCloseDate' in show && { entryCloseDate: day(show.entryCloseDate) }),
-  };
-}
 
 /**
  * App-level Show type with camelCase fields and sync metadata
@@ -189,7 +168,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Strips sync metadata fields (_version, _lastModified, etc.)
    */
   private toSupabaseRow(rawShow: ReplicatedShow): Record<string, unknown> {
-    const show = withCalendarDays(rawShow);
+    // Every date here is already a calendar day or a stored value: typed
+    // dates were normalized when they entered the row (updateShow/createShow).
+    const show = withStoredDays(rawShow);
     return {
       id: show.id,
       name: show.name,
@@ -386,7 +367,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete resolvedUpdates.style;
     const updatedShow: ReplicatedShow = {
       ...currentShow,
-      ...withCalendarDays(resolvedUpdates),
+      ...withTypedDays(resolvedUpdates, currentShow),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
@@ -421,7 +402,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   async createShow(show: Omit<ReplicatedShow, 'id'>): Promise<ReplicatedShow> {
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
-      ...withCalendarDays(show),
+      ...withTypedDays(show),
       id,
       _version: 1,
       _lastModified: new Date(),

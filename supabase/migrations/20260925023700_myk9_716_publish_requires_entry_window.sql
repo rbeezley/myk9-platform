@@ -43,11 +43,44 @@
 -- windowless draft MYK9-649 counted on 2026-09-18 has since been given one).
 -- A published show that lost its window would not be touched by this gate
 -- anyway (never retroactive).
+-- The same query found every date column at midnight UTC, so the legacy
+-- normalization below changes no live row either.
 --
 -- Drafts stay saveable without a window: a draft never reaches the check
 -- (INSERT/UPDATE into any status other than 'published' returns early).
 
 BEGIN;
+
+-- LEGACY NORMALIZATION (Codex P2 on this PR). The four date columns are
+-- timestamptz whose convention is midnight UTC of the calendar day, and every
+-- server guard reads (col AT TIME ZONE 'UTC')::date. ReplicatedShowsTable
+-- used to send a picker's raw instant, so a row could hold a non-midnight
+-- value. Rewrite any such value to midnight UTC of its OWN UTC calendar day
+-- -- the day every guard already reads, so no row's effective day changes --
+-- which makes "a stored value is midnight UTC" true for every row and lets
+-- the client read a stored value's day without guessing its shape.
+-- Idempotent: a midnight value maps to itself, NULL stays NULL, and the WHERE
+-- touches only rows that still differ. A read-only query on 2026-09-25 found
+-- 0 of 5 live rows affected, so this is a no-op there today. Runs as the
+-- migration role, which the publish gate's API-roles-only carve-out skips;
+-- update_shows_updated_at and shows_version_increment bump the row so
+-- replicas pull the corrected value.
+UPDATE public.shows
+   SET start_date       = (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       end_date         = (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_open_date  = (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_close_date = (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+ WHERE start_date       IS DISTINCT FROM (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR end_date         IS DISTINCT FROM (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_open_date  IS DISTINCT FROM (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_close_date IS DISTINCT FROM (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC';
+
+-- No CHECK constraint enforces midnight UTC going forward: the behavioral SQL
+-- fixtures write `current_date + n`, which is midnight only in a UTC session;
+-- this file's own test (12g) must write a non-midnight value to prove the
+-- UTC-day comparison; and the direct PostgREST mapper path
+-- (mapShowInputToInsert/Update) does not normalize. A hard refusal there
+-- would fail a write that every reader already handles by UTC day.
 
 CREATE OR REPLACE FUNCTION public.enforce_show_publish_gate()
 RETURNS trigger

@@ -1274,4 +1274,70 @@ RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
 
+-- ---------------------------------------------------------------------------
+-- 13. MYK9-716 legacy normalization: the migration rewrites every non-midnight
+--     date to midnight UTC of its own UTC calendar day (the day every guard
+--     reads), leaves NULL and midnight values alone, and is idempotent. The
+--     migration ran before these fixtures existed, so seed legacy values and
+--     run its statement again, verbatim (publishGateMigrationContract.test.ts
+--     pins that this copy matches the migration's text). Superuser session.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
+                          entry_open_date, entry_close_date) VALUES
+  ('00000000-0000-0000-0000-000000579070', 'MYK9-716 Legacy Non-Midnight', 'AKC',
+   '2026-11-07T00:00:00+00', '2026-11-08T13:15:00+00',
+   '00000000-0000-0000-0000-000000579003', 'draft',
+   '2026-10-02T02:30:00+00', '2026-10-24T23:59:00-07'),
+  ('00000000-0000-0000-0000-000000579071', 'MYK9-716 Legacy No Window', 'AKC',
+   '2026-11-07T18:00:00+00', '2026-11-07T00:00:00+00',
+   '00000000-0000-0000-0000-000000579003', 'draft', NULL, NULL);
+
+UPDATE public.shows
+   SET start_date       = (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       end_date         = (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_open_date  = (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_close_date = (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+ WHERE start_date       IS DISTINCT FROM (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR end_date         IS DISTINCT FROM (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_open_date  IS DISTINCT FROM (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_close_date IS DISTINCT FROM (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC';
+
+DO $$
+DECLARE
+  r record;
+  v_n int;
+BEGIN
+  SELECT start_date, end_date, entry_open_date, entry_close_date INTO r
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579070';
+  IF r.start_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.end_date IS DISTINCT FROM '2026-11-08T00:00:00+00'::timestamptz
+     OR r.entry_open_date IS DISTINCT FROM '2026-10-02T00:00:00+00'::timestamptz
+     -- 23:59 PDT on Oct 24 is 06:59 UTC on Oct 25: its UTC day, not its local one.
+     OR r.entry_close_date IS DISTINCT FROM '2026-10-25T00:00:00+00'::timestamptz THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize: expected each date at midnight UTC of its UTC day, got % / % / % / %',
+      r.start_date, r.end_date, r.entry_open_date, r.entry_close_date;
+  END IF;
+
+  SELECT start_date, end_date, entry_open_date, entry_close_date INTO r
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579071';
+  IF r.start_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.end_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.entry_open_date IS NOT NULL OR r.entry_close_date IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize-null: expected NULL dates to stay NULL, got % / % / % / %',
+      r.start_date, r.end_date, r.entry_open_date, r.entry_close_date;
+  END IF;
+
+  SELECT count(*) INTO v_n FROM public.shows
+   WHERE start_date       IS DISTINCT FROM (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR end_date         IS DISTINCT FROM (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR entry_open_date  IS DISTINCT FROM (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR entry_close_date IS DISTINCT FROM (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC';
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize-idempotent: % rows still hold a non-midnight date', v_n;
+  END IF;
+  RAISE NOTICE 'PASS legacy-normalize: non-midnight dates land on midnight UTC of their UTC day, NULL stays NULL, and a re-run has nothing left to change';
+END;
+$$;
+
+
 ROLLBACK;

@@ -626,15 +626,22 @@ BEGIN
     RAISE EXCEPTION 'FAIL the destination was not soft-deleted';
   END IF;
 
-  -- MYK9-640: after C -> B (case 2b) and B -> A (here), the dog holds exactly
-  -- ONE live run in this show, and exactly one live row carries the fee. A
-  -- stale reversal that deleted the middle link would leave two live runs; one
-  -- that moved money would leave zero or two obligations.
+  -- MYK9-640: after C -> B (case 2b) and B -> A (here), the chain holds exactly
+  -- ONE live run, and exactly one live row carries the fee. A stale reversal
+  -- that deleted the middle link would leave A and C both live; one that moved
+  -- money would leave zero or two obligations.
+  --
+  -- Scoped to the chain's own rows (A, B, C), NOT to the dog: case 4 inserts
+  -- 639082 by hand, a live Show A row for this same dog whose source sits in
+  -- Club B's show. That is a state no RPC can produce (move_up_entry refuses a
+  -- cross-show move), and the reverse rightly refuses it, so it stays live, and
+  -- a dog-wide count read it as a second run.
   SELECT count(e.id), count(e.id) FILTER (WHERE e.entry_fee > 0), sum(e.entry_fee)
     INTO STRICT v_live_runs, v_obligations, v_owed
     FROM public.entries e
-   WHERE e.dog_id = '00000000-0000-0000-0000-000000639041'
-     AND e.show_id = '00000000-0000-0000-0000-000000639011'
+   WHERE e.id IN ('00000000-0000-0000-0000-000000639061',
+                  '00000000-0000-0000-0000-000000639072',
+                  '00000000-0000-0000-0000-000000639079')
      AND e.deleted_at IS NULL
      AND e.entry_status <> 'moved';
   IF v_live_runs <> 1 OR v_obligations <> 1 OR v_owed <> 35.00 THEN

@@ -377,7 +377,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     if (adapter.shouldCleanupStaleRows) {
       rowsAffected += await table.removeStaleEntries(serverIds);
-    } else if (adapter.cleanupStaleRowsOnFullSync && forceFullSync) {
+    } else if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      forceFullSync &&
+      // Only a fetch known to be COMPLETE proves a row is gone: a capped or
+      // paged response (PostgREST max_rows) returns the oldest rows only, and
+      // cleaning up after it would delete the newest (MYK9-775 review P2). No
+      // server count, no cleanup.
+      expectedRemoteRows !== undefined &&
+      serverIds.size >= expectedRemoteRows
+    ) {
       rowsAffected += await table.removeStaleEntries(serverIds, { syncedBefore: fetchStartedAt });
     }
 

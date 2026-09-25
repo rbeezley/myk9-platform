@@ -128,10 +128,8 @@ export function selectStaleCleanRows<T>(
       !serverIds.has(row.id) &&
       // A row marked synced after the fetch began (an upload that landed
       // mid-fetch) is missing from serverIds only because the fetch predates
-      // it, and a pending local create (`_localOnly`) was never on the server:
-      // neither is stale (MYK9-775).
-      (syncedBefore === undefined ||
-        (row.lastSyncedAt < syncedBefore &&
-          (row.data as { _localOnly?: unknown } | null)?._localOnly !== true))
+      // it — never stale (MYK9-775). A pending local create is dirty, so the
+      // isDirty check above already keeps it.
+      (syncedBefore === undefined || row.lastSyncedAt < syncedBefore)
   );
 }

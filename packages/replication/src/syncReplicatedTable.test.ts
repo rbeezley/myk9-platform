@@ -201,7 +201,8 @@ describe('syncReplicatedTable', () => {
 
     it('keeps a pending local create and a row that finished uploading mid-fetch', async () => {
       await table.set('1', { id: '1', name: 'Kept' });
-      await table.set('local-1', { id: 'local-1', name: 'Pending create', _localOnly: true });
+      // A pending create is stored dirty, as createAssignment does.
+      await table.set('local-1', { id: 'local-1', name: 'Pending create', _localOnly: true }, true);
       await table.set('gone', { id: 'gone', name: 'Deleted on server' });
       await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
       const adapter = countedAdapter([], 1);
@@ -221,6 +222,43 @@ describe('syncReplicatedTable', () => {
       expect(await table.get('local-1')).toMatchObject({ name: 'Pending create' });
       expect(await table.get('uploaded')).toMatchObject({ name: 'Just uploaded' });
       expect(await table.get('gone')).toBeNull();
+    });
+
+    it('removes an uploaded create (clean, still flagged _localOnly) the server has since deleted', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('uploaded', { id: 'uploaded', name: 'Deleted elsewhere', _localOnly: true });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([{ id: 1, name: 'Kept', updated_at: 2000 }], 1);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('uploaded')).toBeNull();
+    });
+
+    it('does not clean up after a truncated fetch (fewer rows than the server counts)', async () => {
+      await table.set('old', { id: 'old', name: 'Old' });
+      await table.set('newest', { id: 'newest', name: 'Newest, beyond the row cap' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      // Server counts 2, but the capped response returns only the oldest one.
+      const adapter = countedAdapter([{ id: 'old', name: 'Old', updated_at: 2000 }], 2);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('newest')).toMatchObject({ name: 'Newest, beyond the row cap' });
+    });
+
+    it('does not clean up when the server count is unavailable', async () => {
+      await table.set('1', { id: '1', name: 'A' });
+      await table.set('2', { id: '2', name: 'B' });
+      const adapter = countedAdapter([{ id: 1, name: 'A', updated_at: 2000 }], 1);
+      adapter.getRemoteRowCount = vi.fn(async () => undefined);
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+
+      expect(await table.get('2')).toMatchObject({ name: 'B' });
     });
 
     it('does not force full syncs for an adapter that has not opted in', async () => {

@@ -263,9 +263,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         resolveConflict: (_local, remote) => remote,
         // Assignments are HARD-deleted and the incremental fetch can never see a
         // deletion, so a removed judge stayed on every other device forever
-        // (MYK9-775). The fetch above has no scope filter — a full fetch
-        // returns every row this device stores — so a full sync may remove
-        // what the server no longer has.
+        // (MYK9-775). The fetch above has no scope filter, so a complete full
+        // fetch returns every row THIS session may read, and a full sync
+        // removes what it no longer returns. On a device shared between
+        // accounts that includes rows only the previous account could read.
+        // The engine skips the cleanup unless the fetch returned the whole
+        // server count (the fetch is not paged; PostgREST caps it at max_rows).
         cleanupStaleRowsOnFullSync: true,
       };
 

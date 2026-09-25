@@ -134,7 +134,9 @@ export function StickyNav({
           fontWeight: 700,
           fontSize: 12,
           letterSpacing: '0.04em',
-          color: bannerColors.flag,
+          // The club's flag, not the default teal token: BannerLandingPage sets
+          // --bn-flag per show (MYK9-751, a #2329 regression).
+          color: 'var(--bn-flag)',
         }}
       >
         <span className="bn-status-dot" aria-hidden style={{ flexShrink: 0 }} />

@@ -94,6 +94,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/trialPacket/*.test.ts',
       '../../supabase/functions/generate-trial-packet/*.test.ts',
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
+      '../../supabase/functions/send-access-request-emails/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
       'supabase/functions/cron-waitlist-expiration/*.test.ts',
     ],

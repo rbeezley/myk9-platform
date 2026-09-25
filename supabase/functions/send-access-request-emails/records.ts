@@ -12,7 +12,7 @@ import { USER_ROLE_HOLDER_EMBED } from '../_shared/userRolePerson.ts';
 
 export type AccessRequestKind = 'new_club' | 'role' | 'membership';
 export type AccessRequestEvent = 'submitted' | 'approved' | 'denied';
-export type AccessRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
+export type AccessRequestStatus = 'pending' | 'approved' | 'denied';
 export type RequestedRole = 'secretary' | 'club_admin';
 
 export interface Person {
@@ -74,7 +74,7 @@ export function personFromRow(row: PersonRow | null): Person {
 }
 
 function asStatus(value: unknown): AccessRequestStatus {
-  if (value === 'pending' || value === 'approved' || value === 'denied' || value === 'cancelled') {
+  if (value === 'pending' || value === 'approved' || value === 'denied') {
     return value;
   }
   throw new RecordLoadError('access request has an unexpected status');

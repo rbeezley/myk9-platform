@@ -64,7 +64,7 @@ describe('planDeliveries', () => {
 
   it('sends nothing for a submission reviewed before the job ran', () => {
     // A "waiting for review" confirmation would contradict the decision email.
-    for (const status of ['approved', 'denied', 'cancelled'] as const) {
+    for (const status of ['approved', 'denied'] as const) {
       expect(planDeliveries(record({ status }), 'submitted', [carl], SITE)).toEqual([]);
     }
   });

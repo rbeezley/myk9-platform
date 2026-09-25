@@ -137,7 +137,7 @@ REVOKE ALL ON FUNCTION public.enqueue_access_request_email_job(text, uuid, text)
 
 -- TG_ARGV[0] is the request_kind. Every request table carries id and status.
 -- INSERT of a pending row = submitted; pending -> approved/denied = the
--- decision. Any other transition (a role request's 'cancelled', a re-save
+-- decision. Any other write (a re-save
 -- that leaves status alone) queues nothing.
 CREATE OR REPLACE FUNCTION public.enqueue_access_request_email_from_trigger()
 RETURNS trigger

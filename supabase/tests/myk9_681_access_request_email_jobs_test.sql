@@ -7,7 +7,7 @@
 --      membership submit and deny, and a signup-trigger role request.
 --   2. Idempotency: a duplicate submit, a repeated enqueue and a second
 --      status write each leave exactly one job per (request, event); a
---      cancelled role request and a non-status update queue nothing.
+--      write that leaves status alone (approved or pending) queues nothing.
 --   3. No client access: anon and authenticated can neither read nor write
 --      the queue, nor execute the enqueue, claim, finish or dispatch
 --      functions.
@@ -345,11 +345,12 @@ BEGIN
   UPDATE public.role_requests SET status = 'pending' WHERE id = v_role;
   UPDATE public.role_requests SET status = 'approved' WHERE id = v_role;
 
-  -- A write that leaves status alone, and a cancellation, queue nothing.
+  -- Writes that leave status alone queue nothing, on a decided row and on a
+  -- pending one.
   UPDATE public.role_requests SET requester_note = 'edited' WHERE id = v_role;
   SELECT rr.id INTO v_signup FROM public.role_requests rr
   WHERE rr.person_id = '00000000-0000-0000-0000-000000681a04' AND rr.status = 'pending';
-  UPDATE public.role_requests SET status = 'cancelled' WHERE id = v_signup;
+  UPDATE public.role_requests SET requester_note = 'edited' WHERE id = v_signup;
 
   SELECT count(*) INTO v_after FROM public.access_request_email_jobs;
   IF v_after <> v_before THEN

@@ -117,8 +117,8 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: { id: 'exhibitor-1' } }),
 }));
 
-vi.mock('@/hooks/queries/useCartCapacity', () => ({
-  useCartCapacity: () => judgeDayCapacityState,
+vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
+  useJudgeDayCapacity: () => judgeDayCapacityState,
 }));
 
 vi.mock('@/store/cartStore', () => ({

@@ -29,7 +29,7 @@ import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
-import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
+import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
@@ -72,7 +72,7 @@ export default function CartPage() {
     isFetching: isCapacityFetching,
     error: capacityError,
     refetch: refetchCapacity,
-  } = useCartCapacity(cart?.show_id);
+  } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [removalAnnouncement, setRemovalAnnouncement] = useState('');
@@ -112,7 +112,7 @@ export default function CartPage() {
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
   // A query gated by `enabled` is not "resolved" just because it is not
-  // loading: with no showId, useCartCapacity is disabled and reports
+  // loading: with no showId, useJudgeDayCapacity is disabled and reports
   // isLoading:false / isFetching:false / error:null while returning an empty
   // judgeDays array. Treating that as settled would read "never asked" as
   // "this show has no capacity limits" and mark every line payable. Require

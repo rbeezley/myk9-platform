@@ -23,8 +23,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: { id: 'profile-423' }, isLoading: false }),
 }));
-vi.mock('@/hooks/queries/useCartCapacity', () => ({
-  useCartCapacity: () => ({
+vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
+  useJudgeDayCapacity: () => ({
     judgeDays: [],
     fullClassIds: [],
     isLoading: false,

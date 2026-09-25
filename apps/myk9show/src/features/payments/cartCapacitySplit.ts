@@ -1,15 +1,6 @@
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
-/**
- * The judge-day facts the split reads. A full `JudgeDayCapacity` satisfies it;
- * the cart builds these from the server's availability read (MYK9-753).
- */
-export type CartJudgeDayCapacity = Pick<
-  JudgeDayCapacity,
-  'judgeId' | 'showDate' | 'availableSpots' | 'classIds'
->;
-
 export interface CartCapacitySplitDecision {
   confirmedItemIds: Set<string>;
   waitlistItemIds: Set<string>;
@@ -18,7 +9,7 @@ export interface CartCapacitySplitDecision {
 
 export function splitCartItemsByJudgeDayCapacity(
   items: CartItemWithDetails[],
-  judgeDays: readonly CartJudgeDayCapacity[],
+  judgeDays: JudgeDayCapacity[],
   fullClassIds: readonly string[] = []
 ): CartCapacitySplitDecision {
   const remainingByJudgeDay = new Map<string, number>();
@@ -76,6 +67,6 @@ export function splitCartItemsByJudgeDayCapacity(
   return { confirmedItemIds, waitlistItemIds, blockedItems };
 }
 
-function judgeDayKey(day: CartJudgeDayCapacity): string {
+function judgeDayKey(day: JudgeDayCapacity): string {
   return `${day.judgeId}:${day.showDate}`;
 }

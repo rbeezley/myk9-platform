@@ -2,13 +2,16 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * MYK9-761 (Codex P2 on 477f33af6): the Financial Summary's online read is
- * summed as money, and PostgREST caps one response at `max_rows` (1000). An
- * unpaginated read of a larger show silently understates the totals, so the
- * read pages until a short page, and any failed page fails the whole read.
+ * MYK9-761: the Financial Summary's online read is summed as money, and
+ * PostgREST caps one response at `max_rows` (1000). The read must page past
+ * that, fail whole when a page fails, and neither double-count nor skip a row
+ * when an entry is inserted between two page requests (Codex P2 on c1a447052:
+ * newest-first OFFSET paging shifts the boundary on every insert).
  */
 
 const MAX_ROWS = 1000;
+
+type Row = { id: string; created_at: string; show_id: string; entry_fee: number };
 
 const { mockEntriesTable, server } = vi.hoisted(() => ({
   mockEntriesTable: {
@@ -18,9 +21,10 @@ const { mockEntriesTable, server } = vi.hoisted(() => ({
     getReplicatedRow: vi.fn(),
   },
   server: {
-    rows: [] as Array<Record<string, unknown>>,
-    failFrom: null as number | null,
-    ranges: [] as Array<[number, number]>,
+    rows: [] as Row[],
+    failOnPage: null as number | null,
+    pagesServed: 0,
+    afterPage: null as null | ((page: number) => void),
   },
 }));
 
@@ -40,30 +44,68 @@ vi.mock('@/services/database/entries/handlerHydration', () => ({
   loadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
 }));
 
-// A PostgREST builder that, like the real server, never returns more than
-// `max_rows` rows, whether or not the caller asked for a range.
+// A PostgREST stand-in: newest first by (created_at, id), honours the keyset
+// `.or()` filter and `.range()`, never returns more than `max_rows`, and reads
+// the table as it is at the moment each page is requested.
 vi.mock('@/services/database/supabaseClient', () => {
-  const respond = (from: number, to: number) => {
-    server.ranges.push([from, to]);
-    if (server.failFrom !== null && from >= server.failFrom) {
-      return Promise.resolve({ data: null, error: { message: 'upstream timeout', code: '57014' } });
-    }
-    const end = Math.min(to + 1, from + MAX_ROWS);
-    return Promise.resolve({ data: server.rows.slice(from, end), error: null });
+  const newestFirst = (a: Row, b: Row) =>
+    b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+  const query = () => {
+    let cursor: { createdAt: string; id: string } | null = null;
+    const respond = (from: number, to: number) => {
+      const page = server.pagesServed++;
+      if (server.failOnPage === page) {
+        return Promise.resolve({
+          data: null,
+          error: { message: 'upstream timeout', code: '57014' },
+        });
+      }
+      const visible = [...server.rows]
+        .sort(newestFirst)
+        .filter(
+          row =>
+            !cursor ||
+            row.created_at < cursor.createdAt ||
+            (row.created_at === cursor.createdAt && row.id < cursor.id)
+        );
+      const data = visible.slice(from, Math.min(to + 1, from + MAX_ROWS));
+      server.afterPage?.(page);
+      return Promise.resolve({ data, error: null });
+    };
+    const builder = {
+      select: () => builder,
+      eq: () => builder,
+      is: () => builder,
+      order: () => builder,
+      or: (filter: string) => {
+        const match =
+          /^created_at\.lt\.([^,]+),and\(created_at\.eq\.([^,]+),id\.lt\.([^)]+)\)$/.exec(filter);
+        if (!match || match[1] !== match[2]) throw new Error(`unexpected keyset filter ${filter}`);
+        cursor = { createdAt: match[1]!, id: match[3]! };
+        return builder;
+      },
+      range: (from: number, to: number) => respond(from, to),
+    };
+    return builder;
   };
-  const builder = {
-    select: () => builder,
-    eq: () => builder,
-    is: () => builder,
-    order: () => builder,
-    range: (from: number, to: number) => respond(from, to),
-    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      respond(0, Number.MAX_SAFE_INTEGER).then(resolve, reject),
-  };
-  return { supabase: { from: () => builder }, logQuery: vi.fn(), createDatabaseError };
+  return { supabase: { from: () => query() }, logQuery: vi.fn(), createDatabaseError };
 });
 
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
+
+// Three rows share each timestamp, so page boundaries fall inside ties and the
+// id tie-break is exercised.
+function makeRows(count: number): Row[] {
+  const base = Date.parse('2026-09-01T00:00:00.000Z');
+  return Array.from({ length: count }, (_, i) => ({
+    id: `entry-${String(i).padStart(5, '0')}`,
+    created_at: new Date(base + Math.floor(i / 3) * 1000).toISOString(),
+    show_id: 's1',
+    entry_fee: 35,
+  }));
+}
+
+const ids = (rows: unknown[]) => rows.map(row => (row as Record<string, unknown>).id as string);
 
 describe('getEntriesByShowForFinancials online read, larger than one PostgREST page', () => {
   beforeEach(() => {
@@ -75,17 +117,14 @@ describe('getEntriesByShowForFinancials online read, larger than one PostgREST p
     mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
     mockEntriesTable.getEntriesByShow.mockReset();
     mockEntriesTable.getEntriesByShow.mockResolvedValue([
-      { id: 'entry-0', showId: 's1', dogId: null, classId: null, deletedAt: null },
+      { id: 'entry-00000', showId: 's1', dogId: null, classId: null, deletedAt: null },
     ]);
     mockEntriesTable.getReplicatedRow.mockReset();
     mockEntriesTable.getReplicatedRow.mockResolvedValue({ isDirty: false });
-    server.rows = Array.from({ length: 2345 }, (_, i) => ({
-      id: `entry-${i}`,
-      show_id: 's1',
-      entry_fee: 35,
-    }));
-    server.failFrom = null;
-    server.ranges = [];
+    server.rows = makeRows(2345);
+    server.failOnPage = null;
+    server.pagesServed = 0;
+    server.afterPage = null;
   });
 
   it('returns every row across pages, not the first 1000', async () => {
@@ -93,11 +132,32 @@ describe('getEntriesByShowForFinancials online read, larger than one PostgREST p
 
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(2345);
-    expect(new Set(result.data.map(row => (row as Record<string, unknown>).id)).size).toBe(2345);
+    expect(new Set(ids(result.data)).size).toBe(2345);
+  });
+
+  it('neither double-counts nor skips a row when an entry is inserted between pages', async () => {
+    const original = makeRows(2345).map(row => row.id);
+    server.afterPage = page => {
+      if (page === 0) {
+        server.rows.push({
+          id: 'entry-registered-mid-read',
+          created_at: '2026-09-30T00:00:00.000Z',
+          show_id: 's1',
+          entry_fee: 35,
+        });
+      }
+    };
+
+    const result = await getEntriesByShowForFinancials('s1');
+
+    expect(result.error).toBeNull();
+    const read = ids(result.data);
+    expect(new Set(read).size).toBe(read.length);
+    expect(read.filter(id => id !== 'entry-registered-mid-read').sort()).toEqual(original.sort());
   });
 
   it('fails the whole read when a later page fails, never a partial total', async () => {
-    server.failFrom = MAX_ROWS;
+    server.failOnPage = 1;
 
     const result = await getEntriesByShowForFinancials('s1');
 

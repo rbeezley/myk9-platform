@@ -515,50 +515,55 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // them exhausts its parser.
   //
   // MYK9-761: PostgREST caps one response at `max_rows`, so a show larger than
-  // one page would be silently understated. Page with the same inline loop as
-  // the payment reads (`fetchOrderPages`, the payout ledger); a failed or
-  // repeated page throws, so the caller reports an error, never a partial total.
-  // (created_at, id) is append-stable, so a concurrent insert cannot shift a
-  // boundary row between two range requests.
+  // one page would be silently understated. Page by KEYSET on (created_at, id),
+  // as `userEntriesRead.ts` does: each page asks for rows strictly older than
+  // the previous page's last row, so an entry registered mid-read can neither
+  // shift a boundary row onto the next page (double-counted) nor off it
+  // (skipped), as newest-first OFFSET paging would. A failed page throws, so the
+  // caller reports an error, never a partial total.
   const rows: Record<string, unknown>[] = [];
   let includeLink = true;
-  let previousFirstId: unknown = null;
-  for (let from = 0; ; from += SHOW_FINANCIALS_PAGE_SIZE) {
-    const to = from + SHOW_FINANCIALS_PAGE_SIZE - 1;
+  let keyset: string | null = null;
+  for (;;) {
     const { data, error } = await withMoveUpLinkFallback(withLink => {
       if (!withLink) includeLink = false;
-      return withLink && includeLink
-        ? supabase
-            .from('entries')
-            .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
-            .eq('show_id', showId)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: false })
-            .range(from, to)
-        : supabase
-            .from('entries')
-            .select(SHOW_FINANCIALS_SELECT)
-            .eq('show_id', showId)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: false })
-            .range(from, to);
+      if (withLink && includeLink) {
+        let query = supabase
+          .from('entries')
+          .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
+          .eq('show_id', showId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false });
+        if (keyset) query = query.or(keyset);
+        return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
+      }
+      let query = supabase
+        .from('entries')
+        .select(SHOW_FINANCIALS_SELECT)
+        .eq('show_id', showId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
+      if (keyset) query = query.or(keyset);
+      return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
     });
 
     if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
     const page = (data || []) as Record<string, unknown>[];
-    const firstId = page[0]?.id ?? null;
-    if (firstId !== null && firstId === previousFirstId) {
+    rows.push(...page);
+    if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
+
+    const lastRow = page[page.length - 1];
+    if (!lastRow?.created_at || !lastRow.id) {
       throw createDatabaseError(
-        new Error('Show financials pagination returned a repeated page'),
+        new Error('Show financials page is missing its stable pagination cursor'),
         'entries',
         'select_by_show_financials'
       );
     }
-    previousFirstId = firstId;
-    rows.push(...page);
-    if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
+    const createdAt = String(lastRow.created_at);
+    keyset = `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${String(lastRow.id)})`;
   }
 
   return { data: attachPostgrestHandlerIdentity(rows), error: null };

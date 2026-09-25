@@ -72,7 +72,9 @@ VALUES
    '00000000-0000-0000-0000-000000677151'),
   ('00000000-0000-0000-0000-000000677052', 'Club B', 'Admin',
    '00000000-0000-0000-0000-000000677152'),
-  ('00000000-0000-0000-0000-000000677053', 'Pay', 'Exhibitor', NULL);
+  ('00000000-0000-0000-0000-000000677053', 'Pay', 'Exhibitor', NULL),
+  ('00000000-0000-0000-0000-000000677054', 'Refund', 'Exhibitor', NULL),
+  ('00000000-0000-0000-0000-000000677055', 'Shortfall', 'Exhibitor', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000677051', id, '00000000-0000-0000-0000-000000677001',
@@ -87,6 +89,14 @@ SELECT '00000000-0000-0000-0000-000000677052', id, '00000000-0000-0000-0000-0000
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method, total_amount)
 VALUES ('00000000-0000-0000-0000-000000677061', '00000000-0000-0000-0000-000000677011',
         '00000000-0000-0000-0000-000000677053', 'pending', 'check', 5000);
+
+-- Two more $50 enrollments for the net-received cases (Codex round 3).
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method, total_amount)
+VALUES
+  ('00000000-0000-0000-0000-000000677063', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677054', 'pending', 'cash', 5000),
+  ('00000000-0000-0000-0000-000000677064', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677055', 'pending', 'check', 5000);
 
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
@@ -245,6 +255,70 @@ BEGIN
     RAISE EXCEPTION 'FAIL refunds: % rows, net %, status %', v_refunds, v_amount, v_status;
   END IF;
   RAISE NOTICE 'PASS a cash refund is one negative row; a non-desk refund writes none';
+END;
+$$;
+
+-- --- refunds are capped by what is still held, and accumulate -----------------
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677063', 'payment', NULL, 'cash', NULL, NULL, NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677063', 'refund', 30, 'cash', NULL, NULL, 'first');
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677063', 'refund', 30, 'cash', NULL, NULL, 'second');
+    RAISE EXCEPTION 'FAIL a second $30 refund of a $50 payment was accepted';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'PASS a refund above the net still held is refused';
+  END;
+END;
+$$;
+
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677063', 'refund', 20, 'cash', NULL, NULL, 'rest');
+
+DO $$
+DECLARE
+  v_refund numeric; v_status text; v_net numeric;
+BEGIN
+  SELECT refund_amount, payment_status INTO v_refund, v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677063';
+  SELECT sum(amount) INTO v_net
+    FROM public.show_payments WHERE enrollment_id = '00000000-0000-0000-0000-000000677063';
+  IF v_refund <> 50 OR v_status <> 'refunded' OR v_net <> 0 THEN
+    RAISE EXCEPTION 'FAIL $30 + $20 refunds: refund_amount %, status %, ledger net %',
+      v_refund, v_status, v_net;
+  END IF;
+  RAISE NOTICE 'PASS $30 then $20 refunds: refund_amount 50, refunded, ledger net 0';
+END;
+$$;
+
+-- A partial refund, then "Paid in Full", pays back the refunded shortfall.
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677064', 'payment', NULL, 'check', NULL, '2201', NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677064', 'refund', 20, 'cash', NULL, NULL, NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677064', 'payment', NULL, 'cash', NULL, NULL, NULL);
+
+DO $$
+DECLARE
+  v_status text; v_net numeric; v_last numeric;
+BEGIN
+  SELECT payment_status INTO v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677064';
+  SELECT sum(amount) INTO v_net
+    FROM public.show_payments WHERE enrollment_id = '00000000-0000-0000-0000-000000677064';
+  SELECT amount INTO v_last
+    FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677064' AND kind = 'payment' AND method = 'cash';
+  IF v_status <> 'paid_by_cash' OR v_net <> 50 OR v_last IS DISTINCT FROM 20 THEN
+    RAISE EXCEPTION 'FAIL refund then Paid in Full: status %, ledger net %, new payment %',
+      v_status, v_net, v_last;
+  END IF;
+  RAISE NOTICE 'PASS a partial refund then Paid in Full records the $20 shortfall; ledger net = fee';
 END;
 $$;
 

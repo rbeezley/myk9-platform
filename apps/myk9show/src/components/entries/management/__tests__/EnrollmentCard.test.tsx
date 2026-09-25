@@ -305,6 +305,26 @@ describe('EnrollmentCard', () => {
       });
     });
 
+    it('offers a refund of what is still held after an earlier refund, not the gross paid', () => {
+      const record = vi.fn().mockResolvedValue(true);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          paymentLedger={{ record, todayInShowZone: '2026-09-17' }}
+          group={makeGroup({
+            enrollmentId: 'enroll-1',
+            paymentStatus: PaymentStatus.PARTIAL_REFUND,
+            paidAmount: 50,
+            entries: [makeEntry({ enrollmentRefundAmount: 30 })],
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Partial Refund'));
+      fireEvent.click(screen.getByText('Refunded…'));
+
+      expect((screen.getByLabelText(/Refund Amount/i) as HTMLInputElement).value).toBe('20.00');
+    });
+
     it('Payment Due records a reversal, not a blind zero', () => {
       const { record, onPaymentStatusChange } = renderPending(vi.fn().mockResolvedValue(true), 35);
       fireEvent.click(screen.getAllByText('Payment Due').at(-1)!);

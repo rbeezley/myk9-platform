@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   EMPTY_FULL_PAYMENT_DIALOG,
+  netReceivedDollars,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
   resolvePartialPayment,
@@ -71,7 +72,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars =
     group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
-  const paidDollars = group.paidAmount;
+  // Net received (MYK9-677): what the club still holds, the figure
+  // record_enrollment_payment caps refunds by and charges "Paid in Full" from.
+  const paidDollars = netReceivedDollars(group);
   const remainingDollars = totalDollars - paidDollars;
   const dogGroups = useMemo(() => groupEnrollmentEntriesByDog(group.entries), [group.entries]);
   // Partial payment is a fact about the MONEY, not about the headline label: a

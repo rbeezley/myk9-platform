@@ -162,6 +162,8 @@ AS $$
 DECLARE
   v_show_id uuid;
   v_paid numeric;
+  v_refunded numeric;
+  v_net numeric;
   v_total_cents integer;
   v_status text;
   v_total_due numeric;
@@ -177,8 +179,9 @@ BEGIN
     RAISE EXCEPTION 'unsupported payment kind: %', p_kind USING ERRCODE = '22023';
   END IF;
 
-  SELECT e.show_id, COALESCE(e.paid_amount, 0), e.total_amount, e.payment_status
-    INTO v_show_id, v_paid, v_total_cents, v_status
+  SELECT e.show_id, COALESCE(e.paid_amount, 0), COALESCE(e.refund_amount, 0),
+         e.total_amount, e.payment_status
+    INTO v_show_id, v_paid, v_refunded, v_total_cents, v_status
     FROM public.enrollments e
    WHERE e.id = p_enrollment_id
      FOR UPDATE;
@@ -192,6 +195,14 @@ BEGIN
     RAISE EXCEPTION 'not authorized to record payments for enrollment %', p_enrollment_id
       USING ERRCODE = '42501';
   END IF;
+
+  -- NET RECEIVED: the ONE figure every branch below reads. paid_amount is the
+  -- gross ever received and refund_amount the cumulative amount handed back,
+  -- both on the enrollment. Read from the enrollment, not summed from the
+  -- ledger, on purpose: an enrollment paid before the ledger existed has no
+  -- rows, and a Stripe/other refund is recorded on the enrollment but never in
+  -- the ledger (it is not box money). The enrollment columns hold both.
+  v_net := v_paid - v_refunded;
 
   v_tz := private.show_time_zone(v_show_id);
   v_today := (now() AT TIME ZONE v_tz)::date;
@@ -213,8 +224,8 @@ BEGIN
       (SELECT sum(en.entry_fee) FROM public.entries en
         WHERE en.registration_id = p_enrollment_id AND en.deleted_at IS NULL)
     );
-    -- NULL amount = "Paid in Full": whatever is still due.
-    v_amount := COALESCE(p_amount, GREATEST(COALESCE(v_total_due, 0) - v_paid, 0));
+    -- NULL amount = "Paid in Full": whatever is still due after refunds.
+    v_amount := COALESCE(p_amount, GREATEST(COALESCE(v_total_due, 0) - v_net, 0));
     IF v_amount < 0 OR v_amount <> round(v_amount, 2) THEN
       RAISE EXCEPTION 'invalid payment amount %', v_amount USING ERRCODE = '22023';
     END IF;
@@ -231,8 +242,9 @@ BEGIN
     END IF;
 
     v_paid := v_paid + v_amount;
+    v_net := v_net + v_amount;
     v_status := CASE
-      WHEN v_total_due IS NOT NULL AND v_paid >= v_total_due THEN 'paid_by_' || p_method
+      WHEN v_total_due IS NOT NULL AND v_net >= v_total_due THEN 'paid_by_' || p_method
       ELSE 'pending'
     END;
 
@@ -255,8 +267,11 @@ BEGIN
     IF p_amount IS NULL OR p_amount <= 0 OR p_amount <> round(p_amount, 2) THEN
       RAISE EXCEPTION 'invalid refund amount %', p_amount USING ERRCODE = '22023';
     END IF;
-    IF p_amount > v_paid THEN
-      RAISE EXCEPTION 'refund % exceeds the % paid', p_amount, v_paid USING ERRCODE = '22023';
+    -- Capped by what is still held, so two $30 refunds of a $50 payment are
+    -- refused the second time.
+    IF p_amount > v_net THEN
+      RAISE EXCEPTION 'refund % exceeds the % still held (% paid, % already refunded)',
+        p_amount, v_net, v_paid, v_refunded USING ERRCODE = '22023';
     END IF;
     -- NULL method = refunded some other way (Stripe, other): not box money, so
     -- the enrollment records it and the ledger does not.
@@ -273,8 +288,9 @@ BEGIN
     END IF;
 
     UPDATE public.enrollments
-       SET payment_status = CASE WHEN p_amount = v_paid THEN 'refunded' ELSE 'partial_refund' END,
-           refund_amount = p_amount,
+       -- 'refunded' once nothing is held; refund_amount accumulates.
+       SET payment_status = CASE WHEN p_amount = v_net THEN 'refunded' ELSE 'partial_refund' END,
+           refund_amount = v_refunded + p_amount,
            refund_notes = NULLIF(btrim(p_note), ''),
            refunded_at = now(),
            updated_at = now()
@@ -302,8 +318,14 @@ BEGIN
          v_group.received_on, NULL, NULLIF(btrim(p_note), ''), auth.uid());
     END LOOP;
 
+    -- Net received goes to zero on the enrollment too: nothing paid, nothing
+    -- handed back. Clearing only paid_amount would leave a refund_amount that
+    -- makes the net negative, and the next "Paid in Full" would charge it.
     UPDATE public.enrollments
        SET paid_amount = 0,
+           refund_amount = NULL,
+           refund_notes = NULL,
+           refunded_at = NULL,
            payment_status = 'pending',
            updated_at = now()
      WHERE id = p_enrollment_id;
@@ -337,7 +359,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) IS
-  'MYK9-677: the only writer of an enrollment''s cash/check money. kind=payment (amount NULL = pay the balance), refund (method NULL = not desk money, no ledger row), reversal ("Payment Due": nets the ledger to zero per method and day). Updates paid_amount, payment_status and the entries cascade atomically. Restates the record predicate (site admin, or show office manager holding the secretary role).';
+  'MYK9-677: the only writer of an enrollment''s cash/check money. Every branch reads one net-received figure, paid_amount - refund_amount (the enrollment columns, which also cover pre-ledger payments and non-desk refunds). kind=payment (amount NULL = pay fee - net), refund (capped at net; refund_amount accumulates; method NULL = not desk money, no ledger row), reversal ("Payment Due": nets the ledger to zero per method and day, and the enrollment to paid 0 / no refund). Updates paid_amount, payment_status and the entries cascade atomically. Restates the record predicate (site admin, or show office manager holding the secretary role).';
 
 REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) FROM anon;

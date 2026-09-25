@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { balanceAfterPayment, resolvePartialPayment } from '../enrollmentPayment';
+import {
+  balanceAfterPayment,
+  netReceivedDollars,
+  resolvePartialPayment,
+} from '../enrollmentPayment';
 
 describe('partial payments are THIS payment (MYK9-677)', () => {
   it('two partials, $35 then $15, are two payments of their own amounts', () => {
@@ -16,5 +20,28 @@ describe('partial payments are THIS payment (MYK9-677)', () => {
     expect(balanceAfterPayment(50, 35, 10)).toBe(5);
     expect(balanceAfterPayment(50, 35, 15)).toBe(0);
     expect(balanceAfterPayment(50, 35, 20)).toBe(0);
+  });
+});
+
+describe('netReceivedDollars (MYK9-677)', () => {
+  const entries = (enrollmentRefundAmount: number | null) =>
+    [{ enrollmentRefundAmount }] as unknown as Parameters<typeof netReceivedDollars>[0]['entries'];
+
+  it('is paid minus what the enrollment already refunded', () => {
+    expect(
+      netReceivedDollars({ enrollmentId: 'enr-1', paidAmount: 50, entries: entries(30) })
+    ).toBe(20);
+  });
+
+  it('is the paid amount when nothing was refunded', () => {
+    expect(
+      netReceivedDollars({ enrollmentId: 'enr-1', paidAmount: 50, entries: entries(null) })
+    ).toBe(50);
+  });
+
+  it('leaves groups with no enrollment (no ledger actions) alone', () => {
+    expect(netReceivedDollars({ enrollmentId: null, paidAmount: 40, entries: entries(10) })).toBe(
+      40
+    );
   });
 });

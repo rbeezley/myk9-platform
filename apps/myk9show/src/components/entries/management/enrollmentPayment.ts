@@ -1,5 +1,6 @@
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentLedgerAction, LedgerMethod } from '@/features/payments/showPaymentLedger';
+import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 /**
  * Shared types, constants, and pure resolution helpers for the manual
@@ -135,4 +136,20 @@ export function resolveRefund(
     receivedOn,
     notes: combined || null,
   };
+}
+
+/**
+ * MYK9-677: net received on an enrollment, `paid_amount - refund_amount`, the
+ * same figure `record_enrollment_payment` reads for every branch. Read from the
+ * enrollment's own refund column, not the group's display fallback (which sums
+ * entry-level Stripe refunds when the enrollment has none), so the dialog's cap
+ * and balance match what the server will accept.
+ */
+export function netReceivedDollars(
+  group: Pick<EnrollmentGroup, 'paidAmount' | 'enrollmentId' | 'entries'>
+): number {
+  if (!group.enrollmentId) return group.paidAmount;
+  const refunded =
+    group.entries.find(entry => entry.enrollmentRefundAmount != null)?.enrollmentRefundAmount ?? 0;
+  return Math.max(0, group.paidAmount - refunded);
 }

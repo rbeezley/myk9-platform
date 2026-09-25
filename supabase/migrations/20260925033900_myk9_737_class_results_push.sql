@@ -29,6 +29,16 @@
 --   * manual_release: completing or finalizing claims nothing (qualification
 --     is not visible yet); setting results_released_at does, and fires then.
 --
+-- Whose visibility: the push goes only to the signed-in owner, co-owner and
+-- handler of scored entries. They read their results through
+-- view_authenticated_entry_results and view_own_entry_results, which gate
+-- result_status on vis.qualification_visible from this same resolver and
+-- nothing else. The anon view_public_entry_results ALSO requires
+-- results_released_at (MYK9-466, MYK9-552), but it is the public board, not
+-- what these recipients see, so gating on it would delay the default-preset
+-- push until a release that open shows may never do. MYK9-737 asks for the
+-- default-preset push on completion.
+--
 -- "Done" (released, completed, or scoring-finalized) is the resolver's own
 -- class-state rule (step 5 of resolve_class_result_visibility). It is needed
 -- separately because an 'immediate' field is visible while the class is still

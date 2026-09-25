@@ -7,6 +7,11 @@ import { getPendingMoveUpRequests } from '@/services/database/day-of-operations/
 import { getPullableEntries } from '@/services/database/day-of-operations/scratch';
 import { fetchReplicatedCheckInEntries } from '@/hooks/queries/useCheckInReportReplication';
 import { loadOfflineCapacityOverrides } from '@/features/registration/offlineCapacityOverride';
+import {
+  replicatedClassesTable,
+  replicatedEntriesTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
 
 /**
  * MYK9-761: show readers that count or list a show's entries from the local
@@ -41,9 +46,19 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getEntriesByShow: vi.fn(async () => state.entries),
+    getAllWithStatus: vi.fn(async () => ({
+      ok: true,
+      rows: state.entries.map(entry => ({ showId: SHOW_ID, ...entry })),
+      error: null,
+    })),
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(async () => [{ id: 'trial-1', date: '2026-10-10' }]),
+    getAllWithStatus: vi.fn(async () => ({
+      ok: true,
+      rows: [{ id: 'trial-1', date: '2026-10-10', showId: SHOW_ID }],
+      error: null,
+    })),
   },
   replicatedClassesTable: {
     getClassesByTrial: vi.fn(async () => [
@@ -51,6 +66,11 @@ vi.mock('@/services/replication', () => ({
     ]),
     getClassById: vi.fn(async () => ({ id: 'class-1', name: 'Novice A', trialId: 'trial-1' })),
     getAll: vi.fn(async () => [{ id: 'class-1', trialId: 'trial-1', maxEntries: 2 }]),
+    getAllWithStatus: vi.fn(async () => ({
+      ok: true,
+      rows: [{ id: 'class-1', trialId: 'trial-1', maxEntries: 2 }],
+      error: null,
+    })),
   },
   replicatedDogsTable: {
     getDogById: vi.fn(async () => null),
@@ -192,6 +212,27 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
       ]);
       expect(overrides).toEqual({ 'dog-new|class-1': true });
     });
+
+    // MYK9-774 slice 1: every capacity count is a device read. A failed one
+    // counted as empty, so a full class or judge-day read as open and the
+    // entry was recorded as within capacity.
+    it.each([
+      ['entries', () => replicatedEntriesTable.getAllWithStatus],
+      ['trials', () => replicatedTrialsTable.getAllWithStatus],
+      ['classes', () => replicatedClassesTable.getAllWithStatus],
+    ])(
+      'the offline capacity override refuses to count on a failed %s read',
+      async (_label, read) => {
+        vi.mocked(read()).mockResolvedValueOnce({
+          ok: false,
+          rows: [],
+          error: new Error('IndexedDB read timed out'),
+        } as never);
+        await expect(
+          loadOfflineCapacityOverrides(SHOW_ID, [{ key: 'dog-new|class-1', classId: 'class-1' }])
+        ).rejects.toThrow(/We couldn't check class capacity on this device/);
+      }
+    );
 
     // MYK9-772: a failed judge-assignment read built no judge-day keys, so a
     // full judge-day was never counted as full offline. It must fail instead.

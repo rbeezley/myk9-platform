@@ -139,6 +139,16 @@ export function calculateOfflineCapacityOverrides({
   return overrides;
 }
 
+/** Plain language for the desk: a raw storage error means nothing there. */
+const CAPACITY_UNREADABLE =
+  "We couldn't check class capacity on this device. Reload the page and try again.";
+
+async function rowsOrThrow<T>(read: Promise<{ ok: boolean; rows: T[] }>): Promise<T[]> {
+  const result = await read;
+  if (!result.ok) throw new Error(CAPACITY_UNREADABLE);
+  return result.rows;
+}
+
 export async function loadOfflineCapacityOverrides(
   showId: string,
   selections: OfflineCapacitySelection[]
@@ -146,23 +156,28 @@ export async function loadOfflineCapacityOverrides(
   // MYK9-761: counts from a never-synced show would call a full class open and
   // record the entry as within capacity. The submission surfaces the error.
   await requireShowEntriesSynced(showId);
+  // Every count below comes from a device read, and getAll() hands back [] for
+  // a failed one: a full class or judge-day would then count as open and the
+  // entry be recorded as within capacity, a fact the server keeps (MYK9-772,
+  // MYK9-774). A failed read stops the entry with a message the desk can act
+  // on instead.
   const [show, classes, trials, assignments, entries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
-    replicatedClassesTable.getAll(),
-    replicatedTrialsTable.getTrialsByShow(showId),
-    // A failed device read throws (MYK9-772): getByShowId() turned it into [],
-    // which builds no judge-day keys and never counts a full judge-day as full.
+    rowsOrThrow(replicatedClassesTable.getAllWithStatus()),
+    rowsOrThrow(replicatedTrialsTable.getAllWithStatus()).then(rows =>
+      rows
+        .filter(trial => trial.showId === showId)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    ),
     readJudgeAssignmentsOrThrow().then(
       rows => rows.filter(a => a.showId === showId),
       () => {
-        // Plain language for the desk: the raw storage error means nothing
-        // to a secretary taking a late entry.
-        throw new Error(
-          "We couldn't check class capacity on this device. Reload the page and try again."
-        );
+        throw new Error(CAPACITY_UNREADABLE);
       }
     ),
-    replicatedEntriesTable.getEntriesByShow(showId),
+    rowsOrThrow(replicatedEntriesTable.getAllWithStatus()).then(rows =>
+      rows.filter(entry => entry.showId === showId)
+    ),
   ]);
 
   return calculateOfflineCapacityOverrides({

@@ -378,3 +378,48 @@ async function clickCalendarDay(dialog: Locator, name: RegExp) {
   await expect(day).toBeVisible();
   await day.click();
 }
+
+test.describe('Show Creation Wizard - scrolled-to fields clear the sticky chrome (MYK9-764)', () => {
+  for (const viewport of [
+    { name: 'desktop', width: 1440, height: 600 },
+    { name: 'phone', width: 390, height: 600 },
+  ]) {
+    test(`a field scrolled to the top lands below the step indicator at ${viewport.width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+      const steps = page.getByTestId('show-creation-wizard-steps');
+      const showName = page.getByLabel(/Show Name/i);
+      await expect(steps).toBeVisible({ timeout: 30000 });
+      await expect(showName).toBeVisible();
+      // Past the mount-time focus, so it cannot move the page under us.
+      await page.waitForTimeout(600);
+
+      // Known answer: scrolled to the bottom, the field is off screen above.
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(400);
+      const before = await showName.evaluate(el => el.getBoundingClientRect().top);
+      expect(
+        before,
+        'the field must start above the viewport for this to mean anything'
+      ).toBeLessThan(0);
+
+      // The worst case: aligned to the top of the scrollport. Focus scrolling,
+      // hash links and scrollIntoView all honour the document's scroll padding,
+      // which is what reserves the wizard chrome.
+      await showName.evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+      await page.waitForTimeout(200);
+
+      const [fieldTop, stepsBottom] = await Promise.all([
+        showName.evaluate(el => el.getBoundingClientRect().top),
+        steps.evaluate(el => el.getBoundingClientRect().bottom),
+      ]);
+      expect(
+        fieldTop,
+        `the field (top ${fieldTop}) is hidden under the sticky step indicator (bottom ${stepsBottom})`
+      ).toBeGreaterThanOrEqual(stepsBottom);
+    });
+  }
+});

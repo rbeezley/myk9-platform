@@ -37,6 +37,7 @@ import {
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
+import { focusWithoutJump, useWizardScrollPadding } from './ShowCreationWizard/wizardScrollChrome';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
@@ -50,6 +51,8 @@ const ShowCreationWizardPage: React.FC = () => {
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  const stepsRef = useRef<HTMLDivElement>(null);
+  useWizardScrollPadding(stepsRef);
   const validationBannerRef = useRef<HTMLDivElement>(null);
   // Set by a failed Next click so the effect below scrolls the banner into
   // view once it has mounted. A ref (not state) keeps this a one-shot signal
@@ -179,7 +182,7 @@ const ShowCreationWizardPage: React.FC = () => {
           'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
         );
         if (firstInput && typeof firstInput.focus === 'function') {
-          firstInput.focus();
+          focusWithoutJump(firstInput);
         }
       }
     }, 350);
@@ -373,6 +376,7 @@ const ShowCreationWizardPage: React.FC = () => {
               --show-wizard-header-height. A hard-coded top-16 (64px) put this
               behind both on a phone, where the breadcrumb wraps. */}
           <div
+            ref={stepsRef}
             data-testid="show-creation-wizard-steps"
             className="sticky top-[calc(var(--app-top-inset,3rem)+var(--show-wizard-header-height,4rem))] z-30 mb-4 rounded-2xl border border-border bg-card px-3 py-4 shadow-sm sm:mb-6 sm:px-6 sm:py-5"
           >

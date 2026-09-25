@@ -149,15 +149,11 @@ export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[st
  * `max-w-10` are what actually pin the rendered width to 40px, on the TD/TH
  * itself — they are the whole guarantee.
  *
- * The checkbox INSIDE the cell (`DogsTableView.tsx`) is deliberately NOT also
- * wrapped at a fixed `w-10`: that was tried and measured wrong (round-3 delta
- * review, Chromium). Giving the inner wrapper its own `w-10` makes the cell's
- * own min-content 48px (16px padding + 40px wrapper) while max-content stays
- * 40px, so the two DISAGREE — the rendered 40px then comes from `max-w-10`
- * alone winning the negotiation, and the wrapper itself overflows the cell,
- * landing the checkbox ~4px right of the cell's true centre. The inner
- * wrapper's only job is `flex items-center justify-center`, to centre the
- * checkbox in whatever width the cell actually renders at.
+ * The lead column is an unpadded control column: `px-0` below removes the
+ * DataTable's density padding, so a control centred inside it sits in the
+ * middle of the 40px (MYK9-751). The checkbox INSIDE the cell
+ * (`DogsTableView.tsx`) is centred by a `flex justify-center` wrapper with no
+ * width of its own; the width comes only from the cell's bounds.
  *
  * This is a hypothesis about the auto-layout algorithm, not a CSS guarantee
  * the spec makes — real evidence lives in
@@ -171,7 +167,12 @@ export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[st
  * correct if it equals the width.
  */
 export const STICKY_LEFT_LEAD_WIDTH_CLASS = 'w-10';
-const STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES = 'min-w-10 max-w-10';
+// `px-0`: the DataTable's own cell padding (`px-4`, or `px-3` compact) is
+// one-sided inside a 40px cell once TableCell's `pr-0` for checkbox cells
+// applies, which put the checkbox's centre at 28px instead of 20px (MYK9-751).
+// With no padding the inner wrapper centres it in the full 40px; `cn` merges
+// these after the density padding, so tailwind-merge drops that `px-*`.
+const STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES = 'min-w-10 max-w-10 px-0';
 const STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS = 'left-10';
 
 /**

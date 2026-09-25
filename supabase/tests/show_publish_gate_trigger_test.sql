@@ -1214,6 +1214,21 @@ BEGIN
     RAISE EXCEPTION 'FAIL published-valid-change: expected the new close date to land (rows=%, close=%)', v_n, v_close;
   END IF;
 
+  -- A legacy non-midnight window is compared by UTC calendar day, the reading
+  -- the entry-open/close guards use: opening at 15:00 and closing at 02:00 on
+  -- the same UTC day is a valid one-day window, not an inverted one. (A
+  -- regression raises MK005 here, uncaught, which fails the file.)
+  UPDATE public.shows
+     SET entry_open_date = ((current_date + 4)::timestamp + interval '15 hours') AT TIME ZONE 'UTC',
+         entry_close_date = ((current_date + 4)::timestamp + interval '2 hours') AT TIME ZONE 'UTC'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-same-utc-day: expected a same-UTC-day window to land, affected %', v_n;
+  END IF;
+
   -- A draft may still clear or reverse its window (579061 is a draft).
   UPDATE public.shows SET entry_open_date = NULL, entry_close_date = NULL
    WHERE id = '00000000-0000-0000-0000-000000579061';
@@ -1226,7 +1241,7 @@ BEGIN
 
   RESET ROLE;
   PERFORM set_config('request.jwt.claim.sub', '', true);
-  RAISE NOTICE 'PASS published-window-edits: a published show cannot clear or reverse its window (MK005), a valid change passes, and a draft can clear it';
+  RAISE NOTICE 'PASS published-window-edits: a published show cannot clear or reverse its window (MK005), a valid change passes (a same-UTC-day legacy window included), and a draft can clear it';
 END;
 $$;
 RESET ROLE;

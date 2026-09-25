@@ -10,9 +10,12 @@
 -- existing MK003 case keeps its message): both shows.entry_open_date and
 -- shows.entry_close_date must be set, and the window must not close before
 -- it opens. A same-day window is valid: entry dates are persisted as calendar
--- days (the wizard's online create writes toLocalDateOnly, so a window that
--- opens and closes on one day lands as the same midnight) and the close day
--- is inclusive. It raises its own SQLSTATE, MK005, so the status pill can
+-- days (midnight UTC of the typed day: the wizard's online create and, since
+-- this PR, every replicated show write run each date through toLocalDateOnly)
+-- and the close day is inclusive. Both comparisons read
+-- (col AT TIME ZONE 'UTC')::date, exactly as the entry-open/close guards do,
+-- so a legacy non-midnight value is compared by the day those guards see and
+-- its time of day can never invert a same-day window. It raises its own SQLSTATE, MK005, so the status pill can
 -- link to the entry dates instead of the payments page
 -- (PUBLISH_GATE_ERRCODE_ENTRY_WINDOW, onlineEntryGate.ts). The two RAISE texts
 -- are ENTRY_WINDOW_REQUIRED_MESSAGE and ENTRY_WINDOW_ORDER_MESSAGE verbatim
@@ -98,7 +101,8 @@ BEGIN
         RETURN NEW;
       END IF;
       IF NEW.entry_open_date IS NULL OR NEW.entry_close_date IS NULL
-         OR NEW.entry_open_date > NEW.entry_close_date THEN
+         OR (NEW.entry_open_date AT TIME ZONE 'UTC')::date
+            > (NEW.entry_close_date AT TIME ZONE 'UTC')::date THEN
         -- Mirrors ENTRY_WINDOW_PUBLISHED_MESSAGE (onlineEntryGate.ts) verbatim.
         RAISE EXCEPTION 'A published show has to keep its entry window: both dates set, and the close on or after the open. Discard this change or fix the dates.'
           USING ERRCODE = 'MK005';
@@ -138,8 +142,12 @@ BEGIN
       USING ERRCODE = 'MK005';
   END IF;
 
-  -- Calendar-day semantics: equal dates are a one-day window, not an error.
-  IF NEW.entry_open_date > NEW.entry_close_date THEN
+  -- Calendar-day semantics: equal days are a one-day window, not an error.
+  -- Compared as the UTC calendar day, the same reading the entry-open/close
+  -- guards use (20260711190000), so a legacy non-midnight value is judged by
+  -- the day every other guard sees, never by its time of day.
+  IF (NEW.entry_open_date AT TIME ZONE 'UTC')::date
+     > (NEW.entry_close_date AT TIME ZONE 'UTC')::date THEN
     RAISE EXCEPTION 'The entry window can''t close before it opens. Fix the entry dates, then publish.'
       USING ERRCODE = 'MK005';
   END IF;

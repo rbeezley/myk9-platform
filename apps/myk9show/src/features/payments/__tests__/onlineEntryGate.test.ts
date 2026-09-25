@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   canEnableOnlineEntries,
   isPublishGateDbError,
@@ -157,6 +157,30 @@ describe('entryWindowPublishError', () => {
     const open = new Date(2026, 9, 1, 20, 0).toISOString();
     const close = new Date(2026, 9, 1, 8, 0).toISOString();
     expect(entryWindowPublishError(open, close)).toBeNull();
+  });
+
+  // Every show write now stores the calendar day (ReplicatedShowsTable runs
+  // toLocalDateOnly like the online create), so the pill sees either the
+  // written date-only value or the server's midnight-UTC read-back. Both must
+  // decide the same way in every timezone, exactly as the trigger does.
+  describe.each(['America/Los_Angeles', 'Pacific/Auckland'])('with normalized values in %s', tz => {
+    const originalTimezone = process.env.TZ;
+    afterEach(() => {
+      if (originalTimezone) process.env.TZ = originalTimezone;
+      else delete process.env.TZ;
+    });
+
+    it('treats the written day and its midnight-UTC read-back as the same day', () => {
+      process.env.TZ = tz;
+      expect(entryWindowPublishError('2026-10-01', '2026-10-01T00:00:00+00:00')).toBeNull();
+      expect(entryWindowPublishError('2026-10-01T00:00:00+00:00', '2026-10-01')).toBeNull();
+      expect(entryWindowPublishError('2026-10-02', '2026-10-01T00:00:00+00:00')).toBe(
+        ENTRY_WINDOW_ORDER_MESSAGE
+      );
+      expect(entryWindowPublishError('2026-10-02T00:00:00+00:00', '2026-10-01')).toBe(
+        ENTRY_WINDOW_ORDER_MESSAGE
+      );
+    });
   });
 
   it('recognises the trigger refusal (MK005) as a publish-gate error with its own copy', () => {

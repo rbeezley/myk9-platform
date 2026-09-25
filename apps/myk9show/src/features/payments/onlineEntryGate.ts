@@ -85,11 +85,14 @@ function storedEntryDate(value: string | null | undefined): string | null {
 /**
  * Why this show's entry window cannot be published yet, or `null` when it can.
  * The trigger's rule, applied to the dates exactly as the save stores them:
- * each value becomes its calendar day via `toLocalDateOnly` (what
- * buildCreateShowPayload writes to `entry_open_date` / `entry_close_date`), a
- * missing or unreadable day is "required", and a close day before the open day
- * is "order". A same-day window is valid whatever its times (the close day is
- * inclusive), so no raw time is ever compared.
+ * each value becomes its calendar day via `toLocalDateOnly`, what every show
+ * write sends (buildCreateShowPayload, and ReplicatedShowsTable's writes), so a
+ * wizard draft's raw picker instant and a stored midnight-UTC row both resolve
+ * to the day the trigger compares. A missing or unreadable day is "required",
+ * and a close day before the open day is "order". A same-day window is valid
+ * whatever its times (the close day is inclusive), so no raw time is ever
+ * compared. For a legacy non-midnight stored value the trigger's UTC day is
+ * authoritative; if it disagrees, its MK005 reaches the same toast and link.
  */
 export function entryWindowPublishError(
   entryOpenDate: string | null | undefined,

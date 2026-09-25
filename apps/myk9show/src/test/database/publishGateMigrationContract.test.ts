@@ -97,6 +97,17 @@ describe('enforce_show_publish_gate migration text', () => {
     );
   });
 
+  // The window is compared as the UTC calendar day, the reading every
+  // entry-open/close guard uses, never as a raw timestamptz: a legacy
+  // non-midnight value must not invert a same-day window by its time of day.
+  it('compares the entry dates by UTC calendar day, never as raw timestamps', () => {
+    const sql = migrationSql();
+    const dayComparison =
+      /\(NEW\.entry_open_date AT TIME ZONE 'UTC'\)::date\s+>\s+\(NEW\.entry_close_date AT TIME ZONE 'UTC'\)::date/g;
+    expect(sql.match(dayComparison)).toHaveLength(2);
+    expect(sql).not.toMatch(/NEW\.entry_open_date\s*>\s*NEW\.entry_close_date/);
+  });
+
   it('raises the published-window refusal verbatim', () => {
     expect(migrationSql()).toContain(sqlEscaped(ENTRY_WINDOW_PUBLISHED_MESSAGE));
   });

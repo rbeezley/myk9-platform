@@ -120,3 +120,26 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
     }
   });
 });
+
+describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
+  it("colours the sticky nav's status text with the show's flag, not the default teal", () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <BannerLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryWindowNotOpen={false}
+      />
+    );
+
+    // jsdom resolves no custom properties, so pin both halves of the chain:
+    // the status text reads --bn-flag, and the page sets it to the club flag.
+    const status = container.querySelector<HTMLElement>('.bn-subbar-status');
+    expect(status?.style.color).toBe('var(--bn-flag)');
+    const scope = status?.closest<HTMLElement>('[data-banner]');
+    expect(scope?.style.getPropertyValue('--bn-flag')).toBe(baseData.brandColors.flag);
+    expect(baseData.brandColors.flag).not.toBe('#0d4d4f');
+  });
+});

@@ -64,6 +64,18 @@ describe('saveEntryEdits', () => {
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
   });
 
+  it('skips a row just Pulled in the same session (MYK9-652)', async () => {
+    // Edit the height, then Pull the same row, then Save: the dialog's
+    // handleConfirmPull writes status 'scratched', and the row has left the
+    // class exactly as a withdrawal has.
+    await saveEntryEdits({
+      classes,
+      classEdits: { 'entry-1': { jumpHeight: '12"', status: 'scratched' } },
+    });
+
+    expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
+  });
+
   it('turns a jump-height SQLSTATE into a sentence, not the raw Postgres text', async () => {
     mocks.updateEntryDetails.mockResolvedValue({
       error: {

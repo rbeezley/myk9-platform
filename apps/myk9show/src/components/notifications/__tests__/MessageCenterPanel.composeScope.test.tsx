@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent, within, waitFor } from '@testing-library/react';
-import { render } from '@/test/utils/testUtils';
+import { render, userEvent } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useAnnouncementStore as realAnnouncementStore } from '@/store/announcementStore';
@@ -80,25 +80,34 @@ vi.mock('@/store/showStore', async () => {
   };
 });
 
-vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
-  MessageShowComposer: ({
-    showId,
-    allowedRecipients,
-    showWideDeliveryLane,
-  }: {
-    showId: string;
-    allowedRecipients?: string[];
-    showWideDeliveryLane?: string;
-  }) => (
-    <div
-      data-testid="message-show-composer"
-      data-allowed-recipients={allowedRecipients?.join(',') ?? ''}
-      data-show-wide-lane={showWideDeliveryLane ?? ''}
-    >
-      Composer for {showId}
-    </div>
-  ),
-}));
+vi.mock('@/features/show-workbench/MessageShowComposer', async () => {
+  const { useState } = await import('react');
+  return {
+    MessageShowComposer: ({
+      showId,
+      allowedRecipients,
+      showWideDeliveryLane,
+    }: {
+      showId: string;
+      allowedRecipients?: string[];
+      showWideDeliveryLane?: string;
+    }) => {
+      // The real composer keeps its recipient choice in local state, so a stale
+      // instance carries a lane the next show does not allow (Codex, PR #2443).
+      const [mountedFor] = useState(showId);
+      return (
+        <div
+          data-testid="message-show-composer"
+          data-mounted-for={mountedFor}
+          data-allowed-recipients={allowedRecipients?.join(',') ?? ''}
+          data-show-wide-lane={showWideDeliveryLane ?? ''}
+        >
+          Composer for {showId}
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
   useMessageShowClassOptions: () => ({ data: [] }),
@@ -360,6 +369,36 @@ describe('secretary who also judges', () => {
     expect(judgedComposer).toHaveTextContent('Composer for blue-sky-weekend');
     expect(judgedComposer).toHaveAttribute('data-allowed-recipients', 'all_show');
     expect(judgedComposer).toHaveAttribute('data-show-wide-lane', 'announcement');
+  });
+
+  it('starts a fresh composer when switching from a managed show to a judged one', async () => {
+    authContext = staff(
+      ['secretary', 'judge'],
+      [{ scopeType: 'club', scopeId: HEARTLAND, roleId: 'secretary' }],
+      'person-judge'
+    );
+    judgeReads.getActiveJudgeAssignmentShows.mockResolvedValue([
+      { showId: 'blue-sky-weekend', firstTrialDate: '2026-10-10' },
+    ]);
+
+    const user = userEvent.setup();
+    const dialog = openCompose('/secretary/dashboard');
+    await user.click(await within(dialog).findByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Heartland Scent Work Classic' }));
+    const managed = await within(dialog).findByTestId('message-show-composer');
+    expect(managed).toHaveAttribute('data-allowed-recipients', 'all_show,class,checked_in');
+
+    await user.click(within(dialog).getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Blue Sky Scent Work Weekend' }));
+
+    await waitFor(() =>
+      expect(within(dialog).getByTestId('message-show-composer')).toHaveTextContent(
+        'Composer for blue-sky-weekend'
+      )
+    );
+    const judged = within(dialog).getByTestId('message-show-composer');
+    expect(judged).toHaveAttribute('data-mounted-for', 'blue-sky-weekend');
+    expect(judged).toHaveAttribute('data-allowed-recipients', 'all_show');
   });
 
   it('offers the union of managed and judged shows', async () => {

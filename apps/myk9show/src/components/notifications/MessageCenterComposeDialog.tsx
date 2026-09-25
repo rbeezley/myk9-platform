@@ -131,7 +131,10 @@ export function MessageCenterComposeDialog({
       );
     }
     return (
+      // Keyed by show: the composer keeps its recipient choice in local state, and a
+      // judged-only show allows fewer lanes than a managed one.
       <MessageShowComposer
+        key={selectedShowId}
         showId={selectedShowId}
         classes={classes}
         allowedRecipients={isJudgeLane ? JUDGE_RECIPIENTS : manageRecipients}

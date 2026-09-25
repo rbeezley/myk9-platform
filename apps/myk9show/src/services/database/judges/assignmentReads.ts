@@ -31,7 +31,13 @@ export interface JudgedShow {
  * only for an active row on the show.
  */
 export async function getActiveJudgeAssignmentShows(personId: string): Promise<JudgedShow[]> {
-  const assignments = await replicatedJudgeAssignmentsTable.getAll();
+  // getAll() turns a failed IndexedDB read into [], which would tell a judge
+  // they have no shows. A failed read throws so the caller shows an error.
+  const read = await replicatedJudgeAssignmentsTable.getAllWithStatus();
+  if (!read.ok) {
+    throw new Error(`Could not read judge assignments on this device: ${String(read.error)}`);
+  }
+  const assignments = read.rows;
   const byShow = new Map<string, string | null>();
   for (const assignment of assignments) {
     const { showId, trialDate } = assignment;

@@ -207,8 +207,10 @@ export function MessageCenterPanel() {
         : null;
   const composeEmptyMessage =
     judged.status === 'error'
-      ? "Couldn't check the shows you're judging. Try again when you're back online."
-      : 'There are no shows you can post to.';
+      ? "Couldn't check the shows you're judging. Try again in a moment."
+      : judged.status === 'unavailable'
+        ? "The shows you're judging aren't on this device yet. Connect to the internet to load them."
+        : 'There are no shows you can post to.';
   const totalUnread = notificationUnread + announcementUnread + messageUnread;
 
   function handleMarkAllRead() {

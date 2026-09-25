@@ -388,6 +388,42 @@ describe('judge: the shows they are assigned to judge (MYK9-722)', () => {
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  // Codex P2 on #2443 (round 4): offline no sync can run, so an empty cache
+  // with the table still idle is an answer, not an endless "still loading".
+  it('says the shows are not on this device yet when offline with nothing cached', async () => {
+    vi.stubGlobal('navigator', { ...navigator, onLine: false });
+    authContext = judge();
+    judgeTableStatus = 'idle';
+
+    const dialog = openCompose('/judge/dashboard');
+
+    expect(await within(dialog).findByText(/aren't on this device yet/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/still loading/i)).not.toBeInTheDocument();
+  });
+
+  it('still says loading while the first sync can arrive online', async () => {
+    authContext = judge();
+    judgeTableStatus = 'idle';
+
+    const dialog = openCompose('/judge/dashboard');
+
+    await waitFor(() => expect(judgeReads.getActiveJudgeAssignmentShows).toHaveBeenCalled());
+    expect(within(dialog).getByText(/loading the shows you're judging/i)).toBeInTheDocument();
+  });
+
+  // Codex P2 on #2443 (round 4): a failed device read is not "no shows".
+  it('reports a failed device read as an error, not as no shows', async () => {
+    authContext = judge();
+    judgeReads.getActiveJudgeAssignmentShows.mockRejectedValue(new Error('idb read failed'));
+
+    const dialog = openCompose('/judge/dashboard');
+
+    expect(
+      await within(dialog).findByText(/couldn't check the shows you're judging/i)
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/no shows you can post to/i)).not.toBeInTheDocument();
+  });
+
   it('says when a judge truly has no assignments to post to', async () => {
     authContext = judge();
 

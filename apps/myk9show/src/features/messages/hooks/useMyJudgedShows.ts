@@ -8,6 +8,7 @@ import {
   type JudgedShow,
 } from '@/services/database/judges';
 import { UserRole } from '@/types/auth-types';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 
 export interface MyJudgedShowsResult {
   /** Only meaningful when `status === 'known'`. */
@@ -18,10 +19,13 @@ export interface MyJudgedShowsResult {
    *   "not known", never "none": the person row has not resolved (offline cold
    *   boot keeps roles but not `databaseUserId`), the read has not completed, or
    *   the replicated table has not finished a first sync.
-   * - `error`: the table's sync failed and nothing is cached.
+   * - `unavailable`: offline with nothing on this device yet. No sync can run,
+   *   so this is an answer, not a wait (MYK9-365's offline-forever skeleton).
+   * - `error`: the table's sync failed with nothing cached, or the device read
+   *   itself failed.
    * - `known`: `shows` is authoritative, empty included.
    */
-  status: 'not-judge' | 'unknown' | 'error' | 'known';
+  status: 'not-judge' | 'unknown' | 'unavailable' | 'error' | 'known';
 }
 
 const EMPTY: JudgedShow[] = [];
@@ -70,7 +74,17 @@ export function useMyJudgedShows(enabled: boolean): MyJudgedShowsResult {
   const shows = query.data ?? EMPTY;
   if (personId && query.isError && query.data === undefined)
     return { shows: EMPTY, status: 'error' };
-  if (!personId || query.data === undefined) return { shows: EMPTY, status: 'unknown' };
+  // Identity unresolved: offline it cannot resolve, so say so instead of waiting.
+  if (!personId) return { shows: EMPTY, status: isOffline() ? 'unavailable' : 'unknown' };
+  if (query.data === undefined) return { shows: EMPTY, status: 'unknown' };
   if (shows.length > 0 || tableStatus === 'success') return { shows, status: 'known' };
-  return { shows: EMPTY, status: tableStatus === 'error' ? 'error' : 'unknown' };
+  if (tableStatus === 'error') return { shows: EMPTY, status: 'error' };
+  // The shared rule (MYK9-365): pending only while a sync can still arrive.
+  return areReplicationTablesPendingFirstSync(syncStatus, ['judge_assignments'])
+    ? { shows: EMPTY, status: 'unknown' }
+    : { shows: EMPTY, status: 'unavailable' };
+}
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
 }

@@ -72,15 +72,20 @@ test.describe('Show Wizard UI — Date timezone regression (secretary)', () => {
     const card = page.locator('[role="group"][aria-label*="day show"]').first();
     await expect(card).toBeVisible();
     const ariaLabel = (await card.getAttribute('aria-label')) ?? '';
-    // ariaLabel looks like "May 22, 2 day show" — pull "May 22".
+    // ariaLabel looks like "November 8, 3 day show" — pull "November 8".
     const blockLabel = ariaLabel.split(',')[0]?.trim();
     expect(blockLabel).toMatch(/^[A-Z][a-z]+ \d{1,2}$/);
 
-    // The descriptive label is sibling text; format produced by
-    // formatDateRange (e.g. "May 22–23"). Match the same month + start day.
-    const monthShort = blockLabel!.split(' ')[0];
+    // The descriptive label is sibling text from formatDateRange, which uses
+    // the SHORT month ("Nov 8–10") while the aria-label spells it out, so
+    // compare on the first three letters (MYK9-760).
+    const monthShort = blockLabel!.split(' ')[0]!.slice(0, 3);
     const startDay = blockLabel!.split(' ')[1];
-    const sameRow = card.locator('xpath=..').locator(`text=/${monthShort} ${startDay}/`);
+    // Scoped to the whole show card (the nearest ancestor holding its h3):
+    // the date circle's direct parent is only a small wrapper.
+    const sameRow = card
+      .locator('xpath=ancestor::*[.//h3][1]')
+      .getByText(new RegExp(`\\b${monthShort}[a-z]* ${startDay}\\b`));
     await expect(sameRow.first()).toBeVisible();
   });
 });
@@ -97,12 +102,15 @@ test.describe('Show Wizard UI — Add Trials mode (secretary)', () => {
   test('Add Trials lands on Step 2 with the show data preloaded', async ({ page }) => {
     await page.goto('/shows');
     await page.getByRole('tab', { name: /^Browse All/ }).click();
-    // Open the first show, capture its id from the URL.
-    await page.locator('h3').first().click();
-    await page.waitForURL(/\/shows\/[a-f0-9-]{36}/);
-    const showId = page.url().match(/\/shows\/([a-f0-9-]{36})/)![1]!;
+    // The first show's id, from its card's "View …" link (MYK9-760: the card
+    // heading itself is not the link any more).
+    const viewLink = page.getByRole('link', { name: /^View / }).first();
+    await expect(viewLink).toBeVisible({ timeout: 15000 });
+    const href = (await viewLink.getAttribute('href')) ?? '';
+    const showId = href.match(/\/shows\/([a-f0-9-]{36})/)?.[1];
+    expect(showId, `no show id in the first card's link: ${href}`).toBeTruthy();
 
-    await page.goto(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
+    await page.goto(`/secretary/create-show/wizard?showId=${showId!}&mode=add-trials`);
 
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
     await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();

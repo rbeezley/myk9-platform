@@ -1,5 +1,13 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -236,19 +244,27 @@ describe('measure, against real processes', () => {
 
   it('busy: an idle holder whose child is working elsewhere', async () => {
     const wt = tree();
+    // The spinning child's pid goes to a file OUTSIDE the tree, so cleanup can
+    // kill it even when measure() throws and returns no descendants.
+    const pidFile = join(mkdtempSync(join(tmpdir(), 'liveness-child-')), 'child.pid');
     const script = [
       "const { spawn } = require('child_process');",
-      "spawn(process.execPath, ['-e', 'for(;;){}'], { cwd: '/', stdio: 'ignore' });",
+      "const c = spawn(process.execPath, ['-e', 'for(;;){}'], { cwd: '/', stdio: 'ignore' });",
+      `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(c.pid));`,
       'setInterval(() => {}, 1000);',
     ].join('\n');
     const parent = start(wt, script);
-    await settle();
-    const got = measure(wt, 2);
     try {
+      await settle();
+      const got = measure(wt, 2);
       expect(got.verdict).toBe('busy');
       expect(got.descendants.length).toBeGreaterThanOrEqual(1);
     } finally {
-      for (const d of got.descendants) process.kill(d.pid, 'SIGKILL');
+      try {
+        process.kill(Number(readFileSync(pidFile, 'utf8')), 'SIGKILL');
+      } catch {
+        // no pid file (the parent never spawned) or the child already exited
+      }
       parent.kill('SIGKILL');
     }
   });

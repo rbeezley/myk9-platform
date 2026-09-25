@@ -86,9 +86,19 @@ function reservedTop(element: HTMLElement): number {
   );
 }
 
+/** On screen and not under the chrome. The GAP_PX of air the scroll margin
+ * adds is for placement only: a control inside it is not obscured. */
 function isClearOfChrome(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect();
-  return rect.top >= reservedTop(element) && rect.bottom <= window.innerHeight;
+  return rect.top >= reservedTop(element) - GAP_PX && rect.bottom <= window.innerHeight;
+}
+
+function isKeyboardFocus(element: HTMLElement): boolean {
+  try {
+    return element.matches(':focus-visible');
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -108,11 +118,13 @@ export function focusWithoutJump(element: HTMLElement): void {
  * The same guarantee for keyboard focus inside the wizard's form: after Tab
  * or Shift+Tab, a control the browser's own focus scroll left under the
  * chrome (or off screen) is re-revealed with a margin-honouring
- * `scrollIntoView`. Attach to the step content's `onFocus` (React's focus
- * event bubbles, like `focusin`).
+ * `scrollIntoView`. Keyboard focus only (`:focus-visible`): a click means the
+ * secretary could already see what they clicked, and nudging the page under
+ * their pointer — e.g. as a date picker opens — is its own surprise. Attach
+ * to the step content's `onFocus` (React's focus event bubbles).
  */
 export function revealFocusedBelowChrome(event: { target: EventTarget | null }): void {
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
+  if (!(target instanceof HTMLElement) || !isKeyboardFocus(target)) return;
   if (!isClearOfChrome(target)) target.scrollIntoView({ block: 'nearest' });
 }

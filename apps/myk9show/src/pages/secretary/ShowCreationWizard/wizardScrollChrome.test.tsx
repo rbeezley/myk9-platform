@@ -91,11 +91,30 @@ describe('wizard sticky chrome vs focus (MYK9-764)', () => {
   it('re-reveals a keyboard-focused control the browser left under the chrome', () => {
     document.documentElement.style.scrollPaddingTop = '48px';
     const under = mountInput({ top: 150, bottom: 190 }, '200px');
+    vi.spyOn(under.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
     revealFocusedBelowChrome({ target: under.input });
     expect(under.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
 
     const clear = mountInput({ top: 400, bottom: 440 }, '200px');
+    vi.spyOn(clear.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
     revealFocusedBelowChrome({ target: clear.input });
     expect(clear.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('leaves a clicked control where the secretary clicked it', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    const clicked = mountInput({ top: 150, bottom: 190 }, '200px');
+    vi.spyOn(clicked.input, 'matches').mockReturnValue(false); // not :focus-visible
+    revealFocusedBelowChrome({ target: clicked.input });
+    expect(clicked.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a control inside the placement gap as obscured', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    // Reserved 248px; 244 is inside the 8px gap below the chrome, not under it.
+    const inGap = mountInput({ top: 244, bottom: 284 }, '200px');
+    vi.spyOn(inGap.input, 'matches').mockImplementation(sel => sel === ':focus-visible');
+    revealFocusedBelowChrome({ target: inGap.input });
+    expect(inGap.scrollIntoView).not.toHaveBeenCalled();
   });
 });

@@ -157,7 +157,10 @@ CREATE POLICY show_payments_select ON public.show_payments
 -- record_enrollment_payment: the rules live ONCE, in the private core; the
 -- public RPC and submit_show_entries (20260925181939) each authorize, then call
 -- it. The core does no authorization of its own and is not callable through
--- PostgREST (private schema, no grants).
+-- PostgREST (private schema, no grants). IT TRUSTS ITS CALLER: every caller
+-- must pass an enrollment it has already authorized, deriving the show FROM
+-- the enrollment (record_enrollment_payment) or proving the enrollment is on
+-- the authorized show (submit_show_entries), never trusting a show argument.
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION private.record_enrollment_payment_core(

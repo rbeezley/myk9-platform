@@ -22,7 +22,9 @@
 -- Rebuilt from 20260918211700_myk9_642_day_of_show_entry_flag.sql, the LATEST
 -- migration defining this function (`grep -l "FUNCTION public.submit_show_entries"
 -- supabase/migrations/`). The only edits: the signature, the three v_* payment
--- variables, the p_payment validation after the payment-method guard, the
+-- variables, the enrollment-belongs-to-this-show check (for officials too;
+-- before this, an official could attach entries to another show's enrollment),
+-- the p_payment validation after the payment-method guard, the
 -- created-cents accumulator after the INSERT, and the payment block after the
 -- loop.
 -- =============================================================================
@@ -150,6 +152,21 @@ BEGIN
   IF NOT v_is_official AND v_exhibitor_profile_id IS NULL THEN
     RAISE EXCEPTION 'registration % does not belong to the caller', p_registration_id
       USING ERRCODE = '42501';
+  END IF;
+
+  -- MYK9-677 (Codex round 10). The check above ties the enrollment to this show
+  -- only for an exhibitor; an official of show A could pass an enrollment of
+  -- show B and have A's entries (and, with p_payment, money) written onto it.
+  -- Every write below touches this enrollment, so it must be THIS show's, for
+  -- everyone. Locked here, before any write, so it cannot move under us.
+  IF p_registration_id IS NOT NULL THEN
+    PERFORM 1 FROM public.enrollments en
+     WHERE en.id = p_registration_id AND en.show_id = p_show_id
+       FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'registration % is not an enrollment on show %', p_registration_id, p_show_id
+        USING ERRCODE = '42501';
+    END IF;
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext('entrysubmission:' || p_submission_id::text));

@@ -86,6 +86,16 @@ INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 VALUES ('00000000-0000-0000-0000-000000677a51', '00000000-0000-0000-0000-000000677a11',
         '00000000-0000-0000-0000-000000677a01', 'pending');
 
+-- Show B, another club's, with an enrollment the show-A secretary may not touch.
+INSERT INTO public.clubs (id, name)
+VALUES ('00000000-0000-0000-0000-000000677c10', 'MYK9-677 Other Club');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
+VALUES ('00000000-0000-0000-0000-000000677c11', 'MYK9-677 Other Show', 'UKC',
+        current_date + 30, current_date + 30, '00000000-0000-0000-0000-000000677c10');
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES ('00000000-0000-0000-0000-000000677c51', '00000000-0000-0000-0000-000000677c11',
+        '00000000-0000-0000-0000-000000677a01', 'pending');
+
 SET LOCAL ROLE authenticated;
 
 DO $$
@@ -198,6 +208,67 @@ BEGIN
       v_entry_status, v_rows, v_total, v_paid;
   END IF;
   RAISE NOTICE 'PASS with no payment the function records nothing and leaves the entry pending';
+END;
+$$;
+
+-- 6. an official of show A cannot write onto show B's enrollment (Codex round 10).
+DO $$
+DECLARE
+  v_total integer; v_paid numeric; v_status text; v_entries integer; v_rows integer; v_subs integer;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000677b02', true);
+
+  BEGIN
+    PERFORM public.submit_show_entries(
+      '00000000-0000-0000-0000-000000677a11', '00000000-0000-0000-0000-000000677c51',
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', '00000000-0000-0000-0000-000000677a41',
+        'class_id', '00000000-0000-0000-0000-000000677a32',
+        'handler_name', 'MYK9-677 Exhibitor', 'client_fee_cents', 3000)),
+      '00000000-0000-0000-0000-000000677a65', 'cash',
+      jsonb_build_object('method', 'cash'));
+    RAISE EXCEPTION 'FAIL a show-A secretary paid onto show B''s enrollment';
+  EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM NOT LIKE 'registration % is not an enrollment on show %' THEN RAISE; END IF;
+  END;
+
+  -- The same hole without a payment: entries of show A on show B's enrollment.
+  BEGIN
+    PERFORM public.submit_show_entries(
+      '00000000-0000-0000-0000-000000677a11', '00000000-0000-0000-0000-000000677c51',
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', '00000000-0000-0000-0000-000000677a41',
+        'class_id', '00000000-0000-0000-0000-000000677a32',
+        'handler_name', 'MYK9-677 Exhibitor', 'client_fee_cents', 3000)),
+      '00000000-0000-0000-0000-000000677a66', 'check');
+    RAISE EXCEPTION 'FAIL a show-A secretary attached entries to show B''s enrollment';
+  EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM NOT LIKE 'registration % is not an enrollment on show %' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677c51', 'payment', 10, 'cash', NULL, NULL, NULL);
+    RAISE EXCEPTION 'FAIL a show-A secretary recorded a payment on show B''s enrollment';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  -- Nothing was written anywhere.
+  SELECT total_amount, paid_amount, payment_status INTO v_total, v_paid, v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_entries FROM public.entries
+   WHERE registration_id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_subs FROM public.entry_submissions
+   WHERE id IN ('00000000-0000-0000-0000-000000677a65', '00000000-0000-0000-0000-000000677a66');
+  IF v_total IS NOT NULL OR v_paid <> 0 OR v_status <> 'pending'
+     OR v_entries <> 0 OR v_rows <> 0 OR v_subs <> 0 THEN
+    RAISE EXCEPTION 'FAIL show B''s enrollment changed: total %, paid %, status %, entries %, ledger %, submissions %',
+      v_total, v_paid, v_status, v_entries, v_rows, v_subs;
+  END IF;
+  RAISE NOTICE 'PASS a show-A secretary cannot touch show B''s enrollment: refused, nothing written';
 END;
 $$;
 

@@ -14,6 +14,7 @@ import {
   parseCpuTime,
   parseLsofFields,
   parsePsTable,
+  uniqueWrites,
   runCli,
 } from './worktree-liveness.ts';
 
@@ -90,6 +91,23 @@ describe('parseLsofFields', () => {
       { pid: 42, fd: '3', access: 'r', name: '/etc/hosts' },
       { pid: 43, fd: 'cwd', access: '', name: '/tmp' },
     ]);
+  });
+});
+
+describe('uniqueWrites', () => {
+  it('counts one write handle once when lsof repeats it per thread (Linux)', () => {
+    const repeated = Array.from({ length: 7 }, () => ({ pid: 14442, path: '/wt/a.log' }));
+    expect(uniqueWrites(repeated)).toEqual([{ pid: 14442, path: '/wt/a.log' }]);
+  });
+
+  it('keeps distinct processes and distinct files apart', () => {
+    const writes = [
+      { pid: 1, path: '/wt/a.log' },
+      { pid: 2, path: '/wt/a.log' },
+      { pid: 1, path: '/wt/b.log' },
+      { pid: 1, path: '/wt/a.log' },
+    ];
+    expect(uniqueWrites(writes)).toEqual(writes.slice(0, 3));
   });
 });
 

@@ -230,6 +230,23 @@ function cwdTable(): LsofFile[] {
  * listing that does not show it as a write handle is partial, so it throws
  * (exit 2) instead of letting a blind scan read as "no writers".
  */
+/**
+ * One entry per (pid, path). Linux lsof repeats a process's open files once
+ * per thread, so a node process holding one write handle is listed for each
+ * of its threads; macOS lists it once.
+ */
+export function uniqueWrites(
+  writes: readonly { pid: number; path: string }[]
+): { pid: number; path: string }[] {
+  const seen = new Set<string>();
+  return writes.filter(w => {
+    const key = `${w.pid}\0${w.path}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function writeScan(
   root: string,
   exclude: ReadonlySet<number>,
@@ -247,9 +264,11 @@ function writeScan(
     if (!writing.some(f => f.pid === process.pid && f.name === canary)) {
       throw new Error('lsof did not list this process writing its canary; cannot trust the scan');
     }
-    return writing
-      .filter(f => isUnder(f.name, root) && !exclude.has(f.pid))
-      .map(f => ({ pid: f.pid, path: f.name }));
+    return uniqueWrites(
+      writing
+        .filter(f => isUnder(f.name, root) && !exclude.has(f.pid))
+        .map(f => ({ pid: f.pid, path: f.name }))
+    );
   } finally {
     closeSync(fd);
     rmSync(canaryDir, { recursive: true, force: true });

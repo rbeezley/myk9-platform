@@ -92,25 +92,73 @@ describe('useAddTrialsExistingTrials (MYK9-758)', () => {
     expect(result.current.readStatus).toBe('ready');
   });
 
-  it('uses a scope synced on an earlier visit without waiting for the network', async () => {
+  it('falls back to a scope synced on an earlier visit when the sync stalls', async () => {
     table.meta = { expectedRemoteRows: 2 };
     table.rows = [{ id: 't1' }, { id: 't2' }];
-    table.sync.mockImplementation(() => new Promise(() => {})); // offline: never settles
+    table.sync.mockImplementation(() => new Promise(() => {})); // captive wifi: never settles
 
-    const { result } = renderHook(() => useAddTrialsExistingTrials('show-1'));
+    const { result } = renderHook(() => useAddTrialsExistingTrials('show-1', 20));
 
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(store.loadTrials).toHaveBeenCalled();
   });
 
-  it('treats a scope missing rows it expects as unknown', async () => {
-    table.meta = { expectedRemoteRows: 3 };
-    table.rows = [{ id: 't1' }];
+  it('online, syncs before trusting a count cached on an earlier visit', async () => {
+    // Cached when the show had no trials; it has since gained two.
+    table.meta = { expectedRemoteRows: 0 };
+    table.rows = [];
+    table.syncResult = { expectedRemoteRows: 2, rows: [{ id: 't1' }, { id: 't2' }] };
+    const coveredAtReload: number[] = [];
+    store.loadTrials.mockImplementation(async () => {
+      coveredAtReload.push(table.rows.length);
+    });
 
     const { result } = renderHook(() => useAddTrialsExistingTrials('show-1'));
 
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(table.sync).toHaveBeenCalledWith('show-1');
+    expect(coveredAtReload).toEqual([2]);
+  });
+
+  it('offline, uses the cached scope without trying the network', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    table.meta = { expectedRemoteRows: 1 };
+    table.rows = [{ id: 't1' }];
+    try {
+      const { result } = renderHook(() => useAddTrialsExistingTrials('show-1'));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      expect(table.sync).not.toHaveBeenCalled();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('ends a stalled first sync in an error with Retry, not an endless spinner', async () => {
+    table.sync.mockImplementation(() => new Promise(() => {}));
+
+    const { result } = renderHook(() => useAddTrialsExistingTrials('show-1', 20));
+
+    expect(result.current.readStatus).toBe('loading');
     await waitFor(() => expect(result.current.readStatus).toBe('error'));
+    expect(result.current.retry).toBeTypeOf('function');
+  });
+
+  it("never reports another show's result for the current one", async () => {
+    table.sync.mockImplementation(async (showId: string) => {
+      if (showId === 'show-b') return new Promise(() => {}); // B's sync stalls
+      table.meta = { expectedRemoteRows: 0 };
+      return { success: true };
+    });
+    const { result, rerender } = renderHook(({ id }) => useAddTrialsExistingTrials(id), {
+      initialProps: { id: 'show-a' },
+    });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    // Switching shows: A's "ready" is still in state, but it says nothing about B.
+    table.meta = null;
+    rerender({ id: 'show-b' });
     expect(result.current.ready).toBe(false);
+    expect(result.current.readStatus).toBe('loading');
   });
 
   it('stays unready until the store snapshot itself is confirmed', async () => {
@@ -134,13 +182,17 @@ describe('useAddTrialsExistingTrials (MYK9-758)', () => {
 
     const { result } = renderHook(() => useAddTrialsExistingTrials('show-1'));
 
-    expect(result.current.readStatus).toBe('error');
+    // Loading while the first attempt runs; the store error once it lands.
+    expect(result.current.readStatus).toBe('loading');
+    await waitFor(() => expect(result.current.readStatus).toBe('error'));
     expect(result.current.readError).toBe('Replicated trial read failed');
-    await waitFor(() => expect(store.loadTrials).toHaveBeenCalledTimes(1));
+    expect(store.loadTrials).toHaveBeenCalledTimes(1);
 
-    await act(async () => {
-      await result.current.retry?.();
+    act(() => {
+      void result.current.retry?.();
     });
+    // A retry reads as loading over the store error it may clear.
+    expect(result.current.readStatus).toBe('loading');
     await waitFor(() => expect(store.loadTrials).toHaveBeenCalledTimes(2));
   });
 

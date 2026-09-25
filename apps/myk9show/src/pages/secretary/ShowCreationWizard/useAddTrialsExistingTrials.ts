@@ -8,8 +8,10 @@
  * already had trials. Known here means: this show's trials scope has a
  * server-derived expected row count, the device holds at least that many rows
  * (the rule offline readiness uses), and the store has re-read the replica
- * since. A scope synced on an earlier visit counts, so the step still works
- * offline; a scope never synced stays unknown and reports an error to retry.
+ * since. Online it syncs first, so a count cached on an earlier visit cannot
+ * stand in for a show that has since gained trials; offline, or when the sync
+ * fails or stalls, the cached count still counts, so the step works offline.
+ * A scope never synced stays unknown and reports an error to retry.
  *
  * @module ShowCreationWizard/useAddTrialsExistingTrials
  */
@@ -19,6 +21,9 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { useTrialStore } from '@/store/trialStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { isTrialSnapshotReady } from '@/components/shows/wizard/steps/TrialConfigurationStep.helpers';
+
+/** A stalled network (venue wifi, captive portal) must end in Retry, not a spinner. */
+export const SCOPE_SYNC_TIMEOUT_MS = 12_000;
 
 const SCOPE_UNAVAILABLE =
   "We couldn't load this show's current trials. Check your connection, then try again.";
@@ -36,16 +41,30 @@ async function scopeCovered(showId: string): Promise<boolean> {
   return meta?.expectedRemoteRows !== undefined && rows.length >= meta.expectedRemoteRows;
 }
 
+/** Resolves when the sync settles or the timeout passes, whichever is first; never rejects. */
+function syncWithin(showId: string, timeoutMs: number): Promise<void> {
+  const sync = replicatedTrialsTable.sync(showId).then(
+    () => undefined,
+    () => undefined
+  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>(resolve => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+  return Promise.race([sync, timeout]).finally(() => clearTimeout(timer));
+}
+
 /** Make this show's trials known on the device, then have the store re-read them. */
-async function resolveScope(showId: string, reload: () => Promise<void>): Promise<ScopeResult> {
+async function resolveScope(
+  showId: string,
+  reload: () => Promise<void>,
+  timeoutMs: number
+): Promise<ScopeResult> {
   try {
-    if (await scopeCovered(showId)) {
-      // Known from an earlier visit: usable now (and offline); refresh quietly.
-      void replicatedTrialsTable.sync(showId);
-    } else {
-      await replicatedTrialsTable.sync(showId);
-      if (!(await scopeCovered(showId))) return { status: 'error', error: SCOPE_UNAVAILABLE };
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      await syncWithin(showId, timeoutMs);
     }
+    if (!(await scopeCovered(showId))) return { status: 'error', error: SCOPE_UNAVAILABLE };
     // Re-read the replica so the store holds the rows the scope now covers,
     // not a snapshot confirmed before they landed.
     await reload();
@@ -64,7 +83,10 @@ export interface AddTrialsExistingTrials {
 }
 
 /** @param showId the show being extended; undefined outside Add Trials mode. */
-export function useAddTrialsExistingTrials(showId: string | undefined): AddTrialsExistingTrials {
+export function useAddTrialsExistingTrials(
+  showId: string | undefined,
+  syncTimeoutMs = SCOPE_SYNC_TIMEOUT_MS
+): AddTrialsExistingTrials {
   const { trialsReadStatus, trialsReadError, trialsHasConfirmedSnapshot, loadTrials } =
     useTrialStore();
   const [scope, setScope] = useState<ScopeState | null>(null);
@@ -73,13 +95,13 @@ export function useAddTrialsExistingTrials(showId: string | undefined): AddTrial
   useEffect(() => {
     if (!showId) return;
     let live = true;
-    void resolveScope(showId, loadTrials).then(result => {
+    void resolveScope(showId, loadTrials, syncTimeoutMs).then(result => {
       if (live) setScope({ ...result, showId, attempt });
     });
     return () => {
       live = false;
     };
-  }, [showId, attempt, loadTrials]);
+  }, [showId, attempt, loadTrials, syncTimeoutMs]);
 
   const retry = useCallback(async () => {
     setAttempt(value => value + 1);
@@ -94,6 +116,10 @@ export function useAddTrialsExistingTrials(showId: string | undefined): AddTrial
   const ready =
     scopeStatus?.status === 'ready' &&
     isTrialSnapshotReady(trialsReadStatus, trialsHasConfirmedSnapshot);
+  // A retry in flight reads as loading, even over a store error it may clear.
+  if (!scopeStatus) {
+    return { ready: false, readStatus: 'loading', readError: null, retry };
+  }
   if (trialsReadStatus === 'error') {
     return { ready: false, readStatus: 'error', readError: trialsReadError, retry };
   }

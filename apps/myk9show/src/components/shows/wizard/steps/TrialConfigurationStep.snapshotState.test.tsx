@@ -103,6 +103,33 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     expect(screen.queryByRole('button', { name: 'Add First Trial' })).not.toBeInTheDocument();
   });
 
+  it('hides a partial local count while the current trials cannot be verified', () => {
+    renderTrialConfiguration(
+      [{ id: 'saved-trial', name: 'Scent Work Novice', trialDate: '2026-08-01' }],
+      {
+        existingTrialsReady: false,
+        existingTrialsReadStatus: 'error',
+        existingTrialsReadError: 'Read failed',
+        onRetryExistingTrials: vi.fn(),
+      }
+    );
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/existing trial/)).not.toBeInTheDocument();
+  });
+
+  it('says a single existing trial "exists"', () => {
+    renderTrialConfiguration(
+      [{ id: 'saved-trial', name: 'Scent Work Novice', trialDate: '2026-08-01' }],
+      {
+        existingTrialsReady: true,
+        existingTrialsReadStatus: 'ready',
+      }
+    );
+
+    expect(screen.getByText(/already exists\./)).toBeInTheDocument();
+  });
+
   it('wires Retry to the existing snapshot loader', async () => {
     const user = userEvent.setup();
     const retry = vi.fn();
@@ -129,6 +156,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     expect(screen.getAllByRole('button', { name: 'Add Trial' })[0]).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Add First Trial' })).not.toBeInTheDocument();
     expect(screen.queryByText('Schedule Your Trials')).not.toBeInTheDocument();
+    // One message while loading: the status line, no empty-state card.
+    expect(screen.getAllByRole('button', { name: 'Add Trial' })).toHaveLength(1);
   });
 
   it('re-enables Add Trial after a confirmed snapshot recovers', async () => {

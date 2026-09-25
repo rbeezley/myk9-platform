@@ -125,10 +125,13 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       page.getByLabel('Wizard progress').getByText('Step 2 of 4', { exact: true })
     ).toBeVisible();
 
-    // The seeded show already has trials, so once they load the action reads
-    // "Add Another Trial" (#2373). Until then it is a disabled "Add First
-    // Trial"; matching that label raced the load and failed whenever the
-    // trials arrived first (MYK9-755). Wait for the loaded, enabled action.
+    // The seeded show already has trials, so once they load the banner names
+    // them and the action reads "Add Another Trial" (#2373). Before that the
+    // action reads "Add First Trial", disabled or, on a cold local store,
+    // wrongly enabled (MYK9-758); matching that label raced the load (MYK9-755).
+    // Wait for the loaded state; the banner check also fails on the seed, not
+    // on a missing button, if the show ever has no trials.
+    await expect(page.getByText(/\d+ existing trials?/)).toBeVisible({ timeout: 15000 });
     const addTrialAction = page
       .getByRole('button', { name: 'Add Another Trial', exact: true })
       .first();

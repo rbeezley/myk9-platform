@@ -96,6 +96,55 @@ describe('read-shape helpers', () => {
       expect(result).toEqual({ data: [{ id: 'one' }, { id: 'two' }], error: null });
     });
 
+    it('keeps a queued local write over the server copy and a local-only create', async () => {
+      const result = await readWithReplicationFallback({
+        replication: async () => ({
+          data: [
+            { id: 'one', check_in_status: 'checked-in' },
+            { id: 'local-create', check_in_status: 'not-checked-in' },
+          ],
+          error: null,
+          scopeUnsynced: true,
+        }),
+        postgrest: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'one', check_in_status: 'not-checked-in' },
+            { id: 'two', check_in_status: 'not-checked-in' },
+          ],
+          error: null,
+        }),
+        table: 'entries',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({
+        data: [
+          { id: 'one', check_in_status: 'checked-in' },
+          { id: 'two', check_in_status: 'not-checked-in' },
+          { id: 'local-create', check_in_status: 'not-checked-in' },
+        ],
+        error: null,
+      });
+    });
+
+    it('keeps the local rows of a never-synced scope when the online read returns an error', async () => {
+      const result = await readWithReplicationFallback({
+        replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: true }),
+        postgrest: vi.fn().mockResolvedValue({
+          data: [],
+          error: Object.assign(new Error('upstream timeout'), { code: '57014' }),
+        }),
+        table: 'entries',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [{ id: 'one' }], error: null });
+    });
+
     it('fails a never-synced scope closed when verification is required and fails', async () => {
       const result = await readWithReplicationFallback({
         replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: true }),

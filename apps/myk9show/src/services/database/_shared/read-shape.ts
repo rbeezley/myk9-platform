@@ -138,16 +138,23 @@ export async function readWithReplicationFallback<T>({
   // Empty (or never-synced) local result: the scope may simply not have synced
   // (entries replicate per-show). Verify against the authoritative online read,
   // then drop any rows the local replica has already tombstoned so a stale
-  // server row can't resurrect a just-deleted entry. Swallow failures (offline, RLS edge case) —
-  // the safe default is the original replication result.
+  // server row can't resurrect a just-deleted entry, and keep every row the
+  // replica holds so a queued local write is not replaced by the server's older
+  // copy (MYK9-746). Swallow failures (offline, RLS edge case) — the safe
+  // default is the original replication result.
   try {
     const online = await postgrest();
-    if (online.error || !Array.isArray(online.data)) return online;
+    if (online.error || !Array.isArray(online.data)) {
+      // A never-synced scope still holds rows the user can act on; an online
+      // error must not hide them unless the caller requires verification.
+      if (scopeUnsynced && !errorOnOnlineVerificationFailure) return result;
+      return online;
+    }
     const deleted = new Set(locallyDeletedIds ?? []);
-    if (deleted.size === 0) return online;
     const idOf = rowId ?? defaultRowId;
     const kept = (online.data as unknown[]).filter(row => !deleted.has(idOf(row)));
-    return { data: kept as T, error: online.error };
+    const local = Array.isArray(result.data) ? (result.data as unknown[]) : [];
+    return { data: overlayLocalRows(kept, local, idOf) as T, error: online.error };
   } catch (error) {
     if (errorOnOnlineVerificationFailure) {
       return {
@@ -157,6 +164,24 @@ export async function readWithReplicationFallback<T>({
     }
     return result;
   }
+}
+
+/**
+ * Merge an authoritative online read with the rows the local replica holds for
+ * the same scope. Local rows win by id (a queued check-in or lifecycle edit is
+ * newer than the server's copy until it uploads) and local-only rows (a create
+ * not yet uploaded) are kept, after the online rows.
+ */
+export function overlayLocalRows<R>(
+  online: readonly R[],
+  local: readonly R[],
+  idOf: (row: R) => string
+): R[] {
+  if (local.length === 0) return [...online];
+  const localById = new Map(local.map(row => [idOf(row), row]));
+  const merged = online.map(row => localById.get(idOf(row)) ?? row);
+  const onlineIds = new Set(online.map(idOf));
+  return [...merged, ...local.filter(row => !onlineIds.has(idOf(row)))];
 }
 
 export async function loadLookupMap<T>(

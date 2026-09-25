@@ -813,10 +813,11 @@ describe('secretary entry read replication', () => {
 
     it('reports the scope as cold instead of returning the one entry as the whole show', async () => {
       mocks.syncEntries.mockResolvedValue({ success: false });
+      // The server has not seen the queued check-in yet.
       mockPostgrestEntriesRead([
-        { id: 'entry-checked-in', show_id: 'show-1' },
-        { id: 'entry-2', show_id: 'show-1' },
-        { id: 'entry-3', show_id: 'show-1' },
+        { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        { id: 'entry-3', show_id: 'show-1', check_in_status: 'not-checked-in' },
       ]);
 
       const result = await getEntriesForShow('show-1');
@@ -828,10 +829,10 @@ describe('secretary entry read replication', () => {
       );
       expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
       expect(result.error).toBeNull();
-      expect(result.data!.map(entry => entry.id)).toEqual([
-        'entry-checked-in',
-        'entry-2',
-        'entry-3',
+      expect(result.data!.map(entry => [entry.id, entry.check_in_status])).toEqual([
+        ['entry-checked-in', 'checked-in'],
+        ['entry-2', 'not-checked-in'],
+        ['entry-3', 'not-checked-in'],
       ]);
     });
 

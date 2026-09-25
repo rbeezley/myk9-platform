@@ -21,6 +21,8 @@ import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
+import { overlayLocalRows } from '../_shared/read-shape';
+import type { SecretaryEntry } from './secretaryTypes';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -68,9 +70,13 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
 
 export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
+  // Rows a never-synced show already holds locally (MYK9-746): a queued
+  // check-in or edit must survive the online fallback until it uploads.
+  let localRows: SecretaryEntry[] = [];
 
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
+    localRows = result.data;
     if (!result.isColdStore) {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
@@ -93,11 +99,12 @@ export const getEntriesForShow = async (showId: string) => {
   }
 
   try {
-    return await postgrestGetSecretaryEntriesForShow(
+    const online = await postgrestGetSecretaryEntriesForShow(
       showId,
       startTime,
       'get_entries_for_show_fallback'
     );
+    return { ...online, data: overlayLocalRows(online.data, localRows, entry => entry.id) };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');

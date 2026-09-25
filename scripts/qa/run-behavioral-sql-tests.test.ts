@@ -55,6 +55,7 @@ const launchCriticalSqlTests = [
   'club_membership_requests_test.sql',
   'myk9_727_role_request_review_lock_test.sql',
   'myk9_681_access_request_email_jobs_test.sql',
+  'myk9_737_class_results_push_test.sql',
   'club_members_own_row_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'null_club_show_authorization_test.sql',

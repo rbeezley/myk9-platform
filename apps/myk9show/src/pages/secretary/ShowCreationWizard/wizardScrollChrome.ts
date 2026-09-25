@@ -76,9 +76,9 @@ export function useWizardChromeHeight(stepsRef: RefObject<HTMLElement | null>): 
   }, [stepsRef]);
 }
 
-/** Top of the band a control must sit in to be clear of the chrome: the
- * document's scroll padding (app header) plus the control's own scroll margin
- * (the wizard chrome). */
+/** Where the scroll margin places a control's top: the document's scroll
+ * padding (app header) plus the control's own scroll margin (the wizard
+ * chrome, including GAP_PX of air). */
 function reservedTop(element: HTMLElement): number {
   return (
     (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) +
@@ -86,11 +86,12 @@ function reservedTop(element: HTMLElement): number {
   );
 }
 
-/** On screen and not under the chrome. The GAP_PX of air the scroll margin
- * adds is for placement only: a control inside it is not obscured. */
+/** On screen and not under the chrome. Half the placement gap is tolerated:
+ * enough that a control sitting in it is not re-scrolled, not so much that
+ * its focus ring could sit under the step indicator. */
 function isClearOfChrome(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect();
-  return rect.top >= reservedTop(element) - GAP_PX && rect.bottom <= window.innerHeight;
+  return rect.top >= reservedTop(element) - GAP_PX / 2 && rect.bottom <= window.innerHeight;
 }
 
 function isKeyboardFocus(element: HTMLElement): boolean {
@@ -118,13 +119,22 @@ export function focusWithoutJump(element: HTMLElement): void {
  * The same guarantee for keyboard focus inside the wizard's form: after Tab
  * or Shift+Tab, a control the browser's own focus scroll left under the
  * chrome (or off screen) is re-revealed with a margin-honouring
- * `scrollIntoView`. Keyboard focus only (`:focus-visible`): a click means the
- * secretary could already see what they clicked, and nudging the page under
- * their pointer — e.g. as a date picker opens — is its own surprise. Attach
- * to the step content's `onFocus` (React's focus event bubbles).
+ * `scrollIntoView`. Only for `:focus-visible` focus: a click on a button,
+ * trigger or checkbox means the secretary could already see it, and nudging
+ * the page under their pointer — e.g. as a date picker opens — is its own
+ * surprise. (Chromium counts a click into a text field as `:focus-visible`,
+ * so those are still revealed, which suits a field about to be typed in.)
+ * Attach to the step content's `onFocus`; React's focus event bubbles through
+ * portals too, so focus inside an overlay (a picker's dialog or listbox,
+ * rendered outside the form) is ignored.
  */
-export function revealFocusedBelowChrome(event: { target: EventTarget | null }): void {
+export function revealFocusedBelowChrome(event: {
+  target: EventTarget | null;
+  currentTarget?: EventTarget | null;
+}): void {
   const target = event.target;
   if (!(target instanceof HTMLElement) || !isKeyboardFocus(target)) return;
+  const form = event.currentTarget;
+  if (form instanceof Node && !form.contains(target)) return;
   if (!isClearOfChrome(target)) target.scrollIntoView({ block: 'nearest' });
 }

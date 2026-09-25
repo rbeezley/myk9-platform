@@ -26,10 +26,7 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
   const cartId = useCartStore(state => state.cart?.id ?? null);
   // Only the loaded cart's removals: a persisted notice from another show's
   // cart must never read as this cart's (Codex P2 on PR #2438).
-  const items = useMemo(
-    () => allItems.filter(item => item.cartId === cartId),
-    [allItems, cartId]
-  );
+  const items = useMemo(() => allItems.filter(item => item.cartId === cartId), [allItems, cartId]);
   const dismiss = useCartStore(state => state.dismissDroppedClosedClassItems);
 
   if (items.length === 0) return null;

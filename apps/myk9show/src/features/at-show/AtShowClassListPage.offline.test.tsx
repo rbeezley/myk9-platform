@@ -208,6 +208,45 @@ describe('AtShowClassListPage offline truthfulness', () => {
     expect(screen.queryByText(/has not assigned you to a class/)).not.toBeInTheDocument();
   });
 
+  describe('a judge whose device read of their assignments fails (MYK9-769)', () => {
+    const judgeSyncedStatus: ReplicationSyncContextValue['status'] = {
+      ...syncedStatus,
+      tablesStatus: { ...syncedStatus.tablesStatus, judge_assignments: 'success' },
+    };
+
+    function signInAsIdentifiedJudge() {
+      authState.hasRole = role => role === UserRole.JUDGE;
+      authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+      authState.user = { is_anonymous: false };
+    }
+
+    it('shows the load error, never "No classes assigned yet"', async () => {
+      signInAsIdentifiedJudge();
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockRejectedValue(
+        new Error('Could not read judge assignments on this device: IndexedDB read timed out')
+      );
+
+      renderPage(judgeSyncedStatus);
+
+      expect(
+        await screen.findByText("We couldn't load your judge assignments")
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    it('positive control: a read that succeeds empty does say "No classes assigned yet"', async () => {
+      signInAsIdentifiedJudge();
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockResolvedValue([]);
+
+      renderPage(judgeSyncedStatus);
+
+      expect(await screen.findByText(/No classes assigned yet/)).toBeInTheDocument();
+    });
+  });
+
   it('says the classes are not on this device rather than that the show has none', async () => {
     seedColdDevice();
     goOffline();

@@ -8,7 +8,10 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
-import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
+import {
+  getActiveJudgeAssignmentsForShow,
+  readJudgeAssignmentsOrThrow,
+} from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
@@ -111,7 +114,9 @@ async function gatherReadiness(
     // boot can leave useMyAtShowJudgeAssignments equally blind).
     const [assignmentsMeta, assignmentRows] = await Promise.all([
       replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
-      replicatedJudgeAssignmentsTable.getAll(),
+      // A failed device read throws (readiness unknown), never [] — with 0
+      // expected rows an empty read would claim "ready" (MYK9-769).
+      readJudgeAssignmentsOrThrow(),
     ]);
     if (judge.personId) {
       // Warm the filtered read the at-show surface uses, so a mismatch in that

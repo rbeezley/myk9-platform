@@ -32,7 +32,11 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     },
     entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
     shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
+    judgeAssignments: {
+      rows: [] as Array<{ id: string }>,
+      meta: null as unknown,
+      readFails: false,
+    },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async (..._args: unknown[]) => {}),
@@ -84,6 +88,10 @@ vi.mock('@/services/replication', () => ({
 
 vi.mock('@/services/database/judges/assignmentReads', () => ({
   getActiveJudgeAssignmentsForShow: vi.fn(async () => tables.judgeAssignments.rows),
+  readJudgeAssignmentsOrThrow: vi.fn(async () => {
+    if (tables.judgeAssignments.readFails) throw new Error('IndexedDB read timed out');
+    return tables.judgeAssignments.rows;
+  }),
 }));
 
 vi.mock('@/context/rbacPermissionsCache', () => ({
@@ -140,6 +148,7 @@ describe('useOfflineReadiness', () => {
     tables.shows.row = null;
     tables.judgeAssignments.rows = [];
     tables.judgeAssignments.meta = null;
+    tables.judgeAssignments.readFails = false;
     authState.userId = 'user-1';
     authState.isJudge = false;
     authState.isAnonymous = false;
@@ -364,6 +373,26 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  // MYK9-769: getAll() turned a failed device read into [], and with a table
+  // hydrated at 0 expected rows that read as "ready". The honest answer is
+  // unknown.
+  it('reports unknown, not ready, when the judge assignment read fails', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    tables.judgeAssignments.readFails = true;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    const { readJudgeAssignmentsOrThrow } =
+      await import('@/services/database/judges/assignmentReads');
+    // The probe must actually have run and settled, or `null` is just the
+    // initial state and this assertion proves nothing.
+    await waitFor(() => expect(readJudgeAssignmentsOrThrow).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.checking).toBe(false));
+    expect(result.current.readiness).toBeNull();
   });
 
   it('treats an evicted judge assignment scope as cold', async () => {

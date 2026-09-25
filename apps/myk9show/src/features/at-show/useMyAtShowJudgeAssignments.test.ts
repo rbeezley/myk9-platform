@@ -119,4 +119,21 @@ describe('useMyAtShowJudgeAssignments', () => {
 
     expect(getActiveJudgeAssignmentsForShow.mock.calls.length).toBe(callsAfterFirstLoad);
   });
+
+  // MYK9-769: a failed device read reaches the hook as a rejection. It must
+  // surface as `error` (the page's "We couldn't load your judge assignments"),
+  // not as a settled empty set, which the page renders as "No classes assigned".
+  it('surfaces a failed device read as an error, not an empty assignment set', async () => {
+    judgeTableStatus = 'success';
+    getActiveJudgeAssignmentsForShow.mockRejectedValue(
+      new Error('Could not read judge assignments on this device: IndexedDB read timed out')
+    );
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.error?.message).toMatch(/Could not read judge assignments/);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.assignedClassIds.size).toBe(0);
+  });
 });

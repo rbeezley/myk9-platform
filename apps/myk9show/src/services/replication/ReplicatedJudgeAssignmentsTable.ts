@@ -359,7 +359,16 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * the raw table.
    */
   async replaceShowLevelAssignments(showId: string, personIds: string[]): Promise<void> {
-    const existing = (await this.getByShowId(showId)).filter(a => a.classId === null);
+    // getByShowId() reads a failed device read as [], and a replace built on
+    // that deletes nothing and adds the new judges beside the old ones
+    // (MYK9-769). Abort the save instead; the caller reports it.
+    const read = await this.getAllWithStatus();
+    if (!read.ok) {
+      throw new Error(
+        `Could not read this show's judge assignments on this device; not replacing them: ${String(read.error)}`
+      );
+    }
+    const existing = read.rows.filter(a => a.showId === showId && a.classId === null);
     for (const row of existing) {
       await this.deleteAssignment(row.id);
     }

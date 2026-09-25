@@ -370,6 +370,23 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
 
       expect(await table.getByShowId('show-1')).toHaveLength(0);
     });
+
+    // MYK9-769: getByShowId() -> getAll() turns a failed device read into [],
+    // so the replace deleted nothing and then ADDED the new judges alongside
+    // the old ones: duplicate show judges. A failed read must abort the save.
+    it('refuses to replace when the existing rows cannot be read', async () => {
+      vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
+        ok: false,
+        rows: [],
+        error: new Error('IndexedDB read timed out'),
+      });
+      const create = vi.spyOn(table, 'createAssignment');
+
+      await expect(table.replaceShowLevelAssignments('show-1', ['judge-new-1'])).rejects.toThrow(
+        /Could not read this show's judge assignments/
+      );
+      expect(create).not.toHaveBeenCalled();
+    });
   });
 
   describe('replaceClassAssignment', () => {

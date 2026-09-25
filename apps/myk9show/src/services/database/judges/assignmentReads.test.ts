@@ -58,13 +58,62 @@ describe('active judge assignment reads', () => {
   // policy's judge arm asks only for a confirmed/invited row on the show.
   it('lists each show a judge holds an active assignment at, earliest trial first', async () => {
     mocks.getAll.mockResolvedValue([
-      { id: 'a', personId: 'judge-1', showId: 'later', classId: 'c1', status: 'confirmed', trialDate: '2026-11-07' },
-      { id: 'b', personId: 'judge-1', showId: 'sooner', classId: 'c2', status: 'invited', trialDate: '2026-10-11' },
-      { id: 'c', personId: 'judge-1', showId: 'sooner', classId: 'c3', status: 'confirmed', trialDate: '2026-10-10' },
-      { id: 'd', personId: 'judge-1', showId: 'show-level', classId: null, status: 'confirmed', trialDate: null },
-      { id: 'e', personId: 'judge-1', showId: 'declined', classId: 'c4', status: 'declined', trialDate: '2026-10-01' },
-      { id: 'f', personId: 'judge-2', showId: 'someone-else', classId: 'c5', status: 'confirmed', trialDate: '2026-10-01' },
-      { id: 'g', personId: 'judge-1', showId: null, classId: 'c6', status: 'confirmed', trialDate: '2026-10-01' },
+      {
+        id: 'a',
+        personId: 'judge-1',
+        showId: 'later',
+        classId: 'c1',
+        status: 'confirmed',
+        trialDate: '2026-11-07',
+      },
+      {
+        id: 'b',
+        personId: 'judge-1',
+        showId: 'sooner',
+        classId: 'c2',
+        status: 'invited',
+        trialDate: '2026-10-11',
+      },
+      {
+        id: 'c',
+        personId: 'judge-1',
+        showId: 'sooner',
+        classId: 'c3',
+        status: 'confirmed',
+        trialDate: '2026-10-10',
+      },
+      {
+        id: 'd',
+        personId: 'judge-1',
+        showId: 'show-level',
+        classId: null,
+        status: 'confirmed',
+        trialDate: null,
+      },
+      {
+        id: 'e',
+        personId: 'judge-1',
+        showId: 'declined',
+        classId: 'c4',
+        status: 'declined',
+        trialDate: '2026-10-01',
+      },
+      {
+        id: 'f',
+        personId: 'judge-2',
+        showId: 'someone-else',
+        classId: 'c5',
+        status: 'confirmed',
+        trialDate: '2026-10-01',
+      },
+      {
+        id: 'g',
+        personId: 'judge-1',
+        showId: null,
+        classId: 'c6',
+        status: 'confirmed',
+        trialDate: '2026-10-01',
+      },
     ]);
 
     await expect(getActiveJudgeAssignmentShows('judge-1')).resolves.toEqual([

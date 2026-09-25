@@ -378,12 +378,7 @@ export function MessageCenterPanel() {
       >
         {canComposeShowMessage && (
           <div className="flex gap-2 border-b border-border/50 p-3">
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1"
-              onClick={handleOpenCompose}
-            >
+            <Button variant="default" size="sm" className="flex-1" onClick={handleOpenCompose}>
               <Plus className="mr-1.5 h-4 w-4" />
               Compose
             </Button>

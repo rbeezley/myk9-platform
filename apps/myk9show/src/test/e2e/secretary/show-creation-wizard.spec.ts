@@ -125,8 +125,14 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       page.getByLabel('Wizard progress').getByText('Step 2 of 4', { exact: true })
     ).toBeVisible();
 
-    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
-    await expect(addTrialAction).toBeVisible();
+    // The seeded show already has trials, so once they load the action reads
+    // "Add Another Trial" (#2373). Until then it is a disabled "Add First
+    // Trial"; matching that label raced the load and failed whenever the
+    // trials arrived first (MYK9-755). Wait for the loaded, enabled action.
+    const addTrialAction = page
+      .getByRole('button', { name: 'Add Another Trial', exact: true })
+      .first();
+    await expect(addTrialAction).toBeEnabled({ timeout: 15000 });
     await addTrialAction.click();
 
     await expect(page.getByPlaceholder('Required: AKC event number')).toBeVisible();

@@ -370,6 +370,50 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
 
       expect(await table.getByShowId('show-1')).toHaveLength(0);
     });
+
+    // MYK9-769: getByShowId() -> getAll() turns a failed device read into [],
+    // so the replace deleted nothing and then ADDED the new judges alongside
+    // the old ones: duplicate show judges. A failed read must abort the save.
+    it('refuses to replace when the existing rows cannot be read', async () => {
+      vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
+        ok: false,
+        rows: [],
+        error: new Error('IndexedDB read timed out'),
+      });
+      const create = vi.spyOn(table, 'createAssignment');
+
+      await expect(table.replaceShowLevelAssignments('show-1', ['judge-new-1'])).rejects.toThrow(
+        /Could not read this show's judge assignments/
+      );
+      expect(create).not.toHaveBeenCalled();
+    });
+  });
+
+  // MYK9-769 (review): the class-level writes had the same swallowed read.
+  describe('class-level writes on a failed device read', () => {
+    beforeEach(() => {
+      vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
+        ok: false,
+        rows: [],
+        error: new Error('IndexedDB read timed out'),
+      });
+    });
+
+    it('replaceClassAssignment refuses rather than adding a second judge', async () => {
+      const create = vi.spyOn(table, 'createAssignment');
+      await expect(table.replaceClassAssignment('show-1', 'class-1', 'judge-2')).rejects.toThrow(
+        /Could not read this show's judge assignments/
+      );
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it('reassignClassAssignment fails instead of reporting a no-op success', async () => {
+      const update = vi.spyOn(table, 'updateAssignment');
+      await expect(
+        table.reassignClassAssignment('show-1', 'class-1', 'judge-1', 'judge-2')
+      ).rejects.toThrow(/Could not read this show's judge assignments/);
+      expect(update).not.toHaveBeenCalled();
+    });
   });
 
   describe('replaceClassAssignment', () => {

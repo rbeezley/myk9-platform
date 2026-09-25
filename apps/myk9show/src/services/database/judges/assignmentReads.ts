@@ -4,14 +4,32 @@ import {
 } from '@/services/replication';
 import { isActiveJudgeAssignmentStatus } from './assignmentStatus';
 
-/** Offline-only active class assignments for one judge at one show. */
+/**
+ * Every judge assignment on this device. getAll()/getByShowId() turn a failed
+ * IndexedDB read into [], which reads as "no assignments"; this throws instead,
+ * so callers reach their error state (MYK9-722, MYK9-769).
+ */
+export async function readJudgeAssignmentsOrThrow(): Promise<ReplicatedJudgeAssignment[]> {
+  const read = await replicatedJudgeAssignmentsTable.getAllWithStatus();
+  if (!read.ok) {
+    throw new Error(`Could not read judge assignments on this device: ${String(read.error)}`);
+  }
+  return read.rows;
+}
+
+/**
+ * Offline-only active class assignments for one judge at one show. A failed
+ * device read throws: the at-show class list would otherwise tell a judge at
+ * their ring "No classes assigned yet" (MYK9-769).
+ */
 export async function getActiveJudgeAssignmentsForShow(
   showId: string,
   personId: string
 ): Promise<ReplicatedJudgeAssignment[]> {
-  const assignments = await replicatedJudgeAssignmentsTable.getByShowId(showId);
+  const assignments = await readJudgeAssignmentsOrThrow();
   return assignments.filter(
     assignment =>
+      assignment.showId === showId &&
       assignment.personId === personId &&
       assignment.classId !== null &&
       isActiveJudgeAssignmentStatus(assignment.status)
@@ -31,13 +49,8 @@ export interface JudgedShow {
  * only for an active row on the show.
  */
 export async function getActiveJudgeAssignmentShows(personId: string): Promise<JudgedShow[]> {
-  // getAll() turns a failed IndexedDB read into [], which would tell a judge
-  // they have no shows. A failed read throws so the caller shows an error.
-  const read = await replicatedJudgeAssignmentsTable.getAllWithStatus();
-  if (!read.ok) {
-    throw new Error(`Could not read judge assignments on this device: ${String(read.error)}`);
-  }
-  const assignments = read.rows;
+  // A failed read throws so the caller shows an error, not "no shows".
+  const assignments = await readJudgeAssignmentsOrThrow();
   const byShow = new Map<string, string | null>();
   for (const assignment of assignments) {
     const { showId, trialDate } = assignment;

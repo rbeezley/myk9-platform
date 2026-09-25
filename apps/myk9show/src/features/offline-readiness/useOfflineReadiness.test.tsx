@@ -32,7 +32,11 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     },
     entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
     shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
+    judgeAssignments: {
+      rows: [] as Array<{ id: string }>,
+      meta: null as unknown,
+      readFails: false,
+    },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async (..._args: unknown[]) => {}),
@@ -84,6 +88,10 @@ vi.mock('@/services/replication', () => ({
 
 vi.mock('@/services/database/judges/assignmentReads', () => ({
   getActiveJudgeAssignmentsForShow: vi.fn(async () => tables.judgeAssignments.rows),
+  readJudgeAssignmentsOrThrow: vi.fn(async () => {
+    if (tables.judgeAssignments.readFails) throw new Error('IndexedDB read timed out');
+    return tables.judgeAssignments.rows;
+  }),
 }));
 
 vi.mock('@/context/rbacPermissionsCache', () => ({
@@ -140,6 +148,7 @@ describe('useOfflineReadiness', () => {
     tables.shows.row = null;
     tables.judgeAssignments.rows = [];
     tables.judgeAssignments.meta = null;
+    tables.judgeAssignments.readFails = false;
     authState.userId = 'user-1';
     authState.isJudge = false;
     authState.isAnonymous = false;
@@ -364,6 +373,41 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  // MYK9-769: getAll() turned a failed device read into [], and with a table
+  // hydrated at 0 expected rows that read as "ready". A failed read is not
+  // hydrated: the badge says "Not offline ready" and keeps its Save now.
+  it('is not ready, and names the judge assignments, when their read fails', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    tables.judgeAssignments.readFails = true;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
+  it('is not ready when the filtered warm read fails after a good table read', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    const { getActiveJudgeAssignmentsForShow } =
+      await import('@/services/database/judges/assignmentReads');
+    vi.mocked(getActiveJudgeAssignmentsForShow).mockRejectedValueOnce(
+      new Error('IndexedDB read timed out')
+    );
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
   it('treats an evicted judge assignment scope as cold', async () => {

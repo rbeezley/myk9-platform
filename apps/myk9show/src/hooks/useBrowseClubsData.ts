@@ -42,10 +42,14 @@ export function useBrowseClubsData(): BrowseClubsData {
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const shows = useShowStore(state => state.shows);
-  const { userWithRoles } = useAuthContext();
+  const guestVisibleClubIds = useClubStore(state => state.guestVisibleClubIds);
+  const { user, userWithRoles } = useAuthContext();
+  // Same principal rule as ReplicatedClubsTable.sync(): an anonymous
+  // (ringside passcode) session is a guest too.
+  const isGuest = !userWithRoles || user?.is_anonymous === true;
   const visibleClubs = useMemo(
-    () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles),
-    [clubs, userWithRoles?.roles]
+    () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles, { isGuest, guestVisibleClubIds }),
+    [clubs, userWithRoles?.roles, isGuest, guestVisibleClubIds]
   );
 
   const isLoading = readiness === 'loading' && clubs.length === 0;

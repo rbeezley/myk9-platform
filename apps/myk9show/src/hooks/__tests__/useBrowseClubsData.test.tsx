@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
   ensureClubsReady: vi.fn(),
   shows: [],
+  guestVisibleClubIds: null as ReadonlySet<string> | null,
 }));
 
 vi.mock('@/store/clubStore', () => ({
@@ -42,6 +43,7 @@ const club: Club = {
   accentColor: '',
   upcomingShows: [],
   pastShows: [],
+  authorizedAt: '2026-01-01T00:00:00Z',
 };
 
 describe('useBrowseClubsData readiness states', () => {
@@ -50,6 +52,30 @@ describe('useBrowseClubsData readiness states', () => {
     state.clubReadiness = 'loading';
     state.ensureClubsReady.mockReset();
     state.shows = [];
+    state.guestVisibleClubIds = null;
+  });
+
+  // MYK9-747: the signed-out directory reads the device-wide replica, which a
+  // guest sync never prunes. A club cached by an earlier signed-in session
+  // must not reach a signed-out visitor unless clubs_select grants it to anon.
+  it('omits a cached never-authorized club from a signed-out visitor', () => {
+    const unauthorized: Club = { ...club, id: 'club-2', name: 'Unauthorized', authorizedAt: null };
+    state.clubs = [club, unauthorized];
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']);
+    expect(result.current.filteredClubs.map(c => c.id)).toEqual(['club-1']);
+  });
+
+  it('omits a cached club the server no longer lists for a guest, despite a stale authorizedAt', () => {
+    const revoked: Club = { ...club, id: 'club-revoked', name: 'Revoked' };
+    state.clubs = [club, revoked];
+    state.guestVisibleClubIds = new Set(['club-1']);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']);
   });
 
   it('shows initial loading only when the cache is empty', () => {

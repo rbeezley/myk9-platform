@@ -912,6 +912,65 @@ describe('ReplicatedClubsTable', () => {
         expect(result.success).toBe(true);
         expect(reconcileSpy).not.toHaveBeenCalled();
       });
+
+      // MYK9-747: skipping the prune left no way to hide a revoked club from
+      // the guest directory. A guest sync records what the server lists for
+      // anon instead, WITHOUT touching the replica, and a signed-in sync
+      // clears it again.
+      it('records the guest-visible id set without pruning, and clears it on a signed-in sync', async () => {
+        await table.set('club-cached', {
+          id: 'club-cached',
+          name: 'Cached By A Secretary',
+          email: 'c@club.com',
+          phone: '1',
+        });
+        const { supabase } = await import('@/services/database/supabaseClient');
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: null },
+        } as never);
+        const fetchIdsSpy = vi
+          .spyOn(table, 'fetchVisibleClubIds')
+          .mockResolvedValue(new Set(['club-public']));
+        const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');
+        mockRemoteRows();
+
+        const result = await table.sync();
+
+        expect(result.success).toBe(true);
+        expect(fetchIdsSpy).toHaveBeenCalledTimes(1);
+        expect(reconcileSpy).not.toHaveBeenCalled();
+        expect(table.getGuestVisibleClubIds()).toEqual(new Set(['club-public']));
+        expect(await table.get('club-cached')).not.toBeNull();
+
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'u1' } } },
+        } as never);
+        reconcileSpy.mockResolvedValue(0);
+        mockRemoteRows();
+
+        await table.sync();
+
+        expect(table.getGuestVisibleClubIds()).toBeNull();
+      });
+
+      it('keeps the previous guest set when the id fetch fails', async () => {
+        const { supabase } = await import('@/services/database/supabaseClient');
+        vi.mocked(supabase.auth.getSession)
+          .mockResolvedValueOnce({ data: { session: null } } as never)
+          .mockResolvedValueOnce({ data: { session: null } } as never);
+        const fetchIdsSpy = vi
+          .spyOn(table, 'fetchVisibleClubIds')
+          .mockResolvedValueOnce(new Set(['club-public']))
+          .mockResolvedValueOnce(null);
+        mockRemoteRows();
+
+        await table.sync();
+        mockRemoteRows();
+        await table.sync();
+
+        expect(fetchIdsSpy).toHaveBeenCalledTimes(2);
+        expect(table.getGuestVisibleClubIds()).toEqual(new Set(['club-public']));
+      });
     });
 
     // MYK9-572 round 2 (P1-1): a visibility EXPANSION (a pruned club becomes

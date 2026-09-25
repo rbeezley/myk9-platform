@@ -196,6 +196,7 @@ vi.mock('@/store/showStore', () => ({
 
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
+  saveShowJudgeChanges: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({

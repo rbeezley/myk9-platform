@@ -316,18 +316,28 @@ const assignmentsTable = () => untypedFrom('judge_assignments');
 
 /**
  * Create the show-level judge assignments for a NEW show (the creation
- * wizard). Nothing exists yet, so this only adds. Writes are queued through
- * `ReplicatedJudgeAssignmentsTable` so they survive offline and sync later.
+ * wizard). Nothing exists yet, so this only creates, without reading first:
+ * a failed device read must not cost a brand-new show its judges. Writes are
+ * queued through `ReplicatedJudgeAssignmentsTable` so they survive offline.
  */
 export async function persistShowJudgeAssignments(
   showId: string,
   judges: Array<{ judgeId: string }>
 ): Promise<void> {
   try {
-    await replicatedJudgeAssignmentsTable.applyShowLevelJudgeChanges(showId, {
-      add: judges.map(j => j.judgeId),
-      remove: [],
-    });
+    for (const judgeId of new Set(judges.map(j => j.judgeId))) {
+      await replicatedJudgeAssignmentsTable.createAssignment({
+        personId: judgeId,
+        showId,
+        trialId: null,
+        classId: null,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: new Date().toISOString(),
+        fee: null,
+        notes: null,
+      });
+    }
   } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'persist_show_assignments');
   }

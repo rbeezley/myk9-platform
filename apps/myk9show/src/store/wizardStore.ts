@@ -40,6 +40,13 @@ interface WizardState {
   lastSaved: Date | null;
   cloneHydration: CloneHydrationState;
   cloneGeneration: number;
+  /**
+   * Edit mode only: the show-level judge ids the edit draft was BUILT from.
+   * The save writes the difference between this and `show.judgeIds`
+   * (MYK9-772), so a judge who arrived in the store after the draft was built
+   * is not "removed". Null outside edit mode (a new show only adds).
+   */
+  editBaselineJudgeIds: string[] | null;
 
   // Show data
   show: {
@@ -137,6 +144,7 @@ const initialState: WizardState = {
   lastSaved: null,
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
+  editBaselineJudgeIds: null,
   show: {
     name: '',
     organization: 'AKC',
@@ -376,6 +384,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         trials: state.trials,
         judgeAssignments: state.judgeAssignments,
         judgeDetails: state.judgeDetails,
+        // Persisted with the draft it describes, or a reloaded edit draft
+        // could only add judges and a removal would silently not save.
+        editBaselineJudgeIds: state.editBaselineJudgeIds,
       }),
       merge: (persisted, current) => {
         const state = ensureShowDefaults({

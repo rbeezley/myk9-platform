@@ -200,7 +200,7 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
       try {
         await expect(
           loadOfflineCapacityOverrides(SHOW_ID, [{ key: 'dog-new|class-1', classId: 'class-1' }])
-        ).rejects.toThrow(/Could not read judge assignments on this device/);
+        ).rejects.toThrow(/We couldn't check class capacity on this device/);
       } finally {
         state.judgeReadFails = false;
       }

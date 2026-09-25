@@ -152,7 +152,16 @@ export async function loadOfflineCapacityOverrides(
     replicatedTrialsTable.getTrialsByShow(showId),
     // A failed device read throws (MYK9-772): getByShowId() turned it into [],
     // which builds no judge-day keys and never counts a full judge-day as full.
-    readJudgeAssignmentsOrThrow().then(rows => rows.filter(a => a.showId === showId)),
+    readJudgeAssignmentsOrThrow().then(
+      rows => rows.filter(a => a.showId === showId),
+      () => {
+        // Plain language for the desk: the raw storage error means nothing
+        // to a secretary taking a late entry.
+        throw new Error(
+          "We couldn't check class capacity on this device. Reload the page and try again."
+        );
+      }
+    ),
     replicatedEntriesTable.getEntriesByShow(showId),
   ]);
 

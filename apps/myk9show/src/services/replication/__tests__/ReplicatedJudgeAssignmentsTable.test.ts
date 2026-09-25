@@ -343,6 +343,10 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
     it('adds without touching the judges it was not told to remove', async () => {
       await table.applyShowLevelJudgeChanges('show-1', { add: ['judge-c'], remove: [] });
       expect(await showLevelJudges()).toEqual(['judge-a', 'judge-b', 'judge-c']);
+      const added = (await table.getByShowId('show-1')).find(a => a.personId === 'judge-c');
+      expect(added).toEqual(
+        expect.objectContaining({ classId: null, trialId: null, status: 'confirmed' })
+      );
     });
 
     it('removes only the named judges, and never class-level rows', async () => {

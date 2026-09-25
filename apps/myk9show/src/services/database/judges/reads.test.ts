@@ -51,17 +51,23 @@ describe('persistShowJudgeAssignments (a new show)', () => {
     mocks.applyShowLevelJudgeChanges.mockResolvedValue(undefined);
   });
 
-  it('only adds: a new show has nothing to remove', async () => {
+  it('only creates confirmed show-level rows, without reading first', async () => {
     await persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }, { judgeId: 'judge-2' }]);
 
-    expect(mocks.applyShowLevelJudgeChanges).toHaveBeenCalledWith('show-1', {
-      add: ['judge-1', 'judge-2'],
-      remove: [],
-    });
+    expect(mocks.applyShowLevelJudgeChanges).not.toHaveBeenCalled();
+    expect(mocks.createAssignment).toHaveBeenCalledTimes(2);
+    expect(mocks.createAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        personId: 'judge-1',
+        showId: 'show-1',
+        classId: null,
+        status: 'confirmed',
+      })
+    );
   });
 
   it('wraps a write failure in a judge_assignments database error', async () => {
-    mocks.applyShowLevelJudgeChanges.mockRejectedValueOnce(new Error('offline queue full'));
+    mocks.createAssignment.mockRejectedValueOnce(new Error('offline queue full'));
 
     // MYK9-181: assert the table/operation `createDatabaseError` records on
     // the error, the format production emits.

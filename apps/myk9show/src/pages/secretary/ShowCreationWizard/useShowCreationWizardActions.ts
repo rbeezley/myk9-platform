@@ -281,12 +281,12 @@ export function useShowCreationWizardActions({
           trialView
         );
 
-        // The judge list this edit started from. Captured BEFORE updateShow,
-        // which writes the draft's assignedJudges into the store (MYK9-772).
-        const loadedJudges = editMode?.showId
-          ? (useShowStore.getState().shows.find(s => s.id === editMode.showId)?.assignedJudges ??
-            [])
-          : [];
+        // The judge list the edit draft was built from (MYK9-772): the save
+        // writes the difference from it. Not the live store, which can gain
+        // judges after the draft was built and would turn them into removals.
+        const loadedJudges = (useWizardStore.getState().editBaselineJudgeIds ?? []).map(
+          judgeId => ({ judgeId })
+        );
 
         // Save to show store and get the real DB UUID back
         let savedShow: Show;
@@ -341,8 +341,10 @@ export function useShowCreationWizardActions({
           judges: wizardShow.assignedJudges || [],
         });
         if (!judgesSaved) {
+          // Reload first: the store and query cache already hold the unsaved
+          // list, so re-saving without a reload would find nothing to change.
           notifications.warning(
-            'The show was saved, but its judges could not be updated. Open the show and save the judges again.'
+            'The show was saved, but its judges could not be updated. Reload the page, then open the show and save the judges again.'
           );
         }
 

@@ -371,13 +371,7 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     await page.goto(`/secretary/create-show/wizard?showId=${SEEDED_SHOW_ID}&mode=add-trials`);
     await page.waitForLoadState('networkidle');
 
-    const addFirst = page.getByRole('button', { name: 'Add First Trial' });
-    const addMore = page.getByRole('button', { name: /Add (First|Another) Trial/ });
-    if (await addFirst.isVisible().catch(() => false)) {
-      await addFirst.click();
-    } else {
-      await addMore.first().click();
-    }
+    await clickEnabledAddTrial(page);
 
     await page
       .getByLabel(/^Event Number/)
@@ -436,15 +430,7 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
     await page.goto(`/secretary/create-show/wizard?showId=${SEEDED_SHOW_ID}&mode=add-trials`);
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
 
-    // The empty state shows "Add First Trial"; once one trial exists the
-    // header swaps to "Add Trial". Either way, click whichever is visible.
-    const addFirst = page.getByRole('button', { name: 'Add First Trial' });
-    const addMore = page.getByRole('button', { name: /Add (First|Another) Trial/ });
-    if (await addFirst.isVisible().catch(() => false)) {
-      await addFirst.click();
-    } else {
-      await addMore.first().click();
-    }
+    await clickEnabledAddTrial(page);
 
     // Trial Type — required. The wizardStore's `addTrial` defaults it to
     // "Scent Work" for AKC orgs (`DEFAULT_TRIAL_TYPE` in `wizardStore.ts`),
@@ -510,3 +496,16 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
     expect(persisted!.show_id).toBe(SEEDED_SHOW_ID);
   });
 });
+
+/**
+ * The Step 2 action reads "Add First Trial" or "Add Another Trial" depending
+ * on whether the show has trials (#2373), and is disabled until they load.
+ * Wait for an enabled one, whichever label it has (MYK9-755).
+ */
+async function clickEnabledAddTrial(page: Page) {
+  const action = page
+    .getByRole('button', { name: /^Add (First|Another) Trial$/, disabled: false })
+    .first();
+  await expect(action).toBeVisible({ timeout: 15000 });
+  await action.click();
+}

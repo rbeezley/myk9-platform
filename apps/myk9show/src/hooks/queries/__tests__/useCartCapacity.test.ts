@@ -39,6 +39,20 @@ function makeExhibitorRlsEntriesQuery() {
   return chain;
 }
 
+/** Any read chain that resolves to `rows` (used for the confirmed judge assignments). */
+function makeRowsQuery(rows: unknown[]) {
+  const result = Promise.resolve({ data: rows, error: null });
+  const chain: Record<string, unknown> = {};
+  for (const method of ['select', 'in', 'is', 'eq']) {
+    chain[method] = vi.fn(() => Object.assign(result, chain));
+  }
+  return chain;
+}
+
+function assignment(classId: string, personId: string) {
+  return { class_id: classId, person_id: personId, trials: { date: '2026-10-10' } };
+}
+
 function classRow(id: string, maxEntries: number, allowWaitlist: boolean) {
   return {
     id,
@@ -176,6 +190,56 @@ describe('useCartCapacity', () => {
       result.current.fullClassIds
     );
     expect(view.fulfillmentByItemId).toEqual({ i1: 'payable', i2: 'waitlist', i3: 'blocked' });
+  });
+
+  it("counts a two-judge class against EVERY judge's day, not only the tightest one the server names", async () => {
+    // c-ab is judged by A and B; the server reports A (the tighter day, 5
+    // left). c-b is judged by B alone, whose day has 1 left. A dog in c-ab
+    // takes B's last spot too, so a dog in c-b must not look payable.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') {
+        return makeClassQuery([classRow('c-ab', 0, true), classRow('c-b', 0, true)]);
+      }
+      if (table === 'judge_assignments') {
+        return makeRowsQuery([
+          assignment('c-ab', 'judge-a'),
+          assignment('c-ab', 'judge-b'),
+          assignment('c-b', 'judge-b'),
+        ]);
+      }
+      return makeExhibitorRlsEntriesQuery();
+    });
+    mockRpc.mockResolvedValue({
+      data: [
+        availability('c-ab', { judge_id: 'judge-a', judge_day_available: 5 }),
+        availability('c-b', { judge_id: 'judge-b', judge_day_available: 1 }),
+      ],
+      error: null,
+    });
+
+    const result = await renderFor('show-1');
+
+    const days = result.current.judgeDays.map(day => ({
+      ...day,
+      classIds: [...day.classIds].sort(),
+    }));
+    expect(days).toEqual(
+      expect.arrayContaining([
+        { judgeId: 'judge-a', showDate: '2026-10-10', availableSpots: 5, classIds: ['c-ab'] },
+        {
+          judgeId: 'judge-b',
+          showDate: '2026-10-10',
+          availableSpots: 1,
+          classIds: ['c-ab', 'c-b'],
+        },
+      ])
+    );
+    const view = buildCartFulfillmentView(
+      [cartItem('i1', 'c-ab'), cartItem('i2', 'c-b')],
+      result.current.judgeDays,
+      result.current.fullClassIds
+    );
+    expect(view.fulfillmentByItemId).toEqual({ i1: 'payable', i2: 'waitlist' });
   });
 
   it('reports the read as failed, never as open, when the server returns no counts for a visible class', async () => {

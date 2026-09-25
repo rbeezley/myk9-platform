@@ -14,9 +14,14 @@
  *     self-service spots left, so several cart lines on one judge day are
  *     counted against what is left of it, not each against the whole.
  *
- * The server reports one judge per class: the one whose day is tightest. A
- * class with several confirmed judges is therefore counted against that day
- * only. This is advisory; `submit_show_entries` and the paid-entry path
+ * The server names ONE judge per class, the one whose day is tightest, but the
+ * entry-capacity gate checks every confirmed judge's day. The confirmed
+ * assignments restore the other associations, so a line in a two-judge class
+ * uses up a spot on BOTH days (Codex P1 on PR #2461). A day's spots are exact
+ * when some class names it as its tightest. When no class does, each class on
+ * it is bounded by a tighter day, and the largest of their figures is a lower
+ * bound: it can only hold a line back, never pass one the server refuses.
+ * All of this is advisory; `submit_show_entries` and the paid-entry path
  * enforce capacity under their own locks.
  */
 
@@ -28,30 +33,69 @@ export interface CartCapacityFacts {
   fullClassIds: string[];
 }
 
+/** A confirmed judge assignment: which judge's day a class runs on. */
+export interface CartJudgeAssignment {
+  classId: string;
+  judgeId: string;
+  date: string;
+}
+
+interface DayBucket {
+  judgeId: string;
+  showDate: string;
+  classIds: string[];
+  /** Spots when some class names this day as its tightest; exact. */
+  exact: number | null;
+  /** Largest figure among classes bounded by a tighter day; a lower bound. */
+  lowerBound: number;
+}
+
 export function cartCapacityFromAvailability(
-  classes: readonly ClassAvailability[]
+  classes: readonly ClassAvailability[],
+  assignments: readonly CartJudgeAssignment[] = []
 ): CartCapacityFacts {
   const fullClassIds: string[] = [];
-  const judgeDays = new Map<string, CartJudgeDayCapacity>();
+  const byId = new Map(classes.map(cls => [cls.classId, cls]));
+  const days = new Map<string, DayBucket>();
+
+  const bucket = (judgeId: string, showDate: string): DayBucket => {
+    const key = `${judgeId}:${showDate}`;
+    let day = days.get(key);
+    if (!day) {
+      day = { judgeId, showDate, classIds: [], exact: null, lowerBound: 0 };
+      days.set(key, day);
+    }
+    return day;
+  };
+
+  const associate = (cls: ClassAvailability, judgeId: string, showDate: string) => {
+    const day = bucket(judgeId, showDate);
+    if (day.classIds.includes(cls.classId)) return;
+    day.classIds.push(cls.classId);
+    if (cls.judgeId === judgeId) {
+      day.exact = Math.min(day.exact ?? cls.judgeDayAvailable, cls.judgeDayAvailable);
+    } else {
+      day.lowerBound = Math.max(day.lowerBound, cls.judgeDayAvailable);
+    }
+  };
 
   for (const cls of classes) {
     if (cls.isFull) fullClassIds.push(cls.classId);
-    if (!cls.judgeId) continue;
-
-    const key = `${cls.judgeId}:${cls.trialDate}`;
-    const day = judgeDays.get(key);
-    if (day) {
-      day.classIds.push(cls.classId);
-      day.availableSpots = Math.min(day.availableSpots, cls.judgeDayAvailable);
-    } else {
-      judgeDays.set(key, {
-        judgeId: cls.judgeId,
-        showDate: cls.trialDate,
-        availableSpots: cls.judgeDayAvailable,
-        classIds: [cls.classId],
-      });
-    }
+    if (cls.judgeId) associate(cls, cls.judgeId, cls.trialDate);
+  }
+  for (const assignment of assignments) {
+    const cls = byId.get(assignment.classId);
+    // A class the server reports no judge for has no judge-day limit there.
+    if (!cls?.judgeId) continue;
+    associate(cls, assignment.judgeId, assignment.date);
   }
 
-  return { judgeDays: Array.from(judgeDays.values()), fullClassIds };
+  const judgeDays = Array.from(days.values(), day => ({
+    judgeId: day.judgeId,
+    showDate: day.showDate,
+    availableSpots: day.exact ?? day.lowerBound,
+    classIds: day.classIds,
+  }));
+
+  return { judgeDays, fullClassIds };
 }

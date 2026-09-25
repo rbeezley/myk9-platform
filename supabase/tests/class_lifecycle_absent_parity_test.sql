@@ -2,7 +2,7 @@
 -- Run only via the disposable, fully migrated loopback SQL harness.
 BEGIN;
 ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push;
-ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_results_push;
+ALTER TABLE public.entries DISABLE TRIGGER trg_notify_entry_scoring_push;
 
 DO $$
 DECLARE

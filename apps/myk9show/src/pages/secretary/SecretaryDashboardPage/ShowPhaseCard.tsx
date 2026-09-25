@@ -37,7 +37,7 @@ function TodayCard({
           {liveClassCount} live · {notStartedCount} not started · {closedCount} closed
         </p>
       </div>
-      <Button asChild size="sm" className="shrink-0">
+      <Button asChild size="touch" className="shrink-0">
         <Link to={workbenchHref(show.id, 'show-day')}>
           <Play className="mr-1.5 h-3.5 w-3.5" />
           Go to show
@@ -86,7 +86,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
         </p>
       </div>
-      <Button asChild variant="outline" size="sm" className="shrink-0">
+      <Button asChild variant="outline" size="touch" className="shrink-0">
         <Link to={workbenchHref(show.id, 'setup')}>
           Manage
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -113,7 +113,7 @@ function DraftCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           Not visible to exhibitors until published
         </p>
       </div>
-      <Button asChild size="sm" className="shrink-0">
+      <Button asChild size="touch" className="shrink-0">
         <Link to={workbenchHref(show.id, 'setup')}>
           <Pencil className="mr-1.5 h-3.5 w-3.5" />
           Continue setup
@@ -132,7 +132,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
         </p>
       </div>
-      <Button asChild variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
+      <Button asChild variant="ghost" size="touch" className="shrink-0 text-muted-foreground">
         <Link to={workbenchHref(show.id, 'show-day')}>
           View
           <ArrowRight className="ml-1 h-3.5 w-3.5" />

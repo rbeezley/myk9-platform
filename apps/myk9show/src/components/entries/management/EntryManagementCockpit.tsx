@@ -222,7 +222,9 @@ export function EntryManagementCockpit({
               variant={cockpit.state.queue === queue.id ? 'secondary' : 'ghost'}
               disabled={Boolean(cockpit.state.search)}
               className={cn(
-                'min-h-11 shrink-0 gap-3',
+                // Not shrink-0: at 150% zoom on a phone the longest queue label
+                // overflowed the page; it wraps inside its own button instead.
+                'h-auto min-h-11 max-w-full gap-3 whitespace-normal text-left',
                 cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
               )}
               // F19: the active queue was signalled by colour alone. A show with one

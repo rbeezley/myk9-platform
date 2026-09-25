@@ -59,7 +59,11 @@ export const buttonVariants = cva(
       },
       size: {
         // Sizes matching myK9Q spacing tokens
-        default: 'h-10 px-6 py-2', // Comfortable touch target
+        // 44px: docs/INTENT.md § 3's floor. It was h-10 (40px) until MYK9-643,
+        // which measured every show-wizard control, the dashboard's primary
+        // actions and the Reports pickers at 40px because they all take this
+        // default.
+        default: 'h-11 px-6 py-2',
         // 32px, BELOW the 44px floor docs/INTENT.md § 3 sets for every role and
         // every screen. Permitted only in dense data grids and scoring surfaces
         // where a 44px control would genuinely break the layout, and never for a

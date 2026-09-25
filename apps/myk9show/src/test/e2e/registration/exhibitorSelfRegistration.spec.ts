@@ -4,6 +4,7 @@ import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
 import { RECOVERABLE_CART_LOOKUP_SELECT_PARAM } from '@/store/cartStore.pickCart.constants';
+import { expectNoHorizontalScroll } from '../shared/horizontalOverflow';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
@@ -19,9 +20,14 @@ interface CapturedWrites {
   cartItem?: Record<string, unknown>;
 }
 
-async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
-  let cart: Record<string, unknown> | null = null;
-  let cartItem: Record<string, unknown> | null = null;
+interface SeededCart {
+  cart: Record<string, unknown>;
+  cartItem: Record<string, unknown>;
+}
+
+async function preventSharedEntryWrites(page: Page, captured: CapturedWrites, seed?: SeededCart) {
+  let cart: Record<string, unknown> | null = seed?.cart ?? null;
+  let cartItem: Record<string, unknown> | null = seed?.cartItem ?? null;
   await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
   await page.route('**/functions/v1/**', route => route.abort());
   await page.route('**/rest/v1/entry_carts**', async route => {
@@ -323,4 +329,73 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   expect(captured.cartItem?.cart_id).toBe(MOCK_CART_ID);
   expect(typeof captured.cartItem?.entry_fee_cents).toBe('number');
   expect(captured.cartItem?.entry_fee_cents as number).toBeGreaterThan(0);
+});
+
+// MYK9-625: at 390x844 the header row did not wrap, so Clear Cart ran 25px
+// past the viewport and the page scrolled sideways. The cart is served from
+// route mocks, so this reaches /cart without the wizard walk above or any
+// shared-staging write.
+test('the cart fits a 390px phone with Clear Cart still reachable', async ({ page }) => {
+  // Real UUID shapes: the cart's reconciliation reads `entries` by these ids,
+  // and PostgREST rejects a non-UUID with a 400 that leaves the cart loading.
+  const MOCK_DOG_ID = '00000000-0000-4000-8000-00000000e2d1';
+  const MOCK_CLASS_ID = '00000000-0000-4000-8000-00000000e2c1';
+  const MOCK_TRIAL_ID = '00000000-0000-4000-8000-00000000e2a1';
+  const now = Date.now();
+  await preventSharedEntryWrites(
+    page,
+    {},
+    {
+      cart: {
+        id: MOCK_CART_ID,
+        exhibitor_id: 'e2e-mocked-exhibitor',
+        show_id: SHOW_ID,
+        status: 'active',
+        expires_at: new Date(now + 30 * 60 * 1000).toISOString(),
+        stripe_checkout_session_id: null,
+        subtotal_cents: 3500,
+        platform_fee_cents: 0,
+        total_cents: 3500,
+        created_at: new Date(now).toISOString(),
+        updated_at: new Date(now).toISOString(),
+        show: {
+          id: SHOW_ID,
+          name: 'E2E Online Entry Show',
+          start_date: null,
+          entry_close_date: null,
+        },
+      },
+      cartItem: {
+        id: 'e2e-mocked-cart-item',
+        cart_id: MOCK_CART_ID,
+        dog_id: MOCK_DOG_ID,
+        class_id: MOCK_CLASS_ID,
+        handler_id: null,
+        entry_id: null,
+        entry_fee_cents: 3500,
+        jump_height: null,
+        special_requests: null,
+        created_at: new Date(now).toISOString(),
+        dog: { id: MOCK_DOG_ID, name: 'E2E Mocked Dog', call_name: null, registrations: [] },
+        class: {
+          id: MOCK_CLASS_ID,
+          name: 'Container Novice',
+          level: 'Novice',
+          trial_id: MOCK_TRIAL_ID,
+          allow_waitlist: false,
+        },
+        handler: null,
+      },
+    }
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsExhibitor(page, '/cart');
+
+  const clearCart = page.getByRole('button', { name: 'Clear Cart' });
+  await expect(clearCart).toBeVisible({ timeout: 20000 });
+  await expectNoHorizontalScroll(page, '/cart at 390px');
+  const box = await clearCart.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x + box!.width, 'Clear Cart must sit inside the viewport').toBeLessThanOrEqual(390);
+  expect(box!.height).toBeGreaterThanOrEqual(44);
 });

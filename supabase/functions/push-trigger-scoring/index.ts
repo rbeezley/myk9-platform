@@ -13,12 +13,12 @@ import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import {
+  audienceRowsFromRpc,
   classifyPushResponse,
   parseLease,
   parseResultsPushPayload,
   runResultsPush,
   type ResultsPushDeps,
-  type ScoredEntryAudienceRow,
 } from './resultsPush.ts';
 
 interface WebhookPayload {
@@ -50,18 +50,14 @@ handle<WebhookPayload>(
         return parseLease(data);
       },
 
-      // Owner, co-owner and handler accounts of every scored entry in the class.
+      // Owner, co-owner and handler accounts of every announceable entry, from
+      // the same SQL predicate that made the class due.
       async readScoredEntries(classId) {
-        const { data, error } = await supabase
-          .from('entries')
-          .select(
-            'dog:dogs(call_name, owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), handler:people!handler_id(auth_user_id)'
-          )
-          .eq('class_id', classId)
-          .is('deleted_at', null)
-          .not('scoring_completed_at', 'is', null);
+        const { data, error } = await supabase.rpc('class_results_push_audience', {
+          p_class_id: classId,
+        });
         if (error) throw new Error(error.message);
-        return (data ?? []) as ScoredEntryAudienceRow[];
+        return audienceRowsFromRpc(data);
       },
 
       async sendPush(userId, payload) {

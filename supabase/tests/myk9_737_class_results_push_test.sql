@@ -24,6 +24,10 @@
 --      attempt; a fresh or leased row is left alone; after the fifth attempt
 --      the row becomes failed; a missing secret raises. The post helper
 --      records last_error instead of posting when the config is absent.
+--  7b. Nothing to announce yet: release before scoring queues nothing, the
+--      retry sweep queues it once an entry is scored (and re-queues after a
+--      'held' finish); only-scratched/absent classes never queue or alarm;
+--      the audience RPC applies the same predicate; the sweep is bounded.
 --   8. Health: class_results_push_health() names failed and 3+-attempt rows,
 --      and a pending row with no attempt for 20 minutes (stalled retry), but
 --      not a fresh one.
@@ -83,6 +87,8 @@ INSERT INTO public.show_visibility_settings
   (show_id, placement_timing, qualification_timing, time_timing, faults_timing)
 VALUES ('00000000-0000-0000-0000-000000737012', 'class_complete', 'immediate', 'class_complete', 'class_complete');
 
+-- status_source 'manual' keeps the class-status rollup from re-deriving the
+-- status as fixture entries are inserted: each arm moves its class itself.
 INSERT INTO public.classes (id, trial_id, name, status, is_scoring_finalized, results_released_at, deleted_at)
 VALUES
   -- A: default show, running.
@@ -99,10 +105,87 @@ VALUES
    'MYK9-737 D deleted', 'in_progress', false, NULL, now()),
   -- E: default show, running (health arm: a stalled first attempt).
   ('00000000-0000-0000-0000-0000007370e1', '00000000-0000-0000-0000-000000737003',
-   'MYK9-737 E stalled', 'in_progress', false, NULL, NULL);
+   'MYK9-737 E stalled', 'in_progress', false, NULL, NULL),
+  -- F: default show, released before any entry is scored.
+  ('00000000-0000-0000-0000-0000007370f1', '00000000-0000-0000-0000-000000737003',
+   'MYK9-737 F early release', 'in_progress', false, NULL, NULL),
+  -- G: default show, every entry scratched or absent.
+  ('00000000-0000-0000-0000-000000737091', '00000000-0000-0000-0000-000000737003',
+   'MYK9-737 G nothing to announce', 'in_progress', false, NULL, NULL);
+
+UPDATE public.classes SET status_source = 'manual'
+WHERE trial_id IN ('00000000-0000-0000-0000-000000737003', '00000000-0000-0000-0000-000000737013');
 
 INSERT INTO public.class_visibility_overrides (class_id, preset)
 VALUES ('00000000-0000-0000-0000-0000007370c1', 'review');
+
+-- Accounts for the audience arm. people.auth_user_id is not a foreign key.
+INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-00000073a0f1', 'Push', 'Owner', '00000000-0000-0000-0000-00000073a101'),
+  ('00000000-0000-0000-0000-00000073a0f2', 'Push', 'Handler', '00000000-0000-0000-0000-00000073a102');
+
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-00000073d001', 'MYK9-737 Rex', 'Rex', 'Beagle',
+        '00000000-0000-0000-0000-00000073a0f1');
+
+-- trg_entries_require_dog_registration: the dog needs an AKC number.
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-00000073d001', 'AKC (American Kennel Club)', 'SR737REX', true);
+
+-- Entries. A class is due only with an announceable result (scored, not
+-- scratched/withdrawn/absent/moved/not accepted), so A-E each get one; A also
+-- gets Rex (owner + handler accounts) and two entries that must NOT be
+-- announced; F starts unscored; G has only a scratch and a scored absence.
+INSERT INTO public.entries
+  (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, check_in_status,
+   is_scored, result_status, scoring_completed_at)
+VALUES
+  ('00000000-0000-0000-0000-00000073e0a1', NULL, '00000000-0000-0000-0000-0000007370a1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'completed', 'completed', true, 'qualified', now()),
+  ('00000000-0000-0000-0000-00000073e0a2', '00000000-0000-0000-0000-00000073d001',
+   '00000000-0000-0000-0000-0000007370a1', '00000000-0000-0000-0000-000000737002',
+   '00000000-0000-0000-0000-000000737003', '00000000-0000-0000-0000-00000073a0f2',
+   'completed', 'completed', true, 'nq', now()),
+  ('00000000-0000-0000-0000-00000073e0a3', NULL, '00000000-0000-0000-0000-0000007370a1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'scratched', 'no-status', false, 'pending', NULL),
+  ('00000000-0000-0000-0000-00000073e0a4', NULL, '00000000-0000-0000-0000-0000007370a1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'completed', 'completed', true, 'absent', now()),
+  ('00000000-0000-0000-0000-00000073e0b1', NULL, '00000000-0000-0000-0000-0000007370b1',
+   '00000000-0000-0000-0000-000000737012', '00000000-0000-0000-0000-000000737013', NULL,
+   'completed', 'completed', true, 'qualified', now()),
+  ('00000000-0000-0000-0000-00000073e0c1', NULL, '00000000-0000-0000-0000-0000007370c1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'completed', 'completed', true, 'qualified', now()),
+  ('00000000-0000-0000-0000-00000073e0d1', NULL, '00000000-0000-0000-0000-0000007370d1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'completed', 'completed', true, 'qualified', now()),
+  ('00000000-0000-0000-0000-00000073e0e1', NULL, '00000000-0000-0000-0000-0000007370e1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'completed', 'completed', true, 'qualified', now()),
+  ('00000000-0000-0000-0000-00000073e0f1', NULL, '00000000-0000-0000-0000-0000007370f1',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'checked-in', 'checked-in', false, 'pending', NULL),
+  ('00000000-0000-0000-0000-00000073e091', NULL, '00000000-0000-0000-0000-000000737091',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'scratched', 'no-status', false, 'pending', NULL),
+  ('00000000-0000-0000-0000-00000073e092', NULL, '00000000-0000-0000-0000-000000737091',
+   '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
+   'absent', 'no-status', true, 'absent', now());
+
+-- Inserting entries must not have moved any fixture class.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.classes
+             WHERE trial_id IN ('00000000-0000-0000-0000-000000737003', '00000000-0000-0000-0000-000000737013')
+               AND status <> 'in_progress') THEN
+    RAISE EXCEPTION 'FIXTURE the class-status rollup moved a fixture class';
+  END IF;
+END;
+$$;
 
 -- The fixture classes must start with no row and no post, or every arm below
 -- is vacuous.
@@ -113,7 +196,8 @@ BEGIN
     WHERE class_id IN (
       '00000000-0000-0000-0000-0000007370a1', '00000000-0000-0000-0000-0000007370b1',
       '00000000-0000-0000-0000-0000007370c1', '00000000-0000-0000-0000-0000007370d1',
-      '00000000-0000-0000-0000-0000007370e1'
+      '00000000-0000-0000-0000-0000007370e1', '00000000-0000-0000-0000-0000007370f1',
+      '00000000-0000-0000-0000-000000737091'
     )
   ) THEN
     RAISE EXCEPTION 'FIXTURE a fixture class already has a push row';
@@ -483,6 +567,153 @@ END;
 $$;
 
 -- ============================================================================
+-- 7b. Nothing to announce yet (Codex round 2): a class released before any
+--     entry is scored queues nothing; the retry's sweep queues it once an
+--     entry is scored. A class with only scratches and absences never queues.
+--     The audience is the same predicate. The sweep is bounded.
+-- ============================================================================
+
+DO $$
+DECLARE
+  v_token uuid;
+BEGIN
+  UPDATE public.classes SET status = 'completed', results_released_at = now()
+  WHERE id = '00000000-0000-0000-0000-0000007370f1';
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370f1')
+     OR pg_temp.posts_for('00000000-0000-0000-0000-0000007370f1') <> 0 THEN
+    RAISE EXCEPTION 'FAIL a class released before any entry was scored queued the push';
+  END IF;
+
+  -- Scoring touches entries, not classes: the trigger cannot see it.
+  UPDATE public.entries
+  SET scoring_completed_at = now(), is_scored = true, result_status = 'qualified',
+      entry_status = 'completed', check_in_status = 'completed'
+  WHERE id = '00000000-0000-0000-0000-00000073e0f1';
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370f1') THEN
+    RAISE EXCEPTION 'FIXTURE scoring an entry queued the push directly';
+  END IF;
+
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
+                 WHERE class_id = '00000000-0000-0000-0000-0000007370f1' AND status = 'pending' AND attempts = 1)
+     OR pg_temp.posts_for('00000000-0000-0000-0000-0000007370f1') <> 1 THEN
+    RAISE EXCEPTION 'FAIL the retry sweep did not queue and post the newly scored class';
+  END IF;
+
+  -- If the results vanish between the lease and the read, the edge function
+  -- finishes 'held': the row goes, and the sweep re-queues the class.
+  SET LOCAL ROLE service_role;
+  SELECT b.claim_token INTO v_token
+  FROM public.begin_class_results_push('00000000-0000-0000-0000-0000007370f1') b;
+  IF NOT public.finish_class_results_push('00000000-0000-0000-0000-0000007370f1', v_token, 'held', '{}', NULL) THEN
+    RAISE EXCEPTION 'FAIL finish(held) with the lease token returned false';
+  END IF;
+  RESET ROLE;
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370f1') THEN
+    RAISE EXCEPTION 'FAIL finish(held) did not delete the row';
+  END IF;
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
+                 WHERE class_id = '00000000-0000-0000-0000-0000007370f1' AND status = 'pending')
+     OR pg_temp.posts_for('00000000-0000-0000-0000-0000007370f1') <> 2 THEN
+    RAISE EXCEPTION 'FAIL the sweep did not re-queue a held class that is due again';
+  END IF;
+  RAISE NOTICE 'PASS release before scoring queues nothing; the sweep queues it once scored, and re-queues after a hold';
+END;
+$$;
+
+DO $$
+DECLARE
+  v_health jsonb;
+BEGIN
+  UPDATE public.classes SET status = 'completed', is_scoring_finalized = true, results_released_at = now()
+  WHERE id = '00000000-0000-0000-0000-000000737091';
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-000000737091')
+     OR pg_temp.posts_for('00000000-0000-0000-0000-000000737091') <> 0 THEN
+    RAISE EXCEPTION 'FAIL a class with only scratched and absent entries queued the push';
+  END IF;
+  SET LOCAL ROLE service_role;
+  v_health := public.class_results_push_health();
+  RESET ROLE;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_health -> 'sample') s
+             WHERE s ->> 'class_name' = 'MYK9-737 G nothing to announce') THEN
+    RAISE EXCEPTION 'FAIL health named a class with nothing to announce';
+  END IF;
+  RAISE NOTICE 'PASS a class with only scratches and absences never queues and never alarms';
+END;
+$$;
+
+DO $$
+DECLARE
+  v_rows integer;
+BEGIN
+  SET LOCAL ROLE service_role;
+  SELECT count(*) INTO v_rows
+  FROM public.class_results_push_audience('00000000-0000-0000-0000-0000007370a1');
+  IF v_rows <> 2 THEN
+    RAISE EXCEPTION 'FAIL the audience returned % rows for A, expected 2 (scratch and absence excluded)', v_rows;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.class_results_push_audience('00000000-0000-0000-0000-0000007370a1') a
+    WHERE a.dog_call_name = 'Rex'
+      AND a.owner_auth_user_id = '00000000-0000-0000-0000-00000073a101'
+      AND a.co_owner_auth_user_id IS NULL
+      AND a.handler_auth_user_id = '00000000-0000-0000-0000-00000073a102'
+  ) THEN
+    RAISE EXCEPTION 'FAIL the audience did not resolve Rex''s owner and handler accounts';
+  END IF;
+  RESET ROLE;
+  RAISE NOTICE 'PASS the audience is the announceable entries with their owner, co-owner and handler accounts';
+END;
+$$;
+
+DO $$
+BEGIN
+  -- Two classes that become due without the trigger seeing it (the
+  -- class-status rollup finalizes a class when its entries are scored, which
+  -- would fire the trigger, so it is off while they are set up). Their ids
+  -- sort before every other fixture class, and the CI database has no other
+  -- classes (db reset --no-seed).
+  ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_results_push;
+  INSERT INTO public.classes (id, trial_id, name, status, status_source)
+  VALUES
+    ('00000000-0000-0000-0000-000073710001', '00000000-0000-0000-0000-000000737003',
+     'MYK9-737 H1 sweep', 'completed', 'manual'),
+    ('00000000-0000-0000-0000-000073710002', '00000000-0000-0000-0000-000000737003',
+     'MYK9-737 H2 sweep', 'completed', 'manual');
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, scoring_completed_at)
+  VALUES
+    ('00000000-0000-0000-0000-000073710001', '00000000-0000-0000-0000-000000737002',
+     '00000000-0000-0000-0000-000000737003', 'completed', 'completed', true, 'qualified', now()),
+    ('00000000-0000-0000-0000-000073710002', '00000000-0000-0000-0000-000000737002',
+     '00000000-0000-0000-0000-000000737003', 'completed', 'completed', true, 'qualified', now());
+  ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_results_push;
+  IF EXISTS (SELECT 1 FROM private.class_results_push
+             WHERE class_id IN ('00000000-0000-0000-0000-000073710001', '00000000-0000-0000-0000-000073710002'))
+     OR NOT private.class_results_push_due('00000000-0000-0000-0000-000073710001')
+     OR NOT private.class_results_push_due('00000000-0000-0000-0000-000073710002') THEN
+    RAISE EXCEPTION 'FIXTURE the sweep classes must be due with no row';
+  END IF;
+
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret', 1);
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-000073710001')
+     OR EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-000073710002') THEN
+    RAISE EXCEPTION 'FAIL a sweep limited to 1 did not queue exactly the first due class';
+  END IF;
+
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-000073710002')
+     OR pg_temp.posts_for('00000000-0000-0000-0000-000073710001') <> 1
+     OR pg_temp.posts_for('00000000-0000-0000-0000-000073710002') <> 1 THEN
+    RAISE EXCEPTION 'FAIL the next sweep did not pick up the rest, once each';
+  END IF;
+  RAISE NOTICE 'PASS the sweep is bounded per run and the next run takes the rest';
+END;
+$$;
+
+-- ============================================================================
 -- 8. Health.
 -- ============================================================================
 
@@ -636,7 +867,8 @@ BEGIN
       'private.class_results_push_due(uuid)',
       'private.claim_class_results_push(uuid)',
       'private.post_class_results_push(uuid, text, text)',
-      'private.retry_class_results_push(text, text)',
+      'private.retry_class_results_push(text, text, integer)',
+      'private.class_results_push_announces(timestamptz, timestamptz, text, text)',
       'public.notify_class_results_push()'
     ] LOOP
       IF has_function_privilege(r, f, 'EXECUTE') THEN
@@ -649,7 +881,8 @@ BEGIN
     FOREACH f IN ARRAY ARRAY[
       'public.begin_class_results_push(uuid)',
       'public.finish_class_results_push(uuid, uuid, text, uuid[], text)',
-      'public.class_results_push_health()'
+      'public.class_results_push_health()',
+      'public.class_results_push_audience(uuid)'
     ] LOOP
       IF has_function_privilege(r, f, 'EXECUTE') THEN
         RAISE EXCEPTION 'FAIL % can execute %', r, f;
@@ -659,7 +892,8 @@ BEGIN
 
   IF NOT has_function_privilege('service_role', 'public.begin_class_results_push(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.finish_class_results_push(uuid, uuid, text, uuid[], text)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.class_results_push_health()', 'EXECUTE') THEN
+     OR NOT has_function_privilege('service_role', 'public.class_results_push_health()', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.class_results_push_audience(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL service_role cannot execute the edge-function RPCs';
   END IF;
   RAISE NOTICE 'PASS no client role reaches the push table or functions; service_role reaches only the RPCs';

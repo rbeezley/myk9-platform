@@ -99,12 +99,13 @@ export function classifyPushResponse(
 
 export interface ResultsPushDeps {
   begin(classId: string): Promise<ResultsPushLease>;
+  /** One row per announceable entry (public.class_results_push_audience). */
   readScoredEntries(classId: string): Promise<ScoredEntryAudienceRow[]>;
   sendPush(userId: string, payload: ResultsPushPayload): Promise<PushSendOutcome>;
   finish(
     classId: string,
     claimToken: string,
-    outcome: 'sent' | 'error',
+    outcome: 'sent' | 'error' | 'held',
     deliveredTo: string[],
     error: string | null
   ): Promise<void>;
@@ -143,6 +144,26 @@ export function parseLease(rows: unknown): ResultsPushLease {
     ? row.delivered_to.filter((id): id is string => typeof id === 'string')
     : [];
   return { outcome: 'leased', claimToken: row.claim_token, deliveredTo: delivered };
+}
+
+/**
+ * Maps public.class_results_push_audience rows (flat: dog_call_name,
+ * owner_/co_owner_/handler_auth_user_id) to the grouping input. Rows that are
+ * not objects are dropped; a row with no account still counts as a result.
+ */
+export function audienceRowsFromRpc(rows: unknown): ScoredEntryAudienceRow[] {
+  if (!Array.isArray(rows)) return [];
+  const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
+  return rows
+    .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+    .map(row => ({
+      dog: {
+        call_name: text(row.dog_call_name),
+        owner: { auth_user_id: text(row.owner_auth_user_id) },
+        co_owner: { auth_user_id: text(row.co_owner_auth_user_id) },
+      },
+      handler: { auth_user_id: text(row.handler_auth_user_id) },
+    }));
 }
 
 /** Auth user id → that person's scored dogs in the class, in entry order, once each. */
@@ -196,19 +217,29 @@ export async function runResultsPush(
   if (lease.outcome === 'held') return { status: 'results_held' };
 
   const alreadyDelivered = new Set(lease.deliveredTo);
-  let recipients: [string, string[]][];
+  let entries: ScoredEntryAudienceRow[];
   try {
-    const entries = await deps.readScoredEntries(target.classId);
-    recipients = [...groupResultsRecipients(entries)].filter(
-      ([userId]) => !alreadyDelivered.has(userId)
-    );
+    entries = await deps.readScoredEntries(target.classId);
   } catch (err) {
     const error = `audience resolution failed: ${errorMessage(err)}`;
     await deps.finish(target.classId, lease.claimToken, 'error', [], error);
     return { status: 'push_failed', failed: 0, recipients: 0, error };
   }
 
-  // Nothing (left) to send is success: every recipient has been reached.
+  // No announceable result at all (they went away after the lease): never
+  // spend the class's one push on nothing. 'held' deletes the row and the
+  // retry cron's sweep re-queues the class once it has results again.
+  if (entries.length === 0) {
+    await deps.finish(target.classId, lease.claimToken, 'held', [], null);
+    return { status: 'results_held' };
+  }
+
+  const recipients = [...groupResultsRecipients(entries)].filter(
+    ([userId]) => !alreadyDelivered.has(userId)
+  );
+
+  // Results exist but nobody is left to tell (all reached, or no accounts):
+  // success.
   if (recipients.length === 0) {
     await deps.finish(target.classId, lease.claimToken, 'sent', [], null);
     return alreadyDelivered.size > 0

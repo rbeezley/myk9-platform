@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  audienceRowsFromRpc,
   buildResultsPushPayload,
   classifyPushResponse,
   groupResultsRecipients,
@@ -27,7 +28,7 @@ const TWO_EXHIBITORS: ScoredEntryAudienceRow[] = [
 type Call =
   | ['begin', string]
   | ['send', string]
-  | ['finish', string, string, 'sent' | 'error', string[], string | null];
+  | ['finish', string, string, 'sent' | 'error' | 'held', string[], string | null];
 
 /** send-push-notification's real 200 bodies (see its index.ts). */
 const DELIVERED = { data: { sent: 1, expired: 0 }, error: null };
@@ -156,13 +157,29 @@ describe('runResultsPush', () => {
     expect(calls).toEqual([['begin', 'class-1']]);
   });
 
-  it('marks the class sent when it has no one to notify', async () => {
-    const { deps, calls } = fakeDeps({ entries: [] });
+  it('marks the class sent when it has results but no one with an account to tell', async () => {
+    const { deps, calls } = fakeDeps({
+      entries: [{ dog: { call_name: 'Rex', owner: { auth_user_id: null } }, handler: null }],
+    });
 
     await expect(runResultsPush(deps, TARGET)).resolves.toEqual({ status: 'no_users_to_notify' });
     expect(calls).toEqual([
       ['begin', 'class-1'],
       ['finish', 'class-1', 'tok-1', 'sent', [], null],
+    ]);
+  });
+
+  // Codex round 2: a class released before any dog was scored must not spend
+  // its one push on nothing. SQL keeps such a class from being due; if the
+  // results still vanish between the lease and the read, the row is held
+  // (deleted) so the sweep re-queues it, never marked sent.
+  it('holds, never sends, when there is no announceable result at read time', async () => {
+    const { deps, calls } = fakeDeps({ entries: [] });
+
+    await expect(runResultsPush(deps, TARGET)).resolves.toEqual({ status: 'results_held' });
+    expect(calls).toEqual([
+      ['begin', 'class-1'],
+      ['finish', 'class-1', 'tok-1', 'held', [], null],
     ]);
   });
 
@@ -256,6 +273,36 @@ describe('runResultsPush on real send-push-notification responses (Codex P1, rou
     expect(calls.filter(call => call[0] === 'finish')).toEqual([
       ['finish', 'class-1', 'tok-1', 'sent', ['u1', 'u2'], null],
     ]);
+  });
+});
+
+describe('audienceRowsFromRpc (class_results_push_audience rows)', () => {
+  it('maps the flat RPC row to the grouping input, keeping rows with no account', () => {
+    const rows = audienceRowsFromRpc([
+      {
+        dog_call_name: 'Rex',
+        owner_auth_user_id: 'u1',
+        co_owner_auth_user_id: null,
+        handler_auth_user_id: 'u2',
+      },
+      {
+        dog_call_name: null,
+        owner_auth_user_id: null,
+        co_owner_auth_user_id: null,
+        handler_auth_user_id: null,
+      },
+      null,
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(Object.fromEntries(groupResultsRecipients(rows))).toEqual({
+      u1: ['Rex'],
+      u2: ['Rex'],
+    });
+  });
+
+  it.each([[null], [{}], ['x']])('is empty for a non-array: %j', rows => {
+    expect(audienceRowsFromRpc(rows)).toEqual([]);
   });
 });
 

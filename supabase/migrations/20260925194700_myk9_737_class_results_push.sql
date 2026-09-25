@@ -48,6 +48,8 @@
 --     fires when the class completes or is scoring-finalized.
 --   * manual_release: completing or finalizing queues nothing (qualification
 --     is not visible yet); setting results_released_at does, and fires then.
+--   * Released (or completed) before any entry is scored: nothing until the
+--     first scored entry, then the next retry-cron sweep queues and posts it.
 --   * A class un-released (or soft-deleted) before the edge function runs:
 --     begin_class_results_push finds it no longer due and DELETES the pending
 --     row, so the next release queues a fresh push instead of the class being
@@ -67,10 +69,16 @@
 -- separately because an 'immediate' field is visible while the class is still
 -- running, and "Results Posted" must not fire when a class STARTS.
 --
--- Known limit: a secretary changing a class's visibility settings after it is
--- done (for example switching a held class to an open preset instead of
--- releasing it) changes visibility without touching classes, so no push fires
--- for that path.
+-- Nothing to announce yet: a class is due only once at least one entry has a
+-- result worth announcing (private.class_results_push_announces: live,
+-- scored, not scratched/withdrawn/absent/moved/not accepted). The Release
+-- Results action does not require scoring to be complete, so a class released
+-- before any dog is scored queues nothing; it becomes due when an entry is
+-- scored, which touches entries, not classes, so the trigger cannot see it.
+-- The retry cron's sweep does: every five minutes it queues recent classes
+-- (trial within 30 days) that are due and have no row, at most 50 per run.
+-- The same sweep covers a visibility setting loosened after a class finished.
+-- A class whose entries are all scratched or absent is never due.
 --
 -- Backfill: classes ALREADY done and visible when this migration runs are
 -- recorded as 'sent' (no replay): the old per-entry trigger announced them.
@@ -117,9 +125,40 @@ ALTER TABLE private.class_results_push ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE private.class_results_push FROM PUBLIC, anon, authenticated, service_role;
 
 -- ============================================================================
--- 2. The decision: done + qualification visible. Shared by the claim and the
---    backfill so the two cannot disagree.
+-- 2. The decision: done + qualification visible + something to announce.
+--    Shared by the claim, the backfill, the lease and the retry sweep so they
+--    cannot disagree.
 -- ============================================================================
+
+-- An entry whose result is worth announcing: live, scored, and not scratched,
+-- withdrawn, absent, moved or refused. The ONE predicate behind both "is
+-- there anything to announce" (class_results_push_due) and "who do we tell"
+-- (class_results_push_audience), so a class is never due with nobody to tell
+-- about it, or the reverse. A class released before any dog is scored is not
+-- due yet; the retry's sweep queues it once an entry is scored.
+-- Takes the four columns rather than the row type, so its GRANT/REVOKE lines
+-- never name the entries table (the anon-grant contract reads those).
+CREATE OR REPLACE FUNCTION private.class_results_push_announces(
+  p_deleted_at timestamptz,
+  p_scoring_completed_at timestamptz,
+  p_entry_status text,
+  p_result_status text
+)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT p_deleted_at IS NULL
+     AND p_scoring_completed_at IS NOT NULL
+     AND coalesce(p_entry_status, '') NOT IN ('withdrawn', 'scratched', 'absent', 'moved', 'not_accepted')
+     AND coalesce(p_result_status, '') NOT IN ('absent', 'withdrawn');
+$$;
+
+COMMENT ON FUNCTION private.class_results_push_announces(timestamptz, timestamptz, text, text) IS
+  'MYK9-737: an entry (deleted_at, scoring_completed_at, entry_status, result_status) has a result worth a "Results Posted" push: live, scored, not scratched/withdrawn/absent/moved/not accepted.';
+
+REVOKE ALL ON FUNCTION private.class_results_push_announces(timestamptz, timestamptz, text, text) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION private.class_results_push_due(p_class_id uuid)
 RETURNS boolean
@@ -152,6 +191,16 @@ BEGIN
     RETURN false;
   END IF;
 
+  -- Something to announce: without a scored entry there are no results yet,
+  -- and claiming now would spend the class's one push on nobody.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.entries e
+    WHERE e.class_id = p_class_id
+      AND private.class_results_push_announces(e.deleted_at, e.scoring_completed_at, e.entry_status, e.result_status)
+  ) THEN
+    RETURN false;
+  END IF;
+
   SELECT v.qualification_visible INTO v_visible
   FROM public.resolve_class_result_visibility(p_class_id) AS v;
 
@@ -160,7 +209,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION private.class_results_push_due(uuid) IS
-  'MYK9-737: true when the class is done (released, completed or scoring-finalized) and its qualification results are visible (public.resolve_class_result_visibility).';
+  'MYK9-737: true when the class is done (released, completed or scoring-finalized), has at least one entry private.class_results_push_announces, and its qualification results are visible (public.resolve_class_result_visibility).';
 
 REVOKE ALL ON FUNCTION private.class_results_push_due(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
@@ -354,7 +403,11 @@ GRANT EXECUTE ON FUNCTION public.begin_class_results_push(uuid) TO service_role;
 --   'sent'  -> status sent, sent_at now (the ONLY path to 'sent' after the
 --              backfill); p_error, if given, is kept as a note
 --   'error' -> stays pending, last_error recorded, lease released for the retry
--- delivered_to is merged in either way.
+--   'held'  -> the audience read found no announceable result after all (the
+--              results went away between the lease and the read): the row is
+--              deleted, and the retry's sweep re-queues the class once it is
+--              due again. Never 'sent' for a class with nothing to announce.
+-- delivered_to is merged in for 'sent' and 'error'.
 CREATE OR REPLACE FUNCTION public.finish_class_results_push(
   p_class_id uuid,
   p_claim_token uuid,
@@ -370,9 +423,18 @@ AS $$
 DECLARE
   v_found boolean;
 BEGIN
-  IF p_outcome IS NULL OR p_outcome NOT IN ('sent', 'error') THEN
+  IF p_outcome IS NULL OR p_outcome NOT IN ('sent', 'error', 'held') THEN
     RAISE EXCEPTION 'finish_class_results_push: unknown outcome %', p_outcome
       USING ERRCODE = '22023';
+  END IF;
+
+  IF p_outcome = 'held' THEN
+    DELETE FROM private.class_results_push AS p
+    WHERE p.class_id = p_class_id
+      AND p.claim_token = p_claim_token
+      AND p.status = 'pending';
+    v_found := FOUND;
+    RETURN v_found;
   END IF;
 
   UPDATE private.class_results_push AS p
@@ -397,10 +459,45 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.finish_class_results_push(uuid, uuid, text, uuid[], text) IS
-  'MYK9-737: push-trigger-scoring records a leased attempt''s outcome (sent / error). Conditional on the lease token and status pending.';
+  'MYK9-737: push-trigger-scoring records a leased attempt''s outcome (sent / error / held). Conditional on the lease token and status pending.';
 
 REVOKE ALL ON FUNCTION public.finish_class_results_push(uuid, uuid, text, uuid[], text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.finish_class_results_push(uuid, uuid, text, uuid[], text) TO service_role;
+
+-- Who to tell: the owner, co-owner and handler sign-in accounts of every entry
+-- private.class_results_push_announces, one row per entry. The same predicate
+-- as class_results_push_due, so "due" and "has results to announce" cannot
+-- disagree. No row at all = nothing to announce (the edge function then
+-- finishes 'held'); rows with no account = results exist but nobody can be
+-- told (it finishes 'sent').
+CREATE OR REPLACE FUNCTION public.class_results_push_audience(p_class_id uuid)
+RETURNS TABLE (
+  dog_call_name text,
+  owner_auth_user_id uuid,
+  co_owner_auth_user_id uuid,
+  handler_auth_user_id uuid
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT d.call_name, o.auth_user_id, co.auth_user_id, h.auth_user_id
+  FROM public.entries e
+  LEFT JOIN public.dogs d ON d.id = e.dog_id
+  LEFT JOIN public.people o ON o.id = d.owner_id
+  LEFT JOIN public.people co ON co.id = d.co_owner_id
+  LEFT JOIN public.people h ON h.id = e.handler_id
+  WHERE e.class_id = p_class_id
+    AND private.class_results_push_announces(e.deleted_at, e.scoring_completed_at, e.entry_status, e.result_status)
+  ORDER BY e.created_at, e.id;
+$$;
+
+COMMENT ON FUNCTION public.class_results_push_audience(uuid) IS
+  'MYK9-737: push-trigger-scoring''s recipients for a class: one row per announceable entry (private.class_results_push_announces). service_role only.';
+
+REVOKE ALL ON FUNCTION public.class_results_push_audience(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.class_results_push_audience(uuid) TO service_role;
 
 -- ============================================================================
 -- 6. The retry, and its cron.
@@ -409,10 +506,21 @@ GRANT EXECUTE ON FUNCTION public.finish_class_results_push(uuid, uuid, text, uui
 -- Credentials arrive as ARGUMENTS, read from Vault in the cron command, so
 -- list_cron_vault_secret_refs() / audit_cron_vault_secrets() can see which
 -- secrets this job depends on (the 20260822190000 / 20260925054100 pattern).
--- Returns how many classes it re-posted.
+--
+-- Two jobs per run:
+--   1. Retry: re-post stale, unleased pending rows; fail them after 5 attempts.
+--   2. Sweep: queue and post classes that became due WITHOUT a classes-column
+--      change, which the trigger cannot see: most often a class released
+--      before any dog was scored, whose first entry is scored later (also a
+--      visibility setting loosened after the class finished). Bounded: only
+--      classes whose trial is within the last 30 days, and at most
+--      p_sweep_limit (default 50) per run, oldest id first; the rest wait for
+--      the next run.
+-- Returns how many classes it posted.
 CREATE OR REPLACE FUNCTION private.retry_class_results_push(
   p_base_url text,
-  p_secret text
+  p_secret text,
+  p_sweep_limit integer DEFAULT 50
 )
 RETURNS integer
 LANGUAGE plpgsql
@@ -454,14 +562,37 @@ BEGIN
     v_posted := v_posted + 1;
   END LOOP;
 
+  -- The sweep. claim_class_results_push re-checks due and inserts with
+  -- ON CONFLICT DO NOTHING, so a class the trigger claims concurrently is
+  -- posted once.
+  FOR v_class_id IN
+    SELECT c.id
+    FROM public.classes c
+    JOIN public.trials t ON t.id = c.trial_id
+    WHERE c.deleted_at IS NULL
+      AND t.date >= current_date - 30
+      AND (c.results_released_at IS NOT NULL
+           OR lower(coalesce(c.status, '')) = 'completed'
+           OR c.is_scoring_finalized IS TRUE)
+      AND NOT EXISTS (SELECT 1 FROM private.class_results_push p WHERE p.class_id = c.id)
+      AND private.class_results_push_due(c.id)
+    ORDER BY c.id
+    LIMIT greatest(coalesce(p_sweep_limit, 50), 0)
+  LOOP
+    IF private.claim_class_results_push(v_class_id) THEN
+      PERFORM private.post_class_results_push(v_class_id, p_base_url, p_secret);
+      v_posted := v_posted + 1;
+    END IF;
+  END LOOP;
+
   RETURN v_posted;
 END;
 $$;
 
-COMMENT ON FUNCTION private.retry_class_results_push(text, text) IS
-  'MYK9-737: cron entry point. Re-posts stale, unleased pending "Results Posted" rows; marks a row failed after 5 attempts.';
+COMMENT ON FUNCTION private.retry_class_results_push(text, text, integer) IS
+  'MYK9-737: cron entry point. Re-posts stale, unleased pending "Results Posted" rows (failed after 5 attempts), and queues up to p_sweep_limit recent classes that became due without a classes update.';
 
-REVOKE ALL ON FUNCTION private.retry_class_results_push(text, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.retry_class_results_push(text, text, integer) FROM PUBLIC, anon, authenticated, service_role;
 
 SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'class-results-push-retry';
 

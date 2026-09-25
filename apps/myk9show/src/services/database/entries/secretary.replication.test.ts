@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getEntryById: vi.fn(),
   getEntriesByShow: vi.fn(),
   getEntriesSyncMetadata: vi.fn(),
+  getReplicatedRow: vi.fn(),
   syncEntries: vi.fn(),
   syncClasses: vi.fn(),
   syncTrials: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     getEntryById: mocks.getEntryById,
     getEntriesByShow: mocks.getEntriesByShow,
     getSyncMetadata: mocks.getEntriesSyncMetadata,
+    getReplicatedRow: mocks.getReplicatedRow,
     sync: mocks.syncEntries,
   },
 }));
@@ -811,13 +813,25 @@ describe('secretary entry read replication', () => {
       mocks.getArmbandsByShow.mockResolvedValue([]);
     });
 
-    it('reports the scope as cold instead of returning the one entry as the whole show', async () => {
+    /** The replica's row state: `dirtyIds` hold a write not yet uploaded. */
+    function mockRowState(dirtyIds: string[]) {
+      mocks.getReplicatedRow.mockImplementation(async (id: string) => ({
+        id,
+        isDirty: dirtyIds.includes(id),
+      }));
+    }
+
+    const RETRY_STATE = expect.objectContaining({
+      message: "We couldn't load entries for this show. Please retry.",
+    });
+
+    it('shows the retry state, not a server list, while the check-in is unsaved', async () => {
+      mockRowState(['entry-checked-in']);
       mocks.syncEntries.mockResolvedValue({ success: false });
       // The server has not seen the queued check-in yet.
       mockPostgrestEntriesRead([
         { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
         { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
-        { id: 'entry-3', show_id: 'show-1', check_in_status: 'not-checked-in' },
       ]);
 
       const result = await getEntriesForShow('show-1');
@@ -828,15 +842,73 @@ describe('secretary entry read replication', () => {
         { showId: 'show-1', operation: 'get_entries_for_show' }
       );
       expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('shows the retry state rather than resurrecting a queued deletion', async () => {
+      mockRowState(['entry-deleted']);
+      mocks.getEntriesByShow.mockResolvedValue([
+        { ...LOCAL_CHECK_IN, id: 'entry-clean' },
+        { ...LOCAL_CHECK_IN, id: 'entry-deleted', deletedAt: '2026-06-01T12:00:00.000Z' },
+      ]);
+      mocks.syncEntries.mockResolvedValue({ success: false });
+      // The server has not seen the delete, so it still returns the entry live.
+      mockPostgrestEntriesRead([
+        { id: 'entry-clean', show_id: 'show-1' },
+        { id: 'entry-deleted', show_id: 'show-1' },
+      ]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('re-reads the replica after a partial hydration and waits while a write is still unsaved', async () => {
+      // Before hydration the check-in looks saved; the entries sync then fails
+      // to upload it (still dirty) and the trial sync fails, so hydration
+      // returns nothing. The pre-sync snapshot must not decide.
+      mockRowState([]);
+      mocks.syncEntries.mockImplementation(async () => {
+        mockRowState(['entry-checked-in']);
+        return { success: true };
+      });
+      mocks.syncTrials.mockResolvedValue({ success: false });
+      mockPostgrestEntriesRead([{ id: 'entry-checked-in', show_id: 'show-1' }]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('after a partial hydration with nothing unsaved, shows the server list verbatim', async () => {
+      // The check-in uploaded during the entries sync and another device then
+      // undid it: the server value is newer than this device's pre-sync row.
+      mockRowState(['entry-checked-in']);
+      mocks.syncEntries.mockImplementation(async () => {
+        mockRowState([]);
+        return { success: true };
+      });
+      mocks.syncTrials.mockResolvedValue({ success: false });
+      mockPostgrestEntriesRead([
+        { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
+      ]);
+
+      const result = await getEntriesForShow('show-1');
+
       expect(result.error).toBeNull();
       expect(result.data!.map(entry => [entry.id, entry.check_in_status])).toEqual([
-        ['entry-checked-in', 'checked-in'],
+        ['entry-checked-in', 'not-checked-in'],
         ['entry-2', 'not-checked-in'],
-        ['entry-3', 'not-checked-in'],
       ]);
     });
 
     it('surfaces an error offline rather than a one-entry list presented as complete', async () => {
+      mockRowState([]);
       mocks.syncEntries.mockResolvedValue({ success: false });
       const query = mockPostgrestEntriesRead([]);
       query.order.mockRejectedValueOnce(new TypeError('Failed to fetch'));

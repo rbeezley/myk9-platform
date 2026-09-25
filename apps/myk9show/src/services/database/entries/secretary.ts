@@ -21,8 +21,7 @@ import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
-import { overlayLocalRows } from '../_shared/read-shape';
-import type { SecretaryEntry } from './secretaryTypes';
+import { hasUnsavedLocalEntryWrites } from '@/services/replication/entriesShowSyncState';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -70,13 +69,9 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
 
 export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
-  // Rows a never-synced show already holds locally (MYK9-746): a queued
-  // check-in or edit must survive the online fallback until it uploads.
-  let localRows: SecretaryEntry[] = [];
 
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
-    localRows = result.data;
     if (!result.isColdStore) {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
@@ -88,6 +83,21 @@ export const getEntriesForShow = async (showId: string) => {
     });
     const hydratedData = await hydrateSecretaryEntriesForShow(showId, startTime);
     if (hydratedData) return { data: hydratedData, error: null };
+    // MYK9-746: the show never completed a sync here. While this device holds
+    // a write the server has not seen (a check-in, an edit, a queued delete),
+    // a server list would show it undone, so wait for the sync instead of
+    // merging. Re-read after the hydration attempt, which may have uploaded some.
+    if (await unsavedWritesOrUnknown(showId)) {
+      logger.warn(
+        'Secretary entries not synced; unsaved local writes, waiting for sync',
+        'database',
+        {
+          showId,
+          operation: 'get_entries_for_show',
+        }
+      );
+      return secretaryEntriesReadFailure(new Error('Show entries not synced'), startTime);
+    }
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(
@@ -99,19 +109,31 @@ export const getEntriesForShow = async (showId: string) => {
   }
 
   try {
-    const online = await postgrestGetSecretaryEntriesForShow(
+    return await postgrestGetSecretaryEntriesForShow(
       showId,
       startTime,
       'get_entries_for_show_fallback'
     );
-    return { ...online, data: overlayLocalRows(online.data, localRows, entry => entry.id) };
   } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
-    logQuery('entries', 'get_entries_for_show', duration, dbError.message);
-    return { data: null, error: { ...dbError, message: SECRETARY_ENTRIES_READ_ERROR } };
+    return secretaryEntriesReadFailure(error, startTime);
   }
 };
+
+/** An unreadable row state cannot prove the writes uploaded; treat it as unsaved. */
+async function unsavedWritesOrUnknown(showId: string): Promise<boolean> {
+  try {
+    return await hasUnsavedLocalEntryWrites(showId);
+  } catch {
+    return true;
+  }
+}
+
+/** The Entry Management retry state: no rows, plain-English retry copy. */
+function secretaryEntriesReadFailure(error: unknown, startTime: number) {
+  const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
+  logQuery('entries', 'get_entries_for_show', Date.now() - startTime, dbError.message);
+  return { data: null, error: { ...dbError, message: SECRETARY_ENTRIES_READ_ERROR } };
+}
 
 /**
  * Get entry counts by status for a show

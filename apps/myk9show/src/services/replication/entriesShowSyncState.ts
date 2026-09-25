@@ -29,6 +29,30 @@ export async function hasShowEntriesSynced(
   return metadata?.totalRows !== undefined;
 }
 
+/** The two reads the unsaved-write check needs. */
+export interface ShowEntryRowStateReader {
+  getEntriesByShow(showId: string): Promise<readonly { id: string }[]>;
+  getReplicatedRow(id: string): Promise<{ isDirty: boolean } | null>;
+}
+
+/**
+ * Does the replica hold a write for this show that has not uploaded yet
+ * (a check-in, an edit, a create or a queued delete)?
+ *
+ * Read fresh at the moment of deciding: a hydration attempt may have uploaded
+ * some writes, or failed to. While any remain, no server list is the show as
+ * this device must display it, so the caller waits for a completed sync
+ * instead of merging (MYK9-746).
+ */
+export async function hasUnsavedLocalEntryWrites(
+  showId: string,
+  table: ShowEntryRowStateReader = replicatedEntriesTable
+): Promise<boolean> {
+  const rows = await table.getEntriesByShow(showId);
+  const states = await Promise.all(rows.map(row => table.getReplicatedRow(row.id)));
+  return states.some(state => state?.isDirty === true);
+}
+
 /**
  * Do these rows come only from shows whose entries scope has synced?
  *

@@ -6,7 +6,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
-import { areEntryRowsFromSyncedShows, hasShowEntriesSynced } from './entriesShowSyncState';
+import {
+  areEntryRowsFromSyncedShows,
+  hasShowEntriesSynced,
+  hasUnsavedLocalEntryWrites,
+} from './entriesShowSyncState';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -76,6 +80,20 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
       false
     );
     expect(await areEntryRowsFromSyncedShows([{ showId: undefined }], table)).toBe(false);
+  });
+
+  it('reports unsaved writes only while a row for the show is dirty', async () => {
+    await table.batchSet([entry('synced-1'), entry('other-show', 'show-2')]);
+    expect(await hasUnsavedLocalEntryWrites('show-1', table)).toBe(false);
+
+    await table.set('local-1', entry('local-1'), true, undefined, undefined, {
+      allowColdInsert: 'local create',
+    });
+    expect(await hasUnsavedLocalEntryWrites('show-1', table)).toBe(true);
+    expect(await hasUnsavedLocalEntryWrites('show-2', table)).toBe(false);
+
+    await table.markAsSynced('local-1');
+    expect(await hasUnsavedLocalEntryWrites('show-1', table)).toBe(false);
   });
 
   it('clearing the cache returns every show to unsynced', async () => {

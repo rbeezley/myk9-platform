@@ -56,7 +56,14 @@ const facts = (over: Record<string, unknown> = {}) => ({
   anon_grants: anonGrants(),
   applied_acl_grants: appliedAclFacts(),
   public_schema_create_acl: publicSchemaAclFacts(),
-  class_results_push: { stuck: 0, failed: 0, pending: 0, sample: [] },
+  class_results_push: {
+    stuck: 0,
+    failed: 0,
+    missing: 0,
+    pending: 0,
+    sample: [],
+    retry_job: { scheduled: true, active: true, last_success_at: iso(0), last_status: 'succeeded' },
+  },
   ...over,
 });
 

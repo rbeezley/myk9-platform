@@ -69,6 +69,14 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(
       page.getByRole('heading', { name: 'Judging Assignments', exact: true })
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No Classes Today' })).toBeVisible();
+    // The seed's show-day fixture (section 19, MYK9-731) runs TODAY in
+    // America/Chicago and assigns this judge its Container Novice A, so Today
+    // is never empty on the seeded database this suite runs against. The old
+    // "No Classes Today" assertion predated that fixture.
+    const today = page.getByRole('tabpanel', { name: 'Today' });
+    await expect(today.getByRole('heading', { name: 'Container Novice A' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByRole('heading', { name: 'No Classes Today' })).toHaveCount(0);
   });
 });

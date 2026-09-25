@@ -116,3 +116,33 @@ export async function releasePriorSessionForClassGate(
 
   return unsafe(`Unexpected prior Checkout Session status: ${existing.status}`);
 }
+
+export interface ClassGateRefusal {
+  status: 409 | 503;
+  error: string;
+  diagnostic?: string;
+}
+
+/**
+ * The class gate's answer once the prior session is released. The 409 tells
+ * the client to reload and reconcile, which only works when the cart's session
+ * link is gone, so a failed unlink must not return it: the reconcile would
+ * leave the cart untouched and the exhibitor would hit the same refusal with
+ * no removal notice (Codex P2 on PR #2438). Answer a retryable 503 instead.
+ */
+export async function classGateRefusal(
+  priorSessionId: string | null,
+  unlink: () => Promise<{ error: unknown }>
+): Promise<ClassGateRefusal> {
+  if (priorSessionId) {
+    const { error } = await unlink();
+    if (error) {
+      return {
+        status: 503,
+        error: 'We could not safely update your cart. Please try again in a moment.',
+        diagnostic: `Could not unlink session ${priorSessionId}: ${JSON.stringify(error)}`,
+      };
+    }
+  }
+  return { status: 409, error: CART_CLASS_CLOSED_MESSAGE };
+}

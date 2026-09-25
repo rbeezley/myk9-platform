@@ -12,8 +12,8 @@ import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
-  CART_CLASS_CLOSED_MESSAGE,
   cartHasBlockedClass,
+  classGateRefusal,
   newLineClassIds,
   releasePriorSessionForClassGate,
 } from '../_shared/cartClassGate.ts';
@@ -611,17 +611,17 @@ async function handleEntryCheckout(
           console.error(`Class gate for cart ${cart_id}: ${release.diagnostic}`);
           return corsResponse(corsHeaders, { error: release.error }, release.status);
         }
-        if (priorSessionId) {
-          const { error: unlinkError } = await supabase
+        const refusal = await classGateRefusal(priorSessionId, () =>
+          supabase
             .from('entry_carts')
             .update({ stripe_checkout_session_id: null })
             .eq('id', cart_id)
-            .eq('stripe_checkout_session_id', priorSessionId);
-          if (unlinkError) {
-            console.error(`Could not unlink session for cart ${cart_id}:`, unlinkError);
-          }
+            .eq('stripe_checkout_session_id', priorSessionId)
+        );
+        if (refusal.diagnostic) {
+          console.error(`Class gate for cart ${cart_id}: ${refusal.diagnostic}`);
         }
-        return corsResponse(corsHeaders, { error: CART_CLASS_CLOSED_MESSAGE }, 409);
+        return corsResponse(corsHeaders, { error: refusal.error }, refusal.status);
       }
     }
   }

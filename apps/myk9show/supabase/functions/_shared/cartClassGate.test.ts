@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  CART_CLASS_CLOSED_MESSAGE,
   cartHasBlockedClass,
+  classGateRefusal,
   newLineClassIds,
   releasePriorSessionForClassGate,
 } from './cartClassGate';
@@ -56,6 +58,33 @@ describe('retiring a linked Checkout Session before the class gate refuses (Code
       kind: 'blocked',
       status: 503,
     });
+  });
+});
+
+describe('the class gate refusal after the session is released (Codex P2, PR #2438)', () => {
+  it('answers 409 closed-class once the cart link is cleared, so the reload reconciles', async () => {
+    const unlink = vi.fn(async () => ({ error: null }));
+    expect(await classGateRefusal('cs_1', unlink)).toEqual({
+      status: 409,
+      error: CART_CLASS_CLOSED_MESSAGE,
+    });
+    expect(unlink).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers a retryable 503 when the link cannot be cleared, never the reconcile 409', async () => {
+    const unlink = vi.fn(async () => ({ error: { message: 'db down' } }));
+    const result = await classGateRefusal('cs_1', unlink);
+    expect(result.status).toBe(503);
+    expect(result.error).not.toBe(CART_CLASS_CLOSED_MESSAGE);
+  });
+
+  it('skips the unlink when no session was linked', async () => {
+    const unlink = vi.fn(async () => ({ error: null }));
+    expect(await classGateRefusal(null, unlink)).toEqual({
+      status: 409,
+      error: CART_CLASS_CLOSED_MESSAGE,
+    });
+    expect(unlink).not.toHaveBeenCalled();
   });
 });
 

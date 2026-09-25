@@ -20,8 +20,15 @@
 --
 -- Comparison is column-typed, not textual: both sides go through the entries
 -- row type, so '2026-09-24T21:19:38.574Z' in the payload equals the stored
--- timestamptz that PostgREST spells '...+00:00'. The row is re-read FOR UPDATE
--- for the check, so the version returned is the version of the row compared.
+-- timestamptz that PostgREST spells '...+00:00'.
+--
+-- ONE predicate, TWO sites. public.ringside_replay_applied_version() is the only
+-- definition of "already applied", and the function calls it at both places a
+-- 40001 can be raised: the early version precheck (a replay that arrives after
+-- the first call committed) and the late post-UPDATE site (an identical call
+-- that passed the precheck while the first was still in flight, then matched 0
+-- rows once it committed). The helper re-reads the row FOR UPDATE, so the
+-- version it returns is the version of the row it compared.
 --
 -- Ordering is unchanged where it matters: authorization (step 4) still runs
 -- before any version is disclosed or any counter moves. The allow-list filter
@@ -33,8 +40,62 @@
 -- LATEST migration defining this function (verified with
 --   grep -l "CREATE OR REPLACE FUNCTION public.ringside_update_entry" supabase/migrations/
 -- ). Signature, return type, SECURITY DEFINER, search_path and grants unchanged.
+-- The helper is internal: EXECUTE is revoked from every client role, and it is
+-- reached only from inside ringside_update_entry (which runs as its owner).
 
 BEGIN;
+
+-- Returns the entry's current version when every key in p_allowed_fields
+-- already holds the requested value (so the write would change nothing), and
+-- NULL otherwise: a differing value, a key the row does not have, an empty
+-- payload, or a missing row. Callers pass the payload AFTER the allow-list
+-- filter, so a key the caller may not write can never make a call "applied".
+CREATE OR REPLACE FUNCTION public.ringside_replay_applied_version(
+  p_entry_id uuid,
+  p_allowed_fields jsonb
+)
+RETURNS integer
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_row jsonb;
+  v_version integer;
+  v_requested jsonb;
+BEGIN
+  IF p_allowed_fields IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT to_jsonb(e), e.version
+    INTO v_row, v_version
+    FROM public.entries e
+   WHERE e.id = p_entry_id
+     FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  -- Column-typed comparison: both sides pass through the entries row type.
+  v_requested := to_jsonb(jsonb_populate_record(NULL::public.entries, p_allowed_fields));
+
+  IF EXISTS (
+    SELECT 1
+      FROM jsonb_object_keys(p_allowed_fields) AS k
+     WHERE NOT (v_row ? k)
+        OR (v_row -> k) IS DISTINCT FROM (v_requested -> k)
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN v_version;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ringside_replay_applied_version(uuid, jsonb) FROM public;
+REVOKE ALL ON FUNCTION public.ringside_replay_applied_version(uuid, jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.ringside_replay_applied_version(uuid, jsonb) FROM authenticated;
 
 CREATE OR REPLACE FUNCTION public.ringside_update_entry(
   p_entry_id uuid,
@@ -65,9 +126,7 @@ DECLARE
   v_set_clause text;
   v_updated_id uuid;
   v_new_version integer;
-  v_already_applied boolean;
-  v_current_row jsonb;
-  v_requested_row jsonb;
+  v_replay_version integer;
   v_containment public.ringside_containment;
   v_runorder_checkin_cols constant text[] := ARRAY[
     'run_order', 'check_in_status', 'is_in_ring',
@@ -185,38 +244,10 @@ BEGIN
   -- nextval survives the abort and now counts only authorized ringside writers.
   IF p_expected_version IS NOT NULL AND v_current_version IS DISTINCT FROM p_expected_version THEN
     -- MYK9-740: a replay of a write that already landed (its response was
-    -- lost) is not a conflict. When every requested field already holds the
-    -- requested value, the write would change nothing: report the current
-    -- version and write nothing. A key the row does not have never matches.
-    --
-    -- The row is re-read FOR UPDATE: the comparison and the version returned
-    -- must describe the same row state, and no other writer may move it in
-    -- between. Returning the step-1 version after a concurrent write would
-    -- hand the caller a stale OCC token for its next queued write.
-    IF v_allowed_fields IS NOT NULL THEN
-      SELECT to_jsonb(e), e.version
-        INTO v_current_row, v_current_version
-        FROM public.entries e
-       WHERE e.id = p_entry_id
-         FOR UPDATE;
-
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'Entry % not found', p_entry_id USING errcode = 'P0002';
-      END IF;
-
-      v_requested_row := to_jsonb(jsonb_populate_record(NULL::public.entries, v_allowed_fields));
-
-      SELECT NOT EXISTS (
-        SELECT 1
-          FROM jsonb_object_keys(v_allowed_fields) AS k
-         WHERE NOT (v_current_row ? k)
-            OR (v_current_row -> k) IS DISTINCT FROM (v_requested_row -> k)
-      )
-        INTO v_already_applied;
-
-      IF v_already_applied THEN
-        RETURN v_current_version;
-      END IF;
+    -- lost) is not a conflict. Same predicate as the late site below.
+    v_replay_version := public.ringside_replay_applied_version(p_entry_id, v_allowed_fields);
+    IF v_replay_version IS NOT NULL THEN
+      RETURN v_replay_version;
     END IF;
 
     PERFORM nextval('public.ringside_conflict_seq');
@@ -256,6 +287,13 @@ BEGIN
   INTO v_updated_id;
 
   IF v_updated_id IS NULL THEN
+    -- MYK9-740: an identical call that committed while this one waited on the
+    -- row lock leaves nothing to conflict with. Same predicate as step 6.
+    v_replay_version := public.ringside_replay_applied_version(p_entry_id, v_allowed_fields);
+    IF v_replay_version IS NOT NULL THEN
+      RETURN v_replay_version;
+    END IF;
+
     SELECT e.version INTO v_current_version FROM public.entries e WHERE e.id = p_entry_id;
     IF FOUND THEN
       PERFORM nextval('public.ringside_conflict_seq');

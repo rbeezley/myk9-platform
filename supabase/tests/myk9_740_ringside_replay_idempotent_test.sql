@@ -13,6 +13,11 @@
 --   C. a replay whose values DIFFER is still an ordinary 40001 with the version
 --   D. a partial match (one field landed, one did not) is still a conflict
 --   E. the rebased follow-up write for the same row lands normally
+--   F. the shared predicate both conflict sites call, and its grant posture.
+--      The overlap race itself (two identical calls in flight, the loser
+--      reaching the late post-UPDATE site) needs two sessions, so it was
+--      reproduced red/green on a throwaway Postgres; this pins the predicate
+--      that site now calls, which is the same one step 6 calls.
 --
 -- Fixtures roll back. Sections C and D each burn one ringside_conflict_seq
 -- value, which survives ROLLBACK (see ringside_containment_test.sql); two values
@@ -213,6 +218,57 @@ begin
     raise exception 'FAIL final row % / %', r.result_status, r.check_in_status;
   end if;
   raise notice 'PASS the rebased follow-up write lands once';
+end;
+$$;
+
+-- ===========================================================================
+-- F. ringside_replay_applied_version: one definition of "already applied".
+-- ===========================================================================
+do $$
+declare
+  v_version integer;
+begin
+  select version into strict v_version from public.entries
+   where id = '00000000-0000-0000-0000-000000740033';
+
+  -- Every requested value already stored (including another spelling of the
+  -- same instant): the current version.
+  if public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-000000740033',
+       jsonb_build_object('result_status', 'nq',
+                          'scoring_completed_at', '2026-09-24T21:19:38.574+00:00',
+                          'check_in_status', 'completed'))
+     is distinct from v_version then
+    raise exception 'FAIL predicate did not recognise stored values as applied';
+  end if;
+
+  -- One differing value: not applied.
+  if public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-000000740033',
+       jsonb_build_object('result_status', 'nq', 'check_in_status', 'in-ring'))
+     is not null then
+    raise exception 'FAIL predicate treated a differing value as applied';
+  end if;
+
+  -- A key the row does not have, an empty payload, a missing row: not applied.
+  if public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-000000740033', jsonb_build_object('no_such_column', 1))
+     is not null
+     or public.ringside_replay_applied_version('00000000-0000-0000-0000-000000740033', null)
+     is not null
+     or public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-00000074dead', jsonb_build_object('result_status', 'nq'))
+     is not null then
+    raise exception 'FAIL predicate accepted an unknown key, an empty payload or a missing row';
+  end if;
+
+  -- Internal only: no client role may call it directly.
+  if has_function_privilege('anon', 'public.ringside_replay_applied_version(uuid, jsonb)', 'execute')
+     or has_function_privilege('authenticated', 'public.ringside_replay_applied_version(uuid, jsonb)', 'execute') then
+    raise exception 'FAIL replay predicate is client-executable';
+  end if;
+
+  raise notice 'PASS the shared replay predicate matches only fully applied payloads and is internal';
 end;
 $$;
 

@@ -398,15 +398,23 @@ test.describe('offline cold boot', () => {
  * ready with no clue why).
  */
 async function expectOfflineReady(page: Page, timeout: number) {
-  const ready = page.getByRole('status').filter({ hasText: /offline ready/i });
+  // Reads that never wait: an auto-waiting read of an absent badge would hold
+  // a poll iteration for the whole action timeout, missing a ready badge that
+  // appears meanwhile and losing the diagnosis.
+  const ready = page
+    .getByRole('status')
+    .filter({ hasText: /offline ready/i })
+    .first();
   const notReady = page.locator('[data-offline-missing]');
   await expect
     .poll(
       async () => {
-        if (await ready.isVisible().catch(() => false)) return 'ready';
-        const missing = await notReady.getAttribute('data-offline-missing').catch(() => null);
+        if (await ready.isVisible()) return 'ready';
+        const missing = await notReady.evaluateAll(els =>
+          els.length === 0 ? null : (els[0]!.getAttribute('data-offline-missing') ?? '')
+        );
         return missing === null
-          ? 'no badge yet'
+          ? 'no badge (readiness unknown: not computed yet, or a storage probe failed)'
           : `not ready; missing: ${missing || '(none listed)'}`;
       },
       { timeout }

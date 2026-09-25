@@ -12,8 +12,10 @@ export async function postgrestGetPublicShows() {
     // the only input to the /shows discipline filter. Without it every show
     // falls back to `[organization]` and every discipline chip matches nothing.
     // Nested classes are deliberately NOT embedded — a browse list does not
-    // need them and they dominate the payload.
-    .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type)')
+    // need them and they dominate the payload. `timezone` IS: Browse judges
+    // entry status in the show's first-trial zone, as `submit_show_entries`
+    // does, and without it every guest label fell back to Eastern (MYK9-714).
+    .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
     .in('status', PUBLIC_SHOW_STATUSES)
     .is('deleted_at', null)
     .order('start_date', { ascending: true });

@@ -663,35 +663,34 @@ describe('secretary entry read replication', () => {
     expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
-  it('reads the view for entries and retries pull metadata without migration-backed refund columns', () => {
-    // The main fallback select no longer carries refund_decision at all -- the
-    // view does not expose it. The pre-migration guard therefore belongs to the
-    // pull-metadata read, which still goes to public.entries where those
-    // columns are allowlisted for `authenticated`.
+  it('reads the view for entries and merges pull metadata from public.entries in one read', () => {
+    // The main fallback select carries no refund_decision -- the view does not
+    // expose it. The pull-metadata read goes to public.entries, where those
+    // columns are allowlisted for `authenticated`. Its migrations are applied,
+    // so it asks once: MYK9-654 retired the pre-migration retry.
     return (async () => {
       mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
       const reads: Array<{ relation: string; select: string }> = [];
 
       mocks.supabaseFrom.mockImplementation((relation: string) => {
-        let selected = '';
         const respond = () => {
           if (relation !== 'entries') return { data: [{ id: 'entry-from-view' }], error: null };
-          if (selected.includes('refund_decision')) {
-            return {
-              data: null,
-              error: { code: '42703', message: 'column entries.refund_decision does not exist' },
-            };
-          }
-          // Pre-migration shape: withdrawn_at only, still merged onto the row.
           return {
-            data: [{ id: 'entry-from-view', withdrawn_at: '2026-08-28T12:00:00Z' }],
+            data: [
+              {
+                id: 'entry-from-view',
+                withdrawn_at: '2026-08-28T12:00:00Z',
+                refund_decision: 'denied',
+                refund_decided_at: '2026-08-29T12:00:00Z',
+                withdrawal_reason_code: null,
+              },
+            ],
             error: null,
           };
         };
 
         const query = {
           select: vi.fn((select: string) => {
-            selected = select;
             reads.push({ relation, select });
             return query;
           }),
@@ -714,6 +713,7 @@ describe('secretary entry read replication', () => {
       expect(result.data![0]).toMatchObject({
         id: 'entry-from-view',
         withdrawn_at: '2026-08-28T12:00:00Z',
+        refund_decision: 'denied',
       });
 
       const entryReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
@@ -722,9 +722,9 @@ describe('secretary entry read replication', () => {
       expect(entryReads[0].select).toContain('final_placement');
 
       const metadataReads = reads.filter(r => r.relation === 'entries');
-      expect(metadataReads).toHaveLength(2);
+      expect(metadataReads).toHaveLength(1);
       expect(metadataReads[0].select).toContain('refund_decision');
-      expect(metadataReads[1].select).not.toContain('refund_decision');
+      expect(metadataReads[0].select).toContain('withdrawal_reason_code');
     })();
   });
 

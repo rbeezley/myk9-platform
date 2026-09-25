@@ -98,5 +98,18 @@ if grep -q 'nothing to do' <<<"$out"; then pass "unknown token refused"; else fa
 # 12. The seeded dog and its entry are untouched after everything.
 [ "$(q "select count(*) from entries where id = '00000000-0000-0000-0000-0000000000a0'")" = "1" ] && pass "seeded entry untouched" || fail "seeded entry untouched"
 
+# 13. While a run holds its transaction, nobody can attach a new entry to a
+#     scoped dog (the lock that stops an unrecorded row being cascaded away).
+psql "$url" -X -q -v ON_ERROR_STOP=1 -f "$fixture" >/dev/null 2>&1
+held="$(mktemp)"
+sed 's/^ROLLBACK;$/SELECT pg_sleep(4);\nROLLBACK;/' "$script" >"$held"
+psql "$url" -X -q -v token='2026-09-13 0305' -f "$held" >/dev/null 2>&1 &
+holder=$!
+sleep 1.5
+blocked="$(psql "$url" -X -q -c "SET lock_timeout = '1s'; INSERT INTO entries VALUES ('00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000011', NULL, 'paid', 30)" 2>&1)"
+wait "$holder"
+rm -f "$held"
+if grep -q 'lock timeout' <<<"$blocked"; then pass "a scoped dog is locked against new entries for the whole run"; else fail "scoped dog lock ($blocked)"; fi
+
 if [ "$failures" -eq 0 ]; then echo "walk-residue-cleanup-local: all cases passed"; exit 0; fi
 echo "walk-residue-cleanup-local: $failures case(s) failed"; exit 1

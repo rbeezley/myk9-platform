@@ -74,6 +74,24 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- Scope, from the dogs outward.
 -- ---------------------------------------------------------------------------
+-- LOCKS, parents first, held until this transaction ends. Codex review of
+-- #2453: without them another session could add an entry to a matched dog
+-- after the record was built, the hash would still match (the record never
+-- saw it), and the dog delete would cascade that unrecorded entry away. A
+-- FOR UPDATE lock on a row conflicts with the FOR KEY SHARE lock every FK
+-- insert takes on its parent, so while these are held nobody can attach a
+-- new entry to a scoped dog, a new history row to a scoped entry, or edit a
+-- scoped row. A writer that tries simply waits for this run to finish.
+DO $$
+BEGIN
+  PERFORM 1
+  FROM public.dogs d
+  JOIN public.people p ON p.id = d.owner_id
+  WHERE lower(p.email) IN ('exhibitor@myk9t.com', 'exhibitor2@myk9t.com')
+    AND d.name ~ ('^ZZ Walk Dog ' || current_setting('walk_residue.token') || ' #[0-9]+$')
+  FOR UPDATE OF d;
+END $$;
+
 CREATE TEMP TABLE wr_dogs ON COMMIT DROP AS
 SELECT d.*
 FROM public.dogs d
@@ -81,11 +99,25 @@ JOIN public.people p ON p.id = d.owner_id
 WHERE lower(p.email) IN ('exhibitor@myk9t.com', 'exhibitor2@myk9t.com')
   AND d.name ~ ('^ZZ Walk Dog ' || current_setting('walk_residue.token') || ' #[0-9]+$');
 
+DO $$
+BEGIN
+  PERFORM 1 FROM public.entries WHERE dog_id IN (SELECT id FROM wr_dogs) FOR UPDATE;
+END $$;
+
 CREATE TEMP TABLE wr_entries ON COMMIT DROP AS
 SELECT e.* FROM public.entries e WHERE e.dog_id IN (SELECT id FROM wr_dogs);
 
 CREATE TEMP TABLE wr_history ON COMMIT DROP AS
 SELECT h.* FROM public.entry_status_history h WHERE h.entry_id IN (SELECT id FROM wr_entries);
+
+DO $$
+BEGIN
+  PERFORM 1 FROM public.stripe_orders
+  WHERE entry_ids && ARRAY(SELECT id FROM wr_entries) FOR UPDATE;
+  PERFORM 1 FROM public.enrollments
+  WHERE id IN (SELECT registration_id FROM wr_entries WHERE registration_id IS NOT NULL)
+  FOR UPDATE;
+END $$;
 
 CREATE TEMP TABLE wr_orders ON COMMIT DROP AS
 SELECT o.* FROM public.stripe_orders o
@@ -109,7 +141,9 @@ WHERE (en.id IN (SELECT registration_id FROM wr_entries WHERE registration_id IS
                   WHERE o.enrollment_id = en.id AND o.id NOT IN (SELECT id FROM wr_orders));
 
 CREATE TEMP TABLE wr_cart_items ON COMMIT DROP AS
-SELECT c.* FROM public.entry_cart_items c WHERE c.dog_id IN (SELECT id FROM wr_dogs);
+SELECT c.* FROM public.entry_cart_items c
+WHERE c.dog_id IN (SELECT id FROM wr_dogs)
+   OR c.entry_id IN (SELECT id FROM wr_entries);
 
 CREATE TEMP TABLE wr_waitlist ON COMMIT DROP AS
 SELECT w.* FROM public.waitlist_entries w WHERE w.dog_id IN (SELECT id FROM wr_dogs);
@@ -173,6 +207,7 @@ BEGIN
       ('dog_registrations', 'dog_id'),
       ('entries', 'dog_id'),
       ('entry_cart_items', 'dog_id'),
+      ('entry_cart_items', 'entry_id'),
       ('waitlist_entries', 'dog_id'),
       ('armbands', 'dog_id'),
       ('stripe_order_refunds', 'order_id'),
@@ -245,7 +280,19 @@ DELETE FROM public.dogs WHERE id IN (SELECT id FROM wr_dogs);
 DO $$
 DECLARE
   v_left integer;
+  v_late integer;
 BEGIN
+  -- stripe_orders.entry_ids has no foreign key, so no lock can stop an order
+  -- created after the record from naming a scoped entry. Such an order would
+  -- be left pointing at a deleted id; refuse instead.
+  SELECT count(*) INTO v_late
+  FROM public.stripe_orders o
+  WHERE o.entry_ids && ARRAY(SELECT id FROM wr_entries)
+    AND o.id NOT IN (SELECT id FROM wr_orders);
+  IF v_late > 0 THEN
+    RAISE EXCEPTION 'walk-residue-cleanup: % order(s) created after the record name this run''s entries; record again', v_late;
+  END IF;
+
   SELECT (SELECT count(*) FROM public.dogs WHERE id IN (SELECT id FROM wr_dogs))
        + (SELECT count(*) FROM public.entries WHERE id IN (SELECT id FROM wr_entries))
        + (SELECT count(*) FROM public.stripe_orders WHERE id IN (SELECT id FROM wr_orders))

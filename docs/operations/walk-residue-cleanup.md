@@ -42,7 +42,7 @@ psql "$URL" -X -v ON_ERROR_STOP=1 -v token="$TOKEN" -v apply_sha=<hex> \
   -f supabase/ops/walk-residue-cleanup.sql
 ```
 
-The apply rebuilds the record from the database and refuses unless its hash equals `apply_sha`, so anything that changed after the record (a refund landed, a row was edited) stops it. Record again, review again, then apply.
+Both runs lock the scoped dogs, entries, orders and enrollments first, and hold the locks until they end, so no other session can attach a new entry or history row to them while the record is built and applied. A writer that tries simply waits. The apply rebuilds the record from the database and refuses unless its hash equals `apply_sha`, so anything that changed after the record (a refund landed, a row was edited) stops it. Record again, review again, then apply.
 
 Afterwards the account is back to its baseline for that run: `select count(*) from dogs d join people p on p.id = d.owner_id where lower(p.email) = 'exhibitor@myk9t.com' and d.name like 'ZZ Walk Dog %'` drops by that run's dogs, and nothing seeded changes, so specs that pin `exhibitor@`'s seeded counts are unaffected.
 

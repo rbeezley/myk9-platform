@@ -43,7 +43,8 @@ CREATE TABLE public.stripe_order_refunds (
   stripe_refund_id text PRIMARY KEY,
   order_id uuid REFERENCES public.stripe_orders(id) ON DELETE RESTRICT, amount_cents integer);
 CREATE TABLE public.entry_cart_items (
-  id uuid PRIMARY KEY, dog_id uuid REFERENCES public.dogs(id));
+  id uuid PRIMARY KEY, dog_id uuid REFERENCES public.dogs(id),
+  entry_id uuid REFERENCES public.entries(id) ON DELETE CASCADE);
 CREATE TABLE public.waitlist_entries (
   id uuid PRIMARY KEY, dog_id uuid REFERENCES public.dogs(id),
   promoted_entry_id uuid REFERENCES public.entries(id) ON DELETE SET NULL);
@@ -89,7 +90,10 @@ INSERT INTO public.stripe_orders VALUES
    '00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-0000000000e1',
    'cs_test_runA', 'pi_runA', 'succeeded');
 INSERT INTO public.entry_cart_items VALUES
-  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d2');
+  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d2', NULL),
+  -- A recovered Finish Payment line linked to the paid entry (20260906140000).
+  ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000d1',
+   '00000000-0000-0000-0000-0000000000a1');
 INSERT INTO public.armbands VALUES
   ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000d1', '300');
 

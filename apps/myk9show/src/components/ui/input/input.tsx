@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 const appleInput = {
   // Base styling with Preferred dimensions - solid design
   base: [
-    'flex h-10 w-full', // 2.5rem height from design tokens
+    'flex h-11 w-full', // 44px, the docs/INTENT.md § 3 touch floor (MYK9-643)
     'px-3.5 py-2.5', // Enhanced padding for touch targets
     'bg-input', // Solid input background - consistent with design system
     'border border-[var(--input-border)]', // Visible edge for discoverability

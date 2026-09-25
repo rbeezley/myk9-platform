@@ -76,7 +76,13 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
         />
       </div>
 
-      <div data-testid="wizard-step-list" className="mx-auto w-full max-w-[640px] px-1 pb-1">
+      {/* data-sticky-pin: the part of the stepper a collapsing sticky header
+          keeps in view on a phone (RegistrationWizardShell, MYK9-622). */}
+      <div
+        data-testid="wizard-step-list"
+        data-sticky-pin=""
+        className="mx-auto w-full max-w-[640px] px-1 pb-1"
+      >
         <ol className="flex items-start">
           {steps.map((step, index) => {
             const isCompleted = isStepCompleted(step.id);

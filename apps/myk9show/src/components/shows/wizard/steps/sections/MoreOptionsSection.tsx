@@ -63,7 +63,7 @@ export const MoreOptionsSection: React.FC<MoreOptionsSectionProps> = ({ show, on
               value={resolvePremiumStyle(show.style)}
               onValueChange={value => onUpdate({ style: value as PremiumStyle })}
             >
-              <SelectTrigger id="show-premium-style" className="bg-input h-10">
+              <SelectTrigger id="show-premium-style" className="bg-input">
                 <SelectValue placeholder="Select style">
                   {getPremiumStyleLabel(show.style)}
                 </SelectValue>

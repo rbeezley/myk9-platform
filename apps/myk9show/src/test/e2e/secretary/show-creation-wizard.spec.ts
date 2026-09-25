@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { currentMonthWizardDates } from '../shared/wizardDates';
 import { ADD_TRIALS_SHOW_ID } from '../uat/shared/seededShows';
+import { PHONE_AT_150_PERCENT_ZOOM, expectNoHorizontalScroll } from '../shared/horizontalOverflow';
 
 test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('secretary can open the show creation wizard', async ({ page }) => {
@@ -28,6 +29,41 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
 
     await page.getByRole('button', { name: /^Next$/ }).click();
     await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
+  });
+
+  // MYK9-643: at 150% zoom on a phone the breadcrumb, the clone picker and
+  // "Locate address" pushed the page 92px sideways.
+  test('Step 1 does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
+    await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /Locate address/i })).toBeVisible();
+    await expectNoHorizontalScroll(page, 'show wizard step 1');
+  });
+
+  // MYK9-643: every one of these measured 40px (the Back button 32px) at
+  // 390x844, under docs/INTENT.md's 44px floor.
+  test('every Step 1 control meets the 44px touch floor at phone width', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible({ timeout: 15000 });
+
+    const controls = {
+      Back: page.getByTestId('show-creation-wizard-header').getByRole('button', { name: 'Back' }),
+      'Show Name': page.getByLabel(/Show Name/i),
+      Organization: page.getByLabel(/Organization/i),
+      'Show Dates': page.getByRole('button', { name: /Show Dates/i }),
+      'Entry Period': page.getByRole('button', { name: /Entry Period/i }),
+      'Locate address': page.getByRole('button', { name: /Locate address/i }),
+      'Show Chairman': page.getByRole('button', { name: /Show Chairman/i }),
+    };
+    for (const [name, control] of Object.entries(controls)) {
+      const box = await control.boundingBox();
+      expect(box, `${name} must be rendered`).not.toBeNull();
+      // Rounded: layout lands a 44px box on 43.99997 after sub-pixel scaling.
+      const height = Math.round(box!.height);
+      expect(height, `${name} is ${Math.round(box!.width)}x${height}`).toBeGreaterThanOrEqual(44);
+    }
   });
 
   test('Step 1 exposes premium style options and independent date ranges', async ({ page }) => {

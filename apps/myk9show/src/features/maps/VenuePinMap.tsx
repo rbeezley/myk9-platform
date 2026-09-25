@@ -84,7 +84,7 @@ export function VenuePinMap({ value, onChange, address, locator, className }: Ve
 
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         {/* MYK9-686: a missing pin is stated, never silent — exhibitors see no map without it. */}
         <p
           className={
@@ -98,6 +98,8 @@ export function VenuePinMap({ value, onChange, address, locator, className }: Ve
         <Button
           type="button"
           variant="outline"
+          size="touch"
+          className="max-w-full whitespace-normal"
           onClick={locate}
           disabled={isLocating || !address.trim()}
         >

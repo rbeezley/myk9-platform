@@ -103,8 +103,10 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-9 gap-2 bg-background/60 border-border hover:bg-background/80 text-sm"
+                size="touch"
+                // max-w-full + whitespace-normal: the label wraps instead of
+                // pushing a narrow (150% zoom) page sideways (MYK9-643).
+                className="max-w-full gap-2 whitespace-normal bg-background/60 border-border text-left hover:bg-background/80 text-sm"
                 aria-expanded={open}
               >
                 Select a past show to clone

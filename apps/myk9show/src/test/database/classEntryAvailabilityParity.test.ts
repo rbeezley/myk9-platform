@@ -76,6 +76,14 @@ describe('class_entry_availability parity', () => {
     expect(availability.body).toContain('available_spots');
   });
 
+  it('refuses a paid line on the same closure verdict, checked before any wait-list write', () => {
+    const paid = compact(latestDefinition('create_online_paid_entry').body);
+    const closure = paid.indexOf('public.class_entry_availability(ARRAY[p_class_id])');
+    expect(closure).toBeGreaterThan(-1);
+    expect(paid).toContain("IF v_block IN ('cancelled', 'started', 'finished') THEN");
+    expect(closure).toBeLessThan(paid.indexOf('public.evaluate_entry_capacity('));
+  });
+
   it('treats a class as started exactly when submit_show_entries refuses it as running', () => {
     const started = '(e.is_in_ring IS TRUE OR e.is_scored IS TRUE)';
     expect(compact(submit.body)).toContain(started);

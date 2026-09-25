@@ -427,4 +427,66 @@ $$;
 
 RESET ROLE;
 
+-- ============================================================================
+-- 10. A paid line for a class that closed after checkout is refused, not
+--     entered (Codex P1 on PR #2438). The webhook calls this as service_role;
+--     'denied' is the outcome it already routes to the no-service refund, the
+--     same as a full class with no wait list.
+-- ============================================================================
+
+SET LOCAL ROLE service_role;
+
+DO $$
+DECLARE
+  show_id CONSTANT uuid := '00000000-0000-0000-0000-000000705100';
+  trial_id CONSTANT uuid := '00000000-0000-0000-0000-000000705200';
+  dog CONSTANT uuid := '00000000-0000-0000-0000-000000705404';
+  exhibitor uuid;
+  closed_cls uuid;
+  r record;
+  v_entries int;
+  v_waitlist int;
+BEGIN
+  SELECT id INTO exhibitor FROM public.exhibitor_profiles
+  WHERE auth_user_id = '00000000-0000-0000-0000-000000705101';
+
+  -- Exterior Master (cancelled), Container Novice A (completed), Vehicle
+  -- Novice ('upcoming' with a dog in the ring).
+  FOREACH closed_cls IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000705304'::uuid,
+    '00000000-0000-0000-0000-000000705303'::uuid,
+    '00000000-0000-0000-0000-000000705306'::uuid
+  ] LOOP
+    SELECT * INTO r FROM public.create_online_paid_entry(
+      dog, closed_cls, NULL, 30, NULL, NULL, 'pi_test_myk9_656', now(),
+      show_id, trial_id, exhibitor);
+    IF r.outcome IS DISTINCT FROM 'denied' OR r.entry_id IS NOT NULL
+       OR r.waitlist_entry_id IS NOT NULL THEN
+      RAISE EXCEPTION 'FAIL paid line for closed class % returned %', closed_cls, r;
+    END IF;
+
+    SELECT count(*) INTO v_entries FROM public.entries
+    WHERE class_id = closed_cls AND dog_id = dog;
+    SELECT count(*) INTO v_waitlist FROM public.waitlist_entries
+    WHERE class_id = closed_cls AND dog_id = dog;
+    IF v_entries <> 0 OR v_waitlist <> 0 THEN
+      RAISE EXCEPTION 'FAIL closed class % got % entries and % wait-list rows',
+        closed_cls, v_entries, v_waitlist;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS a paid line for a cancelled, finished or started class is denied, not entered';
+
+  -- Positive control: the same call into the open class creates the entry.
+  SELECT * INTO r FROM public.create_online_paid_entry(
+    dog, '00000000-0000-0000-0000-000000705305', NULL, 30, NULL, NULL,
+    'pi_test_myk9_656', now(), show_id, trial_id, exhibitor);
+  IF r.outcome IS DISTINCT FROM 'created_entry' OR r.entry_id IS NULL THEN
+    RAISE EXCEPTION 'FAIL paid line for the open class returned %', r;
+  END IF;
+  RAISE NOTICE 'PASS the same paid line for an open class is entered';
+END;
+$$;
+
+RESET ROLE;
+
 ROLLBACK;

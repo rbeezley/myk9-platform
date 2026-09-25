@@ -334,4 +334,164 @@ COMMENT ON FUNCTION public.reconcile_cart_closed_classes(uuid) IS
 REVOKE ALL ON FUNCTION public.reconcile_cart_closed_classes(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reconcile_cart_closed_classes(uuid) TO authenticated;
 
+
+-- -----------------------------------------------------------------------------
+-- create_online_paid_entry: refuse a paid line whose class has closed.
+--
+-- Codex P1 on PR #2438: a Stripe Checkout page stays payable for up to 31
+-- minutes after stripe-checkout's class gate passes. A class cancelled, started
+-- or finished in that window was still entered, because this function checked
+-- capacity (evaluate_entry_capacity) but never closure. It now reads the same
+-- verdict the gate and the reconcile use, class_entry_availability's
+-- self_service_block, and answers 'denied' for cancelled | started | finished,
+-- exactly as it answers a full class with no wait list. stripe-webhook already
+-- routes 'denied' to deniedLines + noServiceLineIds, which the overflow refund
+-- refunds; no edge change is needed.
+--
+-- The closure check runs BEFORE evaluate_entry_capacity, so a closed class
+-- that is also full never gets a wait-list row for a class that is not running.
+-- 'full' is left to evaluate_entry_capacity, which decides wait list vs deny
+-- under its locks.
+--
+-- Rebuilt from 20260712200100_entry_capacity_write_boundaries.sql, the LATEST
+-- migration defining this function (the live definition matches it). The only
+-- edit is the closure block marked MYK9-656; grants are restated unchanged.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.create_online_paid_entry(
+  p_dog_id uuid,
+  p_class_id uuid,
+  p_handler_id uuid,
+  p_entry_fee numeric,
+  p_jump_height text,
+  p_special_requests text,
+  p_payment_intent_id text,
+  p_submitted_at timestamptz,
+  p_show_id uuid,
+  p_trial_id uuid,
+  p_exhibitor_id uuid
+)
+RETURNS TABLE (
+  outcome text,
+  entry_id uuid,
+  waitlist_entry_id uuid
+)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_id uuid;
+  v_trial_id uuid;
+  v_entry public.entries;
+  v_capacity record;
+  v_block text;
+BEGIN
+  SELECT c.trial_id, t.show_id
+  INTO v_trial_id, v_show_id
+  FROM public.classes c
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE c.id = p_class_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Class not found for online paid entry'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_show_id IS DISTINCT FROM p_show_id THEN
+    RAISE EXCEPTION 'Class does not belong to paid cart show'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF p_trial_id IS NOT NULL AND v_trial_id IS DISTINCT FROM p_trial_id THEN
+    RAISE EXCEPTION 'Class does not belong to paid cart trial'
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- MYK9-656: a class that closed after checkout is refused, not entered.
+  SELECT a.self_service_block
+  INTO v_block
+  FROM public.class_entry_availability(ARRAY[p_class_id]) a;
+
+  IF v_block IN ('cancelled', 'started', 'finished') THEN
+    outcome := 'denied';
+    entry_id := NULL;
+    waitlist_entry_id := NULL;
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  SELECT *
+  INTO v_capacity
+  FROM public.evaluate_entry_capacity(
+    p_class_id,
+    p_dog_id,
+    p_exhibitor_id,
+    p_handler_id,
+    'self_service',
+    false
+  );
+
+  IF v_capacity.outcome = 'waitlisted' THEN
+    outcome := 'waitlisted';
+    entry_id := NULL;
+    waitlist_entry_id := v_capacity.waitlist_entry_id;
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  IF v_capacity.outcome = 'denied' THEN
+    outcome := 'denied';
+    entry_id := NULL;
+    waitlist_entry_id := NULL;
+    RETURN NEXT;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.entries (
+    dog_id,
+    class_id,
+    trial_id,
+    show_id,
+    handler_id,
+    entry_status,
+    payment_status,
+    entry_fee,
+    jump_height,
+    special_requests,
+    payment_method,
+    submitted_at,
+    stripe_payment_intent_id
+  )
+  VALUES (
+    p_dog_id,
+    p_class_id,
+    v_trial_id,
+    v_show_id,
+    p_handler_id,
+    'paid',
+    'paid',
+    p_entry_fee,
+    p_jump_height,
+    p_special_requests,
+    'online',
+    p_submitted_at,
+    p_payment_intent_id
+  )
+  RETURNING * INTO v_entry;
+
+  outcome := 'created_entry';
+  entry_id := v_entry.id;
+  waitlist_entry_id := NULL;
+  RETURN NEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_online_paid_entry(
+  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_online_paid_entry(
+  uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid
+) TO service_role;
+
 COMMIT;

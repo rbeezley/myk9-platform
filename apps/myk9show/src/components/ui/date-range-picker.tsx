@@ -248,7 +248,6 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 range_end:
                   'range_end day-range-end [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-secondary [&>button]:ring-offset-1',
               }}
-              initialFocus
             />
 
             {showTime && (

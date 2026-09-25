@@ -13,6 +13,9 @@
 --   C. a replay whose values DIFFER is still an ordinary 40001 with the version
 --   D. a partial match (one field landed, one did not) is still a conflict
 --   E. the rebased follow-up write for the same row lands normally
+--   0. a real conflict locks nothing; only a matching payload takes the row
+--      lock (Codex P1 on PR #2436: the lock was held through the containment
+--      back-off). Runs first, before any call in this file locks the row.
 --   F. the shared predicate both conflict sites call, and its grant posture.
 --      The overlap race itself (two identical calls in flight, the loser
 --      reaching the late post-UPDATE site) needs two sessions, so it was
@@ -74,6 +77,45 @@ select 'base_version', version::text
 insert into myk9_740 (step, value)
 select 'seq_before', coalesce(last_value, 0)::text
   from pg_sequences where schemaname = 'public' and sequencename = 'ringside_conflict_seq';
+
+-- ===========================================================================
+-- 0. The replay predicate locks the row only when the payload already matches.
+-- A row lock this transaction takes sets the tuple's xmax to our xid, and
+-- nothing earlier in this file locks or updates the entry, so xmax is the
+-- lock probe. The positive control proves the probe sees a lock at all.
+-- ===========================================================================
+do $$
+begin
+  if (select xmax::text from public.entries
+       where id = '00000000-0000-0000-0000-000000740033') <> '0' then
+    raise exception 'FAIL precondition: the fixture row is already locked';
+  end if;
+
+  -- A differing value: a real conflict. It must return NULL and lock nothing.
+  if public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-000000740033',
+       jsonb_build_object('entry_status', 'withdrawn')) is not null then
+    raise exception 'FAIL a differing payload was treated as applied';
+  end if;
+  if (select xmax::text from public.entries
+       where id = '00000000-0000-0000-0000-000000740033') <> '0' then
+    raise exception 'FAIL a real conflict took the row lock';
+  end if;
+
+  -- Positive control: a matching payload returns the version and locks the row.
+  if public.ringside_replay_applied_version(
+       '00000000-0000-0000-0000-000000740033',
+       jsonb_build_object('entry_status', 'confirmed')) is null then
+    raise exception 'FAIL a matching payload was not treated as applied';
+  end if;
+  if (select xmax::text from public.entries
+       where id = '00000000-0000-0000-0000-000000740033')
+     is distinct from pg_current_xact_id()::xid::text then
+    raise exception 'FAIL a matching payload did not lock the row (probe blind?)';
+  end if;
+  raise notice 'PASS a real conflict locks nothing; only an applied replay locks the row';
+end;
+$$;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000740101', true);

@@ -27,8 +27,14 @@
 -- 40001 can be raised: the early version precheck (a replay that arrives after
 -- the first call committed) and the late post-UPDATE site (an identical call
 -- that passed the precheck while the first was still in flight, then matched 0
--- rows once it committed). The helper re-reads the row FOR UPDATE, so the
--- version it returns is the version of the row it compared.
+-- rows once it committed).
+--
+-- The helper compares WITHOUT a lock first. A real conflict (any value
+-- differs) returns NULL having locked nothing, so the conflict path that
+-- follows, including the MYK9-115 containment pg_sleep, never holds the row
+-- lock and never blocks the writer that is about to win (Codex P1 on PR
+-- #2436). Only a payload that already matches takes FOR UPDATE and compares
+-- again, so the version it returns is the version of the row it compared.
 --
 -- Ordering is unchanged where it matters: authorization (step 4) still runs
 -- before any version is disclosed or any counter moves. The allow-list filter
@@ -62,32 +68,45 @@ DECLARE
   v_row jsonb;
   v_version integer;
   v_requested jsonb;
+  v_pass integer;
 BEGIN
   IF p_allowed_fields IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  SELECT to_jsonb(e), e.version
-    INTO v_row, v_version
-    FROM public.entries e
-   WHERE e.id = p_entry_id
-     FOR UPDATE;
-
-  IF NOT FOUND THEN
     RETURN NULL;
   END IF;
 
   -- Column-typed comparison: both sides pass through the entries row type.
   v_requested := to_jsonb(jsonb_populate_record(NULL::public.entries, p_allowed_fields));
 
-  IF EXISTS (
-    SELECT 1
-      FROM jsonb_object_keys(p_allowed_fields) AS k
-     WHERE NOT (v_row ? k)
-        OR (v_row -> k) IS DISTINCT FROM (v_requested -> k)
-  ) THEN
-    RETURN NULL;
-  END IF;
+  -- Pass 1 reads without a lock, so a real conflict locks nothing. Pass 2
+  -- runs only when pass 1 matched: it locks the row and compares again, in
+  -- case a concurrent writer changed it between the two reads.
+  FOR v_pass IN 1..2 LOOP
+    IF v_pass = 1 THEN
+      SELECT to_jsonb(e), e.version
+        INTO v_row, v_version
+        FROM public.entries e
+       WHERE e.id = p_entry_id;
+    ELSE
+      SELECT to_jsonb(e), e.version
+        INTO v_row, v_version
+        FROM public.entries e
+       WHERE e.id = p_entry_id
+         FOR UPDATE;
+    END IF;
+
+    IF NOT FOUND THEN
+      RETURN NULL;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+        FROM jsonb_object_keys(p_allowed_fields) AS k
+       WHERE NOT (v_row ? k)
+          OR (v_row -> k) IS DISTINCT FROM (v_requested -> k)
+    ) THEN
+      RETURN NULL;
+    END IF;
+  END LOOP;
 
   RETURN v_version;
 END;

@@ -36,7 +36,7 @@ database is left untouched — but the reseed has not happened either. Check wit
    delete it runs is scoped to the ids it seeds, so a hand-created show survives.
    It yields the LEAN set (two clubs, the three Heartland shows, six dogs, 13
    entries on the demo show) plus the show-day fixture `Heartland Scent Work
-   Week`, which has a trial dated today for seven days after the reseed
+Week`, which has a trial dated today for seven days after the reseed
    (MYK9-731), and removes the MYK9-109 load fixture if it was applied.
    **Reseed at least weekly** on the walks' schedule: once the seven days lapse,
    no seeded show is running today and the walks record show-day check-in,

@@ -29,10 +29,11 @@ import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
-import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
 import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
+import { describeBlockedCheckout } from '@/features/payments/cartFullReasonCopy';
 import {
   areAllCartItemsRecovered,
   buildCartFulfillmentView,
@@ -67,12 +68,13 @@ export default function CartPage() {
   const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
   const {
     judgeDays,
-    fullClassIds,
+    classSpots,
+    judgeNameById,
     isLoading: isCapacityLoading,
     isFetching: isCapacityFetching,
     error: capacityError,
     refetch: refetchCapacity,
-  } = useJudgeDayCapacity(cart?.show_id);
+  } = useCartCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [removalAnnouncement, setRemovalAnnouncement] = useState('');
@@ -112,7 +114,7 @@ export default function CartPage() {
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
   // A query gated by `enabled` is not "resolved" just because it is not
-  // loading: with no showId, useJudgeDayCapacity is disabled and reports
+  // loading: with no showId, useCartCapacity is disabled and reports
   // isLoading:false / isFetching:false / error:null while returning an empty
   // judgeDays array. Treating that as settled would read "never asked" as
   // "this show has no capacity limits" and mark every line payable. Require
@@ -131,8 +133,8 @@ export default function CartPage() {
     (!isCapacityFetching || isCheckingOut) &&
     !capacityError;
   const fulfillment = useMemo(
-    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
-    [items, judgeDays, fullClassIds, capacityResolved]
+    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, classSpots),
+    [items, judgeDays, classSpots, capacityResolved]
   );
 
   // Param names come from the shared module `buildFinishPaymentHref` writes,
@@ -280,22 +282,18 @@ export default function CartPage() {
       }
 
       const freshJudgeDays = fresh?.data?.judgeDays ?? [];
-      const freshFullClassIds = fresh?.data?.fullClassIds ?? [];
+      const freshClassSpots = fresh?.data?.classSpots ?? [];
 
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,
         freshJudgeDays,
-        freshFullClassIds
+        freshClassSpots
       );
       const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {
         setError(
-          `${blockedItems.map(item => item.class?.name || 'A class').join(', ')} ${
-            blockedItems.length === 1 ? 'is' : 'are'
-          } full and not accepting wait list entries. Remove ${
-            blockedItems.length === 1 ? 'it' : 'them'
-          } to continue.`
+          describeBlockedCheckout(blockedItems, splitDecision.fullReasonByItemId, judgeNameById)
         );
         stopCheckingOut();
         return;
@@ -568,6 +566,8 @@ export default function CartPage() {
                 onRemove={() => handleRemoveItem(item.id)}
                 isRemoving={removingItemId === item.id}
                 fulfillment={fulfillment.fulfillmentByItemId[item.id] ?? 'payable'}
+                fullReason={fulfillment.fullReasonByItemId.get(item.id)}
+                judgeNameById={judgeNameById}
               />
             ))}
           </div>

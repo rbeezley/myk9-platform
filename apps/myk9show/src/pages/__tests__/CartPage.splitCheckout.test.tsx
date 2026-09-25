@@ -84,7 +84,8 @@ const judgeDayCapacityState = vi.hoisted(() => ({
       classNames: ['Full Class'],
     },
   ],
-  fullClassIds: [] as string[],
+  classSpots: [] as { classId: string; availableSpots: number }[],
+  judgeNameById: new Map<string, string>(),
   isLoading: false,
   isFetching: false,
   error: null as string | null,
@@ -117,8 +118,8 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: { id: 'exhibitor-1' } }),
 }));
 
-vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
-  useJudgeDayCapacity: () => judgeDayCapacityState,
+vi.mock('@/hooks/queries/useCartCapacity', () => ({
+  useCartCapacity: () => judgeDayCapacityState,
 }));
 
 vi.mock('@/store/cartStore', () => ({
@@ -176,7 +177,7 @@ describe('CartPage split checkout wiring', () => {
     judgeDayCapacityState.refetch = vi.fn().mockImplementation(async () => ({
       data: {
         judgeDays: judgeDayCapacityState.judgeDays,
-        fullClassIds: judgeDayCapacityState.fullClassIds,
+        classSpots: judgeDayCapacityState.classSpots,
       },
       isError: false,
     }));
@@ -374,7 +375,7 @@ describe('CartPage split checkout wiring', () => {
 
     await waitFor(() =>
       expect(setErrorMock).toHaveBeenCalledWith(
-        'Denied Class is full and not accepting wait list entries. Remove it to continue.'
+        "Denied Class: One judge's day on Tuesday, Sep 1 has no spots left right now. It is not accepting wait list entries. Remove it to continue."
       )
     );
     expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
@@ -476,7 +477,7 @@ describe('CartPage split checkout wiring', () => {
               classNames: ['Open Class', 'Full Class'],
             },
           ],
-          fullClassIds: [],
+          classSpots: [],
         },
         isError: false,
       });
@@ -498,7 +499,7 @@ describe('CartPage split checkout wiring', () => {
         // exists to replace.
         data: {
           judgeDays: judgeDayCapacityState.judgeDays,
-          fullClassIds: judgeDayCapacityState.fullClassIds,
+          classSpots: judgeDayCapacityState.classSpots,
         },
         isError: true,
       });

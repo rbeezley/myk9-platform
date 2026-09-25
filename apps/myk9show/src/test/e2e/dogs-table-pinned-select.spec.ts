@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { signInAsAdmin } from './helpers/testUsers';
 
 /**
@@ -53,21 +53,23 @@ function expectNear(actual: number, expected: number, tolerance: number, label: 
 
 /**
  * AC2 evidence: the enlarged tap-target pseudo-element must be the thing a
- * real pointer actually hits 8px past the checkbox's own edge — not occluded
- * by a higher-z, opaque neighbor cell painting on top of it (the P2a bug).
+ * real pointer actually hits 2px INSIDE the Name cell (the target spans the
+ * select cell's x=0..44) — not occluded by the higher-z, opaque Name cell
+ * painting on top of it (the P2a bug). Probing inside the select cell itself
+ * would pass whatever Name's stacking was.
  *
  * Polled: the header checkbox can be briefly not visible while the table
  * re-renders (a null bounding box in Regression run 36090720412, MYK9-751),
  * which says nothing about stacking. A real occlusion never clears on its own,
  * so it still fails when the poll times out.
  */
-async function assertPointHitsCheckbox(page: Page, checkbox: Locator, label: string) {
+async function assertPointHitsCheckbox(checkbox: Locator, cell: Locator, label: string) {
   await expect
     .poll(
       async () => {
-        const box = await checkbox.boundingBox();
-        if (!box) return 'no bounding box (not visible)';
-        const point = { x: box.x + box.width + 8, y: box.y + box.height / 2 };
+        const [box, cellBox] = await Promise.all([checkbox.boundingBox(), cell.boundingBox()]);
+        if (!box || !cellBox) return 'no bounding box (not visible)';
+        const point = { x: cellBox.x + cellBox.width + 2, y: box.y + box.height / 2 };
         const hit = await checkbox.evaluate((el, pt) => {
           const target = document.elementFromPoint(pt.x, pt.y);
           return Boolean(target && (target === el || el.contains(target)));
@@ -147,8 +149,8 @@ test.describe('dogs table pinned select column (MYK9-592)', () => {
 
     await expectCheckboxCentred(headerCheckbox, selectHeaderCell, 'header checkbox');
     await expectCheckboxCentred(rowCheckbox, selectBodyCell, 'row checkbox');
-    await assertPointHitsCheckbox(page, headerCheckbox, 'header checkbox');
-    await assertPointHitsCheckbox(page, rowCheckbox, 'row checkbox');
+    await assertPointHitsCheckbox(headerCheckbox, selectHeaderCell, 'header checkbox');
+    await assertPointHitsCheckbox(rowCheckbox, selectBodyCell, 'row checkbox');
 
     // Scroll the table's OWN horizontal scroll region (not the page) and
     // re-measure. Name must still sit immediately beside the pinned select
@@ -191,8 +193,8 @@ test.describe('dogs table pinned select column (MYK9-592)', () => {
 
     // Re-run the hit-test after scrolling too — this is the exact scenario
     // P2b broke (Name sliding on top of the checkbox at a scroll offset).
-    await assertPointHitsCheckbox(page, headerCheckbox, 'header checkbox (scrolled)');
-    await assertPointHitsCheckbox(page, rowCheckbox, 'row checkbox (scrolled)');
+    await assertPointHitsCheckbox(headerCheckbox, selectHeaderCell, 'header checkbox (scrolled)');
+    await assertPointHitsCheckbox(rowCheckbox, selectBodyCell, 'row checkbox (scrolled)');
 
     // Leave the shared account's scroll position (and any forced width) as
     // found — both are inline style / scroll state on this page instance

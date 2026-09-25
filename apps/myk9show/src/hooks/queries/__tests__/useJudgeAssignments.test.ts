@@ -335,6 +335,20 @@ describe('useJudgeAssignments', () => {
     expect(result.current.isError).toBe(false);
   });
 
+  it('reports counts unavailable when the show holds one local write but never synced (MYK9-746)', async () => {
+    mockGetAll.mockResolvedValueOnce([makeReplicated({ id: 'a-mine' })]);
+    mockEntriesSync.mockRejectedValue(new Error('offline'));
+    mockEntriesGetByShow.mockResolvedValue([makeReplicatedEntry({ id: 'entry-checked-in' })]);
+    mockEntriesGetSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments[0]).toMatchObject({ entryCountsAvailable: false });
+    expect(result.current.assignments[0].totalEntries).not.toBe(1);
+  });
+
   it('overlays live class status/progress from the classes store over the snapshot', async () => {
     // Snapshot says in_progress with 5 scored; the live class has finished.
     mockGetAll.mockResolvedValueOnce([

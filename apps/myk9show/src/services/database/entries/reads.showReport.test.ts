@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByShow: mocks.entries },
+  replicatedEntriesTable: {
+    getEntriesByShow: mocks.entries,
+    // A show scope that has completed a sync (MYK9-746).
+    getSyncMetadata: vi.fn().mockResolvedValue({ tableName: 'entries', totalRows: 1 }),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { getAllDogs: mocks.dogs },

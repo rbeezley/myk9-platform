@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -13,21 +13,6 @@ import {
 } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useNotificationStore, type AlertEntry } from '@/store/notificationStore';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { useMessageStore } from '@/store/messageStore';
@@ -38,8 +23,9 @@ import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
-import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
-import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
+import { MessageCenterComposeDialog } from './MessageCenterComposeDialog';
+import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
+import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
 import type {
   MessageShowDeliveryLane,
   MessageShowRecipientType,
@@ -165,7 +151,7 @@ function EmptyPanelState({
 
 export function MessageCenterPanel() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isCenterOpen = useNotificationStore(s => s.isCenterOpen);
   const closeCenter = useNotificationStore(s => s.closeCenter);
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
@@ -176,7 +162,6 @@ export function MessageCenterPanel() {
 
   const announcements = useAnnouncementStore(s => s.announcements);
   const announcementUnread = useAnnouncementStore(s => s.unreadCount);
-  const currentShowIds = useAnnouncementStore(s => s.currentShowIds);
   const annMarkRead = useAnnouncementStore(s => s.markRead);
   const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
 
@@ -191,10 +176,10 @@ export function MessageCenterPanel() {
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles);
   const shows = useShowStore(s => s.shows);
+  const showsLoading = useShowStore(s => s.isLoading);
   const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [composeShowId, setComposeShowId] = useState<string>('');
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
   const canPostShowWideMessage = author.isOfficial;
@@ -206,29 +191,24 @@ export function MessageCenterPanel() {
   const composeShowWideDeliveryLane: MessageShowDeliveryLane = canPostShowWideMessage
     ? 'announcement'
     : 'targeted';
-  const showsById = new Map(shows.map(show => [show.id, show]));
-  const staffShows =
-    currentShowIds.length > 0
-      ? currentShowIds.map((showId, index) => {
-          const show = showsById.get(showId);
-          return {
-            id: showId,
-            name:
-              show?.name ?? (currentShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
-          };
-        })
-      : shows.map(show => ({ id: show.id, name: show.name }));
-  const urlShowId = searchParams.get('showId') ?? '';
-  const validUrlShowId = staffShows.some(show => show.id === urlShowId) ? urlShowId : '';
-  const selectedComposeShowId = composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
-  const {
-    data: composeClasses = [],
-    isError: composeClassesError,
-    refetch: retryComposeClasses,
-  } = useMessageShowClassOptions(
-    isComposeOpen && selectedComposeShowId ? selectedComposeShowId : null,
-    { enabled: isComposeOpen && !!selectedComposeShowId }
-  );
+  // MYK9-641 / MYK9-722: only shows this person may post to, per role.
+  const judged = useMyJudgedShows(isCenterOpen && canComposeShowMessage);
+  const composeShows = selectComposeShows({
+    shows,
+    userWithRoles,
+    hasRole,
+    judgedShows: judged.shows,
+  });
+  const composeListPending =
+    judged.status === 'unknown'
+      ? "Loading the shows you're judging…"
+      : showsLoading && shows.length === 0
+        ? 'Loading your shows…'
+        : null;
+  const composeEmptyMessage =
+    judged.status === 'error'
+      ? "Couldn't check the shows you're judging. Try again when you're back online."
+      : 'There are no shows you can post to.';
   const totalUnread = notificationUnread + announcementUnread + messageUnread;
 
   function handleMarkAllRead() {
@@ -257,7 +237,6 @@ export function MessageCenterPanel() {
   }
 
   function handleOpenCompose() {
-    setComposeShowId(validUrlShowId || (staffShows.length === 1 ? staffShows[0].id : ''));
     setIsComposeOpen(true);
   }
 
@@ -404,7 +383,6 @@ export function MessageCenterPanel() {
               size="sm"
               className="flex-1"
               onClick={handleOpenCompose}
-              disabled={staffShows.length === 0}
             >
               <Plus className="mr-1.5 h-4 w-4" />
               Compose
@@ -454,75 +432,16 @@ export function MessageCenterPanel() {
       </SlideOverPanel>
 
       {isComposeOpen && (
-        <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Compose show message</DialogTitle>
-              <DialogDescription>
-                Send a show message to everyone, a class, or checked-in exhibitors.
-              </DialogDescription>
-            </DialogHeader>
-
-            {staffShows.length > 1 && (
-              <div className="space-y-2">
-                <Label htmlFor="message-center-compose-show">Show</Label>
-                <Select value={composeShowId} onValueChange={setComposeShowId}>
-                  <SelectTrigger id="message-center-compose-show">
-                    <SelectValue placeholder="Select a show" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffShows.map(show => (
-                      <SelectItem key={show.id} value={show.id}>
-                        {show.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {staffShows.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Select or load a managed show before composing.
-              </p>
-            )}
-
-            {selectedComposeShowId && composeClassesError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="mt-0.5 h-4 w-4 text-destructive" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-destructive">
-                      Couldn't load classes for this show.
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Try again before sending a class message.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void retryComposeClasses()}
-                  >
-                    Try again
-                  </Button>
-                </div>
-              </div>
-            ) : selectedComposeShowId ? (
-              <MessageShowComposer
-                showId={selectedComposeShowId}
-                classes={composeClasses}
-                allowedRecipients={composeAllowedRecipients}
-                showWideDeliveryLane={composeShowWideDeliveryLane}
-                showHistoryLink={false}
-                onSent={() => setIsComposeOpen(false)}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">Select a show to continue.</p>
-            )}
-          </DialogContent>
-        </Dialog>
+        <MessageCenterComposeDialog
+          open={isComposeOpen}
+          onOpenChange={setIsComposeOpen}
+          options={composeShows}
+          routeShowId={readRouteShowId(location.pathname, location.search)}
+          pendingMessage={composeListPending}
+          emptyMessage={composeEmptyMessage}
+          manageRecipients={composeAllowedRecipients}
+          manageShowWideLane={composeShowWideDeliveryLane}
+        />
       )}
     </>
   );

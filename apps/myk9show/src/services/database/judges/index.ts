@@ -44,9 +44,11 @@ export type {
   JudgeAvailabilityUpsertData,
 } from './reads';
 export {
+  getActiveJudgeAssignmentShows,
   getActiveJudgeAssignmentsForShow,
   subscribeToJudgeAssignmentChanges,
 } from './assignmentReads';
+export type { JudgedShow } from './assignmentReads';
 export {
   ACTIVE_JUDGE_ASSIGNMENT_STATUSES,
   isActiveJudgeAssignmentStatus,

@@ -5,6 +5,18 @@ import { NotificationCenter } from '../NotificationCenter';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 
+vi.mock('@/services/database/judges', () => ({
+  getActiveJudgeAssignmentShows: vi.fn(async () => []),
+  subscribeToJudgeAssignmentChanges: vi.fn(() => () => {}),
+}));
+
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({
+    status: { tablesStatus: { judge_assignments: 'success' } },
+    syncTable: vi.fn(),
+  }),
+}));
+
 vi.mock('@/store/announcementStore', async () => {
   const { create } = await import('zustand');
   const useAnnouncementStore = create<Record<string, unknown>>()(() => ({

@@ -60,7 +60,22 @@ export function selectComposeShows({
       name: namesById.get(show.showId) ?? judgedShowFallbackName(show.firstTrialDate),
       lane: 'judge',
     }));
-  return [...managed, ...judged];
+  return disambiguateNames([...managed, ...judged]);
+}
+
+/**
+ * Two shows missing from the local store on the same (or an unknown) date get
+ * the same fallback label, and the picker must never offer two identical
+ * destinations. Only colliding labels gain a short show id.
+ */
+function disambiguateNames(options: ComposeShowOption[]): ComposeShowOption[] {
+  const counts = new Map<string, number>();
+  for (const option of options) counts.set(option.name, (counts.get(option.name) ?? 0) + 1);
+  return options.map(option =>
+    (counts.get(option.name) ?? 0) > 1
+      ? { ...option, name: `${option.name} (#${option.id.slice(0, 6)})` }
+      : option
+  );
 }
 
 /** A judged show that is not in the local show store yet (e.g. a future one). */

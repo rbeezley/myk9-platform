@@ -76,7 +76,9 @@ export function MessageCenterComposeDialog({
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       );
     }
-    if (locked && selected) {
+    // The destination is always visible: a locked show, or the only one on
+    // offer, shows its name, so nobody posts show-wide without seeing where.
+    if (selected && (locked || options.length === 1)) {
       return (
         <div className="space-y-1">
           <p className="text-sm font-medium">Show</p>
@@ -84,7 +86,6 @@ export function MessageCenterComposeDialog({
         </div>
       );
     }
-    if (options.length === 1) return null;
     return (
       <div className="space-y-2">
         <Label htmlFor="message-center-compose-show">Show</Label>

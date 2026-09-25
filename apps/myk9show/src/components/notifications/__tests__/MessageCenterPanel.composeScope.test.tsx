@@ -373,6 +373,21 @@ describe('judge: the shows they are assigned to judge (MYK9-722)', () => {
     expect(within(dialog).getByText(/loading the shows you're judging/i)).toBeInTheDocument();
   });
 
+  // Codex P2 on #2443: with a single show on offer the picker used to vanish,
+  // so a judge could post show-wide without seeing where it goes.
+  it('names the destination when only one show is on offer', async () => {
+    authContext = judge();
+    judgeReads.getActiveJudgeAssignmentShows.mockResolvedValue([
+      { showId: 'heartland-classic', firstTrialDate: '2026-10-10' },
+    ]);
+
+    const dialog = openCompose('/judge/dashboard');
+
+    expect(await within(dialog).findByText('Heartland Scent Work Classic')).toBeInTheDocument();
+    expect(within(dialog).getByText('Show')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
   it('says when a judge truly has no assignments to post to', async () => {
     authContext = judge();
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { UserRole } from '@/types/auth-types';
 import {
   readRouteShowId,
   resolveComposeShow,
+  selectComposeShows,
   type ComposeShowOption,
 } from '../messageComposeShows';
 
@@ -42,5 +44,49 @@ describe('resolveComposeShow', () => {
   it('uses the pick only when it is still offered', () => {
     expect(resolveComposeShow([a, b], '', 'b')).toEqual({ selected: b, locked: false });
     expect(resolveComposeShow([a, b], '', 'gone')).toEqual({ selected: undefined, locked: false });
+  });
+});
+
+describe('selectComposeShows fallback labels', () => {
+  const judgeOnly = {
+    shows: [],
+    userWithRoles: null,
+    hasRole: (_role: UserRole) => false,
+  };
+
+  it('never offers two identical destinations for store-missing judged shows', () => {
+    const options = selectComposeShows({
+      ...judgeOnly,
+      judgedShows: [
+        { showId: 'aaaaaa-111', firstTrialDate: '2027-03-06' },
+        { showId: 'bbbbbb-222', firstTrialDate: '2027-03-06' },
+        { showId: 'cccccc-333', firstTrialDate: null },
+        { showId: 'dddddd-444', firstTrialDate: null },
+      ],
+    });
+
+    const names = options.map(option => option.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toEqual([
+      'Show you are judging, Mar 6, 2027 (#aaaaaa)',
+      'Show you are judging, Mar 6, 2027 (#bbbbbb)',
+      'Show you are judging (#cccccc)',
+      'Show you are judging (#dddddd)',
+    ]);
+  });
+
+  it('leaves a label alone when nothing collides with it', () => {
+    const options = selectComposeShows({
+      ...judgeOnly,
+      judgedShows: [
+        { showId: 'aaaaaa-111', firstTrialDate: '2027-03-06' },
+        { showId: 'bbbbbb-222', firstTrialDate: '2027-04-10' },
+      ],
+    });
+
+    expect(options.map(option => option.name)).toEqual([
+      'Show you are judging, Mar 6, 2027',
+      'Show you are judging, Apr 10, 2027',
+    ]);
   });
 });

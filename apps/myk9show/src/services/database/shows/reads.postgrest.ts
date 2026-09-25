@@ -1,7 +1,6 @@
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { supabase, createDatabaseError } from '../supabaseClient';
-
-const PUBLIC_SHOW_STATUSES = ['published', 'upcoming', 'in_progress', 'completed'];
+import { PUBLIC_SHOW_STATUSES } from '@/types/show-types';
 
 export async function postgrestGetPublicShows() {
   const { data, error } = await supabase

@@ -13,8 +13,9 @@ const state = vi.hoisted(() => ({
   clubs: [] as Club[],
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
   ensureClubsReady: vi.fn(),
-  shows: [],
+  shows: [] as { clubId: string; status: string; endDate: string }[],
   guestVisibleClubIds: null as ReadonlySet<string> | null,
+  auth: { userWithRoles: null } as { userWithRoles: { roles: string[] } | null },
 }));
 
 vi.mock('@/store/clubStore', () => ({
@@ -26,7 +27,7 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: null }),
+  useAuthContext: () => state.auth,
 }));
 
 const club: Club = {
@@ -53,6 +54,42 @@ describe('useBrowseClubsData readiness states', () => {
     state.ensureClubsReady.mockReset();
     state.shows = [];
     state.guestVisibleClubIds = null;
+    state.auth = { userWithRoles: null };
+  });
+
+  // Codex review round 1 (P1): after a signed-in sync the club session stays
+  // "fresh", so a sign-out would otherwise skip the guest sync and leave the
+  // directory on cached authorization values. A guest with no server id set
+  // forces one.
+  it('forces a guest sync when a signed-out visitor has no server id set', () => {
+    renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(state.ensureClubsReady).toHaveBeenCalledWith({ force: true });
+  });
+
+  it('does not force a sync for a signed-in viewer', () => {
+    state.auth = { userWithRoles: { roles: ['secretary'] } };
+
+    renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(state.ensureClubsReady).toHaveBeenCalledWith();
+  });
+
+  // Codex review round 1 (P2): offline, clubs_select's second anon arm
+  // (club_has_public_show) must still hold for a revoked club hosting a
+  // cached public show.
+  it('keeps an unauthorized club hosting a cached public show when the guest set is unknown', () => {
+    const host: Club = { ...club, id: 'club-host', name: 'Host', authorizedAt: null };
+    const draftOnly: Club = { ...club, id: 'club-draft', name: 'Draft Only', authorizedAt: null };
+    state.clubs = [host, draftOnly];
+    state.shows = [
+      { clubId: 'club-host', status: 'completed', endDate: '2026-01-01' },
+      { clubId: 'club-draft', status: 'draft', endDate: '2026-01-01' },
+    ];
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(result.current.clubs.map(c => c.id)).toEqual(['club-host']);
   });
 
   // MYK9-747: the signed-out directory reads the device-wide replica, which a
@@ -79,6 +116,8 @@ describe('useBrowseClubsData readiness states', () => {
   });
 
   it('shows initial loading only when the cache is empty', () => {
+    // A known guest set: the plain (unforced) readiness path.
+    state.guestVisibleClubIds = new Set();
     const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);

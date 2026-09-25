@@ -4,7 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
 import { CLUB_TYPES, type Club } from '@/types/club-types';
-import { filterVisibleBrowseClubs } from './browseClubsVisibility';
+import { clubHostsPublicShowIds, filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
   search: string;
@@ -47,10 +47,20 @@ export function useBrowseClubsData(): BrowseClubsData {
   // Same principal rule as ReplicatedClubsTable.sync(): an anonymous
   // (ringside passcode) session is a guest too.
   const isGuest = !userWithRoles || user?.is_anonymous === true;
+  const publicShowHostIds = useMemo(() => clubHostsPublicShowIds(shows), [shows]);
   const visibleClubs = useMemo(
-    () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles, { isGuest, guestVisibleClubIds }),
-    [clubs, userWithRoles?.roles, isGuest, guestVisibleClubIds]
+    () =>
+      filterVisibleBrowseClubs(clubs, userWithRoles?.roles, {
+        isGuest,
+        guestVisibleClubIds,
+        publicShowHostIds,
+      }),
+    [clubs, userWithRoles?.roles, isGuest, guestVisibleClubIds, publicShowHostIds]
   );
+  // MYK9-747: a guest with no server id set (signed out after a signed-in
+  // sync left the club session "fresh", or first visit) forces a guest sync.
+  // A failed or offline refresh leaves the set null, so this cannot loop.
+  const needsGuestRefresh = isGuest && guestVisibleClubIds === null;
 
   const isLoading = readiness === 'loading' && clubs.length === 0;
   const hasError = readiness === 'unavailable' && clubs.length === 0;
@@ -67,8 +77,8 @@ export function useBrowseClubsData(): BrowseClubsData {
   // Public browse uses a narrow club-only readiness path. It works for guests
   // without enabling the full anonymous replication provider.
   useEffect(() => {
-    void ensureClubsReady();
-  }, [ensureClubsReady]);
+    void (needsGuestRefresh ? ensureClubsReady({ force: true }) : ensureClubsReady());
+  }, [ensureClubsReady, needsGuestRefresh]);
 
   // Compute upcoming show counts per club
   const clubShowCounts = useMemo(() => {

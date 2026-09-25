@@ -69,6 +69,17 @@ export interface Class {
   timeLimit3?: string | undefined;
 }
 
+/**
+ * Show statuses anon may read: shows_select's list, which
+ * club_has_public_show() (clubs_select) copies. Keep the three in sync.
+ */
+export const PUBLIC_SHOW_STATUSES: readonly string[] = [
+  'published',
+  'upcoming',
+  'in_progress',
+  'completed',
+];
+
 export interface Show {
   id: string;
   name: string;

@@ -72,6 +72,12 @@ export const HEALTH_COVERAGE_SURFACES: readonly HealthCoverageSurface[] = [
     checkKey: 'public_schema_create_acl',
   },
   {
+    label: 'Test shows on the public listing',
+    verificationLevel: 'full',
+    detail: 'published shows with test-style names are checked nightly',
+    checkKey: 'stray_published_shows',
+  },
+  {
     label: 'Sign-in email failures',
     verificationLevel: 'full',
     detail: 'delivery failures raise alerts',

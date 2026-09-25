@@ -26,7 +26,8 @@ import {
   extractConflictCounter,
   type SnapshotCheck,
 } from '../_shared/systemHealthChecks.ts';
-import type { HealthCheckRunMode } from '../../../src/features/admin-system-health/healthCheckCadence.ts';
+import type { HealthCheckRunMode } from '../_shared/healthCheckCadence.ts';
+import { PUBLIC_LISTING_STATUSES, readListedShows } from '../_shared/strayShowChecks.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -107,6 +108,24 @@ async function insertSnapshot(row: ReturnType<typeof buildSnapshot>, runMode: He
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
 
+/** Every show the public listing includes, for the stray-show check (MYK9-741),
+ * read only on full runs; continuous runs carry the nightly result forward.
+ * `readListedShows` pages through the whole result (PostgREST caps a response
+ * at 1000 rows), because a check that stopped at the first page would report
+ * `ok` about shows it never saw. */
+async function fetchListedShows(mode: HealthCheckRunMode): Promise<unknown> {
+  if (mode !== 'full') return undefined;
+  return readListedShows((from, to) =>
+    supabase
+      .from('shows')
+      .select('id, name, location')
+      .in('status', [...PUBLIC_LISTING_STATUSES])
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
+}
+
 async function runHealthSnapshot(
   mode: HealthCheckRunMode,
   runToken: string | null
@@ -116,11 +135,15 @@ async function runHealthSnapshot(
   const [
     { data: facts, error: probeError },
     { data: publicSchemaAcl, error: publicSchemaAclError },
+    publishedShows,
   ] = await Promise.all([
     supabase.rpc('system_health_probe', {
       p_include_expensive: mode === 'full',
     }),
     supabase.rpc('public_schema_create_acl_probe'),
+    fetchListedShows(mode).catch((err: unknown) => ({
+      error: err instanceof Error ? err.message : String(err),
+    })),
   ]);
 
   const source = runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE;
@@ -155,6 +178,7 @@ async function runHealthSnapshot(
       public_schema_create_acl: publicSchemaAclError
         ? { error: publicSchemaAclError.message }
         : publicSchemaAcl,
+      stray_published_shows: publishedShows,
     },
     {
       now: Date.now(),

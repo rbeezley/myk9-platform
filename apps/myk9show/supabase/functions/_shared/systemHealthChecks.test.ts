@@ -10,7 +10,7 @@ import {
 } from './systemHealthChecks';
 import { anonGrants } from './anonGrantTestFixtures';
 import { appliedAclFacts } from './appliedAclTestFixtures';
-import { healthCheckSourceStaleAfterMs } from '../../../src/features/admin-system-health/healthCheckCadence';
+import { healthCheckSourceStaleAfterMs } from './healthCheckCadence';
 import { publicSchemaAclFacts } from './publicSchemaAclTestFixtures';
 
 // A fixed "now" so overdue/stale math is deterministic.
@@ -94,6 +94,7 @@ describe('buildSnapshot — contract shape', () => {
       'anon_grants',
       'applied_acl_grants',
       'public_schema_create_acl',
+      'stray_published_shows',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');

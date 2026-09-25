@@ -7,11 +7,7 @@ import {
   type EntrySubmissionSource,
 } from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
-import { recordEnrollmentPayment as recordLedgerPayment } from '@/services/database/show-payments';
-import { currentCalendarDate } from '@/features/_shared/isDayOfShowEntry';
-import { getTrialTimezone } from '@/features/registries';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
-import { pendingLedgerPayments, type PendingLedgerPaymentStore } from './pendingLedgerPayments';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -59,9 +55,6 @@ interface SubmitShowRegistrationDeps {
   submitShowEntries: typeof submitShowEntries;
   claimNextArmband: typeof claimNextArmband;
   createSubmissionId: () => string;
-  recordLedgerPayment: typeof recordLedgerPayment;
-  pendingLedger: PendingLedgerPaymentStore;
-  createClientPaymentId: () => string;
 }
 
 export interface SubmitShowRegistrationParams {
@@ -94,9 +87,6 @@ const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration'> = {
   submitShowEntries,
   claimNextArmband,
   createSubmissionId: () => crypto.randomUUID(),
-  recordLedgerPayment,
-  pendingLedger: pendingLedgerPayments,
-  createClientPaymentId: () => crypto.randomUUID(),
 };
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
@@ -176,6 +166,18 @@ export async function submitShowRegistration({
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod: submitMethod,
       submissionSource,
+      // MYK9-677: money already received is recorded by the RPC in the same
+      // transaction as the entries, so there is no window in which entries
+      // exist without it and nothing for a retry to settle.
+      ...(receivedMethod
+        ? {
+            payment: {
+              method: receivedMethod,
+              receivedOn: paymentDetails?.paymentDate?.trim() || null,
+              reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+            },
+          }
+        : {}),
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
@@ -187,46 +189,19 @@ export async function submitShowRegistration({
       await recordEnrollmentPayment({
         showId,
         ownerResolution,
-        paymentMethod: submitMethod,
+        // With a received payment the RPC already grew the enrollment total and
+        // recorded the money, so this write carries only the payment details
+        // (reference, date, notes): no method, no total, no status, no
+        // paid_amount, which would otherwise be added twice.
+        paymentMethod: receivedMethod ? undefined : submitMethod,
         paymentDetails,
-        totalAmountCents: createdAmountCents,
+        totalAmountCents: receivedMethod ? undefined : createdAmountCents,
         // An exhibitor entering their own dogs is not allowed to move
         // enrollments.payment_status; the BEFORE UPDATE trigger rejects the
         // whole statement, so nothing was entered at all (MYK9-486).
         selfService: submissionSource === 'self_service',
         deps: resolvedDeps,
       });
-      if (!isStillActive(isActive)) return { aborted: true };
-
-      // The entries went in as cash/check "pay at show". The money they were
-      // paid with is saved as a pending ledger payment, with its own key,
-      // BEFORE the ledger call below, so a failed or lost call is retried by
-      // the next submit instead of being lost with the created outcomes.
-      if (receivedMethod && createdAmountCents > 0) {
-        assertResolvedEnrollmentOwner(ownerResolution);
-        resolvedDeps.pendingLedger.add({
-          clientPaymentId: resolvedDeps.createClientPaymentId(),
-          showId,
-          ownerId: ownerResolution.ownerId,
-          enrollmentId: enrollment.dbRegistrationId,
-          amount: createdAmountCents / 100,
-          method: receivedMethod,
-          receivedOn:
-            paymentDetails?.paymentDate?.trim() ||
-            currentCalendarDate(
-              new Date(),
-              showFeeInfo.entryWindowTimezone ?? getTrialTimezone(undefined)
-            ),
-          reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
-        });
-      }
-    }
-
-    // Record every payment this owner still has pending on this show: the one
-    // just saved and any a failed earlier submit left behind. Only staff record
-    // money, so an exhibitor's own submit never settles anything.
-    if (submissionSource !== 'self_service') {
-      await settlePendingLedgerPayments(showId, ownerResolution, resolvedDeps);
       if (!isStillActive(isActive)) return { aborted: true };
     }
 
@@ -305,9 +280,9 @@ async function recordEnrollmentPayment({
 }: {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | undefined;
   paymentDetails?: PaymentDetails | undefined;
-  totalAmountCents: number;
+  totalAmountCents: number | undefined;
   selfService: boolean;
   deps: SubmitShowRegistrationDeps;
 }): Promise<void> {
@@ -325,31 +300,6 @@ async function recordEnrollmentPayment({
 
   if (result.error) {
     throw result.error;
-  }
-}
-
-/**
- * Records each pending payment, removing it only once the server confirmed it.
- * A failure throws with the rest still pending; the RPC answers a repeated
- * `clientPaymentId` from the row it already wrote, so paid_amount is never
- * added twice.
- */
-async function settlePendingLedgerPayments(
-  showId: string,
-  ownerResolution: SelectedDogsOwnerResult,
-  deps: SubmitShowRegistrationDeps
-): Promise<void> {
-  assertResolvedEnrollmentOwner(ownerResolution);
-  for (const pending of deps.pendingLedger.forOwner(showId, ownerResolution.ownerId)) {
-    await deps.recordLedgerPayment(pending.enrollmentId, {
-      kind: 'payment',
-      method: pending.method,
-      amount: pending.amount,
-      receivedOn: pending.receivedOn,
-      reference: pending.reference,
-      clientPaymentId: pending.clientPaymentId,
-    });
-    deps.pendingLedger.remove(pending.clientPaymentId);
   }
 }
 

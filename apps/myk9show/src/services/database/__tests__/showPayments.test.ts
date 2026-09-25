@@ -45,21 +45,6 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
     });
   });
 
-  it('sends the retry key when the payment carries one', async () => {
-    await recordEnrollmentPayment('enr-1', {
-      kind: 'payment',
-      method: 'cash',
-      amount: 30,
-      receivedOn: '2026-09-17',
-      clientPaymentId: 'pay-1',
-    });
-
-    expect(mocks.rpc).toHaveBeenCalledWith(
-      'record_enrollment_payment',
-      expect.objectContaining({ p_client_payment_id: 'pay-1' })
-    );
-  });
-
   it('sends Paid in Full as a NULL amount, so the server pays the balance', async () => {
     await recordEnrollmentPayment('enr-1', {
       kind: 'payment',

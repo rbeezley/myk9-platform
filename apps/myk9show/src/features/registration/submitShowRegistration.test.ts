@@ -1,8 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { submitShowRegistration } from './submitShowRegistration';
 import type { SubmitShowRegistrationParams } from './submitShowRegistration';
 import { fromAny } from '@total-typescript/shoehorn';
-import { PENDING_LEDGER_PAYMENTS_KEY } from './pendingLedgerPayments';
 
 function makeParams(
   overrides: Partial<SubmitShowRegistrationParams> = {}
@@ -56,17 +55,12 @@ function makeParams(
       }),
       claimNextArmband: vi.fn().mockResolvedValue({ armband: '101' }),
       createSubmissionId: () => 'submission-1',
-      recordLedgerPayment: vi.fn().mockResolvedValue({ id: 'db-reg-2' }),
-      createClientPaymentId: () => 'pay-1',
     },
     ...overrides,
   };
 }
 
 describe('submitShowRegistration', () => {
-  // Pending ledger payments live in localStorage (they must survive a reload).
-  beforeEach(() => localStorage.clear());
-
   // MYK9-567: the handler name the exhibitor typed is printed on the check-in
   // sheet, the running order, the catalog and the registry entry form. Pin the
   // value at the RPC boundary so a future "normalise the name" helper cannot
@@ -178,7 +172,7 @@ describe('submitShowRegistration', () => {
   });
 
   describe('Secretary Payment (Already Received) names cash or check (MYK9-677)', () => {
-    it('submits as the received method and records the money in the payments ledger', async () => {
+    it('sends the received payment in the single submit call, with no second ledger step', async () => {
       const params = makeParams({
         paymentMethod: 'secretary_paid',
         paymentDetails: {
@@ -191,137 +185,41 @@ describe('submitShowRegistration', () => {
 
       await submitShowRegistration(params);
 
-      expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
+      expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
       expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
         expect.objectContaining({
           paymentMethod: 'check',
           entries: [expect.objectContaining({ paymentMethod: 'check' })],
+          payment: { method: 'check', receivedOn: '2026-07-07', reference: 'receipt-100' },
         })
       );
-      // The enrollment and entries carry the method, so the Financial Report
-      // agrees with the ledger.
+      // The follow-up enrollment write carries only the payment details: no
+      // method, no total, so the RPC's total and paid_amount are not added to twice.
       expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
         2,
         'show-1',
         'owner-1',
         'receipt-100',
         expect.objectContaining({ paymentReference: 'receipt-100', paymentDate: '2026-07-07' }),
-        'check',
-        3000,
+        undefined,
+        undefined,
         { selfService: false }
       );
-      expect(params.deps.recordLedgerPayment).toHaveBeenCalledTimes(1);
-      expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith('db-reg-2', {
-        kind: 'payment',
-        method: 'check',
-        amount: 30,
-        receivedOn: '2026-07-07',
-        reference: 'receipt-100',
-        clientPaymentId: 'pay-1',
-      });
-      // Confirmed, so nothing is left pending.
-      expect(localStorage.getItem(PENDING_LEDGER_PAYMENTS_KEY)).toBeNull();
     });
 
-    it('a failed ledger write is retried by the next submit, once, with the same key', async () => {
-      const first = makeParams({
+    it('leaves the received date to the server (today on the show calendar) when none was typed', async () => {
+      const params = makeParams({
         paymentMethod: 'secretary_paid',
-        paymentDetails: { paymentDate: '2026-07-07', receivedMethod: 'check' },
+        paymentDetails: { receivedMethod: 'cash' },
       });
-      vi.mocked(first.deps.recordLedgerPayment!).mockRejectedValueOnce(new Error('network'));
-
-      await expect(submitShowRegistration(first)).rejects.toThrow('network');
-
-      // The retry (a fresh call, as after a reload: only localStorage carries
-      // over) creates no new entries; the RPC dedupes a repeated key.
-      const retry = makeParams({
-        paymentMethod: 'secretary_paid',
-        paymentDetails: { receivedMethod: 'check' },
-      });
-      vi.mocked(retry.deps.submitShowEntries!).mockResolvedValue({
-        entries: [],
-        outcomes: [],
-        registrationId: 'db-reg-2',
-        submissionId: 'submission-2',
-      } as Awaited<ReturnType<NonNullable<typeof retry.deps.submitShowEntries>>>);
-      retry.deps.createClientPaymentId = () => 'pay-2-never-used';
-
-      await submitShowRegistration(retry);
-
-      expect(retry.deps.recordLedgerPayment).toHaveBeenCalledTimes(1);
-      expect(retry.deps.recordLedgerPayment).toHaveBeenCalledWith('db-reg-2', {
-        kind: 'payment',
-        method: 'check',
-        amount: 30,
-        receivedOn: '2026-07-07',
-        reference: null,
-        clientPaymentId: 'pay-1',
-      });
-      // The retry wrote no second enrollment payment update, so paid_amount /
-      // total_amount are not added to twice; only ensureEnrollment ran.
-      expect(retry.deps.createShowRegistration).toHaveBeenCalledTimes(1);
-      expect(localStorage.getItem(PENDING_LEDGER_PAYMENTS_KEY)).toBeNull();
-
-      // A third submit has nothing left to settle.
-      const third = makeParams({ paymentMethod: 'check', paymentDetails: {} });
-      vi.mocked(third.deps.submitShowEntries!).mockResolvedValue({
-        entries: [],
-        outcomes: [],
-        registrationId: 'db-reg-2',
-        submissionId: 'submission-3',
-      } as Awaited<ReturnType<NonNullable<typeof third.deps.submitShowEntries>>>);
-      await submitShowRegistration(third);
-      expect(third.deps.recordLedgerPayment).not.toHaveBeenCalled();
-    });
-
-    it('never settles pending payments on an exhibitor self-service submit', async () => {
-      localStorage.setItem(
-        PENDING_LEDGER_PAYMENTS_KEY,
-        JSON.stringify([
-          {
-            clientPaymentId: 'pay-x',
-            showId: 'show-1',
-            ownerId: 'owner-1',
-            enrollmentId: 'db-reg-2',
-            amount: 30,
-            method: 'cash',
-            receivedOn: '2026-07-07',
-            reference: null,
-          },
-        ])
-      );
-      const params = makeParams({ submissionSource: 'self_service' });
 
       await submitShowRegistration(params);
 
-      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
-    });
-
-    it('dates the payment today on the show calendar when no Payment Date was typed', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] });
-      // 01:30 UTC on the 18th is still the 17th in Chicago.
-      vi.setSystemTime(new Date('2026-09-18T01:30:00Z'));
-      try {
-        const params = makeParams({
-          paymentMethod: 'secretary_paid',
-          paymentDetails: { receivedMethod: 'cash' },
-          showFeeInfo: {
-            preEntryFee: '25',
-            dayOfShowFee: '30',
-            startDate: '2026-05-01',
-            entryWindowTimezone: 'America/Chicago',
-          },
-        });
-
-        await submitShowRegistration(params);
-
-        expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith(
-          'db-reg-2',
-          expect.objectContaining({ method: 'cash', receivedOn: '2026-09-17' })
-        );
-      } finally {
-        vi.useRealTimers();
-      }
+      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payment: { method: 'cash', receivedOn: null, reference: null },
+        })
+      );
     });
 
     it('refuses money received with no method before writing anything', async () => {
@@ -337,40 +235,31 @@ describe('submitShowRegistration', () => {
       expect(params.deps.submitRegistration).not.toHaveBeenCalled();
       expect(params.deps.createShowRegistration).not.toHaveBeenCalled();
       expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
-      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
     });
 
-    it('writes no ledger row for a $0 entry and keeps the secretary_paid label', async () => {
+    it('sends no payment for a $0 entry and keeps the secretary_paid label', async () => {
       const params = makeParams({
         paymentMethod: 'secretary_paid',
         paymentDetails: {},
         classes: [{ id: 'class-1', entryFee: 0 }],
         showFeeInfo: { preEntryFee: '0', dayOfShowFee: '0', startDate: '2026-05-01' },
       });
-      vi.mocked(params.deps.submitShowEntries!).mockResolvedValue({
-        entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
-        outcomes: [
-          {
-            dogId: 'dog-1',
-            classId: 'class-1',
-            outcome: 'created',
-            entryId: 'entry-1',
-            waitlistEntryId: null,
-            waitlistPosition: null,
-            feeCents: 0,
-            capacityOverride: false,
-          },
-        ],
-        registrationId: 'db-reg-1',
-        submissionId: 'submission-1',
-      } as Awaited<ReturnType<NonNullable<typeof params.deps.submitShowEntries>>>);
 
       await submitShowRegistration(params);
 
-      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
-        expect.objectContaining({ paymentMethod: 'secretary_paid' })
+      const call = vi.mocked(params.deps.submitShowEntries!).mock.calls[0]![0];
+      expect(call.paymentMethod).toBe('secretary_paid');
+      expect(call).not.toHaveProperty('payment');
+    });
+
+    it('sends no payment for any other method, so other callers are unchanged', async () => {
+      const params = makeParams({ paymentMethod: 'check' });
+
+      await submitShowRegistration(params);
+
+      expect(vi.mocked(params.deps.submitShowEntries!).mock.calls[0]![0]).not.toHaveProperty(
+        'payment'
       );
-      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
     });
   });
 
@@ -389,7 +278,6 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
-    expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
   });
 
   it('records payment and claims armbands only for created capacity outcomes', async () => {
@@ -451,14 +339,9 @@ describe('submitShowRegistration', () => {
       'owner-1',
       'check-1',
       { paymentReference: 'check-1', receivedMethod: 'check' },
-      'check',
-      3000,
+      undefined,
+      undefined,
       { selfService: false }
-    );
-    // The ledger records only the created entry's fee, not the waitlisted one.
-    expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith(
-      'db-reg-2',
-      expect.objectContaining({ kind: 'payment', method: 'check', amount: 30 })
     );
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {
@@ -498,7 +381,6 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(2);
-    expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
     expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
   });
 

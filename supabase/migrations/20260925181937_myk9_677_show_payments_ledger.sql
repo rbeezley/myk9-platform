@@ -23,7 +23,12 @@
 --     same rule submit_show_entries and the client's getEntryWindowTimezone use).
 --
 -- WRITERS.
---   * public.record_enrollment_payment(): the ONLY enrollment writer. It inserts
+--   * private.record_enrollment_payment_core(): the ONE place the enrollment
+--     money rules live. Called by public.record_enrollment_payment() (Entry
+--     Management) and by submit_show_entries (20260925181939, a secretary-
+--     received payment recorded in the same transaction as the entries); each
+--     authorizes before calling it.
+--   * public.record_enrollment_payment(): Entry Management's writer. It inserts
 --     the ledger row AND moves enrollments.paid_amount / payment_status and the
 --     entries cascade in one transaction, so the ledger and the enrollment
 --     cannot disagree. Partial Payment's amount is now THIS payment (paid total
@@ -149,10 +154,13 @@ CREATE POLICY show_payments_select ON public.show_payments
   USING ((SELECT public.is_site_admin()) OR public.is_show_office_manager(show_id));
 
 -- ---------------------------------------------------------------------------
--- record_enrollment_payment
+-- record_enrollment_payment: the rules live ONCE, in the private core; the
+-- public RPC and submit_show_entries (20260925181939) each authorize, then call
+-- it. The core does no authorization of its own and is not callable through
+-- PostgREST (private schema, no grants).
 -- ---------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.record_enrollment_payment(
+CREATE OR REPLACE FUNCTION private.record_enrollment_payment_core(
   p_enrollment_id uuid,
   p_kind text,
   p_amount numeric DEFAULT NULL,
@@ -164,7 +172,7 @@ CREATE OR REPLACE FUNCTION public.record_enrollment_payment(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $$
 DECLARE
@@ -197,12 +205,6 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'enrollment % not found', p_enrollment_id USING ERRCODE = '22023';
-  END IF;
-
-  -- SECURITY DEFINER drops RLS, so the record predicate is restated here.
-  IF NOT private.can_record_show_payment(v_show_id) THEN
-    RAISE EXCEPTION 'not authorized to record payments for enrollment %', p_enrollment_id
-      USING ERRCODE = '42501';
   END IF;
 
   -- IDEMPOTENT RETRY. A payment sent with a key that already has a row was
@@ -377,17 +379,16 @@ BEGIN
     v_entry_status := 'pending';
   END IF;
 
-  -- The entries cascade updateEnrollmentPaymentStatus runs, in the same
-  -- transaction. Refunded and waived entries keep their own status, and an
-  -- online-method entry's status belongs to the payment service (the entries
-  -- payment-status guard trigger would reject the write).
+  -- The entries cascade, EXACTLY as the pre-ledger client ran it
+  -- (updateEnrollmentPaymentStatus on origin/main): every entry of the
+  -- enrollment except those already 'refunded' or 'waived' takes the coarse
+  -- status (paid_* -> 'paid', pending -> 'pending', refunds -> 'refunded').
+  -- No other rule is added here.
   UPDATE public.entries
      SET payment_status = v_entry_status,
          updated_at = now()
    WHERE registration_id = p_enrollment_id
-     AND payment_status NOT IN ('refunded', 'waived')
-     AND payment_status IS DISTINCT FROM v_entry_status
-     AND payment_method IS DISTINCT FROM 'online';
+     AND payment_status NOT IN ('refunded', 'waived');
 
   SELECT * INTO v_row FROM public.enrollments WHERE id = p_enrollment_id;
   RETURN jsonb_build_object(
@@ -398,6 +399,44 @@ BEGIN
     'refund_amount', v_row.refund_amount,
     'refund_notes', v_row.refund_notes,
     'refunded_at', v_row.refunded_at
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.record_enrollment_payment_core(uuid, text, numeric, text, date, text, text, uuid) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION public.record_enrollment_payment(
+  p_enrollment_id uuid,
+  p_kind text,
+  p_amount numeric DEFAULT NULL,
+  p_method text DEFAULT NULL,
+  p_received_on date DEFAULT NULL,
+  p_reference text DEFAULT NULL,
+  p_note text DEFAULT NULL,
+  p_client_payment_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_id uuid;
+BEGIN
+  SELECT e.show_id INTO v_show_id FROM public.enrollments e WHERE e.id = p_enrollment_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'enrollment % not found', p_enrollment_id USING ERRCODE = '22023';
+  END IF;
+
+  -- SECURITY DEFINER drops RLS, so the record predicate is restated here.
+  IF NOT private.can_record_show_payment(v_show_id) THEN
+    RAISE EXCEPTION 'not authorized to record payments for enrollment %', p_enrollment_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN private.record_enrollment_payment_core(
+    p_enrollment_id, p_kind, p_amount, p_method, p_received_on, p_reference, p_note,
+    p_client_payment_id
   );
 END;
 $$;

@@ -79,6 +79,7 @@ const launchCriticalSqlTests = [
   'myk9_691_update_show_style_test.sql',
   'myk9_740_ringside_replay_idempotent_test.sql',
   'myk9_677_show_payments_ledger_test.sql',
+  'myk9_677_submit_entries_payment_test.sql',
   'judge_qualification_rpc_authorization_test.sql',
   'notification_preferences_sms_rls_test.sql',
   'paperwork_prints_rls_test.sql',

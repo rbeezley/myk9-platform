@@ -75,7 +75,8 @@ VALUES
   ('00000000-0000-0000-0000-000000677053', 'Pay', 'Exhibitor', NULL),
   ('00000000-0000-0000-0000-000000677054', 'Refund', 'Exhibitor', NULL),
   ('00000000-0000-0000-0000-000000677055', 'Shortfall', 'Exhibitor', NULL),
-  ('00000000-0000-0000-0000-000000677056', 'Retry', 'Exhibitor', NULL);
+  ('00000000-0000-0000-0000-000000677056', 'Retry', 'Exhibitor', NULL),
+  ('00000000-0000-0000-0000-000000677057', 'Parity', 'Exhibitor', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000677051', id, '00000000-0000-0000-0000-000000677001',
@@ -99,7 +100,24 @@ VALUES
   ('00000000-0000-0000-0000-000000677064', '00000000-0000-0000-0000-000000677011',
    '00000000-0000-0000-0000-000000677055', 'pending', 'check', 5000),
   ('00000000-0000-0000-0000-000000677065', '00000000-0000-0000-0000-000000677011',
-   '00000000-0000-0000-0000-000000677056', 'pending', 'cash', 3000);
+   '00000000-0000-0000-0000-000000677056', 'pending', 'cash', 3000),
+  ('00000000-0000-0000-0000-000000677066', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677057', 'pending', 'cash', 5000);
+
+-- Entry-status parity fixture: an ordinary entry, a waived one and one refunded
+-- on its own, all on enrollment ...066.
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+VALUES
+  ('00000000-0000-0000-0000-000000677081', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677066',
+   'submitted', 'pending', 'cash', 50),
+  ('00000000-0000-0000-0000-000000677082', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677066',
+   'submitted', 'waived', 'waived', 0),
+  ('00000000-0000-0000-0000-000000677083', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677066',
+   'submitted', 'refunded', 'cash', 50);
 
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
@@ -366,6 +384,55 @@ BEGIN
   EXCEPTION WHEN invalid_parameter_value THEN
     RAISE NOTICE 'PASS a client_payment_id reused on another enrollment is refused';
   END;
+END;
+$$;
+
+-- --- entry statuses: EXACTLY the pre-ledger cascade ---------------------------
+-- origin/main's updateEnrollmentPaymentStatus set every entry of the enrollment
+-- except 'refunded' and 'waived' ones to the coarse status (paid_* -> paid,
+-- pending -> pending, refunds -> refunded). Each action is checked against it.
+CREATE TEMP TABLE myk9_677_parity (step text, ordinary text, waived text, refunded text);
+GRANT ALL ON myk9_677_parity TO authenticated;
+
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677066', 'payment', 20, 'cash', NULL, NULL, NULL);
+INSERT INTO myk9_677_parity SELECT 'partial',
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677081'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677082'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677083');
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677066', 'payment', NULL, 'check', NULL, NULL, NULL);
+INSERT INTO myk9_677_parity SELECT 'paid in full',
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677081'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677082'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677083');
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677066', 'refund', 10, NULL, NULL, NULL, 'Stripe (manual)');
+INSERT INTO myk9_677_parity SELECT 'refund',
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677081'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677082'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677083');
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677066', 'reversal', NULL, NULL, NULL, NULL, NULL);
+INSERT INTO myk9_677_parity SELECT 'payment due',
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677081'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677082'),
+  (SELECT payment_status FROM public.entries WHERE id = '00000000-0000-0000-0000-000000677083');
+
+DO $$
+DECLARE
+  v_got text;
+BEGIN
+  SELECT string_agg(step || ':' || ordinary || '/' || waived || '/' || refunded, ', ' ORDER BY ctid)
+    INTO v_got FROM myk9_677_parity;
+  -- The last line is the pre-ledger behaviour Codex round 7 flagged (a
+  -- refunded entry stays refunded after a reset); it is kept, not changed.
+  IF v_got IS DISTINCT FROM
+     'partial:pending/waived/refunded, paid in full:paid/waived/refunded, '
+     || 'refund:refunded/waived/refunded, payment due:refunded/waived/refunded' THEN
+    RAISE EXCEPTION 'FAIL entry statuses differ from the pre-ledger cascade: %', v_got;
+  END IF;
+  RAISE NOTICE 'PASS entry statuses match the pre-ledger cascade for every action';
 END;
 $$;
 

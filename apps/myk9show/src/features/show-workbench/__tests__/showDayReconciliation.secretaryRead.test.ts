@@ -1,5 +1,5 @@
 /**
- * MYK9-677: the Show Closeout card must count late entries on the row shape the
+ * MYK9-677: the Show Closeout card must count entries made during the show on the row shape the
  * Show Desk actually hands it (`SecretaryEntry`, from the warm replicated read),
  * not only on a hand-built fixture. The card once gated on `is_day_of_show`,
  * which the secretary read never carried, so it always read zero.
@@ -44,14 +44,14 @@ function replicaEntry(id: string, submittedAt: string, paymentMethod = 'cash') {
   );
 }
 
-describe('late entries on the secretary read (MYK9-677)', () => {
-  it('counts an entry keyed at the desk on show day', () => {
+describe('entries made during the show, on the secretary read (MYK9-677)', () => {
+  it('counts an entry submitted on a show day', () => {
     const summary = summarizeShowDayReconciliation(
       [replicaEntry('desk', '2026-09-17T15:00:00Z')],
       DESK_WINDOW
     );
 
-    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.entriesDuringShowCount).toBe(1);
   });
 
   it('leaves out a day-of-show-bucket entry keyed weeks before the show', () => {
@@ -60,16 +60,16 @@ describe('late entries on the secretary read (MYK9-677)', () => {
       DESK_WINDOW
     );
 
-    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.entriesDuringShowCount).toBe(0);
   });
 
-  it('counts a waived desk entry as a late entry and as waived', () => {
+  it('counts a waived show-day entry, and notes it as waived', () => {
     const summary = summarizeShowDayReconciliation(
       [replicaEntry('comp', '2026-09-18T15:00:00Z', 'waived')],
       DESK_WINDOW
     );
 
-    expect(summary.lateEntryCount).toBe(1);
-    expect(summary.waivedLateEntryCount).toBe(1);
+    expect(summary.entriesDuringShowCount).toBe(1);
+    expect(summary.waivedDuringShowCount).toBe(1);
   });
 });

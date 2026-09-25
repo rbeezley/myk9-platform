@@ -47,15 +47,18 @@ export interface DeskCollectionWindow {
  *   per payment. An enrollment's payment is not attributed to its entries:
  *   one payment can cover an old entry and a new one, or finish online what
  *   the desk started, so no entry count can honestly follow it.
- * - LATE ENTRIES are entries keyed during the show, by their own submission
- *   time, whatever they were paid with (or not yet).
+ * - ENTRIES MADE DURING THE SHOW: entries submitted on a show day, on the
+ *   show's calendar, whatever they were paid with (or not yet). Context for
+ *   the payments figure, not a reconciliation: the entry row does not record
+ *   who entered it, so this includes an exhibitor's own show-day entry when
+ *   entries close during the show (owner decision, Codex round 8).
  */
 export interface ShowDayReconciliationSummary {
   totalEntryCount: number;
-  /** Entries submitted during the show's days, on the show's calendar. */
-  lateEntryCount: number;
+  /** Entries made during the show: submitted on a show day, show calendar. */
+  entriesDuringShowCount: number;
   /** Of those, the ones the secretary waived. */
-  waivedLateEntryCount: number;
+  waivedDuringShowCount: number;
   /** Cash and check payments received during the show, net of refunds and resets. */
   paymentCount: number;
   paymentAmount: number;
@@ -104,15 +107,15 @@ function windowDays(window: DeskCollectionWindow | null): { start: string; end: 
 }
 
 /**
- * A late entry: submitted during the show, on the show's own calendar.
+ * An entry made during the show: submitted on one of the show's days, on the
+ * show's own calendar.
  *
  * Not `is_day_of_show`: that is the registry bucket (MYK9-642), and a mail-in
  * keyed after entries close but weeks before the show is day-of-show to the
- * registry while nobody at the desk took it. Submission time is when the
- * secretary keyed it; entries close before the show for exhibitors, so an
- * entry keyed during the show was keyed by staff.
+ * registry. Who entered it is not recorded on the row, so this does not claim
+ * the desk took it.
  */
-function isLateEntry(
+function isEntryMadeDuringShow(
   entry: ShowDayReconciliationEntry,
   days: { start: string; end: string } | null,
   timeZone: string | null | undefined
@@ -167,8 +170,8 @@ export function summarizeShowDayReconciliation(
 ): ShowDayReconciliationSummary {
   const summary: ShowDayReconciliationSummary = {
     totalEntryCount: 0,
-    lateEntryCount: 0,
-    waivedLateEntryCount: 0,
+    entriesDuringShowCount: 0,
+    waivedDuringShowCount: 0,
     paymentCount: 0,
     paymentAmount: 0,
     byMethod: { cash: { count: 0, amount: 0 }, check: { count: 0, amount: 0 } },
@@ -198,9 +201,9 @@ export function summarizeShowDayReconciliation(
       }
     }
 
-    if (isLateEntry(entry, days, deskWindow?.timeZone)) {
-      summary.lateEntryCount += 1;
-      if (isWaived(entry)) summary.waivedLateEntryCount += 1;
+    if (isEntryMadeDuringShow(entry, days, deskWindow?.timeZone)) {
+      summary.entriesDuringShowCount += 1;
+      if (isWaived(entry)) summary.waivedDuringShowCount += 1;
     }
   }
 

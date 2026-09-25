@@ -19,7 +19,7 @@ import { formatIncidentType, summarizeShowIncidents } from './showIncidents';
 interface ShowCloseoutSummaryProps {
   showId: string;
   entries: ShowDayReconciliationEntry[];
-  /** When the show ran, so only money taken at the desk counts (MYK9-677). */
+  /** When the show ran: payments and entries within it are counted (MYK9-677). */
   deskWindow: DeskCollectionWindow | null;
 }
 
@@ -109,13 +109,13 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             <p className={STAT_LABEL_CLASS}>Entries</p>
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
           </div>
-          <div role="group" aria-label="Late entries at the desk">
-            <p className={STAT_LABEL_CLASS}>Late entries</p>
-            <p className={STAT_VALUE_CLASS}>{recon.lateEntryCount}</p>
+          <div role="group" aria-label="Entries made during the show">
+            <p className={STAT_LABEL_CLASS}>Entries made during the show</p>
+            <p className={STAT_VALUE_CLASS}>{recon.entriesDuringShowCount}</p>
             <p className="text-xs text-muted-foreground">
-              {recon.waivedLateEntryCount > 0
-                ? `Entered during the show · ${recon.waivedLateEntryCount} waived`
-                : 'Entered during the show'}
+              {recon.waivedDuringShowCount > 0
+                ? `${recon.waivedDuringShowCount} waived`
+                : 'Submitted on a show day'}
             </p>
           </div>
           <div role="group" aria-label="Payments received during the show">

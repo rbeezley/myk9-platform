@@ -96,10 +96,10 @@ describe('UKC Nosework Trial Report counts follow the shared day-of-show rule', 
   });
 });
 
-describe("The Show Closeout card's late-entry count does NOT follow the registry bucket (MYK9-677)", () => {
+describe("The Show Closeout card's entries-made-during-the-show count does NOT follow the registry bucket (MYK9-677)", () => {
   // The registry bucket answers "which line on the UKC form?"; the closeout
-  // card's "Late entries" answers "was this keyed at the desk during the
-  // show?". They overlapped only while the offline desk dialog was the sole
+  // card's "Entries made during the show" answers "was this submitted on a
+  // show day?". They overlapped only while the offline desk dialog was the sole
   // writer of `is_day_of_show`. (Money is a separate figure, from the payments
   // ledger, and is not attributed to entries at all.)
   //
@@ -130,9 +130,9 @@ describe("The Show Closeout card's late-entry count does NOT follow the registry
     // The registry calls it day-of-show...
     expect(mailIn.is_day_of_show).toBe(true);
 
-    // ...but nobody keyed it at the desk.
+    // ...but it was not made during the show.
     const summary = summarizeShowDayReconciliation([mailIn], deskWindow);
-    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.entriesDuringShowCount).toBe(0);
     expect(summary.totalEntryCount).toBe(1);
   });
 
@@ -141,6 +141,6 @@ describe("The Show Closeout card's late-entry count does NOT follow the registry
     expect(atDesk.is_day_of_show).toBe(true);
 
     const summary = summarizeShowDayReconciliation([atDesk], deskWindow);
-    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.entriesDuringShowCount).toBe(1);
   });
 });

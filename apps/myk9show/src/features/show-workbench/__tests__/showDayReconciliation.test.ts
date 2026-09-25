@@ -64,10 +64,10 @@ describe('summarizeShowDayReconciliation', () => {
 
     expect(summary.pulledCount).toBe(1);
     expect(summary.refundReviewAmount).toBe(35);
-    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.entriesDuringShowCount).toBe(0);
   });
 
-  describe('late entries: keyed during the show, however they were paid (MYK9-677)', () => {
+  describe('entries made during the show: submitted on a show day, however paid (MYK9-677)', () => {
     const keyed = (
       submittedAt: string | null,
       overrides: Partial<ShowDayReconciliationEntry> = {}
@@ -80,7 +80,7 @@ describe('summarizeShowDayReconciliation', () => {
       ...overrides,
     });
 
-    it('counts an entry keyed at the desk whether it was paid, unpaid, online or waived', () => {
+    it('counts a show-day entry whether it was paid, unpaid, online or waived', () => {
       const summary = summarizeShowDayReconciliation(
         [
           keyed(AT_SHOW),
@@ -91,32 +91,36 @@ describe('summarizeShowDayReconciliation', () => {
         WINDOW
       );
 
-      expect(summary.lateEntryCount).toBe(4);
-      expect(summary.waivedLateEntryCount).toBe(1);
+      expect(summary.entriesDuringShowCount).toBe(4);
+      expect(summary.waivedDuringShowCount).toBe(1);
       expect(summary.paymentCount).toBe(0);
     });
 
     it('leaves out a mail-in keyed after entries closed but weeks before the show', () => {
       const summary = summarizeShowDayReconciliation([keyed('2026-09-01T15:00:00Z')], WINDOW);
 
-      expect(summary.lateEntryCount).toBe(0);
+      expect(summary.entriesDuringShowCount).toBe(0);
       expect(summary.totalEntryCount).toBe(1);
     });
 
     it("reads the day on the show's own calendar, not UTC", () => {
       // 01:30 UTC on the 17th is 21:30 on the 16th in New York; 04:30 is show day.
       expect(
-        summarizeShowDayReconciliation([keyed('2026-09-17T01:30:00Z')], WINDOW).lateEntryCount
+        summarizeShowDayReconciliation([keyed('2026-09-17T01:30:00Z')], WINDOW)
+          .entriesDuringShowCount
       ).toBe(0);
       expect(
-        summarizeShowDayReconciliation([keyed('2026-09-17T04:30:00Z')], WINDOW).lateEntryCount
+        summarizeShowDayReconciliation([keyed('2026-09-17T04:30:00Z')], WINDOW)
+          .entriesDuringShowCount
       ).toBe(1);
       // 03:30 UTC on the 19th is still the 18th, the last day; 04:30 is the day after.
       expect(
-        summarizeShowDayReconciliation([keyed('2026-09-19T03:30:00Z')], WINDOW).lateEntryCount
+        summarizeShowDayReconciliation([keyed('2026-09-19T03:30:00Z')], WINDOW)
+          .entriesDuringShowCount
       ).toBe(1);
       expect(
-        summarizeShowDayReconciliation([keyed('2026-09-19T04:30:00Z')], WINDOW).lateEntryCount
+        summarizeShowDayReconciliation([keyed('2026-09-19T04:30:00Z')], WINDOW)
+          .entriesDuringShowCount
       ).toBe(0);
     });
 
@@ -126,19 +130,19 @@ describe('summarizeShowDayReconciliation', () => {
         WINDOW
       );
 
-      expect(summary.lateEntryCount).toBe(1);
+      expect(summary.entriesDuringShowCount).toBe(1);
     });
 
     it('counts nothing without a show start date or a timestamp', () => {
-      expect(summarizeShowDayReconciliation([keyed(AT_SHOW)], null).lateEntryCount).toBe(0);
+      expect(summarizeShowDayReconciliation([keyed(AT_SHOW)], null).entriesDuringShowCount).toBe(0);
       expect(
         summarizeShowDayReconciliation([keyed(AT_SHOW)], {
           showStartDate: null,
           showEndDate: null,
           timeZone: 'America/New_York',
-        }).lateEntryCount
+        }).entriesDuringShowCount
       ).toBe(0);
-      expect(summarizeShowDayReconciliation([keyed(null)], WINDOW).lateEntryCount).toBe(0);
+      expect(summarizeShowDayReconciliation([keyed(null)], WINDOW).entriesDuringShowCount).toBe(0);
     });
   });
 });

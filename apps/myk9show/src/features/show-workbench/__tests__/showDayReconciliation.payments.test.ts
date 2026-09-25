@@ -4,7 +4,7 @@
  * - Payments received during the show: cash and check payments from the
  *   payments ledger, one row per payment with the show-calendar day it was
  *   received, netted per enrollment (or desk entry) and method.
- * - Late entries: entries keyed during the show, by their own submission time.
+ * - Entries made during the show: submitted on a show day, by submission time.
  *
  * An enrollment payment is NOT attributed to entries: it can finish online what
  * the desk started, or pay for one new entry on an enrollment that has older
@@ -80,7 +80,7 @@ describe('payments received during the show (MYK9-677)', () => {
 
     expect(summary.byMethod.cash).toEqual({ count: 1, amount: 20 });
     expect(summary.paymentCount).toBe(1);
-    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.entriesDuringShowCount).toBe(0);
   });
 
   it('cash for one add-on entry on an older enrollment is one payment and inflates no entry count', () => {
@@ -97,7 +97,7 @@ describe('payments received during the show (MYK9-677)', () => {
 
     expect(summary.paymentCount).toBe(1);
     expect(summary.byMethod.cash).toEqual({ count: 1, amount: 25 });
-    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.entriesDuringShowCount).toBe(1);
   });
 
   it('a show-day payment then Payment Due is no payment and $0', () => {
@@ -126,7 +126,7 @@ describe('payments received during the show (MYK9-677)', () => {
       ]
     );
 
-    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.entriesDuringShowCount).toBe(1);
     expect(summary.paymentCount).toBe(1);
     expect(summary.byMethod.cash).toEqual({ count: 1, amount: 20 });
   });

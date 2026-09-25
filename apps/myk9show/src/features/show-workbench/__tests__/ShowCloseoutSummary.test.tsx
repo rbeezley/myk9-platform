@@ -87,8 +87,8 @@ describe('ShowCloseoutSummary', () => {
     mockListShowPayments.mockResolvedValue([]);
   });
 
-  it('renders late entries and payments received during the show as separate figures', async () => {
-    // The late entry's cash, as the server's desk-entry trigger records it.
+  it('renders entries made and payments received during the show as separate figures', async () => {
+    // The show-day entry's cash, as the server's desk-entry trigger records it.
     mockListShowPayments.mockResolvedValue([
       {
         id: 'row-1',
@@ -133,7 +133,7 @@ describe('ShowCloseoutSummary', () => {
     const payments = screen.getByRole('group', { name: 'Payments received during the show' });
     expect(await within(payments).findByText('1 payment during the show')).toBeInTheDocument();
     expect(
-      within(screen.getByRole('group', { name: 'Late entries at the desk' })).getByText('1')
+      within(screen.getByRole('group', { name: 'Entries made during the show' })).getByText('1')
     ).toBeInTheDocument();
     expect(mockListShowPayments).toHaveBeenCalledWith('show-1');
     expect(within(payments).getByText('$35.00')).toBeInTheDocument();

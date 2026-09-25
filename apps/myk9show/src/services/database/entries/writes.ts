@@ -369,6 +369,13 @@ interface RpcEntrySubmissionOutcome {
   denial_reason?: string | null;
 }
 
+export interface ReceivedEntryPayment {
+  method: 'cash' | 'check';
+  /** `YYYY-MM-DD`; omitted means today on the show's calendar (server-side). */
+  receivedOn?: string | null | undefined;
+  reference?: string | null | undefined;
+}
+
 // Submit show entries via the server-side RPC (enforces ownership, fees, payment auth, and capacity)
 export async function submitShowEntries(params: {
   showId: string;
@@ -384,8 +391,22 @@ export async function submitShowEntries(params: {
   submissionId: string;
   paymentMethod: string;
   submissionSource: EntrySubmissionSource;
+  /**
+   * MYK9-677: cash or check a secretary already received for these entries.
+   * Recorded in the payments ledger by the RPC, in the same transaction as
+   * the entries (the amount is the created entries' server fees).
+   */
+  payment?: ReceivedEntryPayment | undefined;
 }): Promise<SubmitShowEntriesResult> {
-  const { showId, registrationId, entries, submissionId, paymentMethod, submissionSource } = params;
+  const {
+    showId,
+    registrationId,
+    entries,
+    submissionId,
+    paymentMethod,
+    submissionSource,
+    payment,
+  } = params;
 
   const rpcEntries = entries.map(e => ({
     dog_id: e.dogId,
@@ -405,6 +426,15 @@ export async function submitShowEntries(params: {
       p_entries: rpcEntries,
       p_submission_id: submissionId,
       p_payment_method: paymentMethod,
+      ...(payment
+        ? {
+            p_payment: {
+              method: payment.method,
+              received_on: payment.receivedOn ?? null,
+              reference: payment.reference ?? null,
+            },
+          }
+        : {}),
     } as never
   );
 

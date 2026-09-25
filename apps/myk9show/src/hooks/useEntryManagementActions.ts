@@ -92,7 +92,7 @@ interface UseEntryManagementActionsReturn {
   ) => Promise<void>;
 }
 
-function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
+export function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
   // Keep this collapse aligned with mapEnrollmentPaymentStatusToEntryStatus in
   // services/database/show-registrations/reads.ts. Entries only persist coarse
   // payment_status values; the UI enum carries the method-specific paid state.

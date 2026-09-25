@@ -4,7 +4,8 @@ import {
   showDayOfShowContext,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import { isDayOfShowEntry } from '@/features/_shared/isDayOfShowEntry';
+import { currentCalendarDate, isDayOfShowEntry } from '@/features/_shared/isDayOfShowEntry';
+import { getTrialTimezone } from '@/features/registries';
 import {
   replicatedArmbandsTable,
   replicatedDogRegistrationsTable,
@@ -26,6 +27,7 @@ import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
+import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 
 interface ClassLike {
   id: string;
@@ -70,6 +72,27 @@ function paymentStatusFor(
   return 'pending';
 }
 
+/**
+ * MYK9-677: the day the desk received this late entry's money, for the Show
+ * Closeout card. Only a PAID entry has one: the date the secretary typed, or
+ * today on the SHOW's calendar (never the browser's). A pending entry has
+ * received nothing, so it stays null whatever was typed.
+ */
+export function lateEntryPaymentReceivedOn(
+  entryPaymentStatus: ReplicatedEntry['paymentStatus'],
+  paymentDetails: PaymentDetails | undefined,
+  showTimeZone: string | undefined,
+  now: Date = new Date()
+): string | null {
+  // Nothing has been received yet: no date, even one the secretary typed. The
+  // ledger dates a payment by this column, so a date written now would place
+  // money on a day it was not received once the entry is marked paid later.
+  if (entryPaymentStatus !== 'paid') return null;
+  const typed = paymentDetails?.paymentDate?.trim();
+  if (typed) return typed;
+  return currentCalendarDate(now, showTimeZone ?? getTrialTimezone(undefined));
+}
+
 function maxArmbandNumber(armbands: Array<{ armbandNumber: string }>): string | null {
   const max = armbands
     .map(armband => parseInt(armband.armbandNumber, 10))
@@ -103,8 +126,31 @@ export async function submitOfflineLateEntry({
   // Evaluated once so every entry in one submission lands in the same bucket
   // even if the clock crosses midnight mid-loop.
   const entryIsDayOfShow = isDayOfShowEntry(showDayOfShowContext(showFeeInfo));
-
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
+  const feeFor = (classId: string) =>
+    paymentMethod === 'waived'
+      ? 0
+      : getShowEntryFee(showFeeInfo, classesById.get(classId)?.entryFee, entryIsDayOfShow);
+  // MYK9-677: money received at the desk names cash or check, refused before
+  // any row is written. The entry then carries that method, which is what the
+  // server's ledger trigger reads when this entry syncs.
+  assertReceivedMethodChosen(
+    paymentMethod,
+    paymentDetails,
+    classSelections.reduce(
+      (sum, selection) =>
+        sum + selection.selectedClasses.reduce((acc, cls) => acc + feeFor(cls.classId), 0),
+      0
+    )
+  );
+  const receivedMethod = secretaryReceivedMethod(paymentMethod, paymentDetails);
+  const entryPaymentStatus = paymentStatusFor(paymentMethod, paymentStatus);
+  const paymentReceivedOn = lateEntryPaymentReceivedOn(
+    entryPaymentStatus,
+    paymentDetails,
+    showFeeInfo.entryWindowTimezone
+  );
+
   const capacitySelections = classSelections.flatMap(selection =>
     selection.selectedClasses.map(selectedClass => ({
       key: makeHandlerKey(selection.dogId, selectedClass.classId),
@@ -158,11 +204,8 @@ export async function submitOfflineLateEntry({
 
     for (const selectedClass of selection.selectedClasses) {
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
-      const classData = classesById.get(selectedClass.classId);
-      const entryFee =
-        paymentMethod === 'waived'
-          ? 0
-          : getShowEntryFee(showFeeInfo, classData?.entryFee, entryIsDayOfShow);
+      const entryFee = feeFor(selectedClass.classId);
+      const entryPaymentMethod = receivedMethod && entryFee > 0 ? receivedMethod : paymentMethod;
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
@@ -178,8 +221,8 @@ export async function submitOfflineLateEntry({
         isDayOfShow: entryIsDayOfShow,
         entrySource: 'myk9',
         capacityOverride,
-        paymentMethod,
-        paymentStatus: paymentStatusFor(paymentMethod, paymentStatus),
+        paymentMethod: entryPaymentMethod,
+        paymentStatus: entryPaymentStatus,
         entryStatus: 'confirmed',
         entry_status: 'confirmed',
         entryFee,
@@ -193,8 +236,8 @@ export async function submitOfflineLateEntry({
         // payment date were dropped entirely.
         paymentReference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
         payment_reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
-        paymentReceivedOn: paymentDetails?.paymentDate ?? null,
-        payment_received_on: paymentDetails?.paymentDate ?? null,
+        paymentReceivedOn,
+        payment_received_on: paymentReceivedOn,
         paymentNotes: paymentDetails?.paymentNotes ?? null,
         payment_notes: paymentDetails?.paymentNotes ?? null,
         submittedAt,

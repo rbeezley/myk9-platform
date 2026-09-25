@@ -276,13 +276,46 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
 
   it('still writes payment_status for the organizer (staff) path', async () => {
     const { updates } = installTransport(makeEnrollmentRow());
-    const ctx = makeContext({
-      currentWorkflowMode: 'secretary_new',
-      paymentMethod: 'secretary_paid',
-    });
+    const ctx = makeContext({ currentWorkflowMode: 'secretary_new', paymentMethod: 'check' });
 
     await submitPaymentStep(ctx);
 
     expect(updates.some(payload => 'payment_status' in payload)).toBe(true);
+    expect(rpcMock).toHaveBeenCalledWith(
+      'submit_show_entries',
+      expect.not.objectContaining({ p_payment: expect.anything() })
+    );
+  });
+
+  it('records a staff-received payment inside the submit call, not in a client write (MYK9-677)', async () => {
+    const { updates } = installTransport(makeEnrollmentRow());
+    const ctx = makeContext({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+      // MYK9-677: money received names its method.
+      paymentDetails: { receivedMethod: 'cash', paymentDate: '2026-07-07' },
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(notificationErrorMock).not.toHaveBeenCalled();
+    // The RPC owns the money columns on this path (status, total, paid_amount);
+    // the client's follow-up write carries only the payment details.
+    expect(updates.length).toBeGreaterThan(0);
+    for (const payload of updates) {
+      expect(payload).not.toHaveProperty('payment_status');
+      expect(payload).not.toHaveProperty('paid_amount');
+      expect(payload).not.toHaveProperty('total_amount');
+    }
+    // The money itself is recorded by the ONE submit call, as cash;
+    // there is no second ledger call to fail after the entries exist.
+    expect(rpcMock).toHaveBeenCalledWith(
+      'submit_show_entries',
+      expect.objectContaining({
+        p_payment_method: 'cash',
+        p_payment: { method: 'cash', received_on: '2026-07-07', reference: null },
+      })
+    );
+    expect(rpcMock).not.toHaveBeenCalledWith('record_enrollment_payment', expect.anything());
   });
 });

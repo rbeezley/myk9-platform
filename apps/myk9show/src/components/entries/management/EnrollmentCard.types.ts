@@ -3,6 +3,7 @@ import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-
 import type { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
+import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
 import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
 export interface EnrollmentCardProps {
@@ -33,6 +34,8 @@ export interface EnrollmentCardProps {
     refundNotes?: string | null,
     checkNumber?: string | null
   ) => void;
+  /** Cash/check payments, refunds and "Payment Due" resets (MYK9-677 ledger). */
+  paymentLedger: EnrollmentLedgerControls;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;

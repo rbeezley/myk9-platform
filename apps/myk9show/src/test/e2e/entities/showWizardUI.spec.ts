@@ -55,6 +55,9 @@ test.describe('Show Wizard UI — Step 1 (secretary)', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Show Wizard UI — Date timezone regression (secretary)', () => {
+  // The bug only shows west of UTC, so run there: at or east of UTC the block
+  // and the label agree even with the bug, and the test guards nothing.
+  test.use({ timezoneId: 'America/Chicago' });
   test.beforeEach(async ({ page }) => {
     await signInAsSecretary(page);
   });

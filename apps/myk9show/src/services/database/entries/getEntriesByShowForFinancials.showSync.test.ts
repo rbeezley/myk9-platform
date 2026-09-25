@@ -77,8 +77,13 @@ describe('getEntriesByShowForFinancials on a show that has not synced (MYK9-761)
       isDirty: true,
     }));
     online.rows = [
-      { id: 'checked-in-here', show_id: 's1', entry_fee: 35 },
-      { id: 'other', show_id: 's1', entry_fee: 35 },
+      {
+        id: 'checked-in-here',
+        created_at: '2026-09-25T15:00:00.000Z',
+        show_id: 's1',
+        entry_fee: 35,
+      },
+      { id: 'other', created_at: '2026-09-20T15:00:00.000Z', show_id: 's1', entry_fee: 35 },
     ];
     online.error = null;
   });
@@ -99,6 +104,20 @@ describe('getEntriesByShowForFinancials on a show that has not synced (MYK9-761)
       id,
       isDirty: false,
     }));
+
+    const result = await getEntriesByShowForFinancials('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+      'checked-in-here',
+      'other',
+    ]);
+  });
+
+  // Codex P2 on #2463: a failed local sync-metadata read must not block the
+  // online read the financial summary falls back to.
+  it('reads online when the local sync metadata cannot be read', async () => {
+    mockEntriesTable.getSyncMetadata.mockRejectedValue(new Error('IndexedDB unavailable'));
 
     const result = await getEntriesByShowForFinancials('s1');
 

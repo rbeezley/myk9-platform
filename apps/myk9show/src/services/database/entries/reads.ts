@@ -515,15 +515,15 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // them exhausts its parser.
   //
   // MYK9-761: PostgREST caps one response at `max_rows`, so a show larger than
-  // one page would be silently understated. Page by KEYSET on (created_at, id),
-  // as `userEntriesRead.ts` does: each page asks for rows strictly older than
-  // the previous page's last row, so an entry registered mid-read can neither
+  // one page would be silently understated. Page by KEYSET on `id` alone
+  // (never null, unlike `created_at`): each page asks for ids strictly below
+  // the previous page's last one, so an entry registered mid-read can neither
   // shift a boundary row onto the next page (double-counted) nor off it
-  // (skipped), as newest-first OFFSET paging would. A failed page throws, so the
-  // caller reports an error, never a partial total.
+  // (skipped), as OFFSET paging would. A failed page throws, so the caller
+  // reports an error, never a partial total.
   const rows: Record<string, unknown>[] = [];
   let includeLink = true;
-  let keyset: string | null = null;
+  let cursorId: string | null = null;
   for (;;) {
     const { data, error } = await withMoveUpLinkFallback(withLink => {
       if (!withLink) includeLink = false;
@@ -533,9 +533,8 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
           .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
           .eq('show_id', showId)
           .is('deleted_at', null)
-          .order('created_at', { ascending: false })
           .order('id', { ascending: false });
-        if (keyset) query = query.or(keyset);
+        if (cursorId) query = query.lt('id', cursorId);
         return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
       }
       let query = supabase
@@ -543,9 +542,8 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
         .select(SHOW_FINANCIALS_SELECT)
         .eq('show_id', showId)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false })
         .order('id', { ascending: false });
-      if (keyset) query = query.or(keyset);
+      if (cursorId) query = query.lt('id', cursorId);
       return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
     });
 
@@ -555,18 +553,32 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
     if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
 
     const lastRow = page[page.length - 1];
-    if (!lastRow?.created_at || !lastRow.id) {
+    if (!lastRow?.id) {
       throw createDatabaseError(
         new Error('Show financials page is missing its stable pagination cursor'),
         'entries',
         'select_by_show_financials'
       );
     }
-    const createdAt = String(lastRow.created_at);
-    keyset = `created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${String(lastRow.id)})`;
+    cursorId = String(lastRow.id);
   }
 
+  // Paged by id alone: `id` is never null, unlike `created_at` (Codex P2 on
+  // #2463). A sum needs no date order, but callers list rows newest first, so
+  // restore that order here (null timestamps last, id as the tie-break).
+  rows.sort(compareNewestFirst);
   return { data: attachPostgrestHandlerIdentity(rows), error: null };
+}
+
+function compareNewestFirst(a: Record<string, unknown>, b: Record<string, unknown>): number {
+  const aAt = a.created_at ? String(a.created_at) : null;
+  const bAt = b.created_at ? String(b.created_at) : null;
+  if (aAt !== bAt) {
+    if (aAt === null) return 1;
+    if (bAt === null) return -1;
+    return Date.parse(bAt) - Date.parse(aAt);
+  }
+  return String(b.id).localeCompare(String(a.id));
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {
@@ -925,7 +937,10 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
 // MYK9-761: summed as money, so a never-synced show is read online or reported
 // as an error, the same rule as the staff report read above.
 export const getEntriesByShowForFinancials = async (showId: string) => {
-  await ensureShowEntriesSynced(showId);
+  // A failed local sync-metadata read must not block the online read: the
+  // replication branch below re-reads it, and a throw there falls back to
+  // PostgREST (Codex P2 on #2463).
+  await ensureShowEntriesSynced(showId).catch(() => false);
   return readWithReplicationFallback({
     replication: async () => {
       const [rawEntries, scopeSynced, dogsMap, classesMap, trials] = await Promise.all([

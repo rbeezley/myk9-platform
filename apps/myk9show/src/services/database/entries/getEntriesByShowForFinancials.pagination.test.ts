@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const MAX_ROWS = 1000;
 
-type Row = { id: string; created_at: string; show_id: string; entry_fee: number };
+type Row = { id: string; created_at: string | null; show_id: string; entry_fee: number };
 
 const { mockEntriesTable, server } = vi.hoisted(() => ({
   mockEntriesTable: {
@@ -44,14 +44,13 @@ vi.mock('@/services/database/entries/handlerHydration', () => ({
   loadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
 }));
 
-// A PostgREST stand-in: newest first by (created_at, id), honours the keyset
-// `.or()` filter and `.range()`, never returns more than `max_rows`, and reads
-// the table as it is at the moment each page is requested.
+// A PostgREST stand-in: ordered by id descending, honours the `.lt('id')`
+// keyset and `.range()`, never returns more than `max_rows`, and reads the
+// table as it is at the moment each page is requested.
 vi.mock('@/services/database/supabaseClient', () => {
-  const newestFirst = (a: Row, b: Row) =>
-    b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+  const byIdDesc = (a: Row, b: Row) => b.id.localeCompare(a.id);
   const query = () => {
-    let cursor: { createdAt: string; id: string } | null = null;
+    let cursor: string | null = null;
     const respond = (from: number, to: number) => {
       const page = server.pagesServed++;
       if (server.failOnPage === page) {
@@ -60,14 +59,7 @@ vi.mock('@/services/database/supabaseClient', () => {
           error: { message: 'upstream timeout', code: '57014' },
         });
       }
-      const visible = [...server.rows]
-        .sort(newestFirst)
-        .filter(
-          row =>
-            !cursor ||
-            row.created_at < cursor.createdAt ||
-            (row.created_at === cursor.createdAt && row.id < cursor.id)
-        );
+      const visible = [...server.rows].sort(byIdDesc).filter(row => !cursor || row.id < cursor);
       const data = visible.slice(from, Math.min(to + 1, from + MAX_ROWS));
       server.afterPage?.(page);
       return Promise.resolve({ data, error: null });
@@ -77,11 +69,9 @@ vi.mock('@/services/database/supabaseClient', () => {
       eq: () => builder,
       is: () => builder,
       order: () => builder,
-      or: (filter: string) => {
-        const match =
-          /^created_at\.lt\.([^,]+),and\(created_at\.eq\.([^,]+),id\.lt\.([^)]+)\)$/.exec(filter);
-        if (!match || match[1] !== match[2]) throw new Error(`unexpected keyset filter ${filter}`);
-        cursor = { createdAt: match[1]!, id: match[3]! };
+      lt: (column: string, value: string) => {
+        if (column !== 'id') throw new Error(`unexpected keyset column ${column}`);
+        cursor = value;
         return builder;
       },
       range: (from: number, to: number) => respond(from, to),
@@ -164,5 +154,30 @@ describe('getEntriesByShowForFinancials online read, larger than one PostgREST p
     // The Financial Summary throws on `error`, so no total is rendered at all.
     expect(result.error).not.toBeNull();
     expect(result.data).not.toHaveLength(MAX_ROWS);
+  });
+
+  // Codex P2 on #2463: created_at is nullable. A page boundary on a null
+  // timestamp used to fail the whole read.
+  it('reads every row when page boundaries fall on null created_at values', async () => {
+    // Every timestamp null, so every page boundary lands on one.
+    server.rows = makeRows(2345).map(row => ({ ...row, created_at: null }));
+
+    const result = await getEntriesByShowForFinancials('s1');
+
+    expect(result.error).toBeNull();
+    expect(new Set(ids(result.data)).size).toBe(2345);
+  });
+
+  it('still returns rows newest first, null timestamps last', async () => {
+    server.rows = [
+      { id: 'b', created_at: '2026-09-02T00:00:00.000Z', show_id: 's1', entry_fee: 35 },
+      { id: 'a', created_at: null, show_id: 's1', entry_fee: 35 },
+      { id: 'c', created_at: '2026-09-03T00:00:00.000Z', show_id: 's1', entry_fee: 35 },
+      { id: 'd', created_at: '2026-09-02T00:00:00.000Z', show_id: 's1', entry_fee: 35 },
+    ];
+
+    const result = await getEntriesByShowForFinancials('s1');
+
+    expect(ids(result.data)).toEqual(['c', 'd', 'b', 'a']);
   });
 });

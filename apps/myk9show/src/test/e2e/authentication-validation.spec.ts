@@ -53,7 +53,11 @@ test.describe('Phase 2: Authentication Validation', () => {
     // Verify the authenticated app shell is present. Assert the account menu
     // (rendered for every signed-in user) rather than specific nav-link labels,
     // which change with nav redesigns.
-    await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
+    // Either account menu: the header's ("Account menu") or, when the sidebar
+    // renders, the sidebar's ("Account menu for <name>"). Which of them is
+    // present varies with layout, and both may be, so neither a substring
+    // match (strict-mode violation) nor an exact one (not always there) holds.
+    await expect(page.getByRole('button', { name: /^Account menu/ }).first()).toBeVisible();
 
     // Try to navigate to shows page (should work for authenticated users)
     await page.goto('/shows');

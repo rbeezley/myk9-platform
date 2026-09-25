@@ -61,7 +61,7 @@ test.describe('Judge dashboard journey', () => {
     // The check-in dashboard is also used by stewards; assert the app shell
     // rendered rather than a specific heading string, which is more likely to
     // drift under redesign.
-    await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toBeVisible({
+    await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('h1, h2, [role="heading"]').first()).toBeVisible();

@@ -336,7 +336,7 @@ test.describe('header wordmark fits', () => {
 
       const inHeader = await page.locator('nav [aria-label^="Switch to"]:visible').count();
 
-      await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+      await page.getByRole('button', { name: 'Account menu' }).click();
       // Assert the menu actually opened. Counting inside a menu that never
       // rendered returns 0, which is indistinguishable from a missing item.
       await expect(page.getByRole('menuitem', { name: 'Account' })).toBeVisible();

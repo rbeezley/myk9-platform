@@ -82,8 +82,10 @@ BEGIN
   IF v_timing IS DISTINCT FROM 'BEFORE' THEN
     RAISE EXCEPTION 'FAIL wiring: guard must be BEFORE so the bad row never lands, found %', v_timing;
   END IF;
-  IF v_columns IS DISTINCT FROM 'status' THEN
-    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status only, found %', v_columns;
+  -- MYK9-716: also the entry-window columns, so a published show cannot lose
+  -- its window after publishing (the function ignores unchanged dates).
+  IF v_columns IS DISTINCT FROM 'entry_close_date,entry_open_date,status' THEN
+    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status, entry_open_date, entry_close_date, found %', v_columns;
   END IF;
   IF NOT v_has_insert THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to also fire on INSERT (create_show_with_children and createShow() both let the caller set status)';
@@ -91,7 +93,7 @@ BEGIN
   IF NOT v_has_update THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to fire on UPDATE';
   END IF;
-  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status on public.shows';
+  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date on public.shows';
 END;
 $$;
 
@@ -1143,6 +1145,114 @@ BEGIN
     RAISE EXCEPTION 'FAIL window-set-publishes: expected 1 row published, got % row(s), status %', v_n, v_status;
   END IF;
   RAISE NOTICE 'PASS window-set-publishes: the draft publishes once its entry window is set';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- 12g. MYK9-716 (Codex P1): the window must stay valid WHILE the show is
+--      published, not just at the moment it is published. The trigger also
+--      fires on UPDATE OF entry_open_date / entry_close_date; on an
+--      already-published show it re-checks only the window, and only when a
+--      date actually changes (never the club or Stripe checks, never
+--      retroactively). 579060 was published in 12f with a valid window.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_state text;
+  v_message text;
+  v_n int;
+  v_open timestamptz;
+  v_close timestamptz;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  -- Clearing a date on a published show -> MK005.
+  v_state := NULL;
+  BEGIN
+    UPDATE public.shows SET entry_close_date = NULL
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL published-clear-date: a published show lost its entry close date';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+  IF v_message IS NULL OR v_message !~* 'published show has to keep its entry window' THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-clear-date: unexpected message %', v_message;
+  END IF;
+
+  -- Reversing the window on a published show -> MK005.
+  v_state := NULL;
+  BEGIN
+    UPDATE public.shows
+       SET entry_open_date = current_date + 5, entry_close_date = current_date + 1
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL published-reverse-window: a published show got a window that closes before it opens';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM 'MK005' THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-reverse-window: expected MK005, got %', v_state;
+  END IF;
+
+  -- A valid change to a published show's window passes.
+  UPDATE public.shows SET entry_close_date = current_date + 3
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  SELECT entry_open_date, entry_close_date INTO v_open, v_close
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  IF v_n <> 1 OR v_close IS DISTINCT FROM (current_date + 3)::timestamptz THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-valid-change: expected the new close date to land (rows=%, close=%)', v_n, v_close;
+  END IF;
+
+  -- A draft may still clear or reverse its window (579061 is a draft).
+  UPDATE public.shows SET entry_open_date = NULL, entry_close_date = NULL
+   WHERE id = '00000000-0000-0000-0000-000000579061';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL draft-clear-window: expected the draft to clear its window, affected %', v_n;
+  END IF;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  RAISE NOTICE 'PASS published-window-edits: a published show cannot clear or reverse its window (MK005), a valid change passes, and a draft can clear it';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12h. Never retroactive: 579014 was inserted already published with NO
+--      window (section 6's fixture, club with no Stripe account). An edit that
+--      re-sends its unchanged NULL dates, as a full-row client save does,
+--      still lands; only a CHANGE to a published show's dates is checked.
+DO $$
+DECLARE
+  v_n int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  UPDATE public.shows
+     SET name = 'MYK9-716 Legacy Windowless Published (renamed)',
+         entry_open_date = NULL, entry_close_date = NULL
+   WHERE id = '00000000-0000-0000-0000-000000579014';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL legacy-windowless-edit: expected the rename to land, affected %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS legacy-windowless-edit: an unchanged (NULL) window on an already-published show is never re-gated';
 END;
 $$;
 RESET ROLE;

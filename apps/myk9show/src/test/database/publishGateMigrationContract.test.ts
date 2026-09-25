@@ -14,6 +14,7 @@ import {
   CLUB_REQUIRED_MESSAGE,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
+  ENTRY_WINDOW_PUBLISHED_MESSAGE,
   PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '@/features/payments/onlineEntryGate';
 
@@ -80,7 +81,7 @@ describe('enforce_show_publish_gate migration text', () => {
     expect(sql).toContain(sqlEscaped(ENTRY_WINDOW_REQUIRED_MESSAGE));
     expect(sql).toContain(sqlEscaped(ENTRY_WINDOW_ORDER_MESSAGE));
     const code = `USING ERRCODE = '${PUBLISH_GATE_ERRCODE_ENTRY_WINDOW}'`;
-    expect(sql.split(code)).toHaveLength(3);
+    expect(sql.split(code)).toHaveLength(4);
   });
 
   it('checks the entry window after the Stripe refusal, so MK003 keeps precedence', () => {
@@ -90,7 +91,13 @@ describe('enforce_show_publish_gate migration text', () => {
     );
   });
 
-  it('fires on BEFORE INSERT OR UPDATE OF status, not UPDATE alone', () => {
-    expect(triggerSql()).toMatch(/BEFORE INSERT OR UPDATE OF status ON public\.shows/);
+  it('fires on INSERT and on UPDATE OF status or either entry date (MYK9-716)', () => {
+    expect(triggerSql()).toMatch(
+      /BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date ON public\.shows/
+    );
+  });
+
+  it('raises the published-window refusal verbatim', () => {
+    expect(migrationSql()).toContain(sqlEscaped(ENTRY_WINDOW_PUBLISHED_MESSAGE));
   });
 });

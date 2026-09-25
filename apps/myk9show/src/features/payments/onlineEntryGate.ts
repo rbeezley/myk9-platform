@@ -68,6 +68,12 @@ export const ENTRY_WINDOW_REQUIRED_MESSAGE =
 export const ENTRY_WINDOW_ORDER_MESSAGE =
   "The entry window can't close before it opens. Fix the entry dates, then publish.";
 
+/** MYK9-716: the trigger also refuses an edit that clears or reverses an
+ * ALREADY-published show's window. That arrives through replication (the
+ * wizard's edit save), so formatSyncFailureToast shows this text. */
+export const ENTRY_WINDOW_PUBLISHED_MESSAGE =
+  'A published show has to keep its entry window: both dates set, and the close on or after the open. Discard this change or fix the dates.';
+
 function parseEntryDate(value: string | null | undefined): number | null {
   if (!value?.trim()) return null;
   const ms = Date.parse(value);

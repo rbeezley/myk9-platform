@@ -15,7 +15,8 @@
 --   4. A soft-deleted class never queues.
 --   5. Edge-function RPCs, as service_role: the lease is single-holder; a
 --      finish needs the lease token; 'error' keeps the row pending with
---      last_error; 'sent' is the only way to sent, and only from pending; a
+--      last_error; 'sent' is the only way to sent (keeping an optional
+--      note), and only from pending; a
 --      sent class cannot be leased again.
 --   6. Un-released before the send: begin returns 'held' and deletes the
 --      row; the next release queues a fresh one.
@@ -23,7 +24,9 @@
 --      attempt; a fresh or leased row is left alone; after the fifth attempt
 --      the row becomes failed; a missing secret raises. The post helper
 --      records last_error instead of posting when the config is absent.
---   8. Health: class_results_push_health() names failed and 3+-attempt rows.
+--   8. Health: class_results_push_health() names failed and 3+-attempt rows,
+--      and a pending row with no attempt for 20 minutes (stalled retry), but
+--      not a fresh one.
 --   9. Wiring: the classes trigger exists, the per-entry push is gone, and
 --      the retry cron (when scheduled) reads both secrets inline.
 --  10. Backfill invariant: every class already due has a row.
@@ -93,7 +96,10 @@ VALUES
    'MYK9-737 C held', 'in_progress', false, NULL, NULL),
   -- D: default show, running, soft-deleted.
   ('00000000-0000-0000-0000-0000007370d1', '00000000-0000-0000-0000-000000737003',
-   'MYK9-737 D deleted', 'in_progress', false, NULL, now());
+   'MYK9-737 D deleted', 'in_progress', false, NULL, now()),
+  -- E: default show, running (health arm: a stalled first attempt).
+  ('00000000-0000-0000-0000-0000007370e1', '00000000-0000-0000-0000-000000737003',
+   'MYK9-737 E stalled', 'in_progress', false, NULL, NULL);
 
 INSERT INTO public.class_visibility_overrides (class_id, preset)
 VALUES ('00000000-0000-0000-0000-0000007370c1', 'review');
@@ -106,7 +112,8 @@ BEGIN
     SELECT 1 FROM private.class_results_push
     WHERE class_id IN (
       '00000000-0000-0000-0000-0000007370a1', '00000000-0000-0000-0000-0000007370b1',
-      '00000000-0000-0000-0000-0000007370c1', '00000000-0000-0000-0000-0000007370d1'
+      '00000000-0000-0000-0000-0000007370c1', '00000000-0000-0000-0000-0000007370d1',
+      '00000000-0000-0000-0000-0000007370e1'
     )
   ) THEN
     RAISE EXCEPTION 'FIXTURE a fixture class already has a push row';
@@ -301,7 +308,8 @@ BEGIN
   END IF;
 
   IF NOT public.finish_class_results_push('00000000-0000-0000-0000-0000007370a1',
-       v_token, 'sent', ARRAY['00000000-0000-0000-0000-00000073a002']::uuid[], NULL) THEN
+       v_token, 'sent', ARRAY['00000000-0000-0000-0000-00000073a002']::uuid[],
+       '1 recipient has only expired subscriptions') THEN
     RAISE EXCEPTION 'FAIL finish(sent) with the lease token returned false';
   END IF;
 
@@ -341,7 +349,8 @@ DECLARE
 BEGIN
   SELECT * INTO v_row FROM private.class_results_push
   WHERE class_id = '00000000-0000-0000-0000-0000007370a1';
-  IF v_row.status <> 'sent' OR v_row.sent_at IS NULL OR v_row.last_error IS NOT NULL
+  IF v_row.status <> 'sent' OR v_row.sent_at IS NULL
+     OR v_row.last_error IS DISTINCT FROM '1 recipient has only expired subscriptions'
      OR v_row.claim_token IS NOT NULL
      OR v_row.delivered_to <> ARRAY['00000000-0000-0000-0000-00000073a001',
                                     '00000000-0000-0000-0000-00000073a002']::uuid[] THEN
@@ -504,6 +513,41 @@ BEGIN
     RAISE EXCEPTION 'FAIL health named a sent class';
   END IF;
   RAISE NOTICE 'PASS health names failed and 3+-attempt pending classes';
+END;
+$$;
+
+-- A pending row whose first post was lost and whose retry never came (cron
+-- missing or stopped) sits at attempts = 1: stuck once it has had no attempt
+-- for 20 minutes, not before.
+DO $$
+DECLARE
+  v_health jsonb;
+BEGIN
+  UPDATE public.classes SET status = 'completed'
+  WHERE id = '00000000-0000-0000-0000-0000007370e1';
+
+  SET LOCAL ROLE service_role;
+  v_health := public.class_results_push_health();
+  RESET ROLE;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_health -> 'sample') s
+             WHERE s ->> 'class_name' = 'MYK9-737 E stalled') THEN
+    RAISE EXCEPTION 'FAIL health named a fresh pending class: %', v_health;
+  END IF;
+
+  UPDATE private.class_results_push SET last_attempt_at = now() - interval '30 minutes'
+  WHERE class_id = '00000000-0000-0000-0000-0000007370e1' AND status = 'pending' AND attempts = 1;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'FIXTURE E did not queue a pending first attempt';
+  END IF;
+
+  SET LOCAL ROLE service_role;
+  v_health := public.class_results_push_health();
+  RESET ROLE;
+  IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v_health -> 'sample') s
+                 WHERE s ->> 'class_name' = 'MYK9-737 E stalled' AND (s ->> 'attempts')::int = 1) THEN
+    RAISE EXCEPTION 'FAIL health did not name a pending class with no attempt for 30 minutes: %', v_health;
+  END IF;
+  RAISE NOTICE 'PASS health names a pending class whose retry has stalled (20 minutes, attempts 1)';
 END;
 $$;
 

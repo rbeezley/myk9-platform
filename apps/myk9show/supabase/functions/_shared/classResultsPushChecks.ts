@@ -6,7 +6,8 @@
  * re-posts it every five minutes until then, up to five attempts. This check
  * reads `public.class_results_push_health()` (called by cron-health-check on
  * every run) and fails when any class has run out of attempts ('failed') or is
- * still pending after three, naming the classes, because exhibitors of those
+ * still pending after three or with no attempt for 20 minutes (the retry cron
+ * has stopped), naming the classes, because exhibitors of those
  * classes have not been told their results are up.
  *
  * Deno-free and side-effect free, like its `systemHealthChecks.ts` siblings.

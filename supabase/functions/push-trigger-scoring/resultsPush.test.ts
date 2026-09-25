@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildResultsPushPayload,
+  classifyPushResponse,
   groupResultsRecipients,
   parseLease,
   parseResultsPushPayload,
@@ -28,10 +29,36 @@ type Call =
   | ['send', string]
   | ['finish', string, string, 'sent' | 'error', string[], string | null];
 
-/** A fake of the four IO edges that records every call, in order. */
+/** send-push-notification's real 200 bodies (see its index.ts). */
+const DELIVERED = { data: { sent: 1, expired: 0 }, error: null };
+const NO_SUBSCRIPTIONS = { data: { sent: 0, message: 'No subscriptions found' }, error: null };
+const ALL_EXPIRED = {
+  data: {
+    sent: 0,
+    errors: ['https://push.example/a: Received unexpected response code'],
+    expired: 1,
+  },
+  error: null,
+};
+const ALL_FAILED_TRANSIENT = {
+  data: { sent: 0, errors: ['https://push.example/a: socket hang up'], expired: 0 },
+  error: null,
+};
+const INVOKE_ERROR = {
+  data: null,
+  error: { message: 'Edge Function returned a non-2xx status code' },
+};
+
+type RawResponse = { data: unknown; error: { message: string } | null };
+
+/**
+ * A fake of the four IO edges that records every call, in order. sendPush
+ * classifies a raw send-push-notification response exactly as index.ts does.
+ */
 function fakeDeps(opts: {
   lease?: ResultsPushLease;
   entries?: ScoredEntryAudienceRow[] | Error;
+  responses?: Record<string, RawResponse>;
   failFor?: string[];
   throwFor?: string[];
 }) {
@@ -48,7 +75,9 @@ function fakeDeps(opts: {
     async sendPush(userId) {
       calls.push(['send', userId]);
       if (opts.throwFor?.includes(userId)) throw new Error('network down');
-      return !opts.failFor?.includes(userId);
+      const raw =
+        opts.responses?.[userId] ?? (opts.failFor?.includes(userId) ? INVOKE_ERROR : DELIVERED);
+      return classifyPushResponse(raw.data, raw.error);
     },
     async finish(classId, token, outcome, delivered, error) {
       calls.push(['finish', classId, token, outcome, delivered, error]);
@@ -166,6 +195,92 @@ describe('runResultsPush', () => {
       ['begin', 'class-1'],
       ['finish', 'class-1', 'tok-3', 'sent', [], null],
     ]);
+  });
+});
+
+describe('runResultsPush on real send-push-notification responses (Codex P1, round 1)', () => {
+  it('does not count a 200 whose every subscription failed transiently as delivered', async () => {
+    const { deps, calls } = fakeDeps({ responses: { u2: ALL_FAILED_TRANSIENT } });
+
+    const result = await runResultsPush(deps, TARGET);
+
+    expect(result.status).toBe('push_failed');
+    expect(calls.filter(call => call[0] === 'finish')).toEqual([
+      ['finish', 'class-1', 'tok-1', 'error', ['u1'], '1/2 recipients failed'],
+    ]);
+  });
+
+  it('treats a user whose every subscription expired as done, noting it, so the class is sent', async () => {
+    const { deps, calls } = fakeDeps({ responses: { u2: ALL_EXPIRED } });
+
+    await expect(runResultsPush(deps, TARGET)).resolves.toEqual({
+      status: 'push_sent',
+      recipients: 2,
+    });
+    expect(calls.filter(call => call[0] === 'finish')).toEqual([
+      [
+        'finish',
+        'class-1',
+        'tok-1',
+        'sent',
+        ['u1', 'u2'],
+        '1 recipient has only expired subscriptions',
+      ],
+    ]);
+  });
+
+  it('keeps the expired note alongside a transient failure', async () => {
+    const { deps, calls } = fakeDeps({
+      responses: { u1: ALL_EXPIRED, u2: ALL_FAILED_TRANSIENT },
+    });
+
+    await runResultsPush(deps, TARGET);
+
+    expect(calls.filter(call => call[0] === 'finish')).toEqual([
+      [
+        'finish',
+        'class-1',
+        'tok-1',
+        'error',
+        ['u1'],
+        '1/2 recipients failed; 1 recipient has only expired subscriptions',
+      ],
+    ]);
+  });
+
+  it('treats a user with no subscriptions as done', async () => {
+    const { deps, calls } = fakeDeps({ responses: { u1: NO_SUBSCRIPTIONS } });
+
+    await runResultsPush(deps, TARGET);
+
+    expect(calls.filter(call => call[0] === 'finish')).toEqual([
+      ['finish', 'class-1', 'tok-1', 'sent', ['u1', 'u2'], null],
+    ]);
+  });
+});
+
+describe('classifyPushResponse (send-push-notification bodies)', () => {
+  it.each([
+    ['one subscription accepted', { sent: 1, expired: 0 }, 'delivered'],
+    ['one of two accepted, one expired', { sent: 1, errors: ['e: gone'], expired: 1 }, 'delivered'],
+    ['no subscriptions', { sent: 0, message: 'No subscriptions found' }, 'no_subscriptions'],
+    ['every subscription expired', { sent: 0, errors: ['a: x', 'b: y'], expired: 2 }, 'gone'],
+    ['one expired, one transient', { sent: 0, errors: ['a: x', 'b: y'], expired: 1 }, 'failed'],
+    ['all transient', { sent: 0, errors: ['a: timeout'], expired: 0 }, 'failed'],
+    // An older deployment omits `expired`; it deleted the dead subscriptions,
+    // so the retry finds none and is done then.
+    ['errors without expired (older deploy)', { sent: 0, errors: ['a: x'] }, 'failed'],
+    ['unreadable body', { ok: true }, 'failed'],
+    ['null body', null, 'failed'],
+  ])('%s', (_label, data, kind) => {
+    expect(classifyPushResponse(data, null).kind).toBe(kind);
+  });
+
+  it('is failed when the invoke itself failed, whatever the body', () => {
+    expect(classifyPushResponse({ sent: 1 }, { message: 'non-2xx' })).toEqual({
+      kind: 'failed',
+      detail: 'non-2xx',
+    });
   });
 });
 

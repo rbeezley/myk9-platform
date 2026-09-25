@@ -56,9 +56,9 @@ It fires once per class, when `private.class_results_push_due` finds the class d
 
 Delivery is tracked, not assumed (pg_net never reports back to the trigger):
 
-- `push-trigger-scoring` leases the row (`begin_class_results_push`), sends, and only then records `sent` (`finish_class_results_push`). A failed send records `last_error` and leaves the row `pending`; recipients already reached are kept in `delivered_to` and skipped next time.
+- `push-trigger-scoring` leases the row (`begin_class_results_push`), sends, and only then records `sent` (`finish_class_results_push`). A failed send records `last_error` and leaves the row `pending`; recipients already reached are kept in `delivered_to` and skipped next time. A user counts as reached only when `send-push-notification`'s 200 body reports `sent > 0`, or when there is nothing left to deliver: no subscriptions, or every subscription expired (404/410, counted in the response's `expired`; noted in `last_error`). Any other failure, including a 200 whose every subscription failed transiently, is retried.
 - The `class-results-push-retry` pg_cron job (every five minutes) re-posts a `pending` row whose last attempt is over five minutes old; after five attempts the row becomes `failed`.
-- `/admin/health` shows a `class_results_push` check that fails, naming the classes, when a row is `failed` or still `pending` after three attempts.
+- `/admin/health` shows a `class_results_push` check that fails, naming the classes, when a row is `failed`, still `pending` after three attempts, or `pending` with no attempt for 20 minutes (a stopped retry cron).
 - If the class is un-released before the send, the lease reports it `held` and deletes the row, so the next release queues a fresh push.
 
 ## Edge Function Deployment

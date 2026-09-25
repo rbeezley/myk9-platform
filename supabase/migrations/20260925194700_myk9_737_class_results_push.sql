@@ -27,7 +27,8 @@
 --     attempt is more than five minutes old and whose lease has lapsed. After
 --     the fifth attempt a still-pending row becomes 'failed', and the
 --     class_results_push check on /admin/health goes red for it (and for any
---     row still pending after three attempts).
+--     row still pending after three attempts, or with no attempt for 20
+--     minutes, which is what a stopped retry cron looks like).
 --
 -- Delivery semantics: at-least-once per recipient. The lease makes two
 -- concurrent posts for one class unable to both send; a crash between the
@@ -351,7 +352,7 @@ GRANT EXECUTE ON FUNCTION public.begin_class_results_push(uuid) TO service_role;
 -- Record the outcome of a leased attempt. Only the lease holder, and only a
 -- pending row:
 --   'sent'  -> status sent, sent_at now (the ONLY path to 'sent' after the
---              backfill)
+--              backfill); p_error, if given, is kept as a note
 --   'error' -> stays pending, last_error recorded, lease released for the retry
 -- delivered_to is merged in either way.
 CREATE OR REPLACE FUNCTION public.finish_class_results_push(
@@ -377,7 +378,10 @@ BEGIN
   UPDATE private.class_results_push AS p
   SET status = CASE WHEN p_outcome = 'sent' THEN 'sent' ELSE 'pending' END,
       sent_at = CASE WHEN p_outcome = 'sent' THEN now() ELSE NULL END,
-      last_error = CASE WHEN p_outcome = 'sent' THEN NULL ELSE left(coalesce(p_error, 'unknown error'), 500) END,
+      -- On 'sent', p_error is an optional note (for example recipients whose
+      -- subscriptions had all expired: done, but worth knowing).
+      last_error = CASE WHEN p_outcome = 'sent' THEN left(p_error, 500)
+                        ELSE left(coalesce(p_error, 'unknown error'), 500) END,
       delivered_to = ARRAY(
         SELECT DISTINCT u FROM unnest(p.delivered_to || coalesce(p_delivered_to, '{}')) AS u
         ORDER BY u
@@ -489,8 +493,15 @@ $schedule$;
 
 -- ============================================================================
 -- 7. /admin/health: the class_results_push check (cron-health-check calls
---    this every five minutes). Stuck = failed, or still pending after three
---    attempts. Names the classes.
+--    this every five minutes). Names the classes. Stuck =
+--      * failed, or
+--      * pending after three attempts, or
+--      * pending with no attempt for 20 minutes. A healthy pending row is
+--        re-attempted within ~10 minutes (5 minutes stale + up to one 5-minute
+--        cron period), or ~15 if a lapsed 5-minute lease delayed it; 20 minutes
+--        (four retry periods) clears that with margin. Without this arm a lost
+--        first post plus a missing or stopped retry cron would sit at
+--        attempts = 1 forever and read green.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.class_results_push_health()
@@ -509,6 +520,8 @@ AS $$
     LEFT JOIN public.shows s ON s.id = t.show_id
     WHERE p.status = 'failed'
        OR (p.status = 'pending' AND p.attempts >= 3)
+       OR (p.status = 'pending'
+           AND coalesce(p.last_attempt_at, p.created_at) < now() - interval '20 minutes')
   )
   SELECT jsonb_build_object(
     'stuck', (SELECT count(*) FROM stuck),
@@ -522,7 +535,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.class_results_push_health() IS
-  'MYK9-737: "Results Posted" pushes that failed or are still pending after 3 attempts, for the /admin/health class_results_push check. service_role only.';
+  'MYK9-737: "Results Posted" pushes that failed, are still pending after 3 attempts, or have had no attempt for 20 minutes, for the /admin/health class_results_push check. service_role only.';
 
 REVOKE ALL ON FUNCTION public.class_results_push_health() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.class_results_push_health() TO service_role;

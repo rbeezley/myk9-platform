@@ -52,11 +52,55 @@ export type ResultsPushLease =
   | { outcome: 'held' }
   | { outcome: 'none' };
 
+/**
+ * What one send-push-notification call achieved for one user:
+ *   delivered        at least one of their subscriptions accepted the push
+ *   no_subscriptions they have none, so there is nothing to deliver
+ *   gone             every subscription failed permanently (404/410: the
+ *                    function deletes those), so nothing more can be delivered
+ *   failed           anything else: the invoke failed, the body is unreadable,
+ *                    or a subscription failed for a reason that may pass; the
+ *                    retry reaches them
+ * The first three are done for that user; only `failed` keeps the class pending.
+ */
+export type PushSendOutcome =
+  | { kind: 'delivered' }
+  | { kind: 'no_subscriptions' }
+  | { kind: 'gone'; detail: string }
+  | { kind: 'failed'; detail: string };
+
+/**
+ * Reads send-push-notification's 200 body. It answers
+ * `{ sent: 0, message: 'No subscriptions found' }` or
+ * `{ sent, errors?: string[], expired?: number }`, where `errors` has one
+ * `"<endpoint>: <message>"` per failed subscription and `expired` counts the
+ * ones that failed with 404/410. A 200 is NOT success on its own: every
+ * subscription can fail inside it.
+ */
+export function classifyPushResponse(
+  data: unknown,
+  invokeError: { message: string } | null
+): PushSendOutcome {
+  if (invokeError) return { kind: 'failed', detail: invokeError.message };
+  const body = data as { sent?: unknown; errors?: unknown; expired?: unknown } | null;
+  if (!body || typeof body !== 'object' || typeof body.sent !== 'number') {
+    return { kind: 'failed', detail: 'unreadable send-push-notification response' };
+  }
+  if (body.sent > 0) return { kind: 'delivered' };
+  const errors = Array.isArray(body.errors) ? body.errors.length : 0;
+  if (errors === 0) return { kind: 'no_subscriptions' };
+  // An older deployment without `expired` reads as transient; it has already
+  // deleted the dead subscriptions, so the retry then finds none and is done.
+  if (typeof body.expired === 'number' && body.expired >= errors) {
+    return { kind: 'gone', detail: `all ${errors} subscriptions expired` };
+  }
+  return { kind: 'failed', detail: `${errors} subscription sends failed` };
+}
+
 export interface ResultsPushDeps {
   begin(classId: string): Promise<ResultsPushLease>;
   readScoredEntries(classId: string): Promise<ScoredEntryAudienceRow[]>;
-  /** True when send-push-notification accepted the push for this user. */
-  sendPush(userId: string, payload: ResultsPushPayload): Promise<boolean>;
+  sendPush(userId: string, payload: ResultsPushPayload): Promise<PushSendOutcome>;
   finish(
     classId: string,
     claimToken: string,
@@ -177,20 +221,31 @@ export async function runResultsPush(
       deps.sendPush(userId, buildResultsPushPayload(dogNames, target.className))
     )
   );
-  const delivered = recipients
-    .filter((_, i) => {
-      const result = results[i];
-      return result?.status === 'fulfilled' && result.value === true;
-    })
+  const outcomes: PushSendOutcome[] = results.map(result =>
+    result.status === 'fulfilled'
+      ? result.value
+      : { kind: 'failed', detail: errorMessage(result.reason) }
+  );
+  // Done for a user = nothing more can be delivered to them. Only these go in
+  // delivered_to, so a retry skips them and reaches everyone else.
+  const done = recipients
+    .filter((_, i) => outcomes[i]?.kind !== 'failed')
     .map(([userId]) => userId);
-  const failed = recipients.length - delivered.length;
+  const failed = outcomes.filter(outcome => outcome.kind === 'failed').length;
+  const gone = outcomes.filter(outcome => outcome.kind === 'gone').length;
+  const goneNote =
+    gone > 0
+      ? `${gone} ${gone === 1 ? 'recipient has' : 'recipients have'} only expired subscriptions`
+      : null;
 
   if (failed === 0) {
-    await deps.finish(target.classId, lease.claimToken, 'sent', delivered, null);
-    return { status: 'push_sent', recipients: delivered.length };
+    await deps.finish(target.classId, lease.claimToken, 'sent', done, goneNote);
+    return { status: 'push_sent', recipients: done.length };
   }
 
-  const error = `${failed}/${recipients.length} recipients failed`;
-  await deps.finish(target.classId, lease.claimToken, 'error', delivered, error);
+  const error = [`${failed}/${recipients.length} recipients failed`, goneNote]
+    .filter(Boolean)
+    .join('; ');
+  await deps.finish(target.classId, lease.claimToken, 'error', done, error);
   return { status: 'push_failed', failed, recipients: recipients.length, error };
 }

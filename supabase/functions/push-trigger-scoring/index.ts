@@ -13,6 +13,7 @@ import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import {
+  classifyPushResponse,
   parseLease,
   parseResultsPushPayload,
   runResultsPush,
@@ -64,14 +65,14 @@ handle<WebhookPayload>(
       },
 
       async sendPush(userId, payload) {
-        const { error } = await supabase.functions.invoke('send-push-notification', {
+        const { data, error } = await supabase.functions.invoke('send-push-notification', {
           body: { user_id: userId, payload },
         });
-        if (error) {
-          console.error('push-trigger-scoring: send failed', userId, error.message);
-          return false;
+        const outcome = classifyPushResponse(data, error);
+        if (outcome.kind === 'failed' || outcome.kind === 'gone') {
+          console.error('push-trigger-scoring: send', outcome.kind, userId, outcome.detail);
         }
-        return true;
+        return outcome;
       },
 
       async finish(classId, claimToken, outcome, deliveredTo, errorText) {

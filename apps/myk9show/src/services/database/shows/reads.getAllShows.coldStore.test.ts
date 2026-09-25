@@ -7,6 +7,7 @@ const {
   mockClassesTable,
   mockJudgeAssignmentsTable,
   mockPostgrestGetAllShows,
+  mockHasAuthenticatedSession,
 } = vi.hoisted(() => ({
   mockShowsTable: { getAllShows: vi.fn() },
   mockClubsTable: { getAllClubs: vi.fn() },
@@ -14,6 +15,11 @@ const {
   mockClassesTable: { getAll: vi.fn() },
   mockJudgeAssignmentsTable: { getAll: vi.fn() },
   mockPostgrestGetAllShows: vi.fn(),
+  mockHasAuthenticatedSession: vi.fn(),
+}));
+
+vi.mock('../_shared/session', () => ({
+  hasAuthenticatedSession: mockHasAuthenticatedSession,
 }));
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
@@ -56,6 +62,7 @@ describe('getAllShows — cold replica', () => {
     mockTrialsTable.getAll.mockResolvedValue([]);
     mockClassesTable.getAll.mockResolvedValue([]);
     mockJudgeAssignmentsTable.getAll.mockResolvedValue([]);
+    mockHasAuthenticatedSession.mockResolvedValue(true);
   });
 
   it('asks the server when the local store holds no shows', async () => {
@@ -74,6 +81,19 @@ describe('getAllShows — cold replica', () => {
 
     const result = await getAllShows();
 
+    expect(result).toEqual({ data: [], error: null });
+  });
+
+  it('trusts the empty local list for a guest, whose replica never syncs', async () => {
+    // prefetchCriticalData runs this on every app load; a guest must not send
+    // the whole catalog query each time.
+    mockHasAuthenticatedSession.mockResolvedValue(false);
+    mockShowsTable.getAllShows.mockResolvedValue([]);
+    mockPostgrestGetAllShows.mockResolvedValue(REMOTE);
+
+    const result = await getAllShows();
+
+    expect(mockPostgrestGetAllShows).not.toHaveBeenCalled();
     expect(result).toEqual({ data: [], error: null });
   });
 

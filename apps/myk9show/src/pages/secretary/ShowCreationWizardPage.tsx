@@ -38,7 +38,7 @@ import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreati
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
 import {
-  focusStepEntry,
+  useStepEntryFocus,
   revealFocusedBelowChrome,
   useWizardChromeHeight,
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
@@ -182,14 +182,7 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Focus the step's first control shortly after mount or a step change,
   // unless the secretary has already scrolled or focused something (MYK9-764).
-  useEffect(() => {
-    const scrollYAtStart = window.scrollY;
-    const timer = setTimeout(() => {
-      if (stepContentRef.current) focusStepEntry(stepContentRef.current, scrollYAtStart);
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [currentStep]);
+  useStepEntryFocus(stepContentRef, currentStep);
 
   // Is the edit-mode target show available to the same store that will write it?
   const { editModeResolution, retryWritableShow } = useWritableEditModeResolution(editMode);

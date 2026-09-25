@@ -137,9 +137,33 @@ const FIRST_CONTROL_SELECTOR =
 export function focusStepEntry(content: HTMLElement, scrollYAtStart: number): void {
   if (Math.abs(window.scrollY - scrollYAtStart) > FOLD_TOLERANCE_PX) return;
   const active = document.activeElement;
-  if (active && (content.contains(active) || active.closest('[role="dialog"]'))) return;
+  if (active && (content.contains(active) || active.closest(OPEN_OVERLAY_SELECTOR))) return;
   const first = content.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR);
   if (first) focusWithoutJump(first);
+}
+
+/** Portalled popups that own focus while open: Base UI's Dialog, AlertDialog
+ * (the unsaved-changes confirm), Select and Menu. */
+const OPEN_OVERLAY_SELECTOR =
+  '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]';
+
+/** How long after mount or a step change the entry focus waits. */
+export const STEP_ENTRY_FOCUS_DELAY_MS = 350;
+
+/**
+ * Run {@link focusStepEntry} {@link STEP_ENTRY_FOCUS_DELAY_MS} after mount and
+ * after every change of `step`, measuring "has the page moved" from the
+ * moment the step started — not from when the timer fires, which would make
+ * the scroll guard vacuous.
+ */
+export function useStepEntryFocus(contentRef: RefObject<HTMLElement | null>, step: unknown): void {
+  useEffect(() => {
+    const scrollYAtStart = window.scrollY;
+    const timer = setTimeout(() => {
+      if (contentRef.current) focusStepEntry(contentRef.current, scrollYAtStart);
+    }, STEP_ENTRY_FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [contentRef, step]);
 }
 
 /**

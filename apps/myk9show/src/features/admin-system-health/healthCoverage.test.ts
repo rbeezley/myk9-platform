@@ -16,7 +16,7 @@ describe('HEALTH_COVERAGE_SURFACES', () => {
   });
 
   it('keeps the unmonitored denominator explicit', () => {
-    expect(HEALTH_COVERAGE_SURFACES).toHaveLength(14);
+    expect(HEALTH_COVERAGE_SURFACES).toHaveLength(15);
     expect(
       HEALTH_COVERAGE_SURFACES.filter(surface => surface.verificationLevel === 'none')
     ).toHaveLength(3);

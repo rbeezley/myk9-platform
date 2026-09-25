@@ -336,7 +336,7 @@ describe('SystemHealthPage', () => {
       screen.getByText(/Sync backlog — waiting changes stay on each device; no central check/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Site uptime — no outside availability check/i)).toBeInTheDocument();
-    expect(screen.getByText(/3 of 14 surfaces unmonitored/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 of 15 surfaces unmonitored/i)).toBeInTheDocument();
   });
 
   it('uses neutral coverage wording for non-payout unverified checks', () => {
@@ -384,7 +384,7 @@ describe('SystemHealthPage', () => {
         /Public access grants — this run did not collect enough evidence to confirm success/i
       )
     ).toBeInTheDocument();
-    expect(screen.getByText(/3 of 14 surfaces unmonitored/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 of 15 surfaces unmonitored/i)).toBeInTheDocument();
   });
   // The board carried two status systems that never referenced each other:
   // "Everything's running" rendered beside ten unresolved Error alerts.

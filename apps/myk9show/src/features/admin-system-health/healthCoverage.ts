@@ -78,6 +78,12 @@ export const HEALTH_COVERAGE_SURFACES: readonly HealthCoverageSurface[] = [
     checkKey: 'stray_published_shows',
   },
   {
+    label: 'Results Posted pushes',
+    verificationLevel: 'full',
+    detail: 'classes whose results push failed or keeps retrying are checked',
+    checkKey: 'class_results_push',
+  },
+  {
     label: 'Sign-in email failures',
     verificationLevel: 'full',
     detail: 'delivery failures raise alerts',

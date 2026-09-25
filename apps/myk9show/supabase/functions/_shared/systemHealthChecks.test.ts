@@ -56,6 +56,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
   anon_grants: anonGrants(),
   applied_acl_grants: appliedAclFacts(),
   public_schema_create_acl: publicSchemaAclFacts(),
+  class_results_push: { stuck: 0, failed: 0, pending: 0, sample: [] },
   ...over,
 });
 
@@ -95,6 +96,7 @@ describe('buildSnapshot — contract shape', () => {
       'applied_acl_grants',
       'public_schema_create_acl',
       'stray_published_shows',
+      'class_results_push',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');

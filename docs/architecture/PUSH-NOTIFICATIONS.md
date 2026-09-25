@@ -48,16 +48,18 @@ Configure via **Supabase Dashboard → Database → Webhooks → Create**:
 
 The edge function checks `status = 'in_progress' AND old_status != 'in_progress'` internally.
 
-### 2. Scoring Complete
+### 2. Results Posted
 
-| Field    | Value                  |
-| -------- | ---------------------- |
-| Table    | `entries`              |
-| Events   | `UPDATE`               |
-| Type     | Supabase Edge Function |
-| Function | `push-trigger-scoring` |
+Not a dashboard webhook: the migration-managed trigger `trg_notify_class_results_push` on `classes` (migration `20260925194700`, MYK9-737) posts to `push-trigger-scoring` with the Vault-backed `push_webhook_secret`.
 
-The edge function checks `scoring_completed_at IS NOT NULL AND old_scoring_completed_at IS NULL` internally.
+It fires once per class, when `private.class_results_push_due` finds the class done (completed, scoring-finalized or released) and its qualification results visible under the release gate (`public.resolve_class_result_visibility`). With the default presets that is completion or finalization; for a class held for manual release it is `results_released_at`. The trigger queues one `pending` row in `private.class_results_push` and posts the class. Each exhibitor gets one push naming all of their scored dogs in the class. It no longer fires per scored entry.
+
+Delivery is tracked, not assumed (pg_net never reports back to the trigger):
+
+- `push-trigger-scoring` leases the row (`begin_class_results_push`), sends, and only then records `sent` (`finish_class_results_push`). A failed send records `last_error` and leaves the row `pending`; recipients already reached are kept in `delivered_to` and skipped next time.
+- The `class-results-push-retry` pg_cron job (every five minutes) re-posts a `pending` row whose last attempt is over five minutes old; after five attempts the row becomes `failed`.
+- `/admin/health` shows a `class_results_push` check that fails, naming the classes, when a row is `failed` or still `pending` after three attempts.
+- If the class is un-released before the send, the lease reports it `held` and deletes the row, so the next release queues a fresh push.
 
 ## Edge Function Deployment
 

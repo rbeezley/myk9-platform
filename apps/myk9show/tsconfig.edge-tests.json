@@ -27,6 +27,7 @@
     "../../supabase/functions/_shared/roleValidity.test.ts",
     "../../supabase/functions/_shared/roleValidityCoverage.test.ts",
     "../../supabase/functions/_shared/userRolePerson.test.ts",
+    "../../supabase/functions/push-trigger-scoring/*.test.ts",
     "../../supabase/functions/_shared/sms/*.test.ts",
     "../../supabase/functions/sms-opt-in/*.test.ts",
     "../../supabase/functions/sms-stop-webhook/*.test.ts",

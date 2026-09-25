@@ -162,10 +162,11 @@ describe('class-status and scoring push audience contracts', () => {
     expect(source).toContain('owner:people!owner_id(auth_user_id)');
     expect(source).toContain('co_owner:people!co_owner_id(auth_user_id)');
     expect(source).toContain('handler:people!handler_id(auth_user_id)');
-    expect(source).toContain('entry?.dog?.owner?.auth_user_id');
-    expect(source).toContain('entry?.dog?.co_owner?.auth_user_id');
-    expect(source).toContain('entry?.handler?.auth_user_id');
     expect(source).not.toContain('body.record.user_id');
+    // The grouping itself (owner + co-owner + handler, once per class per
+    // person) and the sent-after-send ordering are behavior-tested in
+    // push-trigger-scoring/resultsPush.test.ts (MYK9-737).
+    expect(source).toContain('runResultsPush(');
   });
 
   it('resolves class-start recipients from owner, co-owner, and handler auth links', () => {

@@ -12270,6 +12270,18 @@ export type Database = {
           waitlist_count: number
         }[]
       }
+      class_judge_day_capacity: {
+        Args: { p_class_ids: string[] }
+        Returns: {
+          class_id: string
+          day_capacity: number | null
+          day_mail_in_reserved: number | null
+          day_remaining: number
+          day_taken: number | null
+          judge_id: string
+          show_date: string
+        }[]
+      }
       cleanup_stale_ringside_anon_users: {
         Args: {
           p_claimless_ttl?: string
@@ -13027,6 +13039,24 @@ export type Database = {
           judge_id: string | null
           self_service_block: string | null
           waitlist_count: number
+        }[]
+      }
+      get_show_class_judge_day_availability: {
+        Args: { p_show_id: string }
+        Returns: {
+          allow_waitlist: boolean
+          class_entry_count: number
+          class_full: boolean
+          class_id: string
+          class_max_entries: number | null
+          class_remaining: number | null
+          day_capacity: number | null
+          day_mail_in_reserved: number | null
+          day_remaining: number | null
+          day_taken: number | null
+          judge_id: string | null
+          self_service_block: string | null
+          show_date: string | null
         }[]
       }
       get_show_judges: {

@@ -61,6 +61,27 @@ describe('CartItemCard', () => {
     expect(screen.getByText(/remove it to continue to payment/i)).toBeInTheDocument();
   });
 
+  // MYK9-753: a two-judge class can be full on one judge's day only; the line
+  // says which day, and says it as "right now" because payment re-checks.
+  it('names the full judge day on a blocked line', () => {
+    render(
+      <CartItemCard
+        item={baseItem}
+        onRemove={vi.fn()}
+        fulfillment="blocked"
+        fullReason={{ kind: 'judge-day', judgeId: 'alma', showDate: '2026-10-10' }}
+        judgeNameById={new Map([['alma', 'Alma Judge']])}
+      />
+    );
+
+    expect(screen.getByText('Judge day full')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Alma Judge's judging day on Saturday, Oct 10 has no spots left right now\. This class is not accepting wait list entries\./
+      )
+    ).toBeInTheDocument();
+  });
+
   it('still renders an ordinary payable line by default', () => {
     render(<CartItemCard item={baseItem} onRemove={vi.fn()} />);
 

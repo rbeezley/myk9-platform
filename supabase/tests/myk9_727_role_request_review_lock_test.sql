@@ -104,16 +104,22 @@ SELECT set_config('myk9_727.ava', (SELECT id::text FROM public.role_requests
   WHERE person_id = '00000000-0000-0000-0000-00000000721e'), true);
 
 -- True when THIS backend holds the pair's advisory lock. A bigint advisory key
--- shows in pg_locks as classid = high 32 bits, objid = low 32 bits, objsubid 1.
+-- shows in pg_locks as classid = high 32 bits, objid = low 32 bits, objsubid 1,
+-- both as unsigned oids. Compare each half against the signed key masked to 32
+-- bits: rebuilding a bigint from the oids is unsigned, so it never equals a
+-- negative hashtext() key even when the lock is held.
 CREATE FUNCTION pg_temp.myk9_727_pair_locked(p_person uuid) RETURNS boolean
 LANGUAGE sql AS $$
+  WITH k AS (
+    SELECT hashtext('role_requests:00000000-0000-0000-0000-000000007221:' || p_person::text)::bigint AS key
+  )
   SELECT EXISTS (
-    SELECT 1 FROM pg_locks l
+    SELECT 1 FROM pg_locks l, k
     WHERE l.locktype = 'advisory'
       AND l.pid = pg_backend_pid()
       AND l.objsubid = 1
-      AND ((l.classid::bigint << 32) | l.objid::bigint)
-          = hashtext('role_requests:00000000-0000-0000-0000-000000007221:' || p_person::text)::bigint
+      AND l.classid::bigint = ((k.key >> 32) & 4294967295)
+      AND l.objid::bigint = (k.key & 4294967295)
   );
 $$;
 

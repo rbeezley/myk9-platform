@@ -167,8 +167,11 @@ begin
   select version into strict v_now from public.entries
    where id = '00000000-0000-0000-0000-000000740033';
 
-  if v_first <> v_base + 1 then
-    raise exception 'FAIL first write returned %, expected %', v_first, v_base + 1;
+  -- Not base + 1: scoring the fixture class's only entry completes the class,
+  -- and the server's placement pass updates the entry again (a second version
+  -- bump inside the same call). The RPC returns the post-trigger version.
+  if v_first <= v_base then
+    raise exception 'FAIL first write returned %, expected a version after %', v_first, v_base;
   end if;
   if (select value::integer from myk9_740 where step = 'replay') <> v_first then
     raise exception 'FAIL replay returned %, expected the current version %',
@@ -251,10 +254,12 @@ begin
   select value::integer into strict v_first from myk9_740 where step = 'first';
   select version, result_status, check_in_status into strict r
     from public.entries where id = '00000000-0000-0000-0000-000000740033';
-  if (select value::integer from myk9_740 where step = 'follow_up') <> v_first + 1
-     or r.version <> v_first + 1 then
-    raise exception 'FAIL follow-up write: returned % row version %, expected %',
-      (select value from myk9_740 where step = 'follow_up'), r.version, v_first + 1;
+  -- Returned version is the row's, and it moved past the replayed one (the
+  -- placement pass may bump it more than once, as in section A).
+  if (select value::integer from myk9_740 where step = 'follow_up') <> r.version
+     or r.version <= v_first then
+    raise exception 'FAIL follow-up write: returned % row version %, expected > %',
+      (select value from myk9_740 where step = 'follow_up'), r.version, v_first;
   end if;
   if r.result_status <> 'nq' or r.check_in_status <> 'completed' then
     raise exception 'FAIL final row % / %', r.result_status, r.check_in_status;

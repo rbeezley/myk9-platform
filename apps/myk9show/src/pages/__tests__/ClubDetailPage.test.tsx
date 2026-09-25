@@ -1,8 +1,10 @@
 import React from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Route, Routes } from 'react-router-dom';
+import { act, screen } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { PUBLIC_CLUB_DETAIL_QUERY_KEY } from '@/hooks/useClubDetailData';
 import type { Club } from '@/types/club-types';
 import ClubDetailPage from '../ClubDetailPage';
 
@@ -10,16 +12,53 @@ const state = vi.hoisted(() => ({
   clubs: [] as Club[],
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
   ensureClubsReady: vi.fn(() => Promise.resolve({ status: 'fresh', clubs: [] })),
+  // Counts every read of the replica's club list, so a test can prove a
+  // signed-out viewer never consults it.
+  replicaReads: 0,
 }));
 
+const auth = vi.hoisted(() => ({
+  value: {
+    user: { id: 'user-1', is_anonymous: false },
+    userWithRoles: { roles: ['secretary'] },
+    loading: false,
+  } as {
+    user: { id: string; is_anonymous?: boolean } | null;
+    userWithRoles: { roles: string[] } | null;
+    loading: boolean;
+  },
+}));
+
+const getPublicClubById = vi.hoisted(() => vi.fn());
+
 vi.mock('@/store/clubStore', () => ({
-  useClubStore: (selector: (value: typeof state) => unknown) => selector(state),
+  useClubStore: (selector: (value: Record<string, unknown>) => unknown) =>
+    selector({
+      clubReadiness: state.clubReadiness,
+      ensureClubsReady: state.ensureClubsReady,
+      get clubs() {
+        state.replicaReads += 1;
+        return state.clubs;
+      },
+    }),
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => auth.value,
+}));
+
+vi.mock('@/services/database/clubs', () => ({
+  getPublicClubById,
 }));
 
 vi.mock('@/components/clubs/ClubDetails', () => ({
   ClubDetails: ({ selectedClub }: { selectedClub: Club | null }) => (
     <div data-testid="club-details">{selectedClub?.name ?? 'no club'}</div>
   ),
+}));
+
+vi.mock('@/components/common/SkeletonLoaders', () => ({
+  DetailPageSkeleton: () => <div data-testid="detail-skeleton">Loading...</div>,
 }));
 
 const club: Club = {
@@ -38,24 +77,34 @@ const club: Club = {
   pastShows: [],
 };
 
-function renderPage(path: string) {
+function renderPage(path: string, queryClient = createTestQueryClient()) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/clubs/:id" element={<ClubDetailPage />} />
-      </Routes>
-    </MemoryRouter>
+    <Routes>
+      <Route path="/clubs/:id" element={<ClubDetailPage />} />
+    </Routes>,
+    { initialRoute: path, queryClient }
   );
 }
 
-describe('ClubDetailPage readiness outcomes', () => {
-  beforeEach(() => {
-    state.clubs = [];
-    state.clubReadiness = 'loading';
-    state.ensureClubsReady.mockClear();
-  });
+beforeEach(() => {
+  state.clubs = [];
+  state.clubReadiness = 'loading';
+  state.ensureClubsReady.mockClear();
+  state.replicaReads = 0;
+  getPublicClubById.mockReset();
+  auth.value = {
+    user: { id: 'user-1', is_anonymous: false },
+    userWithRoles: { roles: ['secretary'] },
+    loading: false,
+  };
+});
 
-  it('keeps a valid guest detail URL and passes its requested ID to readiness', () => {
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
+
+describe('ClubDetailPage signed-in readiness outcomes', () => {
+  it('renders the replica club and passes its requested ID to readiness', () => {
     state.clubs = [club];
     state.clubReadiness = 'fresh';
 
@@ -63,6 +112,7 @@ describe('ClubDetailPage readiness outcomes', () => {
 
     expect(screen.getByTestId('club-details')).toHaveTextContent('Heartland Club');
     expect(state.ensureClubsReady).toHaveBeenCalledWith({ requestedClubId: 'club-1' });
+    expect(getPublicClubById).not.toHaveBeenCalled();
   });
 
   it('waits in loading when the requested ID is absent from stale cache', () => {
@@ -85,9 +135,8 @@ describe('ClubDetailPage readiness outcomes', () => {
 
   it('renders retryable unavailable copy without exposing internal failure details', async () => {
     state.clubReadiness = 'unavailable';
-    const user = userEvent.setup();
 
-    renderPage('/clubs/missing-club');
+    const { user } = renderPage('/clubs/missing-club');
 
     expect(
       screen.getByRole('heading', { name: 'Club details are unavailable' })
@@ -98,5 +147,113 @@ describe('ClubDetailPage readiness outcomes', () => {
       requestedClubId: 'missing-club',
       force: true,
     });
+  });
+});
+
+// MYK9-747: the clubs replica is shared across sign-in states on one device,
+// so a signed-out club page reads the server only.
+describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
+  beforeEach(() => {
+    auth.value = { user: null, userWithRoles: null, loading: false };
+  });
+
+  it('renders not-found for a revoked club cached in the replica, without reading the replica', async () => {
+    state.clubs = [{ ...club, id: 'club-revoked', name: 'Revoked Club', authorizedAt: null }];
+    state.clubReadiness = 'fresh';
+    // clubs_select hides the revoked club from anon: no row.
+    getPublicClubById.mockResolvedValue(null);
+
+    renderPage('/clubs/club-revoked');
+
+    expect(await screen.findByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
+    expect(getPublicClubById).toHaveBeenCalledWith('club-revoked');
+    expect(state.replicaReads).toBe(0);
+    expect(state.ensureClubsReady).not.toHaveBeenCalled();
+  });
+
+  it("renders the server's club row", async () => {
+    getPublicClubById.mockResolvedValue({ ...club, name: 'Server Heartland' });
+
+    renderPage('/clubs/club-1');
+
+    expect(await screen.findByTestId('club-details')).toHaveTextContent('Server Heartland');
+    expect(state.replicaReads).toBe(0);
+  });
+
+  // Codex P1: a cached earlier read is not an authoritative answer.
+  it('does not render a cached club from an earlier visit until the mount refetch resolves', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData([...PUBLIC_CLUB_DETAIL_QUERY_KEY, 'club-1', 'signed-out'], {
+      ...club,
+      name: 'Cached Before Revocation',
+    });
+    let resolveFresh: (value: Club | null) => void = () => {};
+    getPublicClubById.mockReturnValue(
+      new Promise<Club | null>(resolve => {
+        resolveFresh = resolve;
+      })
+    );
+
+    renderPage('/clubs/club-1', queryClient);
+
+    expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
+    expect(getPublicClubById).toHaveBeenCalledTimes(1);
+
+    // Revoked since the earlier visit: the server now returns no row.
+    await act(async () => resolveFresh(null));
+
+    expect(await screen.findByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
+    expect(screen.queryByText('Cached Before Revocation')).not.toBeInTheDocument();
+  });
+
+  it('switches to the offline state when the connection drops after a successful read', async () => {
+    getPublicClubById.mockResolvedValue(club);
+
+    renderPage('/clubs/club-1');
+    expect(await screen.findByTestId('club-details')).toHaveTextContent('Heartland Club');
+
+    act(() => onlineManager.setOnline(false));
+
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
+  });
+
+  it('renders the offline state, not not-found, with no connection', () => {
+    onlineManager.setOnline(false);
+    state.clubs = [club];
+
+    renderPage('/clubs/club-1');
+
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+    expect(screen.getByText('Connect to the internet to see this club.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club not found' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
+    expect(getPublicClubById).not.toHaveBeenCalled();
+    expect(state.replicaReads).toBe(0);
+  });
+
+  it('renders loading, not not-found, while the read is pending', () => {
+    getPublicClubById.mockReturnValue(new Promise(() => {}));
+
+    renderPage('/clubs/club-1');
+
+    expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club not found' })).not.toBeInTheDocument();
+  });
+
+  it('renders the unavailable state, not not-found, when the read fails, and retries the server', async () => {
+    getPublicClubById.mockRejectedValueOnce(new Error('network')).mockResolvedValue(club);
+
+    const { user } = renderPage('/clubs/club-1');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Club details are unavailable' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/saved club information/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByTestId('club-details')).toHaveTextContent('Heartland Club');
+    expect(state.ensureClubsReady).not.toHaveBeenCalled();
   });
 });

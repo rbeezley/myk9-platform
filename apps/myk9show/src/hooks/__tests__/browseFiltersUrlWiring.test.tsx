@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Dog } from '@/types/dog-types';
 
 /**
@@ -86,7 +87,10 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: { id: 'user-1', roles: ['secretary'] } }),
+  useAuthContext: () => ({
+    user: { id: 'user-1' },
+    userWithRoles: { id: 'user-1', roles: ['secretary'] },
+  }),
 }));
 
 // Imported after the mocks so the hooks pick them up.
@@ -110,11 +114,15 @@ function setupWrapper(initialEntry: string) {
     return null;
   };
 
+  // useBrowseClubsData's signed-out directory is a React Query read (MYK9-747).
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <MemoryRouter initialEntries={[initialEntry]}>
-      {children}
-      <Probe />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        {children}
+        <Probe />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 
   return { probe, wrapper };

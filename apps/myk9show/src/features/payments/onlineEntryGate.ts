@@ -1,4 +1,5 @@
 import { getErrorMessage } from '@myk9/core';
+import { toLocalDateOnly } from '@/utils/date-format';
 
 // Publishing a show opens online entries (status 'published' is the
 // entries-open state), and online entry fees can only be paid out to clubs
@@ -74,28 +75,28 @@ export const ENTRY_WINDOW_ORDER_MESSAGE =
 export const ENTRY_WINDOW_PUBLISHED_MESSAGE =
   'A published show has to keep its entry window: both dates set, and the close on or after the open. Discard this change or fix the dates.';
 
-function parseEntryDate(value: string | null | undefined): number | null {
+/** The calendar day the save stores for this value (YYYY-MM-DD), or null. */
+function storedEntryDate(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
-  const ms = Date.parse(value);
-  return Number.isNaN(ms) ? null : ms;
+  const day = toLocalDateOnly(value.trim());
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
 
 /**
  * Why this show's entry window cannot be published yet, or `null` when it can.
- * Mirrors the trigger: a missing (or unreadable) date is "required", and an
- * close before the open is "order". Equal instants pass: entry dates are
- * persisted as calendar days (midnight UTC) with an inclusive close day, so a
- * same-day window stores open === close and is a valid one-day window.
- * Comparing the wizard's un-persisted instants is never looser than the
- * stored calendar days (a local date never runs backwards as the instant
- * moves forward), so this never passes what the trigger refuses.
+ * The trigger's rule, applied to the dates exactly as the save stores them:
+ * each value becomes its calendar day via `toLocalDateOnly` (what
+ * buildCreateShowPayload writes to `entry_open_date` / `entry_close_date`), a
+ * missing or unreadable day is "required", and a close day before the open day
+ * is "order". A same-day window is valid whatever its times (the close day is
+ * inclusive), so no raw time is ever compared.
  */
 export function entryWindowPublishError(
   entryOpenDate: string | null | undefined,
   entryCloseDate: string | null | undefined
 ): string | null {
-  const open = parseEntryDate(entryOpenDate);
-  const close = parseEntryDate(entryCloseDate);
+  const open = storedEntryDate(entryOpenDate);
+  const close = storedEntryDate(entryCloseDate);
   if (open === null || close === null) return ENTRY_WINDOW_REQUIRED_MESSAGE;
   return open <= close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
 }

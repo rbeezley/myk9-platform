@@ -149,6 +149,16 @@ describe('entryWindowPublishError', () => {
     ).toBeNull();
   });
 
+  // Codex round 3: the rule compares the calendar dates exactly as the save
+  // stores them (toLocalDateOnly), never raw times. Picking one day with the
+  // close time earlier than the open time stores the same date twice, which
+  // the trigger accepts, so the client must not warn.
+  it('accepts a same-day window whose close time is earlier than its open time', () => {
+    const open = new Date(2026, 9, 1, 20, 0).toISOString();
+    const close = new Date(2026, 9, 1, 8, 0).toISOString();
+    expect(entryWindowPublishError(open, close)).toBeNull();
+  });
+
   it('recognises the trigger refusal (MK005) as a publish-gate error with its own copy', () => {
     const dbError = createDatabaseError({
       code: PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,

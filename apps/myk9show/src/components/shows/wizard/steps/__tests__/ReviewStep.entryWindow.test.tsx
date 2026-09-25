@@ -95,6 +95,14 @@ describe('ReviewStep entry window readiness (MYK9-716)', () => {
     );
   });
 
+  it('shows nothing for a same-day window whose close time is earlier than its open time', () => {
+    entryWindow.open = new Date(2026, 5, 20, 20, 0).toISOString();
+    entryWindow.close = new Date(2026, 5, 20, 8, 0).toISOString();
+    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} />);
+
+    expect(screen.queryByTestId('review-entry-window-warning')).not.toBeInTheDocument();
+  });
+
   it('shows nothing once the window is set', () => {
     entryWindow.open = '2026-06-01T12:00:00.000Z';
     entryWindow.close = '2026-06-25T12:00:00.000Z';

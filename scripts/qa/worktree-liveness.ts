@@ -328,7 +328,7 @@ export function render(worktree: string, l: Liveness, windowSeconds: number): st
   if (l.verdict === 'free') {
     lines.push('  no other process has its cwd in this tree or a write handle under it');
     lines.push(
-      '  advisory: the write scan is a snapshot of this user\'s processes; remove with plain\n' +
+      "  advisory: the write scan is a snapshot of this user's processes; remove with plain\n" +
         '          `git worktree remove` (never --force) and stop if git refuses'
     );
     return lines.join('\n');

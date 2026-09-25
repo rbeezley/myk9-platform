@@ -274,7 +274,11 @@ describe('measure, against real processes', () => {
     ['lsof prints a partial table', 'lsof', 'exit 1'],
     ['lsof crashes', 'lsof', 'exit 2'],
     // MYK9-725: the cwd query succeeds, the system-wide write scan does not.
-    ['the write scan crashes', 'lsof', `case "$*" in *cwd*) exec '${REAL_LSOF}' "$@";; esac; exit 2`],
+    [
+      'the write scan crashes',
+      'lsof',
+      `case "$*" in *cwd*) exec '${REAL_LSOF}' "$@";; esac; exit 2`,
+    ],
     [
       'the write scan omits the canary (a partial listing)',
       'lsof',

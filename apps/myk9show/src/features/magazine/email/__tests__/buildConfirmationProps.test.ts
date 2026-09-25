@@ -72,61 +72,52 @@ function makeOpts(
 }
 
 describe('buildMagazineConfirmationProps', () => {
-  // ─── Critical: lowercase Roman numerals (the bug #1 from PR review) ──────
+  // ─── Trial label (MYK9-713): the formatTrialLabel contract, as the edge ──
 
-  it('emits LOWERCASE Roman numerals regardless of how trial_number is stored', () => {
-    // Upstream trial_number values are uppercase ("I", "II", "III") because
-    // that's what AKC convention puts in the DB. The magazine voice is
-    // lowercase, and the email pipeline must agree with the landing-page
-    // hook. This is the assertion that catches PR-review bug #1.
-    const props = buildMagazineConfirmationProps(makeOpts());
-    expect(props.runs.map(r => r.trialNumeral)).toEqual(['i', 'ii', 'iii']);
-  });
-
-  it('derives numerals from display_order, not from upstream trial_number string', () => {
-    // Sanity: even if trial_number is missing entirely, the numeral falls
-    // back to lowercase Roman of display_order (or sort index).
+  it('labels runs by trial name on the real stored shape (name = trial_number)', () => {
+    // The show wizard copies the trial NAME into trial_number (MYK9-704), so
+    // both carry the label; send-confirmation-email prints the same string.
     const props = buildMagazineConfirmationProps(
       makeOpts({
         allTrials: [
-          { id: 't1', date: '2026-06-12', display_order: 1 },
+          {
+            id: 't1',
+            date: '2026-06-12',
+            name: 'Friday T 1',
+            trial_number: 'Friday T 1',
+            display_order: 1,
+          },
+          {
+            id: 't2',
+            date: '2026-06-13',
+            name: 'Saturday T 2',
+            trial_number: 'Saturday T 2',
+            display_order: 2,
+          },
+        ],
+        entries: [
+          { id: 'e1', trial_id: 't1', class_id: 'c1', armband: null, entry_fee: 2500 },
+          { id: 'e2', trial_id: 't2', class_id: 'c2', armband: null, entry_fee: 2200 },
+        ],
+      })
+    );
+    expect(props.runs.map(r => r.trialNumeral)).toEqual(['Friday T 1', 'Saturday T 2']);
+  });
+
+  it('falls back to trial_number as stored, then "Trial" — never a derived numeral', () => {
+    const props = buildMagazineConfirmationProps(
+      makeOpts({
+        allTrials: [
+          { id: 't1', date: '2026-06-12', trial_number: 'Trial 1', display_order: 1 },
           { id: 't2', date: '2026-06-13', display_order: 2 },
         ],
         entries: [
           { id: 'e1', trial_id: 't1', class_id: 'c1', armband: null, entry_fee: 2500 },
           { id: 'e2', trial_id: 't2', class_id: 'c2', armband: null, entry_fee: 2200 },
         ],
-        allClasses: [
-          { id: 'c1', trial_id: 't1', name: 'Containers', element: 'Containers' },
-          { id: 'c2', trial_id: 't2', name: 'Interiors', element: 'Interiors' },
-        ],
-        judges: [],
       })
     );
-    expect(props.runs.map(r => r.trialNumeral)).toEqual(['i', 'ii']);
-  });
-
-  it('falls back to lowercase Roman of the sort index when display_order is missing', () => {
-    const props = buildMagazineConfirmationProps(
-      makeOpts({
-        allTrials: [
-          { id: 't1', date: '2026-06-12' },
-          { id: 't2', date: '2026-06-13' },
-          { id: 't3', date: '2026-06-14' },
-        ],
-        entries: [
-          { id: 'e1', trial_id: 't1', class_id: 'c1', armband: null, entry_fee: 2500 },
-          { id: 'e3', trial_id: 't3', class_id: 'c3', armband: null, entry_fee: 2200 },
-        ],
-        allClasses: [
-          { id: 'c1', trial_id: 't1', name: 'Containers', element: 'Containers' },
-          { id: 'c3', trial_id: 't3', name: 'Buried', element: 'Buried' },
-        ],
-        judges: [],
-      })
-    );
-    // sort-index → "i", "ii", "iii"; only t1 and t3 have entries.
-    expect(props.runs.map(r => r.trialNumeral)).toEqual(['i', 'iii']);
+    expect(props.runs.map(r => r.trialNumeral)).toEqual(['Trial 1', 'Trial']);
   });
 
   // ─── primaryArmband derivation ────────────────────────────────────────────
@@ -304,7 +295,7 @@ describe('buildMagazineConfirmationProps', () => {
         ],
       })
     );
-    expect(props.runs.map(r => r.trialNumeral)).toEqual(['i', 'ii', 'iii']);
+    expect(props.runs.map(r => r.trialNumeral)).toEqual(['I', 'II', 'III']);
   });
 
   it('renders a "—" placeholder for runs whose trial is missing from allTrials', () => {

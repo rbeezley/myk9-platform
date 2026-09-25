@@ -1,88 +1,86 @@
 // supabase/functions/push-trigger-scoring/index.ts
-// Database webhook fired when an entry's scoring_completed_at flips from
-// null to a value. Sends a push notification via send-push-notification.
+// "Results Posted" push, once per class (MYK9-737). Called by the classes
+// trigger trg_notify_class_results_push when private.claim_class_results_push
+// finds the class done and its results visible under the release gate
+// (public.resolve_class_result_visibility): on completion or scoring
+// finalization for the default presets, on results_released_at for a class
+// held for manual release. It no longer fires per scored entry.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import {
+  buildResultsPushPayload,
+  groupResultsRecipients,
+  parseResultsPushPayload,
+  resultsAreVisible,
+  type ScoredEntryAudienceRow,
+} from './resultsPush.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
   table: string;
   record: {
     id: string;
-    dog_id: string;
-    class_id: string;
-    show_id: string;
-    handler_id: string | null;
-    scoring_completed_at: string | null;
-  };
-  old_record: {
-    id: string;
-    scoring_completed_at: string | null;
+    name: string | null;
   };
 }
 
 handle<WebhookPayload>(
   { auth: 'none', beforeBody: requirePushWebhookSecret },
   async ({ body, supabase }) => {
-    // Only fire when scoring_completed_at transitions from null to a value
-    if (
-      body.old_record.scoring_completed_at !== null ||
-      body.record.scoring_completed_at === null
-    ) {
-      return { status: 'no_action' };
+    const target = parseResultsPushPayload(body);
+    if (!target) {
+      throw new HttpError(400, 'Expected a class results payload');
     }
 
-    // Resolve the attached exhibitor accounts from the entry relationships.
-    const { data: entry, error: entryError } = await supabase
+    // Re-check the gate at send time: the claim was taken when results became
+    // visible, and a class un-released since then must stay quiet.
+    const { data: visibility, error: visibilityError } = await supabase.rpc(
+      'resolve_class_result_visibility',
+      { p_class_id: target.classId }
+    );
+    if (visibilityError) {
+      console.error('push-trigger-scoring: visibility check failed', visibilityError.message);
+      throw new HttpError(500, 'Visibility check failed');
+    }
+    if (!resultsAreVisible(visibility)) {
+      return { status: 'results_held' };
+    }
+
+    // Owner, co-owner and handler accounts of every scored entry in the class.
+    const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select(
-        'dog:dogs(call_name, owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), class:classes(name), handler:people!handler_id(auth_user_id)'
+        'dog:dogs(call_name, owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), handler:people!handler_id(auth_user_id)'
       )
-      .eq('id', body.record.id)
-      .single();
+      .eq('class_id', target.classId)
+      .is('deleted_at', null)
+      .not('scoring_completed_at', 'is', null);
 
-    if (entryError) {
-      console.error('push-trigger-scoring: entry audience query failed', entryError.message);
+    if (entriesError) {
+      console.error('push-trigger-scoring: entry audience query failed', entriesError.message);
       throw new HttpError(500, 'Audience resolution failed');
     }
 
-    const audienceIds = new Set<string>();
-    for (const authUserId of [
-      entry?.dog?.owner?.auth_user_id,
-      entry?.dog?.co_owner?.auth_user_id,
-      entry?.handler?.auth_user_id,
-    ]) {
-      if (authUserId) audienceIds.add(authUserId);
-    }
-
-    if (audienceIds.size === 0) {
+    const recipients = groupResultsRecipients((entries ?? []) as ScoredEntryAudienceRow[]);
+    if (recipients.size === 0) {
       return { status: 'no_users_to_notify' };
     }
 
-    const dogName = entry?.dog?.call_name ?? 'Your dog';
-    const className =
-      (entry as { class?: { name?: string } | null } | null)?.class?.name ?? 'a class';
-
     await Promise.allSettled(
-      [...audienceIds].map(userId =>
+      [...recipients].map(([userId, dogNames]) =>
         supabase.functions.invoke('send-push-notification', {
           body: {
             user_id: userId,
-            payload: {
-              type: 'results_posted',
-              title: 'Results Posted',
-              body: `${dogName} — ${className}`,
-              priority: 'normal',
-            },
+            payload: buildResultsPushPayload(dogNames, target.className),
           },
         })
       )
     );
 
-    return { status: 'push_sent', recipients: audienceIds.size };
+    return { status: 'push_sent', recipients: recipients.size };
   }
 );

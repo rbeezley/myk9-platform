@@ -35,6 +35,7 @@ import {
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 import { buildVenueMapAssets, renderVenueMapBlock, type VenueMapAssets } from './static-map.ts';
 import { formatEntryFee } from './entryFee.ts';
+import { buildTrialLabelMap } from './trialLabel.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -395,10 +396,10 @@ handle<ConfirmationEmailPayload>(
 
       if (!show) continue;
 
-      // All trials for this show (for numeral resolution)
+      // All trials for this show (for the run-row trial labels)
       const { data: allTrials } = await supabase
         .from('trials')
-        .select('id, date, trial_number, display_order')
+        .select('id, name, trial_number')
         .eq('show_id', show.id)
         .order('display_order', { ascending: true });
 
@@ -417,18 +418,9 @@ handle<ConfirmationEmailPayload>(
         })
       );
 
-      // Build trial numeral map
-      const sortedTrials = [...(allTrials ?? [])].sort(
-        (a: { display_order?: number | null }, b: { display_order?: number | null }) =>
-          (a.display_order ?? 999) - (b.display_order ?? 999)
-      );
-      const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
-      const numeralMap = new Map(
-        sortedTrials.map((t: { id: string; trial_number?: string | null }, i: number) => [
-          t.id,
-          t.trial_number ?? ROMAN[i] ?? String(i + 1),
-        ])
-      );
+      // Trial label per run row: name, else trial_number as-is, else 'Trial'
+      // (MYK9-713, the formatTrialLabel contract from @myk9/core).
+      const numeralMap = buildTrialLabelMap(allTrials ?? []);
 
       // Entries not yet sent for this trial
       const { data: entries } = await supabase

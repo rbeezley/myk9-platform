@@ -48,16 +48,11 @@ Configure via **Supabase Dashboard → Database → Webhooks → Create**:
 
 The edge function checks `status = 'in_progress' AND old_status != 'in_progress'` internally.
 
-### 2. Scoring Complete
+### 2. Results Posted
 
-| Field    | Value                  |
-| -------- | ---------------------- |
-| Table    | `entries`              |
-| Events   | `UPDATE`               |
-| Type     | Supabase Edge Function |
-| Function | `push-trigger-scoring` |
+Not a dashboard webhook: the migration-managed trigger `trg_notify_class_results_push` on `classes` (migration `20260925033900`, MYK9-737) posts to `push-trigger-scoring` with the Vault-backed `push_webhook_secret`.
 
-The edge function checks `scoring_completed_at IS NOT NULL AND old_scoring_completed_at IS NULL` internally.
+It fires once per class, when `private.claim_class_results_push` finds the class done (completed, scoring-finalized or released) and its qualification results visible under the release gate (`public.resolve_class_result_visibility`). With the default presets that is completion or finalization. For a class held for manual release it is `results_released_at`. The edge function re-checks visibility, then sends each exhibitor one push that names all of their scored dogs in the class. It no longer fires per scored entry.
 
 ## Edge Function Deployment
 

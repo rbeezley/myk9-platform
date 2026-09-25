@@ -7,7 +7,6 @@ const replication = vi.hoisted(() => ({
   createClub: vi.fn(),
   updateClub: vi.fn(),
   deleteClubLocal: vi.fn(),
-  getGuestVisibleClubIds: vi.fn(),
 }));
 const logging = vi.hoisted(() => ({
   warn: vi.fn(),
@@ -48,7 +47,6 @@ describe('clubStore.ensureClubsReady', () => {
     localRows = [];
     replication.getAllClubs.mockImplementation(async () => localRows);
     replication.sync.mockResolvedValue({ success: true });
-    replication.getGuestVisibleClubIds.mockReturnValue(null);
     useClubStore.setState({
       clubs: [],
       isLoading: false,
@@ -71,20 +69,6 @@ describe('clubStore.ensureClubsReady', () => {
     expect(result.status).toBe('fresh');
     expect(result.clubs.map(club => club.id)).toEqual(['club-a']);
     expect(replication.sync).toHaveBeenCalledTimes(1);
-  });
-
-  // MYK9-747: the guest directory filters by what the server listed for anon
-  // at the last guest sync, so the store must publish it after reloading.
-  it('publishes the guest-visible club ids recorded by the sync', async () => {
-    replication.sync.mockImplementation(async () => {
-      localRows = [clubRow];
-      replication.getGuestVisibleClubIds.mockReturnValue(new Set(['club-a']));
-      return { success: true };
-    });
-
-    await useClubStore.getState().ensureClubsReady();
-
-    expect(useClubStore.getState().guestVisibleClubIds).toEqual(new Set(['club-a']));
   });
 
   it('refreshes a populated cache once before marking the session fresh', async () => {

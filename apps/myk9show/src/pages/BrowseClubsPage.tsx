@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Building2 } from 'lucide-react';
+import { Plus, Search, Building2, WifiOff } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
@@ -54,6 +54,7 @@ const BrowseClubsPage: React.FC = () => {
     filteredClubs,
     isLoading,
     hasError,
+    isOffline,
     handleRetry,
     filters,
     setFilters,
@@ -213,8 +214,21 @@ const BrowseClubsPage: React.FC = () => {
         <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
       )}
 
+      {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
+      {isOffline && !isLoading && !hasError && (
+        <>
+          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
+          <EmptyState
+            icon={WifiOff}
+            title="You're offline"
+            description="Connect to the internet to browse clubs."
+            action={{ label: 'Try again', onClick: handleRetry }}
+          />
+        </>
+      )}
+
       {/* Normal content */}
-      {!isLoading && !hasError && (
+      {!isLoading && !hasError && !isOffline && (
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
 

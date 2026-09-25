@@ -128,13 +128,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   // though `_lastPrincipalId` starts at null (a legitimate anon value).
   private _lastPrincipalId: string | null = null;
   private _principalKnown = false;
-  // MYK9-747: the ids clubs_select lists for a GUEST, from the last guest
-  // sync. A guest sync never prunes (see sync()), and a revoked club drops
-  // out of anon's RLS without its authorized_at = null ever downloading, so
-  // the cached row is stale in a way no local field reveals. The public
-  // directory filters by this set instead of pruning. Null = unknown, or the
-  // last sync ran signed in (the replica is then reconciled for that user).
-  private _guestVisibleIds: ReadonlySet<string> | null = null;
 
   constructor() {
     super('clubs', { logger });
@@ -273,17 +266,8 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     // skips the guest path — exactly the one that must not prune.
     if (result.success) {
       if (!isAuthenticated) {
-        // MYK9-747: record what anon may see, for display only. A failed
-        // fetch keeps the previous guest set rather than showing everything.
-        try {
-          const guestIds = await this.fetchVisibleClubIds();
-          if (guestIds) this._guestVisibleIds = guestIds;
-        } catch (err) {
-          logger.warn(`[${this.getTableName()}] guest visibility fetch skipped`, err);
-        }
         return result;
       }
-      this._guestVisibleIds = null;
       try {
         const removed = await this.reconcileVisibility();
         if (removed > 0) {
@@ -323,28 +307,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * @returns number of stale rows removed.
    */
   async reconcileVisibility(): Promise<number> {
-    const liveIds = await this.fetchVisibleClubIds();
-    // Any fetch failure or truncation → prune nothing. Pruning against a
-    // partial/absent set could wipe rows that are still perfectly visible.
-    if (!liveIds) return 0;
-    return this.removeStaleEntries(liveIds);
-  }
-
-  /**
-   * MYK9-747: the ids clubs_select listed for a guest at the last guest
-   * sync, or null (unknown, or the last sync ran signed in).
-   */
-  getGuestVisibleClubIds(): ReadonlySet<string> | null {
-    return this._guestVisibleIds;
-  }
-
-  /**
-   * The complete set of club ids clubs_select shows the CURRENT caller, or
-   * null when it cannot be proven complete (a failed probe or fetch, or more
-   * rows than one page holds). Shared by reconcileVisibility() (signed in:
-   * prune) and the guest path of sync() (MYK9-747: display filter only).
-   */
-  async fetchVisibleClubIds(): Promise<Set<string> | null> {
     const PAGE_SIZE = 1000;
 
     const { count, error: countError } = await supabase
@@ -352,16 +314,18 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     if (countError || count == null) {
-      return null;
+      // Any fetch failure → prune nothing. Pruning against a partial/absent
+      // set could wipe rows that are still perfectly visible.
+      return 0;
     }
     if (count > PAGE_SIZE) {
       // Truncated: the clubs table has grown past what a single page can
-      // see. A partial set would prune (or hide) every still-visible club
-      // beyond the first page — bail instead.
+      // see. Pruning against a partial set would wipe every still-visible
+      // club beyond the first page — bail instead.
       logger.warn(
-        `[${this.getTableName()}] visible id set exceeds ${PAGE_SIZE}, skipping reconcile`
+        `[${this.getTableName()}] reconcileVisibility: id set exceeds ${PAGE_SIZE}, skipping prune`
       );
-      return null;
+      return 0;
     }
 
     const { data, error } = await supabase
@@ -370,10 +334,11 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       .is('deleted_at', null)
       .limit(PAGE_SIZE);
     if (error || !data) {
-      return null;
+      return 0;
     }
 
-    return new Set(data.map(row => String((row as { id: string }).id)));
+    const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
+    return this.removeStaleEntries(liveIds);
   }
 
   /**

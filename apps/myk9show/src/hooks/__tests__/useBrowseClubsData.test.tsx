@@ -1,25 +1,58 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
+import { createTestQueryClient } from '@/test/utils/testUtils';
 import { useBrowseClubsData } from '../useBrowseClubsData';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 // The browse filter hooks read their state from the query string
-// (MYK9-221, `useUrlFilters`), so they need a router in scope.
-const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>;
+// (MYK9-221, `useUrlFilters`), so they need a router in scope; the signed-out
+// directory is a React Query read (MYK9-747), so it needs a QueryClient.
+function makeWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 const state = vi.hoisted(() => ({
   clubs: [] as Club[],
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
   ensureClubsReady: vi.fn(),
-  shows: [] as { clubId: string; status: string; endDate: string }[],
-  guestVisibleClubIds: null as ReadonlySet<string> | null,
-  auth: { userWithRoles: null } as { userWithRoles: { roles: string[] } | null },
+  shows: [],
+  // Counts every read of the replica's club list, so a test can prove a
+  // signed-out viewer never consults it.
+  replicaReads: 0,
 }));
 
+const auth = vi.hoisted(() => ({
+  value: {
+    user: { id: 'user-1', is_anonymous: false },
+    userWithRoles: { roles: ['secretary'] },
+    loading: false,
+  } as {
+    user: { id: string; is_anonymous?: boolean } | null;
+    userWithRoles: { roles: string[] } | null;
+    loading: boolean;
+  },
+}));
+
+const getPublicDirectoryClubs = vi.hoisted(() => vi.fn());
+
 vi.mock('@/store/clubStore', () => ({
-  useClubStore: (selector: (value: typeof state) => unknown) => selector(state),
+  useClubStore: (selector: (value: Record<string, unknown>) => unknown) =>
+    selector({
+      clubReadiness: state.clubReadiness,
+      ensureClubsReady: state.ensureClubsReady,
+      get clubs() {
+        state.replicaReads += 1;
+        return state.clubs;
+      },
+    }),
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -27,7 +60,11 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => state.auth,
+  useAuthContext: () => auth.value,
+}));
+
+vi.mock('@/services/database/clubs', () => ({
+  getPublicDirectoryClubs,
 }));
 
 const club: Club = {
@@ -44,81 +81,37 @@ const club: Club = {
   accentColor: '',
   upcomingShows: [],
   pastShows: [],
-  authorizedAt: '2026-01-01T00:00:00Z',
 };
 
-describe('useBrowseClubsData readiness states', () => {
-  beforeEach(() => {
-    state.clubs = [];
-    state.clubReadiness = 'loading';
-    state.ensureClubsReady.mockReset();
-    state.shows = [];
-    state.guestVisibleClubIds = null;
-    state.auth = { userWithRoles: null };
-  });
+function signIn() {
+  auth.value = {
+    user: { id: 'user-1', is_anonymous: false },
+    userWithRoles: { roles: ['secretary'] },
+    loading: false,
+  };
+}
 
-  // Codex review round 1 (P1): after a signed-in sync the club session stays
-  // "fresh", so a sign-out would otherwise skip the guest sync and leave the
-  // directory on cached authorization values. A guest with no server id set
-  // forces one.
-  it('forces a guest sync when a signed-out visitor has no server id set', () => {
-    renderHook(() => useBrowseClubsData(), { wrapper });
+function signOut() {
+  auth.value = { user: null, userWithRoles: null, loading: false };
+}
 
-    expect(state.ensureClubsReady).toHaveBeenCalledWith({ force: true });
-  });
+beforeEach(() => {
+  state.clubs = [];
+  state.clubReadiness = 'loading';
+  state.ensureClubsReady.mockReset();
+  state.shows = [];
+  state.replicaReads = 0;
+  getPublicDirectoryClubs.mockReset();
+  signIn();
+});
 
-  it('does not force a sync for a signed-in viewer', () => {
-    state.auth = { userWithRoles: { roles: ['secretary'] } };
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
 
-    renderHook(() => useBrowseClubsData(), { wrapper });
-
-    expect(state.ensureClubsReady).toHaveBeenCalledWith();
-  });
-
-  // Codex review round 1 (P2): offline, clubs_select's second anon arm
-  // (club_has_public_show) must still hold for a revoked club hosting a
-  // cached public show.
-  it('keeps an unauthorized club hosting a cached public show when the guest set is unknown', () => {
-    const host: Club = { ...club, id: 'club-host', name: 'Host', authorizedAt: null };
-    const draftOnly: Club = { ...club, id: 'club-draft', name: 'Draft Only', authorizedAt: null };
-    state.clubs = [host, draftOnly];
-    state.shows = [
-      { clubId: 'club-host', status: 'completed', endDate: '2026-01-01' },
-      { clubId: 'club-draft', status: 'draft', endDate: '2026-01-01' },
-    ];
-
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
-
-    expect(result.current.clubs.map(c => c.id)).toEqual(['club-host']);
-  });
-
-  // MYK9-747: the signed-out directory reads the device-wide replica, which a
-  // guest sync never prunes. A club cached by an earlier signed-in session
-  // must not reach a signed-out visitor unless clubs_select grants it to anon.
-  it('omits a cached never-authorized club from a signed-out visitor', () => {
-    const unauthorized: Club = { ...club, id: 'club-2', name: 'Unauthorized', authorizedAt: null };
-    state.clubs = [club, unauthorized];
-
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
-
-    expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']);
-    expect(result.current.filteredClubs.map(c => c.id)).toEqual(['club-1']);
-  });
-
-  it('omits a cached club the server no longer lists for a guest, despite a stale authorizedAt', () => {
-    const revoked: Club = { ...club, id: 'club-revoked', name: 'Revoked' };
-    state.clubs = [club, revoked];
-    state.guestVisibleClubIds = new Set(['club-1']);
-
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
-
-    expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']);
-  });
-
+describe('useBrowseClubsData signed-in readiness states', () => {
   it('shows initial loading only when the cache is empty', () => {
-    // A known guest set: the plain (unforced) readiness path.
-    state.guestVisibleClubIds = new Set();
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.hasError).toBe(false);
@@ -128,21 +121,24 @@ describe('useBrowseClubsData readiness states', () => {
   it('renders cached clubs while a background refresh is still loading', () => {
     state.clubs = [club];
 
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.hasError).toBe(false);
     expect(result.current.clubs).toEqual([club]);
+    expect(getPublicDirectoryClubs).not.toHaveBeenCalled();
   });
 
   it('distinguishes an empty successful directory from an unavailable directory', () => {
     state.clubReadiness = 'fresh';
-    const emptyResult = renderHook(() => useBrowseClubsData(), { wrapper }).result;
+    const emptyResult = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() }).result;
     expect(emptyResult.current.isLoading).toBe(false);
     expect(emptyResult.current.hasError).toBe(false);
 
     state.clubReadiness = 'unavailable';
-    const unavailableResult = renderHook(() => useBrowseClubsData(), { wrapper }).result;
+    const unavailableResult = renderHook(() => useBrowseClubsData(), {
+      wrapper: makeWrapper(),
+    }).result;
     expect(unavailableResult.current.isLoading).toBe(false);
     expect(unavailableResult.current.hasError).toBe(true);
   });
@@ -150,21 +146,129 @@ describe('useBrowseClubsData readiness states', () => {
   it('keeps cached clubs visible when refresh becomes unavailable or offline', () => {
     state.clubs = [club];
     state.clubReadiness = 'unavailable';
-    const unavailable = renderHook(() => useBrowseClubsData(), { wrapper }).result;
+    const unavailable = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() }).result;
     expect(unavailable.current.clubs).toEqual([club]);
     expect(unavailable.current.hasError).toBe(false);
 
     state.clubReadiness = 'offline';
-    const offline = renderHook(() => useBrowseClubsData(), { wrapper }).result;
+    const offline = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() }).result;
     expect(offline.current.clubs).toEqual([club]);
     expect(offline.current.hasError).toBe(false);
+    expect(offline.current.isOffline).toBe(false);
   });
 
   it('uses explicit retry to request a fresh club readiness check', async () => {
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
 
     act(() => result.current.handleRetry());
 
     await waitFor(() => expect(state.ensureClubsReady).toHaveBeenCalledWith({ force: true }));
+  });
+
+  it('shows nothing from either source while auth is still resolving', () => {
+    state.clubs = [club];
+    auth.value = { user: null, userWithRoles: null, loading: true };
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.clubs).toEqual([]);
+    expect(getPublicDirectoryClubs).not.toHaveBeenCalled();
+    expect(state.ensureClubsReady).not.toHaveBeenCalled();
+  });
+});
+
+// MYK9-747: the clubs replica is shared across sign-in states on one device,
+// so the signed-out directory is online-only and never reads it.
+describe('useBrowseClubsData signed-out viewer (MYK9-747)', () => {
+  beforeEach(signOut);
+
+  it('renders the server rows and never consults the replica, even when it caches a revoked club', async () => {
+    const revoked: Club = { ...club, id: 'club-revoked', name: 'Revoked Club', authorizedAt: null };
+    state.clubs = [club, revoked];
+    state.clubReadiness = 'fresh';
+    const serverClub: Club = { ...club, id: 'club-server', name: 'Server Club' };
+    getPublicDirectoryClubs.mockResolvedValue([serverClub]);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.clubs.map(c => c.id)).toEqual(['club-server']);
+    expect(result.current.filteredClubs.map(c => c.id)).toEqual(['club-server']);
+    expect(state.replicaReads).toBe(0);
+    expect(state.ensureClubsReady).not.toHaveBeenCalled();
+  });
+
+  it('treats an anonymous (ringside passcode) session as a guest', async () => {
+    auth.value = {
+      user: { id: 'anon-1', is_anonymous: true },
+      userWithRoles: null,
+      loading: false,
+    };
+    state.clubs = [club];
+    getPublicDirectoryClubs.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(getPublicDirectoryClubs).toHaveBeenCalledTimes(1);
+    expect(state.replicaReads).toBe(0);
+    expect(result.current.clubs).toEqual([]);
+  });
+
+  it('still hides developer seed clubs from the server rows', async () => {
+    getPublicDirectoryClubs.mockResolvedValue([club, { ...club, id: 'e2e', name: 'E2E Club 12' }]);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']);
+  });
+
+  it('reports loading, not an empty directory, while the server read is pending', () => {
+    getPublicDirectoryClubs.mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.hasError).toBe(false);
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('reports an error, not an empty directory, when the server read fails', async () => {
+    getPublicDirectoryClubs.mockRejectedValue(new Error('boom'));
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(result.current.hasError).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('reports offline, not an empty directory, with no connection', () => {
+    onlineManager.setOnline(false);
+    state.clubs = [club];
+    getPublicDirectoryClubs.mockResolvedValue([club]);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.isOffline).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.hasError).toBe(false);
+    expect(result.current.clubs).toEqual([]);
+    expect(getPublicDirectoryClubs).not.toHaveBeenCalled();
+    expect(state.replicaReads).toBe(0);
+  });
+
+  it('retries the server read, not the replica sync', async () => {
+    getPublicDirectoryClubs.mockRejectedValueOnce(new Error('boom')).mockResolvedValue([club]);
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.hasError).toBe(true));
+
+    act(() => result.current.handleRetry());
+
+    await waitFor(() => expect(result.current.clubs.map(c => c.id)).toEqual(['club-1']));
+    expect(state.ensureClubsReady).not.toHaveBeenCalled();
   });
 });

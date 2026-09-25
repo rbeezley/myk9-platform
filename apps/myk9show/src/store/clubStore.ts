@@ -115,13 +115,6 @@ export interface ClubStoreState {
   isSyncing: boolean;
   error: string | null;
   clubReadiness: ClubReadinessStatus;
-  /**
-   * MYK9-747: club ids the server lists for a signed-out visitor, from the
-   * last guest sync; null when unknown or the last sync ran signed in. The
-   * replica is device-wide and never pruned as a guest, so the public
-   * directory filters by this instead (browseClubsVisibility.ts).
-   */
-  guestVisibleClubIds: ReadonlySet<string> | null;
 
   // Actions
   loadClubs: () => Promise<void>;
@@ -150,7 +143,6 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   isSyncing: false,
   error: null,
   clubReadiness: 'loading',
-  guestVisibleClubIds: null,
   _unsubscribe: null,
 
   /**
@@ -170,7 +162,6 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
       set({
         clubs,
-        guestVisibleClubIds: replicatedClubsTable.getGuestVisibleClubIds(),
         isLoading: false,
         error: null,
       });

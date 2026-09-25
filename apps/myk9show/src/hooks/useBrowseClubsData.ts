@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
+import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
 import { CLUB_TYPES, type Club } from '@/types/club-types';
-import { clubHostsPublicShowIds, filterVisibleBrowseClubs } from './browseClubsVisibility';
+import { filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
   search: string;
@@ -28,6 +30,11 @@ export interface BrowseClubsData {
   filteredClubs: Club[];
   isLoading: boolean;
   hasError: boolean;
+  /**
+   * A signed-out visitor with no connection. The guest directory is
+   * online-only (MYK9-747), so this is its own state, never an empty list.
+   */
+  isOffline: boolean;
   handleRetry: () => void;
   filters: ClubFilters;
   setFilters: React.Dispatch<React.SetStateAction<ClubFilters>>;
@@ -37,36 +44,63 @@ export interface BrowseClubsData {
   clubShowCounts: Map<string, number>;
 }
 
+const NO_CLUBS: Club[] = [];
+
+/** Query key for the signed-out directory, per principal (sign-out changes it). */
+export const PUBLIC_CLUB_DIRECTORY_QUERY_KEY = ['clubs', 'public-directory'] as const;
+
 export function useBrowseClubsData(): BrowseClubsData {
-  const clubs = useClubStore(state => state.clubs);
+  const { user, userWithRoles, loading: authLoading } = useAuthContext();
+  // Same principal rule as ReplicatedClubsTable.sync(): an anonymous
+  // (ringside passcode) session is a guest too.
+  const isGuest = !authLoading && (!user || user.is_anonymous === true);
+  const isSignedIn = !authLoading && !isGuest;
+  // Only a signed-in viewer reads the replica (see the INTENT below).
+  const replicaClubs = useClubStore(state => (isSignedIn ? state.clubs : NO_CLUBS));
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const shows = useShowStore(state => state.shows);
-  const guestVisibleClubIds = useClubStore(state => state.guestVisibleClubIds);
-  const { user, userWithRoles } = useAuthContext();
-  // Same principal rule as ReplicatedClubsTable.sync(): an anonymous
-  // (ringside passcode) session is a guest too.
-  const isGuest = !userWithRoles || user?.is_anonymous === true;
-  const publicShowHostIds = useMemo(() => clubHostsPublicShowIds(shows), [shows]);
-  const visibleClubs = useMemo(
-    () =>
-      filterVisibleBrowseClubs(clubs, userWithRoles?.roles, {
-        isGuest,
-        guestVisibleClubIds,
-        publicShowHostIds,
-      }),
-    [clubs, userWithRoles?.roles, isGuest, guestVisibleClubIds, publicShowHostIds]
-  );
-  // MYK9-747: a guest with no server id set (signed out after a signed-in
-  // sync left the club session "fresh", or first visit) forces a guest sync.
-  // A failed or offline refresh leaves the set null, so this cannot loop.
-  const needsGuestRefresh = isGuest && guestVisibleClubIds === null;
 
-  const isLoading = readiness === 'loading' && clubs.length === 0;
-  const hasError = readiness === 'unavailable' && clubs.length === 0;
+  // INTENT: the guest club directory is ONLINE-ONLY by owner decision
+  // (MYK9-747). The clubs replica is shared across sign-in states on one
+  // device, so a cached row can leak a revoked or never-authorized club to a
+  // signed-out visitor. Guests therefore read clubs_select straight from the
+  // server and never touch the replica, not even as an offline fallback. The
+  // guest directory is not a show-day surface, so offline-first does not
+  // apply; offline, it says so instead of listing clubs.
+  const guestQuery = useQuery({
+    queryKey: [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, user?.id ?? 'signed-out'],
+    queryFn: getPublicDirectoryClubs,
+    enabled: isGuest,
+    staleTime: 60_000,
+  });
+
+  // Until auth resolves the viewer is unknown, so both sources stay empty.
+  const clubs = isGuest ? (guestQuery.data ?? NO_CLUBS) : replicaClubs;
+  const visibleClubs = useMemo(
+    () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles),
+    [clubs, userWithRoles?.roles]
+  );
+
+  // Neither a pending, paused nor failed guest read may render as "no clubs".
+  const guestHasData = guestQuery.data !== undefined;
+  const isOffline = isGuest && !guestHasData && guestQuery.fetchStatus === 'paused';
+  const isLoading = authLoading
+    ? true
+    : isGuest
+      ? !guestHasData && !isOffline && !guestQuery.isError
+      : readiness === 'loading' && replicaClubs.length === 0;
+  const hasError = isGuest
+    ? !guestHasData && guestQuery.isError
+    : isSignedIn && readiness === 'unavailable' && replicaClubs.length === 0;
+  const refetchGuest = guestQuery.refetch;
   const handleRetry = useCallback(() => {
+    if (isGuest) {
+      void refetchGuest();
+      return;
+    }
     void ensureClubsReady({ force: true });
-  }, [ensureClubsReady]);
+  }, [isGuest, refetchGuest, ensureClubsReady]);
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
@@ -74,11 +108,11 @@ export function useBrowseClubsData(): BrowseClubsData {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
 
-  // Public browse uses a narrow club-only readiness path. It works for guests
-  // without enabling the full anonymous replication provider.
+  // Signed-in browse uses the narrow club-only readiness path over the
+  // replica. Guests never reach it (see the INTENT above).
   useEffect(() => {
-    void (needsGuestRefresh ? ensureClubsReady({ force: true }) : ensureClubsReady());
-  }, [ensureClubsReady, needsGuestRefresh]);
+    if (isSignedIn) void ensureClubsReady();
+  }, [ensureClubsReady, isSignedIn]);
 
   // Compute upcoming show counts per club
   const clubShowCounts = useMemo(() => {
@@ -127,6 +161,7 @@ export function useBrowseClubsData(): BrowseClubsData {
     filteredClubs,
     isLoading,
     hasError,
+    isOffline,
     handleRetry,
     filters,
     setFilters,

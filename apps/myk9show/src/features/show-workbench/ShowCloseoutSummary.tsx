@@ -8,7 +8,7 @@ import {
 } from '@/services/database/show-incidents';
 import { listShowPayments, showPaymentsQueryKey } from '@/services/database/show-payments';
 import {
-  LATE_ENTRY_PAYMENT_METHODS,
+  DESK_PAYMENT_METHODS,
   summarizeShowDayReconciliation,
   type DeskCollectionWindow,
   type ShowDayReconciliationEntry,
@@ -35,14 +35,14 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
   });
   const recon = summarizeShowDayReconciliation(entries, deskWindow, paymentsQuery.data ?? []);
   const reconNeedsReview = recon.pulledCount > 0 || recon.refundReviewCount > 0;
-  const hasDeskMoney = LATE_ENTRY_PAYMENT_METHODS.some(
+  const hasDeskMoney = DESK_PAYMENT_METHODS.some(
     method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
   );
-  const collectedText = paymentsQuery.isLoading
+  const paymentsText = paymentsQuery.isLoading
     ? '…'
     : paymentsQuery.isError
       ? 'Unavailable'
-      : formatCurrency(recon.collectedAmount);
+      : formatCurrency(recon.paymentAmount);
   const refundReviewText =
     recon.refundReviewCount > 0
       ? `${formatCurrency(recon.refundReviewAmount)} paid entries`
@@ -80,7 +80,8 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             Show closeout
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Reconcile desk fees and pulls, then clear reportable incidents before final filing.
+            Check the cash box against the payments below, settle pulls, then clear reportable
+            incidents before final filing.
           </p>
         </div>
         <Chip color={status.color} size="sm" className="w-fit">
@@ -94,28 +95,35 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           id="show-closeout-attendance-title"
           className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         >
-          Attendance &amp; fees
+          Entries &amp; payments
         </h4>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div role="group" aria-label="Show entries">
             <p className={STAT_LABEL_CLASS}>Entries</p>
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
+          </div>
+          <div role="group" aria-label="Late entries at the desk">
+            <p className={STAT_LABEL_CLASS}>Late entries</p>
+            <p className={STAT_VALUE_CLASS}>{recon.lateEntryCount}</p>
             <p className="text-xs text-muted-foreground">
-              {recon.lateEntryCount} taken at the show
+              {recon.waivedLateEntryCount > 0
+                ? `Entered during the show · ${recon.waivedLateEntryCount} waived`
+                : 'Entered during the show'}
             </p>
           </div>
-          <div role="group" aria-label="Collected at-show late-entry fees">
-            <p className={STAT_LABEL_CLASS}>At-show collected</p>
-            <p className={STAT_VALUE_CLASS}>{collectedText}</p>
-            {paymentsQuery.isError && (
+          <div role="group" aria-label="Payments received during the show">
+            <p className={STAT_LABEL_CLASS}>Payments received</p>
+            <p className={STAT_VALUE_CLASS}>{paymentsText}</p>
+            {paymentsQuery.isError ? (
               <p className="text-xs text-destructive">
-                Could not load desk payments. Reconnect and reopen closeout.
+                Could not load payments. Reconnect and reopen closeout.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {recon.paymentCount} {recon.paymentCount === 1 ? 'payment' : 'payments'} during the
+                show
               </p>
             )}
-          </div>
-          <div role="group" aria-label="Waived late-entry fees">
-            <p className={STAT_LABEL_CLASS}>Waived</p>
-            <p className={STAT_VALUE_CLASS}>{recon.waivedCount}</p>
           </div>
           <div role="group" aria-label="Pulled or no-show entries">
             <p className={STAT_LABEL_CLASS}>Pulled / no-show</p>
@@ -130,7 +138,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
 
         {hasDeskMoney && !paymentsQuery.isError && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {LATE_ENTRY_PAYMENT_METHODS.map(method => ({
+            {DESK_PAYMENT_METHODS.map(method => ({
               ...method,
               value: recon.byMethod[method.id],
             }))

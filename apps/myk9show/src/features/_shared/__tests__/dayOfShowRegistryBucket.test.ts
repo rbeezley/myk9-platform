@@ -96,10 +96,12 @@ describe('UKC Nosework Trial Report counts follow the shared day-of-show rule', 
   });
 });
 
-describe('The Show Closeout money card does NOT follow the registry bucket (MYK9-677)', () => {
+describe("The Show Closeout card's late-entry count does NOT follow the registry bucket (MYK9-677)", () => {
   // The registry bucket answers "which line on the UKC form?"; the closeout
-  // card answers "is this money in the desk's cash box?". They overlapped only
-  // while the offline desk dialog was the sole writer of `is_day_of_show`.
+  // card's "Late entries" answers "was this keyed at the desk during the
+  // show?". They overlapped only while the offline desk dialog was the sole
+  // writer of `is_day_of_show`. (Money is a separate figure, from the payments
+  // ledger, and is not attributed to entries at all.)
   //
   // Each row below carries BOTH facts, derived the way the writers derive them:
   // the registry flag from the shared rule at the moment of entry, and
@@ -122,28 +124,15 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
       payment_method: 'check',
     };
   };
-  // MYK9-677: the check's own ledger row, received the day it was keyed.
-  const receivedOn = (entry: { id: string }, day: string) => ({
-    id: `row-${entry.id}`,
-    enrollment_id: null,
-    entry_id: entry.id,
-    kind: 'payment' as const,
-    amount: 35,
-    method: 'check' as const,
-    received_on: day,
-  });
 
   it('leaves out a mail-in taken after entries closed, weeks before the show', () => {
     const mailIn = entryAt('2026-09-11', 35);
     // The registry calls it day-of-show...
     expect(mailIn.is_day_of_show).toBe(true);
 
-    // ...but nobody took this check at the desk.
-    const summary = summarizeShowDayReconciliation([mailIn], deskWindow, [
-      receivedOn(mailIn, '2026-09-11'),
-    ]);
+    // ...but nobody keyed it at the desk.
+    const summary = summarizeShowDayReconciliation([mailIn], deskWindow);
     expect(summary.lateEntryCount).toBe(0);
-    expect(summary.collectedAmount).toBe(0);
     expect(summary.totalEntryCount).toBe(1);
   });
 
@@ -151,10 +140,7 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
     const atDesk = entryAt('2026-09-17', 35);
     expect(atDesk.is_day_of_show).toBe(true);
 
-    const summary = summarizeShowDayReconciliation([atDesk], deskWindow, [
-      receivedOn(atDesk, '2026-09-17'),
-    ]);
+    const summary = summarizeShowDayReconciliation([atDesk], deskWindow);
     expect(summary.lateEntryCount).toBe(1);
-    expect(summary.collectedAmount).toBe(35);
   });
 });

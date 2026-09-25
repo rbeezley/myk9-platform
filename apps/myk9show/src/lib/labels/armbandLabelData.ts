@@ -29,7 +29,8 @@ export function filterEntries(
   // MYK9-642), reviewed for MYK9-677 and kept: it chooses which armbands to
   // print, not whose money is in the cash box, so a mail-in keyed after entries
   // closed prints with the day-of batch the registry counts it in. The
-  // closeout card's desk-money question keys on submission time instead.
+  // closeout card's "Late entries" keys on submission time instead, and its
+  // money comes from the payments ledger, not from entries.
   let result = entries.filter(e => {
     if (e.isDayOfShow && !filter.dayOfShowEntries) return false;
     if (!e.isDayOfShow && !filter.earlyEntries) return false;

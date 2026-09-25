@@ -87,7 +87,7 @@ describe('ShowCloseoutSummary', () => {
     mockListShowPayments.mockResolvedValue([]);
   });
 
-  it('renders desk-fee reconciliation by payment method', async () => {
+  it('renders late entries and payments received during the show as separate figures', async () => {
     // The late entry's cash, as the server's desk-entry trigger records it.
     mockListShowPayments.mockResolvedValue([
       {
@@ -130,17 +130,13 @@ describe('ShowCloseoutSummary', () => {
     expect(screen.getByRole('heading', { name: 'Show closeout' })).toBeInTheDocument();
     // The reconciliation half alone drives the rolled-up chip here (no incidents).
     expect(await screen.findByText('1 pulled · 1 review')).toBeInTheDocument();
+    const payments = screen.getByRole('group', { name: 'Payments received during the show' });
+    expect(await within(payments).findByText('1 payment during the show')).toBeInTheDocument();
     expect(
-      await within(screen.getByRole('group', { name: 'Show entries' })).findByText(
-        '1 taken at the show'
-      )
+      within(screen.getByRole('group', { name: 'Late entries at the desk' })).getByText('1')
     ).toBeInTheDocument();
     expect(mockListShowPayments).toHaveBeenCalledWith('show-1');
-    expect(
-      within(screen.getByRole('group', { name: 'Collected at-show late-entry fees' })).getByText(
-        '$35.00'
-      )
-    ).toBeInTheDocument();
+    expect(within(payments).getByText('$35.00')).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Pulled or no-show entries' })).getByText('1')
     ).toBeInTheDocument();
@@ -166,7 +162,7 @@ describe('ShowCloseoutSummary', () => {
       />
     );
 
-    const collected = screen.getByRole('group', { name: 'Collected at-show late-entry fees' });
+    const collected = screen.getByRole('group', { name: 'Payments received during the show' });
     expect(await within(collected).findByText('Unavailable')).toBeInTheDocument();
     expect(within(collected).queryByText('$0.00')).not.toBeInTheDocument();
   });

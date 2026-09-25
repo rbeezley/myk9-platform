@@ -1,15 +1,11 @@
 /**
- * MYK9-677: the Show Closeout money card must see desk money on the row shape
- * the Show Desk actually hands it — `SecretaryEntry`, from the warm replicated
- * read — not only on a hand-built fixture.
- *
- * Cash and check money comes from the payments ledger, joined back to the
- * entries by `registration_id` (an enrollment's rows) or `id` (a desk late
- * entry's own row). This runs the real warm projection into the real summary,
- * so a join key the projection drops fails here. LESSONS `last-hop-drop`.
+ * MYK9-677: the Show Closeout card must count late entries on the row shape the
+ * Show Desk actually hands it (`SecretaryEntry`, from the warm replicated read),
+ * not only on a hand-built fixture. The card once gated on `is_day_of_show`,
+ * which the secretary read never carried, so it always read zero.
+ * LESSONS `last-hop-drop`.
  */
 import { describe, expect, it } from 'vitest';
-import type { ShowPaymentLedgerRow } from '@/features/payments/showPaymentLedger';
 import { toSecretaryEntry } from '@/services/database/entries/secretaryReadReplication';
 import { summarizeShowDayReconciliation } from '../showDayReconciliationSummary';
 
@@ -30,7 +26,7 @@ const DESK_WINDOW = {
   timeZone: 'America/New_York',
 };
 
-function replicaEntry(id: string, submittedAt: string, registrationId?: string) {
+function replicaEntry(id: string, submittedAt: string, paymentMethod = 'cash') {
   return toSecretaryEntry(
     {
       id,
@@ -39,61 +35,41 @@ function replicaEntry(id: string, submittedAt: string, registrationId?: string) 
       showId: 'show-1',
       entryStatus: 'confirmed',
       entryFee: 35,
-      paymentStatus: 'paid',
-      paymentMethod: 'cash',
+      paymentStatus: paymentMethod === 'waived' ? 'waived' : 'paid',
+      paymentMethod,
       isDayOfShow: true,
       submittedAt,
-      ...(registrationId ? { registrationId } : {}),
     } as never,
     EMPTY_RELATIONS
   );
 }
 
-function row(overrides: Partial<ShowPaymentLedgerRow>): ShowPaymentLedgerRow {
-  return {
-    id: 'row',
-    enrollment_id: null,
-    entry_id: null,
-    kind: 'payment',
-    amount: 35,
-    method: 'cash',
-    received_on: '2026-09-17',
-    ...overrides,
-  };
-}
-
-describe('Show Closeout money card on the secretary read (MYK9-677)', () => {
-  it("counts a desk late entry's cash through the ledger row keyed on its id", () => {
+describe('late entries on the secretary read (MYK9-677)', () => {
+  it('counts an entry keyed at the desk on show day', () => {
     const summary = summarizeShowDayReconciliation(
-      [replicaEntry('desk-cash', '2026-09-17T15:00:00Z')],
-      DESK_WINDOW,
-      [row({ entry_id: 'desk-cash' })]
+      [replicaEntry('desk', '2026-09-17T15:00:00Z')],
+      DESK_WINDOW
     );
 
     expect(summary.lateEntryCount).toBe(1);
-    expect(summary.collectedAmount).toBe(35);
-    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
   });
 
-  it('leaves out an entry whose only ledger row predates the show', () => {
+  it('leaves out a day-of-show-bucket entry keyed weeks before the show', () => {
     const summary = summarizeShowDayReconciliation(
       [replicaEntry('early-mail-in', '2026-08-30T15:00:00Z')],
-      DESK_WINDOW,
-      [row({ entry_id: 'early-mail-in', received_on: '2026-08-30' })]
+      DESK_WINDOW
     );
 
     expect(summary.lateEntryCount).toBe(0);
-    expect(summary.collectedAmount).toBe(0);
   });
 
-  it("joins an enrollment's desk payment back to its entry by registration_id", () => {
+  it('counts a waived desk entry as a late entry and as waived', () => {
     const summary = summarizeShowDayReconciliation(
-      [replicaEntry('mail-in-paid-at-desk', '2026-08-27T15:00:00Z', 'reg-1')],
-      DESK_WINDOW,
-      [row({ enrollment_id: 'reg-1' })]
+      [replicaEntry('comp', '2026-09-18T15:00:00Z', 'waived')],
+      DESK_WINDOW
     );
 
     expect(summary.lateEntryCount).toBe(1);
-    expect(summary.collectedAmount).toBe(35);
+    expect(summary.waivedLateEntryCount).toBe(1);
   });
 });

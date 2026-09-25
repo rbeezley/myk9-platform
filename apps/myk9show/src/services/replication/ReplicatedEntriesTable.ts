@@ -230,11 +230,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // running (MYK9-752): wait that one out, then run its own. Anything shares
     // a forced run; only an ordinary call shares an ordinary one.
     if (running && (running.forced || !forceFullSync)) return running.sync;
-    const sync = (running ? running.sync.then(noop, noop) : Promise.resolve())
-      .then(() => this.syncShow(showScopeId, principalId, forceFullSync))
-      .finally(() => {
-        if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
-      });
+    const start = () => this.syncShow(showScopeId, principalId, forceFullSync);
+    // Start at once when nothing is running, as before: only a forced sync
+    // behind an ordinary one waits.
+    const sync = (running ? running.sync.then(noop, noop).then(start) : start()).finally(() => {
+      if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
+    });
     this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
     return sync;
   }

@@ -9,81 +9,34 @@ import {
   type LedgerRow,
   type PayoutStatus,
 } from './payoutLedger';
-import {
-  isPullRefundSchemaUnavailable,
-  isWithdrawalReasonCodeSchemaUnavailable,
-} from './pullRefundSchemaCompatibility';
 import { chunk } from '@/utils/chunkIds';
 
-const LEDGER_ENTRY_BASE_SELECT =
-  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount';
-const LEDGER_ENTRY_PULL_SELECT = `${LEDGER_ENTRY_BASE_SELECT}, refund_decision`;
-// MYK9-632: a paid WITHDRAWAL with a recognised reason code owes the secretary a
-// decision too, so the count has to be able to see the code. Its own rung on the
-// ladder: dropping it must not also drop `refund_decision`.
-const LEDGER_ENTRY_REMOVAL_SELECT = `${LEDGER_ENTRY_PULL_SELECT}, withdrawal_reason_code`;
-
-type LedgerEntryWithoutDecision = Omit<LedgerEntryRow, 'refund_decision'> & {
-  refund_decision?: string | null;
-};
-
-export interface LedgerEntryPage {
-  rows: LedgerEntryRow[];
-  /**
-   * False when the `refund_decision` column could not be read and the query fell
-   * back to the base select.
-   *
-   * Every row is then backfilled with null, and `isUnresolvedRemovalRefundDecision`
-   * requires `refund_decision === null` — so the count INFLATES, not collapses:
-   * entries already marked 'denied' are indistinguishable from undecided ones
-   * and all of them read as unresolved. Either way the number is fiction, and
-   * the page must say the check did not run rather than render it.
-   */
-  refundDecisionChecked: boolean;
-}
+// `refund_decision` (20260722160000) and `withdrawal_reason_code`
+// (20260918041700) are applied; MYK9-654 retired their compat retries. MYK9-632:
+// a paid WITHDRAWAL with a recognised reason code owes the secretary a decision
+// too, so the count has to be able to see the code.
+const LEDGER_ENTRY_SELECT =
+  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
 
 export async function loadPlatformPayoutLedgerEntryPage(
   from: number,
   to: number
-): Promise<LedgerEntryPage> {
-  const runSelect = (includeRefundDecision: boolean, includeReasonCode: boolean) =>
-    supabase
-      .from('entries')
-      .select(
-        includeRefundDecision
-          ? includeReasonCode
-            ? LEDGER_ENTRY_REMOVAL_SELECT
-            : LEDGER_ENTRY_PULL_SELECT
-          : LEDGER_ENTRY_BASE_SELECT
-      )
-      .eq('payment_method', 'online')
-      // Same append-stable ordering as the payout pages below, and for the same
-      // reason: a random-UUID sort key lets a concurrent insert reorder pages
-      // mid-scan. Pre-dates this change; corrected here because it is the same
-      // defect in the same file, and this ledger's totals depend on the scan
-      // being complete.
-      .order('created_at')
-      .order('id')
-      .range(from, to);
-
-  let refundDecisionChecked = true;
-  let includeReasonCode = true;
-  let response = await runSelect(true, includeReasonCode);
-  if (isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-    includeReasonCode = false;
-    response = await runSelect(true, includeReasonCode);
-  }
-  if (isPullRefundSchemaUnavailable(response.error)) {
-    refundDecisionChecked = false;
-    response = await runSelect(false, false);
-  }
+): Promise<LedgerEntryRow[]> {
+  const response = await supabase
+    .from('entries')
+    .select(LEDGER_ENTRY_SELECT)
+    .eq('payment_method', 'online')
+    // Same append-stable ordering as the payout pages below, and for the same
+    // reason: a random-UUID sort key lets a concurrent insert reorder pages
+    // mid-scan. Pre-dates this change; corrected here because it is the same
+    // defect in the same file, and this ledger's totals depend on the scan
+    // being complete.
+    .order('created_at')
+    .order('id')
+    .range(from, to);
   if (response.error) throw response.error;
 
-  const rows = (response.data ?? []) as unknown as LedgerEntryWithoutDecision[];
-  return {
-    rows: rows.map(row => ({ ...row, refund_decision: row.refund_decision ?? null })),
-    refundDecisionChecked,
-  };
+  return (response.data ?? []) as unknown as LedgerEntryRow[];
 }
 
 /** PostgREST response cap. Anything that can exceed it must paginate. */
@@ -193,8 +146,6 @@ export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow
  */
 export interface PayoutLedgerResult {
   rows: LedgerRow[];
-  /** False when the pull-refund column could not be read — see LedgerEntryPage. */
-  refundDecisionChecked: boolean;
 }
 
 export function usePlatformPayoutLedger() {
@@ -205,7 +156,6 @@ export function usePlatformPayoutLedger() {
       // read would silently understate collected/refunded/net once online
       // entries exceed the cap (same reason the payout cron paginates).
       const entriesByShow = new Map<string, LedgerEntryRow[]>();
-      let refundDecisionChecked = true;
       let previousFirstEntryId: string | null = null;
       for (let page = 0; ; page += 1) {
         if (page >= MAX_PAGES) {
@@ -214,9 +164,7 @@ export function usePlatformPayoutLedger() {
           );
         }
         const from = page * PAGE;
-        const entryPage = await loadPlatformPayoutLedgerEntryPage(from, from + PAGE - 1);
-        if (!entryPage.refundDecisionChecked) refundDecisionChecked = false;
-        const entryRows = entryPage.rows;
+        const entryRows = await loadPlatformPayoutLedgerEntryPage(from, from + PAGE - 1);
         // A server that ignores `range` returns the same page forever. Detect it
         // by identity rather than by counting rows, so ordinary growth is never
         // mistaken for a fault.
@@ -235,7 +183,7 @@ export function usePlatformPayoutLedger() {
       }
 
       const showIds = [...entriesByShow.keys()];
-      if (showIds.length === 0) return { rows: [], refundDecisionChecked };
+      if (showIds.length === 0) return { rows: [] };
 
       // BOTH joined reads must be paginated, and this became load-bearing the
       // moment a missing `shows` row started MEANING something. PostgREST caps a
@@ -280,7 +228,7 @@ export function usePlatformPayoutLedger() {
         payoutsByShow.set(p.show_id, list);
       }
 
-      return { rows: buildLedgerRows(shows, entriesByShow, payoutsByShow), refundDecisionChecked };
+      return { rows: buildLedgerRows(shows, entriesByShow, payoutsByShow) };
     },
     ...cacheStrategies.moderate,
   });

@@ -1,8 +1,10 @@
 /**
  * Select shape for the account-level own-entry read.
  *
- * The two migration-backed columns are optional because deployments can briefly
- * run the app against a database that has not received their migrations yet.
+ * `registration_confirmation_number` and `moved_from_entry_id` are optional
+ * because deployments can briefly run the app against a database that has not
+ * received their migrations yet. `withdrawal_reason_code` is not: its migration
+ * (20260918041700) is applied, and its compat arm was retired (MYK9-654).
  */
 const USER_ENTRIES_SELECT_BASE = `
       id,
@@ -34,6 +36,7 @@ const USER_ENTRIES_SELECT_BASE = `
       submitted_at,
       created_at,
       updated_at,
+      withdrawal_reason_code,
       registration_id,
       registration:registration_id (
         id,
@@ -90,7 +93,6 @@ const USER_ENTRIES_SELECT_BASE = `
 
 /** The current schema's complete select, retained for column-list consumers. */
 export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
-      withdrawal_reason_code,
       registration_confirmation_number,
       moved_from_entry_id`;
 
@@ -100,7 +102,6 @@ export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
  * because a missing PostgREST column rejects the whole select.
  */
 export function buildUserEntriesSelect(options: {
-  includeReasonCode: boolean;
   includeRegistrationConfirmationNumber: boolean;
   includeMoveUpLink?: boolean;
 }): string {
@@ -109,7 +110,6 @@ export function buildUserEntriesSelect(options: {
       ? USER_ENTRIES_SELECT_BASE
       : `${USER_ENTRIES_SELECT_BASE},\n      moved_from_entry_id`;
   const optional = [
-    options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
     options.includeMoveUpLink ? 'moved_from_entry_id' : null,
   ].filter((column): column is string => column !== null);

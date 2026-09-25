@@ -161,6 +161,16 @@ describe('useAddTrialsExistingTrials (MYK9-758)', () => {
     expect(result.current.readStatus).toBe('loading');
   });
 
+  it("does not count a pending local trial toward the show's current trials (MYK9-752)", async () => {
+    table.meta = { expectedRemoteRows: 2 };
+    table.rows = [{ id: 't1' }, { id: 'local', _localOnly: true } as { id: string }];
+
+    const { result } = renderHook(() => useAddTrialsExistingTrials('show-1', 20));
+
+    await waitFor(() => expect(result.current.readStatus).toBe('error'));
+    expect(result.current.ready).toBe(false);
+  });
+
   it('stays unready until the store snapshot itself is confirmed', async () => {
     table.meta = { expectedRemoteRows: 1 };
     table.rows = [{ id: 't1' }];

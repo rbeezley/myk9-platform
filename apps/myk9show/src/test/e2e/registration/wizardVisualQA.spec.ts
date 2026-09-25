@@ -1,8 +1,19 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import {
+  openSaveDraftDialog,
+  saveDraftThroughDialog,
+  submitSaveDraftDialog,
+} from './wizardDraftDialog';
 
-test.describe.configure({ mode: 'serial', timeout: 120000 });
+// In order, one worker, but NOT serial (MYK9-627). No scenario reads state an
+// earlier one left: drafts live in each test's own localStorage, and every
+// scenario signs in on a fresh page. They share one thing, the exhibitor's
+// server-side cart on the staging show, which is why the file still runs in
+// order rather than in parallel. Serial mode added nothing to that and cost
+// the whole verdict: one flaky click skipped every scenario after it.
+test.describe.configure({ mode: 'default', timeout: 120000 });
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const VISUAL_MATRIX = [
@@ -192,15 +203,12 @@ for (const scenario of VISUAL_MATRIX) {
       fullPage: true,
     });
 
-    await page.getByRole('button', { name: 'Save Draft' }).click();
-    const saveDialog = page.getByRole('dialog');
-    await expect(saveDialog).toBeVisible();
+    const saveDialog = await openSaveDraftDialog(page);
     await page.screenshot({
       path: testInfo.outputPath(`registration-wizard-${scenario.name}-draft-dialog.png`),
       fullPage: true,
     });
-    await saveDialog.getByLabel('Draft Title').fill(`Visual QA ${scenario.name}`);
-    await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
+    await submitSaveDraftDialog(page, saveDialog, `Visual QA ${scenario.name}`);
     await expect(page.getByRole('button', { name: /Load Draft \(1\)/ })).toBeVisible();
   });
 }
@@ -223,10 +231,7 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await selectFirstClass(page);
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Save Draft' }).click();
-  const saveDialog = page.getByRole('dialog');
-  await saveDialog.getByLabel('Draft Title').fill('Visual QA Draft');
-  await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
+  await saveDraftThroughDialog(page, 'Visual QA Draft');
 
   // No wait for the toast to clear: MYK9-517 lifted the sonner stack above the
   // entries bar, so Back is clickable WHILE "Draft saved" is on screen. The
@@ -957,7 +962,7 @@ test.describe('dog picker checkbox geometry', () => {
         .poll(async () => control.getAttribute('aria-checked'), { timeout: 10000 })
         .not.toBe(before);
 
-      // Put the row back the way it was found — this spec runs serially.
+      // Put the row back the way it was found — this spec runs in order.
       await hitArea.click({ position: { x: 3, y: 3 } });
       await expect.poll(async () => control.getAttribute('aria-checked')).toBe(before);
     });
@@ -981,10 +986,7 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
   const bar = page.getByTestId('entries-panel-bar');
   await expect(bar).toBeVisible();
 
-  await page.getByRole('button', { name: 'Save Draft' }).click();
-  const saveDialog = page.getByRole('dialog');
-  await saveDialog.getByLabel('Draft Title').fill('Toast Geometry QA');
-  await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
+  await saveDraftThroughDialog(page, 'Toast Geometry QA');
 
   const toast = page.getByText('Draft saved');
   await expect(toast).toBeVisible();

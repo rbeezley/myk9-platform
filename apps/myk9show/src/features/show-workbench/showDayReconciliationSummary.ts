@@ -1,5 +1,6 @@
 import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
 import { resolvePaymentChannel } from '@/features/payments/paymentChannel';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 export const LATE_ENTRY_PAYMENT_METHODS = [
   { id: 'cash', label: 'Cash' },
@@ -33,6 +34,17 @@ export interface ShowDayReconciliationEntry {
    * paid and by the desk late-entry path.
    */
   payment_received_on?: string | null;
+  /**
+   * The enrollment Entry Management records payments on. Its status names the
+   * channel the secretary chose (Mark paid Cash / Check / Online), which the
+   * entry's own `payment_method` (set when the entry was keyed) does not
+   * follow, and its `paid_amount` is the only record of a partial payment.
+   */
+  registration?: {
+    id: string;
+    payment_status: string | null;
+    paid_amount: number | null;
+  } | null;
 }
 
 /**
@@ -77,6 +89,31 @@ function emptyBreakdown(): ShowDayReconciliationSummary['byMethod'] {
 function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
   const parsed = typeof value === 'string' ? Number(value) : value;
   return Number.isFinite(parsed) ? Number(parsed) : 0;
+}
+
+type DeskChannel = ReconciliationPaymentMethod | 'online';
+
+/**
+ * How this entry's money arrived. The enrollment status Mark paid wrote wins
+ * over the method the entry was keyed with (a mail-in keyed as a check and
+ * then marked Paid in Full: Online is not desk money), except for an entry the
+ * secretary waived on its own.
+ */
+function deskChannel(entry: ShowDayReconciliationEntry): DeskChannel {
+  const waivedOnEntry =
+    entry.payment_status?.toLowerCase() === 'waived' ||
+    entry.payment_method?.toLowerCase() === 'waived';
+  if (!waivedOnEntry) {
+    const enrollmentStatus = entry.registration?.payment_status?.toLowerCase();
+    if (enrollmentStatus === PaymentStatus.PAID_ONLINE) return 'online';
+    if (enrollmentStatus === PaymentStatus.PAID_BY_CASH) return 'cash';
+    if (enrollmentStatus === PaymentStatus.PAID_BY_CHECK) return 'check';
+  }
+  const channel = resolvePaymentChannel({
+    paymentMethod: entry.payment_method,
+    paymentStatus: entry.payment_status,
+  });
+  return channel === 'online' ? 'online' : normalizeMethod(entry);
 }
 
 function normalizeMethod(entry: ShowDayReconciliationEntry): ReconciliationPaymentMethod {
@@ -137,21 +174,31 @@ function paymentReceivedDay(
  * paid at the desk IS in the box. The card reconciles the box, so it asks when
  * the money arrived. An online (Stripe) payment never reaches the box.
  */
-export function isCollectedAtShow(
+function isReceivedDuringShow(
   entry: ShowDayReconciliationEntry,
   window: DeskCollectionWindow | null
 ): boolean {
   const startDay = utcCalendarDate(window?.showStartDate);
   if (!startDay) return false;
   const endDay = utcCalendarDate(window?.showEndDate) ?? startDay;
-  const channel = resolvePaymentChannel({
-    paymentMethod: entry.payment_method,
-    paymentStatus: entry.payment_status,
-  });
-  if (channel === 'online') return false;
   const receivedDay = paymentReceivedDay(entry, window?.timeZone);
   if (!receivedDay) return false;
   return receivedDay >= startDay && receivedDay <= endDay;
+}
+
+/**
+ * A partial amount on account (Entry Management's Partial Payment leaves the
+ * enrollment and its entries pending with `paid_amount` recorded), counted the
+ * first time one of the enrollment's in-window entries is seen.
+ */
+function partialPaymentOnce(entry: ShowDayReconciliationEntry, counted: Set<string>): number {
+  const registration = entry.registration;
+  if (!registration || counted.has(registration.id)) return 0;
+  if (registration.payment_status?.toLowerCase() !== PaymentStatus.PENDING) return 0;
+  const paid = amount(registration.paid_amount);
+  if (paid <= 0) return 0;
+  counted.add(registration.id);
+  return paid;
 }
 
 export function summarizeShowDayReconciliation(
@@ -171,6 +218,9 @@ export function summarizeShowDayReconciliation(
     byMethod: emptyBreakdown(),
   };
 
+  // A partial payment is recorded once on the enrollment, not per entry.
+  const countedPartials = new Set<string>();
+
   for (const entry of entries) {
     const fee = amount(entry.entry_fee);
     const paymentStatus = entry.payment_status?.toLowerCase();
@@ -189,9 +239,9 @@ export function summarizeShowDayReconciliation(
     }
 
     // Only money RECEIVED while the show was running is desk money (MYK9-677).
-    if (!isCollectedAtShow(entry, deskWindow)) continue;
+    const method = deskChannel(entry);
+    if (method === 'online' || !isReceivedDuringShow(entry, deskWindow)) continue;
 
-    const method = normalizeMethod(entry);
     summary.lateEntryCount += 1;
     summary.byMethod[method].count += 1;
     summary.byMethod[method].amount += fee;
@@ -200,6 +250,8 @@ export function summarizeShowDayReconciliation(
       summary.waivedCount += 1;
     } else if (paymentStatus === 'paid') {
       summary.collectedAmount += fee;
+    } else {
+      summary.collectedAmount += partialPaymentOnce(entry, countedPartials);
     }
   }
 

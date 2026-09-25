@@ -132,4 +132,73 @@ describe('closeout desk money keys on payment timing (MYK9-677)', () => {
     expect(summary.lateEntryCount).toBe(0);
     expect(summary.collectedAmount).toBe(0);
   });
+
+  describe('the enrollment payment Entry Management recorded', () => {
+    const enrollmentEntry = (
+      id: string,
+      registration: ShowDayReconciliationEntry['registration'],
+      overrides: Partial<ShowDayReconciliationEntry> = {}
+    ): ShowDayReconciliationEntry => ({
+      ...mailInCheck('2026-09-17'),
+      id,
+      registration,
+      ...overrides,
+    });
+
+    it('counts a partial desk payment once per enrollment, at the amount received', () => {
+      const registration = { id: 'reg-1', payment_status: 'pending', paid_amount: 20 };
+      const summary = summarizeShowDayReconciliation(
+        [
+          enrollmentEntry('a', registration, { payment_status: 'pending' }),
+          enrollmentEntry('b', registration, { payment_status: 'pending' }),
+        ],
+        WINDOW
+      );
+
+      expect(summary.collectedAmount).toBe(20);
+      expect(summary.lateEntryCount).toBe(2);
+    });
+
+    it('leaves out a partial payment received before the show', () => {
+      const registration = { id: 'reg-1', payment_status: 'pending', paid_amount: 20 };
+      const summary = summarizeShowDayReconciliation(
+        [
+          enrollmentEntry('a', registration, {
+            payment_status: 'pending',
+            payment_received_on: '2026-08-27',
+          }),
+        ],
+        WINDOW
+      );
+
+      expect(summary.collectedAmount).toBe(0);
+    });
+
+    it('never counts an enrollment marked Paid in Full: Online, whatever the entry was keyed as', () => {
+      const summary = summarizeShowDayReconciliation(
+        [
+          enrollmentEntry(
+            'a',
+            { id: 'reg-1', payment_status: 'paid_online', paid_amount: 35 },
+            { payment_received_on: null, submitted_at: '2026-09-17T15:00:00Z' }
+          ),
+        ],
+        WINDOW
+      );
+
+      expect(summary.lateEntryCount).toBe(0);
+      expect(summary.collectedAmount).toBe(0);
+    });
+
+    it('files a check-keyed mail-in marked Paid in Full: Cash under cash', () => {
+      const summary = summarizeShowDayReconciliation(
+        [enrollmentEntry('a', { id: 'reg-1', payment_status: 'paid_by_cash', paid_amount: 35 })],
+        WINDOW
+      );
+
+      expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
+      expect(summary.byMethod.check).toEqual({ count: 0, amount: 0 });
+      expect(summary.collectedAmount).toBe(35);
+    });
+  });
 });

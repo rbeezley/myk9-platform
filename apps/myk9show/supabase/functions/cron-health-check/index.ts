@@ -136,6 +136,7 @@ async function runHealthSnapshot(
     { data: facts, error: probeError },
     { data: publicSchemaAcl, error: publicSchemaAclError },
     publishedShows,
+    { data: classResultsPush, error: classResultsPushError },
   ] = await Promise.all([
     supabase.rpc('system_health_probe', {
       p_include_expensive: mode === 'full',
@@ -144,6 +145,8 @@ async function runHealthSnapshot(
     fetchListedShows(mode).catch((err: unknown) => ({
       error: err instanceof Error ? err.message : String(err),
     })),
+    // MYK9-737: stuck "Results Posted" pushes. Cheap, so every run.
+    supabase.rpc('class_results_push_health'),
   ]);
 
   const source = runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE;
@@ -179,6 +182,9 @@ async function runHealthSnapshot(
         ? { error: publicSchemaAclError.message }
         : publicSchemaAcl,
       stray_published_shows: publishedShows,
+      class_results_push: classResultsPushError
+        ? { error: classResultsPushError.message }
+        : classResultsPush,
     },
     {
       now: Date.now(),

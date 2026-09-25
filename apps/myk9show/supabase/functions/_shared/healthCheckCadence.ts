@@ -28,6 +28,9 @@ export const HEALTH_CHECK_INTERVAL_MS = {
   // MYK9-741. Test-named shows published on the live listing; nightly is
   // plenty for a row someone seeded by hand.
   stray_published_shows: 24 * 60 * 60 * 1000,
+  // MYK9-737. One indexed read of private.class_results_push; its retry cron
+  // runs every five minutes, so the check keeps the same pace.
+  class_results_push: 5 * 60 * 1000,
 } as const;
 
 /** Expected source-job windows used to judge whether a scheduled job is late.
@@ -51,6 +54,7 @@ export const CONTINUOUS_HEALTH_CHECK_KEYS: readonly HealthCheckKey[] = [
   'migrations',
   'ringside_conflicts',
   'sign_in_email_drift',
+  'class_results_push',
 ];
 
 export function isHealthCheckKey(value: string): value is HealthCheckKey {

@@ -113,6 +113,13 @@ export const HEALTH_CHECK_REMEDIATION: Readonly<Record<string, HealthCheckRemedi
     nextStep:
       'A published show outside the demo seed carries a test-style name (E2E, MYK9-n, Load n, Fixture). Confirm with its club it is not real, then unpublish or delete it so it leaves the public listing.',
   },
+  class_results_push: {
+    ownerLabel: 'Push Notifications',
+    actionLabel: 'Open Admin Help',
+    target: routeTarget('/admin/help'),
+    nextStep:
+      "A class's Results Posted push failed or is still pending after 20 minutes, or the class-results-push-retry cron has stopped. Check that cron first (it retries, prunes and queues missed classes), then last_error and the push-trigger-scoring logs for the named classes; once fixed, set a failed row back to pending with attempts 0 so the retry sends it.",
+  },
   probe: HEALTH_RUNNER,
   'malformed-checks': HEALTH_RUNNER,
 };

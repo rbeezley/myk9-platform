@@ -159,13 +159,14 @@ describe('class-status and scoring push audience contracts', () => {
   it('resolves scoring recipients from owner, co-owner, and handler auth links', () => {
     const source = readFileSync(scoringTriggerPath, 'utf8');
 
-    expect(source).toContain('owner:people!owner_id(auth_user_id)');
-    expect(source).toContain('co_owner:people!co_owner_id(auth_user_id)');
-    expect(source).toContain('handler:people!handler_id(auth_user_id)');
-    expect(source).toContain('entry?.dog?.owner?.auth_user_id');
-    expect(source).toContain('entry?.dog?.co_owner?.auth_user_id');
-    expect(source).toContain('entry?.handler?.auth_user_id');
+    // MYK9-737: the owner/co-owner/handler accounts come from the SQL
+    // public.class_results_push_audience (behavior-tested, including the
+    // joins, in supabase/tests/myk9_737_class_results_push_test.sql); the
+    // grouping and the sent-after-send ordering are behavior-tested in
+    // push-trigger-scoring/resultsPush.test.ts.
+    expect(source).toContain("rpc('class_results_push_audience'");
     expect(source).not.toContain('body.record.user_id');
+    expect(source).toContain('runResultsPush(');
   });
 
   it('resolves class-start recipients from owner, co-owner, and handler auth links', () => {

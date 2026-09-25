@@ -103,6 +103,13 @@ handle<SendPushPayload>(
         .in('endpoint', expiredEndpoints);
     }
 
-    return { sent, errors: errors.length ? errors : undefined };
+    // `expired` counts the errors that were 404/410 (permanent: those
+    // subscriptions are deleted above). push-trigger-scoring reads it to tell
+    // "nothing more can be delivered" from a failure worth retrying (MYK9-737).
+    return {
+      sent,
+      errors: errors.length ? errors : undefined,
+      expired: expiredEndpoints.length,
+    };
   }
 );

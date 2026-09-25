@@ -49,13 +49,14 @@ function SelectAllDogsCheckbox() {
   return (
     <span className="flex items-center justify-center">
       <Checkbox
-        // Asymmetric on purpose, header only: a uniform -inset-3.5 (like the
-        // row checkbox below) grows the 16px control to 44x44, but the
-        // header row is only h-10 (40px) tall, so the vertical half
-        // overhangs ~2px into row 1 and can steal its first click.
+        // Asymmetric on purpose, header only: a uniform 14px vertical
+        // overhang (like the row checkbox below) makes a 44px-tall target,
+        // but the header row can be as short as 40px (compact density; about
+        // 44px in comfortable), so it could overhang into row 1 and steal its
+        // first click.
         // The horizontal span is the shared x=0..44 described on SELECT_COLUMN;
-        // -inset-y-3 (12px) gives a 40px-tall target that exactly
-        // fills the header row's own height, so nothing spills into row 1
+        // -inset-y-3 (12px) gives a 40px-tall target, never taller than the
+        // header row in either density, so nothing spills into row 1
         // — but that 40px arithmetic depends on staying wrapped in the
         // `<span>` above: TableHead's `[&>[role=checkbox]]:translate-y-[2px]`
         // is a direct-child selector that only matches a checkbox that IS

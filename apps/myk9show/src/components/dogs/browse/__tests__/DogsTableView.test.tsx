@@ -174,6 +174,22 @@ describe('DogsTableView', () => {
       expect(header).toHaveAttribute('aria-checked', 'mixed');
     });
 
+    it("updates a row's checked state in place when the selection changes", () => {
+      const { rerender } = render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const row = screen.getByRole('checkbox', { name: /select rex/i });
+      expect(row).toHaveAttribute('aria-checked', 'false');
+
+      rerender(
+        <DogsTableView
+          dogs={dogs}
+          selection={makeSelection({ isSelected: dog => dog.id === '1' })}
+        />
+      );
+
+      expect(screen.getByRole('checkbox', { name: /select rex/i })).toBe(row);
+      expect(row).toHaveAttribute('aria-checked', 'true');
+    });
+
     it('reflects indeterminate state on the header checkbox', () => {
       render(
         <DogsTableView dogs={dogs} selection={makeSelection({ isPartiallySelected: true })} />

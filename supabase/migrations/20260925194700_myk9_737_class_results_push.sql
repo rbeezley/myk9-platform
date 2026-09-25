@@ -472,6 +472,13 @@ GRANT EXECUTE ON FUNCTION public.finish_class_results_push(uuid, uuid, text, uui
 -- disagree. No row at all = nothing to announce (the edge function then
 -- finishes 'held'); rows with no account = results exist but nobody can be
 -- told (it finishes 'sent').
+--
+-- It also re-checks the release gate at read time (private.class_results_push_due,
+-- the one predicate): a class un-released, tightened or soft-deleted after
+-- begin_class_results_push leased it returns no rows, so the edge function
+-- finishes 'held', the row is deleted, and the class is re-queued when it is
+-- due again. What remains is the seconds between this read and the provider
+-- call, which is accepted.
 CREATE OR REPLACE FUNCTION public.class_results_push_audience(p_class_id uuid)
 RETURNS TABLE (
   dog_call_name text,
@@ -492,6 +499,7 @@ AS $$
   LEFT JOIN public.people h ON h.id = e.handler_id
   WHERE e.class_id = p_class_id
     AND private.class_results_push_announces(e.deleted_at, e.scoring_completed_at, e.entry_status, e.result_status)
+    AND private.class_results_push_due(p_class_id)
   ORDER BY e.created_at, e.id;
 $$;
 

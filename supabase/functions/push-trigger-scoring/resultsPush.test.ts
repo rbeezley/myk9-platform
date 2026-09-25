@@ -171,8 +171,10 @@ describe('runResultsPush', () => {
 
   // Codex round 2: a class released before any dog was scored must not spend
   // its one push on nothing. SQL keeps such a class from being due; if the
-  // results still vanish between the lease and the read, the row is held
-  // (deleted) so the sweep re-queues it, never marked sent.
+  // results vanish, or (Codex round 4) the class is un-released or its
+  // visibility tightened, between the lease and the audience read, the
+  // audience RPC returns no rows and the row is held (deleted) so the sweep
+  // re-queues it, never marked sent.
   it('holds, never sends, when there is no announceable result at read time', async () => {
     const { deps, calls } = fakeDeps({ entries: [] });
 

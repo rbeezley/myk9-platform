@@ -664,7 +664,38 @@ BEGIN
     RAISE EXCEPTION 'FAIL the audience did not resolve Rex''s owner and handler accounts';
   END IF;
   RESET ROLE;
-  RAISE NOTICE 'PASS the audience is the announceable entries with their owner, co-owner and handler accounts';
+
+  -- Codex round 4: the release gate is re-checked when the audience is read.
+  -- C is leased (pending), then un-released before the audience read: no
+  -- rows, so the edge function finishes 'held'. Re-released, it has them again.
+  SET LOCAL ROLE service_role;
+  IF (SELECT b.outcome FROM public.begin_class_results_push('00000000-0000-0000-0000-0000007370c1') b)
+       IS DISTINCT FROM 'leased' THEN
+    RAISE EXCEPTION 'FIXTURE C could not be leased';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.class_results_push_audience('00000000-0000-0000-0000-0000007370c1')) THEN
+    RAISE EXCEPTION 'FAIL a still-due leased class returned no audience';
+  END IF;
+  RESET ROLE;
+
+  UPDATE public.classes SET results_released_at = NULL
+  WHERE id = '00000000-0000-0000-0000-0000007370c1';
+  SET LOCAL ROLE service_role;
+  SELECT count(*) INTO v_rows
+  FROM public.class_results_push_audience('00000000-0000-0000-0000-0000007370c1');
+  RESET ROLE;
+  IF v_rows <> 0 THEN
+    RAISE EXCEPTION 'FAIL the audience returned % rows for a class un-released after its lease', v_rows;
+  END IF;
+
+  UPDATE public.classes SET results_released_at = now()
+  WHERE id = '00000000-0000-0000-0000-0000007370c1';
+  SET LOCAL ROLE service_role;
+  IF NOT EXISTS (SELECT 1 FROM public.class_results_push_audience('00000000-0000-0000-0000-0000007370c1')) THEN
+    RAISE EXCEPTION 'FAIL the re-released class returned no audience';
+  END IF;
+  RESET ROLE;
+  RAISE NOTICE 'PASS the audience is the announceable entries with their owner, co-owner and handler accounts, and only while the class is due';
 END;
 $$;
 

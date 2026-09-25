@@ -226,7 +226,8 @@ export async function runResultsPush(
     return { status: 'push_failed', failed: 0, recipients: 0, error };
   }
 
-  // No announceable result at all (they went away after the lease): never
+  // No announceable result (they went away after the lease, or the class is no
+  // longer due: class_results_push_audience re-checks the release gate): never
   // spend the class's one push on nothing. 'held' deletes the row and the
   // retry cron's sweep re-queues the class once it has results again.
   if (entries.length === 0) {

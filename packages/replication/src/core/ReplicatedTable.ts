@@ -48,7 +48,10 @@ import {
   buildSyncedReplicatedRow,
   selectStaleCleanRows,
 } from './ReplicatedTableRowState';
-import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
+import {
+  instantFieldsFor,
+  mergeNonConflictingServerFields,
+} from '../conflict/detectDirtyRowConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
 import {
@@ -755,6 +758,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         base: params.base,
         local: existingRow.data,
         remote: params.remote,
+        instantFields: instantFieldsFor(this.tableName),
       }).merged;
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
 
@@ -869,6 +873,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         base: snapshot.baseData,
         local: row.data,
         remote: snapshot.remoteData,
+        instantFields: instantFieldsFor(this.tableName),
       }).merged;
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,

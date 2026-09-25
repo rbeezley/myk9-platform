@@ -35,8 +35,12 @@ database is left untouched — but the reseed has not happened either. Check wit
    not the wipe) and references the protected accounts by email lookup. Every
    delete it runs is scoped to the ids it seeds, so a hand-created show survives.
    It yields the LEAN set (two clubs, the three Heartland shows, six dogs, 13
-   entries on the demo show) and removes the MYK9-109 load fixture if it was
-   applied.
+   entries on the demo show) plus the show-day fixture `Heartland Scent Work
+Week`, which has a trial dated today for seven days after the reseed
+   (MYK9-731), and removes the MYK9-109 load fixture if it was applied.
+   **Reseed at least weekly** on the walks' schedule: once the seven days lapse,
+   no seeded show is running today and the walks record show-day check-in,
+   running order and announcements as a stale-fixture gap.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

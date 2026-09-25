@@ -56,7 +56,7 @@ Run both health phases with:
 pnpm qa:nightly:health
 ```
 
-The command runs the promoted registration service/store checks that used to be stale Playwright wrappers:
+Its Playwright phase runs `route-health-by-role.spec.ts` and `walkRegressionCanaries.spec.ts` (see "Walk regression canaries" below). The command runs the promoted registration service/store checks that used to be stale Playwright wrappers:
 
 ```bash
 cd apps/myk9show
@@ -65,6 +65,23 @@ npx vitest run \
   src/test/services/APIErrorInterceptor.registrationRecovery.test.ts \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
+
+### Walk regression canaries
+
+`apps/myk9show/src/test/e2e/walkRegressionCanaries.spec.ts` turns facts the
+scheduled secretary and exhibitor task walks verified in the browser into
+nightly assertions (MYK9-730). Each test finds its own qualifying row with a
+ground-truth read made as the signed-in user (no seed ids), then asserts the
+page states the same fact. No qualifying row skips with a `staging-data-absent`
+annotation on shared staging (Nightly Health) and fails on the seeded database
+(Playwright Regression). Shared plumbing lives in
+`apps/myk9show/src/test/e2e/helpers/liveCanary.ts`.
+
+**Intake.** Every walk report ends with a "Canary candidates" section: one
+assertion per re-verified fix and per new P0/P1. Add a candidate here as a new
+`test()` in that spec when it is a user-visible fact that regressed or would be
+silent if it did; leave the rest in the report. Prove each new test red before
+merging (break the fact, watch it fail) and name the Linear issue in the title.
 
 ### Separate Playwright regression
 
@@ -80,12 +97,13 @@ pnpm qa:playwright:regression
 
 The command uses the curated regression spec list in `apps/myk9show/playwright.ci.config.ts`, with one worker, zero retries, and `--fail-on-flaky-tests`. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the current list. Last verified with retries disabled on 2026-06-18 (Lane 3.2): `50 passed (2.9m)`. Prior: 2026-05-23 `44 passed (2.4m)` (6 additional specs promoted since then).
 
-The health command's Playwright phase is the committed route-health sweep spec (promoted 2026-06-06):
+The health command's Playwright phase is the committed route-health sweep spec (promoted 2026-06-06) plus the walk regression canaries (MYK9-730):
 
 ```bash
 cd apps/myk9show
 pnpm test:e2e:clean \
   src/test/e2e/route-health-by-role.spec.ts \
+  src/test/e2e/walkRegressionCanaries.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
@@ -213,6 +231,7 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | `apps/myk9show/src/test/e2e/admin/userRosterDrilldown.spec.ts`              | Admin roster-to-person drill-down and reversible URL state.                                                                                                                                                                                                                                                                                                                                                                            |
 | `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                     | Exhibitor entries page regression coverage.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `apps/myk9show/src/test/e2e/exhibitorReadPathCanary.spec.ts`                | Live exhibitor read-path canary. Nightly sets `MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true`, so a seeded database missing the demo exhibitor's profile or entries FAILS here instead of skipping.                                                                                                                                                                                                                                          |
+| `apps/myk9show/src/test/e2e/walkRegressionCanaries.spec.ts`                 | Walk regression canaries (MYK9-730): one live assertion per walk-verified fix (judge names, owed-never-paid, waitlist, ringside counts, registry-scoped reports). Also launched by `run-nightly-health.sh` against shared staging, where missing data skips; here missing data FAILS. See "Walk regression canaries" above.                                                                                                            |
 | `apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts`                | At-show judge scoring authorization path.                                                                                                                                                                                                                                                                                                                                                                                              |
 | `apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`              | At-show offline scoring round-trip.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `apps/myk9show/src/test/e2e/uat/secretary/entry-management-cockpit.spec.ts` | Secretary registration focus across layouts.                                                                                                                                                                                                                                                                                                                                                                                           |

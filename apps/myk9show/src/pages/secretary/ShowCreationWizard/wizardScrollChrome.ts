@@ -76,9 +76,9 @@ export function useWizardChromeHeight(stepsRef: RefObject<HTMLElement | null>): 
   }, [stepsRef]);
 }
 
-/** Top of the band a control must sit in to be clear of the chrome: the
- * document's scroll padding (app header) plus the control's own scroll margin
- * (the wizard chrome). */
+/** Where the scroll margin places a control's top: the document's scroll
+ * padding (app header) plus the control's own scroll margin (the wizard
+ * chrome, including GAP_PX of air). */
 function reservedTop(element: HTMLElement): number {
   return (
     (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) +
@@ -86,9 +86,28 @@ function reservedTop(element: HTMLElement): number {
   );
 }
 
+/** Sub-pixel layout can leave an edge a fraction past the fold (a 390x600
+ * wizard puts the clone button's bottom at 600.5); that is not off screen, and
+ * revealing it moved the page by 1px on mount. */
+const FOLD_TOLERANCE_PX = 1;
+
+/** On screen and not under the chrome. Half the placement gap is tolerated:
+ * enough that a control sitting in it is not re-scrolled, not so much that
+ * its focus ring could sit under the step indicator. */
 function isClearOfChrome(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect();
-  return rect.top >= reservedTop(element) && rect.bottom <= window.innerHeight;
+  return (
+    rect.top >= reservedTop(element) - GAP_PX / 2 &&
+    rect.bottom <= window.innerHeight + FOLD_TOLERANCE_PX
+  );
+}
+
+function isKeyboardFocus(element: HTMLElement): boolean {
+  try {
+    return element.matches(':focus-visible');
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -104,15 +123,69 @@ export function focusWithoutJump(element: HTMLElement): void {
   element.focus({ preventScroll: true });
 }
 
+const FIRST_CONTROL_SELECTOR =
+  'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
+
+/**
+ * The step's delayed entry focus (shortly after mount or a step change): the
+ * step's first control, via {@link focusWithoutJump}. Skipped when the
+ * secretary moved first — scrolled the page since `scrollYAtStart`, or already
+ * put focus in the form or in a dialog. Pulling them back to the first field
+ * then is the jump MYK9-764 is about (measured: a page scrolled to 969 was
+ * smooth-scrolled back to 198 by this focus).
+ */
+export function focusStepEntry(content: HTMLElement, scrollYAtStart: number): void {
+  if (Math.abs(window.scrollY - scrollYAtStart) > FOLD_TOLERANCE_PX) return;
+  const active = document.activeElement;
+  if (active && (content.contains(active) || active.closest(OPEN_OVERLAY_SELECTOR))) return;
+  const first = content.querySelector<HTMLElement>(FIRST_CONTROL_SELECTOR);
+  if (first) focusWithoutJump(first);
+}
+
+/** Portalled popups that own focus while open: Base UI's Dialog, AlertDialog
+ * (the unsaved-changes confirm), Select and Menu. */
+const OPEN_OVERLAY_SELECTOR =
+  '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]';
+
+/** How long after mount or a step change the entry focus waits. */
+export const STEP_ENTRY_FOCUS_DELAY_MS = 350;
+
+/**
+ * Run {@link focusStepEntry} {@link STEP_ENTRY_FOCUS_DELAY_MS} after mount and
+ * after every change of `step`, measuring "has the page moved" from the
+ * moment the step started — not from when the timer fires, which would make
+ * the scroll guard vacuous.
+ */
+export function useStepEntryFocus(contentRef: RefObject<HTMLElement | null>, step: unknown): void {
+  useEffect(() => {
+    const scrollYAtStart = window.scrollY;
+    const timer = setTimeout(() => {
+      if (contentRef.current) focusStepEntry(contentRef.current, scrollYAtStart);
+    }, STEP_ENTRY_FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [contentRef, step]);
+}
+
 /**
  * The same guarantee for keyboard focus inside the wizard's form: after Tab
  * or Shift+Tab, a control the browser's own focus scroll left under the
  * chrome (or off screen) is re-revealed with a margin-honouring
- * `scrollIntoView`. Attach to the step content's `onFocus` (React's focus
- * event bubbles, like `focusin`).
+ * `scrollIntoView`. Only for `:focus-visible` focus: a click on a button,
+ * trigger or checkbox means the secretary could already see it, and nudging
+ * the page under their pointer — e.g. as a date picker opens — is its own
+ * surprise. (Chromium counts a click into a text field as `:focus-visible`,
+ * so those are still revealed, which suits a field about to be typed in.)
+ * Attach to the step content's `onFocus`; React's focus event bubbles through
+ * portals too, so focus inside an overlay (a picker's dialog or listbox,
+ * rendered outside the form) is ignored.
  */
-export function revealFocusedBelowChrome(event: { target: EventTarget | null }): void {
+export function revealFocusedBelowChrome(event: {
+  target: EventTarget | null;
+  currentTarget?: EventTarget | null;
+}): void {
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
+  if (!(target instanceof HTMLElement) || !isKeyboardFocus(target)) return;
+  const form = event.currentTarget;
+  if (form instanceof Node && !form.contains(target)) return;
   if (!isClearOfChrome(target)) target.scrollIntoView({ block: 'nearest' });
 }

@@ -23,6 +23,7 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
+import { withStoredDays, withTypedDays } from './showCalendarDays';
 
 /**
  * Database row type from Supabase schema
@@ -166,7 +167,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Convert app-level Show to Supabase row format (snake_case).
    * Strips sync metadata fields (_version, _lastModified, etc.)
    */
-  private toSupabaseRow(show: ReplicatedShow): Record<string, unknown> {
+  private toSupabaseRow(rawShow: ReplicatedShow): Record<string, unknown> {
+    // Every date here is already a calendar day or a stored value: typed
+    // dates were normalized when they entered the row (updateShow/createShow).
+    const show = withStoredDays(rawShow);
     return {
       id: show.id,
       name: show.name,
@@ -363,7 +367,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete resolvedUpdates.style;
     const updatedShow: ReplicatedShow = {
       ...currentShow,
-      ...resolvedUpdates,
+      ...withTypedDays(resolvedUpdates, currentShow),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
@@ -398,7 +402,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   async createShow(show: Omit<ReplicatedShow, 'id'>): Promise<ReplicatedShow> {
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
-      ...show,
+      ...withTypedDays(show),
       id,
       _version: 1,
       _lastModified: new Date(),

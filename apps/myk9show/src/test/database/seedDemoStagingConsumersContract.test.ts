@@ -106,7 +106,15 @@ describe('staging consumers of the lean demo seed (MYK9-558)', () => {
   });
 
   it('keeps load-fixture ids out of the scheduled walk prompts', () => {
+    // The prompts moved to docs/qa/walks/ (MYK9-733); the operations doc keeps
+    // only the pointers. Scan both, so a prompt cannot drift back onto the
+    // opt-in load fixture from either home.
     expect(read('docs/operations/scheduled-task-walks.md')).not.toMatch(/a1090000-|Green Country/);
+    const walkPrompts = walk('docs/qa/walks').filter(path => path.endsWith('.md'));
+    expect(walkPrompts.length).toBeGreaterThanOrEqual(4);
+    for (const path of walkPrompts) {
+      expect(read(path), path).not.toMatch(/a1090000-|Green Country/);
+    }
   });
 
   it('judge replay: the unassigned entry is a lean entry in a class no judge is assigned to', () => {

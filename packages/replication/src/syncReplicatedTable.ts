@@ -1,6 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
-import { detectDirtyRowConflict } from './conflict/detectDirtyRowConflict';
+import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -264,6 +264,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
             base: existing.baseData,
             local: existing.data,
             remote: remoteLocal,
+            instantFields: instantFieldsFor(table.getTableName()),
           });
           if (detection.hasConflict) {
             const snapshot: ReplicationConflictSnapshot<TLocal> = {

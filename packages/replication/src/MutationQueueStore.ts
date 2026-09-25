@@ -1,4 +1,4 @@
-import type { IDBPDatabase } from 'idb';
+import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { withQuotaEviction } from './quota-eviction';
@@ -146,7 +146,7 @@ export class MutationQueueStore {
     // dropping the score (audit M2). Dirty/unsynced rows and other mutations are
     // never touched by the evictor.
     await withQuotaEviction(
-      () => db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation),
+      () => putStampingCurrentServerVersion(db, mutation),
       () => this.evictCleanCacheRows(db),
       this.logger
     );
@@ -393,4 +393,62 @@ export class MutationQueueStore {
       tx.done,
     ]);
   }
+}
+
+/**
+ * Persist a queued mutation, moving its OCC token forward past THIS device's
+ * own upload that landed while the caller was queuing it (MYK9-770).
+ *
+ * The caller (ReplicatedTable.queueMutation) reads `row.serverVersion` before
+ * calling in. If this device's previous write to the row uploads in between,
+ * the upload marks the row with the new version and re-stamps the row's queued
+ * mutations (updateMutationServerVersions) — before this one is in the queue.
+ * It would then carry the stale token forever: every upload matches 0 rows and
+ * a full-row UPDATE is never rebased (MYK9-771).
+ *
+ * Only that step is taken: the token moves from `from` to `to` exactly when
+ * the row's `lastOwnUpload` says this device's own upload moved it so and the
+ * row still holds `to`. The payload was built on the local row, which already
+ * held that upload's change, so it is based on `to`. Any other advance — a
+ * download carrying another device's write — leaves the token alone, so that
+ * conflict still surfaces instead of being overwritten (Codex P1).
+ *
+ * The read and the put share ONE readwrite transaction over both stores, which
+ * IndexedDB orders wholly before or after the upload's row write; either order
+ * leaves this mutation on the current token.
+ */
+async function putStampingCurrentServerVersion(
+  db: IDBPDatabase,
+  mutation: PendingMutation
+): Promise<void> {
+  if (mutation.operation !== 'UPDATE' || mutation.serverVersion === undefined) {
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+    return;
+  }
+  const requestedVersion = mutation.serverVersion;
+  // Raw IndexedDB, with the put issued from the read's own success callback:
+  // that is the one place the transaction is guaranteed active. Resuming after
+  // an awaited promise is not (under fake timers the transaction had already
+  // committed), and a put that lands in a second transaction reopens the gap.
+  const tx = (unwrap(db) as IDBDatabase).transaction(
+    [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+    'readwrite'
+  );
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('Queue transaction aborted'));
+    const read = tx
+      .objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      .get([mutation.tableName, String(mutation.rowId)]);
+    read.onsuccess = () => {
+      const row = read.result as ReplicatedRow<unknown> | undefined;
+      const step = row?.lastOwnUpload;
+      const stamped =
+        step !== undefined && step.from === requestedVersion && row?.serverVersion === step.to
+          ? { ...mutation, serverVersion: step.to }
+          : mutation;
+      tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(stamped);
+    };
+  });
 }

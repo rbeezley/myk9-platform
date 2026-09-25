@@ -156,6 +156,67 @@ describe('closeout desk money reads the payments ledger (MYK9-677)', () => {
     expect(summary.byMethod.cash.amount).toBe(0);
   });
 
+  describe('counts are netted per enrollment and method before counting', () => {
+    it('a show-day payment then Payment Due is no payment, no entry taken, $0', () => {
+      const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+        ledger({ amount: 50, method: 'cash', received_on: '2026-09-17' }),
+        ledger({ kind: 'reversal', amount: -50, method: 'cash', received_on: '2026-09-17' }),
+      ]);
+
+      expect(summary.byMethod.cash).toEqual({ count: 0, amount: 0 });
+      expect(summary.lateEntryCount).toBe(0);
+      expect(summary.collectedAmount).toBe(0);
+    });
+
+    it('a payment then a partial refund is one payment at the net dollars', () => {
+      const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+        ledger({ amount: 50, method: 'cash', received_on: '2026-09-17' }),
+        ledger({ kind: 'refund', amount: -20, method: 'cash', received_on: '2026-09-17' }),
+      ]);
+
+      expect(summary.byMethod.cash).toEqual({ count: 1, amount: 30 });
+      expect(summary.lateEntryCount).toBe(1);
+    });
+
+    it('a desk payment handed back in full is not counted as taken', () => {
+      const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+        ledger({ amount: 50, method: 'cash', received_on: '2026-09-17' }),
+        ledger({ kind: 'refund', amount: -50, method: 'cash', received_on: '2026-09-18' }),
+      ]);
+
+      expect(summary.byMethod.cash).toEqual({ count: 0, amount: 0 });
+      expect(summary.lateEntryCount).toBe(0);
+    });
+
+    it('two desk payments on one enrollment are two payments and one entry taken', () => {
+      const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+        ledger({ amount: 20, method: 'cash', received_on: '2026-09-17' }),
+        ledger({ amount: 30, method: 'cash', received_on: '2026-09-18' }),
+      ]);
+
+      expect(summary.byMethod.cash).toEqual({ count: 2, amount: 50 });
+      expect(summary.lateEntryCount).toBe(1);
+    });
+
+    it('a reset desk entry (no enrollment) is not taken either', () => {
+      const desk: ShowDayReconciliationEntry = {
+        id: 'desk-1',
+        entry_fee: 20,
+        payment_status: 'paid',
+        payment_method: 'cash',
+        registration_id: null,
+      };
+      const row = { enrollment_id: null, entry_id: 'desk-1', method: 'cash' as const };
+      const summary = summarizeShowDayReconciliation([desk], WINDOW, [
+        ledger({ ...row, amount: 20, received_on: '2026-09-17' }),
+        ledger({ ...row, kind: 'refund', amount: -20, received_on: '2026-09-17' }),
+      ]);
+
+      expect(summary.byMethod.cash.count).toBe(0);
+      expect(summary.lateEntryCount).toBe(0);
+    });
+  });
+
   it('never counts an online (Stripe) payment as desk money, even on show day', () => {
     const summary = summarizeShowDayReconciliation(
       [

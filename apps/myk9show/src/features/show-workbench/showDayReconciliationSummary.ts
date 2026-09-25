@@ -201,6 +201,15 @@ function windowDays(window: DeskCollectionWindow | null): { start: string; end: 
  * received (or refunded, or reversed) with the day it happened. That is what
  * lets a split payment count only its desk half, and a check banked three
  * weeks early count on the day it was banked.
+ *
+ * Dollars are every in-window row, summed. Counts are netted first, per parent
+ * (enrollment or desk entry) and method: a parent whose in-window rows net to
+ * $0 or less holds no money in the box, so it adds no payment and no entry
+ * "taken at the show". That covers a "Payment Due" reset (payment + reversal)
+ * and a desk payment handed back in full (the money went back out; the card's
+ * refund line, not this count, is where refunds show). A parent still holding
+ * money counts each of its in-window payments, as a cash box has two slips for
+ * two payments.
  */
 function applyLedger(
   summary: ShowDayReconciliationSummary,
@@ -209,16 +218,33 @@ function applyLedger(
 ): { enrollments: Set<string>; entries: Set<string> } {
   const received = { enrollments: new Set<string>(), entries: new Set<string>() };
   if (!days) return received;
+  const groups = new Map<
+    string,
+    {
+      row: ShowPaymentLedgerRow;
+      method: ShowPaymentLedgerRow['method'];
+      net: number;
+      payments: number;
+    }
+  >();
   for (const row of payments) {
     const day = calendarDateOf(row.received_on);
     if (!day || day < days.start || day > days.end) continue;
     const value = ledgerAmount(row);
     summary.byMethod[row.method].amount += value;
     summary.collectedAmount += value;
-    if (row.kind !== 'payment') continue;
-    summary.byMethod[row.method].count += 1;
-    if (row.enrollment_id) received.enrollments.add(row.enrollment_id);
-    if (row.entry_id) received.entries.add(row.entry_id);
+    const key = `${row.enrollment_id ?? `entry:${row.entry_id}`}|${row.method}`;
+    const group = groups.get(key) ?? { row, method: row.method, net: 0, payments: 0 };
+    group.net += value;
+    if (row.kind === 'payment') group.payments += 1;
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    // Cents, so 35.10 - 35.1 float noise cannot keep a reset parent alive.
+    if (Math.round(group.net * 100) <= 0 || group.payments === 0) continue;
+    summary.byMethod[group.method].count += group.payments;
+    if (group.row.enrollment_id) received.enrollments.add(group.row.enrollment_id);
+    if (group.row.entry_id) received.entries.add(group.row.entry_id);
   }
   return received;
 }

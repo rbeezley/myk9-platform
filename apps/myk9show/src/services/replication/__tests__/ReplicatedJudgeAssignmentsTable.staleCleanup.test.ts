@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const engine = vi.hoisted(() => ({ calls: [] as unknown[] }));
 
@@ -40,6 +40,14 @@ import {
   ReplicatedJudgeAssignmentsTable,
 } from '../ReplicatedJudgeAssignmentsTable';
 
+// Module-scope state shared by both describes: reset it before every test, or
+// a shuffled order leaks one test's captured sync calls and pages into another.
+beforeEach(() => {
+  engine.calls.length = 0;
+  db.pages = [];
+  db.cursors = [];
+});
+
 // MYK9-775: judge assignments are hard-deleted, so without this opt-in a judge
 // removed on the server stayed on every other device's replica forever.
 describe('ReplicatedJudgeAssignmentsTable sync', () => {
@@ -59,8 +67,6 @@ describe('ReplicatedJudgeAssignmentsTable fetch', () => {
       Array.from({ length: JUDGE_ASSIGNMENTS_PAGE_SIZE }, (_, i) => row(i)),
       [row(JUDGE_ASSIGNMENTS_PAGE_SIZE)],
     ];
-    db.cursors = [];
-    engine.calls.length = 0;
     await new ReplicatedJudgeAssignmentsTable().sync();
     const adapter = engine.calls[0] as {
       fetchRemoteRows: (args: { since: number }) => Promise<unknown[]>;

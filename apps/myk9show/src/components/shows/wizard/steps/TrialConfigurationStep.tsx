@@ -63,15 +63,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
 
-  const creationCopy = useMemo(
-    () => getTrialCreationCopy(trialView.hasAnyTrials),
-    [trialView.hasAnyTrials]
-  );
   const effectiveTrialNames = useMemo(
     () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
     [trials, trialView]
   );
   const canAddTrial = existingTrialsReady;
+  const creationCopy = useMemo(
+    () => getTrialCreationCopy(trialView.hasAnyTrials, canAddTrial),
+    [trialView.hasAnyTrials, canAddTrial]
+  );
   const isExistingTrialsLoading = !canAddTrial && existingTrialsReadStatus === 'loading';
   const existingTrialsReadFailed = !canAddTrial && existingTrialsReadStatus === 'error';
 
@@ -210,56 +210,59 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
             </div>
           ) : !canAddTrial ? (
             <p role="status" className="text-sm text-muted-foreground">
-              {isExistingTrialsLoading
-                ? 'Loading the current trials…'
-                : 'Checking the current trials before adding another one…'}
+              Loading the current trials…
             </p>
           ) : null}
 
-          {/* Existing trials info banner */}
-          {trialView.persistedTrialCount > 0 && (
+          {/* Existing trials info banner. Only once they are known: a partial
+              local count next to "couldn't verify" would contradict it. */}
+          {canAddTrial && trialView.persistedTrialCount > 0 && (
             <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
                 {trialView.persistedTrialCount} existing{' '}
                 {trialView.persistedTrialCount === 1 ? 'trial' : 'trials'}
               </span>{' '}
-              already exist. Use Edit Trial on the trial detail page to make changes to them.
+              already {trialView.persistedTrialCount === 1 ? 'exists' : 'exist'}. Use Edit Trial on
+              the trial detail page to make changes to them.
             </div>
           )}
 
-          {/* Trial List */}
+          {/* Trial List. No empty-state card until the current trials are
+              known: the status line or the alert above is the one message. */}
           {trials.length === 0 ? (
-            <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-12 text-center overflow-hidden">
-              {/* Background decoration */}
-              <div className="absolute inset-0 opacity-5">
-                <div className="absolute top-4 left-4 w-24 h-24 rounded-full bg-primary" />
-                <div className="absolute bottom-4 right-4 w-32 h-32 rounded-full bg-primary" />
-              </div>
-
-              <div className="relative">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shadow-sm">
-                  <CalendarPlus className="h-8 w-8 text-primary" />
+            canAddTrial && (
+              <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-12 text-center overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute inset-0 opacity-5">
+                  <div className="absolute top-4 left-4 w-24 h-24 rounded-full bg-primary" />
+                  <div className="absolute bottom-4 right-4 w-32 h-32 rounded-full bg-primary" />
                 </div>
-                <h4 className="text-xl font-semibold text-foreground mb-2">
-                  {creationCopy.emptyStateTitle}
-                </h4>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                  {creationCopy.emptyStateDescription}
-                </p>
-                <Button
-                  onClick={handleAddTrial}
-                  disabled={!canAddTrial}
-                  title={
-                    canAddTrial ? undefined : 'Waiting for the current trials to finish loading'
-                  }
-                  size="lg"
-                  className="shadow-md"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {creationCopy.addTrialLabel}
-                </Button>
+
+                <div className="relative">
+                  <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shadow-sm">
+                    <CalendarPlus className="h-8 w-8 text-primary" />
+                  </div>
+                  <h4 className="text-xl font-semibold text-foreground mb-2">
+                    {creationCopy.emptyStateTitle}
+                  </h4>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+                    {creationCopy.emptyStateDescription}
+                  </p>
+                  <Button
+                    onClick={handleAddTrial}
+                    disabled={!canAddTrial}
+                    title={
+                      canAddTrial ? undefined : 'Waiting for the current trials to finish loading'
+                    }
+                    size="lg"
+                    className="shadow-md"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {creationCopy.addTrialLabel}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="space-y-4">
               {trials.map((trial, index) => {

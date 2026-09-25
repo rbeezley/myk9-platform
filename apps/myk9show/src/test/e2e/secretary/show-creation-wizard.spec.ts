@@ -149,6 +149,26 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('Add Trials mode lands on trial configuration with AKC event number guidance', async ({
     page,
   }) => {
+    // MYK9-758: before this show's trials are known, the step must never offer
+    // an ENABLED "Add First Trial" -- the show has trials. A flash can be too
+    // brief for a polled assertion, so record it from the first paint.
+    await page.addInitScript(() => {
+      const flag = '__myk9SawEnabledAddFirstTrial';
+      const scan = () => {
+        for (const button of document.querySelectorAll('button')) {
+          if (button.textContent?.trim() === 'Add First Trial' && !button.disabled) {
+            (window as unknown as Record<string, boolean>)[flag] = true;
+          }
+        }
+      };
+      new MutationObserver(scan).observe(document, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['disabled'],
+        characterData: true,
+      });
+    });
     await signInAsSecretary(
       page,
       `/secretary/create-show/wizard?showId=${ADD_TRIALS_SHOW_ID}&mode=add-trials`
@@ -162,16 +182,21 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     ).toBeVisible();
 
     // The seeded show already has trials, so once they load the banner names
-    // them and the action reads "Add Another Trial" (#2373). Before that the
-    // action reads "Add First Trial", disabled or, on a cold local store,
-    // wrongly enabled (MYK9-758); matching that label raced the load (MYK9-755).
-    // Wait for the loaded state; the banner check also fails on the seed, not
-    // on a missing button, if the show ever has no trials.
+    // them and the action reads "Add Another Trial" (#2373); until then it is
+    // a disabled, neutral "Add Trial" (MYK9-758). Wait for the loaded state;
+    // the banner check also fails on the seed, not on a missing button, if the
+    // show ever has no trials (MYK9-755).
     await expect(page.getByText(/\d+ existing trials?/)).toBeVisible({ timeout: 15000 });
     const addTrialAction = page
       .getByRole('button', { name: 'Add Another Trial', exact: true })
       .first();
     await expect(addTrialAction).toBeEnabled({ timeout: 15000 });
+    expect(
+      await page.evaluate(() =>
+        Boolean((window as unknown as Record<string, boolean>).__myk9SawEnabledAddFirstTrial)
+      ),
+      'an enabled "Add First Trial" was offered for a show that has trials'
+    ).toBe(false);
     await addTrialAction.click();
 
     await expect(page.getByPlaceholder('Required: AKC event number')).toBeVisible();

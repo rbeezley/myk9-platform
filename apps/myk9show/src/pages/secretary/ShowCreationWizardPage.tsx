@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTrialStore } from '@/store/trialStore';
-import { isTrialSnapshotReady } from '@/components/shows/wizard/steps/TrialConfigurationStep.helpers';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
@@ -37,6 +36,7 @@ import {
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
+import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
@@ -97,16 +97,11 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const {
-    trials: existingTrials,
-    trialsReadStatus,
-    trialsReadError,
-    trialsHasConfirmedSnapshot,
-    loadTrials,
-  } = useTrialStore();
-  const existingTrialsReady =
-    editMode?.mode !== 'add-trials' ||
-    isTrialSnapshotReady(trialsReadStatus, trialsHasConfirmedSnapshot);
+  const { trials: existingTrials } = useTrialStore();
+  const existingTrialsRead = useAddTrialsExistingTrials(
+    editMode?.mode === 'add-trials' ? editMode.showId : undefined
+  );
+  const existingTrialsReady = existingTrialsRead.ready;
   const persistedNameSources = useMemo(
     () =>
       editMode?.mode === 'add-trials'
@@ -452,13 +447,9 @@ const ShowCreationWizardPage: React.FC = () => {
                     onCreateShow={handleCreateShow}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
-                    existingTrialsReadStatus={
-                      editMode?.mode === 'add-trials' ? trialsReadStatus : undefined
-                    }
-                    existingTrialsReadError={
-                      editMode?.mode === 'add-trials' ? trialsReadError : undefined
-                    }
-                    onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
+                    existingTrialsReadStatus={existingTrialsRead.readStatus}
+                    existingTrialsReadError={existingTrialsRead.readError}
+                    onRetryExistingTrials={existingTrialsRead.retry}
                     persistedOrganization={
                       editModeResolution.state === 'resolved'
                         ? editModeResolution.show.organization

@@ -39,8 +39,9 @@ test.describe('Show Wizard UI — Step 1 (secretary)', () => {
     // Show Secretary auto-set to the signed-in user.
     await expect(page.getByText('You', { exact: true })).toBeVisible();
 
-    // Next is disabled until required fields are filled.
-    await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
+    // Next stays enabled with required fields missing; pressing it lists what
+    // is missing (ShowCreationWizardPage.validationFeedback.test.tsx).
+    await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
   });
 
   test('clone affordance is present (Phase 1 — Quiet the Noise)', async ({ page }) => {
@@ -105,10 +106,11 @@ test.describe('Show Wizard UI — Add Trials mode (secretary)', () => {
 
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
     await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
-    // "Add First Trial" / "Add Another Trial" starts a new trial entry.
+    // "Add First Trial" / "Add Another Trial" starts a new trial entry. Until
+    // the show's trials are synced it is a disabled "Add Trial" (MYK9-758).
     await expect(
-      page.getByRole('button', { name: /Add (First|Another) Trial/ }).first()
-    ).toBeVisible();
+      page.getByRole('button', { name: /^Add (First|Another) Trial$/, disabled: false }).first()
+    ).toBeVisible({ timeout: 15000 });
   });
 });
 

@@ -31,7 +31,7 @@ import {
   PremiumPublishError,
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
-import { persistShowJudgeAssignments, showJudgesChanged } from '@/services/database/judges';
+import { saveShowJudgeChanges } from '@/services/database/judges';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -407,13 +407,14 @@ function AuthorizedShowManagementShell({
               if (!localShow) {
                 throw new Error('Show was not available in the local store.');
               }
-              // Replace the show's judges only when the secretary changed them:
-              // the loaded list can be empty because a device read failed, and
-              // an untouched form must never delete the real judges (MYK9-772).
-              const savedJudges = showData.assignedJudges || [];
-              if (showJudgesChanged(show.assignedJudges || [], savedJudges)) {
-                await persistShowJudgeAssignments(id, savedJudges);
-              }
+              // Save only what the secretary changed in the judge list: the
+              // loaded list can be empty because a device read failed, and
+              // replacing it deleted the real judges (MYK9-772).
+              await saveShowJudgeChanges(
+                id,
+                show.assignedJudges || [],
+                showData.assignedJudges || []
+              );
               // `localShow` is a StoreShow and carries no `trials`; merge rather
               // than replace, or the query's embedded trials are wiped (MYK9-676).
               queryClient.setQueryData<Show>(showQueryKeys.detail(id), current => ({

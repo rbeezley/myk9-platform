@@ -353,17 +353,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   /**
-   * Replace all show-level (class_id null) assignments for a show: deletes the
-   * locally-known show-level rows, then creates one confirmed assignment per judge.
-   * Mirrors the delete+insert semantics `persistShowJudgeAssignments` used against
-   * the raw table.
-   */
-  /**
    * Every assignment on this device, for a WRITE that is built on what exists.
-   * getAll()/getByShowId() read a failed device read as [], and a replace built
-   * on that deletes nothing and adds the new judge beside the old one; a
-   * reassign finds nothing and reports success. Throw instead so the save fails
-   * visibly (MYK9-769).
+   * getAll()/getByShowId() read a failed device read as [], and a write built
+   * on that adds a duplicate judge or reports a no-op success. Throw instead so
+   * the save fails visibly (MYK9-769).
    */
   private async readAllForWrite(): Promise<ReplicatedJudgeAssignment[]> {
     const read = await this.getAllWithStatus();
@@ -375,14 +368,32 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     return read.rows;
   }
 
-  async replaceShowLevelAssignments(showId: string, personIds: string[]): Promise<void> {
-    const existing = (await this.readAllForWrite()).filter(
+  /**
+   * Apply a secretary's show-level judge edit as a DIFFERENCE: create a
+   * show-level (class_id null) assignment for each judge in `add` that lacks
+   * one, and delete the show-level rows of each judge in `remove`. Judges in
+   * neither list are untouched, so an unchanged save writes nothing.
+   *
+   * Never "replace all": the list a form was loaded from can be empty because
+   * a device read failed, and replace-all then deleted every real judge the
+   * secretary never saw (MYK9-772). A judge can only be removed by being named
+   * in `remove`, i.e. seen and taken off the list.
+   */
+  async applyShowLevelJudgeChanges(
+    showId: string,
+    changes: { add: readonly string[]; remove: readonly string[] }
+  ): Promise<void> {
+    if (changes.add.length === 0 && changes.remove.length === 0) return;
+    const showLevel = (await this.readAllForWrite()).filter(
       a => a.showId === showId && a.classId === null
     );
-    for (const row of existing) {
-      await this.deleteAssignment(row.id);
+    const removing = new Set(changes.remove);
+    for (const row of showLevel) {
+      if (removing.has(row.personId)) await this.deleteAssignment(row.id);
     }
-    for (const personId of personIds) {
+    const alreadyShowLevel = new Set(showLevel.map(a => a.personId));
+    for (const personId of changes.add) {
+      if (alreadyShowLevel.has(personId)) continue;
       await this.createAssignment({
         personId,
         showId,

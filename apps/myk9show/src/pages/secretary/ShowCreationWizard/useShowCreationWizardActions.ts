@@ -20,7 +20,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { persistShowJudgeAssignments } from '@/services/database/judges';
+import { saveWizardShowJudges } from './saveWizardShowJudges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -281,6 +281,13 @@ export function useShowCreationWizardActions({
           trialView
         );
 
+        // The judge list this edit started from. Captured BEFORE updateShow,
+        // which writes the draft's assignedJudges into the store (MYK9-772).
+        const loadedJudges = editMode?.showId
+          ? (useShowStore.getState().shows.find(s => s.id === editMode.showId)?.assignedJudges ??
+            [])
+          : [];
+
         // Save to show store and get the real DB UUID back
         let savedShow: Show;
         if (editMode?.showId) {
@@ -327,24 +334,16 @@ export function useShowCreationWizardActions({
         await createClasses(realShowId, trialIdMap, normalizedClasses);
 
         // Persist judge assignments to judge_assignments table
-        const judges = wizardShow.assignedJudges || [];
-        let judgesNotSaved = false;
-        if (judges.length > 0) {
-          try {
-            await persistShowJudgeAssignments(realShowId, judges, {
-              skipDelete: !editMode?.showId,
-            });
-          } catch (judgeError) {
-            logger.warn('Failed to persist judge assignments', 'wizard', {
-              error: judgeError instanceof Error ? judgeError.message : String(judgeError),
-            });
-            // The show itself saved; say the judges did not, and skip the
-            // success toast that would contradict it (MYK9-769).
-            judgesNotSaved = true;
-            notifications.warning(
-              'The show was saved, but its judges could not be updated. Open the show and save the judges again.'
-            );
-          }
+        const judgesSaved = await saveWizardShowJudges({
+          showId: realShowId,
+          isEdit: Boolean(editMode?.showId),
+          loadedJudges,
+          judges: wizardShow.assignedJudges || [],
+        });
+        if (!judgesSaved) {
+          notifications.warning(
+            'The show was saved, but its judges could not be updated. Open the show and save the judges again.'
+          );
         }
 
         // Grant official roles scoped to the show. Throws
@@ -399,7 +398,7 @@ export function useShowCreationWizardActions({
 
         // Edit saves return to the existing show; creation saves may use the
         // overlay instead of a toast so one-time passcodes remain visible.
-        if (judgesNotSaved) {
+        if (!judgesSaved) {
           // The warning above already says what saved and what did not.
         } else if (editMode?.showId) {
           notifications.success(`"${savedShow.name}" updated successfully`);

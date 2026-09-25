@@ -34,6 +34,7 @@ export {
   reassignClassJudge,
   upsertClassJudgeAssignment,
   persistShowJudgeAssignments,
+  saveShowJudgeChanges,
 } from './reads';
 export type {
   JudgeUtilizationFilters,
@@ -43,7 +44,7 @@ export type {
   CreateJudgeCertificationDbData,
   JudgeAvailabilityUpsertData,
 } from './reads';
-export { showJudgesChanged } from './showJudgesChanged';
+export { diffShowJudges } from './showJudgeChanges';
 export {
   getActiveJudgeAssignmentShows,
   getActiveJudgeAssignmentsForShow,

@@ -63,7 +63,7 @@ function runsTable(runs: ConfirmationEmailRunRow[]): string {
       const isLast = i === runs.length - 1;
       const border = isLast ? '' : `border-bottom:${dottedGold};`;
       return `<tr>
-  <td style="padding:11px 8px 11px 0;font-family:${MZ_DISPLAY};font-style:italic;font-weight:500;font-size:18px;color:${MZ_GOLD3};${border}">${esc(r.numeral.toLowerCase())}</td>
+  <td style="padding:11px 8px 11px 0;font-family:${MZ_DISPLAY};font-style:italic;font-weight:500;font-size:18px;color:${MZ_GOLD3};${border}">${esc(r.numeral)}</td>
   <td style="padding:11px 8px;font-family:${MZ_BODY};font-size:13px;color:${MZ_INK};${border}">${esc(r.dayLabel)}</td>
   <td style="padding:11px 8px;font-family:${MZ_DISPLAY};font-style:italic;font-size:15px;color:${MZ_INK};${border}">${esc(r.classLabel)}</td>
   <td style="padding:11px 8px;font-family:${MZ_BODY};font-size:13px;color:${MZ_INK};${border}">${esc(r.judgeName)}</td>

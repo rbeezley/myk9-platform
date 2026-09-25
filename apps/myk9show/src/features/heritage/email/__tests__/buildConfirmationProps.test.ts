@@ -205,7 +205,45 @@ describe('buildConfirmationProps', () => {
     expect(props.trialChairTitle).toContain('Trial Chair');
   });
 
-  it('falls back to toRoman when trial_number absent', () => {
+  it('labels runs by trial name on the real stored shape (MYK9-713)', () => {
+    // The wizard copies the trial NAME into trial_number (MYK9-704); the
+    // label must match send-confirmation-email, which uses the same contract.
+    const props = buildConfirmationProps({
+      ...BASE_OPTS,
+      allTrials: [
+        {
+          id: 't1',
+          date: '2026-06-12',
+          name: 'Saturday T 2',
+          trial_number: 'Saturday T 2',
+          display_order: 1,
+          timezone: 'America/Chicago',
+        },
+      ],
+      entries: [{ id: 'e1', trial_id: 't1', class_id: 'c1', armband: '10', entry_fee: 2500 }],
+    });
+    expect(props.runs[0].trialNumeral).toBe('Saturday T 2');
+  });
+
+  it('prefers the trial name over a legacy trial_number', () => {
+    const props = buildConfirmationProps({
+      ...BASE_OPTS,
+      allTrials: [
+        {
+          id: 't1',
+          date: '2026-06-12',
+          name: 'Friday T 1',
+          trial_number: 'Trial 1',
+          display_order: 1,
+          timezone: 'America/Chicago',
+        },
+      ],
+      entries: [{ id: 'e1', trial_id: 't1', class_id: 'c1', armband: '10', entry_fee: 2500 }],
+    });
+    expect(props.runs[0].trialNumeral).toBe('Friday T 1');
+  });
+
+  it('falls back to "Trial", not a derived Roman numeral, when name and trial_number are absent', () => {
     const props = buildConfirmationProps({
       ...BASE_OPTS,
       allTrials: [
@@ -214,6 +252,6 @@ describe('buildConfirmationProps', () => {
       ],
       entries: [{ id: 'e1', trial_id: 't1', class_id: 'c1', armband: '10', entry_fee: 2500 }],
     });
-    expect(props.runs[0].trialNumeral).toBe('I');
+    expect(props.runs[0].trialNumeral).toBe('Trial');
   });
 });

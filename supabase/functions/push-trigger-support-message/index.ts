@@ -3,9 +3,10 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+
+import { getOwnerRecipient, getSiteAdminRecipients, type Recipient } from './recipients.ts';
 
 interface SupportMessageRecord {
   id: string;
@@ -20,19 +21,6 @@ interface WebhookPayload {
   type?: 'INSERT';
   table?: string;
   record: SupportMessageRecord;
-}
-
-interface Recipient {
-  authUserId: string;
-  email: string | null;
-  name: string;
-}
-
-interface RecipientRow {
-  auth_user_id?: string | null;
-  email?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
 }
 
 handle<WebhookPayload>(
@@ -94,32 +82,6 @@ handle<WebhookPayload>(
   }
 );
 
-async function getOwnerRecipient(supabase: SupabaseClient, ownerId: string) {
-  const { data } = await supabase
-    .from('people')
-    .select('auth_user_id, email, first_name, last_name')
-    .eq('auth_user_id', ownerId)
-    .maybeSingle();
-  return data?.auth_user_id ? [mapRecipient(data)] : [];
-}
-
-async function getSiteAdminRecipients(supabase: SupabaseClient) {
-  const { data, error } = await applyActiveRoleValidity(
-    supabase
-      .from('user_roles')
-      .select('people!inner(auth_user_id, email, first_name, last_name), roles!inner(name)')
-      .eq('roles.name', 'site_admin')
-      .not('people.auth_user_id', 'is', null)
-  );
-  if (error) {
-    throw new HttpError(500, 'Audience resolution failed');
-  }
-  const people = ((data ?? []) as Array<{ people: RecipientRow | RecipientRow[] | null }>)
-    .map(row => (Array.isArray(row.people) ? row.people[0] : row.people))
-    .filter((row): row is RecipientRow => !!row);
-  return people.map(mapRecipient);
-}
-
 async function getSenderName(supabase: SupabaseClient, senderId: string): Promise<string> {
   const { data } = await supabase
     .from('people')
@@ -127,14 +89,6 @@ async function getSenderName(supabase: SupabaseClient, senderId: string): Promis
     .eq('auth_user_id', senderId)
     .maybeSingle();
   return data ? `${data.first_name ?? ''} ${data.last_name ?? ''}`.trim() || 'Support' : 'Support';
-}
-
-function mapRecipient(row: RecipientRow): Recipient {
-  return {
-    authUserId: row.auth_user_id ?? '',
-    email: row.email ?? null,
-    name: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'there',
-  };
 }
 
 async function sendPushNotifications(args: {

@@ -81,7 +81,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:deferred-reviews:test',
-    command: 'vitest run scripts/qa/deferred-reviews.test.ts',
+    command:
+      'vitest run scripts/qa/deferred-reviews.test.ts scripts/qa/deferred-reviews.window.test.ts',
   },
   { pkgDir: '.', script: 'lint', command: 'turbo lint' },
   {

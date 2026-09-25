@@ -285,6 +285,33 @@ describe('syncReplicatedTable', () => {
       expect(adapter.fetchRemoteRows).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps the first pass upload error when the equal-count check re-runs in full', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('2', { id: '2', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      const adapter = countedAdapter([], 2);
+      adapter.fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) =>
+        forceFullSync
+          ? [
+              { id: 1, name: 'Kept', updated_at: 2000 },
+              { id: 3, name: 'Added', updated_at: 2000 },
+            ]
+          : [{ id: 3, name: 'Added', updated_at: 2000 }]
+      );
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      const result = await syncReplicatedTable(
+        table,
+        adapter,
+        {},
+        { uploadPendingMutations: vi.fn(async () => Promise.reject(new Error('upload down'))) }
+      );
+
+      expect(result.operation).toBe('full-sync');
+      expect(result.uploadError).toMatch(/upload down/);
+      expect(await table.get('2')).toBeNull();
+    });
+
     it('does not force full syncs for an adapter that has not opted in', async () => {
       await table.set('1', { id: '1', name: 'A' });
       await table.set('2', { id: '2', name: 'B' });

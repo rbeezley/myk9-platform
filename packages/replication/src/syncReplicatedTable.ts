@@ -431,11 +431,20 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       expectedRemoteRows !== undefined &&
       countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows
     ) {
-      return syncReplicatedTable(table, adapter, scope, {
+      const full = await syncReplicatedTable(table, adapter, scope, {
         ...options,
         forceFullSync: true,
         skipMutationUpload: true,
       });
+      // One sync to the caller: keep this pass's work and any upload failure
+      // (the re-run skips the upload, so it cannot report one itself).
+      return {
+        ...full,
+        rowsAffected: rowsAffected + full.rowsAffected,
+        conflictsResolved: conflictsResolved + (full.conflictsResolved ?? 0),
+        duration: Date.now() - startedAt,
+        ...(uploadError ? { uploadError } : {}),
+      };
     }
 
     return {

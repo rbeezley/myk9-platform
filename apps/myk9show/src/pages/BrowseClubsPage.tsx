@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Building2, WifiOff } from 'lucide-react';
+import { Plus, Search, Building2 } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
+import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
 import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
@@ -218,11 +219,9 @@ const BrowseClubsPage: React.FC = () => {
       {isOffline && !isLoading && !hasError && (
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
-          <EmptyState
-            icon={WifiOff}
-            title="You're offline"
+          <ClubsOfflineState
             description="Connect to the internet to browse clubs."
-            action={{ label: 'Try again', onClick: handleRetry }}
+            onRetry={handleRetry}
           />
         </>
       )}

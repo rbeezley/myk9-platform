@@ -2,6 +2,7 @@ import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
 import { useClubStore } from '@/store/clubStore';
 import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
@@ -50,11 +51,8 @@ const NO_CLUBS: Club[] = [];
 export const PUBLIC_CLUB_DIRECTORY_QUERY_KEY = ['clubs', 'public-directory'] as const;
 
 export function useBrowseClubsData(): BrowseClubsData {
-  const { user, userWithRoles, loading: authLoading } = useAuthContext();
-  // Same principal rule as ReplicatedClubsTable.sync(): an anonymous
-  // (ringside passcode) session is a guest too.
-  const isGuest = !authLoading && (!user || user.is_anonymous === true);
-  const isSignedIn = !authLoading && !isGuest;
+  const { userWithRoles } = useAuthContext();
+  const { isGuest, isSignedIn, authLoading, principalKey } = useDirectoryViewer();
   // Only a signed-in viewer reads the replica (see the INTENT below).
   const replicaClubs = useClubStore(state => (isSignedIn ? state.clubs : NO_CLUBS));
   const readiness = useClubStore(state => state.clubReadiness);
@@ -69,7 +67,7 @@ export function useBrowseClubsData(): BrowseClubsData {
   // guest directory is not a show-day surface, so offline-first does not
   // apply; offline, it says so instead of listing clubs.
   const guestQuery = useQuery({
-    queryKey: [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, user?.id ?? 'signed-out'],
+    queryKey: [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, principalKey],
     queryFn: getPublicDirectoryClubs,
     enabled: isGuest,
     staleTime: 60_000,

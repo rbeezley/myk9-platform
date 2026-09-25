@@ -141,6 +141,33 @@ describe('useMyEntriesData — confirming a cached identity re-reads an unconfir
     await waitFor(() => expect(getUserEntries).toHaveBeenCalledTimes(3));
   });
 
+  it('does not re-read when the read in flight at confirmation lands confirmed, after an earlier unconfirmed one', async () => {
+    const refresh = deferred<ReadResult>();
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ source: 'replica-after-error', data: [], error: null })
+      .mockReturnValueOnce(refresh.promise)
+      .mockResolvedValue({ source: 'confirmed', data: [], error: null });
+    const { result, rerender } = renderData();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let refreshing!: Promise<void>;
+    act(() => {
+      refreshing = result.current.refreshEntries();
+    });
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue(auth('resolved'));
+    rerender();
+    await act(async () => {
+      refresh.resolve({ source: 'confirmed', data: [], error: null });
+      await refreshing;
+    });
+
+    // The refresh already brought server-confirmed rows; a third read would be waste.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+    expect(getUserEntries).toHaveBeenCalledTimes(2);
+  });
+
   it('never lets an older read overwrite a newer one', async () => {
     const slow = deferred<ReadResult>();
     (getUserEntries as ReturnType<typeof vi.fn>)

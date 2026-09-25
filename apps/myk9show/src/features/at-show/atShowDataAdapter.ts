@@ -66,11 +66,12 @@ export function syncAtShowData(showId: string): Promise<void> {
 
 /**
  * Resolves once any at-show sync ALREADY running for this show has settled,
- * success or failure; immediately when none is. A caller that rewinds sync
- * watermarks must await this first: `syncAtShowData` hands back an in-flight
- * operation, and one that started before the rewind neither honours it nor
- * re-writes the metadata the rewind cleared (offline readiness prime, where
- * the page's own mount-time sync is usually still running).
+ * success or failure; immediately when none is. `syncAtShowData` hands an
+ * in-flight operation back to a new caller, so a caller that needs a sync
+ * which STARTED after some point (offline readiness prime, where the page's
+ * own mount-time sync is usually still running) awaits this first. It covers
+ * this adapter's coalescing only: a table that coalesces its own syncs (the
+ * entries table's per-show map) may still hand back one already running.
  */
 export function settleAtShowSync(showId: string): Promise<void> {
   const existing = atShowSyncsInFlight.get(showId);

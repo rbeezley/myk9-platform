@@ -130,6 +130,9 @@ function primeAllSignals() {
 describe('useOfflineReadiness', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks keeps queued once-implementations; a test that failed before
+    // consuming its never-settling settle would hang the next one.
+    settleSpy.mockReset().mockImplementation(async () => {});
     rbacCache.entry = null;
     tables.trials.meta = null;
     tables.trials.rows = [];

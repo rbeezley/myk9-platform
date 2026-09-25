@@ -57,6 +57,12 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   const selectedClassDefinitions = selectedClasses
     .filter(item => item.selected)
     .map(item => item.classDefinition);
+  const navSummary = [
+    selectedTemplate && `Template: ${selectedTemplate.templateName}`,
+    selectedClassDefinitions.length > 0 && `${selectedClassDefinitions.length} classes selected`,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   const effectiveTrialId = trialId || paramTrialId;
   const { parentShow } = useTrialDetailData(effectiveTrialId);
@@ -614,12 +620,18 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       {/* Navigation */}
       {currentStep !== 'complete' && (
         <Card className="mt-6">
-          {/* The template summary always takes its own first line, so Previous
-              and Next share the second and justify-between keeps them left and
-              right. Not a viewport breakpoint: the row's width is the content
-              column's, which the sidebar narrows to ~480px at 768 wide
-              (classCreation.spec.ts runs 390, 768 and 1440). */}
+          {/* The template summary, once there is one, takes its own first
+              line, so Previous and the primary action share the next and
+              justify-between keeps them left and right. Not a viewport
+              breakpoint: the row's width is the content column's, which the
+              sidebar narrows to ~480px at 768 wide (classCreation.spec.ts runs
+              390, 768 and 1440). The summary comes first in the DOM too, so
+              screen-reader order matches the screen. */}
           <CardContent className="flex flex-wrap justify-between items-center gap-3 py-4">
+            {navSummary && (
+              <div className="basis-full text-sm text-muted-foreground">{navSummary}</div>
+            )}
+
             <Button
               variant="outline"
               onClick={handlePrevious}
@@ -629,14 +641,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               Previous
             </Button>
 
-            <div className="order-first basis-full text-sm text-muted-foreground">
-              {selectedTemplate && `Template: ${selectedTemplate.templateName}`}
-              {selectedClassDefinitions.length > 0 &&
-                ` • ${selectedClassDefinitions.length} classes selected`}
-            </div>
-
             {currentStep === 'review' ? (
-              <div className="flex flex-col items-end gap-1">
+              // ml-auto keeps the block right-aligned if its helper text ever
+              // makes it wrap onto a line of its own.
+              <div className="ml-auto flex flex-col items-end gap-1">
                 <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
                   {isCreating ? (
                     <>

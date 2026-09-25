@@ -213,16 +213,18 @@ export function useOfflineReadiness(showId: string | undefined) {
       // enough to be offline ready.
       // Wait out any at-show sync already running (usually the page's own
       // mount-time one). syncAtShowData hands an in-flight operation back to a
-      // new caller, so without this prime could "retry" with a sync that began
-      // before the click, and report ITS failure as this attempt's (MYK9-738).
+      // new caller, so without this prime's re-check could judge a sync that
+      // began before the click instead of one that began after it (MYK9-738).
       await settleAtShowSync(showId);
       // No watermark rewind for trials, entries or classes. Every sync compares
       // the local rows with a fresh server count and forces a full re-fetch
       // when any are missing (syncReplicatedTable `partialReplica`), which is
       // what restores quota-evicted rows. Rewinding there only raced other
       // syncs and, as first written, wiped the expected-row counts readiness is
-      // judged by (MYK9-738). The shows table has no server count, so a missing
-      // show row still needs its '' watermark rewound for sync('') to fetch it.
+      // judged by (MYK9-738). Known gap: when that count request fails, no full
+      // re-fetch runs until the 24h stale-sync rule (MYK9-752). The shows
+      // table has no server count, so a missing show row still needs its ''
+      // watermark rewound for sync('') to fetch it.
       if (readiness?.missing.includes('show')) {
         await replicatedShowsTable.updateSyncMetadata(
           { lastIncrementalSyncAt: 0 },

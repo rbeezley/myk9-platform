@@ -69,6 +69,14 @@ export type PushSendOutcome =
   | { kind: 'gone'; detail: string }
   | { kind: 'failed'; detail: string };
 
+// INTENT: a person counts as delivered once ANY of their subscriptions
+// accepted the push (`sent > 0`), even if another device failed transiently.
+// Delivery is tracked per person (delivered_to holds auth user ids), so
+// retrying that person would re-send to the device that already got it. All
+// subscriptions expired (404/410) = done, nothing more can be delivered; all
+// failed transiently = not delivered, and the retry reaches them. Owner
+// decision: Richard, 2026-09-25 (Codex round 6 on #2477). Per-device delivery
+// tracking is MYK9-777; change this rule only as part of that.
 /**
  * Reads send-push-notification's 200 body. It answers
  * `{ sent: 0, message: 'No subscriptions found' }` or

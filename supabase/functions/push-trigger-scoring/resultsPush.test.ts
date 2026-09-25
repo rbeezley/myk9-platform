@@ -309,6 +309,21 @@ describe('audienceRowsFromRpc (class_results_push_audience rows)', () => {
 });
 
 describe('classifyPushResponse (send-push-notification bodies)', () => {
+  // Owner decision (Richard, 2026-09-25, Codex round 6): delivery is per
+  // person, so one accepted device is enough; per-device retry is MYK9-777.
+  it('counts a person as delivered once any device accepted, even with a transient error on another (MYK9-777)', () => {
+    expect(
+      classifyPushResponse(
+        {
+          sent: 1,
+          errors: ['https://push.example/b: socket hang up'],
+          expired: 0,
+        },
+        null
+      )
+    ).toEqual({ kind: 'delivered' });
+  });
+
   it.each([
     ['one subscription accepted', { sent: 1, expired: 0 }, 'delivered'],
     ['one of two accepted, one expired', { sent: 1, errors: ['e: gone'], expired: 1 }, 'delivered'],

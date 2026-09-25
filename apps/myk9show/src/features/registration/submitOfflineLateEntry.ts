@@ -27,6 +27,7 @@ import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
+import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 
 interface ClassLike {
   id: string;
@@ -122,6 +123,24 @@ export async function submitOfflineLateEntry({
   // Evaluated once so every entry in one submission lands in the same bucket
   // even if the clock crosses midnight mid-loop.
   const entryIsDayOfShow = isDayOfShowEntry(showDayOfShowContext(showFeeInfo));
+  const classesById = new Map(classes.map(cls => [cls.id, cls]));
+  const feeFor = (classId: string) =>
+    paymentMethod === 'waived'
+      ? 0
+      : getShowEntryFee(showFeeInfo, classesById.get(classId)?.entryFee, entryIsDayOfShow);
+  // MYK9-677: money received at the desk names cash or check, refused before
+  // any row is written. The entry then carries that method, which is what the
+  // server's ledger trigger reads when this entry syncs.
+  assertReceivedMethodChosen(
+    paymentMethod,
+    paymentDetails,
+    classSelections.reduce(
+      (sum, selection) =>
+        sum + selection.selectedClasses.reduce((acc, cls) => acc + feeFor(cls.classId), 0),
+      0
+    )
+  );
+  const receivedMethod = secretaryReceivedMethod(paymentMethod, paymentDetails);
   const entryPaymentStatus = paymentStatusFor(paymentMethod, paymentStatus);
   const paymentReceivedOn = lateEntryPaymentReceivedOn(
     entryPaymentStatus,
@@ -129,7 +148,6 @@ export async function submitOfflineLateEntry({
     showFeeInfo.entryWindowTimezone
   );
 
-  const classesById = new Map(classes.map(cls => [cls.id, cls]));
   const capacitySelections = classSelections.flatMap(selection =>
     selection.selectedClasses.map(selectedClass => ({
       key: makeHandlerKey(selection.dogId, selectedClass.classId),
@@ -183,11 +201,8 @@ export async function submitOfflineLateEntry({
 
     for (const selectedClass of selection.selectedClasses) {
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
-      const classData = classesById.get(selectedClass.classId);
-      const entryFee =
-        paymentMethod === 'waived'
-          ? 0
-          : getShowEntryFee(showFeeInfo, classData?.entryFee, entryIsDayOfShow);
+      const entryFee = feeFor(selectedClass.classId);
+      const entryPaymentMethod = receivedMethod && entryFee > 0 ? receivedMethod : paymentMethod;
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
@@ -203,7 +218,7 @@ export async function submitOfflineLateEntry({
         isDayOfShow: entryIsDayOfShow,
         entrySource: 'myk9',
         capacityOverride,
-        paymentMethod,
+        paymentMethod: entryPaymentMethod,
         paymentStatus: entryPaymentStatus,
         entryStatus: 'confirmed',
         entry_status: 'confirmed',

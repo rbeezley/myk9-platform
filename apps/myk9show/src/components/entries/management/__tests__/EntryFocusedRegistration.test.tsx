@@ -58,6 +58,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
         showCheckInStatus={false}
         matchingEntryIds={new Set(['entry-2'])}
       />
@@ -90,6 +91,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -111,6 +113,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
         onSendDecisionEmail={vi.fn()}
       />
     );
@@ -144,6 +147,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={onBulkStatusChange}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -184,6 +188,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -212,6 +217,7 @@ describe('EntryFocusedRegistration', () => {
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
         onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 

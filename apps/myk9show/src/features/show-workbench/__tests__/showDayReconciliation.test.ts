@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ShowPaymentLedgerRow } from '@/features/payments/showPaymentLedger';
 import {
   summarizeShowDayReconciliation,
   type DeskCollectionWindow,
@@ -14,6 +15,19 @@ const WINDOW: DeskCollectionWindow = {
 const AT_SHOW = '2026-09-17T14:00:00Z';
 /** A pre-entry, well before the show. */
 const EARLY = '2026-08-20T14:00:00Z';
+
+/** A desk late entry's own ledger row (MYK9-677), received on the first show day. */
+function deskRow(entryId: string, amount: number, method: 'cash' | 'check'): ShowPaymentLedgerRow {
+  return {
+    id: `row-${entryId}`,
+    enrollment_id: null,
+    entry_id: entryId,
+    kind: 'payment',
+    amount,
+    method,
+    received_on: '2026-09-17',
+  };
+}
 
 describe('summarizeShowDayReconciliation', () => {
   it('totals at-show paid, check, cash, and waived entries', () => {
@@ -48,7 +62,8 @@ describe('summarizeShowDayReconciliation', () => {
           payment_method: 'waived',
         },
       ],
-      WINDOW
+      WINDOW,
+      [deskRow('cash-entry', 35, 'cash'), deskRow('check-entry', 40, 'check')]
     );
 
     expect(summary.totalEntryCount).toBe(4);
@@ -80,7 +95,7 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.byMethod.paid).toEqual({ count: 1, amount: 25 });
   });
 
-  it('does not count cash or check entries as collected until payment is marked paid', () => {
+  it('does not count a cash or check entry until the ledger records its payment', () => {
     const summary = summarizeShowDayReconciliation(
       [
         {
@@ -94,9 +109,9 @@ describe('summarizeShowDayReconciliation', () => {
       WINDOW
     );
 
-    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.lateEntryCount).toBe(0);
     expect(summary.collectedAmount).toBe(0);
-    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
+    expect(summary.byMethod.cash).toEqual({ count: 0, amount: 0 });
   });
 
   it('totals pulled entries that need manual refund review', () => {
@@ -167,12 +182,15 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.collectedAmount).toBe(40);
   });
 
+  // Cash and check are read from the ledger (showDayReconciliation.paymentTiming
+  // .test.ts). A generic "paid by secretary" row names no method, so it is
+  // still dated from the entry: these pin that calendar.
   describe('which entries are desk money (MYK9-677)', () => {
     const paidCheck = (submittedAt: string | null, createdAt: string | null = null) => ({
       id: `entry-${submittedAt ?? createdAt ?? 'none'}`,
       entry_fee: 35,
       payment_status: 'paid',
-      payment_method: 'check',
+      payment_method: 'secretary_paid',
       submitted_at: submittedAt,
       created_at: createdAt,
     });
@@ -184,7 +202,7 @@ describe('summarizeShowDayReconciliation', () => {
 
       expect(summary.lateEntryCount).toBe(0);
       expect(summary.collectedAmount).toBe(0);
-      expect(summary.byMethod.check).toEqual({ count: 0, amount: 0 });
+      expect(summary.byMethod.paid).toEqual({ count: 0, amount: 0 });
       expect(summary.totalEntryCount).toBe(1);
     });
 

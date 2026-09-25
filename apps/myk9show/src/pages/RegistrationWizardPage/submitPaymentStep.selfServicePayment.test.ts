@@ -279,10 +279,22 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
     const ctx = makeContext({
       currentWorkflowMode: 'secretary_new',
       paymentMethod: 'secretary_paid',
+      // MYK9-677: money received names its method.
+      paymentDetails: { receivedMethod: 'cash', paymentDate: '2026-07-07' },
     });
 
     await submitPaymentStep(ctx);
 
+    expect(notificationErrorMock).not.toHaveBeenCalled();
     expect(updates.some(payload => 'payment_status' in payload)).toBe(true);
+    // ...and the money itself goes through the payments ledger, as cash.
+    expect(rpcMock).toHaveBeenCalledWith('record_enrollment_payment', {
+      p_enrollment_id: 'enrollment-1',
+      p_kind: 'payment',
+      p_amount: 25,
+      p_method: 'cash',
+      p_received_on: '2026-07-07',
+      p_reference: null,
+    });
   });
 });

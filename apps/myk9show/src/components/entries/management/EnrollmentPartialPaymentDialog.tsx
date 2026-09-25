@@ -8,13 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { PartialDialog } from './enrollmentPayment';
+import { balanceAfterPayment, type PartialDialog } from './enrollmentPayment';
+import { ReceivedOnField } from './EnrollmentFullPaymentDialog';
 
 interface EnrollmentPartialPaymentDialogProps {
   state: PartialDialog;
   onChange: (next: PartialDialog) => void;
   totalDollars: number;
   paidDollars: number;
+  todayInShowZone: string;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -24,12 +26,15 @@ interface EnrollmentPartialPaymentDialogProps {
  * State and the payment write live in the parent EnrollmentCard; this shell
  * owns only the presentation, including the live "covers full balance"
  * vs "remaining after payment" hint.
+ *
+ * MYK9-677: the amount is THIS payment, added to what was previously paid.
  */
 export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDialogProps> = ({
   state,
   onChange,
   totalDollars,
   paidDollars,
+  todayInShowZone,
   onClose,
   onConfirm,
 }) => (
@@ -54,7 +59,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           type="number"
           min="0.01"
           step="0.01"
-          placeholder="Amount paid ($)"
+          placeholder="Amount of this payment ($)"
           value={state.amountPaid}
           onChange={e => onChange({ ...state, amountPaid: e.target.value })}
           autoFocus
@@ -87,6 +92,13 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           />
         )}
 
+        <ReceivedOnField
+          id="partial-payment-received-on"
+          value={state.receivedOn}
+          max={todayInShowZone}
+          onChange={receivedOn => onChange({ ...state, receivedOn })}
+        />
+
         {(() => {
           const amt = parseFloat(state.amountPaid);
           if (!state.amountPaid || isNaN(amt)) {
@@ -98,9 +110,9 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           }
           return (
             <p className="text-xs text-muted-foreground">
-              {amt >= totalDollars
+              {paidDollars + amt >= totalDollars
                 ? 'Covers the full balance. This will mark the registration paid.'
-                : `Remaining after payment: $${Math.max(0, totalDollars - amt).toFixed(2)}`}
+                : `Remaining after payment: $${balanceAfterPayment(totalDollars, paidDollars, amt).toFixed(2)}`}
             </p>
           );
         })()}
@@ -111,7 +123,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
         </Button>
         <Button
           onClick={onConfirm}
-          disabled={!state.amountPaid || !(parseFloat(state.amountPaid) > 0)}
+          disabled={!state.amountPaid || !(parseFloat(state.amountPaid) > 0) || !state.receivedOn}
         >
           Record Payment
         </Button>

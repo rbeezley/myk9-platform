@@ -20,16 +20,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  EMPTY_CHECK_DIALOG,
+  EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
   resolvePartialPayment,
   resolveRefund,
-  type CheckDialog,
+  type FullPaymentDialog,
   type PartialDialog,
   type RefundDialog,
 } from './enrollmentPayment';
-import { EnrollmentCheckPaymentDialog } from './EnrollmentCheckPaymentDialog';
+import { EnrollmentFullPaymentDialog } from './EnrollmentFullPaymentDialog';
 import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog';
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
@@ -50,6 +50,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   matchingEntryIds,
   onBulkStatusChange,
   onPaymentStatusChange,
+  paymentLedger,
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
@@ -60,7 +61,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onPrepareCorrectionEmail,
 }) => {
   const [expanded, setExpanded] = useState(true);
-  const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
+  const [fullDialog, setFullDialog] = useState<FullPaymentDialog>(EMPTY_FULL_PAYMENT_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
   const [refundDialog, setRefundDialog] = useState<RefundDialog>(EMPTY_REFUND_DIALOG);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -79,36 +80,38 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // (MYK9-495 round 2).
   const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars;
 
-  const handlePayment = (
-    status: PaymentStatus,
-    reference?: string | null,
-    paid?: number | null,
-    refundAmt?: number | null,
-    refundNotes?: string | null,
-    checkNumber?: string | null
-  ) => {
-    if (enrollmentId)
-      onPaymentStatusChange(
-        enrollmentId,
-        status,
-        reference,
-        paid,
-        refundAmt,
-        refundNotes,
-        checkNumber
-      );
+  // Online money is not the desk's: it keeps the plain status write.
+  const markPaidOnline = () => {
+    if (enrollmentId) onPaymentStatusChange(enrollmentId, PaymentStatus.PAID_ONLINE);
+  };
+
+  // MYK9-677: cash and check money goes through the payments ledger, one row
+  // per payment with the day it was received. Online stays on markPaidOnline.
+  const today = paymentLedger.todayInShowZone;
+  const openFullPayment = (method: FullPaymentDialog['method']) =>
+    setFullDialog({ open: true, method, checkNumber: '', receivedOn: today });
+
+  const confirmFullPayment = () => {
+    if (!enrollmentId || !fullDialog.receivedOn) return;
+    void paymentLedger.record(enrollmentId, {
+      kind: 'payment',
+      method: fullDialog.method,
+      amount: null,
+      receivedOn: fullDialog.receivedOn,
+      reference: fullDialog.method === 'check' ? fullDialog.checkNumber : null,
+    });
+    setFullDialog(EMPTY_FULL_PAYMENT_DIALOG);
   };
 
   const confirmPartialPayment = () => {
     const result = resolvePartialPayment(
       partialDialog.amountPaid,
-      totalDollars,
       partialDialog.method,
-      partialDialog.checkNumber
+      partialDialog.checkNumber,
+      partialDialog.receivedOn
     );
-    if (!result) return;
-    const checkNumber = partialDialog.method === 'check' ? result.reference : null;
-    handlePayment(result.status, result.reference, result.amount, null, null, checkNumber);
+    if (!result || !enrollmentId) return;
+    void paymentLedger.record(enrollmentId, result);
     setPartialDialog(EMPTY_PARTIAL_DIALOG);
   };
 
@@ -126,10 +129,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       refundDialog.amount,
       paidDollars,
       refundDialog.method,
-      refundDialog.notes
+      refundDialog.notes,
+      today
     );
-    if (!result) return;
-    handlePayment(result.status, null, null, result.amount, result.notes);
+    if (!result || !enrollmentId) return;
+    void paymentLedger.record(enrollmentId, result);
     setRefundDialog(EMPTY_REFUND_DIALOG);
   };
 
@@ -278,19 +282,13 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Mark paid
                       </DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)
-                        }
-                      >
-                        Paid in Full: Cash
+                      <DropdownMenuItem onClick={() => openFullPayment('cash')}>
+                        Paid in Full: Cash…
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setCheckDialog({ open: true, checkNumber: '' })}
-                      >
+                      <DropdownMenuItem onClick={() => openFullPayment('check')}>
                         Paid in Full: Check…
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
+                      <DropdownMenuItem onClick={markPaidOnline}>
                         Paid in Full: Online
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
@@ -306,6 +304,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                             amountPaid: '',
                             method: 'cash',
                             checkNumber: '',
+                            receivedOn: today,
                           })
                         }
                       >
@@ -324,7 +323,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                         Reset
                       </DropdownMenuLabel>
                       <DropdownMenuItem
-                        onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}
+                        onClick={() => {
+                          if (enrollmentId)
+                            void paymentLedger.record(enrollmentId, { kind: 'reversal' });
+                        }}
                       >
                         Payment Due
                       </DropdownMenuItem>
@@ -372,22 +374,13 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         }}
       />
 
-      <EnrollmentCheckPaymentDialog
-        open={checkDialog.open}
-        checkNumber={checkDialog.checkNumber}
-        onCheckNumberChange={value => setCheckDialog(prev => ({ ...prev, checkNumber: value }))}
-        onClose={() => setCheckDialog(EMPTY_CHECK_DIALOG)}
-        onConfirm={() => {
-          handlePayment(
-            PaymentStatus.PAID_BY_CHECK,
-            checkDialog.checkNumber || null,
-            totalDollars,
-            null,
-            null,
-            checkDialog.checkNumber || null
-          );
-          setCheckDialog(EMPTY_CHECK_DIALOG);
-        }}
+      <EnrollmentFullPaymentDialog
+        state={fullDialog}
+        onChange={setFullDialog}
+        balanceDollars={Math.max(0, remainingDollars)}
+        todayInShowZone={today}
+        onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}
+        onConfirm={confirmFullPayment}
       />
 
       <EnrollmentPartialPaymentDialog
@@ -395,6 +388,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onChange={setPartialDialog}
         totalDollars={totalDollars}
         paidDollars={paidDollars}
+        todayInShowZone={today}
         onClose={() => setPartialDialog(EMPTY_PARTIAL_DIALOG)}
         onConfirm={confirmPartialPayment}
       />

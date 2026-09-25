@@ -6,6 +6,7 @@ import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
 } from '@/services/database/show-incidents';
+import { listShowPayments, showPaymentsQueryKey } from '@/services/database/show-payments';
 import {
   LATE_ENTRY_PAYMENT_METHODS,
   summarizeShowDayReconciliation,
@@ -26,9 +27,22 @@ const STAT_LABEL_CLASS = 'text-xs font-medium uppercase text-muted-foreground';
 const STAT_VALUE_CLASS = 'text-xl font-semibold';
 
 export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseoutSummaryProps) {
-  const recon = summarizeShowDayReconciliation(entries, deskWindow);
+  // Cash and check money is read from the payments ledger (MYK9-677), online
+  // like the incident read below; see services/database/show-payments.ts.
+  const paymentsQuery = useQuery({
+    queryKey: showPaymentsQueryKey(showId),
+    queryFn: () => listShowPayments(showId),
+  });
+  const recon = summarizeShowDayReconciliation(entries, deskWindow, paymentsQuery.data ?? []);
   const reconNeedsReview = recon.pulledCount > 0 || recon.refundReviewCount > 0;
-  const hasLateEntries = recon.lateEntryCount > 0;
+  const hasDeskMoney = LATE_ENTRY_PAYMENT_METHODS.some(
+    method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
+  );
+  const collectedText = paymentsQuery.isLoading
+    ? '…'
+    : paymentsQuery.isError
+      ? 'Unavailable'
+      : formatCurrency(recon.collectedAmount);
   const refundReviewText =
     recon.refundReviewCount > 0
       ? `${formatCurrency(recon.refundReviewAmount)} paid entries`
@@ -92,7 +106,12 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           </div>
           <div role="group" aria-label="Collected at-show late-entry fees">
             <p className={STAT_LABEL_CLASS}>At-show collected</p>
-            <p className={STAT_VALUE_CLASS}>{formatCurrency(recon.collectedAmount)}</p>
+            <p className={STAT_VALUE_CLASS}>{collectedText}</p>
+            {paymentsQuery.isError && (
+              <p className="text-xs text-destructive">
+                Could not load desk payments. Reconnect and reopen closeout.
+              </p>
+            )}
           </div>
           <div role="group" aria-label="Waived late-entry fees">
             <p className={STAT_LABEL_CLASS}>Waived</p>
@@ -109,13 +128,13 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           </div>
         </div>
 
-        {hasLateEntries && (
+        {hasDeskMoney && !paymentsQuery.isError && (
           <div className="mt-3 flex flex-wrap gap-2">
             {LATE_ENTRY_PAYMENT_METHODS.map(method => ({
               ...method,
               value: recon.byMethod[method.id],
             }))
-              .filter(method => method.value.count > 0)
+              .filter(method => method.value.count > 0 || method.value.amount !== 0)
               .map(method => (
                 <span
                   key={method.id}

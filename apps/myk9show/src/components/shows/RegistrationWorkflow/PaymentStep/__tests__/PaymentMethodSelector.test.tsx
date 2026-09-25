@@ -1,4 +1,5 @@
 import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PaymentMethodSelector } from '../PaymentMethodSelector';
 
@@ -107,5 +108,31 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     expect(glyphClasses).not.toContain('lucide-check');
     expect(glyphClasses).not.toContain('lucide-circle-check');
     expect(glyphClasses).toContain('lucide-file-text');
+  });
+});
+
+describe('PaymentMethodSelector — secretary payment received as (MYK9-677)', () => {
+  it('asks Cash or Check and carries the choice with the typed received date', () => {
+    const onPaymentDetailsChange = vi.fn();
+    render(
+      <PaymentMethodSelector
+        paymentMethod="secretary_paid"
+        onPaymentMethodChange={vi.fn()}
+        onPaymentDetailsChange={onPaymentDetailsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ receivedMethod: 'check' })
+    );
+    expect(screen.getByRole('button', { name: 'Check' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.change(screen.getByLabelText('Payment Date (received on)'), {
+      target: { value: '2026-08-27' },
+    });
+    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ receivedMethod: 'check', paymentDate: '2026-08-27' })
+    );
   });
 });

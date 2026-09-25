@@ -7,6 +7,10 @@ import {
   type EntrySubmissionSource,
 } from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
+import { recordEnrollmentPayment as recordLedgerPayment } from '@/services/database/show-payments';
+import { currentCalendarDate } from '@/features/_shared/isDayOfShowEntry';
+import { getTrialTimezone } from '@/features/registries';
+import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -54,6 +58,7 @@ interface SubmitShowRegistrationDeps {
   submitShowEntries: typeof submitShowEntries;
   claimNextArmband: typeof claimNextArmband;
   createSubmissionId: () => string;
+  recordLedgerPayment: typeof recordLedgerPayment;
 }
 
 export interface SubmitShowRegistrationParams {
@@ -86,6 +91,7 @@ const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration'> = {
   submitShowEntries,
   claimNextArmband,
   createSubmissionId: () => crypto.randomUUID(),
+  recordLedgerPayment,
 };
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
@@ -117,9 +123,6 @@ export async function submitShowRegistration({
     throw new Error('Invariant: submitShowRegistration called with credit_card payment method');
   }
 
-  await resolvedDeps.submitRegistration(registrationId, paymentDetails);
-  if (!isStillActive(isActive)) return { aborted: true };
-
   const entryInputs = registrationToEntries(
     showId,
     classSelections,
@@ -127,6 +130,21 @@ export async function submitShowRegistration({
     classes,
     showFeeInfo
   );
+  const feeTotal = entryInputs.reduce(
+    (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
+    0
+  );
+  // MYK9-677: money a secretary says was already received is recorded as cash
+  // or check (entries, enrollment and ledger alike), so it must name one
+  // before anything is written.
+  assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  const receivedMethod =
+    feeTotal > 0 ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod = receivedMethod ?? paymentMethod;
+
+  await resolvedDeps.submitRegistration(registrationId, paymentDetails);
+  if (!isStillActive(isActive)) return { aborted: true };
+
   const enrollment = await ensureEnrollment({
     showId,
     ownerResolution,
@@ -147,11 +165,11 @@ export async function submitShowRegistration({
         classId: entry.classId,
         handlerId: entry.registrationData.handlerId,
         handlerName: entry.registrationData.handler,
-        paymentMethod,
+        paymentMethod: submitMethod,
         clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),
       })),
       submissionId: resolvedDeps.createSubmissionId(),
-      paymentMethod,
+      paymentMethod: submitMethod,
       submissionSource,
     });
     if (!isStillActive(isActive)) return { aborted: true };
@@ -164,7 +182,7 @@ export async function submitShowRegistration({
       await recordEnrollmentPayment({
         showId,
         ownerResolution,
-        paymentMethod,
+        paymentMethod: submitMethod,
         paymentDetails,
         totalAmountCents: createdAmountCents,
         // An exhibitor entering their own dogs is not allowed to move
@@ -174,6 +192,24 @@ export async function submitShowRegistration({
         deps: resolvedDeps,
       });
       if (!isStillActive(isActive)) return { aborted: true };
+
+      // The entries went in as cash/check "pay at show"; the ledger now records
+      // the money as received, which marks them paid once the balance is met.
+      if (receivedMethod && createdAmountCents > 0) {
+        await resolvedDeps.recordLedgerPayment(enrollment.dbRegistrationId, {
+          kind: 'payment',
+          method: receivedMethod,
+          amount: createdAmountCents / 100,
+          receivedOn:
+            paymentDetails?.paymentDate?.trim() ||
+            currentCalendarDate(
+              new Date(),
+              showFeeInfo.entryWindowTimezone ?? getTrialTimezone(undefined)
+            ),
+          reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+        });
+        if (!isStillActive(isActive)) return { aborted: true };
+      }
     }
 
     // Only staff may claim armbands; exhibitor self-entries skip this so the

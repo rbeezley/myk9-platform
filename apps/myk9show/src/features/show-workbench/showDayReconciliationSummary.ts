@@ -1,5 +1,6 @@
 import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
 import { resolvePaymentChannel } from '@/features/payments/paymentChannel';
+import { ledgerAmount, type ShowPaymentLedgerRow } from '@/features/payments/showPaymentLedger';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 export const LATE_ENTRY_PAYMENT_METHODS = [
@@ -29,16 +30,18 @@ export interface ShowDayReconciliationEntry {
   submitted_at?: string | null;
   created_at?: string | null;
   /**
-   * `entries.payment_received_on` (a Postgres `date`): the day the desk
-   * received the money, stamped in the show's zone by Entry Management's Mark
-   * paid and by the desk late-entry path.
+   * `entries.payment_received_on` (a Postgres `date`): the day a desk late
+   * entry's money was received, in the show's zone. Read here only for the
+   * waived / generic-paid rows the ledger does not hold.
    */
   payment_received_on?: string | null;
+  /** The enrollment this entry's money is recorded on, if any. */
+  registration_id?: string | null;
   /**
    * The enrollment Entry Management records payments on. Its status names the
    * channel the secretary chose (Mark paid Cash / Check / Online), which the
    * entry's own `payment_method` (set when the entry was keyed) does not
-   * follow, and its `paid_amount` is the only record of a partial payment.
+   * follow.
    */
   registration?: {
     id: string;
@@ -145,10 +148,11 @@ function calendarDateOf(value: string | null | undefined): string | undefined {
 /**
  * The show-zone calendar day the desk received this entry's money.
  *
- * `payment_received_on` when the row has one: Mark paid and the desk
- * late-entry path stamp it in the show's zone, so it is already a show
- * calendar day. Otherwise the day the entry was submitted, which for a row
- * nothing stamped is the best evidence of when the money changed hands.
+ * `payment_received_on` when the row has one (the desk late-entry path
+ * stamps it in the show's zone). Otherwise the day the entry was submitted,
+ * which for a row nothing stamped is the best evidence of when the money
+ * changed hands. Only waived and generic-paid rows reach this; cash and check
+ * are read from the ledger.
  */
 function paymentReceivedDay(
   entry: ShowDayReconciliationEntry,
@@ -178,32 +182,51 @@ function isReceivedDuringShow(
   entry: ShowDayReconciliationEntry,
   window: DeskCollectionWindow | null
 ): boolean {
-  const startDay = utcCalendarDate(window?.showStartDate);
-  if (!startDay) return false;
-  const endDay = utcCalendarDate(window?.showEndDate) ?? startDay;
+  const days = windowDays(window);
+  if (!days) return false;
   const receivedDay = paymentReceivedDay(entry, window?.timeZone);
   if (!receivedDay) return false;
-  return receivedDay >= startDay && receivedDay <= endDay;
+  return receivedDay >= days.start && receivedDay <= days.end;
+}
+
+/** The show's first and last day, or null when nothing can be desk money. */
+function windowDays(window: DeskCollectionWindow | null): { start: string; end: string } | null {
+  const start = utcCalendarDate(window?.showStartDate);
+  if (!start) return null;
+  return { start, end: utcCalendarDate(window?.showEndDate) ?? start };
 }
 
 /**
- * A partial amount on account (Entry Management's Partial Payment leaves the
- * enrollment and its entries pending with `paid_amount` recorded), counted the
- * first time one of the enrollment's in-window entries is seen.
+ * MYK9-677: cash and check money comes from the ledger, one row per payment
+ * received (or refunded, or reversed) with the day it happened. That is what
+ * lets a split payment count only its desk half, and a check banked three
+ * weeks early count on the day it was banked.
  */
-function partialPaymentOnce(entry: ShowDayReconciliationEntry, counted: Set<string>): number {
-  const registration = entry.registration;
-  if (!registration || counted.has(registration.id)) return 0;
-  if (registration.payment_status?.toLowerCase() !== PaymentStatus.PENDING) return 0;
-  const paid = amount(registration.paid_amount);
-  if (paid <= 0) return 0;
-  counted.add(registration.id);
-  return paid;
+function applyLedger(
+  summary: ShowDayReconciliationSummary,
+  payments: readonly ShowPaymentLedgerRow[],
+  days: { start: string; end: string } | null
+): { enrollments: Set<string>; entries: Set<string> } {
+  const received = { enrollments: new Set<string>(), entries: new Set<string>() };
+  if (!days) return received;
+  for (const row of payments) {
+    const day = calendarDateOf(row.received_on);
+    if (!day || day < days.start || day > days.end) continue;
+    const value = ledgerAmount(row);
+    summary.byMethod[row.method].amount += value;
+    summary.collectedAmount += value;
+    if (row.kind !== 'payment') continue;
+    summary.byMethod[row.method].count += 1;
+    if (row.enrollment_id) received.enrollments.add(row.enrollment_id);
+    if (row.entry_id) received.entries.add(row.entry_id);
+  }
+  return received;
 }
 
 export function summarizeShowDayReconciliation(
   entries: ShowDayReconciliationEntry[],
-  deskWindow: DeskCollectionWindow | null
+  deskWindow: DeskCollectionWindow | null,
+  payments: readonly ShowPaymentLedgerRow[] = []
 ): ShowDayReconciliationSummary {
   const summary: ShowDayReconciliationSummary = {
     totalEntryCount: 0,
@@ -218,8 +241,7 @@ export function summarizeShowDayReconciliation(
     byMethod: emptyBreakdown(),
   };
 
-  // A partial payment is recorded once on the enrollment, not per entry.
-  const countedPartials = new Set<string>();
+  const received = applyLedger(summary, payments, windowDays(deskWindow));
 
   for (const entry of entries) {
     const fee = amount(entry.entry_fee);
@@ -240,7 +262,22 @@ export function summarizeShowDayReconciliation(
 
     // Only money RECEIVED while the show was running is desk money (MYK9-677).
     const method = deskChannel(entry);
-    if (method === 'online' || !isReceivedDuringShow(entry, deskWindow)) continue;
+    if (method === 'online') continue;
+
+    if (method === 'cash' || method === 'check') {
+      // The ledger already holds this money; the entry only says whether some
+      // of it arrived at the desk.
+      const enrollmentId = entry.registration_id ?? entry.registration?.id;
+      const takenAtShow = enrollmentId
+        ? received.enrollments.has(enrollmentId)
+        : Boolean(entry.id && received.entries.has(entry.id));
+      if (takenAtShow) summary.lateEntryCount += 1;
+      continue;
+    }
+
+    // Waived and generic "paid" rows carry no cash/check method, so they are
+    // not in the ledger: counted from the entry, as before the ledger.
+    if (!isReceivedDuringShow(entry, deskWindow)) continue;
 
     summary.lateEntryCount += 1;
     summary.byMethod[method].count += 1;
@@ -250,8 +287,6 @@ export function summarizeShowDayReconciliation(
       summary.waivedCount += 1;
     } else if (paymentStatus === 'paid') {
       summary.collectedAmount += fee;
-    } else {
-      summary.collectedAmount += partialPaymentOnce(entry, countedPartials);
     }
   }
 

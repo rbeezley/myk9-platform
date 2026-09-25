@@ -262,7 +262,6 @@ describe('submitOfflineLateEntry', () => {
 
   it.each([
     ['waived', 'waived'],
-    ['secretary_paid', 'paid'],
     ['group_payment', 'paid'],
     ['check', 'pending'],
     ['cash', 'pending'],
@@ -319,6 +318,59 @@ describe('submitOfflineLateEntry', () => {
     );
   });
 
+  describe('Secretary Payment (Already Received) at the desk (MYK9-677)', () => {
+    const base = {
+      showId: 'show-1',
+      paymentMethod: 'secretary_paid' as const,
+      showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    };
+
+    it('writes the entry as paid by the method received, which the server ledger trigger reads on sync', async () => {
+      await submitOfflineLateEntry({
+        ...base,
+        paymentDetails: { receivedMethod: 'check', paymentDate: '2026-06-30', checkNumber: '881' },
+      });
+
+      expect(createEntryMock).toHaveBeenCalledTimes(1);
+      expect(createEntryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'check',
+          paymentStatus: 'paid',
+          payment_received_on: '2026-06-30',
+          payment_reference: '881',
+        }),
+        expect.anything()
+      );
+    });
+
+    it('refuses money received with no method before writing anything', async () => {
+      await expect(submitOfflineLateEntry({ ...base, paymentDetails: {} })).rejects.toThrow(
+        'Choose whether the payment was received as cash or check.'
+      );
+
+      expect(createEntryMock).not.toHaveBeenCalled();
+      expect(upsertAssignedArmbandMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the secretary_paid label on a $0 entry, which no ledger row is for', async () => {
+      await submitOfflineLateEntry({
+        ...base,
+        showFeeInfo: { preEntryFee: '0', dayOfShowFee: '0', startDate: '2026-07-01' },
+        classes: [{ id: 'class-1', entryFee: 0 }],
+      });
+
+      expect(createEntryMock).toHaveBeenCalledWith(
+        expect.objectContaining({ paymentMethod: 'secretary_paid', entryFee: 0 }),
+        expect.anything()
+      );
+    });
+  });
+
   it('starts local armband reservations from the cached show start number', async () => {
     getShowByIdMock.mockResolvedValue({ id: 'show-1', startingArmbandNumber: 250 });
     getArmbandsByShowMock.mockResolvedValue([]);
@@ -326,6 +378,7 @@ describe('submitOfflineLateEntry', () => {
     const result = await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'secretary_paid',
+      paymentDetails: { receivedMethod: 'cash' },
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '35',

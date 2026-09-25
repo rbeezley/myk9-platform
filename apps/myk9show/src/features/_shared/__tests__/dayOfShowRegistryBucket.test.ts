@@ -122,6 +122,16 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
       payment_method: 'check',
     };
   };
+  // MYK9-677: the check's own ledger row, received the day it was keyed.
+  const receivedOn = (entry: { id: string }, day: string) => ({
+    id: `row-${entry.id}`,
+    enrollment_id: null,
+    entry_id: entry.id,
+    kind: 'payment' as const,
+    amount: 35,
+    method: 'check' as const,
+    received_on: day,
+  });
 
   it('leaves out a mail-in taken after entries closed, weeks before the show', () => {
     const mailIn = entryAt('2026-09-11', 35);
@@ -129,7 +139,9 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
     expect(mailIn.is_day_of_show).toBe(true);
 
     // ...but nobody took this check at the desk.
-    const summary = summarizeShowDayReconciliation([mailIn], deskWindow);
+    const summary = summarizeShowDayReconciliation([mailIn], deskWindow, [
+      receivedOn(mailIn, '2026-09-11'),
+    ]);
     expect(summary.lateEntryCount).toBe(0);
     expect(summary.collectedAmount).toBe(0);
     expect(summary.totalEntryCount).toBe(1);
@@ -139,7 +151,9 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
     const atDesk = entryAt('2026-09-17', 35);
     expect(atDesk.is_day_of_show).toBe(true);
 
-    const summary = summarizeShowDayReconciliation([atDesk], deskWindow);
+    const summary = summarizeShowDayReconciliation([atDesk], deskWindow, [
+      receivedOn(atDesk, '2026-09-17'),
+    ]);
     expect(summary.lateEntryCount).toBe(1);
     expect(summary.collectedAmount).toBe(35);
   });

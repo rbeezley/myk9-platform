@@ -1,5 +1,5 @@
 import { act, renderHook } from '@/test/utils/testUtils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -97,10 +97,6 @@ function makeEntry(): EntryManagementEntry {
 }
 
 describe('useEntryManagementActions', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.setEntryArmband.mockResolvedValue({
@@ -130,7 +126,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -159,7 +154,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -188,7 +182,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -216,7 +209,6 @@ describe('useEntryManagementActions', () => {
           setEntries,
           selectedShowId: 'show-1',
           selectedShow: null,
-          showTimeZone: 'America/New_York',
           setError: vi.fn(),
           user: { id: 'secretary-1' },
         })
@@ -246,7 +238,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -290,7 +281,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -328,16 +318,12 @@ describe('useEntryManagementActions', () => {
     const setEntries = vi.fn();
     const setError = vi.fn();
 
-    // 21:30 on 2026-09-17 in Los Angeles; already the 18th in UTC (MYK9-677).
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-09-18T04:30:00Z'));
     const { result } = renderHook(() =>
       useEntryManagementActions({
         entries: [entry, otherEntry],
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/Los_Angeles',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -359,8 +345,7 @@ describe('useEntryManagementActions', () => {
       35,
       undefined,
       undefined,
-      undefined,
-      '2026-09-17'
+      undefined
     );
 
     const updater = setEntries.mock.calls[0]?.[0];
@@ -398,7 +383,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -423,8 +407,7 @@ describe('useEntryManagementActions', () => {
       35,
       undefined,
       undefined,
-      '1234',
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
+      '1234'
     );
   });
 
@@ -454,7 +437,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -502,7 +484,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -546,7 +527,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -574,7 +554,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        showTimeZone: 'America/New_York',
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })

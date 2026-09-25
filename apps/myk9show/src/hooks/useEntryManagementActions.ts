@@ -25,7 +25,6 @@ import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armb
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
-import { paymentReceivedOnForStatus } from '@/features/payments/paymentReceivedOn';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import { getEntryPaidAmount, hasEntryLevelRefund } from '@/utils/entryManagementUtils';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
@@ -47,8 +46,6 @@ interface UseEntryManagementActionsProps {
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   selectedShowId: string;
   selectedShow: { name?: string | null; start_date?: string | null } | null;
-  /** The show's IANA zone: Mark paid stamps the received date on its calendar (MYK9-677). */
-  showTimeZone: string;
   setError: (error: string | null) => void;
   user: { id?: string; email?: string } | null;
 }
@@ -95,7 +92,7 @@ interface UseEntryManagementActionsReturn {
   ) => Promise<void>;
 }
 
-function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
+export function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
   // Keep this collapse aligned with mapEnrollmentPaymentStatusToEntryStatus in
   // services/database/show-registrations/reads.ts. Entries only persist coarse
   // payment_status values; the UI enum carries the method-specific paid state.
@@ -122,7 +119,6 @@ export function useEntryManagementActions({
   setEntries,
   selectedShowId,
   selectedShow,
-  showTimeZone,
   setError,
   user,
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
@@ -347,8 +343,7 @@ export function useEntryManagementActions({
           paidAmount,
           refundAmount,
           refundNotes,
-          checkNumber,
-          paymentReceivedOnForStatus(status, paidAmount, showTimeZone)
+          checkNumber
         );
         if (dbError) {
           if (data) {
@@ -377,7 +372,7 @@ export function useEntryManagementActions({
         logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
       }
     },
-    [entries, setEntries, showTimeZone]
+    [entries, setEntries]
   );
 
   // Handle check-in status change (inline, no dialog)

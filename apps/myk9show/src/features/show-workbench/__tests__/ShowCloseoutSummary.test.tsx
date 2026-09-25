@@ -6,6 +6,13 @@ import { summarizeCloseoutStatus } from '../showCloseoutStatus';
 
 const mockListShowIncidentCloseout = vi.hoisted(() => vi.fn());
 
+const mockListShowPayments = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/database/show-payments', () => ({
+  listShowPayments: mockListShowPayments,
+  showPaymentsQueryKey: (showId: string) => ['show-payments', showId],
+}));
+
 vi.mock('@/services/database/show-incidents', () => ({
   listShowIncidentCloseout: mockListShowIncidentCloseout,
   showIncidentCloseoutQueryKey: (showId: string) => ['show-incidents', showId, 'closeout'],
@@ -77,9 +84,22 @@ describe('ShowCloseoutSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListShowIncidentCloseout.mockResolvedValue([]);
+    mockListShowPayments.mockResolvedValue([]);
   });
 
   it('renders desk-fee reconciliation by payment method', async () => {
+    // The late entry's cash, as the server's desk-entry trigger records it.
+    mockListShowPayments.mockResolvedValue([
+      {
+        id: 'row-1',
+        enrollment_id: null,
+        entry_id: 'late-cash',
+        kind: 'payment',
+        amount: '35.00',
+        method: 'cash',
+        received_on: '2026-09-17',
+      },
+    ]);
     render(
       <ShowCloseoutSummary
         showId="show-1"
@@ -111,8 +131,11 @@ describe('ShowCloseoutSummary', () => {
     // The reconciliation half alone drives the rolled-up chip here (no incidents).
     expect(await screen.findByText('1 pulled · 1 review')).toBeInTheDocument();
     expect(
-      within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 taken at the show')
+      await within(screen.getByRole('group', { name: 'Show entries' })).findByText(
+        '1 taken at the show'
+      )
     ).toBeInTheDocument();
+    expect(mockListShowPayments).toHaveBeenCalledWith('show-1');
     expect(
       within(screen.getByRole('group', { name: 'Collected at-show late-entry fees' })).getByText(
         '$35.00'
@@ -127,6 +150,25 @@ describe('ShowCloseoutSummary', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText('Cash')).toBeInTheDocument();
+  });
+
+  it('says the desk total is unavailable when the ledger cannot be read', async () => {
+    mockListShowPayments.mockRejectedValue(new Error('offline'));
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        deskWindow={{
+          showStartDate: '2026-09-17',
+          showEndDate: '2026-09-17',
+          timeZone: 'America/New_York',
+        }}
+        entries={[]}
+      />
+    );
+
+    const collected = screen.getByRole('group', { name: 'Collected at-show late-entry fees' });
+    expect(await within(collected).findByText('Unavailable')).toBeInTheDocument();
+    expect(within(collected).queryByText('$0.00')).not.toBeInTheDocument();
   });
 
   it('renders reportable and urgent incident counts', async () => {

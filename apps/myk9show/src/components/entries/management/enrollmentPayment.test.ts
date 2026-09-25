@@ -1,110 +1,112 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePartialPayment, resolveRefund } from './enrollmentPayment';
-import { PaymentStatus } from '@/types/show-registration-types';
+
+/**
+ * MYK9-677: the payment forms resolve into payments-ledger actions. The server
+ * (record_enrollment_payment) decides the enrollment's status and running paid
+ * total, so these no longer compute a status.
+ */
+const DAY = '2026-09-17';
 
 describe('resolvePartialPayment', () => {
   type Case = {
     name: string;
     amountPaid: string;
-    totalDollars: number;
     method: 'cash' | 'check';
     checkNumber: string;
+    receivedOn: string;
     expected: ReturnType<typeof resolvePartialPayment>;
   };
 
   const cases: Case[] = [
     {
-      name: 'zero amount -> null (not positive)',
+      name: 'zero -> null',
       amountPaid: '0',
-      totalDollars: 50,
       method: 'cash',
       checkNumber: '',
+      receivedOn: DAY,
       expected: null,
     },
     {
-      name: 'negative amount -> null',
+      name: 'negative -> null',
       amountPaid: '-5',
-      totalDollars: 50,
       method: 'cash',
       checkNumber: '',
+      receivedOn: DAY,
       expected: null,
     },
     {
-      name: 'non-numeric amount -> null',
+      name: 'non-numeric -> null',
       amountPaid: 'abc',
-      totalDollars: 50,
       method: 'cash',
       checkNumber: '',
+      receivedOn: DAY,
       expected: null,
     },
     {
-      name: 'empty string amount -> null',
+      name: 'empty -> null',
       amountPaid: '',
-      totalDollars: 50,
       method: 'cash',
       checkNumber: '',
+      receivedOn: DAY,
       expected: null,
     },
     {
-      name: 'partial amount below total, cash -> PENDING, no reference',
+      name: 'no received date -> null',
       amountPaid: '20',
-      totalDollars: 50,
       method: 'cash',
       checkNumber: '',
-      expected: { status: PaymentStatus.PENDING, reference: null, amount: 20 },
+      receivedOn: '',
+      expected: null,
     },
     {
-      name: 'partial amount below total, check with number -> PENDING, reference still set (reference derives from method, not from paid-off status)',
+      name: 'cash: this payment, no reference',
       amountPaid: '20',
-      totalDollars: 50,
-      method: 'check',
-      checkNumber: '1234',
-      expected: { status: PaymentStatus.PENDING, reference: '1234', amount: 20 },
-    },
-    {
-      name: 'amount equals total, cash -> PAID_BY_CASH',
-      amountPaid: '50',
-      totalDollars: 50,
       method: 'cash',
-      checkNumber: '',
-      expected: { status: PaymentStatus.PAID_BY_CASH, reference: null, amount: 50 },
+      checkNumber: '9999',
+      receivedOn: DAY,
+      expected: { kind: 'payment', method: 'cash', amount: 20, receivedOn: DAY, reference: null },
     },
     {
-      name: 'amount equals total, check with number -> PAID_BY_CHECK, reference set',
-      amountPaid: '50',
-      totalDollars: 50,
+      name: 'check with number: reference is the check number',
+      amountPaid: '15',
       method: 'check',
-      checkNumber: '1234',
-      expected: { status: PaymentStatus.PAID_BY_CHECK, reference: '1234', amount: 50 },
+      checkNumber: ' 1234 ',
+      receivedOn: '2026-08-27',
+      expected: {
+        kind: 'payment',
+        method: 'check',
+        amount: 15,
+        receivedOn: '2026-08-27',
+        reference: '1234',
+      },
     },
     {
-      name: 'amount equals total, check with empty checkNumber -> reference null',
-      amountPaid: '50',
-      totalDollars: 50,
+      name: 'check with no number: null reference',
+      amountPaid: '15',
       method: 'check',
       checkNumber: '',
-      expected: { status: PaymentStatus.PAID_BY_CHECK, reference: null, amount: 50 },
+      receivedOn: DAY,
+      expected: { kind: 'payment', method: 'check', amount: 15, receivedOn: DAY, reference: null },
     },
     {
-      name: 'amount exceeds total, cash -> PAID_BY_CASH (overpayment allowed)',
-      amountPaid: '75',
-      totalDollars: 50,
+      name: 'rounds to cents',
+      amountPaid: '10.005',
       method: 'cash',
       checkNumber: '',
-      expected: { status: PaymentStatus.PAID_BY_CASH, reference: null, amount: 75 },
-    },
-    {
-      name: 'zero total, any positive amount -> immediately paid (cash)',
-      amountPaid: '1',
-      totalDollars: 0,
-      method: 'cash',
-      checkNumber: '',
-      expected: { status: PaymentStatus.PAID_BY_CASH, reference: null, amount: 1 },
+      receivedOn: DAY,
+      expected: {
+        kind: 'payment',
+        method: 'cash',
+        amount: 10.01,
+        receivedOn: DAY,
+        reference: null,
+      },
     },
   ];
 
-  it.each(cases)('$name', ({ amountPaid, totalDollars, method, checkNumber, expected }) => {
-    expect(resolvePartialPayment(amountPaid, totalDollars, method, checkNumber)).toEqual(expected);
+  it.each(cases)('$name', ({ amountPaid, method, checkNumber, receivedOn, expected }) => {
+    expect(resolvePartialPayment(amountPaid, method, checkNumber, receivedOn)).toEqual(expected);
   });
 });
 
@@ -120,7 +122,7 @@ describe('resolveRefund', () => {
 
   const cases: Case[] = [
     {
-      name: 'zero amount -> null',
+      name: 'zero -> null',
       amountStr: '0',
       paidDollars: 50,
       method: 'check_mailed',
@@ -128,7 +130,7 @@ describe('resolveRefund', () => {
       expected: null,
     },
     {
-      name: 'negative amount -> null',
+      name: 'negative -> null',
       amountStr: '-10',
       paidDollars: 50,
       method: 'check_mailed',
@@ -136,7 +138,7 @@ describe('resolveRefund', () => {
       expected: null,
     },
     {
-      name: 'non-numeric amount -> null',
+      name: 'non-numeric -> null',
       amountStr: 'nope',
       paidDollars: 50,
       method: 'check_mailed',
@@ -144,31 +146,7 @@ describe('resolveRefund', () => {
       expected: null,
     },
     {
-      name: 'full refund (not partial), no notes -> REFUNDED, notes = method label only',
-      amountStr: '50',
-      paidDollars: 50,
-      method: 'check_mailed',
-      notes: '',
-      expected: { status: PaymentStatus.REFUNDED, amount: 50, notes: 'Check Mailed' },
-    },
-    {
-      name: 'amount less than paid -> PARTIAL_REFUND regardless of dialog mode',
-      amountStr: '10',
-      paidDollars: 50,
-      method: 'cash_returned',
-      notes: '',
-      expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 10, notes: 'Cash Returned' },
-    },
-    {
-      name: 'amount equals paid -> REFUNDED',
-      amountStr: '50',
-      paidDollars: 50,
-      method: 'stripe',
-      notes: '',
-      expected: { status: PaymentStatus.REFUNDED, amount: 50, notes: 'Stripe (manual)' },
-    },
-    {
-      name: 'amount exceeds paid -> null',
+      name: 'above paid -> null',
       amountStr: '75',
       paidDollars: 50,
       method: 'stripe',
@@ -176,45 +154,64 @@ describe('resolveRefund', () => {
       expected: null,
     },
     {
-      name: 'amount below paid -> PARTIAL_REFUND',
-      amountStr: '20',
+      name: 'check mailed is a desk check refund',
+      amountStr: '50',
       paidDollars: 50,
-      method: 'other',
+      method: 'check_mailed',
       notes: '',
-      expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 20, notes: 'Other' },
-    },
-    {
-      name: 'notes provided -> combined with method label',
-      amountStr: '20',
-      paidDollars: 50,
-      method: 'other',
-      notes: 'customer requested',
       expected: {
-        status: PaymentStatus.PARTIAL_REFUND,
-        amount: 20,
-        notes: 'Other: customer requested',
+        kind: 'refund',
+        method: 'check',
+        amount: 50,
+        receivedOn: DAY,
+        notes: 'Check Mailed',
       },
     },
     {
-      name: 'notes whitespace-only -> trimmed away, notes = method label only',
+      name: 'cash returned is a desk cash refund',
+      amountStr: '10',
+      paidDollars: 50,
+      method: 'cash_returned',
+      notes: '',
+      expected: {
+        kind: 'refund',
+        method: 'cash',
+        amount: 10,
+        receivedOn: DAY,
+        notes: 'Cash Returned',
+      },
+    },
+    {
+      name: 'Stripe is not desk money: no ledger method',
+      amountStr: '50',
+      paidDollars: 50,
+      method: 'stripe',
+      notes: '',
+      expected: {
+        kind: 'refund',
+        method: null,
+        amount: 50,
+        receivedOn: DAY,
+        notes: 'Stripe (manual)',
+      },
+    },
+    {
+      name: 'other: no ledger method, trimmed notes after the label',
       amountStr: '20',
       paidDollars: 50,
       method: 'other',
-      notes: '   ',
-      expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 20, notes: 'Other' },
-    },
-    {
-      name: 'unknown method falls back to raw method string as label',
-      amountStr: '20',
-      paidDollars: 50,
-      // Cast to force an out-of-union method through the fallback branch.
-      method: 'unknown_method' as unknown as 'other',
-      notes: '',
-      expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 20, notes: 'unknown_method' },
+      notes: '  customer requested ',
+      expected: {
+        kind: 'refund',
+        method: null,
+        amount: 20,
+        receivedOn: DAY,
+        notes: 'Other: customer requested',
+      },
     },
   ];
 
   it.each(cases)('$name', ({ amountStr, paidDollars, method, notes, expected }) => {
-    expect(resolveRefund(amountStr, paidDollars, method, notes)).toEqual(expected);
+    expect(resolveRefund(amountStr, paidDollars, method, notes, DAY)).toEqual(expected);
   });
 });

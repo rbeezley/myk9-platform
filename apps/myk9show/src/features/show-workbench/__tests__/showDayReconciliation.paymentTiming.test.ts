@@ -1,12 +1,12 @@
 /**
- * MYK9-677: the Show Closeout money card reconciles the desk's cash box, so it
- * keys on WHEN THE MONEY WAS RECEIVED (`entries.payment_received_on`, a
- * Postgres `date`), not on when the entry was keyed. A mail-in keyed weeks
- * early but paid at the desk is desk money; one keyed and paid weeks early is
- * not; nor is one paid after the show. `submitted_at` is only the fallback for
- * a row with no received date.
+ * MYK9-677: the Show Closeout money card reconciles the desk's cash box, so
+ * cash and check money is read from the payments ledger (`show_payments`), one
+ * row per payment with the show-calendar day it was received. An enrollment's
+ * single status/amount/date cannot tell a split payment's desk half from its
+ * mailed half; the ledger can.
  */
 import { describe, expect, it } from 'vitest';
+import type { ShowPaymentLedgerRow } from '@/features/payments/showPaymentLedger';
 import {
   summarizeShowDayReconciliation,
   type DeskCollectionWindow,
@@ -22,183 +22,191 @@ const WINDOW: DeskCollectionWindow = {
 /** Keyed three weeks before the show. */
 const KEYED_EARLY = '2026-08-27T15:00:00Z';
 
-function mailInCheck(
-  paymentReceivedOn: string | null,
-  submittedAt: string = KEYED_EARLY
-): ShowDayReconciliationEntry {
+function ledger(
+  overrides: Partial<ShowPaymentLedgerRow> &
+    Pick<ShowPaymentLedgerRow, 'amount' | 'method' | 'received_on'>
+): ShowPaymentLedgerRow {
   return {
-    id: `mail-in-${paymentReceivedOn ?? 'no-date'}`,
-    entry_fee: 35,
-    entry_status: 'confirmed',
-    payment_status: 'paid',
-    payment_method: 'check',
-    submitted_at: submittedAt,
-    created_at: submittedAt,
-    payment_received_on: paymentReceivedOn,
+    id: `row-${overrides.kind ?? 'payment'}-${overrides.method}-${overrides.received_on}-${overrides.amount}`,
+    enrollment_id: 'reg-1',
+    entry_id: null,
+    kind: 'payment',
+    ...overrides,
   };
 }
 
-describe('closeout desk money keys on payment timing (MYK9-677)', () => {
-  it('counts a mail-in keyed three weeks early and paid at the desk on show day', () => {
-    const summary = summarizeShowDayReconciliation([mailInCheck('2026-09-17')], WINDOW);
+/**
+ * A $50 mail-in on enrollment reg-1, marked Paid in Full: Cash at the desk.
+ * `payment_received_on` is what #2441's single stamp wrote on Mark paid; the
+ * card must NOT read it for cash/check money any more.
+ */
+function mailIn(overrides: Partial<ShowDayReconciliationEntry> = {}): ShowDayReconciliationEntry {
+  return {
+    id: 'mail-in',
+    entry_fee: 50,
+    entry_status: 'confirmed',
+    payment_status: 'paid',
+    payment_method: 'check',
+    submitted_at: KEYED_EARLY,
+    created_at: KEYED_EARLY,
+    payment_received_on: '2026-09-17',
+    registration_id: 'reg-1',
+    registration: { id: 'reg-1', payment_status: 'paid_by_cash', paid_amount: 50 },
+    ...overrides,
+  };
+}
 
+describe('closeout desk money reads the payments ledger (MYK9-677)', () => {
+  it('counts only the desk half of a split payment, under its own method', () => {
+    const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: 35, method: 'check', received_on: '2026-08-27' }),
+      ledger({ amount: 15, method: 'cash', received_on: '2026-09-17' }),
+    ]);
+
+    expect(summary.collectedAmount).toBe(15);
+    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 15 });
+    expect(summary.byMethod.check).toEqual({ count: 0, amount: 0 });
     expect(summary.lateEntryCount).toBe(1);
-    expect(summary.collectedAmount).toBe(35);
-    expect(summary.byMethod.check).toEqual({ count: 1, amount: 35 });
   });
 
-  it('counts a payment received on the last day of the show', () => {
-    const summary = summarizeShowDayReconciliation([mailInCheck('2026-09-18')], WINDOW);
-
-    expect(summary.collectedAmount).toBe(35);
-  });
-
-  it('leaves out a mail-in keyed and paid three weeks early', () => {
-    const summary = summarizeShowDayReconciliation([mailInCheck('2026-08-27')], WINDOW);
-
-    expect(summary.lateEntryCount).toBe(0);
-    expect(summary.collectedAmount).toBe(0);
-    expect(summary.totalEntryCount).toBe(1);
-  });
-
-  it('leaves out a payment received the day after the show', () => {
-    const summary = summarizeShowDayReconciliation([mailInCheck('2026-09-19')], WINDOW);
-
-    expect(summary.lateEntryCount).toBe(0);
-    expect(summary.collectedAmount).toBe(0);
-  });
-
-  it('a received date before the show wins over a show-day submission', () => {
-    // Keyed at the desk, but the check had been received by post beforehand.
+  it('leaves out a check marked paid today but received three weeks earlier', () => {
     const summary = summarizeShowDayReconciliation(
-      [mailInCheck('2026-09-10', '2026-09-17T15:00:00Z')],
-      WINDOW
+      [
+        mailIn({
+          registration: { id: 'reg-1', payment_status: 'paid_by_check', paid_amount: 50 },
+        }),
+      ],
+      WINDOW,
+      [ledger({ amount: 50, method: 'check', received_on: '2026-08-27' })]
     );
 
     expect(summary.collectedAmount).toBe(0);
+    expect(summary.byMethod.check).toEqual({ count: 0, amount: 0 });
+    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.totalEntryCount).toBe(1);
   });
 
-  describe('with no received date, falls back to submitted_at', () => {
-    it('counts a show-day submission', () => {
-      const summary = summarizeShowDayReconciliation(
-        [mailInCheck(null, '2026-09-17T15:00:00Z')],
-        WINDOW
-      );
+  it('counts the last show day and leaves out the day after', () => {
+    const lastDay = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: 50, method: 'cash', received_on: '2026-09-18' }),
+    ]);
+    const dayAfter = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: 50, method: 'cash', received_on: '2026-09-19' }),
+    ]);
 
-      expect(summary.collectedAmount).toBe(35);
-    });
-
-    it('leaves out a submission the day after the show, in show time', () => {
-      // 03:30 UTC on the 19th is still the 18th in New York; 04:30 is the 19th.
-      const lastEvening = summarizeShowDayReconciliation(
-        [mailInCheck(null, '2026-09-19T03:30:00Z')],
-        WINDOW
-      );
-      const dayAfter = summarizeShowDayReconciliation(
-        [mailInCheck(null, '2026-09-19T04:30:00Z')],
-        WINDOW
-      );
-
-      expect(lastEvening.collectedAmount).toBe(35);
-      expect(dayAfter.collectedAmount).toBe(0);
-    });
+    expect(lastDay.collectedAmount).toBe(50);
+    expect(dayAfter.collectedAmount).toBe(0);
   });
 
   it('treats a one-day show with no end date as ending on its first day', () => {
     const oneDay: DeskCollectionWindow = { ...WINDOW, showEndDate: null };
+    const payments = [
+      ledger({ amount: 20, method: 'cash', received_on: '2026-09-17' }),
+      ledger({ amount: 30, method: 'cash', received_on: '2026-09-18' }),
+    ];
 
-    expect(
-      summarizeShowDayReconciliation([mailInCheck('2026-09-17')], oneDay).collectedAmount
-    ).toBe(35);
-    expect(
-      summarizeShowDayReconciliation([mailInCheck('2026-09-18')], oneDay).collectedAmount
-    ).toBe(0);
+    expect(summarizeShowDayReconciliation([mailIn()], oneDay, payments).collectedAmount).toBe(20);
+  });
+
+  it('counts a desk late entry (no enrollment) through its own ledger row', () => {
+    const desk: ShowDayReconciliationEntry = {
+      id: 'desk-1',
+      entry_fee: 20,
+      payment_status: 'paid',
+      payment_method: 'cash',
+      submitted_at: '2026-09-17T15:00:00Z',
+      registration_id: null,
+      registration: null,
+    };
+    const summary = summarizeShowDayReconciliation([desk], WINDOW, [
+      ledger({
+        enrollment_id: null,
+        entry_id: 'desk-1',
+        amount: 20,
+        method: 'cash',
+        received_on: '2026-09-17',
+      }),
+    ]);
+
+    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 20 });
+    expect(summary.lateEntryCount).toBe(1);
+  });
+
+  it('nets a cash refund handed back at the desk', () => {
+    const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: 50, method: 'cash', received_on: '2026-09-17' }),
+      ledger({ kind: 'refund', amount: -10, method: 'cash', received_on: '2026-09-18' }),
+    ]);
+
+    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 40 });
+    expect(summary.collectedAmount).toBe(40);
+  });
+
+  it('a Payment Due reset cancels a desk payment and leaves a mailed one where it was', () => {
+    const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: 35, method: 'check', received_on: '2026-08-27' }),
+      ledger({ amount: 15, method: 'cash', received_on: '2026-09-17' }),
+      // Reversal rows are dated on the day each group was recorded.
+      ledger({ kind: 'reversal', amount: -35, method: 'check', received_on: '2026-08-27' }),
+      ledger({ kind: 'reversal', amount: -15, method: 'cash', received_on: '2026-09-17' }),
+    ]);
+
+    expect(summary.collectedAmount).toBe(0);
+    expect(summary.byMethod.check.amount).toBe(0);
+    expect(summary.byMethod.cash.amount).toBe(0);
   });
 
   it('never counts an online (Stripe) payment as desk money, even on show day', () => {
     const summary = summarizeShowDayReconciliation(
       [
-        {
-          id: 'online-on-show-day',
-          entry_fee: 35,
-          payment_status: 'paid',
-          payment_method: 'online',
+        mailIn({
+          registration: { id: 'reg-1', payment_status: 'paid_online', paid_amount: 50 },
           submitted_at: '2026-09-17T15:00:00Z',
-        },
+        }),
       ],
-      WINDOW
+      WINDOW,
+      []
     );
 
     expect(summary.lateEntryCount).toBe(0);
     expect(summary.collectedAmount).toBe(0);
   });
 
-  describe('the enrollment payment Entry Management recorded', () => {
-    const enrollmentEntry = (
-      id: string,
-      registration: ShowDayReconciliationEntry['registration'],
-      overrides: Partial<ShowDayReconciliationEntry> = {}
-    ): ShowDayReconciliationEntry => ({
-      ...mailInCheck('2026-09-17'),
-      id,
-      registration,
-      ...overrides,
+  it('reads the ledger amount when PostgREST hands numeric(10,2) over as a string', () => {
+    const summary = summarizeShowDayReconciliation([mailIn()], WINDOW, [
+      ledger({ amount: '15.00', method: 'cash', received_on: '2026-09-17' }),
+    ]);
+
+    expect(summary.collectedAmount).toBe(15);
+  });
+
+  describe('rows the ledger does not hold keep the entry-based reading', () => {
+    const generic = (submittedAt: string): ShowDayReconciliationEntry => ({
+      id: `generic-${submittedAt}`,
+      entry_fee: 25,
+      payment_status: 'paid',
+      payment_method: 'secretary_paid',
+      submitted_at: submittedAt,
+      payment_received_on: null,
     });
 
-    it('counts a partial desk payment once per enrollment, at the amount received', () => {
-      const registration = { id: 'reg-1', payment_status: 'pending', paid_amount: 20 };
-      const summary = summarizeShowDayReconciliation(
-        [
-          enrollmentEntry('a', registration, { payment_status: 'pending' }),
-          enrollmentEntry('b', registration, { payment_status: 'pending' }),
-        ],
-        WINDOW
-      );
+    it('counts a generic secretary payment submitted on show day', () => {
+      const summary = summarizeShowDayReconciliation([generic('2026-09-17T15:00:00Z')], WINDOW, []);
 
-      expect(summary.collectedAmount).toBe(20);
-      expect(summary.lateEntryCount).toBe(2);
+      expect(summary.byMethod.paid).toEqual({ count: 1, amount: 25 });
+      expect(summary.collectedAmount).toBe(25);
     });
 
-    it('leaves out a partial payment received before the show', () => {
-      const registration = { id: 'reg-1', payment_status: 'pending', paid_amount: 20 };
-      const summary = summarizeShowDayReconciliation(
-        [
-          enrollmentEntry('a', registration, {
-            payment_status: 'pending',
-            payment_received_on: '2026-08-27',
-          }),
-        ],
-        WINDOW
-      );
-
-      expect(summary.collectedAmount).toBe(0);
-    });
-
-    it('never counts an enrollment marked Paid in Full: Online, whatever the entry was keyed as', () => {
-      const summary = summarizeShowDayReconciliation(
-        [
-          enrollmentEntry(
-            'a',
-            { id: 'reg-1', payment_status: 'paid_online', paid_amount: 35 },
-            { payment_received_on: null, submitted_at: '2026-09-17T15:00:00Z' }
-          ),
-        ],
-        WINDOW
-      );
-
-      expect(summary.lateEntryCount).toBe(0);
-      expect(summary.collectedAmount).toBe(0);
-    });
-
-    it('files a check-keyed mail-in marked Paid in Full: Cash under cash', () => {
-      const summary = summarizeShowDayReconciliation(
-        [enrollmentEntry('a', { id: 'reg-1', payment_status: 'paid_by_cash', paid_amount: 35 })],
-        WINDOW
-      );
-
-      expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
-      expect(summary.byMethod.check).toEqual({ count: 0, amount: 0 });
-      expect(summary.collectedAmount).toBe(35);
+    it('uses the show calendar for the submitted_at fallback', () => {
+      // 03:30 UTC on the 19th is still the 18th in New York; 04:30 is the 19th.
+      expect(
+        summarizeShowDayReconciliation([generic('2026-09-19T03:30:00Z')], WINDOW, [])
+          .collectedAmount
+      ).toBe(25);
+      expect(
+        summarizeShowDayReconciliation([generic('2026-09-19T04:30:00Z')], WINDOW, [])
+          .collectedAmount
+      ).toBe(0);
     });
   });
 });

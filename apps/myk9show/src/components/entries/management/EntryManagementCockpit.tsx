@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
+import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -103,6 +104,7 @@ interface EntryManagementCockpitProps {
     amountDue?: number
   ) => Promise<void>;
   onRefresh: () => void;
+  paymentLedger: EnrollmentLedgerControls;
 }
 
 export function EntryManagementCockpit({
@@ -132,6 +134,7 @@ export function EntryManagementCockpit({
   onPaymentStatusChange,
   onSendDecisionEmail,
   onRefresh,
+  paymentLedger,
 }: EntryManagementCockpitProps) {
   const cockpit = useEntryManagementCockpit({
     groups: registrationGroups,
@@ -428,6 +431,7 @@ export function EntryManagementCockpit({
               }
               onBulkStatusChange={onBulkStatusChange}
               onPaymentStatusChange={onPaymentStatusChange}
+              paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
               onResendEmail={handleResendEmail}
               isResendDisabled={registrationId =>

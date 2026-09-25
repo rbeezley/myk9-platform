@@ -55,6 +55,7 @@ function makeParams(
       }),
       claimNextArmband: vi.fn().mockResolvedValue({ armband: '101' }),
       createSubmissionId: () => 'submission-1',
+      recordLedgerPayment: vi.fn().mockResolvedValue({ id: 'db-reg-2' }),
     },
     ...overrides,
   };
@@ -171,33 +172,124 @@ describe('submitShowRegistration', () => {
     );
   });
 
-  it('persists the initial secretary-paid enrollment totals and paid state after entries submit', async () => {
-    const params = makeParams({
-      paymentMethod: 'secretary_paid',
-      paymentDetails: {
-        paymentReference: 'receipt-100',
-        paymentDate: '2026-07-07',
-      },
-      classes: [{ id: 'class-1', entryFee: 20 }],
+  describe('Secretary Payment (Already Received) names cash or check (MYK9-677)', () => {
+    it('submits as the received method and records the money in the payments ledger', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: {
+          paymentReference: 'receipt-100',
+          paymentDate: '2026-07-07',
+          receivedMethod: 'check',
+        },
+        classes: [{ id: 'class-1', entryFee: 20 }],
+      });
+
+      await submitShowRegistration(params);
+
+      expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
+      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'check',
+          entries: [expect.objectContaining({ paymentMethod: 'check' })],
+        })
+      );
+      // The enrollment and entries carry the method, so the Financial Report
+      // agrees with the ledger.
+      expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+        2,
+        'show-1',
+        'owner-1',
+        'receipt-100',
+        expect.objectContaining({ paymentReference: 'receipt-100', paymentDate: '2026-07-07' }),
+        'check',
+        3000,
+        { selfService: false }
+      );
+      expect(params.deps.recordLedgerPayment).toHaveBeenCalledTimes(1);
+      expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith('db-reg-2', {
+        kind: 'payment',
+        method: 'check',
+        amount: 30,
+        receivedOn: '2026-07-07',
+        reference: 'receipt-100',
+      });
     });
 
-    await submitShowRegistration(params);
+    it('dates the payment today on the show calendar when no Payment Date was typed', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 01:30 UTC on the 18th is still the 17th in Chicago.
+      vi.setSystemTime(new Date('2026-09-18T01:30:00Z'));
+      try {
+        const params = makeParams({
+          paymentMethod: 'secretary_paid',
+          paymentDetails: { receivedMethod: 'cash' },
+          showFeeInfo: {
+            preEntryFee: '25',
+            dayOfShowFee: '30',
+            startDate: '2026-05-01',
+            entryWindowTimezone: 'America/Chicago',
+          },
+        });
 
-    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
-    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
-    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
-      2,
-      'show-1',
-      'owner-1',
-      'receipt-100',
-      expect.objectContaining({
-        paymentReference: 'receipt-100',
-        paymentDate: '2026-07-07',
-      }),
-      'secretary_paid',
-      3000,
-      { selfService: false }
-    );
+        await submitShowRegistration(params);
+
+        expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith(
+          'db-reg-2',
+          expect.objectContaining({ method: 'cash', receivedOn: '2026-09-17' })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('refuses money received with no method before writing anything', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: { paymentReference: 'receipt-100' },
+      });
+
+      await expect(submitShowRegistration(params)).rejects.toThrow(
+        'Choose whether the payment was received as cash or check.'
+      );
+
+      expect(params.deps.submitRegistration).not.toHaveBeenCalled();
+      expect(params.deps.createShowRegistration).not.toHaveBeenCalled();
+      expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
+    });
+
+    it('writes no ledger row for a $0 entry and keeps the secretary_paid label', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: {},
+        classes: [{ id: 'class-1', entryFee: 0 }],
+        showFeeInfo: { preEntryFee: '0', dayOfShowFee: '0', startDate: '2026-05-01' },
+      });
+      vi.mocked(params.deps.submitShowEntries!).mockResolvedValue({
+        entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
+        outcomes: [
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'created',
+            entryId: 'entry-1',
+            waitlistEntryId: null,
+            waitlistPosition: null,
+            feeCents: 0,
+            capacityOverride: false,
+          },
+        ],
+        registrationId: 'db-reg-1',
+        submissionId: 'submission-1',
+      } as Awaited<ReturnType<NonNullable<typeof params.deps.submitShowEntries>>>);
+
+      await submitShowRegistration(params);
+
+      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+        expect.objectContaining({ paymentMethod: 'secretary_paid' })
+      );
+      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
+    });
   });
 
   it('does not persist enrollment payment totals when entry submission fails', async () => {
@@ -206,6 +298,7 @@ describe('submitShowRegistration', () => {
       paymentDetails: {
         paymentReference: 'receipt-100',
         paymentDate: '2026-07-07',
+        receivedMethod: 'check',
       },
     });
     vi.mocked(params.deps.submitShowEntries!).mockRejectedValue(new Error('fee mismatch'));
@@ -214,11 +307,13 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+    expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
   });
 
   it('records payment and claims armbands only for created capacity outcomes', async () => {
     const params = makeParams({
       paymentMethod: 'secretary_paid',
+      paymentDetails: { paymentReference: 'check-1', receivedMethod: 'check' },
       classSelections: [
         {
           dogId: 'dog-1',
@@ -273,10 +368,15 @@ describe('submitShowRegistration', () => {
       'show-1',
       'owner-1',
       'check-1',
-      { paymentReference: 'check-1' },
-      'secretary_paid',
+      { paymentReference: 'check-1', receivedMethod: 'check' },
+      'check',
       3000,
       { selfService: false }
+    );
+    // The ledger records only the created entry's fee, not the waitlisted one.
+    expect(params.deps.recordLedgerPayment).toHaveBeenCalledWith(
+      'db-reg-2',
+      expect.objectContaining({ kind: 'payment', method: 'check', amount: 30 })
     );
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {
@@ -297,6 +397,7 @@ describe('submitShowRegistration', () => {
       paymentDetails: {
         paymentReference: 'receipt-100',
         paymentDate: '2026-07-07',
+        receivedMethod: 'cash',
       },
     });
     vi.mocked(params.deps.createShowRegistration!)
@@ -315,6 +416,7 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(2);
+    expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
     expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
   });
 

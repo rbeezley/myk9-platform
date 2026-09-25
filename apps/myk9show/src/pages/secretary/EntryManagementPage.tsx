@@ -21,6 +21,7 @@ import {
   useEntryManagementTrialScope,
 } from '@/hooks/useEntryManagementTrialScope';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import { useEnrollmentLedgerActions } from '@/hooks/useEnrollmentLedgerActions';
 import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management';
 import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
@@ -155,6 +156,7 @@ const EntryManagementPage: React.FC = () => {
     selectedShowId,
   });
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
+  const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
   const {
     isProcessing,
@@ -176,7 +178,6 @@ const EntryManagementPage: React.FC = () => {
     setEntries,
     selectedShowId,
     selectedShow,
-    showTimeZone,
     setError,
     user,
   });
@@ -471,6 +472,7 @@ const EntryManagementPage: React.FC = () => {
                   onRemoveEntry={handleRemoveEntry}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onPaymentStatusChange={handleEnrollmentPaymentChange}
+                  paymentLedger={paymentLedger}
                   onSendDecisionEmail={async (registrationId, message, amountDue) => {
                     await handleSendDecisionEmail(registrationId, message, amountDue);
                     const registrationIds = [

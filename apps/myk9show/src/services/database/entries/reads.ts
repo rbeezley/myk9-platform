@@ -503,6 +503,9 @@ const TRIAL_ENTRIES_SELECT = `
       )
     `;
 
+/** PostgREST's `max_rows`: one response never holds more than this. */
+const SHOW_FINANCIALS_PAGE_SIZE = 1000;
+
 async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // MYK9-639: this read is SUMMED as money, so it names the supersession link —
   // and retries without it for the deploy window, when the column does not
@@ -510,27 +513,55 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // The ternary is on the WHOLE query, not inside `.select()`: the typed
   // builder parses each select literal at compile time, and a union of two of
   // them exhausts its parser.
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-      : supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-  );
+  //
+  // MYK9-761: PostgREST caps one response at `max_rows`, so a show larger than
+  // one page would be silently understated. Page with the same inline loop as
+  // the payment reads (`fetchOrderPages`, the payout ledger); a failed or
+  // repeated page throws, so the caller reports an error, never a partial total.
+  // (created_at, id) is append-stable, so a concurrent insert cannot shift a
+  // boundary row between two range requests.
+  const rows: Record<string, unknown>[] = [];
+  let includeLink = true;
+  let previousFirstId: unknown = null;
+  for (let from = 0; ; from += SHOW_FINANCIALS_PAGE_SIZE) {
+    const to = from + SHOW_FINANCIALS_PAGE_SIZE - 1;
+    const { data, error } = await withMoveUpLinkFallback(withLink => {
+      if (!withLink) includeLink = false;
+      return withLink && includeLink
+        ? supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
+            .eq('show_id', showId)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .range(from, to)
+        : supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT)
+            .eq('show_id', showId)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .range(from, to);
+    });
 
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return {
-    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
-    error: null,
-  };
+    if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
+    const page = (data || []) as Record<string, unknown>[];
+    const firstId = page[0]?.id ?? null;
+    if (firstId !== null && firstId === previousFirstId) {
+      throw createDatabaseError(
+        new Error('Show financials pagination returned a repeated page'),
+        'entries',
+        'select_by_show_financials'
+      );
+    }
+    previousFirstId = firstId;
+    rows.push(...page);
+    if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
+  }
+
+  return { data: attachPostgrestHandlerIdentity(rows), error: null };
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {

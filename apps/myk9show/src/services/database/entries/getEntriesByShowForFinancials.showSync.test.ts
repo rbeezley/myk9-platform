@@ -36,24 +36,19 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 vi.mock('@/services/database/entries/handlerHydration', () => ({
   loadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
 }));
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          is: () => ({
-            order: () =>
-              online.error
-                ? Promise.reject(online.error)
-                : Promise.resolve({ data: online.rows, error: null }),
-          }),
-        }),
-      }),
-    }),
-  },
-  logQuery: vi.fn(),
-  createDatabaseError,
-}));
+vi.mock('@/services/database/supabaseClient', () => {
+  const builder = {
+    select: () => builder,
+    eq: () => builder,
+    is: () => builder,
+    order: () => builder,
+    range: () =>
+      online.error
+        ? Promise.reject(online.error)
+        : Promise.resolve({ data: online.rows, error: null }),
+  };
+  return { supabase: { from: () => builder }, logQuery: vi.fn(), createDatabaseError };
+});
 
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
 

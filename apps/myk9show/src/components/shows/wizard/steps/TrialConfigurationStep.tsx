@@ -63,15 +63,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
 
-  const creationCopy = useMemo(
-    () => getTrialCreationCopy(trialView.hasAnyTrials),
-    [trialView.hasAnyTrials]
-  );
   const effectiveTrialNames = useMemo(
     () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
     [trials, trialView]
   );
   const canAddTrial = existingTrialsReady;
+  const creationCopy = useMemo(
+    () => getTrialCreationCopy(trialView.hasAnyTrials, canAddTrial),
+    [trialView.hasAnyTrials, canAddTrial]
+  );
   const isExistingTrialsLoading = !canAddTrial && existingTrialsReadStatus === 'loading';
   const existingTrialsReadFailed = !canAddTrial && existingTrialsReadStatus === 'error';
 

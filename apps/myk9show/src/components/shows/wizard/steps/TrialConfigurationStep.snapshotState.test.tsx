@@ -98,7 +98,9 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Replicated trial read failed');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
     expect(screen.queryByText(/checking the current trials/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Add First Trial' })[0]).toBeDisabled();
+    // Unknown current trials claim neither "first" nor "another" (MYK9-758).
+    expect(screen.getAllByRole('button', { name: 'Add Trial' })[0]).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Add First Trial' })).not.toBeInTheDocument();
   });
 
   it('wires Retry to the existing snapshot loader', async () => {
@@ -124,7 +126,9 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     });
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading the current trials');
-    expect(screen.getAllByRole('button', { name: 'Add First Trial' })[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Add Trial' })[0]).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Add First Trial' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Schedule Your Trials')).not.toBeInTheDocument();
   });
 
   it('re-enables Add Trial after a confirmed snapshot recovers', async () => {

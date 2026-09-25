@@ -137,3 +137,14 @@ describe('trial creation wording', () => {
     expect(isTrialSnapshotReady('ready', true)).toBe(true);
   });
 });
+
+describe('getTrialCreationCopy while the current trials are unknown (MYK9-758)', () => {
+  it('claims neither first nor another, whatever the local snapshot shows', () => {
+    for (const hasAnyTrials of [false, true]) {
+      const copy = getTrialCreationCopy(hasAnyTrials, false);
+      expect(copy.addTrialLabel).toBe('Add Trial');
+      expect(copy.emptyStateTitle).toBe('Add a Trial');
+      expect(copy.emptyStateDescription).not.toMatch(/first/i);
+    }
+  });
+});

@@ -17,8 +17,12 @@ describe('loadPlatformPayoutLedgerEntryPage', () => {
     supabaseFrom.mockReset();
   });
 
-  it('retries without refund_decision when the migration is not deployed', async () => {
+  // 20260722160000 and 20260918041700 are applied; MYK9-654 retired the
+  // retry ladder. One select names both columns, and a schema error is a
+  // failure, not a quiet fallback that inflates the unresolved count.
+  it('selects refund_decision and withdrawal_reason_code once, with no retry', async () => {
     const selects: string[] = [];
+    const schemaError = { code: '42703', message: 'column entries.refund_decision does not exist' };
     supabaseFrom.mockImplementation(() => {
       const query = {
         select: vi.fn((select: string) => {
@@ -27,45 +31,15 @@ describe('loadPlatformPayoutLedgerEntryPage', () => {
         }),
         eq: vi.fn(() => query),
         order: vi.fn(() => query),
-        range: vi.fn(() =>
-          Promise.resolve(
-            selects.at(-1)?.includes('refund_decision')
-              ? {
-                  data: null,
-                  error: {
-                    code: '42703',
-                    message: 'column entries.refund_decision does not exist',
-                  },
-                }
-              : {
-                  data: [
-                    {
-                      show_id: 'show-1',
-                      entry_status: 'scratched',
-                      entry_fee: 25,
-                      payment_method: 'online',
-                      payment_status: 'paid',
-                      refund_amount: null,
-                    },
-                  ],
-                  error: null,
-                }
-          )
-        ),
+        range: vi.fn(() => Promise.resolve({ data: null, error: schemaError })),
       };
       return query;
     });
 
-    // The fallback is REPORTED, not just performed: every row is backfilled with
-    // refund_decision null, so a caller that cannot tell the fallback happened
-    // would show "no unresolved pulls" for a check that never ran.
-    await expect(loadPlatformPayoutLedgerEntryPage(0, 999)).resolves.toEqual({
-      rows: [expect.objectContaining({ show_id: 'show-1', refund_decision: null })],
-      refundDecisionChecked: false,
-    });
-    expect(selects).toHaveLength(2);
+    await expect(loadPlatformPayoutLedgerEntryPage(0, 999)).rejects.toBe(schemaError);
+    expect(selects).toHaveLength(1);
     expect(selects[0]).toContain('refund_decision');
-    expect(selects[1]).not.toContain('refund_decision');
+    expect(selects[0]).toContain('withdrawal_reason_code');
   });
 });
 

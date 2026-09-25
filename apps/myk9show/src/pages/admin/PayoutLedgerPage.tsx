@@ -685,31 +685,7 @@ function LedgerTable({
   );
 }
 
-function RefundDecisionAdvisory({
-  rows,
-  refundDecisionChecked,
-}: {
-  rows: LedgerRow[];
-  refundDecisionChecked: boolean;
-}) {
-  // A degraded read must not look like a clean one. When the pull-refund column
-  // could not be read, every row was backfilled with null — and
-  // isUnresolvedPullRefundDecision requires refund_decision === null, so the
-  // count INFLATES: entries already marked 'denied' read as unresolved too.
-  // Rendering that number would send the operator to entries that need nothing,
-  // via links they cannot act on. The count is fiction either way; say so.
-  if (!refundDecisionChecked) {
-    return (
-      <Alert className="border-warning/30 bg-warning/10">
-        <AlertTriangle className="h-4 w-4 !text-warning" aria-hidden="true" />
-        <AlertDescription>
-          Pull-refund decisions could not be checked, so this page cannot tell you whether any are
-          outstanding. Amounts elsewhere on the page are unaffected.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
   const unresolvedRows = rows.filter(row => row.unresolvedRefundDecisionCount > 0);
   if (unresolvedRows.length === 0) return null;
 
@@ -824,10 +800,7 @@ export default function PayoutLedgerPage() {
         ) : (
           <>
             <LedgerSummary rows={rows} />
-            <RefundDecisionAdvisory
-              rows={rows}
-              refundDecisionChecked={ledger.refundDecisionChecked}
-            />
+            <RefundDecisionAdvisory rows={rows} />
             <LedgerTable rows={rows} today={todayIso()} overviewCharges={overviewCharges} />
           </>
         )}

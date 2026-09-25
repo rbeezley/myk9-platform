@@ -54,7 +54,11 @@ export function getEntryStatus(
   const entryWindowKnown = Boolean(show.entryOpenDate && show.entryCloseDate);
   const openDate = entryWindowKnown ? toLocalDate(show.entryOpenDate) : null;
   const closeDate = entryWindowKnown ? toLocalDate(show.entryCloseDate) : null;
-  const today = currentEntryWindowDate(undefined, getEntryWindowTimezone(show.trials));
+  // The show's own zone, the same first-trial rule as `submit_show_entries`.
+  // Store shows carry no `trials`, so Browse resolves the zone from the trial
+  // store onto `entryWindowTimeZone` (MYK9-714).
+  const timeZone = show.entryWindowTimeZone ?? getEntryWindowTimezone(show.trials);
+  const today = currentEntryWindowDate(undefined, timeZone);
   if (!today || !openDate || !closeDate) {
     // currentEntryWindowDate always resolves a date in practice (see
     // entryWindowDate.ts); this guards that theoretical case (e.g. a bad IANA

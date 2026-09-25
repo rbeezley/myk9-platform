@@ -1,10 +1,5 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
-import {
-  isPullRefundSchemaUnavailable,
-  isMoveUpLinkSchemaUnavailable,
-  isSecretaryPaymentSchemaUnavailable,
-  isWithdrawalReasonCodeSchemaUnavailable,
-} from '@/features/payments/pullRefundSchemaCompatibility';
+import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
 
@@ -99,23 +94,18 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
       `;
 
 /**
- * Secretary payment bookkeeping (20260828200000). Selected separately so a
- * database without that migration still returns entries -- see
- * `isSecretaryPaymentSchemaUnavailable`.
- */
-/**
  * MYK9-639's supersession link, appended only when the schema has it.
  *
  * PostgREST fails the WHOLE request with 42703 on an unknown column, and
  * migration 20260918193300 is applied by hand after the merge — so naming it
  * unconditionally would make the cold-store read (a brand-new show, a fresh
- * device) fail outright for the length of the deploy window, exactly as
- * `payment_reference` and `withdrawal_reason_code` would.
+ * device) fail outright for the length of the deploy window.
  */
 const MOVE_UP_LINK_COLUMN = `,
         moved_from_entry_id`;
 
-const SECRETARY_ENTRIES_SELECT_WITH_PAYMENT = `${SECRETARY_ENTRIES_BASE_SELECT},
+/** Secretary payment bookkeeping (20260828200000, applied; MYK9-654 retired its compat arm). */
+const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_reference,
         payment_received_on,
         payment_notes`;
@@ -134,37 +124,17 @@ export async function postgrestGetSecretaryEntriesForShow(
   // brand-new show or a fresh device -- render "Couldn't load entries".
   // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
   // read paths now agree on columns as well as rows.
-  const runSelect = (includePaymentBookkeeping: boolean, includeMoveUpLink: boolean) =>
+  const runSelect = (includeMoveUpLink: boolean) =>
     supabase
       .from('view_authenticated_entry_results')
-      .select(
-        (includePaymentBookkeeping
-          ? SECRETARY_ENTRIES_SELECT_WITH_PAYMENT
-          : SECRETARY_ENTRIES_BASE_SELECT) + (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : '')
-      )
+      .select(SECRETARY_ENTRIES_SELECT + (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : ''))
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
-  let includeMoveUpLink = true;
-  let includePaymentBookkeeping = true;
-  let response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
-  // Each migration-backed column has its own compatibility retry. A database
-  // missing both migrations can report either missing column first, so retry
-  // until both optional projections have been removed rather than leaving one
-  // of them in the final request.
-  for (let retry = 0; retry < 2; retry += 1) {
-    if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
-      includeMoveUpLink = false;
-      response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
-      continue;
-    }
-    if (includePaymentBookkeeping && isSecretaryPaymentSchemaUnavailable(response.error)) {
-      includePaymentBookkeeping = false;
-      response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
-      continue;
-    }
-    break;
+  let response = await runSelect(true);
+  if (isMoveUpLinkSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
   }
   const { data, error } = response;
 
@@ -218,35 +188,13 @@ export async function postgrestGetSecretaryEntriesForShow(
 export async function postgrestGetSecretaryPullMetadataMap(
   showId: string
 ): Promise<Map<string, SecretaryPullMetadata>> {
-  const runSelect = (includeRefundDecision: boolean, includeReasonCode: boolean) =>
-    supabase
-      .from('entries')
-      .select(
-        [
-          'id, withdrawn_at',
-          includeRefundDecision ? 'refund_decision, refund_decided_at' : null,
-          includeReasonCode ? 'withdrawal_reason_code' : null,
-        ]
-          .filter(Boolean)
-          .join(', ')
-      )
-      .eq('show_id', showId)
-      .in('entry_status', ['scratched', 'withdrawn']);
-
-  // Two INDEPENDENT migration-backed column groups, so each is dropped on its
-  // own rather than taking the other down with it.
-  let includeRefundDecision = true;
-  let includeReasonCode = true;
-  let response = await runSelect(includeRefundDecision, includeReasonCode);
-  if (isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-    includeReasonCode = false;
-    response = await runSelect(includeRefundDecision, includeReasonCode);
-  }
-  if (isPullRefundSchemaUnavailable(response.error)) {
-    includeRefundDecision = false;
-    response = await runSelect(includeRefundDecision, includeReasonCode);
-  }
-  const { data, error } = response;
+  // Every column here is migration-backed and applied (20260722160000,
+  // 20260918041700); MYK9-654 retired the per-column compat retries.
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
+    .eq('show_id', showId)
+    .in('entry_status', ['scratched', 'withdrawn']);
 
   if (error) {
     throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');

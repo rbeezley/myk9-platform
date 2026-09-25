@@ -134,6 +134,8 @@ describe('useMyAtShowJudgeAssignments', () => {
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error?.message).toMatch(/Could not read judge assignments/);
     expect(result.current.isLoading).toBe(false);
+    // Unknown, not "none": the page must fall open to the full picker.
+    expect(result.current.isUnknown).toBe(true);
     expect(result.current.assignedClassIds.size).toBe(0);
   });
 });

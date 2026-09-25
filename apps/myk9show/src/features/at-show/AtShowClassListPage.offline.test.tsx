@@ -220,7 +220,7 @@ describe('AtShowClassListPage offline truthfulness', () => {
       authState.user = { is_anonymous: false };
     }
 
-    it('shows the load error, never "No classes assigned yet"', async () => {
+    it('falls open to the full class list with a load warning, never "No classes assigned yet"', async () => {
       signInAsIdentifiedJudge();
       seedPrimedDevice();
       judgeAssignmentData.getActive.mockRejectedValue(
@@ -229,11 +229,16 @@ describe('AtShowClassListPage offline truthfulness', () => {
 
       renderPage(judgeSyncedStatus);
 
+      // Not a dead end at the ring: the classes are there, with the warning.
+      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
       expect(
-        await screen.findByText("We couldn't load your judge assignments")
+        screen.getByText(
+          /We couldn.t load your assigned classes\. The full class list is still available\./
+        )
       ).toBeInTheDocument();
-      expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+      expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
+      expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();
     });
 
     it('positive control: a read that succeeds empty does say "No classes assigned yet"', async () => {

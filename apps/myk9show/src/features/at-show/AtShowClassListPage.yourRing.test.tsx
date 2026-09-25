@@ -378,7 +378,11 @@ describe('AtShowClassListPage Your ring', () => {
     expect(within(yourRing).getByText(/Container Novice/)).toBeInTheDocument();
   });
 
-  it('blocks unrelated classes and offers a retry when assignments fail to load', async () => {
+  // MYK9-769: a failed assignment read is UNKNOWN, not "none". It used to put a
+  // judge-only account on a page with no classes at all — a dead end at the
+  // ring. Like an unresolved identity, it now fails open to the full picker
+  // with the "couldn't load your assigned classes" warning and a retry.
+  it('fails open to the full class list with a retry when assignments fail to load', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
     authState.user = { is_anonymous: false };
@@ -386,8 +390,9 @@ describe('AtShowClassListPage Your ring', () => {
 
     const { user } = renderPage();
 
-    expect(await screen.findByText("We couldn't load your judge assignments")).toBeInTheDocument();
-    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.getByText(/The full class list is still available/)).toBeInTheDocument();
+    expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
   });

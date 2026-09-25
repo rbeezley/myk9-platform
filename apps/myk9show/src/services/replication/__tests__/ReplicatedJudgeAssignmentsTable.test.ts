@@ -389,6 +389,33 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
     });
   });
 
+  // MYK9-769 (review): the class-level writes had the same swallowed read.
+  describe('class-level writes on a failed device read', () => {
+    beforeEach(() => {
+      vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
+        ok: false,
+        rows: [],
+        error: new Error('IndexedDB read timed out'),
+      });
+    });
+
+    it('replaceClassAssignment refuses rather than adding a second judge', async () => {
+      const create = vi.spyOn(table, 'createAssignment');
+      await expect(table.replaceClassAssignment('show-1', 'class-1', 'judge-2')).rejects.toThrow(
+        /Could not read this show's judge assignments/
+      );
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it('reassignClassAssignment fails instead of reporting a no-op success', async () => {
+      const update = vi.spyOn(table, 'updateAssignment');
+      await expect(
+        table.reassignClassAssignment('show-1', 'class-1', 'judge-1', 'judge-2')
+      ).rejects.toThrow(/Could not read this show's judge assignments/);
+      expect(update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('replaceClassAssignment', () => {
     it('removes the old class assignment and creates the new one', async () => {
       await table.set('ja-1', {

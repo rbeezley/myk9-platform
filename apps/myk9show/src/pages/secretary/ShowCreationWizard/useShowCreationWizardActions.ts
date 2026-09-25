@@ -337,6 +337,11 @@ export function useShowCreationWizardActions({
             logger.warn('Failed to persist judge assignments', 'wizard', {
               error: judgeError instanceof Error ? judgeError.message : String(judgeError),
             });
+            // The show itself saved; say the judges did not rather than let
+            // the success toast imply they did (MYK9-769).
+            notifications.warning(
+              'The show was saved, but its judges could not be updated. Open the show and save the judges again.'
+            );
           }
         }
 

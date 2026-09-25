@@ -376,9 +376,9 @@ describe('useOfflineReadiness', () => {
   });
 
   // MYK9-769: getAll() turned a failed device read into [], and with a table
-  // hydrated at 0 expected rows that read as "ready". The honest answer is
-  // unknown.
-  it('reports unknown, not ready, when the judge assignment read fails', async () => {
+  // hydrated at 0 expected rows that read as "ready". A failed read is not
+  // hydrated: the badge says "Not offline ready" and keeps its Save now.
+  it('is not ready, and names the judge assignments, when their read fails', async () => {
     primeAllSignals();
     authState.isJudge = true;
     tables.judgeAssignments.meta = meta(6_000, 0);
@@ -386,13 +386,10 @@ describe('useOfflineReadiness', () => {
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 
-    const { readJudgeAssignmentsOrThrow } =
-      await import('@/services/database/judges/assignmentReads');
-    // The probe must actually have run and settled, or `null` is just the
-    // initial state and this assertion proves nothing.
-    await waitFor(() => expect(readJudgeAssignmentsOrThrow).toHaveBeenCalled());
-    await waitFor(() => expect(result.current.checking).toBe(false));
-    expect(result.current.readiness).toBeNull();
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
   it('treats an evicted judge assignment scope as cold', async () => {

@@ -8,8 +8,11 @@
 -- WHAT CHANGES: enforce_show_publish_gate() gains a third refusal, checked
 -- LAST (after the missing-club and Stripe-readiness refusals, so every
 -- existing MK003 case keeps its message): both shows.entry_open_date and
--- shows.entry_close_date must be set, and the window must open strictly
--- before it closes. It raises its own SQLSTATE, MK005, so the status pill can
+-- shows.entry_close_date must be set, and the window must not close before
+-- it opens. A same-day window is valid: entry dates are persisted as calendar
+-- days (the wizard's online create writes toLocalDateOnly, so a window that
+-- opens and closes on one day lands as the same midnight) and the close day
+-- is inclusive. It raises its own SQLSTATE, MK005, so the status pill can
 -- link to the entry dates instead of the payments page
 -- (PUBLISH_GATE_ERRCODE_ENTRY_WINDOW, onlineEntryGate.ts). The two RAISE texts
 -- are ENTRY_WINDOW_REQUIRED_MESSAGE and ENTRY_WINDOW_ORDER_MESSAGE verbatim
@@ -110,8 +113,9 @@ BEGIN
       USING ERRCODE = 'MK005';
   END IF;
 
-  IF NEW.entry_open_date >= NEW.entry_close_date THEN
-    RAISE EXCEPTION 'The entry window has to open before it closes. Fix the entry dates, then publish.'
+  -- Calendar-day semantics: equal dates are a one-day window, not an error.
+  IF NEW.entry_open_date > NEW.entry_close_date THEN
+    RAISE EXCEPTION 'The entry window can''t close before it opens. Fix the entry dates, then publish.'
       USING ERRCODE = 'MK005';
   END IF;
 
@@ -120,7 +124,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.enforce_show_publish_gate() IS
-  'MYK9-579, extended by MYK9-716: server-side backstop for a show entering ''published''. Refuses, in order: a show with no club (MK003, CLUB_REQUIRED_MESSAGE); a club with no payouts-enabled Stripe account in the platform''s mode, read from platform_settings.stripe_livemode (MK003, PUBLISH_BLOCKED_MESSAGE); and (MYK9-716) a show with no entry window, or one whose entry_open_date is not strictly before entry_close_date (MK005, ENTRY_WINDOW_REQUIRED_MESSAGE / ENTRY_WINDOW_ORDER_MESSAGE). A draft may have no entry window; only publishing requires one. The gated set is (''published'') only — ''accepting_entries'' is not a permitted shows.status (072_align_show_class_statuses.sql). The status pill (ShowStatusPill.tsx) is the only surface that transitions a show INTO ''published''; isPublishGateDbError (onlineEntryGate.ts) maps MK003/MK004/MK005 client-side. Fires on BEFORE INSERT OR UPDATE OF status (trg_enforce_show_publish_gate), branching on TG_OP: INSERT gates any row created already published; UPDATE gates only a transition INTO ''published'' FROM a different status, and exempts an already-published show (unrelated edits are never re-gated or retroactively un-published). All membership checks use IS DISTINCT FROM, never IN/NOT IN. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') — a direct superuser session and service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures) both bypass. INVARIANT: if publish ever moves behind an edge function (service_role), the gate must be restated there. MYK9-572''s club-authorization refusal (MK004) is a separate trigger, trg_enforce_show_club_authorization, which fires first.';
+  'MYK9-579, extended by MYK9-716: server-side backstop for a show entering ''published''. Refuses, in order: a show with no club (MK003, CLUB_REQUIRED_MESSAGE); a club with no payouts-enabled Stripe account in the platform''s mode, read from platform_settings.stripe_livemode (MK003, PUBLISH_BLOCKED_MESSAGE); and (MYK9-716) a show with no entry window, or one whose entry_close_date is before its entry_open_date (a same-day window is valid: the dates are calendar days and the close day is inclusive) (MK005, ENTRY_WINDOW_REQUIRED_MESSAGE / ENTRY_WINDOW_ORDER_MESSAGE). A draft may have no entry window; only publishing requires one. The gated set is (''published'') only — ''accepting_entries'' is not a permitted shows.status (072_align_show_class_statuses.sql). The status pill (ShowStatusPill.tsx) is the only surface that transitions a show INTO ''published''; isPublishGateDbError (onlineEntryGate.ts) maps MK003/MK004/MK005 client-side. Fires on BEFORE INSERT OR UPDATE OF status (trg_enforce_show_publish_gate), branching on TG_OP: INSERT gates any row created already published; UPDATE gates only a transition INTO ''published'' FROM a different status, and exempts an already-published show (unrelated edits are never re-gated or retroactively un-published). All membership checks use IS DISTINCT FROM, never IN/NOT IN. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') — a direct superuser session and service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures) both bypass. INVARIANT: if publish ever moves behind an edge function (service_role), the gate must be restated there. MYK9-572''s club-authorization refusal (MK004) is a separate trigger, trg_enforce_show_club_authorization, which fires first.';
 
 -- Trigger-only function: nothing calls it directly. A trigger fires
 -- regardless of EXECUTE privilege, so this is an explicit grant DECISION for

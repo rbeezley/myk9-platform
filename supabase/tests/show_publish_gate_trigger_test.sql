@@ -946,7 +946,7 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579061', 'MYK9-716 Inverted Window', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
    current_date - 1, current_date - 10),
-  ('00000000-0000-0000-0000-000000579062', 'MYK9-716 Zero-Length Window', 'AKC',
+  ('00000000-0000-0000-0000-000000579062', 'MYK9-716 Same-Day Window', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
    current_date - 1, current_date - 1),
   ('00000000-0000-0000-0000-000000579063', 'MYK9-716 Windowless, Not Stripe-Ready', 'AKC',
@@ -1025,33 +1025,39 @@ $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
--- 12c. A window that closes before, or at the same moment, it opens is
---      refused with the order message.
+-- 12c. A window that closes before it opens is refused with the order
+--      message. A same-day window is NOT: entry dates are stored as calendar
+--      days (the wizard's online create writes toLocalDateOnly, so open and
+--      close on one day land as the same midnight) and the close day is
+--      inclusive, so it is a valid one-day window and must publish.
 DO $$
 DECLARE
-  v_id uuid;
   v_message text;
+  v_n int;
 BEGIN
-  FOREACH v_id IN ARRAY ARRAY[
-    '00000000-0000-0000-0000-000000579061'::uuid,
-    '00000000-0000-0000-0000-000000579062'::uuid
-  ] LOOP
-    v_message := NULL;
-    SET LOCAL ROLE authenticated;
-    PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
-    BEGIN
-      UPDATE public.shows SET status = 'published' WHERE id = v_id;
-      RAISE EXCEPTION 'FAIL window-order: show % with an inverted or empty window was published', v_id;
-    EXCEPTION WHEN SQLSTATE 'MK005' THEN
-      GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
-    END;
-    RESET ROLE;
-    PERFORM set_config('request.jwt.claim.sub', '', true);
-    IF v_message IS NULL OR v_message !~* 'has to open before it closes' THEN
-      RAISE EXCEPTION 'FAIL window-order: unexpected message for %: %', v_id, v_message;
-    END IF;
-  END LOOP;
-  RAISE NOTICE 'PASS window-order: an inverted and a zero-length window are both refused with MK005';
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579061';
+    RAISE EXCEPTION 'FAIL window-order: a show whose window closes before it opens was published';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000000579062';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_message IS NULL OR v_message !~* 'can.t close before it opens' THEN
+    RAISE EXCEPTION 'FAIL window-order: unexpected message %', v_message;
+  END IF;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL window-same-day: expected the same-day window to publish 1 row, got %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS window-order: an inverted window is refused with MK005, and a same-day window publishes';
 END;
 $$;
 RESET ROLE;

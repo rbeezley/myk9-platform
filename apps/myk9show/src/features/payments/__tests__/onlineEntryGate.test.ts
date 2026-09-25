@@ -131,9 +131,22 @@ describe('entryWindowPublishError', () => {
     expect(entryWindowPublishError('not a date', CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
   });
 
-  it('refuses a window that closes before, or at the moment, it opens', () => {
+  it('refuses a window that closes before it opens', () => {
     expect(entryWindowPublishError(CLOSE, OPEN)).toBe(ENTRY_WINDOW_ORDER_MESSAGE);
-    expect(entryWindowPublishError(OPEN, OPEN)).toBe(ENTRY_WINDOW_ORDER_MESSAGE);
+  });
+
+  // Entry dates are persisted as calendar days (the online create path stores
+  // toLocalDateOnly, i.e. midnight UTC) and the close day is inclusive, so a
+  // same-day window is a one-day window. The wizard's picker stores 8:00 AM
+  // and 11:59 PM; once persisted both read as the same midnight. Neither
+  // shape may be refused, or Review would pass what the trigger rejects.
+  it('accepts a same-day window, both as the wizard holds it and as it is stored', () => {
+    expect(
+      entryWindowPublishError('2026-10-01T13:00:00.000Z', '2026-10-02T04:59:00.000Z')
+    ).toBeNull();
+    expect(
+      entryWindowPublishError('2026-10-01T00:00:00+00:00', '2026-10-01T00:00:00+00:00')
+    ).toBeNull();
   });
 
   it('recognises the trigger refusal (MK005) as a publish-gate error with its own copy', () => {

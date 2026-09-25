@@ -66,7 +66,7 @@ export const ENTRY_WINDOW_REQUIRED_MESSAGE =
   'Set the entry window before publishing — exhibitors need to know when entries open and close.';
 
 export const ENTRY_WINDOW_ORDER_MESSAGE =
-  'The entry window has to open before it closes. Fix the entry dates, then publish.';
+  "The entry window can't close before it opens. Fix the entry dates, then publish.";
 
 function parseEntryDate(value: string | null | undefined): number | null {
   if (!value?.trim()) return null;
@@ -77,7 +77,12 @@ function parseEntryDate(value: string | null | undefined): number | null {
 /**
  * Why this show's entry window cannot be published yet, or `null` when it can.
  * Mirrors the trigger: a missing (or unreadable) date is "required", and an
- * open that is not strictly before the close is "order".
+ * close before the open is "order". Equal instants pass: entry dates are
+ * persisted as calendar days (midnight UTC) with an inclusive close day, so a
+ * same-day window stores open === close and is a valid one-day window.
+ * Comparing the wizard's un-persisted instants is never looser than the
+ * stored calendar days (a local date never runs backwards as the instant
+ * moves forward), so this never passes what the trigger refuses.
  */
 export function entryWindowPublishError(
   entryOpenDate: string | null | undefined,
@@ -86,7 +91,7 @@ export function entryWindowPublishError(
   const open = parseEntryDate(entryOpenDate);
   const close = parseEntryDate(entryCloseDate);
   if (open === null || close === null) return ENTRY_WINDOW_REQUIRED_MESSAGE;
-  return open < close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
+  return open <= close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
 }
 
 const PUBLISH_GATE_ERRCODES: readonly string[] = [

@@ -27,6 +27,7 @@ import {
   type SnapshotCheck,
 } from '../_shared/systemHealthChecks.ts';
 import type { HealthCheckRunMode } from '../_shared/healthCheckCadence.ts';
+import { PUBLIC_LISTING_STATUSES, readListedShows } from '../_shared/strayShowChecks.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -107,17 +108,22 @@ async function insertSnapshot(row: ReturnType<typeof buildSnapshot>, runMode: He
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
 
-/** Published, non-deleted shows for the stray-show check (MYK9-741), read only
- * on full runs; continuous runs carry the nightly result forward. A read
- * failure becomes `{ error }`, which the check reports as unprovable. */
-async function fetchPublishedShows(mode: HealthCheckRunMode): Promise<unknown> {
+/** Every show the public listing includes, for the stray-show check (MYK9-741),
+ * read only on full runs; continuous runs carry the nightly result forward.
+ * `readListedShows` pages through the whole result (PostgREST caps a response
+ * at 1000 rows), because a check that stopped at the first page would report
+ * `ok` about shows it never saw. */
+async function fetchListedShows(mode: HealthCheckRunMode): Promise<unknown> {
   if (mode !== 'full') return undefined;
-  const { data, error } = await supabase
-    .from('shows')
-    .select('id, name, location')
-    .eq('status', 'published')
-    .is('deleted_at', null);
-  return error ? { error: error.message } : { rows: data ?? [] };
+  return readListedShows((from, to) =>
+    supabase
+      .from('shows')
+      .select('id, name, location')
+      .in('status', [...PUBLIC_LISTING_STATUSES])
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
 }
 
 async function runHealthSnapshot(
@@ -135,7 +141,7 @@ async function runHealthSnapshot(
       p_include_expensive: mode === 'full',
     }),
     supabase.rpc('public_schema_create_acl_probe'),
-    fetchPublishedShows(mode).catch((err: unknown) => ({
+    fetchListedShows(mode).catch((err: unknown) => ({
       error: err instanceof Error ? err.message : String(err),
     })),
   ]);

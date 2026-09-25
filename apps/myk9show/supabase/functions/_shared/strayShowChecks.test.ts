@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ENGINEERING_VOCABULARY,
+  readListedShows,
   isSeedScopeShow,
   SEED_LOAD_SHOW_RANGE,
   SEED_SCOPE_SHOW_IDS,
@@ -160,7 +161,7 @@ describe('strayPublishedShowsCheck', () => {
     expect(check.status).toBe('warn');
     expect(check.counter_value).toBe(1);
     expect(check.detail).toBe(
-      '1 published show looks like test data: f3360000-0000-0000-0000-000000000001 "[E2E MYK9-336] Past Due Payment Fixture"'
+      '1 listed show looks like test data: f3360000-0000-0000-0000-000000000001 "[E2E MYK9-336] Past Due Payment Fixture"'
     );
   });
 
@@ -168,10 +169,10 @@ describe('strayPublishedShowsCheck', () => {
     [
       'a read error',
       { error: 'permission denied for table shows' },
-      /could not read published shows: permission denied/,
+      /could not read the listed shows: permission denied/,
     ],
-    ['no facts at all', undefined, /no published-show rows/],
-    ['a malformed row', { rows: [{ id: 1, name: 'x' }] }, /no published-show rows/],
+    ['no facts at all', undefined, /no listed-show rows/],
+    ['a malformed row', { rows: [{ id: 1, name: 'x' }] }, /no listed-show rows/],
   ])('is an unprovable warn, never ok, on %s', (_label, facts, detail) => {
     const check = strayPublishedShowsCheck(facts, AT);
     expect(check.status).toBe('warn');
@@ -192,6 +193,43 @@ describe('strayPublishedShowsCheck', () => {
     expect(continuous.checks.find(c => c.key === 'stray_published_shows')).toMatchObject({
       status: 'ok',
       checked_at: nightly!.checked_at,
+    });
+  });
+});
+
+describe('the listing the check reads (Codex review, MYK9-741)', () => {
+  // The status set is pinned against the app's listing in
+  // src/features/admin-system-health/strayShowListing.test.ts (this file is
+  // also typechecked as an edge test, which cannot load app services).
+
+  const pages = (total: number) => async (from: number, to: number) => ({
+    data: Array.from({ length: Math.max(0, Math.min(total, to + 1) - from) }, (_, i) => ({
+      id: String(from + i),
+    })),
+    error: null,
+  });
+
+  it('reads past the first page, so a show on page two is still checked', async () => {
+    const got = await readListedShows(pages(25), 10);
+    expect('rows' in got && got.rows).toHaveLength(25);
+  });
+
+  it('reads an exactly-full last page, then stops on the empty one', async () => {
+    const got = await readListedShows(pages(20), 10);
+    expect('rows' in got && got.rows).toHaveLength(20);
+  });
+
+  it('never returns a partial listing: a failed page or too many pages is an error', async () => {
+    let calls = 0;
+    const failing = async () => {
+      calls += 1;
+      return calls === 2
+        ? { data: null, error: { message: 'timeout' } }
+        : { data: Array.from({ length: 10 }, () => ({})), error: null };
+    };
+    expect(await readListedShows(failing, 10)).toEqual({ error: 'timeout' });
+    expect(await readListedShows(pages(100), 10, 3)).toEqual({
+      error: 'more than 30 listed shows; not all were read',
     });
   });
 });

@@ -103,7 +103,7 @@ export interface RawProbeFacts {
   anon_grants?: unknown;
   applied_acl_grants?: unknown;
   public_schema_create_acl?: unknown;
-  /** Published, non-deleted shows the runner read directly (MYK9-741):
+  /** Every listed, non-deleted show the runner read directly (MYK9-741):
    * `{ rows: { id, name, location }[] }` or `{ error }`. Full runs only. */
   stray_published_shows?: unknown;
 }

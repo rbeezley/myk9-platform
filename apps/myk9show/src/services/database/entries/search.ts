@@ -1,7 +1,7 @@
 /**
- * Entry statistics, search, and eligibility queries
+ * Entry search and eligibility queries
  *
- * Read-only operations for statistics aggregation, searching, and eligibility checks.
+ * Read-only operations for searching and eligibility checks.
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
@@ -16,59 +16,10 @@ import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
-import {
-  hasShowEntriesSynced,
-  hasUnsavedLocalEntryWrites,
-} from '@/services/replication/entriesShowSyncState';
-import { ShowEntriesNotSyncedError } from './requireShowEntriesSynced';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
 // ---------------------------------------------------------------------------
-
-async function postgrestGetEntryStatistics(showId?: string) {
-  let query = supabase
-    .from('entries')
-    .select('entry_status, entry_fee, payment_status')
-    .is('deleted_at', null);
-
-  if (showId) {
-    query = query.eq('show_id', showId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) throw createDatabaseError(error, 'entries', 'statistics');
-
-  // Calculate statistics
-  const stats = {
-    totalEntries: data?.length || 0,
-    byStatus: {} as Record<string, number>,
-    totalRevenue: 0,
-    paidRevenue: 0,
-    completionRate: 0,
-  };
-
-  if (data) {
-    data.forEach(entry => {
-      const status = entry.entry_status || 'unknown';
-      stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
-
-      const fee = entry.entry_fee || 0;
-      stats.totalRevenue += fee;
-
-      if (entry.payment_status === 'paid') {
-        stats.paidRevenue += fee;
-      }
-    });
-
-    const completedEntries = stats.byStatus['completed'] || 0;
-    const paidEntries = data.filter(e => e.payment_status === 'paid').length;
-    stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
-  }
-
-  return { data: stats, error: null };
-}
 
 const SEARCH_ENTRIES_SELECT = `
   id,
@@ -201,57 +152,6 @@ export function isEntryCloseDayPast(
 // ---------------------------------------------------------------------------
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
-
-// Get entry statistics for a show
-export const getEntryStatistics = async (showId?: string) => {
-  try {
-    // MYK9-761: a never-synced show's local rows are only what this device
-    // wrote. Read it online, unless a local write the server has not seen
-    // would be missing from that answer.
-    const scopeSynced = showId ? await hasShowEntriesSynced(showId) : true;
-    if (showId && !scopeSynced && (await hasUnsavedLocalEntryWrites(showId))) {
-      throw createDatabaseError(new ShowEntriesNotSyncedError(), 'entries', 'statistics');
-    }
-    return await withReplicationFallback(
-      async () => {
-        if (!scopeSynced) throw new ShowEntriesNotSyncedError();
-        const entries = showId
-          ? await replicatedEntriesTable.getEntriesByShow(showId)
-          : await replicatedEntriesTable.getAll();
-
-        const stats = {
-          totalEntries: entries.length,
-          byStatus: {} as Record<string, number>,
-          totalRevenue: 0,
-          paidRevenue: 0,
-          completionRate: 0,
-        };
-
-        for (const entry of entries) {
-          const status = entry.entryStatus || 'unknown';
-          stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
-          const fee = entry.entryFee || 0;
-          stats.totalRevenue += fee;
-          if (entry.paymentStatus === 'paid') stats.paidRevenue += fee;
-        }
-
-        const completedEntries = stats.byStatus['completed'] || 0;
-        const paidEntries = entries.filter(e => e.paymentStatus === 'paid').length;
-        stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
-
-        return { data: stats, error: null };
-      },
-      () => postgrestGetEntryStatistics(showId),
-      'entries',
-      'statistics'
-    );
-  } catch (error) {
-    return {
-      data: { totalEntries: 0, byStatus: {}, totalRevenue: 0, paidRevenue: 0, completionRate: 0 },
-      error: error as DatabaseError,
-    };
-  }
-};
 
 // Search entries by armband or handler name
 export const searchEntries = async (searchTerm: string) => {

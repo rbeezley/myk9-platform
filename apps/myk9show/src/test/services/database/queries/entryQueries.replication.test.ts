@@ -134,7 +134,6 @@ import {
   getEntriesByClass,
   getEntriesByDog,
   getEntriesByStatus,
-  getEntryStatistics,
   getUserEntries,
   searchEntries,
   canModifyEntry,
@@ -571,59 +570,6 @@ describe('entryQueries (replication)', () => {
       const result = await getEntriesByStatus('withdrawn');
 
       expect(result.data).toEqual([]);
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getEntryStatistics
-  // -----------------------------------------------------------------------
-  describe('getEntryStatistics', () => {
-    it('calculates correct statistics', async () => {
-      const entries = [
-        makeEntry({ id: 'e1', entryStatus: 'confirmed', entryFee: 30, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e2', entryStatus: 'confirmed', entryFee: 25, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e3', entryStatus: 'completed', entryFee: 30, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e4', entryStatus: 'draft', entryFee: 30, paymentStatus: 'pending' }),
-      ];
-      mockEntriesTable.getAll.mockResolvedValue(entries);
-
-      const result = await getEntryStatistics();
-
-      expect(result.error).toBeNull();
-      expect(result.data.totalEntries).toBe(4);
-      expect(result.data.byStatus).toEqual({
-        confirmed: 2,
-        completed: 1,
-        draft: 1,
-      });
-      expect(result.data.totalRevenue).toBe(115);
-      expect(result.data.paidRevenue).toBe(85);
-      // completionRate = completed(1) / paid(3) * 100
-      expect(result.data.completionRate).toBeCloseTo(33.33, 1);
-    });
-
-    it('filters by showId when provided', async () => {
-      const entries = [makeEntry({ showId: 'show-1', entryFee: 30 })];
-      mockEntriesTable.getEntriesByShow.mockResolvedValue(entries);
-
-      const result = await getEntryStatistics('show-1');
-
-      expect(result.data.totalEntries).toBe(1);
-      expect(mockEntriesTable.getEntriesByShow).toHaveBeenCalledWith('show-1');
-    });
-
-    it('returns zeros when no entries exist', async () => {
-      mockEntriesTable.getAll.mockResolvedValue([]);
-
-      const result = await getEntryStatistics();
-
-      expect(result.data).toEqual({
-        totalEntries: 0,
-        byStatus: {},
-        totalRevenue: 0,
-        paidRevenue: 0,
-        completionRate: 0,
-      });
     });
   });
 

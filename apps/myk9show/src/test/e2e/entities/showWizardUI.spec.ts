@@ -196,6 +196,12 @@ test.describe('Show Wizard UI — overlay stacking (secretary)', () => {
     const trigger = page.getByRole('button', { name: 'Show Dates *' });
     await trigger.scrollIntoViewIfNeeded();
     await page.waitForTimeout(1000); // tile fade-in
+    // Hover runs the same scroll-into-view step `click()` does, so do it before
+    // the baseline: it moved the page 3px (787 -> 790) after
+    // scrollIntoViewIfNeeded, and the click then failed the no-scroll check
+    // below for a scroll the test itself made (MYK9-764).
+    await trigger.hover();
+    await page.waitForTimeout(200);
 
     const box = (await map.boundingBox())!;
     const visibleTop = Math.max(box.y, 0);

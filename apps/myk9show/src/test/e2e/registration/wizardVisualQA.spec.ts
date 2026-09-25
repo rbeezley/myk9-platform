@@ -13,6 +13,13 @@ import {
 // server-side cart on the staging show, which is why the file still runs in
 // order rather than in parallel. Serial mode added nothing to that and cost
 // the whole verdict: one flaky click skipped every scenario after it.
+//
+// `mode: 'default'` DOES keep these in order under playwright.config.ts's
+// `fullyParallel: true`: Playwright's own docs for describe.configure (types
+// in playwright 1.63, "Running tests in order, retrying each failed test
+// independently") say setting it explicitly "can be useful ... to override
+// project configuration that uses fullyParallel". So the file runs in order
+// on one worker, and a failure does not skip the scenarios after it.
 test.describe.configure({ mode: 'default', timeout: 120000 });
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;

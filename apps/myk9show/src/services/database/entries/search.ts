@@ -16,6 +16,11 @@ import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import {
+  hasShowEntriesSynced,
+  hasUnsavedLocalEntryWrites,
+} from '@/services/replication/entriesShowSyncState';
+import { ShowEntriesNotSyncedError } from './requireShowEntriesSynced';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -200,8 +205,16 @@ export function isEntryCloseDayPast(
 // Get entry statistics for a show
 export const getEntryStatistics = async (showId?: string) => {
   try {
+    // MYK9-761: a never-synced show's local rows are only what this device
+    // wrote. Read it online, unless a local write the server has not seen
+    // would be missing from that answer.
+    const scopeSynced = showId ? await hasShowEntriesSynced(showId) : true;
+    if (showId && !scopeSynced && (await hasUnsavedLocalEntryWrites(showId))) {
+      throw createDatabaseError(new ShowEntriesNotSyncedError(), 'entries', 'statistics');
+    }
     return await withReplicationFallback(
       async () => {
+        if (!scopeSynced) throw new ShowEntriesNotSyncedError();
         const entries = showId
           ? await replicatedEntriesTable.getEntriesByShow(showId)
           : await replicatedEntriesTable.getAll();

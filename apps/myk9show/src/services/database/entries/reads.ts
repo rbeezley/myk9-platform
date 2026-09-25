@@ -40,6 +40,7 @@ import {
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
+import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
 import {
   HANDLER_PERSON_SELECT,
   attachPostgrestHandlerIdentity,
@@ -884,12 +885,16 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
   });
 };
 
-// Get entries by show ID with financial joins (promo_code, trial name)
+// Get entries by show ID with financial joins (promo_code, trial name).
+// MYK9-761: summed as money, so a never-synced show is read online or reported
+// as an error, the same rule as the staff report read above.
 export const getEntriesByShowForFinancials = async (showId: string) => {
+  await ensureShowEntriesSynced(showId);
   return readWithReplicationFallback({
     replication: async () => {
-      const [rawEntries, dogsMap, classesMap, trials] = await Promise.all([
+      const [rawEntries, scopeSynced, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
+        hasShowEntriesSynced(showId),
         loadDogsMap(),
         loadClassesMap(),
         replicatedTrialsTable.getTrialsByShow(showId),
@@ -940,12 +945,20 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
         });
       });
 
-      return { data, error: null };
+      return {
+        data,
+        error: null,
+        locallyDeletedIds: rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id),
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
+      };
     },
     postgrest: () => postgrestGetEntriesByShowForFinancials(showId),
     table: 'entries',
     operation: 'select_by_show_financials',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 

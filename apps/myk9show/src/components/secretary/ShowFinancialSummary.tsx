@@ -4,6 +4,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { exportToCSV } from '@/lib/export';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardGridSkeleton, TableSkeleton } from '@/components/common/SkeletonLoaders';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
   const [trialFilter, setTrialFilter] = useState<string>('all');
   const [breakdownOpen, setBreakdownOpen] = useState(false);
 
-  const { data: rawEntries = [], isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.showFinancialSummary(showId),
     queryFn: async () => {
       const { data, error } = await getEntriesByShowForFinancials(showId);
@@ -50,6 +51,7 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     enabled: !!showId,
     ...cacheStrategies.dynamic,
   });
+  const rawEntries = useMemo(() => data ?? [], [data]);
 
   const allEntries: ShowFinancialEntryRow[] = useMemo(
     () =>
@@ -140,7 +142,16 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     exportToCSV(exportData, `show-financial-summary-${showId.slice(0, 8)}`);
   };
 
-  if (isLoading) {
+  // MYK9-761: money is never summed from rows that did not load. An error (a
+  // show that has not synced here and cannot be read online) and a query with
+  // no answer yet (offline, the query parks) both stay off the $0 summary.
+  if (isError) {
+    return (
+      <ErrorState message="The financial summary is unavailable" onRetry={() => void refetch()} />
+    );
+  }
+
+  if (isLoading || data === undefined) {
     return (
       <div role="status" aria-label="Loading show financial summary" className="space-y-4">
         <CardGridSkeleton items={5} />

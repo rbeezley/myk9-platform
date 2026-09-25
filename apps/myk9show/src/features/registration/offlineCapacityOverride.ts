@@ -5,6 +5,7 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
 
 const CAPACITY_STATUSES = new Set([
   'submitted',
@@ -142,6 +143,9 @@ export async function loadOfflineCapacityOverrides(
   showId: string,
   selections: OfflineCapacitySelection[]
 ): Promise<Record<string, boolean>> {
+  // MYK9-761: counts from a never-synced show would call a full class open and
+  // record the entry as within capacity. The submission surfaces the error.
+  await requireShowEntriesSynced(showId);
   const [show, classes, trials, assignments, entries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedClassesTable.getAll(),

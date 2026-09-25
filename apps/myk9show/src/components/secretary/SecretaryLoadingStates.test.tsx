@@ -5,8 +5,10 @@ import { PromoCodesSection } from './PromoCodesSection';
 import { ShowFinancialSummary } from './ShowFinancialSummary';
 
 const showFinancialQueryState = vi.hoisted(() => ({
-  data: [] as unknown[],
+  data: [] as unknown[] | undefined,
   isLoading: false,
+  isError: false,
+  refetch: () => {},
 }));
 
 const trialEntriesState = vi.hoisted(() => ({
@@ -47,6 +49,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 beforeEach(() => {
   showFinancialQueryState.data = [];
   showFinancialQueryState.isLoading = false;
+  showFinancialQueryState.isError = false;
   trialEntriesState.data = [];
   trialEntriesState.isLoading = false;
   promoCodeState.show = { data: [], isLoading: false };
@@ -81,6 +84,29 @@ describe('Secretary financial and promo sections — loading state skeleton conv
       screen.getByRole('status', { name: /loading show financial summary/i })
     ).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
+  });
+
+  // MYK9-761: a show that has not synced here reads as an error, and offline
+  // the query parks unanswered. Neither may render a $0 summary as the show.
+  it('shows the error state, not a $0 summary, when the show financials cannot be read', () => {
+    showFinancialQueryState.data = undefined;
+    showFinancialQueryState.isError = true;
+
+    render(<ShowFinancialSummary showId="show-1" />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/financial summary is unavailable/i);
+    expect(screen.queryByText(/aggregated entry fees, discounts, and payments/i)).toBeNull();
+  });
+
+  it('keeps the skeleton while the show financials have no answer yet (offline, paused)', () => {
+    showFinancialQueryState.data = undefined;
+
+    render(<ShowFinancialSummary showId="show-1" />);
+
+    expect(
+      screen.getByRole('status', { name: /loading show financial summary/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/aggregated entry fees, discounts, and payments/i)).toBeNull();
   });
 
   it('removes the show financial skeleton for the loaded empty state', () => {

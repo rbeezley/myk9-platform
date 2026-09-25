@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useClubStore } from '@/store/clubStore';
 import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
+import {
+  GUEST_READ_QUERY_OPTIONS,
+  resolveGuestRead,
+  useQueryOnlineStatus,
+} from '@/hooks/guestServerRead';
 import { getPublicClubById } from '@/services/database/clubs';
 import type { Club } from '@/types/club-types';
 
@@ -42,13 +47,16 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
   // INTENT in useBrowseClubsData). The clubs replica is shared across sign-in
   // states on one device, so a guest opening a link to a revoked or
   // never-authorized club must get the server's answer, never a cached row,
-  // not even offline. No row from clubs_select means not found.
+  // not even offline, and never a cached query result (guestServerRead.ts).
+  // No row from clubs_select means not found.
   const guestQuery = useQuery({
     queryKey: [...PUBLIC_CLUB_DETAIL_QUERY_KEY, id, principalKey],
     queryFn: () => getPublicClubById(id as string),
     enabled: isGuest && Boolean(id),
-    staleTime: 60_000,
+    ...GUEST_READ_QUERY_OPTIONS,
   });
+  const isOnline = useQueryOnlineStatus();
+  const guestRead = resolveGuestRead(guestQuery, isOnline);
 
   useEffect(() => {
     if (isSignedIn) void ensureClubsReady({ requestedClubId: id });
@@ -63,18 +71,18 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
     void ensureClubsReady({ requestedClubId: id, force: true });
   }, [isGuest, refetchGuest, ensureClubsReady, id]);
 
-  const rawClub = isGuest ? (guestQuery.data ?? null) : replicaClub;
+  const rawClub = isGuest ? (guestRead.kind === 'ready' ? guestRead.data : null) : replicaClub;
   const club = useMemo(() => (rawClub ? withShowArrays(rawClub) : null), [rawClub]);
 
   let status: ClubDetailStatus;
   if (authLoading) {
     status = 'loading';
   } else if (isGuest) {
-    if (!id || guestQuery.data === null) status = 'not-found';
-    else if (guestQuery.data) status = 'ready';
-    else if (guestQuery.fetchStatus === 'paused') status = 'offline';
-    else if (guestQuery.isError) status = 'unavailable';
-    else status = 'loading';
+    if (!id) status = 'not-found';
+    else if (guestRead.kind === 'offline') status = 'offline';
+    else if (guestRead.kind === 'error') status = 'unavailable';
+    else if (guestRead.kind === 'loading') status = 'loading';
+    else status = guestRead.data ? 'ready' : 'not-found';
   } else if (readiness === 'loading' && !club) {
     status = 'loading';
   } else if ((readiness === 'unavailable' || readiness === 'offline') && !club) {

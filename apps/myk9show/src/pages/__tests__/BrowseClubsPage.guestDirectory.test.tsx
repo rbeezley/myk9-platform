@@ -4,9 +4,10 @@
  * holding rows a guest must never see, and the server read mocked.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { PUBLIC_CLUB_DIRECTORY_QUERY_KEY } from '@/hooks/useBrowseClubsData';
 import type { Club } from '@/types/club-types';
 
 const replica = vi.hoisted(() => ({
@@ -106,6 +107,44 @@ describe('BrowseClubsPage signed-out directory (MYK9-747)', () => {
     expect(screen.queryByText('Revoked Kennel Club')).not.toBeInTheDocument();
     expect(screen.queryByText('Unauthorized Secretary Club')).not.toBeInTheDocument();
     expect(replica.ensureClubsReady).not.toHaveBeenCalled();
+  });
+
+  // Codex P1: a cached earlier read is not an authoritative guest directory.
+  it('does not render cached rows from an earlier visit until the mount refetch resolves', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, 'signed-out'],
+      [makeClub('club-since-revoked', 'Since Revoked Club')]
+    );
+    let resolveFresh: (clubs: Club[]) => void = () => {};
+    getPublicDirectoryClubs.mockReturnValue(
+      new Promise<Club[]>(resolve => {
+        resolveFresh = resolve;
+      })
+    );
+
+    render(<BrowseClubsPage />, { initialRoute: '/clubs', queryClient });
+
+    expect(screen.getByTestId('clubs-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Since Revoked Club')).not.toBeInTheDocument();
+    expect(getPublicDirectoryClubs).toHaveBeenCalledTimes(1);
+
+    await act(async () => resolveFresh([makeClub('club-public', 'Public Obedience Club')]));
+
+    expect(await screen.findByText('Public Obedience Club')).toBeInTheDocument();
+    expect(screen.queryByText('Since Revoked Club')).not.toBeInTheDocument();
+  });
+
+  it('switches to the offline state when the connection drops after a successful read', async () => {
+    getPublicDirectoryClubs.mockResolvedValue([makeClub('club-public', 'Public Obedience Club')]);
+
+    render(<BrowseClubsPage />, { initialRoute: '/clubs' });
+    expect(await screen.findByText('Public Obedience Club')).toBeInTheDocument();
+
+    act(() => onlineManager.setOnline(false));
+
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+    expect(screen.queryByText('Public Obedience Club')).not.toBeInTheDocument();
   });
 
   it('shows an offline state, not an empty directory, with no connection', () => {

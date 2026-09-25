@@ -3,6 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
+import {
+  GUEST_READ_QUERY_OPTIONS,
+  resolveGuestRead,
+  useQueryOnlineStatus,
+} from '@/hooks/guestServerRead';
 import { useClubStore } from '@/store/clubStore';
 import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
@@ -65,31 +70,34 @@ export function useBrowseClubsData(): BrowseClubsData {
   // signed-out visitor. Guests therefore read clubs_select straight from the
   // server and never touch the replica, not even as an offline fallback. The
   // guest directory is not a show-day surface, so offline-first does not
-  // apply; offline, it says so instead of listing clubs.
+  // apply; offline, it says so instead of listing clubs. A cached query
+  // result is never authoritative either (see guestServerRead.ts).
   const guestQuery = useQuery({
     queryKey: [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, principalKey],
     queryFn: getPublicDirectoryClubs,
     enabled: isGuest,
-    staleTime: 60_000,
+    ...GUEST_READ_QUERY_OPTIONS,
   });
+  const isOnline = useQueryOnlineStatus();
+  const guestRead = resolveGuestRead(guestQuery, isOnline);
 
   // Until auth resolves the viewer is unknown, so both sources stay empty.
-  const clubs = isGuest ? (guestQuery.data ?? NO_CLUBS) : replicaClubs;
+  // A guest sees only a result fetched since this mount (resolveGuestRead).
+  const clubs = isGuest ? (guestRead.kind === 'ready' ? guestRead.data : NO_CLUBS) : replicaClubs;
   const visibleClubs = useMemo(
     () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles),
     [clubs, userWithRoles?.roles]
   );
 
-  // Neither a pending, paused nor failed guest read may render as "no clubs".
-  const guestHasData = guestQuery.data !== undefined;
-  const isOffline = isGuest && !guestHasData && guestQuery.fetchStatus === 'paused';
+  // Neither a pending, offline nor failed guest read may render as "no clubs".
+  const isOffline = isGuest && guestRead.kind === 'offline';
   const isLoading = authLoading
     ? true
     : isGuest
-      ? !guestHasData && !isOffline && !guestQuery.isError
+      ? guestRead.kind === 'loading'
       : readiness === 'loading' && replicaClubs.length === 0;
   const hasError = isGuest
-    ? !guestHasData && guestQuery.isError
+    ? guestRead.kind === 'error'
     : isSignedIn && readiness === 'unavailable' && replicaClubs.length === 0;
   const refetchGuest = guestQuery.refetch;
   const handleRetry = useCallback(() => {

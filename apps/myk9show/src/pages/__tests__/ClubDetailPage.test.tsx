@@ -1,9 +1,10 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { PUBLIC_CLUB_DETAIL_QUERY_KEY } from '@/hooks/useClubDetailData';
 import type { Club } from '@/types/club-types';
 import ClubDetailPage from '../ClubDetailPage';
 
@@ -76,12 +77,12 @@ const club: Club = {
   pastShows: [],
 };
 
-function renderPage(path: string) {
+function renderPage(path: string, queryClient = createTestQueryClient()) {
   return render(
     <Routes>
       <Route path="/clubs/:id" element={<ClubDetailPage />} />
     </Routes>,
-    { initialRoute: path }
+    { initialRoute: path, queryClient }
   );
 }
 
@@ -178,6 +179,45 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
 
     expect(await screen.findByTestId('club-details')).toHaveTextContent('Server Heartland');
     expect(state.replicaReads).toBe(0);
+  });
+
+  // Codex P1: a cached earlier read is not an authoritative answer.
+  it('does not render a cached club from an earlier visit until the mount refetch resolves', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData([...PUBLIC_CLUB_DETAIL_QUERY_KEY, 'club-1', 'signed-out'], {
+      ...club,
+      name: 'Cached Before Revocation',
+    });
+    let resolveFresh: (value: Club | null) => void = () => {};
+    getPublicClubById.mockReturnValue(
+      new Promise<Club | null>(resolve => {
+        resolveFresh = resolve;
+      })
+    );
+
+    renderPage('/clubs/club-1', queryClient);
+
+    expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
+    expect(getPublicClubById).toHaveBeenCalledTimes(1);
+
+    // Revoked since the earlier visit: the server now returns no row.
+    await act(async () => resolveFresh(null));
+
+    expect(await screen.findByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
+    expect(screen.queryByText('Cached Before Revocation')).not.toBeInTheDocument();
+  });
+
+  it('switches to the offline state when the connection drops after a successful read', async () => {
+    getPublicClubById.mockResolvedValue(club);
+
+    renderPage('/clubs/club-1');
+    expect(await screen.findByTestId('club-details')).toHaveTextContent('Heartland Club');
+
+    act(() => onlineManager.setOnline(false));
+
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+    expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
   });
 
   it('renders the offline state, not not-found, with no connection', () => {

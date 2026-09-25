@@ -10,6 +10,7 @@ import {
   sortedCopy,
 } from '../_shared/read-shape';
 import type { ReadResult } from '../_shared/read-shape';
+import { hasAuthenticatedSession } from '../_shared/session';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -43,13 +44,6 @@ async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
     }
   }
   return map;
-}
-
-async function hasAuthenticatedSession(): Promise<boolean> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return Boolean(session?.user && !session.user.is_anonymous);
 }
 
 /**

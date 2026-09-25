@@ -4,6 +4,7 @@ import {
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
 } from '../replicationSyncFormatters';
+import { ENTRY_WINDOW_PUBLISHED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 describe('formatSyncFailureToast', () => {
   it('renders a plain-English object and action without raw DB details', () => {
@@ -146,5 +147,28 @@ describe('formatDownloadFailureToast', () => {
     expect(msg).toBe(
       "We couldn't refresh show data. You can keep using the saved copy while we try again. 1 more area also needs to refresh."
     );
+  });
+});
+
+// MYK9-716: a wizard edit save on a live show goes through replication, so the
+// publish gate's MK005 refusal (a published show clearing or reversing its
+// entry window) reaches the secretary as this toast. It must carry the
+// trigger's own copy, not the generic "couldn't update this show".
+describe('formatSyncFailureToast: entry-window refusal (MYK9-716)', () => {
+  it('shows the database refusal text for a published show losing its window', () => {
+    const msg = formatSyncFailureToast({
+      count: 1,
+      mutations: [
+        {
+          id: 'mutation-1',
+          tableName: 'shows',
+          operation: 'UPDATE',
+          error: `Max retries exceeded: ${ENTRY_WINDOW_PUBLISHED_MESSAGE}`,
+        },
+      ],
+      message: '',
+    });
+
+    expect(msg).toBe(`We couldn't save this show change. ${ENTRY_WINDOW_PUBLISHED_MESSAGE}`);
   });
 });

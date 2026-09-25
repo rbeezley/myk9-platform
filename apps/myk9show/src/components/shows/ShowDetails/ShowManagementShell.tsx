@@ -285,7 +285,13 @@ function AuthorizedShowManagementShell({
                   <LiveUpdateIndicator />
                   <ShowPresenceStack />
                   <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                    <ShowStatusPill showId={show.id} status={show.status} clubId={show.clubId} />
+                    <ShowStatusPill
+                      showId={show.id}
+                      status={show.status}
+                      clubId={show.clubId}
+                      entryOpenDate={show.entryOpenDate}
+                      entryCloseDate={show.entryCloseDate}
+                    />
                   </span>
                 </>
               }

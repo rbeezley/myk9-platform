@@ -1,4 +1,5 @@
 import { getErrorMessage } from '@myk9/core';
+import { toLocalDateOnly } from '@/utils/date-format';
 
 // Publishing a show opens online entries (status 'published' is the
 // entries-open state), and online entry fees can only be paid out to clubs
@@ -54,14 +55,65 @@ export const PUBLISH_GATE_ERRCODE_UNAUTHORIZED = 'MK004';
 export const CLUB_UNAUTHORIZED_MESSAGE =
   "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.";
 
+// MYK9-716: a draft may have no entry window, but publishing requires one —
+// both dates set, and the window opening before it closes. Checked LAST by
+// enforce_show_publish_gate() (supabase/migrations/20260925023700), after the
+// club and Stripe checks, with its own SQLSTATE so the client can link to the
+// entry dates instead of the payments page. The two messages below are that
+// trigger's RAISE text verbatim.
+export const PUBLISH_GATE_ERRCODE_ENTRY_WINDOW = 'MK005';
+
+export const ENTRY_WINDOW_REQUIRED_MESSAGE =
+  'Set the entry window before publishing — exhibitors need to know when entries open and close.';
+
+export const ENTRY_WINDOW_ORDER_MESSAGE =
+  "The entry window can't close before it opens. Fix the entry dates, then publish.";
+
+/** MYK9-716: the trigger also refuses an edit that clears or reverses an
+ * ALREADY-published show's window. That arrives through replication (the
+ * wizard's edit save), so formatSyncFailureToast shows this text. */
+export const ENTRY_WINDOW_PUBLISHED_MESSAGE =
+  'A published show has to keep its entry window: both dates set, and the close on or after the open. Discard this change or fix the dates.';
+
+/** The calendar day the save stores for this value (YYYY-MM-DD), or null. */
+function storedEntryDate(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const day = toLocalDateOnly(value.trim());
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+/**
+ * Why this show's entry window cannot be published yet, or `null` when it can.
+ * The trigger's rule, applied to the dates exactly as the save stores them:
+ * each value becomes its calendar day via `toLocalDateOnly`, what every show
+ * write sends (buildCreateShowPayload, and ReplicatedShowsTable's writes), so a
+ * wizard draft's raw picker instant and a stored midnight-UTC row both resolve
+ * to the day the trigger compares. A missing or unreadable day is "required",
+ * and a close day before the open day is "order". A same-day window is valid
+ * whatever its times (the close day is inclusive), so no raw time is ever
+ * compared. For a legacy non-midnight stored value the trigger's UTC day is
+ * authoritative; if it disagrees, its MK005 reaches the same toast and link.
+ */
+export function entryWindowPublishError(
+  entryOpenDate: string | null | undefined,
+  entryCloseDate: string | null | undefined
+): string | null {
+  const open = storedEntryDate(entryOpenDate);
+  const close = storedEntryDate(entryCloseDate);
+  if (open === null || close === null) return ENTRY_WINDOW_REQUIRED_MESSAGE;
+  return open <= close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
+}
+
 const PUBLISH_GATE_ERRCODES: readonly string[] = [
   PUBLISH_GATE_ERRCODE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 ];
 
-/** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003
- * or MK004 — MYK9-572's club-authorization refusal), as opposed to any other
- * failure (network, unrelated constraint, ...). */
+/** True when `error` is a DB publish-gate trigger's refusal (SQLSTATE MK003,
+ * MK004 — MYK9-572's club-authorization refusal — or MK005, MYK9-716's
+ * entry-window refusal), as opposed to any other failure (network, unrelated
+ * constraint, ...). */
 export function isPublishGateDbError(error: unknown): boolean {
   return (
     typeof error === 'object' &&

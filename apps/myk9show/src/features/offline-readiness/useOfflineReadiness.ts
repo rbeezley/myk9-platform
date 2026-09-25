@@ -8,7 +8,10 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
-import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
+import {
+  getActiveJudgeAssignmentsForShow,
+  readJudgeAssignmentsOrThrow,
+} from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
@@ -109,21 +112,30 @@ async function gatherReadiness(
     // an unhydrated table, and an unresolved identity (databaseUserId comes
     // from the network profile query, not the RBAC cache, so a cold offline
     // boot can leave useMyAtShowJudgeAssignments equally blind).
+    // A failed device read is NOT hydrated (MYK9-769): getAll() used to hand
+    // back [] for it, which with 0 expected rows claimed "ready". Failing the
+    // scope closed keeps the badge's truthful "Not offline ready · Save now".
     const [assignmentsMeta, assignmentRows] = await Promise.all([
       replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
-      replicatedJudgeAssignmentsTable.getAll(),
+      readJudgeAssignmentsOrThrow().catch(() => null),
     ]);
-    if (judge.personId) {
+    let readable = assignmentRows !== null;
+    if (readable && judge.personId) {
       // Warm the filtered read the at-show surface uses, so a mismatch in that
       // path surfaces here rather than at the ring.
-      await getActiveJudgeAssignmentsForShow(showId, judge.personId);
+      try {
+        await getActiveJudgeAssignmentsForShow(showId, judge.personId);
+      } catch {
+        readable = false;
+      }
     }
     scopes.push({
       label: 'judge assignments',
       hydrated:
+        readable &&
         Boolean(judge.personId) &&
         assignmentsMeta?.expectedRemoteRows !== undefined &&
-        countServerBackedRows(assignmentRows) >= assignmentsMeta.expectedRemoteRows,
+        countServerBackedRows(assignmentRows ?? []) >= assignmentsMeta.expectedRemoteRows,
       lastSyncAt: null,
     });
   }

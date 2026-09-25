@@ -5,8 +5,10 @@
 --   A realistic, *publicly visible* LEAN demo dataset (2 clubs, the three
 --   Heartland shows -- AKC ...010 with 4 trials and 11 classes, UKC ...011,
 --   ASCA ...012 -- plus one entry-free PAST Prairie Trail show that exists only
---   as a cross-club class target (section 4c), 6 dogs, 13 hand-authored entries
---   on the demo show) that preserves the golden paths. Every staging e2e spec and
+--   as a cross-club class target (section 4c), the show-day fixture
+--   `Heartland Scent Work Week` that is always running today (section 19,
+--   MYK9-731), 6 dogs, 13 hand-authored entries on the demo show) that
+--   preserves the golden paths. Every staging e2e spec and
 --   scheduled walk that needs a specific row points at this lean set;
 --   seedDemoStagingConsumersContract.test.ts pins that. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
@@ -51,9 +53,14 @@
 --     CURRENT_DATE - 16                 entry window opens
 --     CURRENT_DATE                      memberships, RBAC grants, registrations
 --     CURRENT_DATE + 28                 armbands assigned
---     CURRENT_DATE + 31..33, +44, +48   announcements, messages, email history
+--     CURRENT_DATE + 31..33, +44, +48   messages, email history
 --     CURRENT_DATE + 45..47             the show runs (4 trials)
 --     CURRENT_DATE + 76                 entry window closes
+--
+--   One exception, section 19: the show-day fixture runs from TODAY to TODAY + 6
+--   in the show's own timezone (America/Chicago), read from now() rather than
+--   CURRENT_DATE, and carries the file's only announcements. A trial is dated
+--   today for a week after any reseed; reseed at least weekly (MYK9-731).
 --
 --   So the show is always ~6 weeks out and always accepting entries. Judge
 --   qualifications are relative for the same reason (obtained -5y, expires +3y):
@@ -360,6 +367,17 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- Section 19's show-day show is upserted, never deleted, so its armbands are
+-- not cleared by a show delete. Clear every armband on it that holds a SEEDED
+-- dog -- the fixture's own two and any a walk allocated to one -- because
+-- armbands.dog_id would block the dog delete below exactly as above. An
+-- armband a walk allocated to its own dog is not the seed's and survives.
+DELETE FROM public.armbands
+WHERE show_id = 'dededede-0000-0000-0000-000000000014'
+  AND dog_id IN (
+        'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+        'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+        'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046');
 -- Additional load shows keep their armbands in the same myk9_109 range, so one
 -- range delete covers every show. This must precede the dog delete below:
 -- armbands.dog_id would otherwise block it.
@@ -385,7 +403,16 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000067','dededede-0000-0000-0000-000000000068',
   'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060',
   -- ...069 is the MYK9-515 full-class entry (paid, handled by the exhibitor).
-  'dededede-0000-0000-0000-000000000069'
+  'dededede-0000-0000-0000-000000000069',
+  -- Section 19's show-day entries (MYK9-731): Willow ...0014-00000000010d and
+  -- Cooper ...0014-00000000020d for day offsets 0..6.
+  'dededede-0000-0000-0014-000000000100','dededede-0000-0000-0014-000000000101',
+  'dededede-0000-0000-0014-000000000102','dededede-0000-0000-0014-000000000103',
+  'dededede-0000-0000-0014-000000000104','dededede-0000-0000-0014-000000000105',
+  'dededede-0000-0000-0014-000000000106','dededede-0000-0000-0014-000000000200',
+  'dededede-0000-0000-0014-000000000201','dededede-0000-0000-0014-000000000202',
+  'dededede-0000-0000-0014-000000000203','dededede-0000-0000-0014-000000000204',
+  'dededede-0000-0000-0014-000000000205','dededede-0000-0000-0014-000000000206'
 );
 -- PAID-STRAY GUARD. Both entry deletes above are done, so every entry the seed
 -- itself created is gone and anything still standing was created by something
@@ -1212,8 +1239,9 @@ VALUES
 --
 -- Deliberately in the PAST (CURRENT_DATE - 60, entry window long closed), so it
 -- never appears in Find Shows' default "upcoming" view or on a Heartland
--- secretary's dashboard, and nobody can enter it. The Oct 10 readiness check
--- (MYK9-558: "Find Shows lists only the three Heartland shows") stays true.
+-- secretary's dashboard, and nobody can enter it. Find Shows lists only
+-- Heartland shows (MYK9-558): the three weeks-out shows plus, since MYK9-731,
+-- the show-day fixture in section 19.
 --
 -- UPSERTED, never deleted: section 0 deletes only ids the paid-stray guard
 -- (public.seed_demo_assert_no_paid_strays) names, and extending that list would
@@ -2343,6 +2371,295 @@ VALUES
    'registry_results_submission', NULL,
    'seed-demo-email-7', 'sent', (((CURRENT_DATE + 48)::timestamp + INTERVAL '17:00:00') AT TIME ZONE 'UTC'),
    'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 48)::timestamp + INTERVAL '16:59:31') AT TIME ZONE 'UTC'));
+
+-- ---------------------------------------------------------------------------
+-- 19. SHOW-DAY FIXTURE (MYK9-731): a show that is running TODAY.
+--
+-- Every other show in this file is weeks away or long past, so no seeded show
+-- was ever in progress and the walks recorded the same three gaps on every run:
+-- no self-check-in (exhibitor task 7), no published running order or class
+-- times (task 5), and an empty announcements inbox (task 6). Nothing in this
+-- file seeded an announcement at all: the "announcements" offset in the header
+-- timeline was documentation for rows that never existed. That, not
+-- future-dating, is why the inbox was empty.
+--
+-- WHAT IT IS. `Heartland Scent Work Week`, AKC, under the Heartland club so the
+-- demo secretary manages it: seven one-day trials, one per day from TODAY to
+-- TODAY + 6, each with one class (Container Novice A, start time 09:00) holding
+-- a published running order of two entries -- the demo exhibitor's Willow
+-- (run 1, checked in: no) and the secretary's Cooper (run 2) -- with confirmed
+-- armbands, the judge fixture assigned at class level, and self-check-in on.
+-- Two announcements are posted on it by the demo secretary.
+--
+-- WHY SEVEN DAYS, NOT ONE. "Today" in a seed goes stale the day after the
+-- reseed. The window keeps a trial dated today for a week after any reseed,
+-- which covers one full cycle of the weekly walks (secretary Wednesday,
+-- exhibitor Sunday). DECISION (MYK9-731): reseed on the walks' schedule, at
+-- least weekly; there is no read-time roller. A roller would be a write to the
+-- shared database on every walk, or a new RPC and cron for one fixture, and a
+-- reseed already resets everything else the walks depend on. Every walk
+-- prompt's precondition query reports a lapsed window as a stale fixture, so
+-- a missed reseed is a named gap in the report, never a silent skip.
+--
+-- "TODAY" IS THE SHOW'S DAY, NOT THE SERVER'S. The rest of this file offsets
+-- from CURRENT_DATE, which is the UTC date on this database. For a fixture 45
+-- days out the difference is invisible; for one dated today it is the whole
+-- point, and a reseed run in a Chicago evening would date the trial tomorrow.
+-- So this section reads now() in the trials' own timezone, America/Chicago.
+-- It is the one deliberate exception to the header's "no now()" rule.
+--
+-- UPSERTED, NEVER DELETED, like the Prairie Trail fixture in section 4c. Section
+-- 0 deletes only shows the paid-stray guard names, and extending that list
+-- needs a migration. An upsert destroys nothing, so the show, its trials and
+-- classes need no guard; each row is reset to its declared state on every
+-- reseed. What IS deleted is scoped to the seed's own ids: its 14 entries (in
+-- section 0's hard-coded list, before the guard), its two armbands and two
+-- announcements by id, and the judge assignments on this show. Willow and
+-- Cooper are seeded dogs, so section 0's dog delete already cascades any entry
+-- a walk put on them here, under the guard's dog arm.
+--
+-- The window's ids are fixed per day OFFSET d (0..6), never per date, so a
+-- reseed on another day re-dates the same rows:
+--   trial     dededede-0000-0000-0014-00000000000d
+--   class     dec1a55e-0000-0000-0014-00000000000d
+--   entries   dededede-0000-0000-0014-00000000010d (Willow), ...20d (Cooper)
+--   judge     dededede-0000-0000-0014-00000000030d
+-- plus armbands ...2a1/...2a2 and announcements ...4a1/...4a2.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (
+  id, name, organization, description,
+  start_date, end_date, entry_open_date, entry_close_date,
+  location, city, state, latitude, longitude, status, club_id,
+  pre_entry_fee, day_of_show_fee,
+  allow_non_owner_handlers, results_visible_to_all,
+  starting_armband_number, default_judge_day_capacity,
+  mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
+  accept_check_payments, accept_cash_payments,
+  cc_secretary_on_exhibitor_emails,
+  style, experience_is_published, experience_published_content,
+  brand_color, version, is_nationals
+)
+SELECT
+  'dededede-0000-0000-0000-000000000014',
+  'Heartland Scent Work Week',
+  'AKC',
+  'A week of one-day AKC Scent Work trials, one each day, so a trial is always running on show day.',
+  (d.today::timestamp AT TIME ZONE 'UTC'), ((d.today + 6)::timestamp AT TIME ZONE 'UTC'),
+  ((d.today - 30)::timestamp AT TIME ZONE 'UTC'), ((d.today - 3)::timestamp AT TIME ZONE 'UTC'),
+  '100 Dog Show Lane, Tulsa, OK 74101',
+  'Tulsa', 'Oklahoma',
+  36.15, -95.99,
+  'published',
+  'dededede-0000-0000-0000-000000000001',
+  30.00, 35.00,
+  true, true,
+  200, 125,
+  'none', false, 48,
+  true, true,
+  true,
+  'headline', false, '{}'::jsonb,
+  '#0d4d4f', 1, false
+FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
+ON CONFLICT (id) DO UPDATE
+  SET name             = EXCLUDED.name,
+      organization     = EXCLUDED.organization,
+      description      = EXCLUDED.description,
+      start_date       = EXCLUDED.start_date,
+      end_date         = EXCLUDED.end_date,
+      entry_open_date  = EXCLUDED.entry_open_date,
+      entry_close_date = EXCLUDED.entry_close_date,
+      status           = EXCLUDED.status,
+      club_id          = EXCLUDED.club_id,
+      deleted_at       = NULL,
+      deleted_by       = NULL;
+
+-- 'open' preset like the demo show, with self-check-in on.
+INSERT INTO public.show_visibility_settings (
+  show_id, preset, placement_timing, qualification_timing,
+  time_timing, faults_timing, self_checkin_enabled
+)
+VALUES (
+  'dededede-0000-0000-0000-000000000014',
+  'open', 'class_complete', 'immediate', 'immediate', 'immediate', true
+)
+ON CONFLICT (show_id) DO UPDATE
+  SET preset               = EXCLUDED.preset,
+      placement_timing     = EXCLUDED.placement_timing,
+      qualification_timing = EXCLUDED.qualification_timing,
+      time_timing          = EXCLUDED.time_timing,
+      faults_timing        = EXCLUDED.faults_timing,
+      self_checkin_enabled = EXCLUDED.self_checkin_enabled;
+
+INSERT INTO public.trials (
+  id, show_id, name, date, trial_number, status,
+  planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
+  display_order, category, registry_id, timezone, version
+)
+SELECT
+  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  'dededede-0000-0000-0000-000000000014',
+  'Trial ' || (o.n + 1), (d.today + o.n), 'Trial ' || (o.n + 1), 'upcoming',
+  '8:00 AM', true, 'scent_work', 1, o.n + 1, 'Trial ' || (o.n + 1), 'AKC', 'America/Chicago', 1
+FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
+CROSS JOIN generate_series(0, 6) AS o(n)
+ON CONFLICT (id) DO UPDATE
+  SET show_id            = EXCLUDED.show_id,
+      name               = EXCLUDED.name,
+      date               = EXCLUDED.date,
+      trial_number       = EXCLUDED.trial_number,
+      status             = EXCLUDED.status,
+      allow_self_checkin = EXCLUDED.allow_self_checkin,
+      registry_id        = EXCLUDED.registry_id,
+      timezone           = EXCLUDED.timezone,
+      deleted_at         = NULL,
+      deleted_by         = NULL;
+
+-- start_time is the class's published time on the exhibitor's schedule
+-- (services/database/trials/timeline.ts). The scoring columns are reset because
+-- a walk scores these classes; a reseed returns them to "not started".
+INSERT INTO public.classes (
+  id, trial_id, name, level, element, section,
+  entry_fee, status, time_limit_seconds, num_hides, num_areas,
+  has_blank, timer_mode, hides_known, display_order, start_time, version
+)
+SELECT
+  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  'Container Novice A', 'Novice', 'Container', 'A',
+  30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, '09:00'::time, 1
+FROM generate_series(0, 6) AS o(n)
+ON CONFLICT (id) DO UPDATE
+  SET trial_id             = EXCLUDED.trial_id,
+      name                 = EXCLUDED.name,
+      level                = EXCLUDED.level,
+      element              = EXCLUDED.element,
+      section              = EXCLUDED.section,
+      status               = EXCLUDED.status,
+      start_time           = EXCLUDED.start_time,
+      is_scoring_finalized = false,
+      scored_count         = 0,
+      results_released_at  = NULL,
+      deleted_at           = NULL,
+      deleted_by           = NULL;
+
+-- Plain INSERTs: section 0 deleted these ids (and the dog delete cascaded any
+-- other entry on Willow or Cooper), so a collision here is a real bug.
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
+)
+SELECT
+  ('dededede-0000-0000-0014-0000000' || e.kind || lpad(o.n::text, 2, '0'))::uuid,
+  e.dog_id,
+  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  'dededede-0000-0000-0000-000000000014',
+  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  (SELECT id FROM public.people WHERE lower(email) = e.email), e.handler,
+  'confirmed', 'paid', 30.00, e.armband, e.run_order, false, 1
+FROM generate_series(0, 6) AS o(n)
+CROSS JOIN (VALUES
+  ('001', 'dededede-0000-0000-0000-000000000041'::uuid, 'exhibitor@myk9t.com', 'Test Exhibitor', 200, 1),
+  ('002', 'dededede-0000-0000-0000-000000000046'::uuid, 'secretary@myk9t.com', 'Test Secretary', 201, 2)
+) AS e(kind, dog_id, email, handler, armband, run_order);
+
+-- One armband per dog per show, matching the entries' numbers (see section 7).
+INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
+SELECT v.id, 'dededede-0000-0000-0000-000000000014', v.dog_id, v.num, false,
+       ((d.today - 3)::timestamp AT TIME ZONE 'UTC'), 1
+FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
+CROSS JOIN (VALUES
+  ('dededede-0000-0000-0014-0000000002a1'::uuid, 'dededede-0000-0000-0000-000000000041'::uuid, '200'),
+  ('dededede-0000-0000-0014-0000000002a2'::uuid, 'dededede-0000-0000-0000-000000000046'::uuid, '201')
+) AS v(id, dog_id, num);
+
+-- The judge fixture judges every day, at class level (section 11 explains why a
+-- trial-level row never reaches the dashboard). Its own block, after section 12,
+-- so section 11's pinned assignment set is untouched.
+DELETE FROM public.judge_assignments
+WHERE show_id = 'dededede-0000-0000-0000-000000000014';
+
+INSERT INTO public.judge_assignments (
+  id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
+)
+SELECT
+  ('dededede-0000-0000-0014-0000000003' || lpad(o.n::text, 2, '0'))::uuid,
+  p.id, 'dededede-0000-0000-0000-000000000014',
+  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+  'confirmed', ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
+FROM generate_series(0, 6) AS o(n)
+JOIN public.people p ON lower(p.email) = 'judge@myk9t.com';
+
+-- Announcements, priority 'normal' ON PURPOSE: on_announcement_insert_push
+-- fires only for 'high' / 'urgent' and fans the row out as a web push to the
+-- show's subscribers, and a reseed must never push to anyone. Deleting by id
+-- also removes each one's read receipts (show_announcement_reads cascades), so
+-- they are unread again after every reseed. exhibitor2@ has no entry here and
+-- stays the empty-state account; its empty inbox is the empty-state fixture.
+DELETE FROM public.show_announcements
+WHERE id IN ('dededede-0000-0000-0014-0000000004a1', 'dededede-0000-0000-0014-0000000004a2');
+
+INSERT INTO public.show_announcements (
+  id, show_id, author_id, author_role, author_name, title, content, priority,
+  expires_at, is_active, created_at, updated_at
+)
+SELECT
+  v.id, 'dededede-0000-0000-0000-000000000014',
+  (SELECT auth_user_id FROM public.people WHERE lower(email) = 'secretary@myk9t.com'),
+  'secretary', 'Test Secretary', v.title, v.content, 'normal', NULL, true,
+  ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago'),
+  ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago')
+FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
+CROSS JOIN (VALUES
+  ('dededede-0000-0000-0014-0000000004a1'::uuid, INTERVAL '06:30:00',
+   'Welcome to Scent Work Week',
+   'Check-in opens at 8:00 AM at the main tent. Container Novice A starts at 9:00 AM. Please keep dogs crated until your armband is called.'),
+  ('dededede-0000-0000-0014-0000000004a2'::uuid, INTERVAL '07:15:00',
+   'Parking update',
+   'The front lot is full. Please use the overflow field behind the barn; volunteers will direct you.')
+) AS v(id, at, title, content);
+
+-- Postcondition: the whole point of this section is that SQL finds a trial
+-- dated today with self-check-in, published times and the demo exhibitor's
+-- entry, and a non-empty inbox. Assert exactly that, so a silent failure of any
+-- statement above aborts the reseed instead of shipping a fixture that looks
+-- present and is not.
+DO $$
+DECLARE
+  v_ready integer;
+  v_announcements integer;
+BEGIN
+  SELECT count(*) INTO v_ready
+  FROM public.trials t
+  JOIN public.shows s ON s.id = t.show_id
+  JOIN public.show_visibility_settings vs ON vs.show_id = s.id
+  JOIN public.classes c ON c.trial_id = t.id
+  JOIN public.entries e ON e.class_id = c.id
+  JOIN public.people p ON p.id = e.handler_id
+  WHERE s.id = 'dededede-0000-0000-0000-000000000014'
+    AND s.status = 'published'
+    AND t.date = (now() AT TIME ZONE t.timezone)::date
+    AND t.allow_self_checkin
+    AND vs.self_checkin_enabled
+    AND c.start_time IS NOT NULL
+    AND e.run_order IS NOT NULL
+    AND lower(p.email) = 'exhibitor@myk9t.com';
+
+  IF v_ready <> 1 THEN
+    RAISE EXCEPTION 'seed-demo: expected exactly 1 show-day entry for the demo exhibitor on a trial dated today with self-check-in and a published time, found % (MYK9-731)', v_ready;
+  END IF;
+
+  SELECT count(*) INTO v_announcements
+  FROM public.show_announcements
+  WHERE show_id = 'dededede-0000-0000-0000-000000000014'
+    AND is_active
+    AND (expires_at IS NULL OR expires_at > now());
+
+  IF v_announcements < 1 THEN
+    RAISE EXCEPTION 'seed-demo: expected at least 1 active announcement on the show-day fixture, found % (MYK9-731)', v_announcements;
+  END IF;
+END $$;
 
 -- Lean-set postcondition (MYK9-558 Part B). This file alone must leave the
 -- demo show with only its 13 hand-authored entries and no MYK9-109 load rows

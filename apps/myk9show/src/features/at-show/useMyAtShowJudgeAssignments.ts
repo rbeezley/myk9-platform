@@ -83,6 +83,11 @@ export function useMyAtShowJudgeAssignments(
     // Reads IndexedDB first; the default "online" mode pauses it offline and
     // the empty result would read as "no assignments". See RingsideShowBoundary.
     networkMode: 'always',
+    // A device read that fails already waited out its own timeout; retrying it
+    // three times with backoff kept the page on a skeleton for about a minute,
+    // and every failure counts toward the IndexedDB circuit breaker. Fail once;
+    // the page offers Try again (MYK9-769).
+    retry: false,
     queryFn: async () => {
       const localAssignments = await getActiveJudgeAssignmentsForShow(
         showId as string,
@@ -145,10 +150,13 @@ export function useMyAtShowJudgeAssignments(
   // then holds a settled [] that is indistinguishable from "none assigned".
   const judgeTableNeverSynced =
     judgeTableStatus === 'idle' || judgeTableStatus === 'syncing' || judgeTableStatus === 'error';
+  // A read that never completed is unknown, failed ones included (MYK9-769):
+  // it fails open to the full picker with the "couldn't load your assigned
+  // classes" banner instead of a page with no classes at the ring. A failed
+  // REFETCH keeps the assignments it already read, so the ring stays narrowed.
   const assignmentsUnresolved =
     isApplicable &&
     !query.isLoading &&
-    !query.error &&
     (query.data === undefined || (!hasAssignments && judgeTableNeverSynced));
 
   return {

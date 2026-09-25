@@ -6,6 +6,7 @@ import {
   type ReplicatedDog,
   type ReplicatedEntry,
 } from '@/services/replication';
+import { requireShowEntriesSynced } from '../entries/requireShowEntriesSynced';
 
 type DayOfReadEntry = {
   id: string;
@@ -184,6 +185,8 @@ export async function getReplicatedDayOfEntries(
   statuses: readonly string[],
   sort: SortMode
 ): Promise<DayOfReadEntry[]> {
+  // MYK9-761: a never-synced show's rows are only what this device wrote.
+  await requireShowEntriesSynced(showId);
   const entries = await replicatedEntriesTable.getEntriesByShow(showId);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const dogCache = new Map<string, Promise<ReplicatedDog | null>>();

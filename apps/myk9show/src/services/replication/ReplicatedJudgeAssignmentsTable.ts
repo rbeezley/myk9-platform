@@ -358,8 +358,27 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * Mirrors the delete+insert semantics `persistShowJudgeAssignments` used against
    * the raw table.
    */
+  /**
+   * Every assignment on this device, for a WRITE that is built on what exists.
+   * getAll()/getByShowId() read a failed device read as [], and a replace built
+   * on that deletes nothing and adds the new judge beside the old one; a
+   * reassign finds nothing and reports success. Throw instead so the save fails
+   * visibly (MYK9-769).
+   */
+  private async readAllForWrite(): Promise<ReplicatedJudgeAssignment[]> {
+    const read = await this.getAllWithStatus();
+    if (!read.ok) {
+      throw new Error(
+        `Could not read this show's judge assignments on this device; nothing was changed: ${String(read.error)}`
+      );
+    }
+    return read.rows;
+  }
+
   async replaceShowLevelAssignments(showId: string, personIds: string[]): Promise<void> {
-    const existing = (await this.getByShowId(showId)).filter(a => a.classId === null);
+    const existing = (await this.readAllForWrite()).filter(
+      a => a.showId === showId && a.classId === null
+    );
     for (const row of existing) {
       await this.deleteAssignment(row.id);
     }
@@ -388,8 +407,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     classId: string,
     judgeId: string | null
   ): Promise<void> {
-    const all = await this.getAll();
-    const existing = all.filter(a => a.classId === classId);
+    const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
     for (const row of existing) {
       await this.deleteAssignment(row.id);
     }
@@ -419,7 +437,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     fromPersonId: string,
     toPersonId: string
   ): Promise<void> {
-    const all = await this.getAll();
+    const all = await this.readAllForWrite();
     const match = all.find(
       a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
     );

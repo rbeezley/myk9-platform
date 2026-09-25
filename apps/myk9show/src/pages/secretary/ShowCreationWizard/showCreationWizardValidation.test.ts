@@ -128,3 +128,40 @@ describe('class-selection step registry validation', () => {
     );
   });
 });
+
+// MYK9-716: a draft may have no entry window; publishing requires one. The
+// Show Details step therefore lets a new draft through without entry dates
+// (Review names the gap and the status pill refuses to publish), but an
+// existing show that is already live keeps the window mandatory, so adding
+// trials or classes to it can never clear the window a published show needs.
+describe('Show Details step — entry window (MYK9-716)', () => {
+  const REQUIRED = ['Entry open date is required', 'Entry close date is required'];
+  const windowless = () => baseShow({ entryOpenDate: '', entryCloseDate: '' });
+  const trialView = {
+    effectiveNamesByTrialId: new Map<string, string>(),
+    persistedTrialCount: 0,
+    hasAnyTrials: false,
+  };
+
+  it('lets a new draft through with no entry window', () => {
+    expect(getShowDetailsValidationMessages(windowless())).toEqual([]);
+    expect(getValidationMessagesForStep(0, windowless(), [], trialView)).toEqual([]);
+  });
+
+  it('keeps the window mandatory when the show being edited is already live', () => {
+    const messages = getValidationMessagesForStep(0, windowless(), [], trialView, [], {
+      requireEntryWindow: true,
+    });
+    expect(messages).toEqual(expect.arrayContaining(REQUIRED));
+  });
+
+  it('still rejects a window whose close comes before its open', () => {
+    const show = baseShow({
+      entryOpenDate: localIso(2026, 8, 20, 8, 0),
+      entryCloseDate: localIso(2026, 8, 10, 23, 59),
+    });
+    expect(getShowDetailsValidationMessages(show)).toContain(
+      'Entry close date must be on or after entry open date'
+    );
+  });
+});

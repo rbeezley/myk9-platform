@@ -258,3 +258,33 @@ describe('ReplicatedTableRowState', () => {
     });
   });
 });
+
+describe('buildReplicatedRowForSet — lastOwnUpload (MYK9-770)', () => {
+  const step = { from: 1, to: 2 };
+
+  it('keeps the own-upload step through a local (dirty) write', () => {
+    const next = buildReplicatedRowForSet({
+      tableName: 'entries',
+      id: 'entry-1',
+      data: { id: 'entry-1', status: 'accepted' },
+      isDirty: true,
+      existingRow: row({ serverVersion: 2, lastOwnUpload: step }),
+      now,
+    });
+    expect(next.lastOwnUpload).toEqual(step);
+    expect(next.serverVersion).toBe(2);
+  });
+
+  it('drops it on a server (clean) write, which replaces the token', () => {
+    const next = buildReplicatedRowForSet({
+      tableName: 'entries',
+      id: 'entry-1',
+      data: { id: 'entry-1', status: 'accepted' },
+      isDirty: false,
+      existingRow: row({ serverVersion: 2, lastOwnUpload: step }),
+      incomingServerVersion: 3,
+      now,
+    });
+    expect(next.lastOwnUpload).toBeUndefined();
+  });
+});

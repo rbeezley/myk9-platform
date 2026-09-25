@@ -419,6 +419,25 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );
 
+    // An incremental fetch can hide a deletion behind an equal count (one row
+    // deleted and one added since the last sync): the pre-fetch check saw the
+    // counts agree. After merging the new row the device holds MORE than the
+    // server counts, so run the full fetch and cleanup now, in this sync, rather
+    // than leave the deleted row until the next one (MYK9-775, Codex P2).
+    // Bounded: the re-run is already a full sync, so it cannot recurse.
+    if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      !forceFullSync &&
+      expectedRemoteRows !== undefined &&
+      countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows
+    ) {
+      return syncReplicatedTable(table, adapter, scope, {
+        ...options,
+        forceFullSync: true,
+        skipMutationUpload: true,
+      });
+    }
+
     return {
       tableName: table.getTableName(),
       success: true,

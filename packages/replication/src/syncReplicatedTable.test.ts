@@ -261,6 +261,30 @@ describe('syncReplicatedTable', () => {
       expect(await table.get('2')).toMatchObject({ name: 'B' });
     });
 
+    it('catches a deletion hidden behind an equal count (one deleted, one added) in the same sync', async () => {
+      await table.set('1', { id: '1', name: 'Kept' });
+      await table.set('2', { id: '2', name: 'Deleted on server' });
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
+      // Server: 1 and 3 (2 deleted, 3 added) — the same count as the device.
+      const adapter = countedAdapter([], 2);
+      adapter.fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) =>
+        forceFullSync
+          ? [
+              { id: 1, name: 'Kept', updated_at: 2000 },
+              { id: 3, name: 'Added', updated_at: 2000 },
+            ]
+          : [{ id: 3, name: 'Added', updated_at: 2000 }]
+      );
+      await new Promise(resolve => setTimeout(resolve, 5));
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('3')).toMatchObject({ name: 'Added' });
+      expect(await table.get('2')).toBeNull();
+      expect(adapter.fetchRemoteRows).toHaveBeenCalledTimes(2);
+    });
+
     it('does not force full syncs for an adapter that has not opted in', async () => {
       await table.set('1', { id: '1', name: 'A' });
       await table.set('2', { id: '2', name: 'B' });

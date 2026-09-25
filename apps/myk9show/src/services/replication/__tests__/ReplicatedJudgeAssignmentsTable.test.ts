@@ -310,82 +310,79 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
 
   // D3: the writer functions in judges/reads.ts route through these methods
   // instead of raw untypedFrom('judge_assignments') writes.
-  describe('replaceShowLevelAssignments', () => {
-    it('deletes existing show-level rows and creates one per judge', async () => {
-      await table.set('ja-1', {
-        id: 'ja-1',
-        personId: 'judge-old',
-        showId: 'show-1',
-        trialId: null,
-        classId: null,
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: null,
-        fee: null,
-        notes: null,
-        ...NULL_ENRICHMENT,
-      });
-      // Class-level assignment for the same show must be left alone.
-      await table.set('ja-2', {
-        id: 'ja-2',
-        personId: 'judge-class',
-        showId: 'show-1',
-        trialId: null,
-        classId: 'class-1',
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: null,
-        fee: null,
-        notes: null,
-        ...NULL_ENRICHMENT,
-      });
-
-      await table.replaceShowLevelAssignments('show-1', ['judge-new-1', 'judge-new-2']);
-
-      expect(await table.get('ja-1')).toBeNull();
-      expect(await table.get('ja-2')).not.toBeNull();
-
-      const showLevel = (await table.getByShowId('show-1')).filter(a => a.classId === null);
-      expect(showLevel).toHaveLength(2);
-      expect(showLevel.map(a => a.personId).sort()).toEqual(['judge-new-1', 'judge-new-2']);
-      expect(showLevel.every(a => a.status === 'confirmed')).toBe(true);
+  // MYK9-772: a show-level judge edit is applied as a difference, never as
+  // "replace every show-level row" — which deleted real judges when the form
+  // had loaded an empty list from a failed device read.
+  describe('applyShowLevelJudgeChanges', () => {
+    const row = (id: string, personId: string, classId: string | null) => ({
+      id,
+      personId,
+      showId: 'show-1',
+      trialId: null,
+      classId,
+      status: 'confirmed' as const,
+      invitedAt: null,
+      confirmedAt: null,
+      fee: null,
+      notes: null,
+      ...NULL_ENRICHMENT,
     });
 
-    it('leaves no show-level rows behind when the judge list is empty', async () => {
-      await table.set('ja-1', {
-        id: 'ja-1',
-        personId: 'judge-old',
-        showId: 'show-1',
-        trialId: null,
-        classId: null,
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: null,
-        fee: null,
-        notes: null,
-        ...NULL_ENRICHMENT,
-      });
-
-      await table.replaceShowLevelAssignments('show-1', []);
-
-      expect(await table.getByShowId('show-1')).toHaveLength(0);
+    beforeEach(async () => {
+      await table.set('ja-a', row('ja-a', 'judge-a', null));
+      await table.set('ja-b', row('ja-b', 'judge-b', null));
+      await table.set('ja-class', row('ja-class', 'judge-class', 'class-1'));
     });
 
-    // MYK9-769: getByShowId() -> getAll() turns a failed device read into [],
-    // so the replace deleted nothing and then ADDED the new judges alongside
-    // the old ones: duplicate show judges. A failed read must abort the save.
-    it('refuses to replace when the existing rows cannot be read', async () => {
+    const showLevelJudges = async () =>
+      (await table.getByShowId('show-1'))
+        .filter(a => a.classId === null)
+        .map(a => a.personId)
+        .sort();
+
+    it('adds without touching the judges it was not told to remove', async () => {
+      await table.applyShowLevelJudgeChanges('show-1', { add: ['judge-c'], remove: [] });
+      expect(await showLevelJudges()).toEqual(['judge-a', 'judge-b', 'judge-c']);
+      const added = (await table.getByShowId('show-1')).find(a => a.personId === 'judge-c');
+      expect(added).toEqual(
+        expect.objectContaining({ classId: null, trialId: null, status: 'confirmed' })
+      );
+    });
+
+    it('removes only the named judges, and never class-level rows', async () => {
+      await table.applyShowLevelJudgeChanges('show-1', {
+        add: [],
+        remove: ['judge-a', 'judge-class'],
+      });
+      expect(await showLevelJudges()).toEqual(['judge-b']);
+      expect(await table.get('ja-class')).not.toBeNull();
+    });
+
+    it('does not duplicate a judge who already has a show-level row', async () => {
+      const create = vi.spyOn(table, 'createAssignment');
+      await table.applyShowLevelJudgeChanges('show-1', { add: ['judge-a'], remove: [] });
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it('writes nothing, and reads nothing, for an empty change', async () => {
+      const read = vi.spyOn(table, 'getAllWithStatus');
+      await table.applyShowLevelJudgeChanges('show-1', { add: [], remove: [] });
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it('refuses to write when the existing rows cannot be read', async () => {
       vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
         ok: false,
         rows: [],
         error: new Error('IndexedDB read timed out'),
       });
       const create = vi.spyOn(table, 'createAssignment');
-
-      await expect(table.replaceShowLevelAssignments('show-1', ['judge-new-1'])).rejects.toThrow(
-        /Could not read this show's judge assignments/
-      );
+      const remove = vi.spyOn(table, 'deleteAssignment');
+      await expect(
+        table.applyShowLevelJudgeChanges('show-1', { add: ['judge-c'], remove: ['judge-a'] })
+      ).rejects.toThrow(/Could not read this show's judge assignments/);
       expect(create).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
     });
   });
 

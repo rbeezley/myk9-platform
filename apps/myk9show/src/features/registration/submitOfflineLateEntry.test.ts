@@ -57,6 +57,11 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: getJudgeAssignmentsByShowMock,
+    getAllWithStatus: async () => ({
+      ok: true,
+      rows: (await getJudgeAssignmentsByShowMock()) ?? [],
+      error: null,
+    }),
   },
   replicatedArmbandsTable: {
     getByShow: getArmbandsByShowMock,

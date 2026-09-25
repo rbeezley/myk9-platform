@@ -2,7 +2,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  replaceShowLevelAssignments: vi.fn(async () => undefined),
+  applyShowLevelJudgeChanges: vi.fn(async () => undefined),
   createAssignment: vi.fn(async () => ({ id: 'new-1' })),
   replaceClassAssignment: vi.fn(async () => undefined),
   reassignClassAssignment: vi.fn(async () => undefined),
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
-    replaceShowLevelAssignments: mocks.replaceShowLevelAssignments,
+    applyShowLevelJudgeChanges: mocks.applyShowLevelJudgeChanges,
     createAssignment: mocks.createAssignment,
     replaceClassAssignment: mocks.replaceClassAssignment,
     reassignClassAssignment: mocks.reassignClassAssignment,
@@ -40,31 +40,22 @@ vi.mock('../supabaseClient', () => ({
 
 import {
   persistShowJudgeAssignments,
+  saveShowJudgeChanges,
   upsertClassJudgeAssignment,
   reassignClassJudge,
 } from './reads';
 
-describe('persistShowJudgeAssignments', () => {
+describe('persistShowJudgeAssignments (a new show)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.replaceShowLevelAssignments.mockResolvedValue(undefined);
-    mocks.createAssignment.mockResolvedValue({ id: 'new-1' });
+    mocks.applyShowLevelJudgeChanges.mockResolvedValue(undefined);
   });
 
-  it('replaces show-level assignments through the replicated table', async () => {
+  it('only creates confirmed show-level rows, without reading first', async () => {
     await persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }, { judgeId: 'judge-2' }]);
 
-    expect(mocks.replaceShowLevelAssignments).toHaveBeenCalledWith('show-1', [
-      'judge-1',
-      'judge-2',
-    ]);
-    expect(mocks.createAssignment).not.toHaveBeenCalled();
-  });
-
-  it('skips the delete step and only creates when skipDelete is set', async () => {
-    await persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }], { skipDelete: true });
-
-    expect(mocks.replaceShowLevelAssignments).not.toHaveBeenCalled();
+    expect(mocks.applyShowLevelJudgeChanges).not.toHaveBeenCalled();
+    expect(mocks.createAssignment).toHaveBeenCalledTimes(2);
     expect(mocks.createAssignment).toHaveBeenCalledWith(
       expect.objectContaining({
         personId: 'judge-1',
@@ -75,13 +66,11 @@ describe('persistShowJudgeAssignments', () => {
     );
   });
 
-  it('wraps a replace failure in a judge_assignments database error', async () => {
-    mocks.replaceShowLevelAssignments.mockRejectedValueOnce(new Error('offline queue full'));
+  it('wraps a write failure in a judge_assignments database error', async () => {
+    mocks.createAssignment.mockRejectedValueOnce(new Error('offline queue full'));
 
     // MYK9-181: assert the table/operation `createDatabaseError` records on
-    // the error. The old file-local mock folded them into the message as
-    // `table:operation:msg`, a format production never emits — so the old
-    // assertion could only ever pass against that mock.
+    // the error, the format production emits.
     await expect(
       persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }])
     ).rejects.toMatchObject({
@@ -89,6 +78,54 @@ describe('persistShowJudgeAssignments', () => {
       table: 'judge_assignments',
       operation: 'persist_show_assignments',
       message: 'offline queue full',
+    });
+  });
+});
+
+// MYK9-772: an edit is saved as the difference from the list it loaded, never
+// as "replace the list" — a list that loaded empty from a failed device read
+// used to delete every real judge.
+describe('saveShowJudgeChanges (an edit)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.applyShowLevelJudgeChanges.mockResolvedValue(undefined);
+  });
+
+  it('writes nothing when the list is unchanged', async () => {
+    await saveShowJudgeChanges(
+      'show-1',
+      [{ judgeId: 'a' }, { judgeId: 'b' }],
+      [{ judgeId: 'b' }, { judgeId: 'a' }]
+    );
+    expect(mocks.applyShowLevelJudgeChanges).not.toHaveBeenCalled();
+  });
+
+  it('can only add when the loaded list was empty (unreadable)', async () => {
+    await saveShowJudgeChanges('show-1', [], [{ judgeId: 'c' }]);
+    expect(mocks.applyShowLevelJudgeChanges).toHaveBeenCalledWith('show-1', {
+      add: ['c'],
+      remove: [],
+    });
+  });
+
+  it('removes only the judges taken off the list', async () => {
+    await saveShowJudgeChanges(
+      'show-1',
+      [{ judgeId: 'a' }, { judgeId: 'b' }],
+      [{ judgeId: 'b' }, { judgeId: 'c' }]
+    );
+    expect(mocks.applyShowLevelJudgeChanges).toHaveBeenCalledWith('show-1', {
+      add: ['c'],
+      remove: ['a'],
+    });
+  });
+
+  it('wraps a write failure in a judge_assignments database error', async () => {
+    mocks.applyShowLevelJudgeChanges.mockRejectedValueOnce(new Error('read timed out'));
+    await expect(saveShowJudgeChanges('show-1', [], [{ judgeId: 'c' }])).rejects.toMatchObject({
+      name: 'DatabaseError',
+      table: 'judge_assignments',
+      operation: 'save_show_judge_changes',
     });
   });
 });

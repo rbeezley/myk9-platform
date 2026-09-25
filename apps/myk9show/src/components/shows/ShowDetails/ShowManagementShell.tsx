@@ -31,7 +31,7 @@ import {
   PremiumPublishError,
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
-import { persistShowJudgeAssignments } from '@/services/database/judges';
+import { saveShowJudgeChanges } from '@/services/database/judges';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -407,8 +407,14 @@ function AuthorizedShowManagementShell({
               if (!localShow) {
                 throw new Error('Show was not available in the local store.');
               }
-              // Persist judge assignments to judge_assignments table
-              await persistShowJudgeAssignments(id, showData.assignedJudges || []);
+              // Save only what the secretary changed in the judge list: the
+              // loaded list can be empty because a device read failed, and
+              // replacing it deleted the real judges (MYK9-772).
+              await saveShowJudgeChanges(
+                id,
+                show.assignedJudges || [],
+                showData.assignedJudges || []
+              );
               // `localShow` is a StoreShow and carries no `trials`; merge rather
               // than replace, or the query's embedded trials are wiped (MYK9-676).
               queryClient.setQueryData<Show>(showQueryKeys.detail(id), current => ({

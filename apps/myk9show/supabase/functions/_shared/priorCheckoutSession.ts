@@ -5,7 +5,7 @@ export interface CheckoutSessionLike {
   url?: string | null;
 }
 
-interface CheckoutSessionsApi<T extends CheckoutSessionLike> {
+export interface CheckoutSessionsApi<T extends CheckoutSessionLike> {
   retrieve: (sessionId: string) => Promise<T>;
   expire: (sessionId: string) => Promise<unknown>;
 }
@@ -27,7 +27,7 @@ interface ResolveCheckoutSessionOptions<T extends CheckoutSessionLike> {
   createReplacement: () => Promise<T>;
 }
 
-function errorCode(error: unknown): string | undefined {
+export function errorCode(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') return undefined;
   const directCode = (error as { code?: unknown }).code;
   if (typeof directCode === 'string') return directCode;

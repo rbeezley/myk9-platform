@@ -362,8 +362,9 @@ export function SecretaryCockpitFocusedClass({
                         key={action.commandId}
                         type="button"
                         variant="outline"
-                        size="sm"
-                        className="min-h-9"
+                        // Move up and Pull are irreversible show-day actions and
+                        // the only route to them: never below the 44px floor.
+                        size="touch"
                         title={action.why}
                         aria-label={`${action.label} — ${row.label}`}
                         onClick={() => onCommand(action.commandId)}

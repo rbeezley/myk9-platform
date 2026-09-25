@@ -21,6 +21,22 @@ export interface ReplicationReadResult<T> extends ReadResult<T> {
    * resurrect a just-deleted row.
    */
   locallyDeletedIds?: readonly string[];
+  /**
+   * The local replica holds rows for this read's scope, but the scope has never
+   * completed a sync on this device, so those rows are not the scope (MYK9-746:
+   * one check-in on a fresh device stores one row). With `verifyOnlineWhenEmpty`
+   * the helper then returns the online result as-is, never merged with local
+   * rows, unless `unsavedLocalWrites` is also set.
+   */
+  scopeUnsynced?: boolean;
+  /**
+   * Some local row in a `scopeUnsynced` scope holds a write the server has not
+   * seen (a check-in, an edit, a create, a queued delete). No online result can
+   * be shown for such a scope, so the helper skips the online read and returns
+   * the local rows (calling `onUnverified`), or an error when the caller sets
+   * `errorOnOnlineVerificationFailure`.
+   */
+  unsavedLocalWrites?: boolean;
 }
 
 interface ReadWithReplicationFallbackOptions<T> {
@@ -53,7 +69,11 @@ interface ReadWithReplicationFallbackOptions<T> {
    * to resurrect the locally-deleted one from a stale server row. For a
    * scope-equals-replication-unit read (per-show), the same exclusion is a
    * strict superset of "trust the local delete". Online-verify failures are
-   * swallowed; the safe default is the original empty result.
+   * swallowed; the safe default is the original local result.
+   *
+   * A non-empty result the replication callback marks `scopeUnsynced` is
+   * verified the same way, and the online rows are returned as they are: local
+   * rows are never merged in (see `unsavedLocalWrites`).
    */
   verifyOnlineWhenEmpty?: boolean;
   /**
@@ -69,6 +89,12 @@ interface ReadWithReplicationFallbackOptions<T> {
    * replication callback reported `locallyDeletedIds`.
    */
   rowId?: (row: unknown) => string;
+  /**
+   * Called when the helper returns a never-synced scope's LOCAL rows because
+   * they could not be verified online (MYK9-746), so the caller can report the
+   * read as unverified.
+   */
+  onUnverified?: () => void;
 }
 
 function isEmptyReadData(data: unknown): boolean {
@@ -89,8 +115,11 @@ export async function readWithReplicationFallback<T>({
   verifyOnlineWhenEmpty,
   errorOnOnlineVerificationFailure,
   rowId,
+  onUnverified,
 }: ReadWithReplicationFallbackOptions<T>): Promise<ReadResult<T>> {
   let locallyDeletedIds: readonly string[] | undefined;
+  let scopeUnsynced = false;
+  let unsavedLocalWrites = false;
   // Distinguishes "the result came from the local replica" from "the result came
   // from the PostgREST fallback because replication threw". Only the former is a
   // candidate for empty-verify; a fallback result is already an authoritative
@@ -103,6 +132,8 @@ export async function readWithReplicationFallback<T>({
       async () => {
         const r = await replication();
         locallyDeletedIds = r.locallyDeletedIds;
+        scopeUnsynced = r.scopeUnsynced === true;
+        unsavedLocalWrites = r.unsavedLocalWrites === true;
         replicationSucceeded = true;
         return { data: r.data, error: r.error };
       },
@@ -114,36 +145,48 @@ export async function readWithReplicationFallback<T>({
     return { data: errorData, error: error as DatabaseError };
   }
 
-  if (
-    !verifyOnlineWhenEmpty ||
-    !replicationSucceeded ||
-    result.error ||
-    !isEmptyReadData(result.data)
-  ) {
-    return result;
-  }
+  if (!verifyOnlineWhenEmpty || !replicationSucceeded || result.error) return result;
+  const empty = isEmptyReadData(result.data);
+  if (!empty && !scopeUnsynced) return result;
 
-  // Empty local result: the scope may simply not have synced (entries replicate
-  // per-show). Verify against the authoritative online read, then drop any rows
-  // the local replica has already tombstoned so a stale server row can't
-  // resurrect a just-deleted entry. Swallow failures (offline, RLS edge case) —
-  // the safe default is the original empty replication result.
-  try {
-    const online = await postgrest();
-    if (online.error || !Array.isArray(online.data)) return online;
-    const deleted = new Set(locallyDeletedIds ?? []);
-    if (deleted.size === 0) return online;
-    const idOf = rowId ?? defaultRowId;
-    const kept = (online.data as unknown[]).filter(row => !deleted.has(idOf(row)));
-    return { data: kept as T, error: online.error };
-  } catch (error) {
+  // The local result, when it cannot be verified: the caller's error when it
+  // requires verification; otherwise the local rows, reported as unverified
+  // when they are a never-synced scope's rows.
+  const unverifiedLocal = (error: unknown): ReadResult<T> => {
     if (errorOnOnlineVerificationFailure) {
       return {
         data: result.data,
         error: createDatabaseError(error, table, `${operation}_online_verify`),
       };
     }
+    if (!empty) onUnverified?.();
     return result;
+  };
+
+  // MYK9-746: the server has not seen some local write, so any online list
+  // would show it undone. Wait for a completed sync instead of merging.
+  if (!empty && unsavedLocalWrites) {
+    return unverifiedLocal(new Error('Unsaved local writes in a scope that has not synced'));
+  }
+
+  // Empty (or never-synced) local result: the scope may simply not have synced
+  // (entries replicate per-show). Verify against the authoritative online read
+  // and return it as-is, dropping only rows the local replica has tombstoned so
+  // a stale server row can't resurrect a just-deleted entry. Swallow failures
+  // (offline, RLS edge case) — the safe default is the original replication
+  // result, marked unverified when it is a never-synced scope's rows.
+  try {
+    const online = await postgrest();
+    if (online.error || !Array.isArray(online.data)) {
+      return empty ? online : unverifiedLocal(online.error ?? new Error('No online rows'));
+    }
+    const deleted = new Set(locallyDeletedIds ?? []);
+    if (deleted.size === 0) return online;
+    const idOf = rowId ?? defaultRowId;
+    const kept = (online.data as unknown[]).filter(row => !deleted.has(idOf(row)));
+    return { data: kept as T, error: online.error };
+  } catch (error) {
+    return unverifiedLocal(error);
   }
 }
 

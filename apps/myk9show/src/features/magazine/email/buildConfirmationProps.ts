@@ -1,5 +1,5 @@
 import { getTrialRegistry } from '@/features/registries';
-import { toLowerRoman } from '../landing/useMagazineLandingData';
+import { formatTrialLabel } from '@myk9/core';
 import type { MagazineConfirmationProps, MagazineRunRow } from '@myk9/email';
 
 // ─── Input types (mirror Supabase Row shapes) ────────────────────────────────
@@ -17,6 +17,8 @@ interface ShowInput {
 interface TrialInput {
   id: string;
   date: string;
+  /** trials.name — the display label (MYK9-704). */
+  name?: string | null;
   trial_number?: string | null;
   display_order?: number | null;
   timezone?: string | null;
@@ -163,8 +165,8 @@ function derivePrimaryArmband(entries: EntryInput[]): string | null {
  * will route between Heritage and Magazine off the same row data.
  *
  * Notable transformations specific to Magazine:
- *  - `trialNumeral` is rendered in **lowercase Roman** ("i", "iii") rather
- *    than uppercase — matches the editorial voice
+ *  - `trialNumeral` is the trial's label (`formatTrialLabel`), exactly as
+ *    send-confirmation-email prints it (MYK9-713)
  *  - `primaryArmband` is derived from the entries: when all share one
  *    armband (typical AKC scent work), it's displayed in the armband
  *    callout row; mixed armbands fall back to a run-count message
@@ -179,16 +181,10 @@ export function buildMagazineConfirmationProps(
   // Single-registry show: every trial shares one sanctioning body, so read it off the first.
   const registry = getTrialRegistry(allTrials[0]);
 
-  const sortedTrials = [...allTrials].sort(
-    (a, b) => (a.display_order ?? 999) - (b.display_order ?? 999)
-  );
-  // Derive numerals from display_order (or sort index) and never from the
-  // stored `trial_number` string. Magazine's editorial voice is always
-  // lowercase Roman numerals — trusting upstream "I"/"II" strings would
-  // bleed certificate-style capitalization into the magazine voice and
-  // break visual parity with the landing page.
+  // Trial label per run: the formatTrialLabel contract, the same string
+  // send-confirmation-email prints (MYK9-713). Never re-derived or re-cased.
   const trialNumeralMap = new Map(
-    sortedTrials.map((t, i) => [t.id, toLowerRoman(t.display_order ?? i + 1)])
+    allTrials.map(t => [t.id, formatTrialLabel({ name: t.name, trialNumber: t.trial_number })])
   );
 
   const runs: MagazineRunRow[] = entries

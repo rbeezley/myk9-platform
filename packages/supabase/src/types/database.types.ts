@@ -12255,6 +12255,21 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      class_entry_availability: {
+        Args: { p_class_ids: string[] }
+        Returns: {
+          allow_waitlist: boolean
+          class_full: boolean
+          class_id: string
+          entry_count: number
+          has_started: boolean
+          judge_day_available: number | null
+          judge_day_full: boolean
+          judge_id: string | null
+          self_service_block: string | null
+          waitlist_count: number
+        }[]
+      }
       cleanup_stale_ringside_anon_users: {
         Args: {
           p_claimless_ttl?: string
@@ -12999,6 +13014,21 @@ export type Database = {
           status_updated_at: string
         }[]
       }
+      get_show_class_availability: {
+        Args: { p_show_id: string }
+        Returns: {
+          allow_waitlist: boolean
+          class_full: boolean
+          class_id: string
+          entry_count: number
+          has_started: boolean
+          judge_day_available: number | null
+          judge_day_full: boolean
+          judge_id: string | null
+          self_service_block: string | null
+          waitlist_count: number
+        }[]
+      }
       get_show_judges: {
         Args: { p_show_id: string }
         Returns: {
@@ -13242,6 +13272,15 @@ export type Database = {
           order_status: string
           order_type: string
           post_hoc_cents: number
+        }[]
+      }
+      reconcile_cart_closed_classes: {
+        Args: { p_cart_id: string }
+        Returns: {
+          class_id: string
+          dog_id: string
+          item_id: string
+          reason: string
         }[]
       }
       record_login_attempt: {

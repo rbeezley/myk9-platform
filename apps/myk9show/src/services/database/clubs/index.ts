@@ -21,3 +21,9 @@ export {
 } from './reads';
 
 export { setClubAuthorization } from './authorization';
+export {
+  getPublicDirectoryClubs,
+  getPublicClubById,
+  PUBLIC_DIRECTORY_CLUB_COLUMNS,
+  PUBLIC_CLUB_DETAIL_COLUMNS,
+} from './publicDirectory';

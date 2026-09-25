@@ -84,7 +84,7 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             disabled={organizationDisabled}
             onValueChange={value => onUpdate({ organization: value })}
           >
-            <SelectTrigger id="show-organization" className="bg-input h-10">
+            <SelectTrigger id="show-organization" className="bg-input">
               <SelectValue placeholder="Select organization">
                 {show.organization
                   ? ORGANIZATIONS.find(t => t.value === show.organization)?.label

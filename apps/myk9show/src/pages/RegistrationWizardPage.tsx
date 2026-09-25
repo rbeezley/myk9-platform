@@ -231,7 +231,7 @@ function RegistrationWizardContent() {
         rootRef={scrollTopRef}
         {...(entriesPanel ? { aside: entriesPanel } : {})}
         header={
-          <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
+          <div className="container mx-auto max-w-7xl px-4 pb-1 pt-3 sm:px-6 sm:pb-3">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               {/* size="touch", not "default": default is h-10 (measured 181x40
                   in Chrome), under the 44px floor. The sibling exit on the
@@ -249,7 +249,9 @@ function RegistrationWizardContent() {
               {/* min-w-0 is load-bearing: without it this flex child cannot
                   shrink below its content, so the truncate on the show name
                   never engages and the row overflows at 375px. */}
-              <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+              {/* Hidden below `sm`: the show name is repeated under the title, and
+                  on a phone this row wrapped to three lines (MYK9-622). */}
+              <div className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground sm:flex">
                 <span>Shows</span>
                 <span>/</span>
                 <span className="truncate max-w-[200px]">{currentShow?.name || 'Show'}</span>

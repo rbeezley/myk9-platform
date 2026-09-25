@@ -192,6 +192,85 @@ describe('MutationManager delayed server responses', () => {
     expect(await manager.getPendingCount()).toBe(0);
   });
 
+  // MYK9-740. Reconnect fires several drain triggers at once (the `online`
+  // event, `visibilitychange`, the interval). The failing Regression trace
+  // showed one request per queued write, so the single-flight guard held; this
+  // pins that, and pins the client half of the server's idempotent replay: the
+  // version the first write returns is what the row's next queued write carries.
+  it('uploads each queued write once when three reconnect triggers overlap a slow response', async () => {
+    // Real timers: fake-indexeddb schedules its transaction lifecycle on timer
+    // APIs, so with faked timers a multi-put transaction commits early and the
+    // test would measure the harness, not the runner.
+    vi.useRealTimers();
+    const bodies: Array<{ p_expected_version: number | null }> = [];
+    let releaseFirst: (() => void) | undefined;
+    let announceFirstRequest: (() => void) | undefined;
+    const firstRequestStarted = new Promise<void>(resolve => {
+      announceFirstRequest = resolve;
+    });
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as { p_expected_version: number | null });
+      const version = String(14 + bodies.length);
+      const ok = () =>
+        new Response(version, { status: 200, headers: { 'content-type': 'application/json' } });
+      if (bodies.length === 1) {
+        announceFirstRequest?.();
+        return new Promise<Response>(resolve => {
+          releaseFirst = () => resolve(ok());
+        });
+      }
+      return Promise.resolve(ok());
+    });
+    const supabase = createClient('https://example.supabase.co', 'test-anon-key', {
+      auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
+      global: { fetch },
+    });
+    manager = new MutationManager(supabase, {
+      logger: createLogger(),
+      getCurrentUserId: async () => AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: AUTH_USER_ID,
+        supabaseClient: supabase,
+      }),
+    });
+    const score = { result_status: 'nq', is_scored: true };
+    const exit = { check_in_status: 'completed' };
+    await manager.queueMutation(
+      'entries',
+      'UPDATE',
+      'entry-4',
+      { id: 'entry-4', ...score },
+      undefined,
+      14,
+      { name: 'ringside_update_entry', fields: score },
+      false
+    );
+    await manager.queueMutation(
+      'entries',
+      'UPDATE',
+      'entry-4',
+      { id: 'entry-4', ...exit },
+      undefined,
+      14,
+      { name: 'ringside_update_entry', fields: exit },
+      false
+    );
+
+    const triggers = [
+      manager.uploadPendingMutations(),
+      manager.uploadPendingMutations(),
+      manager.uploadPendingMutations(),
+    ];
+    await firstRequestStarted;
+    releaseFirst?.();
+    await Promise.all(triggers);
+    // The overlapping triggers schedule one follow-up pass (100ms debounce).
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    expect(bodies.map(body => body.p_expected_version)).toEqual([14, 15]);
+    expect(await manager.getPendingCount()).toBe(0);
+  });
+
   it('starts OCC backoff when a slow conflict response arrives', async () => {
     const response = new Response(
       JSON.stringify({

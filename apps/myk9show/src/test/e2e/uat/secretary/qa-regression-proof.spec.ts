@@ -120,9 +120,13 @@ test.describe('Secretary QA regression proof', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    const addTrialAction = page.getByRole('button', { name: /^Add (First|Another) Trial$/ }).last();
-    await expect(addTrialAction).toBeVisible();
-    await addTrialAction.click({ force: true });
+    // Only an ENABLED action: the button is disabled until the show's trials
+    // load, and a forced click on a disabled one adds nothing (MYK9-755).
+    const addTrialAction = page
+      .getByRole('button', { name: /^Add (First|Another) Trial$/, disabled: false })
+      .first();
+    await expect(addTrialAction).toBeVisible({ timeout: 15000 });
+    await addTrialAction.click();
 
     const eventNumber = page.getByPlaceholder('Required: AKC event number');
     await expect(eventNumber).toBeVisible();

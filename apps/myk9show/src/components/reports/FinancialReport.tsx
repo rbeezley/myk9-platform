@@ -18,13 +18,10 @@ export const FinancialReport: React.FC<ReportProps> = ({
   organization,
   showDates,
   entries,
-  sortOrder,
 }) => {
-  const mode = sortOrder === 'waitlist' ? 'waitlist' : 'current';
-  const totals = calculateFinancialReportTotals(entries, mode);
+  const totals = calculateFinancialReportTotals(entries);
 
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
-  const variantLabel = mode === 'current' ? 'Current Entries' : 'Waitlisted Entries';
 
   const exhibitorMap = new Map<string, FinancialReportLine[]>();
   for (const line of totals.lines) {
@@ -39,7 +36,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
       <h1 className="report-title">{orgTitle} Financial Report</h1>
       {showName && <p className="report-subtitle">{showName}</p>}
       {showDates && <p className="report-subtitle">{showDates}</p>}
-      <p className="report-subtitle">{variantLabel}</p>
+      <p className="report-subtitle">Current Entries</p>
     </div>
   );
 

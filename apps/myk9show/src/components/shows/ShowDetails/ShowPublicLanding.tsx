@@ -7,7 +7,10 @@ import { useEntitlement } from '@/features/entitlement/useEntitlement';
 import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
 import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
 import { Button } from '@/components/ui/button';
-import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
+import {
+  ShowStyleEntitlementError,
+  ShowStyleSaveError,
+} from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -154,6 +157,10 @@ export function ShowPublicLanding({
       setPendingStyle(null);
     } catch (error) {
       setPendingStyle(null);
+      if (error instanceof ShowStyleEntitlementError) {
+        setEntitlementError(true);
+        return;
+      }
       setSaveError(true);
       setSaveErrorMessage(error instanceof ShowStyleSaveError ? error.message : null);
     } finally {

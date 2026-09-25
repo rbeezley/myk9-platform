@@ -13,6 +13,7 @@ import {
   REPLICATION_STORES,
   type ReplicatedRow,
   type SyncReplicatedTableAdapter,
+  type SyncOptions,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -477,7 +478,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS;
   }
 
-  async sync(syncScopeId: string): Promise<SyncResult> {
+  async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // Carry visibility enrichment fields through fetchRemoteRows → toLocalRow.
@@ -608,6 +609,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       adapter,
       { value: syncScopeId },
       {
+        forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );

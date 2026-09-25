@@ -206,6 +206,34 @@ BEGIN
 END;
 $$;
 
+-- MYK9-748: the seed deletes its own enrollment ...070 BY ID, wherever it sits.
+-- Reassigned to a show outside the seed's set, an order on it matched neither
+-- route above, and the reseed died on the raw RESTRICT error instead.
+UPDATE public.enrollments SET show_id = '00000000-0000-0000-0000-000000538503'
+ WHERE id = 'dededede-0000-0000-0000-000000000070';
+INSERT INTO public.stripe_orders (id, amount_cents, status, enrollment_id)
+VALUES ('00000000-0000-0000-0000-000000538305', 5000, 'succeeded',
+        'dededede-0000-0000-0000-000000000070');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.enrollments
+                 WHERE id = 'dededede-0000-0000-0000-000000000070'
+                   AND show_id = '00000000-0000-0000-0000-000000538503') THEN
+    RAISE EXCEPTION 'FAIL F538.26 precondition: ...070 was not moved outside the seed''s shows';
+  END IF;
+  IF err IS NULL OR err NOT LIKE '%Stripe order(s) point at a show this reseed deletes%' THEN
+    RAISE EXCEPTION 'FAIL F538.26 an order on the seed''s own enrollment, moved off its show, did not abort: %',
+      coalesce(err, '<no error>');
+  END IF;
+  RAISE NOTICE 'PASS F538.26 an order on enrollment ...070 aborts the reseed wherever that enrollment sits';
+END;
+$$;
+DELETE FROM public.stripe_orders WHERE id = '00000000-0000-0000-0000-000000538305';
+UPDATE public.enrollments SET show_id = 'dededede-0000-0000-0000-000000000010'
+ WHERE id = 'dededede-0000-0000-0000-000000000070';
+
 -- --- the remaining lenient-branch entry cases (MYK9-539) --------------------
 -- entry_fee IS NULL folds to the LENIENT branch, because the corroboration test
 -- is `coalesce(entry_fee, 0) > 0`. Defensible — an unpriced entry is not a

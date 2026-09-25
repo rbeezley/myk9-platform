@@ -4,7 +4,7 @@ import {
   HEALTH_CHECK_INTERVAL_MS,
   healthCheckStaleAfterMs,
   shouldRunHealthCheck,
-} from './healthCheckCadence';
+} from '../../../supabase/functions/_shared/healthCheckCadence';
 
 describe('daily ACL cadence', () => {
   it.each(['anon_grants', 'applied_acl_grants', 'public_schema_create_acl'])(

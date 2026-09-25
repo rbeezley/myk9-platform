@@ -485,6 +485,74 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('Advanced A is full.');
   });
 
+  // MYK9-754: the guard counts the seats the server's capacity gate counts,
+  // not only confirmed and checked-in, or it offers a class the server calls full.
+  it.each(['submitted', 'paid', 'competing', 'in-ring', 'pending-payment'])(
+    'counts a %s entry as a taken seat in the move-up target',
+    async status => {
+      mockGetReplicatedClassById.mockImplementation((id: string) =>
+        Promise.resolve(
+          id === 'class-1'
+            ? {
+                id: 'class-1',
+                trialId: 'trial-1',
+                name: 'Novice A',
+                element: 'Container',
+                level: 'Novice',
+                maxEntries: 50,
+              }
+            : {
+                id: 'class-2',
+                trialId: 'trial-2',
+                name: 'Advanced A',
+                element: 'Container',
+                level: 'Advanced',
+                maxEntries: 1,
+              }
+        )
+      );
+      mockGetReplicatedEntriesByClass.mockResolvedValue([{ entryStatus: status }]);
+
+      await expect(
+        moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
+      ).rejects.toThrow('Advanced A is full.');
+      expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not count a withdrawn or soft-deleted row as a seat', async () => {
+    mockGetReplicatedClassById.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === 'class-1'
+          ? {
+              id: 'class-1',
+              trialId: 'trial-1',
+              name: 'Novice A',
+              element: 'Container',
+              level: 'Novice',
+              maxEntries: 50,
+            }
+          : {
+              id: 'class-2',
+              trialId: 'trial-2',
+              name: 'Advanced A',
+              element: 'Container',
+              level: 'Advanced',
+              maxEntries: 1,
+            }
+      )
+    );
+    mockGetReplicatedEntriesByClass.mockResolvedValue([
+      { entryStatus: 'withdrawn' },
+      { entryStatus: 'confirmed', deletedAt: '2026-09-01T00:00:00Z' },
+    ]);
+    mockMoveUpEntryViaRpc.mockRejectedValue(new Error('reached the server call'));
+
+    await expect(
+      moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
+    ).rejects.toThrow('reached the server call');
+  });
+
   it('rejects a move-up to a lower/cross-element class (write-path enforcement)', async () => {
     // Source is Container Master; target class-2 is Container Advanced — a
     // LOWER level. The picker should never offer this, but the mutation must

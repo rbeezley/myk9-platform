@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compareDiagnostics, isGateInert, parseDiagnostics } from './typecheck-scripts';
+import {
+  compareDiagnostics,
+  findUncompiledFiles,
+  findWeakenedOptions,
+  isGateInert,
+  parseDiagnostics,
+} from './typecheck-scripts';
 
 describe('scripts/qa typecheck ratchet', () => {
   it('parses diagnostics without retaining volatile line numbers', () => {
@@ -44,5 +50,30 @@ describe('scripts/qa typecheck ratchet', () => {
     expect(isGateInert(baseline, baseline)).toBe(false);
     // An empty baseline legitimately pairs with an empty current run.
     expect(isGateInert([], [])).toBe(false);
+  });
+  // MYK9-748 (#2256 review): with the baseline burned down to empty, a
+  // narrowed `include` that compiles only clean files produced 0 diagnostics
+  // against 0 baselined and passed. Coverage is now asserted from the compiled
+  // program's own file list, and the strictness from the resolved options.
+  it('names every tracked script the program did not compile', () => {
+    const root = '/repo';
+    const listed = [
+      '/repo/node_modules/typescript/lib/lib.es2023.d.ts',
+      '/repo/scripts/qa/inflight.ts',
+    ];
+    const tracked = ['scripts/qa/inflight.ts', 'scripts/qa/review-gate.ts'];
+
+    expect(findUncompiledFiles(listed, tracked, root)).toEqual(['scripts/qa/review-gate.ts']);
+    expect(
+      findUncompiledFiles([...listed, '/repo/scripts/qa/review-gate.ts'], tracked, root)
+    ).toEqual([]);
+  });
+
+  it('names a strictness option the resolved config turned off', () => {
+    expect(findWeakenedOptions({ strict: true, noUncheckedIndexedAccess: true })).toEqual([]);
+    expect(findWeakenedOptions({ strict: false, noUncheckedIndexedAccess: true })).toEqual([
+      'strict',
+    ]);
+    expect(findWeakenedOptions({ strict: true })).toEqual(['noUncheckedIndexedAccess']);
   });
 });

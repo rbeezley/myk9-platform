@@ -3,7 +3,10 @@ import { onlineManager } from '@tanstack/react-query';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
-import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
+import {
+  ShowStyleEntitlementError,
+  ShowStyleSaveError,
+} from '@/features/premium/showStylePersistence';
 import { ShowPublicLanding } from '../ShowPublicLanding';
 
 const entitlement = vi.hoisted(() => ({
@@ -169,6 +172,23 @@ describe('ShowPublicLanding style preview', () => {
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  });
+
+  // MYK9-744: the server refused on Premium; nothing was saved, so the
+  // committed style stays and the copy says so instead of "could not confirm".
+  it('shows the entitlement refusal when the server rejects the Premium style', async () => {
+    entitlement.canAuthorizePremium = true;
+    const user = renderPreview({
+      onSaveDraftStyle: vi.fn().mockRejectedValue(new ShowStyleEntitlementError()),
+    }).user;
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Premium access is no longer available');
+    expect(alert).toHaveTextContent('Your current style is still Monogram');
+    expect(alert).not.toHaveTextContent('Could not confirm');
   });
 
   it('uses the draft style as the manager baseline when public experience is published', () => {

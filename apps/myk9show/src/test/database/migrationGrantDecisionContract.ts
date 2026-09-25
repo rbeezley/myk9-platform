@@ -172,9 +172,13 @@ function tableGrants(sql: string): TableGrant[] {
 }
 
 function tableCreates(sql: string): string[] {
+  // A name followed by `.` is a schema qualifier, so `CREATE TABLE
+  // private.x` is not an API-exposed public table named `private` (MYK9-737).
+  // The second lookahead stops the regex backtracking past that refusal into
+  // reading `IF` (of IF NOT EXISTS) as the table name.
   return [
     ...sql.matchAll(
-      /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\b/gi
+      /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?!IF\s+NOT\s+EXISTS\b)(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?(?!\s*\.)\b/gi
     ),
   ].map(match => match[1].toLowerCase());
 }

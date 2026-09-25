@@ -80,7 +80,7 @@ export function TasksTab({ clubId }: TasksTabProps) {
           {clubId && (
             <button
               onClick={() => setShowAddForm(true)}
-              className="rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
+              className="min-h-11 rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
             >
               + Add Task
             </button>

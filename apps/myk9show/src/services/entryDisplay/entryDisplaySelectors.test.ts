@@ -20,7 +20,9 @@ describe('getEntryStatusKind — the single classifier', () => {
     ['submitted', 'pending'],
     ['pending', 'pending'],
     ['no-status', 'pending'],
-    ['waitlisted', 'waitlist'],
+    // MYK9-754: entries_entry_status_check forbids 'waitlisted' (waitlisted dogs
+    // live in waitlist_entries), so it is not an alias of anything.
+    ['waitlisted', 'unknown'],
     ['in-ring', 'in_ring'],
     ['competing', 'in_ring'],
     ['checked-in', 'in_ring'],

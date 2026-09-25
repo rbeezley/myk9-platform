@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTrialStore } from '@/store/trialStore';
-import { isTrialSnapshotReady } from '@/components/shows/wizard/steps/TrialConfigurationStep.helpers';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
@@ -37,6 +36,14 @@ import {
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
+import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
+import {
+  focusWithoutJump,
+  revealFocusedBelowChrome,
+  useWizardChromeHeight,
+  WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
+  WIZARD_SCROLL_MARGIN_CLASS,
+} from './ShowCreationWizard/wizardScrollChrome';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
@@ -50,6 +57,8 @@ const ShowCreationWizardPage: React.FC = () => {
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  const stepsRef = useRef<HTMLDivElement>(null);
+  useWizardChromeHeight(stepsRef);
   const validationBannerRef = useRef<HTMLDivElement>(null);
   // Set by a failed Next click so the effect below scrolls the banner into
   // view once it has mounted. A ref (not state) keeps this a one-shot signal
@@ -97,16 +106,11 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const {
-    trials: existingTrials,
-    trialsReadStatus,
-    trialsReadError,
-    trialsHasConfirmedSnapshot,
-    loadTrials,
-  } = useTrialStore();
-  const existingTrialsReady =
-    editMode?.mode !== 'add-trials' ||
-    isTrialSnapshotReady(trialsReadStatus, trialsHasConfirmedSnapshot);
+  const { trials: existingTrials } = useTrialStore();
+  const existingTrialsRead = useAddTrialsExistingTrials(
+    editMode?.mode === 'add-trials' ? editMode.showId : undefined
+  );
+  const existingTrialsReady = existingTrialsRead.ready;
   const persistedNameSources = useMemo(
     () =>
       editMode?.mode === 'add-trials'
@@ -184,7 +188,7 @@ const ShowCreationWizardPage: React.FC = () => {
           'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
         );
         if (firstInput && typeof firstInput.focus === 'function') {
-          firstInput.focus();
+          focusWithoutJump(firstInput);
         }
       }
     }, 350);
@@ -242,7 +246,9 @@ const ShowCreationWizardPage: React.FC = () => {
   const scrollBannerIntoView = useCallback(() => {
     const el = validationBannerRef.current;
     if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // `start` honours the banner's scroll margin, so its heading lands below
+      // the sticky chrome; `center` put it underneath on a phone (MYK9-764).
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
 
@@ -378,6 +384,7 @@ const ShowCreationWizardPage: React.FC = () => {
               --show-wizard-header-height. A hard-coded top-16 (64px) put this
               behind both on a phone, where the breadcrumb wraps. */}
           <div
+            ref={stepsRef}
             data-testid="show-creation-wizard-steps"
             className="sticky top-[calc(var(--app-top-inset,3rem)+var(--show-wizard-header-height,4rem))] z-30 mb-4 rounded-2xl border border-border bg-card px-3 py-4 shadow-sm sm:mb-6 sm:px-6 sm:py-5"
           >
@@ -415,7 +422,7 @@ const ShowCreationWizardPage: React.FC = () => {
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
             {hasAttemptedNext && validationMessages.length > 0 && (
-              <div ref={validationBannerRef}>
+              <div ref={validationBannerRef} className={WIZARD_SCROLL_MARGIN_CLASS}>
                 <WizardValidationBanner
                   messages={validationMessages}
                   expanded={validationExpanded}
@@ -429,7 +436,8 @@ const ShowCreationWizardPage: React.FC = () => {
               <div
                 ref={stepContentRef}
                 key={currentStep}
-                className="animate-in fade-in slide-in-from-right-4 p-4 duration-300 sm:p-8"
+                onFocus={revealFocusedBelowChrome}
+                className={`animate-in fade-in slide-in-from-right-4 p-4 duration-300 sm:p-8 ${WIZARD_CONTENT_SCROLL_MARGIN_CLASS}`}
                 role="region"
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
@@ -452,13 +460,9 @@ const ShowCreationWizardPage: React.FC = () => {
                     onCreateShow={handleCreateShow}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
-                    existingTrialsReadStatus={
-                      editMode?.mode === 'add-trials' ? trialsReadStatus : undefined
-                    }
-                    existingTrialsReadError={
-                      editMode?.mode === 'add-trials' ? trialsReadError : undefined
-                    }
-                    onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
+                    existingTrialsReadStatus={existingTrialsRead.readStatus}
+                    existingTrialsReadError={existingTrialsRead.readError}
+                    onRetryExistingTrials={existingTrialsRead.retry}
                     persistedOrganization={
                       editModeResolution.state === 'resolved'
                         ? editModeResolution.show.organization

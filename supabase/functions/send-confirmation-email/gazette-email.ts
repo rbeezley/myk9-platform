@@ -70,7 +70,7 @@ function runsTable(runs: ConfirmationEmailRunRow[]): string {
       const last = i === runs.length - 1;
       const border = last ? '' : `border-bottom:1px dotted ${GZ_HAIR};`;
       return `<tr>
-  <td style="padding:11px 8px 11px 0;${border}font-family:${GZ_DISPLAY};font-style:italic;font-weight:700;font-size:18px;color:${GZ_BROWN};">${esc(r.numeral.toLowerCase())}</td>
+  <td style="padding:11px 8px 11px 0;${border}font-family:${GZ_DISPLAY};font-style:italic;font-weight:700;font-size:18px;color:${GZ_BROWN};">${esc(r.numeral)}</td>
   <td style="padding:11px 8px;${border}font-family:${GZ_BODY};font-size:13px;color:${GZ_INK};">${esc(r.dayLabel)}</td>
   <td style="padding:11px 8px;${border}font-family:${GZ_DISPLAY};font-size:14px;color:${GZ_INK};">${esc(r.classLabel)}</td>
   <td style="padding:11px 8px;${border}font-family:${GZ_BODY};font-size:13px;color:${GZ_INK};">${esc(r.judgeName)}</td>

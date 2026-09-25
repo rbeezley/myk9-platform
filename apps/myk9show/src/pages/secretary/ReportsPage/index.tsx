@@ -98,11 +98,16 @@ export default function ReportsPage() {
     });
   // MYK9-280: the page owns the hosted fetch; MYK9-721: Print and the preview
   // gate on the same readiness for it as for the report rows.
+  const reportClassIds = useMemo(
+    () => (classes as Array<{ id: string }> | undefined)?.map(c => c.id),
+    [classes]
+  );
   const hosted = useHostedReportData({
     reportType,
     showId: show?.id,
     trialId: trialId !== 'all' ? trialId : undefined,
     dogId: dogId !== 'all' ? dogId : undefined,
+    classIds: reportClassIds,
   });
   const printReadiness = resolvePrintReadiness(dataState, hosted.hostedState);
   // During a paused/loading or cold-replica report-trials query, retain the

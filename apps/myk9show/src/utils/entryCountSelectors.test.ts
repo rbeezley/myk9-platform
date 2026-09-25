@@ -112,7 +112,6 @@ describe('entry count selectors', () => {
       { entry_status: null },
       { entry_status: '' },
       { entry_status: 'confirmed' },
-      { entry_status: 'waitlisted' },
       { entry_status: 'withdrawn' },
     ];
     const managementEntries = rawEntries.map((raw, index) =>
@@ -121,11 +120,9 @@ describe('entry count selectors', () => {
         entryStatus:
           raw.entry_status === 'confirmed'
             ? EntryStatus.ACCEPTED
-            : raw.entry_status === 'waitlisted'
-              ? EntryStatus.WAITLIST
-              : raw.entry_status === 'withdrawn'
-                ? EntryStatus.CANCELLED
-                : EntryStatus.PENDING,
+            : raw.entry_status === 'withdrawn'
+              ? EntryStatus.CANCELLED
+              : EntryStatus.PENDING,
       })
     );
 
@@ -134,19 +131,16 @@ describe('entry count selectors', () => {
   });
 
   it('sums outstanding to match the Financial Report total for equivalent fixture data', () => {
-    const financialTotals = calculateFinancialReportTotals(
-      [
-        reportEntry({ id: 'pending', entryFee: 50, paymentStatus: PaymentStatus.PENDING }),
-        reportEntry({ id: 'paid', entryFee: 30, paymentStatus: PaymentStatus.PAID_BY_CHECK }),
-        reportEntry({
-          id: 'waived',
-          entryFee: 20,
-          paymentStatus: PaymentStatus.WAIVED,
-          comped: true,
-        }),
-      ],
-      'current'
-    );
+    const financialTotals = calculateFinancialReportTotals([
+      reportEntry({ id: 'pending', entryFee: 50, paymentStatus: PaymentStatus.PENDING }),
+      reportEntry({ id: 'paid', entryFee: 30, paymentStatus: PaymentStatus.PAID_BY_CHECK }),
+      reportEntry({
+        id: 'waived',
+        entryFee: 20,
+        paymentStatus: PaymentStatus.WAIVED,
+        comped: true,
+      }),
+    ]);
 
     const managementEntries = [
       entry({ id: 'pending', totalFee: 50, paymentStatus: PaymentStatus.PENDING }),
@@ -165,32 +159,29 @@ describe('entry count selectors', () => {
     expect(stats.outstanding).toBe(financialTotals.summary.outstanding);
   });
 
-  it('excludes waitlisted/withdrawn entries from outstanding, matching the Financial Report', () => {
-    const financialTotals = calculateFinancialReportTotals(
-      [
-        reportEntry({ id: 'pending', entryFee: 50, paymentStatus: PaymentStatus.PENDING }),
-        reportEntry({
-          id: 'waitlisted',
-          entryFee: 40,
-          entryStatus: 'waitlist',
-          paymentStatus: PaymentStatus.PENDING,
-        }),
-        reportEntry({
-          id: 'withdrawn',
-          entryFee: 35,
-          entryStatus: 'withdrawn',
-          paymentStatus: PaymentStatus.PENDING,
-        }),
-      ],
-      'current'
-    );
+  it('excludes not-accepted/withdrawn entries from outstanding, matching the Financial Report', () => {
+    const financialTotals = calculateFinancialReportTotals([
+      reportEntry({ id: 'pending', entryFee: 50, paymentStatus: PaymentStatus.PENDING }),
+      reportEntry({
+        id: 'not-accepted',
+        entryFee: 40,
+        entryStatus: 'not_accepted',
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+      reportEntry({
+        id: 'withdrawn',
+        entryFee: 35,
+        entryStatus: 'withdrawn',
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+    ]);
 
     const managementEntries = [
       entry({ id: 'pending', totalFee: 50, paymentStatus: PaymentStatus.PENDING }),
       entry({
-        id: 'waitlisted',
+        id: 'not-accepted',
         totalFee: 40,
-        entryStatus: EntryStatus.WAITLIST,
+        entryStatus: EntryStatus.REJECTED,
         paymentStatus: PaymentStatus.PENDING,
       }),
       entry({

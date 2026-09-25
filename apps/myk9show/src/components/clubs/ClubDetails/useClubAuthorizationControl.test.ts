@@ -7,7 +7,7 @@ vi.mock('@/services/database/clubs', () => ({
   setClubAuthorization: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({
-  notifications: { success: vi.fn(), error: vi.fn() },
+  notifications: { success: vi.fn(), warning: vi.fn(), error: vi.fn() },
 }));
 
 const mockEnsureClubsReady = vi.fn();
@@ -177,6 +177,33 @@ describe('useClubAuthorizationControl', () => {
     });
     expect(mockedNotifications.success).toHaveBeenCalledWith('Club authorization revoked.');
   });
+
+  // MYK9-750 (#2272 review): the server change is committed either way, but
+  // the page reflects it only when the forced resync actually ran. Plain
+  // success over a stale header and menu reads as "it didn't work".
+  it.each(['offline', 'unavailable'] as const)(
+    'says the change saved but the page is stale when the resync is %s',
+    async status => {
+      mockedSetClubAuthorization.mockResolvedValue(undefined);
+      mockEnsureClubsReady.mockResolvedValue({ status, clubs: [] });
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () => useClubAuthorizationControl(makeClub('2026-01-01T00:00:00Z'), true),
+        { wrapper }
+      );
+
+      await act(async () => {
+        result.current.handleRevokeAuthorization();
+      });
+
+      await waitFor(() => {
+        expect(mockedNotifications.warning).toHaveBeenCalledWith(
+          'Club authorization revoked. This page could not refresh yet; reload to see the change.'
+        );
+      });
+      expect(mockedNotifications.success).not.toHaveBeenCalled();
+    }
+  );
 
   it('toasts an error and does not throw when the RPC fails', async () => {
     mockedSetClubAuthorization.mockRejectedValue(new Error('nope'));

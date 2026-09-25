@@ -164,10 +164,42 @@ export async function getMyClubSecretaryRequestStatus(
   if (error) throw error;
   if (!data) return null;
 
-  return {
+  const status: ClubSecretaryRequestStatus = {
     status: data.status as RoleRequestStatus,
     reviewerNote: (data.reviewer_note as string | null) ?? null,
   };
+  if (status.status !== 'approved') return status;
+  const appointmentActive = await readClubSecretaryAppointmentActive(clubId, authUserId);
+  return appointmentActive === null ? status : { ...status, appointmentActive };
+}
+
+/** The roles revoke_club_secretary deactivates, i.e. what "appointed" means. */
+const CLUB_SECRETARY_ROLE_NAMES = new Set(['secretary', 'trial_secretary']);
+
+/**
+ * Whether the caller still holds a club-scoped secretary appointment at this
+ * club: the same rows revoke_club_secretary turns off (MYK9-750). Null when the
+ * read fails, so a transient error never re-offers a request.
+ */
+async function readClubSecretaryAppointmentActive(
+  clubId: string,
+  authUserId: string
+): Promise<boolean | null> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('expires_at, role:roles!user_roles_role_id_fkey(name)')
+    .eq('auth_user_id', authUserId)
+    .eq('club_id', clubId)
+    .is('show_id', null)
+    .eq('is_active', true);
+  if (error || !data) return null;
+
+  const now = Date.now();
+  return (data as Array<{ expires_at: string | null; role: { name: string } | null }>).some(
+    grant =>
+      CLUB_SECRETARY_ROLE_NAMES.has(grant.role?.name ?? '') &&
+      (grant.expires_at === null || Date.parse(grant.expires_at) > now)
+  );
 }
 
 /**

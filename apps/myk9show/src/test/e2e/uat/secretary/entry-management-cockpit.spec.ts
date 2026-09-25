@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
+import {
+  PHONE_AT_150_PERCENT_ZOOM,
+  expectNoHorizontalScroll,
+} from '../../shared/horizontalOverflow';
 
 test('registration focus remains clear across desktop, history, and narrow layouts', async ({
   page,
@@ -80,6 +84,18 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
     nodes.map(node => node.scrollWidth - node.clientWidth)
   );
   expect(hiddenPerRow.every(hidden => hidden <= 1)).toBe(true);
+});
+
+// MYK9-643: at 150% zoom on a phone the "Missing information" queue button
+// would not shrink and pushed the page sideways.
+test('Entry Management does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
+  await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
+  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
+  await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('button', { name: /Missing information/ })).toBeVisible();
+  await expectNoHorizontalScroll(page, 'Entry Management');
 });
 
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {

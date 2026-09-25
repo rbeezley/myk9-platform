@@ -148,10 +148,10 @@ test.describe('offline cold boot', () => {
     // that is the affordance MYK9-203 shipped, so exercising it is part of the test.
     if (await primeButton.isVisible().catch(() => false)) {
       await primeButton.click();
-      await expect(readyBadge).toBeVisible({ timeout: 60_000 });
+      await expectOfflineReady(page, 60_000);
     }
 
-    await expect(readyBadge).toBeVisible();
+    await expectOfflineReady(page, 15_000);
 
     // 2. Backend disappears, then a genuine cold boot.
     const interceptedCount = await goOffline(context);
@@ -391,3 +391,33 @@ test.describe('offline cold boot', () => {
     await expect(page).toHaveURL(/\/exhibitor\/entries/);
   });
 });
+
+/**
+ * The readiness badge reads "Offline ready". On failure, name the signals the
+ * not-ready badge reports as missing (MYK9-766: it once flipped back to not
+ * ready with no clue why).
+ */
+async function expectOfflineReady(page: Page, timeout: number) {
+  // Reads that never wait: an auto-waiting read of an absent badge would hold
+  // a poll iteration for the whole action timeout, missing a ready badge that
+  // appears meanwhile and losing the diagnosis.
+  const ready = page
+    .getByRole('status')
+    .filter({ hasText: /offline ready/i })
+    .first();
+  const notReady = page.locator('[data-offline-missing]');
+  await expect
+    .poll(
+      async () => {
+        if (await ready.isVisible()) return 'ready';
+        const missing = await notReady.evaluateAll(els =>
+          els.length === 0 ? null : (els[0]!.getAttribute('data-offline-missing') ?? '')
+        );
+        return missing === null
+          ? 'no badge (readiness unknown: not computed yet, or a storage probe failed)'
+          : `not ready; missing: ${missing || '(none listed)'}`;
+      },
+      { timeout }
+    )
+    .toBe('ready');
+}

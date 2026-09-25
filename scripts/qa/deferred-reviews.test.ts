@@ -64,7 +64,6 @@ function fakeDeps(overrides: Partial<ReconcileDeps> = {}): ReconcileDeps {
     listRepoComments: () => [overrideComment(2246, 'aaaaaaaaa', 'MYK9-509')],
     viewPr: (_repo, number) => mergedPr(number),
     resolveLinearIssue: async () => ({ exists: true, stateName: 'Done', stateType: 'completed' }),
-    now: new Date('2026-09-15T00:00:00Z'),
     ...overrides,
   };
 }
@@ -216,15 +215,10 @@ describe('dedupeCandidates', () => {
   });
 });
 
+// The default window is pinned in deferred-reviews.window.test.ts (MYK9-748).
 describe('parseSinceFlag', () => {
-  const now = new Date('2026-09-15T00:00:00Z');
-
-  it('defaults to 30 days before now', () => {
-    expect(parseSinceFlag([], now)).toBe('2026-08-16');
-  });
-
   it('honours an explicit --since', () => {
-    expect(parseSinceFlag(['--since', '2026-01-01'], now)).toBe('2026-01-01');
+    expect(parseSinceFlag(['--since', '2026-01-01'])).toBe('2026-01-01');
   });
 });
 

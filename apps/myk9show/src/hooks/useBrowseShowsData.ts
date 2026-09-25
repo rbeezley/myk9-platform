@@ -4,6 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
 import { getPublicShows } from '@/services/database/shows';
 import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
@@ -21,6 +22,7 @@ import {
 } from '@/utils/show-management-tracking';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
+import { withEntryWindowTimeZones } from '@/utils/entryWindowZones';
 import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
@@ -86,7 +88,15 @@ export function useBrowseShowsData({
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
-  const storeShows = useShowStore(s => s.shows);
+  const rawStoreShows = useShowStore(s => s.shows);
+  // Store shows carry no trials, so stamp each with its entry-window zone
+  // from the trial store: every Browse surface (cards, table, scrubber, map,
+  // filters) judges entry status in the show's own zone (MYK9-714).
+  const storeTrials = useTrialStore(s => s.trials);
+  const storeShows = useMemo(
+    () => withEntryWindowTimeZones(rawStoreShows, storeTrials),
+    [rawStoreShows, storeTrials]
+  );
   const showsLoading = useShowStore(s => s.isLoading);
 
   // Guest fallback: fetch public shows directly when not authenticated.

@@ -1,104 +1,119 @@
-import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
+import { QueryCache, MutationCache } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { captureMonitoredQueryFailure } from '@/services/observability/sentry';
 // Side-effect import: installs the missing-viewer-scope check on every
 // QueryCache before this module builds one (MYK9-429).
 import './viewerScopeGuard';
+import { EntityScopedQueryClient, keepPreviousDataInEntityScope } from './entityScopedPlaceholder';
 
 // Create custom query cache with enhanced deduplication
-const queryCache = new QueryCache({
-  onError: (error, query) => {
-    logger.error('Query error', 'query', { queryKey: query.queryKey }, error as Error);
-    // `logger` does not reach Sentry, so a query that fails silently into
-    // `isError` leaves no trace anywhere an operator can see (MYK9-231).
-    // Opt-in per query, because on an offline-first app most query failures
-    // are ordinary connectivity and reporting them all would bury the rest.
-    if (query.meta?.reportToSentry) captureMonitoredQueryFailure(error, query.queryKey);
-  },
-  onSuccess: (data, query) => {
-    // Log successful queries for debugging in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Query success', 'query', {
-        queryKey: query.queryKey,
-        dataSize: JSON.stringify(data).length,
-      });
-    }
-  },
-});
+const createAppQueryCache = () =>
+  new QueryCache({
+    onError: (error, query) => {
+      logger.error('Query error', 'query', { queryKey: query.queryKey }, error as Error);
+      // `logger` does not reach Sentry, so a query that fails silently into
+      // `isError` leaves no trace anywhere an operator can see (MYK9-231).
+      // Opt-in per query, because on an offline-first app most query failures
+      // are ordinary connectivity and reporting them all would bury the rest.
+      if (query.meta?.reportToSentry) captureMonitoredQueryFailure(error, query.queryKey);
+    },
+    onSuccess: (data, query) => {
+      // Log successful queries for debugging in development
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('Query success', 'query', {
+          queryKey: query.queryKey,
+          dataSize: JSON.stringify(data).length,
+        });
+      }
+    },
+  });
 
 // Create custom mutation cache
-const mutationCache = new MutationCache({
-  onError: (error, variables) => {
-    logger.error('Mutation error', 'query', { variables }, error as Error);
-  },
-  onSuccess: (_data, _variables, _context, mutation) => {
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('Mutation success', 'query', { mutationKey: mutation.options.mutationKey });
-    }
-  },
-});
+const createAppMutationCache = () =>
+  new MutationCache({
+    onError: (error, variables) => {
+      logger.error('Mutation error', 'query', { variables }, error as Error);
+    },
+    onSuccess: (_data, _variables, _context, mutation) => {
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('Mutation success', 'query', { mutationKey: mutation.options.mutationKey });
+      }
+    },
+  });
 
-export const queryClient = new QueryClient({
-  queryCache,
-  mutationCache,
-  defaultOptions: {
-    queries: {
-      // Enhanced stale time based on data type with performance optimization
-      staleTime: 5 * 60 * 1000, // 5 minutes default
-      // Enhanced cache time for better memory management
-      gcTime: 10 * 60 * 1000, // 10 minutes default
-      // Smart retry strategy with exponential backoff
-      retry: (failureCount, error: unknown) => {
-        // Don't retry for client errors (4xx)
-        if (error && typeof error === 'object' && 'status' in error) {
-          const statusError = error as { status: number };
-          if (statusError.status >= 400 && statusError.status < 500) {
-            return false;
+/**
+ * The app's QueryClient, built fresh. The singleton below is the app's one
+ * instance; tests that need the PRODUCTION defaults (the placeholder rule in
+ * particular) build their own from here rather than copying
+ * `getDefaultOptions()` onto a plain `QueryClient`.
+ */
+export const createAppQueryClient = () =>
+  new EntityScopedQueryClient({
+    queryCache: createAppQueryCache(),
+    mutationCache: createAppMutationCache(),
+    defaultOptions: {
+      queries: {
+        // Enhanced stale time based on data type with performance optimization
+        staleTime: 5 * 60 * 1000, // 5 minutes default
+        // Enhanced cache time for better memory management
+        gcTime: 10 * 60 * 1000, // 10 minutes default
+        // Smart retry strategy with exponential backoff
+        retry: (failureCount, error: unknown) => {
+          // Don't retry for client errors (4xx)
+          if (error && typeof error === 'object' && 'status' in error) {
+            const statusError = error as { status: number };
+            if (statusError.status >= 400 && statusError.status < 500) {
+              return false;
+            }
           }
-        }
-        // Retry up to 2 times for server errors (reduced for performance)
-        return failureCount < 2;
+          // Retry up to 2 times for server errors (reduced for performance)
+          return failureCount < 2;
+        },
+        retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
+
+        // Optimized refetch settings for mobile performance
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: 'always', // Always refetch on reconnect for fresh data
+        refetchOnMount: true, // Reduced frequency for performance
+
+        // Enhanced request deduplication for mobile
+        networkMode: 'online',
+
+        // Keep the previous data while a query re-keys, but only within the
+        // same entities: a new search term keeps the list up, a new show,
+        // class or dog id does not (MYK9-709). The client swaps this marker
+        // for the key-aware rule; see entityScopedPlaceholder.ts.
+        placeholderData: keepPreviousDataInEntityScope,
+
+        // Performance optimizations for mobile
+        refetchInterval: false, // Disable auto-refetch to save battery/data
+        refetchIntervalInBackground: false,
+
+        // Enhanced query function timeout for mobile networks
+        meta: {
+          timeout: 15000, // 15 seconds timeout for 3G networks
+        },
       },
-      retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
-
-      // Optimized refetch settings for mobile performance
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: 'always', // Always refetch on reconnect for fresh data
-      refetchOnMount: true, // Reduced frequency for performance
-
-      // Enhanced request deduplication for mobile
-      networkMode: 'online',
-
-      // Optimistic updates for better UX with mobile considerations
-      placeholderData: (previousData: unknown) => previousData,
-
-      // Performance optimizations for mobile
-      refetchInterval: false, // Disable auto-refetch to save battery/data
-      refetchIntervalInBackground: false,
-
-      // Enhanced query function timeout for mobile networks
-      meta: {
-        timeout: 15000, // 15 seconds timeout for 3G networks
+      mutations: {
+        // Enhanced retry strategy for mutations
+        retry: (failureCount, error: unknown) => {
+          // Don't retry for client errors
+          if (error && typeof error === 'object' && 'status' in error) {
+            const statusError = error as { status: number };
+            if (statusError.status >= 400 && statusError.status < 500) {
+              return false;
+            }
+          }
+          // Only retry once for mutations to avoid duplicate operations
+          return failureCount < 1;
+        },
+        retryDelay: 1000, // 1 second delay before retry
+        networkMode: 'online',
       },
     },
-    mutations: {
-      // Enhanced retry strategy for mutations
-      retry: (failureCount, error: unknown) => {
-        // Don't retry for client errors
-        if (error && typeof error === 'object' && 'status' in error) {
-          const statusError = error as { status: number };
-          if (statusError.status >= 400 && statusError.status < 500) {
-            return false;
-          }
-        }
-        // Only retry once for mutations to avoid duplicate operations
-        return failureCount < 1;
-      },
-      retryDelay: 1000, // 1 second delay before retry
-      networkMode: 'online',
-    },
-  },
-});
+  });
+
+export const queryClient = createAppQueryClient();
 
 // Query key factory for consistent key management
 export const queryKeys = {
@@ -139,6 +154,8 @@ export const queryKeys = {
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
   showPromoCodes: (showId: string) => ['shows', showId, 'promo-codes'] as const,
   showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
+  /** Under `show(id)`, so every waitlist mutation's show invalidation refreshes it (MYK9-717). */
+  showWaitlistReport: (showId: string) => ['shows', showId, 'waitlist-report'] as const,
   upcomingShows: ['shows', 'upcoming'] as const,
 
   // Class Requirements

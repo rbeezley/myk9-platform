@@ -47,6 +47,14 @@ describe('postgrestGetPublicShows', () => {
     expect(select).toContain('trial_type');
   });
 
+  it('embeds each trial timezone so Browse labels use the show zone (MYK9-714)', async () => {
+    await postgrestGetPublicShows();
+
+    const select = mockSelect.mock.calls[0]?.[0] as string;
+    const trialsEmbed = /trials\s*\(([^)]*)\)/.exec(select)?.[1] ?? '';
+    expect(trialsEmbed.split(',').map(column => column.trim())).toContain('timezone');
+  });
+
   it('produces a discipline-bearing events array end to end', async () => {
     const chain = {
       select: mockSelect,

@@ -26,12 +26,18 @@ async function login(page: Page) {
 
 // Helper to navigate to My Shows
 async function navigateToMyShows(page: Page) {
-  await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
+  // Not `networkidle`: it needs 500ms with NO request in flight, which a page
+  // with live sync may never give, and it timed out the Playwright Regression
+  // run on 2026-09-24. Wait for what the tests read instead.
+  await page.goto('/exhibitor/entries', { waitUntil: 'domcontentloaded' });
   // Wait for the page shell — the exhibitor entries page renders an <h1> titled
   // "My Shows" (the route's display name; the file predates that rename).
   await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
-    timeout: 10000,
+    timeout: 15000,
   });
+  // ...and for the fixture's entries to render, so an absence assertion below
+  // (`toHaveCount(0)`) is made against a loaded page, never an empty shell.
+  await expect(page.getByTestId('entry-filter-strip')).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('My Shows Page - Fake Trend Data Removal', () => {

@@ -140,17 +140,54 @@ describe('DogsTableView', () => {
       render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
       const headerCheckbox = screen.getByRole('checkbox', { name: /select all dogs/i });
       const rowCheckbox = screen.getByRole('checkbox', { name: /select rex/i });
-      // Row checkbox: uniform 14px overhang on all four sides (44x44).
-      expect(rowCheckbox.className).toContain('before:-inset-3.5');
-      // Header checkbox: asymmetric on purpose (round-2 review) — a uniform
-      // -inset-3.5 overhangs ~2px into row 1, since the header row is only
-      // h-10 (40px) tall against a 44px-tall target. -inset-x-3.5 (14px)
-      // keeps the 44px horizontal reach into the Name cell; -inset-y-3
-      // (12px) makes the target exactly 40px tall, filling the header row
-      // with no vertical spillover.
-      expect(headerCheckbox.className).toContain('before:-inset-x-3.5');
+      // Both span the select cell's x=0..44 (MYK9-751): the 16px checkbox is
+      // centred at 12..28, so 12px left and 16px right — a full 44px wide,
+      // nothing lost to the scroll wrapper's clip at 0, 4px into Name.
+      for (const box of [rowCheckbox, headerCheckbox]) {
+        expect(box.className).toContain('before:-left-3');
+        expect(box.className).toContain('before:-right-4');
+      }
+      // Row: 14px vertical overhang (44px tall). Header: 12px (40px), exactly
+      // the header row's height, so it cannot spill into row 1 (round-2 review).
+      expect(rowCheckbox.className).toContain('before:-inset-y-3.5');
       expect(headerCheckbox.className).toContain('before:-inset-y-3');
-      expect(headerCheckbox.className).not.toContain('before:-inset-3.5');
+      expect(headerCheckbox.className).not.toContain('before:-inset-y-3.5');
+    });
+
+    it('keeps the same checkbox nodes when the page re-renders with a new selection object', () => {
+      // useBulkSelection returns a new object on every render. Rebuilding the
+      // column from it remounted every checkbox, dropping keyboard focus and
+      // detaching the header checkbox mid-measurement in Regression (MYK9-751).
+      const { rerender } = render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const header = screen.getByRole('checkbox', { name: /select all dogs/i });
+      const row = screen.getByRole('checkbox', { name: /select rex/i });
+      row.focus();
+
+      rerender(
+        <DogsTableView dogs={dogs} selection={makeSelection({ isPartiallySelected: true })} />
+      );
+
+      expect(screen.getByRole('checkbox', { name: /select all dogs/i })).toBe(header);
+      expect(screen.getByRole('checkbox', { name: /select rex/i })).toBe(row);
+      expect(row).toHaveFocus();
+      // …and the new selection still reaches the checkbox.
+      expect(header).toHaveAttribute('aria-checked', 'mixed');
+    });
+
+    it("updates a row's checked state in place when the selection changes", () => {
+      const { rerender } = render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const row = screen.getByRole('checkbox', { name: /select rex/i });
+      expect(row).toHaveAttribute('aria-checked', 'false');
+
+      rerender(
+        <DogsTableView
+          dogs={dogs}
+          selection={makeSelection({ isSelected: dog => dog.id === '1' })}
+        />
+      );
+
+      expect(screen.getByRole('checkbox', { name: /select rex/i })).toBe(row);
+      expect(row).toHaveAttribute('aria-checked', 'true');
     });
 
     it('reflects indeterminate state on the header checkbox', () => {

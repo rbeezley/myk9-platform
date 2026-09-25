@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
+import {
+  GUEST_READ_QUERY_OPTIONS,
+  resolveGuestRead,
+  useQueryOnlineStatus,
+} from '@/hooks/guestServerRead';
 import { useClubStore } from '@/store/clubStore';
+import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
 import { CLUB_TYPES, type Club } from '@/types/club-types';
 import { filterVisibleBrowseClubs } from './browseClubsVisibility';
@@ -28,6 +36,11 @@ export interface BrowseClubsData {
   filteredClubs: Club[];
   isLoading: boolean;
   hasError: boolean;
+  /**
+   * A signed-out visitor with no connection. The guest directory is
+   * online-only (MYK9-747), so this is its own state, never an empty list.
+   */
+  isOffline: boolean;
   handleRetry: () => void;
   filters: ClubFilters;
   setFilters: React.Dispatch<React.SetStateAction<ClubFilters>>;
@@ -37,22 +50,63 @@ export interface BrowseClubsData {
   clubShowCounts: Map<string, number>;
 }
 
+const NO_CLUBS: Club[] = [];
+
+/** Query key for the signed-out directory, per principal (sign-out changes it). */
+export const PUBLIC_CLUB_DIRECTORY_QUERY_KEY = ['clubs', 'public-directory'] as const;
+
 export function useBrowseClubsData(): BrowseClubsData {
-  const clubs = useClubStore(state => state.clubs);
+  const { userWithRoles } = useAuthContext();
+  const { isGuest, isSignedIn, authLoading, principalKey } = useDirectoryViewer();
+  // Only a signed-in viewer reads the replica (see the INTENT below).
+  const replicaClubs = useClubStore(state => (isSignedIn ? state.clubs : NO_CLUBS));
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const shows = useShowStore(state => state.shows);
-  const { userWithRoles } = useAuthContext();
+
+  // INTENT: the guest club directory is ONLINE-ONLY by owner decision
+  // (MYK9-747). The clubs replica is shared across sign-in states on one
+  // device, so a cached row can leak a revoked or never-authorized club to a
+  // signed-out visitor. Guests therefore read clubs_select straight from the
+  // server and never touch the replica, not even as an offline fallback. The
+  // guest directory is not a show-day surface, so offline-first does not
+  // apply; offline, it says so instead of listing clubs. A cached query
+  // result is never authoritative either (see guestServerRead.ts).
+  const guestQuery = useQuery({
+    queryKey: [...PUBLIC_CLUB_DIRECTORY_QUERY_KEY, principalKey],
+    queryFn: getPublicDirectoryClubs,
+    enabled: isGuest,
+    ...GUEST_READ_QUERY_OPTIONS,
+  });
+  const isOnline = useQueryOnlineStatus();
+  const guestRead = resolveGuestRead(guestQuery, isOnline);
+
+  // Until auth resolves the viewer is unknown, so both sources stay empty.
+  // A guest sees only a result fetched since this mount (resolveGuestRead).
+  const clubs = isGuest ? (guestRead.kind === 'ready' ? guestRead.data : NO_CLUBS) : replicaClubs;
   const visibleClubs = useMemo(
     () => filterVisibleBrowseClubs(clubs, userWithRoles?.roles),
     [clubs, userWithRoles?.roles]
   );
 
-  const isLoading = readiness === 'loading' && clubs.length === 0;
-  const hasError = readiness === 'unavailable' && clubs.length === 0;
+  // Neither a pending, offline nor failed guest read may render as "no clubs".
+  const isOffline = isGuest && guestRead.kind === 'offline';
+  const isLoading = authLoading
+    ? true
+    : isGuest
+      ? guestRead.kind === 'loading'
+      : readiness === 'loading' && replicaClubs.length === 0;
+  const hasError = isGuest
+    ? guestRead.kind === 'error'
+    : isSignedIn && readiness === 'unavailable' && replicaClubs.length === 0;
+  const refetchGuest = guestQuery.refetch;
   const handleRetry = useCallback(() => {
+    if (isGuest) {
+      void refetchGuest();
+      return;
+    }
     void ensureClubsReady({ force: true });
-  }, [ensureClubsReady]);
+  }, [isGuest, refetchGuest, ensureClubsReady]);
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
@@ -60,11 +114,11 @@ export function useBrowseClubsData(): BrowseClubsData {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
 
-  // Public browse uses a narrow club-only readiness path. It works for guests
-  // without enabling the full anonymous replication provider.
+  // Signed-in browse uses the narrow club-only readiness path over the
+  // replica. Guests never reach it (see the INTENT above).
   useEffect(() => {
-    void ensureClubsReady();
-  }, [ensureClubsReady]);
+    if (isSignedIn) void ensureClubsReady();
+  }, [ensureClubsReady, isSignedIn]);
 
   // Compute upcoming show counts per club
   const clubShowCounts = useMemo(() => {
@@ -113,6 +167,7 @@ export function useBrowseClubsData(): BrowseClubsData {
     filteredClubs,
     isLoading,
     hasError,
+    isOffline,
     handleRetry,
     filters,
     setFilters,

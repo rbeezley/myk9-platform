@@ -25,23 +25,18 @@ vi.mock('@/features/payments/useUpdatePlatformFee', () => ({
 // fixture could not represent that at all.
 const ledgerState: {
   data: LedgerRow[] | undefined;
-  refundDecisionChecked: boolean;
   isLoading: boolean;
   isError: boolean;
 } = {
   data: [],
-  refundDecisionChecked: true,
   isLoading: false,
   isError: false,
 };
 vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   usePlatformPayoutLedger: () => ({
-    // The hook returns { rows, refundDecisionChecked }; `data: undefined` still
-    // has to be representable, so the wrapper is built conditionally.
-    data:
-      ledgerState.data === undefined
-        ? undefined
-        : { rows: ledgerState.data, refundDecisionChecked: ledgerState.refundDecisionChecked },
+    // The hook returns { rows }; `data: undefined` still has to be
+    // representable, so the wrapper is built conditionally.
+    data: ledgerState.data === undefined ? undefined : { rows: ledgerState.data },
     isLoading: ledgerState.isLoading,
     isError: ledgerState.isError,
     refetch: refetchLedger,
@@ -118,7 +113,6 @@ describe('PayoutLedgerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -286,7 +280,6 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -546,7 +539,6 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -622,24 +614,7 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     expect(within(table).queryByText('as transferred')).not.toBeInTheDocument();
   });
 
-  it('says the pull-refund check did not run, instead of rendering its count', () => {
-    // The schema fallback backfills refund_decision null for every row, and
-    // isUnresolvedPullRefundDecision REQUIRES null — so the count INFLATES:
-    // already-denied entries read as unresolved too. The fixture therefore
-    // carries a non-zero count, which is what the fallback actually produces.
-    // Asserting against 0 would model a state the fallback cannot reach.
-    ledgerState.refundDecisionChecked = false;
-    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 3 }];
-
-    render(<PayoutLedgerPage />);
-
-    expect(screen.getByText(/could not be checked/i)).toBeInTheDocument();
-    // ...and the fictional count is not rendered anywhere.
-    expect(screen.queryByText(/3 pulled entries/i)).not.toBeInTheDocument();
-  });
-
-  it('shows the ordinary advisory when the check did run', () => {
-    ledgerState.refundDecisionChecked = true;
+  it('shows the unresolved refund-decision advisory', () => {
     ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 2 }];
 
     render(<PayoutLedgerPage />);
@@ -647,7 +622,6 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     expect(
       screen.getByText(/2 pulled entries with unresolved refund decisions/i)
     ).toBeInTheDocument();
-    expect(screen.queryByText(/could not be checked/i)).not.toBeInTheDocument();
   });
 
   it('keeps the scrolling ledger reachable from the keyboard', () => {
@@ -678,7 +652,6 @@ describe('PayoutLedgerPage — the majors fixes do not misfire', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -733,7 +706,6 @@ describe('PayoutLedgerPage — the fee field never contradicts the save', () => 
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -785,7 +757,6 @@ describe('PayoutLedgerPage — an unreadable show makes no claims about itself',
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -855,7 +826,6 @@ describe('PayoutLedgerPage — the flat component and the floor are editable', (
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
-    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };

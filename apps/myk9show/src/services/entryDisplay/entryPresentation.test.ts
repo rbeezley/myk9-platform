@@ -84,7 +84,9 @@ describe('deriveEntryPresentation — kind-level lines', () => {
     ['pending', 'Needs review', 'Submitted — awaiting review'],
     ['accepted', 'Accepted', "Accepted — you're in"],
     ['scheduled', 'Accepted', "Accepted — you're in"],
-    ['waitlisted', 'Waitlisted', 'Waitlisted'],
+    // MYK9-754: the entries CHECK constraint forbids 'waitlisted' (a waitlisted
+    // dog is a waitlist_entries row), so it is an unrecognized status.
+    ['waitlisted', 'Status unavailable', 'Status unavailable'],
     ['checked-in', 'In the ring', 'In the ring'],
     ['at-gate', 'In the ring', 'In the ring'],
     ['in-ring', 'In the ring', 'In the ring'],
@@ -102,11 +104,6 @@ describe('deriveEntryPresentation — kind-level lines', () => {
   it.each(kindLines)('renders %s as "%s" (secretary) / "%s" (exhibitor)', (raw, sec, exh) => {
     expect(present(raw, secretary).statusLine).toBe(sec);
     expect(present(raw, exhibitor).statusLine).toBe(exh);
-  });
-
-  it('offers the waitlisted exhibitor the notify reassurance as its one hint', () => {
-    expect(present('waitlisted', exhibitor).actionHint).toBe("You'll be notified if a spot opens");
-    expect(present('waitlisted', secretary).actionHint).toBeNull();
   });
 
   it('never leaks a raw enum or "Unknown" for unrecognized statuses', () => {

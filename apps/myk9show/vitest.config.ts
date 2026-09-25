@@ -41,6 +41,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/showEveNudge.test.ts',
       '../../supabase/functions/_shared/roleValidity.test.ts',
       '../../supabase/functions/_shared/roleValidityCoverage.test.ts',
+      '../../supabase/functions/_shared/userRolePerson.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
       // Whole directory rather than a named file: this allowlist is
       // hand-maintained, and a new colocated test that nobody remembers to
@@ -93,6 +94,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/trialPacket/*.test.ts',
       '../../supabase/functions/generate-trial-packet/*.test.ts',
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
+      '../../supabase/functions/send-access-request-emails/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
       'supabase/functions/cron-waitlist-expiration/*.test.ts',
     ],

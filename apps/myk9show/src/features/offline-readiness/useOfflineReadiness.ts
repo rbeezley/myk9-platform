@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { countServerBackedRows } from '@myk9/replication';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -30,7 +31,9 @@ interface ScopedMeta {
  * A scope counts as hydrated only when its server-derived expected row count is
  * known and every expected row is present locally. The older local-only
  * `totalRows` value is intentionally not sufficient: quota eviction can
- * rewrite it downward and make a partial replica look complete.
+ * rewrite it downward and make a partial replica look complete. Callers pass
+ * SERVER-BACKED rows only (`countServerBackedRows`): a pending local create is
+ * not on the server, and counting it would hide an evicted row (MYK9-752).
  */
 function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
   const hydrated =
@@ -58,14 +61,14 @@ async function gatherReadiness(
     replicatedShowsTable.getShowById(showId),
   ]);
 
-  const trialsScope = toScope('trials', trialsMeta, trialRows.length);
+  const trialsScope = toScope('trials', trialsMeta, countServerBackedRows(trialRows));
   const scopes: ScopeReadiness[] = [
     // The show row itself is load-bearing offline — /at-show/:showId reads
     // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
     // row presence directly rather than a per-show watermark.
     { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
     trialsScope,
-    toScope('entries', entriesMeta, entryRows.length),
+    toScope('entries', entriesMeta, countServerBackedRows(entryRows)),
   ];
 
   // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
@@ -78,7 +81,7 @@ async function gatherReadiness(
           replicatedClassesTable.getSyncMetadata(trial.id) as Promise<ScopedMeta | null>,
           replicatedClassesTable.getClassesByTrial(trial.id),
         ]);
-        return toScope('classes', classMeta, classRows.length);
+        return toScope('classes', classMeta, countServerBackedRows(classRows));
       })
     );
     const allHydrated = perTrial.every(scope => scope.hydrated);
@@ -120,7 +123,7 @@ async function gatherReadiness(
       hydrated:
         Boolean(judge.personId) &&
         assignmentsMeta?.expectedRemoteRows !== undefined &&
-        assignmentRows.length >= assignmentsMeta.expectedRemoteRows,
+        countServerBackedRows(assignmentRows) >= assignmentsMeta.expectedRemoteRows,
       lastSyncAt: null,
     });
   }
@@ -211,32 +214,18 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
-      // Rewind the watermark of every cold/short scope before syncing. An
-      // incremental sync does not restore rows that quota eviction removed
-      // (the engine only force-syncs a COMPLETELY empty replica) and then
-      // rewrites totalRows down to the reduced local count — which would turn
-      // the badge falsely green. Rewinding re-fetches without clearing rows.
-      const missing = readiness?.missing ?? [];
-      const REWIND = { lastIncrementalSyncAt: 0, scopes: {} };
+      // A FULL re-fetch of every at-show scope and the club's shows, not an
+      // incremental one: that is what restores quota-evicted rows, and it
+      // needs neither a server row count (which can be unavailable) nor a
+      // watermark rewind (which raced other syncs and wiped the expected-row
+      // counts readiness is judged by). Prime writes no sync metadata itself.
+      // A forced sync also never reuses an incremental one already running,
+      // usually the page's own mount-time sync (MYK9-738, MYK9-752).
       await Promise.all([
-        missing.includes('trials') ? replicatedTrialsTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('entries') ? replicatedEntriesTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('classes') ? replicatedClassesTable.updateSyncMetadata(REWIND) : null,
-      ]);
-      if (readiness?.missing.includes('show')) {
-        await replicatedShowsTable.updateSyncMetadata({
-          lastIncrementalSyncAt: 0,
-          // sync('') reads scopes['']; resetting only the table-global
-          // watermark would still skip the missing show. Clearing the scope
-          // map costs a re-fetch, never cached rows.
-          scopes: {},
-        });
-      }
-      await Promise.all([
-        syncAtShowData(showId),
-        // Shows sync is club-scoped; the unscoped incremental sync is what the
-        // background provider runs and it carries the show row.
-        replicatedShowsTable.sync(''),
+        syncAtShowData(showId, { forceFullSync: true }),
+        // Shows sync is club-scoped; the unscoped sync is what the background
+        // provider runs and it carries the show row.
+        replicatedShowsTable.sync('', { forceFullSync: true }),
         // Judges' at-show view is empty without their assignments cached.
         judgeAssignmentsRequired ? replicatedJudgeAssignmentsTable.sync(showId) : Promise.resolve(),
         refreshPermissions?.(),
@@ -270,15 +259,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     // Invalidate unconditionally: a partial prime still changed local rows,
     // and re-reading them is an IndexedDB read, not a network call.
     await queryClient.invalidateQueries({ queryKey: ['shows'] });
-  }, [
-    showId,
-    isAnonymous,
-    judgeAssignmentsRequired,
-    readiness,
-    refreshPermissions,
-    check,
-    queryClient,
-  ]);
+  }, [showId, isAnonymous, judgeAssignmentsRequired, refreshPermissions, check, queryClient]);
 
   return { readiness, checking, priming, primeFailed, prime };
 }

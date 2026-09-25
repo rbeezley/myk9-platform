@@ -6,6 +6,7 @@ import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
+import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
 import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
@@ -54,6 +55,7 @@ const BrowseClubsPage: React.FC = () => {
     filteredClubs,
     isLoading,
     hasError,
+    isOffline,
     handleRetry,
     filters,
     setFilters,
@@ -213,8 +215,19 @@ const BrowseClubsPage: React.FC = () => {
         <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
       )}
 
+      {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
+      {isOffline && !isLoading && !hasError && (
+        <>
+          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
+          <ClubsOfflineState
+            description="Connect to the internet to browse clubs."
+            onRetry={handleRetry}
+          />
+        </>
+      )}
+
       {/* Normal content */}
-      {!isLoading && !hasError && (
+      {!isLoading && !hasError && !isOffline && (
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
 

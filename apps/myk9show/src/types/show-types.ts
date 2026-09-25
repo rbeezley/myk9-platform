@@ -116,6 +116,13 @@ export interface Show {
   // has no trials": resolve trials from `useTrialStore`, and the entry-window
   // zone from `useEntryWindowTimezone` (MYK9-676).
   trials?: ShowTrial[] | undefined;
+  /**
+   * The entry-window zone (the first trial's), resolved from the trial store
+   * for a show that carries no `trials` (MYK9-714). Absent means "not
+   * resolved on this object"; `getEntryStatus` then reads `trials`, and only
+   * with neither falls back to America/New_York.
+   */
+  entryWindowTimeZone?: string | undefined;
   // Entry limits
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;

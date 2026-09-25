@@ -7,6 +7,8 @@ const HANDLER_PEOPLE_FAST_TIMEOUT_MS = 250;
 const HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS = 30_000;
 
 let handlerHydrationCircuitOpenUntil = 0;
+/** Authoritative refreshes still running after their caller got the cache. */
+const deferredRefreshes = new Set<Promise<void>>();
 const personGenerations = new Map<string, number>();
 
 function beginGeneration(ids: readonly string[]): Map<string, number> {
@@ -46,6 +48,16 @@ let handlerPeopleHydrationRevision = 0;
 /** Current completion revision, including refreshes that predate a subscriber. */
 export function getHandlerPeopleHydrationRevision(): number {
   return handlerPeopleHydrationRevision;
+}
+
+/**
+ * Resolves once every refresh that missed its fast window has persisted (or
+ * failed). Each is bounded by HANDLER_PEOPLE_TIMEOUT_MS. A one-shot consumer
+ * such as a print, which cannot replay on a later hydration event, waits here
+ * and re-reads if the revision advanced (MYK9-743).
+ */
+export async function settleHandlerPeopleHydration(): Promise<void> {
+  await Promise.allSettled([...deferredRefreshes]);
 }
 
 /** Subscribe without coupling consumers to a React Query key or cache. */
@@ -234,7 +246,7 @@ export async function loadHandlerPeople(
 
   // Return the safe local projection promptly, then persist the authoritative
   // response when it arrives.
-  void refresh
+  const deferred = refresh
     .then(async result => {
       if (!result) {
         handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
@@ -251,7 +263,9 @@ export async function loadHandlerPeople(
     })
     .catch(() => {
       handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
-    });
+    })
+    .finally(() => deferredRefreshes.delete(deferred));
+  deferredRefreshes.add(deferred);
   return cached;
 }
 

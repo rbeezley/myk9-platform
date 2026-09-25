@@ -18,6 +18,34 @@ export class ShowStyleSaveError extends Error {
   }
 }
 
+/** The server refused because Premium access is gone; nothing was saved. */
+export class ShowStyleEntitlementError extends ShowStyleSaveError {
+  constructor() {
+    super('Premium access is required for this show style.');
+    this.name = 'ShowStyleEntitlementError';
+  }
+}
+
+/**
+ * update_show_style raises 42501 (not a manager, or Premium lapsed) and 22023
+ * (invalid style, or the show is missing or deleted) before it writes, so both
+ * are definite refusals (MYK9-744). Anything else, a transport failure above
+ * all, stays ambiguous for the caller.
+ */
+function toDefiniteRefusal(error: { code?: string; message?: string }): Error | null {
+  if (error.code === '42501') {
+    return /premium access/i.test(error.message ?? '')
+      ? new ShowStyleEntitlementError()
+      : new ShowStyleSaveError(
+          'You no longer have permission to change this show’s style. Nothing was saved.'
+        );
+  }
+  if (error.code === '22023') {
+    return new ShowStyleSaveError('This show can no longer be updated. Nothing was saved.');
+  }
+  return null;
+}
+
 async function getSessionForOwner(ownerId: string) {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -56,7 +84,7 @@ export async function saveShowDraftStyle({
     p_show_id: show.id,
     p_style: style,
   });
-  if (error) throw error;
+  if (error) throw toDefiniteRefusal(error) ?? error;
   if (typeof data !== 'number') {
     throw new ShowStyleSaveError(
       'The server did not confirm the saved style version. Refresh and try again.'

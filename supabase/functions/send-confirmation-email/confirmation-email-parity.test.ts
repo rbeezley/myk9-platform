@@ -21,7 +21,7 @@ const magazinePreviewProps: MagazineConfirmationProps = {
   dogSex: 'F',
   runs: [
     {
-      trialNumeral: 'III',
+      trialNumeral: 'Saturday T 2',
       dayLabel: 'Sat 13 Jun',
       classLabel: 'Excellent - Interiors',
       judgeName: 'C. Beagles',
@@ -62,7 +62,7 @@ const gazettePreviewProps: GazetteConfirmationProps = {
   dogSex: 'F',
   runs: [
     {
-      trialNumeral: 'III',
+      trialNumeral: 'Saturday T 2',
       dayLabel: 'Sat Jun 13',
       classLabel: 'Excellent - Interiors',
       judgeName: 'Mrs. Beagles',
@@ -129,7 +129,7 @@ describe('Magazine/Gazette production email content', () => {
       expect(productionHtml).toContain(content);
     }
 
-    expect(productionHtml).toContain('>iii<');
+    expect(productionHtml).toContain('>Saturday T 2<');
   });
 
   it('keeps Gazette production renderer on its content contract', () => {
@@ -149,6 +149,6 @@ describe('Magazine/Gazette production email content', () => {
       expect(productionHtml).toContain(content);
     }
 
-    expect(productionHtml).toContain('>iii<');
+    expect(productionHtml).toContain('>Saturday T 2<');
   });
 });

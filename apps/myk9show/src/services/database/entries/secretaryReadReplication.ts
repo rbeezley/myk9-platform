@@ -20,6 +20,7 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
@@ -338,10 +339,15 @@ export function toSecretaryEntry(
 }
 
 export async function getReplicatedSecretaryEntriesForShow(showId: string) {
-  const allEntries = await replicatedEntriesTable.getEntriesByShow(showId);
-  // isColdStore: store has zero rows for this show — never synced. A warm
-  // store with all entries deleted/filtered is NOT cold (allEntries.length > 0).
-  const isColdStore = allEntries.length === 0;
+  const [allEntries, scopeSynced] = await Promise.all([
+    replicatedEntriesTable.getEntriesByShow(showId),
+    hasShowEntriesSynced(showId),
+  ]);
+  // isColdStore: this show's scope has never completed a sync, or holds no rows.
+  // Rows alone prove nothing: a check-in or lifecycle edit on a fresh device
+  // stores its one row, which is not the show (MYK9-746). A synced store with
+  // every entry deleted is NOT cold (allEntries.length > 0).
+  const isColdStore = allEntries.length === 0 || !scopeSynced;
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     replicatedDogsTable.getAllDogs(),

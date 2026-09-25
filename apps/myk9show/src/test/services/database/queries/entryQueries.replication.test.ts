@@ -18,6 +18,8 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
       getEntriesByShow: vi.fn(),
       getEntriesByClass: vi.fn(),
       getEntryById: vi.fn(),
+      // Every show here has completed a scoped sync (MYK9-746).
+      getSyncMetadata: vi.fn().mockResolvedValue({ tableName: 'entries', totalRows: 1 }),
     },
     mockDogsTable: {
       getAllDogs: vi.fn(),

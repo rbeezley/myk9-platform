@@ -43,6 +43,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { outOfTreeImports } from './edge-function-imports.ts';
+
 export const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 export const FUNCTION_DIRS = ['supabase/functions', 'apps/myk9show/supabase/functions'] as const;
 export const IGNORE_REVS_FILE = '.git-blame-ignore-revs';
@@ -369,6 +371,19 @@ export async function resolveByContent(
   for (const row of rows) {
     if (!CONTENT_CHECKED.has(row.status)) {
       out.push(row);
+      continue;
+    }
+    // The CLI refuses to extract a bundled file from outside the functions
+    // tree, so such a function can never be compared; name the import instead
+    // of reporting an opaque download error (MYK9-729).
+    const escaped = outOfTreeImports(root, row.dirs[0]!, row.name);
+    if (escaped.length > 0) {
+      const paths = [...new Set(escaped.map(e => e.resolved))].join(', ');
+      out.push({
+        ...row,
+        status: 'check-failed',
+        note: `content check failed: bundles files outside ${row.dirs[0]}: ${paths} (move them into _shared)`,
+      });
       continue;
     }
     const scratch = mkdtempSync(join(tmpdir(), 'edge fn drift '));

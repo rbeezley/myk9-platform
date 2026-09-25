@@ -122,7 +122,7 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
     classId: 'class-1',
     showId: 'show-1',
     dogId: 'dog-1',
-    entryStatus: 'accepted',
+    entryStatus: 'confirmed',
     ...overrides,
   };
 }
@@ -193,9 +193,9 @@ describe('waitlistQueries (replication)', () => {
       mockTrialsTable.getTrialsByShow.mockResolvedValue([trial]);
       mockClassesTable.getClassesByTrial.mockResolvedValue([cls]);
       mockEntriesTable.getAll.mockResolvedValue([
-        makeEntry({ classId: 'class-1', entryStatus: 'accepted' }),
-        makeEntry({ id: 'entry-2', classId: 'class-1', entryStatus: 'accepted' }),
-        makeEntry({ id: 'entry-3', classId: 'class-1', entryStatus: 'pending' }),
+        makeEntry({ classId: 'class-1', entryStatus: 'confirmed' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1', entryStatus: 'confirmed' }),
+        makeEntry({ id: 'entry-3', classId: 'class-1', entryStatus: 'withdrawn' }),
       ]);
       mockWaitlistTable.getAll.mockResolvedValue([
         makeWaitlistEntry({ id: 'wl-1', classId: 'class-1' }),
@@ -210,6 +210,56 @@ describe('waitlistQueries (replication)', () => {
       expect(result.data[0].accepted_count).toBe(2);
       expect(result.data[0].waitlist_count).toBe(2);
       expect(result.data[0].trial?.name).toBe('Trial 1');
+    });
+
+    // MYK9-718: the count is the class's taken seats, the same statuses the
+    // server's capacity gate counts. It used to count 'accepted', which the
+    // entries CHECK constraint forbids, so it was 0 on every real show and the
+    // Waitlist tab offered spots in full classes. Real CHECK values only.
+    it('counts every seat-holding entry status the server capacity gate counts', async () => {
+      mockTrialsTable.getTrialsByShow.mockResolvedValue([makeTrial()]);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([
+        makeClass({ id: 'class-1', trialId: 'trial-1', maxEntries: 8 }),
+      ]);
+      const seatHolding = [
+        'submitted',
+        'paid',
+        'confirmed',
+        'checked-in',
+        'competing',
+        'in-ring',
+        'pending-payment',
+      ];
+      const notHolding = [
+        'draft',
+        'no-status',
+        'withdrawn',
+        'scratched',
+        'absent',
+        'moved',
+        'not_accepted',
+        'promotion-expired',
+        'move-up-requested',
+      ];
+      mockEntriesTable.getAll.mockResolvedValue([
+        ...[...seatHolding, ...notHolding].map(entryStatus =>
+          makeEntry({ id: `entry-${entryStatus}`, classId: 'class-1', entryStatus })
+        ),
+        // Soft-deleted rows hold no seat, and another class's rows are not this one's.
+        makeEntry({
+          id: 'entry-deleted',
+          classId: 'class-1',
+          entryStatus: 'confirmed',
+          deletedAt: '2026-09-01T00:00:00Z',
+        }),
+        makeEntry({ id: 'entry-other', classId: 'class-2', entryStatus: 'confirmed' }),
+      ]);
+      mockWaitlistTable.getAll.mockResolvedValue([]);
+
+      const result = await getClassesWithWaitlistCounts('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data[0].accepted_count).toBe(seatHolding.length);
     });
 
     it('returns empty array when no trials', async () => {

@@ -33,8 +33,8 @@ describe('mapEntryStatus', () => {
     expect(mapEntryStatus('pending')).toBe(EntryStatus.PENDING);
   });
 
-  it("maps 'waitlisted' to WAITLIST", () => {
-    expect(mapEntryStatus('waitlisted')).toBe(EntryStatus.WAITLIST);
+  it("does not read 'waitlisted', a status entries can never hold, as WAITLIST (MYK9-754)", () => {
+    expect(mapEntryStatus('waitlisted')).toBe(EntryStatus.PENDING);
   });
 
   it("maps 'rejected' to REJECTED", () => {

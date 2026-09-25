@@ -62,10 +62,11 @@ describe('planDeliveries', () => {
     ]);
   });
 
-  it('skips reviewer notices when the request was reviewed before the job ran', () => {
-    const plan = planDeliveries(record({ status: 'approved' }), 'submitted', [carl], SITE);
-
-    expect(plan.map(d => d.to)).toEqual(['rita@example.test']);
+  it('sends nothing for a submission reviewed before the job ran', () => {
+    // A "waiting for review" confirmation would contradict the decision email.
+    for (const status of ['approved', 'denied', 'cancelled'] as const) {
+      expect(planDeliveries(record({ status }), 'submitted', [carl], SITE)).toEqual([]);
+    }
   });
 
   it('sends only the requester the decision', () => {

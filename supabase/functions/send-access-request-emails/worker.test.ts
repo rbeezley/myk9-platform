@@ -22,6 +22,7 @@ interface Store {
   }>;
   finishResult: string | null;
   failTable?: string;
+  claimLimits: number[];
 }
 
 /**
@@ -33,8 +34,9 @@ function fakeClient(store: Store): QueueClient {
   return {
     async rpc(fn: string, args: Row) {
       if (fn === 'claim_access_request_email_jobs') {
-        const claimed = store.jobs.map(job => ({ ...job, claim_token: `token-${job.id}` }));
-        store.jobs = [];
+        store.claimLimits.push(Number(args.p_limit));
+        const taken = store.jobs.splice(0, Number(args.p_limit));
+        const claimed = taken.map(job => ({ ...job, claim_token: `token-${job.id}` }));
         return { data: claimed, error: null };
       }
       if (fn === 'finish_access_request_email_job') {
@@ -200,6 +202,7 @@ beforeEach(() => {
     },
     emailLog: [],
     finishes: [],
+    claimLimits: [],
     finishResult: 'echo',
   };
 });
@@ -447,5 +450,54 @@ describe('send-access-request-emails worker', () => {
     const summary = await run(okFetch());
 
     expect(summary).toMatchObject({ claimed: 1, lost: 1, sent: 0 });
+  });
+  it('claims one job at a time, so every claim gets its own full lease', async () => {
+    store.jobs = [job({ id: 'job-1' }), job({ id: 'job-2' })];
+    store.tables.club_membership_requests = [membershipRow()];
+
+    const summary = await run(okFetch());
+
+    expect(store.claimLimits.every(limit => limit === 1)).toBe(true);
+    expect(summary).toMatchObject({ claimed: 2, sent: 2 });
+  });
+
+  it('stops claiming when the run is out of time, leaving the rest queued unclaimed', async () => {
+    store.jobs = [job({ id: 'job-1' }), job({ id: 'job-2' }), job({ id: 'job-3' })];
+    store.tables.club_membership_requests = [membershipRow()];
+    let clock = 0;
+    const now = () => {
+      clock += 40_000;
+      return clock;
+    };
+
+    const summary = await run(okFetch(), { now, timeBudgetMs: 60_000 });
+
+    expect(summary.claimed).toBeLessThan(3);
+    expect(store.jobs.map(queued => queued.id)).toContain('job-3');
+    expect(store.finishes).toHaveLength(summary.claimed);
+  });
+
+  it('stops after the per-run job cap', async () => {
+    store.jobs = [job({ id: 'job-1' }), job({ id: 'job-2' }), job({ id: 'job-3' })];
+    store.tables.club_membership_requests = [membershipRow()];
+
+    const summary = await run(okFetch(), { maxJobs: 2 });
+
+    expect(summary.claimed).toBe(2);
+    expect(store.jobs.map(queued => queued.id)).toEqual(['job-3']);
+  });
+
+  it('skips the confirmation of a submission that was reviewed before the job ran', async () => {
+    store.jobs = [job()];
+    store.tables.club_membership_requests = [membershipRow({ status: 'approved' })];
+    const fetchImpl = okFetch();
+
+    await run(fetchImpl);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(store.finishes[0]).toMatchObject({
+      outcome: 'skipped',
+      error: 'The request was reviewed before its confirmation was sent.',
+    });
   });
 });

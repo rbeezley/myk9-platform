@@ -50,7 +50,11 @@ export interface WorkerDeps {
   fetchImpl?: typeof fetch;
   /** Passed through to the Resend retry helper (tests stub the sleep). */
   retry?: Omit<ResendRetryDependencies, 'fetchImpl'>;
-  batchSize?: number;
+  /** Most jobs one run takes. */
+  maxJobs?: number;
+  /** No new claim after this long; the next minute's run continues. */
+  timeBudgetMs?: number;
+  now?: () => number;
 }
 
 export interface RunSummary {
@@ -77,24 +81,36 @@ export async function runAccessRequestEmailQueue(
   // Checked before claiming: a missing key must not spend the jobs' attempts.
   if (!deps.resendApiKey) throw new HttpError(503, 'Email service not configured');
 
-  const { data, error } = await client.rpc('claim_access_request_email_jobs', {
-    p_limit: deps.batchSize ?? 25,
-  });
-  if (error) {
-    console.error('send-access-request-emails: claim failed', { code: errorCode(error) });
-    throw new HttpError(500, 'Failed to claim access-request email jobs');
-  }
-
-  const jobs = (data ?? []) as QueueJob[];
+  const now = deps.now ?? Date.now;
+  const startedAt = now();
+  const maxJobs = deps.maxJobs ?? 20;
+  const budgetMs = deps.timeBudgetMs ?? 45_000; // inside the dispatcher's 60s pg_net timeout
   const summary: RunSummary = {
-    claimed: jobs.length,
+    claimed: 0,
     sent: 0,
     skipped: 0,
     retried: 0,
     failed: 0,
     lost: 0,
   };
-  for (const job of jobs) {
+
+  // One job per claim: a claim's 10-minute lease then covers only its own
+  // sends. A batch claim let later jobs sit claimed-but-untouched behind a
+  // slow provider until the lease ran out and they were reclaimed, burning
+  // attempts without a send. Unclaimed jobs just wait for the next run.
+  while (summary.claimed < maxJobs && now() - startedAt < budgetMs) {
+    const { data, error } = await client.rpc('claim_access_request_email_jobs', { p_limit: 1 });
+    if (error) {
+      console.error('send-access-request-emails: claim failed', { code: errorCode(error) });
+      if (summary.claimed === 0) {
+        throw new HttpError(500, 'Failed to claim access-request email jobs');
+      }
+      break;
+    }
+    const job = ((data ?? []) as QueueJob[])[0];
+    if (!job) break;
+
+    summary.claimed++;
     const result = await processJob(client, deps, job);
     const status = await finish(client, job, result);
     if (status === 'sent') summary.sent++;
@@ -112,10 +128,15 @@ async function processJob(client: QueueClient, deps: WorkerDeps, job: QueueJob):
     const record = await loadAccessRequest(client, job.request_kind, job.request_id);
     if (!record) return { outcome: 'skipped', reason: 'The request no longer exists.' };
 
+    if (job.event === 'submitted' && record.status !== 'pending') {
+      return {
+        outcome: 'skipped',
+        reason: 'The request was reviewed before its confirmation was sent.',
+      };
+    }
+
     const reviewers =
-      job.event === 'submitted' && record.status === 'pending'
-        ? await reviewerRecipients(client, reviewerAudience(record))
-        : [];
+      job.event === 'submitted' ? await reviewerRecipients(client, reviewerAudience(record)) : [];
     deliveries = planDeliveries(record, job.event, reviewers, deps.siteUrl);
   } catch (err) {
     if (!(err instanceof RecordLoadError)) throw err;

@@ -12,7 +12,7 @@ this function                       →  claim  →  send via Resend  →  finis
 
 | Event     | Recipients                                                                           |
 | --------- | ------------------------------------------------------------------------------------ |
-| submitted | The requester (confirmation), and each reviewer while the request is still pending   |
+| submitted | While the request is still pending: the requester (confirmation) and each reviewer   |
 | approved  | The requester, with the reviewer's note when there is one                            |
 | denied    | The requester, with the reviewer's note, or a generic explanation when there is none |
 
@@ -21,8 +21,9 @@ Reviewers: site admins for a new-club request and for any role request not route
 ## Once-only and retries
 
 - The trigger's job key is `(request_kind, request_id, event)`, unique, so a repeat, a refresh or a second review never queues a second job.
-- `claim_access_request_email_jobs` claims due jobs with a token and a 10-minute lease. `finish_access_request_email_job` only accepts that token.
+- The worker claims **one job at a time** (`claim_access_request_email_jobs(1)`), each with a token and a 10-minute lease, so a slow provider can never leave later jobs claimed but untouched until their lease runs out. A run stops claiming after 20 jobs or 45 seconds; the rest wait for the next minute. `finish_access_request_email_job` only accepts that token.
 - A failed send moves the job back to `pending` with a 1, 4, 16 then 64-minute backoff; the fifth failure is terminal (`failed`, with `last_error`). Addresses already reached are kept in `delivered_to` and skipped on the retry.
+- A submitted job whose request was already reviewed sends nothing (`skipped`): a "waiting for review" confirmation would contradict the decision email.
 - Each provider call carries `Idempotency-Key: access-request-<job id>-<address>`, which covers a send that landed but whose result was never recorded.
 - Every attempt is also written to `email_log`.
 

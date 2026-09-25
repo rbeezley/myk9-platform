@@ -20,9 +20,11 @@ function address(person: Person): string | null {
 }
 
 /**
- * Submitted: a confirmation to the requester, and a notice to each reviewer
- * while the request is still pending (a request reviewed before the job ran
- * has nothing waiting). Approved/denied: the decision, to the requester only.
+ * Submitted: a confirmation to the requester and a notice to each reviewer,
+ * only while the request is still pending. A request reviewed before its
+ * submitted job ran gets nothing here: a "waiting for review" confirmation
+ * would contradict the decision email its own job sends. Approved/denied:
+ * the decision, to the requester only.
  * An address appears at most once; people without one are dropped.
  */
 export function planDeliveries(
@@ -33,11 +35,10 @@ export function planDeliveries(
 ): Delivery[] {
   const planned: Array<{ person: Person; message: EmailMessage }> = [];
   if (event === 'submitted') {
+    if (record.status !== 'pending') return [];
     planned.push({ person: record.requester, message: requesterReceivedEmail(record, siteUrl) });
-    if (record.status === 'pending') {
-      const notice = reviewerNoticeEmail(record, siteUrl);
-      for (const reviewer of reviewers) planned.push({ person: reviewer, message: notice });
-    }
+    const notice = reviewerNoticeEmail(record, siteUrl);
+    for (const reviewer of reviewers) planned.push({ person: reviewer, message: notice });
   } else {
     planned.push({ person: record.requester, message: decisionEmail(record, event, siteUrl) });
   }

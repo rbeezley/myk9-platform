@@ -9,7 +9,10 @@ version: 2
 #
 # Browser-level CI coverage (MYK9-520): ci.yml's smoke-build / A11y smoke /
 # E2E PR Smoke jobs skip when `github.actor == 'dependabot[bot]'` unless the
-# PR carries the `run-smoke` label. Both updates below apply that label to
+# PR carries the `run-smoke` label. The label exists in this repository
+# (checked with `gh api repos/rbeezley/myk9-platform/labels/run-smoke` on
+# 2026-09-25; Dependabot silently drops a configured label that doesn't
+# exist). Both updates below apply that label to
 # every PR they open, so every dependency bump gets a real browser-level
 # conclusion before merge instead of a silent SKIP. Coverage is deliberately
 # NOT narrowed to runtime `dependencies`: a grouped bump mixes both kinds, a

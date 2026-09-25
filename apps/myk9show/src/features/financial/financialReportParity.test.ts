@@ -43,7 +43,7 @@ function entry(overrides: Partial<ReportEntry>): ReportEntry {
 
 // A representative show: paid check/cash, discounted, pending, waived, partial +
 // full refund, PLUS records the printable report intentionally excludes
-// (withdrawn-after-payment, scratched, waitlisted).
+// (withdrawn-after-payment, scratched, not accepted).
 const SHOW_ENTRIES: ReportEntry[] = [
   entry({
     id: 'check',
@@ -114,8 +114,8 @@ const SHOW_ENTRIES: ReportEntry[] = [
     trialNumber: '3',
   }),
   entry({
-    id: 'waitlisted',
-    entryStatus: 'waitlist',
+    id: 'not-accepted',
+    entryStatus: 'not_accepted',
     entryFee: 99,
     paymentStatus: PaymentStatus.PENDING,
   }),
@@ -123,8 +123,8 @@ const SHOW_ENTRIES: ReportEntry[] = [
 
 describe('financial report parity (task 2.4)', () => {
   it('overlapping (current-mode) totals equal the printable Financial Report cent-for-cent', () => {
-    const report = calculateFinancialReportTotals(SHOW_ENTRIES, 'current').summary;
-    const projection = calculateEntryAccounting(SHOW_ENTRIES, 'current');
+    const report = calculateFinancialReportTotals(SHOW_ENTRIES).summary;
+    const projection = calculateEntryAccounting(SHOW_ENTRIES);
 
     // Independent path: sum only the printable-included projection lines.
     const included = sumEntryAccountingLines(
@@ -141,20 +141,9 @@ describe('financial report parity (task 2.4)', () => {
     expect(included.netRetainedCents).toBe(dollarsToCents(report.netRetained));
   });
 
-  it('waitlist-mode overlapping totals also match the printable report', () => {
-    const report = calculateFinancialReportTotals(SHOW_ENTRIES, 'waitlist').summary;
-    const projection = calculateEntryAccounting(SHOW_ENTRIES, 'waitlist');
-    const included = sumEntryAccountingLines(
-      projection.lines.filter(line => line.includedInPrintableReport)
-    );
-    expect(included.entryCount).toBe(report.count);
-    expect(included.grossCents).toBe(dollarsToCents(report.gross));
-    expect(included.outstandingCents).toBe(dollarsToCents(report.outstanding));
-  });
-
   it('projection is strictly broader: withdrawn-after-payment revenue is retained but excluded from the report', () => {
-    const report = calculateFinancialReportTotals(SHOW_ENTRIES, 'current').summary;
-    const projection = calculateEntryAccounting(SHOW_ENTRIES, 'current');
+    const report = calculateFinancialReportTotals(SHOW_ENTRIES).summary;
+    const projection = calculateEntryAccounting(SHOW_ENTRIES);
 
     // The paid-then-withdrawn entry ($55) is collected in the projection totals
     // but NOT in the printable report.

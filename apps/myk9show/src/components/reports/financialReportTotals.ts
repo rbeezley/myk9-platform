@@ -15,8 +15,6 @@ import type { ReportEntry } from '@/lib/reports/types';
 
 export { isSupersededMoveUpEntry };
 
-export type FinancialReportMode = 'current' | 'waitlist';
-
 export interface FinancialReportLine {
   entry: ReportEntry;
   gross: number;
@@ -56,7 +54,6 @@ export interface FinancialReportTotals {
   unresolvedMoneyRoots: Array<{ entryId: string; problem: MoneyRootProblem }>;
 }
 
-const WAITLIST_STATUSES = new Set(['waitlist', 'waitlisted']);
 /**
  * `moved` is the SUPERSEDED half of a move-up (MYK9-639): the dog runs once, in
  * the destination class. The destination holds no money of its own —
@@ -65,6 +62,11 @@ const WAITLIST_STATUSES = new Set(['waitlist', 'waitlisted']);
  * the live descendant. That is what makes `entries` here agree with
  * `Total Entries` on the registry reports.
  */
+// Two vocabularies reach this set: raw `entries.entry_status` strings from the
+// report rows, and the UI `EntryStatus` enum from Entry Management's outstanding
+// stat (`getEntryManagementCountSummary`). `waitlist`, `missing_info` and
+// `not_accepted` are enum values; `waitlisted` and `rejected` are legacy raw
+// spellings. None of the waitlist values is a status an `entries` row can hold.
 const EXCLUDED_CURRENT_STATUSES = new Set([
   'waitlist',
   'waitlisted',
@@ -119,17 +121,14 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
   return resolved === mappedEntryStatus ? entryStatus : enrollmentStatus;
 }
 
-export function isEntryIncludedInFinancialReport(
-  entry: Pick<ReportEntry, 'entryStatus'>,
-  mode: FinancialReportMode
-): boolean {
-  const entryStatus = normalize(entry.entryStatus);
-
-  if (mode === 'waitlist') {
-    return WAITLIST_STATUSES.has(entryStatus);
-  }
-
-  return !EXCLUDED_CURRENT_STATUSES.has(entryStatus);
+/**
+ * MYK9-718: there is no "waitlisted entries" mode. A waitlisted dog is a
+ * `waitlist_entries` row, never an `entries` row (the status CHECK has no
+ * waitlist value), and it carries no money, so a waitlist variant of this
+ * report could only ever print empty. The Waitlist Report lists who is waiting.
+ */
+export function isEntryIncludedInFinancialReport(entry: Pick<ReportEntry, 'entryStatus'>): boolean {
+  return !EXCLUDED_CURRENT_STATUSES.has(normalize(entry.entryStatus));
 }
 
 function isWaived(entry: ReportEntry): boolean {
@@ -272,16 +271,13 @@ function sortBuckets(a: FinancialReportBucket, b: FinancialReportBucket): number
   return a.label.localeCompare(b.label);
 }
 
-export function calculateFinancialReportTotals(
-  entries: ReportEntry[],
-  mode: FinancialReportMode
-): FinancialReportTotals {
+export function calculateFinancialReportTotals(entries: ReportEntry[]): FinancialReportTotals {
   // Attribution first, over EVERY entry in scope — including the `moved` rows,
   // which are not counted but ARE where the money of a moved-up dog is read
   // from. Filtering before this would throw away the roots.
   const attribution = buildMoneyAttribution(entries);
   const lines = attribution.live
-    .filter(entry => isEntryIncludedInFinancialReport(entry, mode))
+    .filter(entry => isEntryIncludedInFinancialReport(entry))
     .map(entry => buildFinancialReportLine(entry, attribution.rootById.get(entry.id) ?? entry));
   const summary = emptyBucket('Total');
   const paymentMap = new Map<string, FinancialReportBucket>();

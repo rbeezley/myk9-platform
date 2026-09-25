@@ -239,6 +239,14 @@ describe('reportRegistry', () => {
       expect(report?.phase).toBe('anytime');
     });
 
+    // MYK9-718: waitlisted dogs are not entries and carry no money, so the old
+    // "Waitlisted Entries" variant could only ever print empty.
+    it('financial-report offers no waitlisted-entries variant', () => {
+      const report = getReportById('financial-report');
+      expect(report?.sortOptions.map(option => option.label)).not.toContain('Waitlisted Entries');
+      expect(report?.sortOptions).toEqual([]);
+    });
+
     it('reports that render directly from ReportsPage (official PDFs and buildPdf-backed reports) are enabled with placeholder components', () => {
       const placeholderReportIds = [
         'armband-labels',

@@ -16,6 +16,7 @@ import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/
 import { buildMapFromArray } from '../_shared/maps';
 import {
   countQueuedWaitlistEntries,
+  countSeatHoldingEntries,
   filterQueuedWaitlistEntries,
 } from '@/utils/waitlistCountSelectors';
 
@@ -134,9 +135,7 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     ]);
 
     const classesWithCounts = classes.map(cls => {
-      const acceptedCount = allEntries.filter(
-        e => e.classId === cls.id && e.entryStatus === 'accepted'
-      ).length;
+      const acceptedCount = countSeatHoldingEntries(allEntries.filter(e => e.classId === cls.id));
       const waitlistCount = countQueuedWaitlistEntries(
         allWaitlist.filter(w => w.classId === cls.id)
       );

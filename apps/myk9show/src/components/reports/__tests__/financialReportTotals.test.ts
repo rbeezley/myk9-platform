@@ -61,7 +61,7 @@ describe('financialReportTotals', () => {
   ];
 
   it('counts a move-up as ONE entry at the amount paid, with no Waived/Comped line (MYK9-639)', () => {
-    const totals = calculateFinancialReportTotals(MOVED_UP_PAIR, 'current');
+    const totals = calculateFinancialReportTotals(MOVED_UP_PAIR);
 
     expect(totals.summary.count).toBe(1);
     expect(totals.summary.gross).toBe(35);
@@ -78,14 +78,11 @@ describe('financialReportTotals', () => {
   });
 
   it('follows a DOUBLE move-up to the original payment (MYK9-639)', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({ id: 'a', entryStatus: 'moved', entryFee: 35 }),
-        entry({ id: 'b', entryStatus: 'moved', entryFee: 0, movedFromEntryId: 'a' }),
-        entry({ id: 'c', entryStatus: 'confirmed', entryFee: 0, movedFromEntryId: 'b' }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({ id: 'a', entryStatus: 'moved', entryFee: 35 }),
+      entry({ id: 'b', entryStatus: 'moved', entryFee: 0, movedFromEntryId: 'a' }),
+      entry({ id: 'c', entryStatus: 'confirmed', entryFee: 0, movedFromEntryId: 'b' }),
+    ]);
 
     expect(totals.summary.count).toBe(1);
     expect(totals.summary.collected).toBe(35);
@@ -95,17 +92,14 @@ describe('financialReportTotals', () => {
   it('SURFACES a money root outside the report scope instead of printing $0', () => {
     // A trial-scoped report whose move-up source sits in another trial. Silence
     // here would drop a real $35 off a club's reconciliation.
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'destination',
-          entryStatus: 'confirmed',
-          entryFee: 0,
-          movedFromEntryId: 'elsewhere',
-        }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'destination',
+        entryStatus: 'confirmed',
+        entryFee: 0,
+        movedFromEntryId: 'elsewhere',
+      }),
+    ]);
 
     expect(totals.unresolvedMoneyRoots).toEqual([
       { entryId: 'destination', problem: 'missing-link' },
@@ -113,17 +107,14 @@ describe('financialReportTotals', () => {
   });
 
   it('surfaces an orphaned superseded row even though it is not counted', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'orphaned-source',
-          entryStatus: 'moved',
-          entryFee: 35,
-          paymentStatus: PaymentStatus.PAID_BY_CHECK,
-        }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'orphaned-source',
+        entryStatus: 'moved',
+        entryFee: 35,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+    ]);
 
     expect(totals.lines).toEqual([]);
     expect(totals.unresolvedMoneyRoots).toEqual([
@@ -136,52 +127,44 @@ describe('financialReportTotals', () => {
     // refunded while the dog sits in the destination class. The refund lives on
     // the entry that holds the Stripe intent — the source — so it reaches the
     // report through the live descendant...
-    const moved = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'source-moved',
-          entryStatus: 'moved',
-          entryFee: 35,
-          paymentStatus: PaymentStatus.REFUNDED,
-          refundAmount: 35,
-        }),
-        entry({
-          id: 'destination',
-          entryStatus: 'confirmed',
-          entryFee: 0,
-          paymentStatus: PaymentStatus.PENDING,
-          movedFromEntryId: 'source-moved',
-        }),
-      ],
-      'current'
-    );
+    const moved = calculateFinancialReportTotals([
+      entry({
+        id: 'source-moved',
+        entryStatus: 'moved',
+        entryFee: 35,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 35,
+      }),
+      entry({
+        id: 'destination',
+        entryStatus: 'confirmed',
+        entryFee: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        movedFromEntryId: 'source-moved',
+      }),
+    ]);
     expect(moved.summary.count).toBe(1);
     expect(moved.summary.refunded).toBe(35);
     expect(moved.summary.netRetained).toBe(0);
 
     // ...and after Move back, the source is live again and still holds it. The
     // reverse writes no money at all, so nothing can be lost in the round trip.
-    const reversed = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'source-moved',
-          entryStatus: 'confirmed',
-          entryFee: 35,
-          paymentStatus: PaymentStatus.REFUNDED,
-          refundAmount: 35,
-        }),
-      ],
-      'current'
-    );
+    const reversed = calculateFinancialReportTotals([
+      entry({
+        id: 'source-moved',
+        entryStatus: 'confirmed',
+        entryFee: 35,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 35,
+      }),
+    ]);
     expect(reversed.summary.count).toBe(1);
     expect(reversed.summary.refunded).toBe(35);
     expect(reversed.summary.netRetained).toBe(0);
   });
 
   it('excludes the superseded source of a move-up from the current report (MYK9-639)', () => {
-    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'moved' }), 'current')).toBe(
-      false
-    );
+    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'moved' }))).toBe(false);
   });
 
   it('normalizes current and legacy payment labels', () => {
@@ -210,61 +193,58 @@ describe('financialReportTotals', () => {
   });
 
   it('calculates club closeout totals across payment states', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'check',
-          entryFee: 50,
-          discountAmount: 5,
-          paymentStatus: PaymentStatus.PAID_BY_CHECK,
-          paymentMethod: 'check',
-          trialNumber: '1',
-        }),
-        entry({
-          id: 'cash',
-          entryFee: 30,
-          paymentStatus: PaymentStatus.PAID_BY_CASH,
-          paymentMethod: 'cash',
-          trialNumber: '1',
-        }),
-        entry({
-          id: 'pending',
-          entryFee: 40,
-          paymentStatus: PaymentStatus.PENDING,
-          paymentMethod: '',
-          trialNumber: '2',
-        }),
-        entry({
-          id: 'waived',
-          entryFee: 25,
-          paymentStatus: PaymentStatus.WAIVED,
-          comped: true,
-          trialNumber: '2',
-        }),
-        entry({
-          id: 'partial',
-          entryFee: 60,
-          paymentStatus: PaymentStatus.PARTIAL_REFUND,
-          refundAmount: 20,
-          paymentMethod: 'credit_card',
-          trialNumber: '2',
-        }),
-        entry({
-          id: 'refunded',
-          entryFee: 35,
-          paymentStatus: PaymentStatus.REFUNDED,
-          paymentMethod: 'credit_card',
-          trialNumber: '2',
-        }),
-        entry({
-          id: 'waitlisted',
-          entryStatus: 'waitlist',
-          entryFee: 99,
-          paymentStatus: PaymentStatus.PENDING,
-        }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'check',
+        entryFee: 50,
+        discountAmount: 5,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+        paymentMethod: 'check',
+        trialNumber: '1',
+      }),
+      entry({
+        id: 'cash',
+        entryFee: 30,
+        paymentStatus: PaymentStatus.PAID_BY_CASH,
+        paymentMethod: 'cash',
+        trialNumber: '1',
+      }),
+      entry({
+        id: 'pending',
+        entryFee: 40,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: '',
+        trialNumber: '2',
+      }),
+      entry({
+        id: 'waived',
+        entryFee: 25,
+        paymentStatus: PaymentStatus.WAIVED,
+        comped: true,
+        trialNumber: '2',
+      }),
+      entry({
+        id: 'partial',
+        entryFee: 60,
+        paymentStatus: PaymentStatus.PARTIAL_REFUND,
+        refundAmount: 20,
+        paymentMethod: 'credit_card',
+        trialNumber: '2',
+      }),
+      entry({
+        id: 'refunded',
+        entryFee: 35,
+        paymentStatus: PaymentStatus.REFUNDED,
+        paymentMethod: 'credit_card',
+        trialNumber: '2',
+      }),
+      entry({
+        id: 'not-accepted',
+        entryStatus: 'not_accepted',
+        entryFee: 99,
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+    ]);
 
     expect(totals.summary).toMatchObject({
       count: 6,
@@ -286,40 +266,16 @@ describe('financialReportTotals', () => {
     ]);
   });
 
-  it('reports waitlisted fee exposure separately', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({ id: 'accepted', entryStatus: 'accepted', entryFee: 50 }),
-        entry({
-          id: 'waitlisted',
-          entryStatus: 'waitlist',
-          entryFee: 25,
-          paymentStatus: PaymentStatus.PENDING,
-        }),
-      ],
-      'waitlist'
-    );
-
-    expect(totals.summary).toMatchObject({
-      count: 1,
-      gross: 25,
-      outstanding: 25,
-    });
-  });
-
   it('leaves an entry row still pending outstanding, whatever its order says (MYK9-495)', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'mail-in-check',
-          entryFee: 45,
-          paymentStatus: PaymentStatus.PENDING,
-          paymentMethod: 'check',
-          enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
-        }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'mail-in-check',
+        entryFee: 45,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'check',
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+    ]);
 
     // `enrollments` is one row per (show, handler), reused by every later
     // submission, so its `paid_by_check` cannot vouch for this entry — and the
@@ -342,10 +298,9 @@ describe('financialReportTotals', () => {
       paymentStatus: PaymentStatus.PAID_BY_CHECK,
       enrollmentPaymentStatus: PaymentStatus.PENDING,
     };
-    const totals = calculateFinancialReportTotals(
-      [entry({ id: 'order-pending', entryFee: 50, paymentMethod: 'check', ...shape })],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({ id: 'order-pending', entryFee: 50, paymentMethod: 'check', ...shape }),
+    ]);
 
     expect(totals.summary).toMatchObject({ collected: 0, outstanding: 50 });
     expect(classifyEntryAttention({ entryStatus: EntryStatus.ACCEPTED, ...shape })).toEqual([
@@ -354,19 +309,16 @@ describe('financialReportTotals', () => {
   });
 
   it('keeps entry-level refunds authoritative over enrollment payment status', () => {
-    const totals = calculateFinancialReportTotals(
-      [
-        entry({
-          id: 'entry-refunded-after-check',
-          entryFee: 45,
-          paymentStatus: PaymentStatus.REFUNDED,
-          refundAmount: 45,
-          paymentMethod: 'check',
-          enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
-        }),
-      ],
-      'current'
-    );
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'entry-refunded-after-check',
+        entryFee: 45,
+        paymentStatus: PaymentStatus.REFUNDED,
+        refundAmount: 45,
+        paymentMethod: 'check',
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+    ]);
 
     expect(totals.summary).toMatchObject({
       count: 1,

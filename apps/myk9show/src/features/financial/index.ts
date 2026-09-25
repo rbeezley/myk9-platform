@@ -11,7 +11,6 @@ export {
   isEntryIncludedInFinancialReport,
   getFinancialPaymentLabel,
   computeOutstandingAmount,
-  type FinancialReportMode,
   type FinancialReportLine,
   type FinancialReportBucket,
   type FinancialReportTotals,

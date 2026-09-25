@@ -15,7 +15,6 @@
 // which authorize scope on the server. Entry rows are passed in by the caller from
 // its existing RLS-scoped query — this module never touches supabase directly.
 import type { ReportEntry } from '@/lib/reports/types';
-import type { FinancialReportMode } from '@/components/reports/financialReportTotals';
 import { calculateEntryAccounting, type EntryAccountingProjection } from './entryAccounting';
 import {
   emptyChargeVerificationSummary,
@@ -123,8 +122,6 @@ export interface FinancialSummary {
 export interface FinancialSummaryInput extends FinancialScopeArgs {
   /** Entry rows from the caller's existing RLS-scoped query. */
   entries: ReportEntry[];
-  /** Report mode for the printable-subset totals; default 'current'. */
-  mode?: FinancialReportMode;
   /**
    * Optional Stripe order snapshots matched to entries by entry id, used to
    * resolve FeeBreakdown for online lines. When absent, online lines have no
@@ -266,10 +263,10 @@ export async function getFinancialSummary(
   deps: FinancialSummaryDeps = {}
 ): Promise<FinancialSummary> {
   const fetchSummary = deps.fetchSummary ?? fetchFinancialReconciliationSummary;
-  const { entries, mode = 'current', matchedOrdersByEntryId, ...scopeArgs } = input;
+  const { entries, matchedOrdersByEntryId, ...scopeArgs } = input;
 
   const reconciliation = await fetchSummary(scopeArgs);
-  const entryAccounting = calculateEntryAccounting(entries, mode);
+  const entryAccounting = calculateEntryAccounting(entries);
 
   return {
     scope: scopeArgs.scope,

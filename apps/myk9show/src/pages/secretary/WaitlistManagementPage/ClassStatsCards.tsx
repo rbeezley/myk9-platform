@@ -31,7 +31,9 @@ export const ClassStatsCards: React.FC<ClassStatsCardsProps> = ({ selectedClass 
       />
       <StatCard
         icon={<StatusIcon family="entry" status="accepted" decorative />}
-        title="Accepted"
+        // MYK9-718: every entry holding a seat, as the server's capacity gate
+        // counts them (not only the ones a secretary has confirmed).
+        title="Entered"
         value={selectedClass.accepted_count}
         color="emerald"
         subtitle={percentFull !== null ? `${percentFull}% full` : 'No limit set'}

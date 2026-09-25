@@ -190,6 +190,43 @@ describe('the real registry', () => {
     );
   });
 
+  it('points every walk at its prompt file on origin/main, and that file has both parts (MYK9-733)', () => {
+    // The installed walk task is only a pointer; the prompt is the repo file it
+    // names. A pointer naming a file that does not exist, or that reads from a
+    // working tree instead of origin/main, would run the walk on nothing or on
+    // a stale branch, and parity would still report OK.
+    const walks = REGISTERED_TASKS.filter(t => t.doc === 'docs/operations/scheduled-task-walks.md');
+    expect(walks.map(t => t.taskId).sort()).toEqual([
+      'exhibitor-task-walk',
+      'role-intent-walk',
+      'secretary-task-walk',
+      'show-day-walk',
+    ]);
+    const markdown = readFileSync(
+      join(REPO_ROOT, 'docs/operations/scheduled-task-walks.md'),
+      'utf8'
+    );
+    for (const { taskId } of walks) {
+      const pointer = extractPromptBlock(markdown, taskId);
+      const promptPath = `docs/qa/walks/${taskId}.md`;
+      expect(pointer, taskId).toContain(`show origin/main:${promptPath}`);
+      expect(pointer, taskId).toMatch(/fetch origin main/);
+      expect(pointer, taskId).toMatch(/stop and write a short report/);
+      const prompt = readFileSync(join(REPO_ROOT, promptPath), 'utf8');
+      const partOne = prompt.indexOf('\n# Part 1 — ');
+      const partTwo = prompt.indexOf('\n# Part 2 — Known mechanics');
+      expect(partOne, `${promptPath} has no Part 1 heading`).toBeGreaterThan(-1);
+      expect(partTwo, `${promptPath} has no Part 2 heading`).toBeGreaterThan(partOne);
+      // The boundary and the hard constraint are Part 1: a run may rewrite
+      // Part 2 unattended, so neither may ever sit below that line.
+      for (const heading of ['## Safe mutation boundary', '## Output', '## Hard constraint']) {
+        const at = prompt.indexOf(`\n${heading}\n`);
+        expect(at, `${promptPath}: ${heading}`).toBeGreaterThan(partOne);
+        expect(at, `${promptPath}: ${heading} must stay above Part 2`).toBeLessThan(partTwo);
+      }
+    }
+  });
+
   it('the daily commit review prompt does not assert the Codex stream’s state', () => {
     // MYK9-408: the installed prompt said Codex "is paused for token budget"
     // long after it resumed, and told the run to assume Codex had not run.

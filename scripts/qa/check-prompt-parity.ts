@@ -42,6 +42,7 @@ export const REGISTERED_TASKS: readonly TaskRegistration[] = [
   { taskId: 'secretary-task-walk', doc: 'docs/operations/scheduled-task-walks.md' },
   { taskId: 'exhibitor-task-walk', doc: 'docs/operations/scheduled-task-walks.md' },
   { taskId: 'role-intent-walk', doc: 'docs/operations/scheduled-task-walks.md' },
+  { taskId: 'show-day-walk', doc: 'docs/operations/scheduled-task-walks.md' },
 ];
 
 export interface TaskRegistration {

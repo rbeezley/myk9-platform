@@ -100,6 +100,29 @@ update public.entries set deleted_at = now()
 update public.entries set check_in_status = 'checked-in'
  where id = '00000000-0000-0000-0000-000000535039';
 
+-- MYK9-749: a row with NO entry_status. entries.entry_status is nullable and
+-- its CHECK admits NULL, and `NULL = ANY (...)` is NULL, so the allow-list's
+-- `IF NOT` used to be skipped and the row was withdrawable. Its own class and
+-- entry, like every other guard here.
+insert into public.classes (id, trial_id, name, status)
+values ('00000000-0000-0000-0000-000000535053', '00000000-0000-0000-0000-000000535003',
+  'Interior Novice 3', 'upcoming');
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
+  entry_status, payment_status, entry_fee, check_in_status)
+values ('00000000-0000-0000-0000-000000535063', '00000000-0000-0000-0000-000000535021',
+  '00000000-0000-0000-0000-000000535053', '00000000-0000-0000-0000-000000535002',
+  '00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535013',
+  null, 'pending', 25, 'no-status');
+do $$
+begin
+  if exists (select 1 from public.entries
+              where id = '00000000-0000-0000-0000-000000535063'
+                and entry_status is not null) then
+    raise exception 'FAIL precondition: the NULL-status fixture row carries a status';
+  end if;
+end;
+$$;
+
 -- Club-scoped appointment: since the label/permission split a show-scoped
 -- user_roles row grants nothing, so the secretary is appointed at the club.
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
@@ -239,6 +262,10 @@ select pg_temp.assert_withdraw('owner cannot withdraw a scored entry',
 select pg_temp.assert_withdraw('owner cannot withdraw a soft-deleted entry',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535035',
   'Entry % has been removed');
+
+select pg_temp.assert_withdraw('owner cannot withdraw an entry with no status (MYK9-749)',
+  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535063',
+  'Entry % cannot be withdrawn from status %');
 
 select pg_temp.assert_withdraw('owner cannot withdraw a CHECKED-IN entry',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535039',

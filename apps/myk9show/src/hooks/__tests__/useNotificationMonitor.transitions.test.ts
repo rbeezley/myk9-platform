@@ -362,6 +362,64 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
     });
   });
 
+  // MYK9-742: a refresh that STARTED while hidden can resolve after the app is
+  // visible again, carrying pre-resume state. Its completion time is after the
+  // resume, but it must not end the away baseline, or the next refresh would
+  // announce what changed while the user was away.
+  it('keeps the away baseline through a refresh that started while hidden', async () => {
+    await withVisibility(async setVisibility => {
+      const before: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete' })],
+        entries: [entry()],
+      };
+      loadSnapshot(before);
+      renderHook(() => useNotificationMonitor());
+
+      await setVisibility('hidden');
+      let resolveHidden: (value: unknown) => void = () => {};
+      mockRefetch.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveHidden = resolve;
+          })
+      );
+      // A show-change signal while hidden starts a refresh that is still in
+      // flight when the user comes back.
+      await emitShowChange();
+      expect(mockRefetch).toHaveBeenCalledOnce();
+
+      const whileAway: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+        entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
+      };
+      refetchFresh(whileAway);
+      await setVisibility('visible');
+
+      // The hidden-era request resolves after the resume with pre-resume state.
+      await act(async () => {
+        resolveHidden({ data: before, dataUpdatedAt: Date.now() });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockRefetch).toHaveBeenCalledTimes(2);
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      const later: NotificationSnapshot = {
+        ...whileAway,
+        entries: [
+          entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+          entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      };
+      refetchFresh(later);
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledTimes(1);
+      expect(countOf('your_turn')).toBe(1);
+    });
+  });
+
   it('re-baselines on a user change instead of bursting alerts for the new user', () => {
     loadSnapshot({
       classes: [classRow({ status: 'Complete' }), classRow({ id: 'class-2' })],

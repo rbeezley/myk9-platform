@@ -58,15 +58,20 @@ async function fetchStripeLivemode(): Promise<boolean> {
 export const STRIPE_LIVEMODE_QUERY_KEY = ['platform-stripe-livemode'] as const;
 
 /** platform_settings.stripe_livemode rarely changes (only the MYK9-11
- * cutover flips it), so this is cached long — but it is still its OWN query,
- * not a bare constant, so an explicit invalidation of
- * STRIPE_LIVEMODE_QUERY_KEY at cutover time propagates into every query key
- * below that folds this value in. */
+ * cutover flips it). It is still its OWN query, not a bare constant, so an
+ * invalidation of STRIPE_LIVEMODE_QUERY_KEY propagates into every query key
+ * below that folds this value in. But nothing can invalidate a client that is
+ * already open at the cutover, so the cache must not outlive the flip for
+ * long: it was 30 minutes of checking the club's TEST-mode account, which
+ * blocks publishing and hides card payment (MYK9-750). Five minutes of one
+ * singleton read per mount or focus is the cheap side of that trade. */
+const STRIPE_LIVEMODE_STALE_MS = 5 * 60 * 1000;
+
 export function useStripeLivemode() {
   return useQuery({
     queryKey: STRIPE_LIVEMODE_QUERY_KEY,
     queryFn: fetchStripeLivemode,
-    staleTime: 30 * 60 * 1000,
+    staleTime: STRIPE_LIVEMODE_STALE_MS,
     gcTime: 60 * 60 * 1000,
   });
 }
@@ -100,7 +105,7 @@ export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripe
 // "Checking the club's payment account" guard exists for. Correctness never
 // depends on the two queries resolving in a particular order: when
 // `livemodeQuery.data` is already resolved (the common case once
-// useStripeLivemode's own 30-minute cache is warm), the queryFn uses it
+// useStripeLivemode's own cache is warm), the queryFn uses it
 // directly instead of re-reading platform_settings a second time; only the
 // very first cold mount (before livemodeQuery has resolved) falls back to
 // the imperative fetchClubStripeAccount/-Readiness, which reads it itself

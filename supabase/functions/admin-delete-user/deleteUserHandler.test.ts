@@ -212,6 +212,32 @@ describe('deleteUserHandler', () => {
     expect(deleteUser).not.toHaveBeenCalled();
   });
 
+  // MYK9-750: 23503 alone means "something references this person". Only the
+  // ledger's constraints are a Stripe-order conflict.
+  it('does not call a non-ledger foreign key a Stripe-order conflict', async () => {
+    const { supabase, deleteUser } = makeSupabase({
+      deleteError: {
+        code: '23503',
+        message:
+          'update or delete on table "people" violates foreign key constraint "secretary_tasks_created_by_fkey" on table "secretary_tasks"',
+      },
+    });
+
+    const refusal = deleteUserHandler({
+      body: { personId: 'target-1' },
+      user: { id: 'auth-caller' },
+      supabase: supabase as never,
+    } as never);
+    await expect(refusal).rejects.toMatchObject({
+      status: 409,
+      code: '23503',
+      message:
+        'Other records still reference this person, so their record cannot be permanently deleted.',
+    });
+    await expect(refusal).rejects.not.toMatchObject({ message: expect.stringContaining('Stripe') });
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
   it('maps any other delete failure to a generic 500', async () => {
     const { supabase } = makeSupabase({ deleteError: { message: 'constraint violation' } });
 

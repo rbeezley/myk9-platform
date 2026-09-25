@@ -531,7 +531,7 @@ export function useEntryManagementActions({
 
         setEntries(prev =>
           prev.map(e =>
-            e.id === entryId
+            e.id === entryId || e.moneyRootEntryId === entryId
               ? {
                   ...e,
                   comped: true,
@@ -575,7 +575,7 @@ export function useEntryManagementActions({
 
         setEntries(prev =>
           prev.map((e): EntryManagementEntry => {
-            if (e.id !== entryId) return e;
+            if (e.id !== entryId && e.moneyRootEntryId !== entryId) return e;
             const { compedReason: _, ...rest } = e;
             return { ...rest, comped: false, paymentStatus: PaymentStatus.PENDING };
           })

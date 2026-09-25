@@ -6,14 +6,16 @@ import { DeletedEntitiesTab } from '../DeletedEntitiesTab';
 /*  Mocks                                                              */
 /* ------------------------------------------------------------------ */
 
-const { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockNotifyError } = vi.hoisted(() => {
-  const mockNot = vi.fn();
-  const mockFrom = vi.fn().mockReturnValue({ select: () => ({ not: mockNot }) });
-  const mockRpc = vi.fn();
-  const mockHardDeleteShow = vi.fn().mockResolvedValue({ error: null });
-  const mockNotifyError = vi.fn();
-  return { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockNotifyError };
-});
+const { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockHardDeleteUser, mockNotifyError } =
+  vi.hoisted(() => {
+    const mockNot = vi.fn();
+    const mockFrom = vi.fn().mockReturnValue({ select: () => ({ not: mockNot }) });
+    const mockRpc = vi.fn();
+    const mockHardDeleteShow = vi.fn().mockResolvedValue({ error: null });
+    const mockHardDeleteUser = vi.fn().mockResolvedValue({ error: null });
+    const mockNotifyError = vi.fn();
+    return { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockHardDeleteUser, mockNotifyError };
+  });
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { error: mockNotifyError, success: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -76,7 +78,7 @@ vi.mock('@/services/database/clubs', () => ({
 vi.mock('@/services/database/users', () => ({
   getDeletedUsers: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreUser: vi.fn().mockResolvedValue({ error: null }),
-  hardDeleteUser: vi.fn().mockResolvedValue({ error: null }),
+  hardDeleteUser: mockHardDeleteUser,
 }));
 
 // Mock the child component to simplify testing
@@ -279,5 +281,41 @@ describe('DeletedEntitiesTab', () => {
         "Couldn't permanently delete Show. Please try again."
       );
     });
+  });
+  // MYK9-750 (#2261 review): a person delete refused by a guard is not a
+  // transient failure either. Say what blocks it instead of "try again".
+  it.each([
+    [
+      'the owns-dogs guard',
+      { code: 'MK001', message: 'This person still owns 2 live dog(s). Delete those dogs first.' },
+      'This person still owns 2 live dog(s). Delete those dogs first.',
+    ],
+    [
+      'a Stripe ledger foreign key',
+      {
+        code: '23503',
+        message:
+          'update or delete on table "enrollments" violates foreign key constraint "stripe_orders_enrollment_id_fkey" on table "stripe_orders"',
+      },
+      'This record has Stripe orders that refunds and reconciliation still reference, so it cannot be permanently deleted. Resolve or reassign those orders first.',
+    ],
+  ])('renders the person-delete refusal from %s', async (_label, error, expected) => {
+    mockHardDeleteUser.mockResolvedValue({ error });
+    setCountsPerTable({ people: 1 });
+
+    render(<DeletedEntitiesTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId('section-person')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Delete People'));
+    await waitFor(() => {
+      expect(screen.getByText('Permanently Delete Person?')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+
+    await waitFor(() => {
+      expect(mockNotifyError).toHaveBeenCalledWith(expected);
+    });
+    expect(mockNotifyError).not.toHaveBeenCalledWith(expect.stringContaining('Please try again'));
   });
 });

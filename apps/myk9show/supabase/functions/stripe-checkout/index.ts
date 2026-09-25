@@ -15,6 +15,7 @@ import {
   CART_CLASS_CLOSED_MESSAGE,
   cartHasBlockedClass,
   newLineClassIds,
+  releasePriorSessionForClassGate,
 } from '../_shared/cartClassGate.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -597,6 +598,29 @@ async function handleEntryCheckout(
         );
       }
       if (cartHasBlockedClass(cartLines, availability)) {
+        // The reconcile leaves a cart that links a session alone, so a live
+        // Stripe page can never pay for lines it deleted. Retire that session
+        // first (expire an open one; a complete one is processing) and only
+        // then clear the link, so the reload's reconcile can drop and explain.
+        const priorSessionId = cart.stripe_checkout_session_id ?? null;
+        const release = await releasePriorSessionForClassGate(
+          priorSessionId,
+          stripe.checkout.sessions
+        );
+        if (release.kind === 'blocked') {
+          console.error(`Class gate for cart ${cart_id}: ${release.diagnostic}`);
+          return corsResponse(corsHeaders, { error: release.error }, release.status);
+        }
+        if (priorSessionId) {
+          const { error: unlinkError } = await supabase
+            .from('entry_carts')
+            .update({ stripe_checkout_session_id: null })
+            .eq('id', cart_id)
+            .eq('stripe_checkout_session_id', priorSessionId);
+          if (unlinkError) {
+            console.error(`Could not unlink session for cart ${cart_id}:`, unlinkError);
+          }
+        }
         return corsResponse(corsHeaders, { error: CART_CLASS_CLOSED_MESSAGE }, 409);
       }
     }

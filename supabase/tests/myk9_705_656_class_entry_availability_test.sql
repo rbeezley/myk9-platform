@@ -22,9 +22,10 @@
 --      here (the visibility arms are the reused policy helpers).
 --   7. Grants: anon cannot call the wizard read; authenticated cannot call the
 --      unscoped rule.
---   8. Reconcile drops exactly the blocked lines, keeps the wait-list line, the
---      open line and the Finish Payment line (entry_id set) in a closed class,
---      and severs the checkout session.
+--   8. While the cart still links a Checkout Session nothing is dropped (a
+--      Stripe page may still take payment). Once the link is cleared, reconcile
+--      drops exactly the blocked lines and keeps the wait-list line, the open
+--      line and the Finish Payment line (entry_id set) in a closed class.
 --   9. A second reconcile drops nothing; another exhibitor is refused 42501; a
 --      submitted cart is left alone.
 --
@@ -208,7 +209,7 @@ DO $$
 BEGIN
   IF (SELECT stripe_checkout_session_id FROM public.entry_carts
       WHERE id = '00000000-0000-0000-0000-000000705600') IS DISTINCT FROM 'cs_test_myk9_705' THEN
-    RAISE EXCEPTION 'FIXTURE the cart has no checkout session, so the sever check below proves nothing';
+    RAISE EXCEPTION 'FIXTURE the cart has no checkout session, so the linked-session case below proves nothing';
   END IF;
 END;
 $$;
@@ -350,11 +351,37 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000705101
 SELECT set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000705101","role":"authenticated"}', true);
 
+-- While the cart still links a Checkout Session, a Stripe page may still take
+-- payment, so nothing is deleted (Codex P1 on PR #2438).
+DO $$
+DECLARE
+  v_dropped int;
+  v_lines int;
+BEGIN
+  SELECT count(*) INTO v_dropped
+  FROM public.reconcile_cart_closed_classes('00000000-0000-0000-0000-000000705600');
+  SELECT count(*) INTO v_lines
+  FROM public.entry_cart_items WHERE cart_id = '00000000-0000-0000-0000-000000705600';
+  IF v_dropped <> 0 OR v_lines <> 8 THEN
+    RAISE EXCEPTION 'FAIL a session-linked cart was reconciled: % dropped, % lines left',
+      v_dropped, v_lines;
+  END IF;
+  RAISE NOTICE 'PASS a cart still linked to a Checkout Session is left alone';
+END;
+$$;
+
+-- stripe-checkout's class gate retires the session and clears the link.
+RESET ROLE;
+SET LOCAL ROLE service_role;
+UPDATE public.entry_carts SET stripe_checkout_session_id = NULL
+WHERE id = '00000000-0000-0000-0000-000000705600';
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+
 DO $$
 DECLARE
   v_dropped text;
   v_kept text;
-  v_session text;
   v_again int;
 BEGIN
   SELECT string_agg(r.item_id::text || '=' || r.reason, ',' ORDER BY r.item_id)
@@ -380,13 +407,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL reconcile left lines %', v_kept;
   END IF;
   RAISE NOTICE 'PASS the wait-list, open and Finish Payment lines stay';
-
-  SELECT stripe_checkout_session_id INTO v_session
-  FROM public.entry_carts WHERE id = '00000000-0000-0000-0000-000000705600';
-  IF v_session IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL checkout session % survived the drop', v_session;
-  END IF;
-  RAISE NOTICE 'PASS the checkout session is severed';
 
   SELECT count(*) INTO v_again
   FROM public.reconcile_cart_closed_classes('00000000-0000-0000-0000-000000705600');

@@ -24,8 +24,10 @@
 --   reconcile_cart_closed_classes(uuid)   the cart owner's atomic drop: in one
 --                                         transaction it locks the cart, deletes
 --                                         the lines self-service can no longer
---                                         buy, severs the checkout session, and
---                                         returns what it removed and why.
+--                                         buy, and returns what it removed and
+--                                         why. A cart still linked to a Stripe
+--                                         Checkout Session is left untouched
+--                                         until stripe-checkout retires it.
 --
 -- Every function returns counts and flags only, never another exhibitor's rows.
 --
@@ -259,12 +261,13 @@ AS $$
 #variable_conflict use_column
 DECLARE
   v_status text;
+  v_session_id text;
 BEGIN
   -- Lock the cart so a concurrent reconcile, add, or checkout on the same cart
   -- serialises behind this one. Ownership is the stripe-checkout test: the
   -- cart's exhibitor profile belongs to the caller.
-  SELECT ec.status
-  INTO v_status
+  SELECT ec.status, ec.stripe_checkout_session_id
+  INTO v_status, v_session_id
   FROM public.entry_carts ec
   JOIN public.exhibitor_profiles ep ON ep.id = ec.exhibitor_id
   WHERE ec.id = p_cart_id
@@ -281,13 +284,19 @@ BEGIN
     RETURN;
   END IF;
 
+  -- A cart that still links a Checkout Session is left alone. The page may be
+  -- open, or paid with the webhook not yet run: deleting lines here would only
+  -- sever the link, not stop the charge, and the webhook would then reject a
+  -- payment already taken. stripe-checkout's class gate resolves the session
+  -- (expires an open one, waits out a complete one) and clears the link; the
+  -- next reconcile then drops the lines and says why.
+  IF v_session_id IS NOT NULL THEN
+    RETURN;
+  END IF;
+
   -- Finish Payment lines (entry_id set) settle an entry that already exists.
   -- Removing one would not un-enter the dog, only strand its balance, so
   -- closure never touches them.
-  --
-  -- No session UPDATE here: trg_cart_item_delete_sever_session already clears
-  -- entry_carts.stripe_checkout_session_id on every line delete, inside this
-  -- same transaction, so an open Stripe page cannot pay for the old set.
   RETURN QUERY
   WITH blocked AS (
     SELECT i.id, a.self_service_block
@@ -318,8 +327,9 @@ $$;
 
 COMMENT ON FUNCTION public.reconcile_cart_closed_classes(uuid) IS
   'MYK9-656: atomically drops a caller-owned cart''s lines whose class self-service can no '
-  'longer buy (class_entry_availability.self_service_block), severs the checkout session, and '
-  'returns each dropped line with its reason. Finish Payment lines are never dropped.';
+  'longer buy (class_entry_availability.self_service_block) and returns each dropped line with '
+  'its reason. Finish Payment lines are never dropped, and a cart still linked to a Checkout '
+  'Session is left untouched until stripe-checkout retires the session.';
 
 REVOKE ALL ON FUNCTION public.reconcile_cart_closed_classes(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reconcile_cart_closed_classes(uuid) TO authenticated;

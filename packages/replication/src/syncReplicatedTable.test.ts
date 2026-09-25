@@ -8,6 +8,7 @@ import type { SyncOptions, SyncResult } from './types';
 interface LocalEntry {
   id: string;
   name: string;
+  _localOnly?: boolean;
   status?: string;
   resultStatus?: string;
   finalPlacement?: number | null;
@@ -902,6 +903,40 @@ describe('syncReplicatedTable', () => {
         totalRows: 3,
         expectedRemoteRows: 3,
       });
+    });
+
+    it('does not let a pending local create hide an evicted row (MYK9-752)', async () => {
+      // Server holds 3; eviction left 2 of them locally, and a pending local
+      // create makes the raw local count 3 again.
+      await table.set('1', { id: '1', name: 'Rex' });
+      await table.set('2', { id: '2', name: 'Max' });
+      await table.set('local-1', { id: 'local-1', name: 'Pending', _localOnly: true });
+      await table.updateSyncMetadata({
+        lastIncrementalSyncAt: 1000,
+        totalRows: 3,
+        expectedRemoteRows: 3,
+      });
+
+      const fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) => {
+        expect(forceFullSync).toBe(true);
+        return [
+          { id: 1, name: 'Rex', updated_at: 2000 },
+          { id: 2, name: 'Max', updated_at: 2000 },
+          { id: 3, name: 'Luna', updated_at: 2000 },
+        ];
+      });
+      const adapter: SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> = {
+        fetchRemoteRows,
+        getRemoteRowCount: vi.fn(async () => 3),
+        getRemoteId: remote => String(remote.id),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+        toLocalRow: remote => ({ id: String(remote.id), name: remote.name }),
+      };
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('3')).toMatchObject({ id: '3', name: 'Luna' });
     });
 
     it('forces a full re-sync when the last full sync is older than the heal interval', async () => {

@@ -14,6 +14,11 @@ import {
   sortedCopy,
 } from '../_shared/read-shape';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import {
+  areEntryRowsFromSyncedShows,
+  hasShowEntriesSynced,
+  hasUnsavedWritesAmong,
+} from '@/services/replication/entriesShowSyncState';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -780,10 +785,12 @@ export const getEntriesByShow = async (showId: string) => {
   // this show through the conflict-aware sync path before treating it as complete.
   // Failed/offline sync must not discard the entries already available locally.
   const refreshCompleted = await refreshShowEntriesForRead(showId);
+  let unverified = false;
   const result = await readWithReplicationFallback({
     replication: async () => {
-      const [entries, dogsMap, classesMap] = await Promise.all([
+      const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
+        hasShowEntriesSynced(showId),
         loadDogsMap(),
         loadClassesMap(),
       ]);
@@ -804,13 +811,22 @@ export const getEntriesByShow = async (showId: string) => {
           ...registrationJoin(entry, enrollmentsMap),
         })
       );
-      return { data, error: null, locallyDeletedIds };
+      return {
+        data,
+        error: null,
+        locallyDeletedIds,
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(entries)),
+      };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
     operation: 'select_by_show',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    onUnverified: () => {
+      unverified = true;
+    },
   });
   if (result.error) return { ...result, resultsReadComplete: false, verified: false };
   const released = await withReleasedShowResults(showId, result.data);
@@ -818,7 +834,7 @@ export const getEntriesByShow = async (showId: string) => {
     ...result,
     data: released.entries,
     resultsReadComplete: released.resultsReadComplete,
-    verified: refreshCompleted,
+    verified: refreshCompleted && !unverified,
   };
 };
 
@@ -831,8 +847,9 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [rawEntries, dogsMap, classesMap] = await Promise.all([
+      const [rawEntries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
+        hasShowEntriesSynced(showId),
         loadDogsMap(),
         loadClassesMap(),
       ]);
@@ -854,6 +871,8 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         data,
         error: null,
         locallyDeletedIds,
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
       };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
@@ -963,6 +982,9 @@ export const getEntriesByTrial = async (trialId: string) => {
       // trial (`class.trial_id = trialId`), so an id from another trial can
       // never appear in the result it filters.
       const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
+      // MYK9-746: rows from a show that never synced are not the whole trial.
+      const scopeUnsynced = !(await areEntryRowsFromSyncedShows(inTrial));
+      const unsavedLocalWrites = scopeUnsynced && (await hasUnsavedWritesAmong(inTrial));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
@@ -972,7 +994,7 @@ export const getEntriesByTrial = async (trialId: string) => {
           ...registrationJoin(entry, enrollmentsMap),
         })
       );
-      return { data, error: null, locallyDeletedIds };
+      return { data, error: null, locallyDeletedIds, scopeUnsynced, unsavedLocalWrites };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
     table: 'entries',
@@ -1007,6 +1029,9 @@ export const getEntriesByClass = async (classId: string) => {
       // the online verification excludes them and a stale server row cannot
       // resurrect a just-deleted entry. See read-shape.ts.
       const locallyDeletedIds = entries.filter(e => !isLiveEntry(e)).map(e => e.id);
+      // MYK9-746: rows from a show that never synced are not the whole class.
+      const scopeUnsynced = !(await areEntryRowsFromSyncedShows(entries));
+      const unsavedLocalWrites = scopeUnsynced && (await hasUnsavedWritesAmong(entries));
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareNumberAscNullsLast(entry => entry.runOrder)
@@ -1034,7 +1059,13 @@ export const getEntriesByClass = async (classId: string) => {
         }
         return e;
       });
-      return { data: backfilledData, error: null, locallyDeletedIds };
+      return {
+        data: backfilledData,
+        error: null,
+        locallyDeletedIds,
+        scopeUnsynced,
+        unsavedLocalWrites,
+      };
     },
     postgrest: () => postgrestGetEntriesByClass(classId),
     table: 'entries',

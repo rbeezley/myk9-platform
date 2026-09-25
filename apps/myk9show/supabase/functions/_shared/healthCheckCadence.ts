@@ -2,6 +2,12 @@
  * The single source for how often each health check is expected to be refreshed.
  * A check is stale after two missed intervals; the runner persists that value
  * with the result so the board does not need a second, drifting threshold table.
+ *
+ * It lives in the functions tree and the app imports it from here, never the
+ * other way round (MYK9-729): a function that imports app `src/` deploys a
+ * bundle `supabase functions download` refuses to extract, so
+ * `qa:edge-function-drift --content` could never check cron-health-check.
+ * `scripts/qa/edge-function-imports.test.ts` keeps every function in-tree.
  */
 
 export const HEALTH_CHECK_INTERVAL_MS = {
@@ -19,6 +25,9 @@ export const HEALTH_CHECK_INTERVAL_MS = {
   anon_grants: 24 * 60 * 60 * 1000,
   applied_acl_grants: 24 * 60 * 60 * 1000,
   public_schema_create_acl: 24 * 60 * 60 * 1000,
+  // MYK9-741. Test-named shows published on the live listing; nightly is
+  // plenty for a row someone seeded by hand.
+  stray_published_shows: 24 * 60 * 60 * 1000,
 } as const;
 
 /** Expected source-job windows used to judge whether a scheduled job is late.

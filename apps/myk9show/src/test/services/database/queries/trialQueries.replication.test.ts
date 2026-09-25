@@ -430,48 +430,59 @@ describe('trialQueries (replication)', () => {
       expect(entryCountQuery.is).toHaveBeenCalledWith('deleted_at', null);
     });
 
-    it('falls back when the scoped entry replica is cold instead of reporting zero', async () => {
-      setupListMocks([makeTrial()]);
-      mockEntriesTable.getEntriesByShow.mockResolvedValue([]);
-      mockEntriesTable.getSyncMetadata.mockResolvedValue(null);
-      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'trials'
-          ? createChainableQuery({
-              data: [
-                {
-                  id: 'trial-1',
-                  date: '2026-05-01',
-                  trial_number: '1',
-                  planned_start_time: '08:30',
-                  classes: [
-                    {
-                      id: 'class-1',
-                      name: 'Novice Containers',
-                      element: 'Containers',
-                      level: 'Novice',
-                      start_time: '09:00',
-                      status: 'Scheduled',
-                      deleted_at: null,
-                      judge_assignments: [],
-                    },
-                  ],
-                },
-              ],
-              error: null,
-            })
-          : createChainableQuery({
-              data: null,
-              count: 1,
-              error: null,
-            })
-      );
+    it.each([
+      { label: 'is empty', localEntries: [] as ReplicatedEntry[], metadata: null },
+      // MYK9-746: one check-in on a fresh device stores one row, not the show.
+      {
+        label: 'holds only one locally written entry',
+        localEntries: [makeEntry({ id: 'entry-checked-in' })],
+        metadata: { tableName: 'entries' },
+      },
+    ])(
+      'falls back when the never-synced entry replica $label',
+      async ({ localEntries, metadata }) => {
+        setupListMocks([makeTrial()]);
+        mockEntriesTable.getEntriesByShow.mockResolvedValue(localEntries);
+        mockEntriesTable.getSyncMetadata.mockResolvedValue(metadata);
+        mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+        mockSupabase.from.mockImplementation((table: string) =>
+          table === 'trials'
+            ? createChainableQuery({
+                data: [
+                  {
+                    id: 'trial-1',
+                    date: '2026-05-01',
+                    trial_number: '1',
+                    planned_start_time: '08:30',
+                    classes: [
+                      {
+                        id: 'class-1',
+                        name: 'Novice Containers',
+                        element: 'Containers',
+                        level: 'Novice',
+                        start_time: '09:00',
+                        status: 'Scheduled',
+                        deleted_at: null,
+                        judge_assignments: [],
+                      },
+                    ],
+                  },
+                ],
+                error: null,
+              })
+            : createChainableQuery({
+                data: null,
+                count: 7,
+                error: null,
+              })
+        );
 
-      const result = await getShowScheduleTimelineRows('show-1');
+        const result = await getShowScheduleTimelineRows('show-1');
 
-      expect(result.error).toBeNull();
-      expect(result.data[0].totalEntriesCount).toBe(1);
-    });
+        expect(result.error).toBeNull();
+        expect(result.data[0].totalEntriesCount).toBe(7);
+      }
+    );
 
     it('omits soft-deleted replicated classes', async () => {
       setupListMocks([makeTrial()]);

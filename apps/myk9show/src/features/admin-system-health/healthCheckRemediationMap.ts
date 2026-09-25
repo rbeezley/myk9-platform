@@ -106,6 +106,13 @@ export const HEALTH_CHECK_REMEDIATION: Readonly<Record<string, HealthCheckRemedi
   anon_grants: DATABASE_ACCESS_CONTRACT,
   applied_acl_grants: DATABASE_ACCESS_CONTRACT,
   public_schema_create_acl: DATABASE_ACCESS_CONTRACT,
+  stray_published_shows: {
+    ownerLabel: 'Show Listings',
+    actionLabel: 'Open Admin Help',
+    target: routeTarget('/admin/help'),
+    nextStep:
+      'A published show outside the demo seed carries a test-style name (E2E, MYK9-n, Load n, Fixture). Confirm with its club it is not real, then unpublish or delete it so it leaves the public listing.',
+  },
   probe: HEALTH_RUNNER,
   'malformed-checks': HEALTH_RUNNER,
 };

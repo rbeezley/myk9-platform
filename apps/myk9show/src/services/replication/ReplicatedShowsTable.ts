@@ -14,6 +14,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
+  type SyncOptions,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -219,7 +220,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /**
    * Sync shows from Supabase
    */
-  async sync(syncScopeId: string): Promise<SyncResult> {
+  async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
@@ -265,6 +266,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       adapter,
       { value: syncScopeId },
       {
+        forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
       }
     );

@@ -439,6 +439,21 @@ describe('resolveByContent', () => {
     expect(empty!.note).toMatch(/no fn\/ files/);
   });
 
+  it('a function whose bundle reaches outside the functions tree names the path, not a download error (MYK9-729)', async () => {
+    const root = repo({
+      ...SOURCE,
+      'supabase/functions/_shared/h.ts': "export { cadence } from '../../src/cadence.ts';\n",
+      'supabase/src/cadence.ts': 'export const cadence = 1;\n',
+    });
+    const download = vi.fn<Downloader>(() => false);
+    const [got] = await resolveByContent([row('current')], root, download, identity);
+    expect(got).toMatchObject({ status: 'check-failed' });
+    expect(got!.note).toBe(
+      'content check failed: bundles files outside supabase/functions: supabase/src/cadence.ts (move them into _shared)'
+    );
+    expect(download).not.toHaveBeenCalled();
+  });
+
   it('never-deployed and dual-location rows are not downloaded', async () => {
     const download = vi.fn<Downloader>(() => true);
     const rows = [row('never-deployed'), row('dual-location')];

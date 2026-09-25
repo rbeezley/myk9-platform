@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { countServerBackedRows } from '@myk9/replication';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -10,7 +11,7 @@ import {
 import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { settleAtShowSync, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -30,7 +31,9 @@ interface ScopedMeta {
  * A scope counts as hydrated only when its server-derived expected row count is
  * known and every expected row is present locally. The older local-only
  * `totalRows` value is intentionally not sufficient: quota eviction can
- * rewrite it downward and make a partial replica look complete.
+ * rewrite it downward and make a partial replica look complete. Callers pass
+ * SERVER-BACKED rows only (`countServerBackedRows`): a pending local create is
+ * not on the server, and counting it would hide an evicted row (MYK9-752).
  */
 function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
   const hydrated =
@@ -58,14 +61,14 @@ async function gatherReadiness(
     replicatedShowsTable.getShowById(showId),
   ]);
 
-  const trialsScope = toScope('trials', trialsMeta, trialRows.length);
+  const trialsScope = toScope('trials', trialsMeta, countServerBackedRows(trialRows));
   const scopes: ScopeReadiness[] = [
     // The show row itself is load-bearing offline — /at-show/:showId reads
     // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
     // row presence directly rather than a per-show watermark.
     { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
     trialsScope,
-    toScope('entries', entriesMeta, entryRows.length),
+    toScope('entries', entriesMeta, countServerBackedRows(entryRows)),
   ];
 
   // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
@@ -78,7 +81,7 @@ async function gatherReadiness(
           replicatedClassesTable.getSyncMetadata(trial.id) as Promise<ScopedMeta | null>,
           replicatedClassesTable.getClassesByTrial(trial.id),
         ]);
-        return toScope('classes', classMeta, classRows.length);
+        return toScope('classes', classMeta, countServerBackedRows(classRows));
       })
     );
     const allHydrated = perTrial.every(scope => scope.hydrated);
@@ -120,7 +123,7 @@ async function gatherReadiness(
       hydrated:
         Boolean(judge.personId) &&
         assignmentsMeta?.expectedRemoteRows !== undefined &&
-        assignmentRows.length >= assignmentsMeta.expectedRemoteRows,
+        countServerBackedRows(assignmentRows) >= assignmentsMeta.expectedRemoteRows,
       lastSyncAt: null,
     });
   }
@@ -211,31 +214,18 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
-      // Wait out any at-show sync already running (usually the page's own
-      // mount-time one). syncAtShowData hands an in-flight operation back to a
-      // new caller, so without this prime's re-check could judge a sync that
-      // began before the click instead of one that began after it (MYK9-738).
-      await settleAtShowSync(showId);
-      // No watermark rewind for trials, entries or classes. Every sync compares
-      // the local rows with a fresh server count and forces a full re-fetch
-      // when any are missing (syncReplicatedTable `partialReplica`), which is
-      // what restores quota-evicted rows. Rewinding there only raced other
-      // syncs and, as first written, wiped the expected-row counts readiness is
-      // judged by (MYK9-738). Known gap: when that count request fails, no full
-      // re-fetch runs until the 24h stale-sync rule (MYK9-752). The shows
-      // table has no server count, so a missing show row still needs its ''
-      // watermark rewound for sync('') to fetch it.
-      if (readiness?.missing.includes('show')) {
-        await replicatedShowsTable.updateSyncMetadata(
-          { lastIncrementalSyncAt: 0 },
-          { scopeValue: '' }
-        );
-      }
+      // A FULL re-fetch of every at-show scope and the club's shows, not an
+      // incremental one: that is what restores quota-evicted rows, and it
+      // needs neither a server row count (which can be unavailable) nor a
+      // watermark rewind (which raced other syncs and wiped the expected-row
+      // counts readiness is judged by). Prime writes no sync metadata itself.
+      // A forced sync also never reuses an incremental one already running,
+      // usually the page's own mount-time sync (MYK9-738, MYK9-752).
       await Promise.all([
-        syncAtShowData(showId),
-        // Shows sync is club-scoped; the unscoped incremental sync is what the
-        // background provider runs and it carries the show row.
-        replicatedShowsTable.sync(''),
+        syncAtShowData(showId, { forceFullSync: true }),
+        // Shows sync is club-scoped; the unscoped sync is what the background
+        // provider runs and it carries the show row.
+        replicatedShowsTable.sync('', { forceFullSync: true }),
         // Judges' at-show view is empty without their assignments cached.
         judgeAssignmentsRequired ? replicatedJudgeAssignmentsTable.sync(showId) : Promise.resolve(),
         refreshPermissions?.(),
@@ -269,15 +259,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     // Invalidate unconditionally: a partial prime still changed local rows,
     // and re-reading them is an IndexedDB read, not a network call.
     await queryClient.invalidateQueries({ queryKey: ['shows'] });
-  }, [
-    showId,
-    isAnonymous,
-    judgeAssignmentsRequired,
-    readiness,
-    refreshPermissions,
-    check,
-    queryClient,
-  ]);
+  }, [showId, isAnonymous, judgeAssignmentsRequired, refreshPermissions, check, queryClient]);
 
   return { readiness, checking, priming, primeFailed, prime };
 }

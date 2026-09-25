@@ -201,7 +201,7 @@ export function MessageCenterPanel() {
   });
   const composeListPending =
     judged.status === 'unknown'
-      ? "Loading the shows you're judging…"
+      ? "Still loading the shows you're judging…"
       : showsLoading && shows.length === 0
         ? 'Loading your shows…'
         : null;

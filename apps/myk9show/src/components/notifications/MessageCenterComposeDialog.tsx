@@ -34,7 +34,7 @@ export interface MessageCenterComposeDialogProps {
   options: readonly ComposeShowOption[];
   /** The show of the page the composer was opened from, or ''. */
   routeShowId: string;
-  /** Shown instead of the picker while the option list is still being determined. */
+  /** A note shown above the known shows while more may still arrive. */
   pendingMessage: string | null;
   /** Shown when the list is known and empty, or could not be read. */
   emptyMessage: string;
@@ -57,24 +57,24 @@ export function MessageCenterComposeDialog({
 }: MessageCenterComposeDialogProps) {
   const [pickedShowId, setPickedShowId] = useState('');
   const { selected, locked } = resolveComposeShow(options, routeShowId, pickedShowId);
-  // Wait for a pending list before offering a picker the route show may still join.
-  const waitingForList = pendingMessage !== null && (!selected || !locked);
-  const selectedShowId = waitingForList ? '' : (selected?.id ?? '');
+  const selectedShowId = selected?.id ?? '';
+  const isJudgeLane = selected?.lane === 'judge';
+  const recipients = isJudgeLane ? JUDGE_RECIPIENTS : manageRecipients;
+  // Only a class message needs the class list; a show-wide-only lane never reads it.
+  const needsClasses = !!selectedShowId && recipients.includes('class');
   const {
     data: classes = [],
     isError: classesError,
     refetch: retryClasses,
-  } = useMessageShowClassOptions(open && selectedShowId ? selectedShowId : null, {
-    enabled: open && !!selectedShowId,
+  } = useMessageShowClassOptions(open && needsClasses ? selectedShowId : null, {
+    enabled: open && needsClasses,
   });
-  const isJudgeLane = selected?.lane === 'judge';
 
   function renderShowField() {
-    if (waitingForList) {
-      return <p className="text-sm text-muted-foreground">{pendingMessage}</p>;
-    }
     if (options.length === 0) {
-      return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
+      return pendingMessage ? null : (
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      );
     }
     if (locked && selected) {
       return (
@@ -106,11 +106,11 @@ export function MessageCenterComposeDialog({
 
   function renderComposer() {
     if (!selectedShowId) {
-      return options.length > 0 && !waitingForList ? (
+      return options.length > 0 ? (
         <p className="text-sm text-muted-foreground">Select a show to continue.</p>
       ) : null;
     }
-    if (classesError) {
+    if (needsClasses && classesError) {
       return (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
           <div className="flex items-start gap-3">
@@ -137,7 +137,7 @@ export function MessageCenterComposeDialog({
         key={selectedShowId}
         showId={selectedShowId}
         classes={classes}
-        allowedRecipients={isJudgeLane ? JUDGE_RECIPIENTS : manageRecipients}
+        allowedRecipients={recipients}
         showWideDeliveryLane={isJudgeLane ? 'announcement' : manageShowWideLane}
         showHistoryLink={false}
         onSent={() => onOpenChange(false)}
@@ -154,6 +154,7 @@ export function MessageCenterComposeDialog({
             Send a show message to everyone, a class, or checked-in exhibitors.
           </DialogDescription>
         </DialogHeader>
+        {pendingMessage && <p className="text-sm text-muted-foreground">{pendingMessage}</p>}
         {renderShowField()}
         {renderComposer()}
       </DialogContent>

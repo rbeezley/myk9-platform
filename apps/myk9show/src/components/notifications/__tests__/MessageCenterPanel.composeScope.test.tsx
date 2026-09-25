@@ -109,8 +109,18 @@ vi.mock('@/features/show-workbench/MessageShowComposer', async () => {
   };
 });
 
+const classOptions = vi.hoisted(() => ({
+  hook: vi.fn(
+    (
+      _showId?: string | null,
+      _options?: { enabled?: boolean }
+    ): { data: unknown[] | undefined; isError?: boolean; refetch?: () => void } => ({ data: [] })
+  ),
+}));
+
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
-  useMessageShowClassOptions: () => ({ data: [] }),
+  useMessageShowClassOptions: (showId: string | null, options: { enabled?: boolean }) =>
+    classOptions.hook(showId, options),
 }));
 
 // Both stores are mocked above with loose shapes; only the fields read here matter.
@@ -155,6 +165,8 @@ function offeredShowNames(dialog: HTMLElement) {
 }
 
 beforeEach(() => {
+  classOptions.hook.mockReset();
+  classOptions.hook.mockReturnValue({ data: [] });
   authContext = heartlandSecretary();
   judgeTableStatus = 'success';
   judgeReads.getActiveJudgeAssignmentShows.mockReset();
@@ -310,6 +322,23 @@ describe('judge: the shows they are assigned to judge (MYK9-722)', () => {
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  // Codex, PR #2443 round 2: a judge only posts show-wide, which needs no classes,
+  // so a failed class read must not stand between them and the announcement.
+  it('never looks up classes for a judge, so a class-read failure cannot block them', async () => {
+    authContext = judge();
+    classOptions.hook.mockReturnValue({ data: undefined, isError: true, refetch: vi.fn() });
+    judgeReads.getActiveJudgeAssignmentShows.mockResolvedValue([
+      { showId: 'heartland-ukc', firstTrialDate: '2026-11-07' },
+    ]);
+
+    const dialog = openCompose('/at-show/heartland-ukc');
+
+    const composer = await within(dialog).findByTestId('message-show-composer');
+    expect(composer).toHaveTextContent('Composer for heartland-ukc');
+    expect(within(dialog).queryByText(/couldn't load classes/i)).not.toBeInTheDocument();
+    expect(classOptions.hook).not.toHaveBeenCalledWith('heartland-ukc', expect.anything());
+  });
+
   it("does not open on a show page the judge isn't assigned to", async () => {
     authContext = judge();
     judgeReads.getActiveJudgeAssignmentShows.mockResolvedValue([
@@ -399,6 +428,25 @@ describe('secretary who also judges', () => {
     const judged = within(dialog).getByTestId('message-show-composer');
     expect(judged).toHaveAttribute('data-mounted-for', 'blue-sky-weekend');
     expect(judged).toHaveAttribute('data-allowed-recipients', 'all_show');
+  });
+
+  // Codex, PR #2443 round 2: an unsynced judge list must not hold back the shows
+  // the secretary already manages (offline cold start).
+  it('offers managed shows at once while the judged list is still loading', () => {
+    authContext = staff(
+      ['secretary', 'judge'],
+      [{ scopeType: 'club', scopeId: HEARTLAND, roleId: 'secretary' }],
+      'person-judge'
+    );
+    judgeTableStatus = 'syncing';
+
+    const dialog = openCompose('/secretary/dashboard');
+
+    expect(within(dialog).getByText(/still loading the shows you're judging/i)).toBeInTheDocument();
+    expect(offeredShowNames(dialog)).toEqual([
+      'Heartland Scent Work Classic',
+      'Heartland UKC Nosework Trial',
+    ]);
   });
 
   it('offers the union of managed and judged shows', async () => {

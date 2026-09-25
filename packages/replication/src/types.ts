@@ -54,6 +54,14 @@ export interface ReplicatedRow<T> {
    *  Used as the OCC precondition on the next UPDATE: WHERE version = serverVersion.
    *  Updated by set() when a clean row arrives from the server. */
   serverVersion?: number;
+  /**
+   * The step this device's own last successful upload moved `serverVersion`
+   * through (`from` → `to`). A write queued while that upload was in flight
+   * read `from`; if the row still holds `to`, nothing else touched the server
+   * row in between, so that write may move to `to` (MYK9-770). Any other
+   * change of `serverVersion` breaks the `to` match and switches this off.
+   */
+  lastOwnUpload?: { from: number; to: number };
   conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
 }
 

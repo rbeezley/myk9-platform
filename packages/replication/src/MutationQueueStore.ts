@@ -396,25 +396,26 @@ export class MutationQueueStore {
 }
 
 /**
- * Persist a queued mutation, stamping the OCC token the cached row holds at
- * THIS moment when that is newer than the one the caller read (MYK9-770).
+ * Persist a queued mutation, moving its OCC token forward past THIS device's
+ * own upload that landed while the caller was queuing it (MYK9-770).
  *
  * The caller (ReplicatedTable.queueMutation) reads `row.serverVersion` before
  * calling in. If this device's previous write to the row uploads in between,
  * the upload marks the row with the new version and re-stamps the row's queued
  * mutations (updateMutationServerVersions) — before this one is in the queue.
  * It would then carry the stale token forever: every upload matches 0 rows and
- * a full-row UPDATE is never rebased. Reading the row inside the same
- * readwrite transaction as the put closes the gap: IndexedDB orders it wholly
- * before or after the upload's row write, and either order leaves this
- * mutation on the current token.
+ * a full-row UPDATE is never rebased (MYK9-771).
  *
- * Only ever raises the token, and only when the caller asked for a
- * precondition (conflict surfacing on). The row's token moves forward only on
- * this device's own upload, a safe dirty-row reconcile (which rebases queued
- * writes too), or an OCC rejection after which new writes are meant to carry
- * the server's version — the same token the caller would have read a moment
- * later.
+ * Only that step is taken: the token moves from `from` to `to` exactly when
+ * the row's `lastOwnUpload` says this device's own upload moved it so and the
+ * row still holds `to`. The payload was built on the local row, which already
+ * held that upload's change, so it is based on `to`. Any other advance — a
+ * download carrying another device's write — leaves the token alone, so that
+ * conflict still surfaces instead of being overwritten (Codex P1).
+ *
+ * The read and the put share ONE readwrite transaction over both stores, which
+ * IndexedDB orders wholly before or after the upload's row write; either order
+ * leaves this mutation on the current token.
  */
 async function putStampingCurrentServerVersion(
   db: IDBPDatabase,
@@ -441,10 +442,11 @@ async function putStampingCurrentServerVersion(
       .objectStore(REPLICATION_STORES.REPLICATED_TABLES)
       .get([mutation.tableName, String(mutation.rowId)]);
     read.onsuccess = () => {
-      const current = (read.result as { serverVersion?: unknown } | undefined)?.serverVersion;
+      const row = read.result as ReplicatedRow<unknown> | undefined;
+      const step = row?.lastOwnUpload;
       const stamped =
-        typeof current === 'number' && current > requestedVersion
-          ? { ...mutation, serverVersion: current }
+        step !== undefined && step.from === requestedVersion && row?.serverVersion === step.to
+          ? { ...mutation, serverVersion: step.to }
           : mutation;
       tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(stamped);
     };

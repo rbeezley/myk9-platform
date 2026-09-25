@@ -54,13 +54,17 @@ describe('MutationManager queueMutation — OCC token read at enqueue', () => {
     vi.restoreAllMocks();
   });
 
-  async function putRow(serverVersion: number | undefined) {
+  async function putRow(
+    serverVersion: number | undefined,
+    lastOwnUpload?: { from: number; to: number }
+  ) {
     await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
       tableName: 'entries',
       id: 'entry-1',
       data: { id: 'entry-1', entry_status: 'confirmed' },
       isDirty: true,
       ...(serverVersion !== undefined && { serverVersion }),
+      ...(lastOwnUpload && { lastOwnUpload }),
     });
   }
 
@@ -78,21 +82,35 @@ describe('MutationManager queueMutation — OCC token read at enqueue', () => {
     return (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, id)) as PendingMutation;
   }
 
-  it('carries the version the row holds when it is queued, not the stale one read earlier', async () => {
-    // The armband upload already landed: row is at 2, the queue re-stamp is done.
-    await putRow(2);
+  it("moves past this device's own upload that landed while it was being queued", async () => {
+    // The armband upload moved the row 1 -> 2 and its queue re-stamp is done.
+    await putRow(2, { from: 1, to: 2 });
     const accept = await queueAccept(1);
     expect(accept.serverVersion).toBe(2);
   });
 
-  it('never lowers the version the caller passed', async () => {
-    await putRow(1);
-    const accept = await queueAccept(3);
-    expect(accept.serverVersion).toBe(3);
+  it("keeps the stale token when ANOTHER device's write advanced the row (Codex P1)", async () => {
+    // A download moved the row to 2; the payload was built on 1, so the
+    // precondition must still be 1 and the upload must surface a conflict.
+    await putRow(2);
+    const accept = await queueAccept(1);
+    expect(accept.serverVersion).toBe(1);
+  });
+
+  it('keeps the stale token when the row moved on again after the own upload', async () => {
+    await putRow(3, { from: 1, to: 2 });
+    const accept = await queueAccept(1);
+    expect(accept.serverVersion).toBe(1);
+  });
+
+  it('never touches a token other than the step it read from', async () => {
+    await putRow(2, { from: 1, to: 2 });
+    const accept = await queueAccept(2);
+    expect(accept.serverVersion).toBe(2);
   });
 
   it('adds no precondition when the caller passed none (conflict surfacing off)', async () => {
-    await putRow(2);
+    await putRow(2, { from: 1, to: 2 });
     const accept = await queueAccept(undefined);
     expect(accept.serverVersion).toBeUndefined();
   });

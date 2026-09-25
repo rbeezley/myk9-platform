@@ -30,6 +30,12 @@ export async function markReplicatedRowSynced(
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
     ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    // Record the step only when this upload carried a precondition: then the
+    // server held exactly `from` before it and exactly this write after it.
+    ...(newServerVersion !== undefined &&
+      mutation.serverVersion !== undefined && {
+        lastOwnUpload: { from: mutation.serverVersion, to: newServerVersion },
+      }),
   });
 }
 

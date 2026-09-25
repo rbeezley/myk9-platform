@@ -25,11 +25,7 @@ interface SeededCart {
   cartItem: Record<string, unknown>;
 }
 
-async function preventSharedEntryWrites(
-  page: Page,
-  captured: CapturedWrites,
-  seed?: SeededCart
-) {
+async function preventSharedEntryWrites(page: Page, captured: CapturedWrites, seed?: SeededCart) {
   let cart: Record<string, unknown> | null = seed?.cart ?? null;
   let cartItem: Record<string, unknown> | null = seed?.cartItem ?? null;
   await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
@@ -362,7 +358,12 @@ test('the cart fits a 390px phone with Clear Cart still reachable', async ({ pag
         total_cents: 3500,
         created_at: new Date(now).toISOString(),
         updated_at: new Date(now).toISOString(),
-        show: { id: SHOW_ID, name: 'E2E Online Entry Show', start_date: null, entry_close_date: null },
+        show: {
+          id: SHOW_ID,
+          name: 'E2E Online Entry Show',
+          start_date: null,
+          entry_close_date: null,
+        },
       },
       cartItem: {
         id: 'e2e-mocked-cart-item',

@@ -115,12 +115,14 @@ describe('recovered cart re-check (MYK9-656)', () => {
     expect(holder.db.items.map(item => item.id)).toEqual(['item-open']);
     expect(useCartStore.getState().droppedClosedClassItems).toEqual([
       {
+        cartId: 'cart-1',
         itemId: 'item-full',
         dogName: 'Rover',
         className: 'Handler Discrimination Advanced',
         reason: 'This class is full',
       },
       {
+        cartId: 'cart-1',
         itemId: 'item-cancelled',
         dogName: 'Rover',
         className: 'Exterior Master',
@@ -161,6 +163,33 @@ describe('recovered cart re-check (MYK9-656)', () => {
     expect(cart?.items.map(item => item.id)).toEqual(['item-full', 'item-cancelled', 'item-open']);
     expect(useCartStore.getState().cart).not.toBeNull();
     expect(useCartStore.getState().droppedClosedClassItems).toEqual([]);
+  });
+
+  it("forgets another cart's removals when a different cart loads (Codex P2, PR #2438)", async () => {
+    serverDrops({ 'item-cancelled': 'cancelled' });
+    await useCartStore.getState().loadActiveCart('exhibitor-1');
+    expect(useCartStore.getState().droppedClosedClassItems).toHaveLength(1);
+
+    holder.db.carts = [
+      fakeCart({ id: 'cart-2', show_id: 'show-2', created_at: '2026-09-02T00:00:00.000Z' }),
+    ];
+    holder.db.items = [
+      fakeCartItem({ id: 'item-other', cart_id: 'cart-2', class_id: 'class-open' }),
+    ];
+    serverDrops({});
+    await useCartStore.getState().loadActiveCart('exhibitor-1');
+
+    expect(useCartStore.getState().cart?.id).toBe('cart-2');
+    expect(useCartStore.getState().droppedClosedClassItems).toEqual([]);
+  });
+
+  it('records which cart each removal came from', async () => {
+    serverDrops({ 'item-cancelled': 'cancelled' });
+    await useCartStore.getState().loadActiveCart('exhibitor-1');
+    expect(useCartStore.getState().droppedClosedClassItems[0]).toMatchObject({
+      itemId: 'item-cancelled',
+      cartId: 'cart-1',
+    });
   });
 
   it('clears the explanation at an account boundary', async () => {

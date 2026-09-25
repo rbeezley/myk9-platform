@@ -22,14 +22,17 @@ describe('ClosedClassRemovedNotice', () => {
 
   it('names each removed class and its reason, then dismisses', () => {
     useCartStore.setState({
+      cart: { id: 'cart-1' } as never,
       droppedClosedClassItems: [
         {
+          cartId: 'cart-1',
           itemId: 'item-1',
           dogName: 'Rover',
           className: 'Exterior Master',
           reason: describeBlockReason('cancelled'),
         },
         {
+          cartId: 'cart-1',
           itemId: 'item-2',
           dogName: 'Rover',
           className: 'Handler Discrimination Advanced',
@@ -58,9 +61,29 @@ describe('ClosedClassRemovedNotice', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it("never describes another cart's removals as this cart's (Codex P2, PR #2438)", () => {
+    useCartStore.setState({
+      cart: { id: 'cart-2' } as never,
+      droppedClosedClassItems: [
+        {
+          cartId: 'cart-1',
+          itemId: 'item-1',
+          dogName: 'Rover',
+          className: 'Exterior Master',
+          reason: describeBlockReason('cancelled'),
+        },
+      ],
+    });
+
+    const { container } = render(<ClosedClassRemovedNotice />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('falls back gracefully when the dog or class name is unknown', () => {
     expect(
       describeDroppedItem({
+        cartId: 'cart-1',
         itemId: 'x',
         dogName: null,
         className: null,

@@ -12,6 +12,7 @@
  * INTENT: "This respects my time" — one calm sentence per class in dog-show
  * words, no error styling (nothing went wrong on their side), and a dismiss.
  */
+import { useMemo } from 'react';
 import { Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCartStore } from '@/store/cartStore';
@@ -21,7 +22,14 @@ import { describeDroppedItem } from './closedClassRemovedNotice.helpers';
 const NONE: DroppedCartItem[] = [];
 
 export function ClosedClassRemovedNotice({ className }: { className?: string }) {
-  const items = useCartStore(state => state.droppedClosedClassItems) ?? NONE;
+  const allItems = useCartStore(state => state.droppedClosedClassItems) ?? NONE;
+  const cartId = useCartStore(state => state.cart?.id ?? null);
+  // Only the loaded cart's removals: a persisted notice from another show's
+  // cart must never read as this cart's (Codex P2 on PR #2438).
+  const items = useMemo(
+    () => allItems.filter(item => item.cartId === cartId),
+    [allItems, cartId]
+  );
   const dismiss = useCartStore(state => state.dismissDroppedClosedClassItems);
 
   if (items.length === 0) return null;

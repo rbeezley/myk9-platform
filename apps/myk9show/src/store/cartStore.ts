@@ -146,7 +146,8 @@ export const useCartStore = create<CartState>()(
               lastSyncedAt: new Date().toISOString(),
               droppedClosedClassItems: mergeDroppedItems(
                 get().droppedClosedClassItems,
-                closure.dropped
+                closure.dropped,
+                cartData.id
               ),
             });
 
@@ -343,7 +344,8 @@ export const useCartStore = create<CartState>()(
             expirationWarning: false,
             droppedClosedClassItems: mergeDroppedItems(
               get().droppedClosedClassItems,
-              closure.dropped
+              closure.dropped,
+              cartData.id
             ),
           });
 

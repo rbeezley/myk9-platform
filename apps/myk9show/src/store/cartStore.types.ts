@@ -113,6 +113,8 @@ export interface CheckoutResult {
  * bought online (MYK9-656). Kept so the exhibitor is told what left and why.
  */
 export interface DroppedCartItem {
+  /** The cart the line was removed from; only that cart's notice shows it. */
+  cartId: string;
   itemId: string;
   dogName: string | null;
   className: string | null;

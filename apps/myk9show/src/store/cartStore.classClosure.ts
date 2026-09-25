@@ -98,6 +98,7 @@ export async function dropItemsInClosedClasses({
       continue;
     }
     dropped.push({
+      cartId,
       itemId: item.id,
       dogName: item.dog?.call_name || item.dog?.name || null,
       className: item.class?.name ?? null,
@@ -108,12 +109,17 @@ export async function dropItemsInClosedClasses({
   return { items: kept, dropped };
 }
 
-/** Add newly dropped lines to those not yet dismissed, once per cart line. */
+/**
+ * Add newly dropped lines to those not yet dismissed, once per cart line, and
+ * keep only the loaded cart's: a notice about another show's cart must never be
+ * shown as this cart's (Codex P2 on PR #2438).
+ */
 export function mergeDroppedItems(
   previous: readonly DroppedCartItem[],
-  next: readonly DroppedCartItem[]
+  next: readonly DroppedCartItem[],
+  cartId: string
 ): DroppedCartItem[] {
-  if (next.length === 0) return [...previous];
-  const seen = new Set(previous.map(entry => entry.itemId));
-  return [...previous, ...next.filter(entry => !seen.has(entry.itemId))];
+  const kept = previous.filter(entry => entry.cartId === cartId);
+  const seen = new Set(kept.map(entry => entry.itemId));
+  return [...kept, ...next.filter(entry => !seen.has(entry.itemId))];
 }

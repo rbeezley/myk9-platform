@@ -379,12 +379,12 @@ async function clickCalendarDay(dialog: Locator, name: RegExp) {
   await day.click();
 }
 
-test.describe('Show Creation Wizard - scrolled-to fields clear the sticky chrome (MYK9-764)', () => {
+test.describe('Show Creation Wizard - fields clear the sticky chrome (MYK9-764)', () => {
   for (const viewport of [
     { name: 'desktop', width: 1440, height: 600 },
     { name: 'phone', width: 390, height: 600 },
   ]) {
-    test(`a field scrolled to the top lands below the step indicator at ${viewport.width}`, async ({
+    test(`a field scrolled or tabbed to lands below the step indicator at ${viewport.width}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -397,29 +397,97 @@ test.describe('Show Creation Wizard - scrolled-to fields clear the sticky chrome
       // Past the mount-time focus, so it cannot move the page under us.
       await page.waitForTimeout(600);
 
-      // Known answer: scrolled to the bottom, the field is off screen above.
-      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-      await page.waitForTimeout(400);
-      const before = await showName.evaluate(el => el.getBoundingClientRect().top);
-      expect(
-        before,
-        'the field must start above the viewport for this to mean anything'
-      ).toBeLessThan(0);
+      const parkAtBottom = async () => {
+        await page.evaluate(() =>
+          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
+        );
+        await expect
+          .poll(() => showName.evaluate(el => el.getBoundingClientRect().top), {
+            message: 'the field must start above the viewport for this to mean anything',
+          })
+          .toBeLessThan(0);
+      };
+      const expectClearOfChrome = async (how: string, maxGap = Infinity) => {
+        await expect
+          .poll(
+            async () => {
+              const [fieldTop, stepsBottom] = await Promise.all([
+                showName.evaluate(el => el.getBoundingClientRect().top),
+                steps.evaluate(el => el.getBoundingClientRect().bottom),
+              ]);
+              // Clear of the chrome (and, for a top-aligned scroll, not pushed
+              // needlessly far below it: Chrome centres a focus scroll instead).
+              return fieldTop >= stepsBottom && fieldTop - stepsBottom <= maxGap
+                ? 'clear'
+                : `${how}: field top ${fieldTop}, step indicator bottom ${stepsBottom}`;
+            },
+            { timeout: 3000 }
+          )
+          .toBe('clear');
+        expect(
+          await page.evaluate(() => window.scrollY),
+          `${how}: did not clamp at 0`
+        ).toBeGreaterThan(0);
+      };
 
-      // The worst case: aligned to the top of the scrollport. Focus scrolling,
-      // hash links and scrollIntoView all honour the document's scroll padding,
-      // which is what reserves the wizard chrome.
+      // scrollIntoView (also what hash links and the validation banner use),
+      // aligned to the top: the worst case.
+      await parkAtBottom();
       await showName.evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
-      await page.waitForTimeout(200);
+      await expectClearOfChrome('scrollIntoView', 40);
 
-      const [fieldTop, stepsBottom] = await Promise.all([
-        showName.evaluate(el => el.getBoundingClientRect().top),
-        steps.evaluate(el => el.getBoundingClientRect().bottom),
-      ]);
+      // The browser's own focus scrolling: Tab onto the field from the control
+      // before it, which is focused without scrolling. Chrome centres a focus
+      // scroll and does not always honour scroll-margin, so in a 600px-tall
+      // window (centre 300px, chrome ending at 308-320px) the field can land
+      // just under the step indicator; at a realistic 800px it clears it.
+      // That short-window residual is noted on MYK9-764.
+      await page.setViewportSize({ width: viewport.width, height: 800 });
+      await parkAtBottom();
+      await showName.evaluate(el => {
+        const focusables = [
+          ...document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"]), select, textarea, a[href]'
+          ),
+        ].filter(node => node.offsetParent !== null);
+        const index = focusables.indexOf(el as HTMLElement);
+        focusables[index - 1]?.focus({ preventScroll: true });
+      });
+      await page.keyboard.press('Tab');
+      await expect(showName).toBeFocused();
+      await expectClearOfChrome('Tab');
+    });
+
+    test(`tabbing onto the wizard's own sticky Back button does not scroll the page at ${viewport.width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+      const back = page.getByTestId('show-creation-wizard-header').getByRole('button').first();
+      await expect(back).toBeVisible({ timeout: 30000 });
+      await page.waitForTimeout(600);
+      await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+      const before = await page.evaluate(() => window.scrollY);
+
+      // Focus via the keyboard path: Shift+Tab from the next focusable control.
+      await back.evaluate(el => {
+        const focusables = [
+          ...document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"]), select, textarea, a[href]'
+          ),
+        ].filter(node => node.offsetParent !== null);
+        focusables[focusables.indexOf(el as HTMLElement) + 1]?.focus({ preventScroll: true });
+      });
+      await page.keyboard.press('Shift+Tab');
+      await expect(back).toBeFocused();
+      await page.waitForTimeout(400);
+
       expect(
-        fieldTop,
-        `the field (top ${fieldTop}) is hidden under the sticky step indicator (bottom ${stepsBottom})`
-      ).toBeGreaterThanOrEqual(stepsBottom);
+        await page.evaluate(() => window.scrollY),
+        'focusing the sticky Back button scrolled the page'
+      ).toBe(before);
     });
   }
 });

@@ -43,6 +43,7 @@ export type {
   CreateJudgeCertificationDbData,
   JudgeAvailabilityUpsertData,
 } from './reads';
+export { showJudgesChanged } from './showJudgesChanged';
 export {
   getActiveJudgeAssignmentShows,
   getActiveJudgeAssignmentsForShow,

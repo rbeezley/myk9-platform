@@ -19,8 +19,11 @@ vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
 }));
-vi.mock('@/services/database/judges', () => ({
+vi.mock('@/services/database/judges', async () => ({
   persistShowJudgeAssignments: saveHarness.persistJudges,
+  // The real rule: it decides whether the save may touch the judges at all.
+  showJudgesChanged: (await import('@/services/database/judges/showJudgesChanged'))
+    .showJudgesChanged,
 }));
 
 const manageScope = vi.hoisted(() => ({
@@ -483,5 +486,42 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     // Publication did not complete, so the panel stays open with its error.
     expect(saveHarness.runPublish).toHaveBeenCalled();
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+});
+
+// MYK9-772: a judge list the page loaded from a failed device read is empty
+// but not "none". Saving the Edit Show panel used to replace the show's judges
+// with whatever the form held, so an untouched form deleted every real judge.
+describe('Edit Show only replaces the judges when the secretary changed them', () => {
+  const judge = (judgeId: string) => ({ judgeId, judgeName: judgeId, isPrimary: false });
+
+  async function saveWith(loaded: unknown[], saved: unknown[]) {
+    saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.runPublish.mockReset();
+    saveHarness.payload = { name: 'Renamed Show', assignedJudges: saved };
+    renderShell(
+      { show: { ...makeShow(), assignedJudges: loaded } as unknown as Show },
+      '/shows/show-1?edit=true'
+    );
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+    await waitFor(() => expect(saveHarness.updateShow).toHaveBeenCalled());
+  }
+
+  it('leaves the judges alone when the loaded list comes back untouched', async () => {
+    await saveWith([judge('j1'), judge('j2')], [judge('j2'), judge('j1')]);
+    expect(saveHarness.persistJudges).not.toHaveBeenCalled();
+  });
+
+  it('does not wipe judges when an unreadable (empty) list is saved untouched', async () => {
+    await saveWith([], []);
+    expect(saveHarness.persistJudges).not.toHaveBeenCalled();
+  });
+
+  it('replaces the judges when the secretary changed them', async () => {
+    await saveWith([judge('j1')], [judge('j1'), judge('j3')]);
+    await waitFor(() =>
+      expect(saveHarness.persistJudges).toHaveBeenCalledWith('show-1', [judge('j1'), judge('j3')])
+    );
   });
 });

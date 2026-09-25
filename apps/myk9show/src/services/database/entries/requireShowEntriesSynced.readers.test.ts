@@ -21,6 +21,7 @@ const SHOW_ID = 'show-1';
 const state = vi.hoisted(() => ({
   entries: [] as Array<Record<string, unknown>>,
   synced: false,
+  judgeReadFails: false,
   sync: vi.fn(),
 }));
 
@@ -62,6 +63,11 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn(async () => []),
+    getAllWithStatus: vi.fn(async () =>
+      state.judgeReadFails
+        ? { ok: false, rows: [], error: new Error('IndexedDB read timed out') }
+        : { ok: true, rows: [], error: null }
+    ),
   },
 }));
 
@@ -185,6 +191,19 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
         { key: 'dog-new|class-1', classId: 'class-1' },
       ]);
       expect(overrides).toEqual({ 'dog-new|class-1': true });
+    });
+
+    // MYK9-772: a failed judge-assignment read built no judge-day keys, so a
+    // full judge-day was never counted as full offline. It must fail instead.
+    it('the offline capacity override refuses to count on a failed judge read', async () => {
+      state.judgeReadFails = true;
+      try {
+        await expect(
+          loadOfflineCapacityOverrides(SHOW_ID, [{ key: 'dog-new|class-1', classId: 'class-1' }])
+        ).rejects.toThrow(/Could not read judge assignments on this device/);
+      } finally {
+        state.judgeReadFails = false;
+      }
     });
   });
 

@@ -1,11 +1,11 @@
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
-  replicatedJudgeAssignmentsTable,
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
 import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
+import { readJudgeAssignmentsOrThrow } from '@/services/database/judges/assignmentReads';
 
 const CAPACITY_STATUSES = new Set([
   'submitted',
@@ -150,7 +150,9 @@ export async function loadOfflineCapacityOverrides(
     replicatedShowsTable.getShowById(showId),
     replicatedClassesTable.getAll(),
     replicatedTrialsTable.getTrialsByShow(showId),
-    replicatedJudgeAssignmentsTable.getByShowId(showId),
+    // A failed device read throws (MYK9-772): getByShowId() turned it into [],
+    // which builds no judge-day keys and never counts a full judge-day as full.
+    readJudgeAssignmentsOrThrow().then(rows => rows.filter(a => a.showId === showId)),
     replicatedEntriesTable.getEntriesByShow(showId),
   ]);
 

@@ -25,7 +25,10 @@ vi.mock('@/services/replication', () => ({
     getAll: vi.fn().mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }]),
   },
   replicatedTrialsTable: { getTrialsByShow: vi.fn().mockResolvedValue([]) },
-  replicatedJudgeAssignmentsTable: { getByShowId: vi.fn().mockResolvedValue([]) },
+  replicatedJudgeAssignmentsTable: {
+    getByShowId: vi.fn().mockResolvedValue([]),
+    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+  },
   replicatedArmbandsTable: {
     getByShow: vi.fn().mockResolvedValue([]),
     upsertAssignedArmband: vi.fn().mockResolvedValue('armband-mutation-1'),

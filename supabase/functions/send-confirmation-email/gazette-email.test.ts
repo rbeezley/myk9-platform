@@ -97,19 +97,19 @@ describe('buildGazetteHtml', () => {
     expect(html).toContain('Confirmed');
   });
 
-  it('includes a runs table with lowercase roman numeral and armband per row', () => {
+  it('includes a runs table with the trial label as stored and armband per row', () => {
     const html = buildGazetteHtml(
       makeData({
         runs: [
           {
-            numeral: 'I',
+            numeral: 'Friday T 1',
             dayLabel: 'Fri Jun 12',
             classLabel: 'Containers',
             judgeName: 'Mrs. B',
             armband: '247',
           },
           {
-            numeral: 'III',
+            numeral: 'Saturday T 2',
             dayLabel: 'Sat Jun 13',
             classLabel: 'Interiors',
             judgeName: 'Mrs. B',
@@ -118,8 +118,10 @@ describe('buildGazetteHtml', () => {
         ],
       })
     );
-    expect(html).toContain('>i<');
-    expect(html).toContain('>iii<');
+    // The trial label prints exactly as stored (MYK9-713): never lowercased.
+    expect(html).toContain('>Friday T 1<');
+    expect(html).toContain('>Saturday T 2<');
+    expect(html).not.toContain('saturday t 2');
     expect(html).toContain('247');
     expect(html).toContain('—'); // null armband fallback
   });
@@ -129,7 +131,7 @@ describe('buildGazetteHtml', () => {
       makeData({
         runs: [
           {
-            numeral: 'III',
+            numeral: 'Saturday T 2',
             dayLabel: 'Sat Jun 13',
             classLabel: 'Excellent · Interiors',
             judgeName: 'Mrs. B',
@@ -139,7 +141,7 @@ describe('buildGazetteHtml', () => {
       })
     );
 
-    expect(html).toContain('>iii<');
+    expect(html).toContain('>Saturday T 2<');
     expect(html).toContain('Excellent · Interiors');
     expect(html).toContain('314');
   });

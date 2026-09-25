@@ -57,6 +57,12 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   const selectedClassDefinitions = selectedClasses
     .filter(item => item.selected)
     .map(item => item.classDefinition);
+  const navSummary = [
+    selectedTemplate && `Template: ${selectedTemplate.templateName}`,
+    selectedClassDefinitions.length > 0 && `${selectedClassDefinitions.length} classes selected`,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   const effectiveTrialId = trialId || paramTrialId;
   const { parentShow } = useTrialDetailData(effectiveTrialId);
@@ -335,8 +341,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header. Wraps: at 390px the title block and the step progress do not
+          fit on one line, and without wrap the progress pushed the page 124px
+          wider than the phone (classCreation.spec.ts, 390x844). */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => startTransition(() => navigate(-1))}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -345,7 +353,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           <Separator orientation="vertical" className="h-6" />
           <div>
             <h1 className="text-2xl font-bold">Add Classes</h1>
-            <p className="text-muted-foreground">
+            <p className="break-all text-muted-foreground">
               {effectiveTrialId ? `Trial: ${effectiveTrialId}` : 'No trial selected'}
             </p>
           </div>
@@ -612,7 +620,18 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       {/* Navigation */}
       {currentStep !== 'complete' && (
         <Card className="mt-6">
-          <CardContent className="flex justify-between items-center py-4">
+          {/* The template summary, once there is one, takes its own first
+              line, so Previous and the primary action share the next and
+              justify-between keeps them left and right. Not a viewport
+              breakpoint: the row's width is the content column's, which the
+              sidebar narrows to ~480px at 768 wide (classCreation.spec.ts runs
+              390, 768 and 1440). The summary comes first in the DOM too, so
+              screen-reader order matches the screen. */}
+          <CardContent className="flex flex-wrap justify-between items-center gap-3 py-4">
+            {navSummary && (
+              <div className="basis-full text-sm text-muted-foreground">{navSummary}</div>
+            )}
+
             <Button
               variant="outline"
               onClick={handlePrevious}
@@ -622,14 +641,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               Previous
             </Button>
 
-            <div className="text-sm text-muted-foreground">
-              {selectedTemplate && `Template: ${selectedTemplate.templateName}`}
-              {selectedClassDefinitions.length > 0 &&
-                ` • ${selectedClassDefinitions.length} classes selected`}
-            </div>
-
             {currentStep === 'review' ? (
-              <div className="flex flex-col items-end gap-1">
+              // ml-auto keeps the block right-aligned if its helper text ever
+              // makes it wrap onto a line of its own.
+              <div className="ml-auto flex flex-col items-end gap-1">
                 <Button onClick={handleCreateClasses} disabled={isCreating || !effectiveTrialId}>
                   {isCreating ? (
                     <>

@@ -14,6 +14,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { BannerLandingPage } from '../BannerLandingPage';
 import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
+import { bannerColors } from '../../tokens';
 import type { BannerLandingData } from '../types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -118,5 +119,33 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', baseData.entryWizardUrl);
     }
+  });
+});
+
+describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
+  it("colours the sticky nav's status text with the show's flag, not the default teal", () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <BannerLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryWindowNotOpen={false}
+      />
+    );
+
+    // jsdom resolves no custom properties, so pin both halves of the chain:
+    // the status text reads --bn-flag, and the page sets it to the club flag.
+    const status = container.querySelector<HTMLElement>('.bn-subbar-status');
+    expect(status?.style.color).toBe('var(--bn-flag)');
+    const scope = status?.closest<HTMLElement>('[data-banner]');
+    expect(scope?.style.getPropertyValue('--bn-flag')).toBe(baseData.brandColors.flag);
+    // Nothing between them re-sets the variable to something else.
+    for (let el = status?.parentElement; el && el !== scope; el = el.parentElement) {
+      expect(el.style.getPropertyValue('--bn-flag')).toBe('');
+    }
+    // The fixture's flag must differ from the default, or this proves nothing.
+    expect(baseData.brandColors.flag).not.toBe(bannerColors.flag);
   });
 });

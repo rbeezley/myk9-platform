@@ -46,18 +46,21 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({ editMode, onClose })
       data-testid="show-creation-wizard-header"
       className="border-b bg-card sticky top-[var(--app-top-inset,3rem)] z-40"
     >
-      <div className="container mx-auto px-6 py-4 max-w-7xl">
-        <div className="flex items-center gap-4">
+      <div className="container mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        {/* Wraps rather than overflowing: at 150% zoom on a phone (260px) the
+            breadcrumb pushed the page 92px sideways (MYK9-643). */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {/* The only way out of the wizard, so it takes the 44px floor. */}
           <Button
             variant="ghost"
-            size="sm"
+            size="touch"
             onClick={onClose}
             className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
             <span>Secretary</span>
             <span>/</span>
             <span>Add Show</span>

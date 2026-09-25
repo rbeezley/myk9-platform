@@ -136,7 +136,11 @@ export type {
   ReplicatedSetSkipReason,
 } from './core/coldInsertGuard';
 export { isQuotaExceededError, withQuotaEviction } from './quota-eviction';
-export { syncReplicatedTable, configureConflictSurfacing } from './syncReplicatedTable';
+export {
+  syncReplicatedTable,
+  configureConflictSurfacing,
+  countServerBackedRows,
+} from './syncReplicatedTable';
 export type {
   RemoteFetchContext,
   RemoteRowCountContext,

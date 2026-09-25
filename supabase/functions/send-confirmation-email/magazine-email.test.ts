@@ -190,14 +190,14 @@ describe('buildMagazineHtml', () => {
       makeData({
         runs: [
           {
-            numeral: 'I',
+            numeral: 'Friday T 1',
             dayLabel: 'Fri 12 Jun',
             classLabel: 'Containers',
             judgeName: 'C. Beagles',
             armband: '247',
           },
           {
-            numeral: 'III',
+            numeral: 'Saturday T 2',
             dayLabel: 'Sat 13 Jun',
             classLabel: 'Interiors',
             judgeName: 'C. Beagles',
@@ -208,8 +208,10 @@ describe('buildMagazineHtml', () => {
     );
     expect(html).toContain('Fri 12 Jun');
     expect(html).toContain('Sat 13 Jun');
-    expect(html).toContain('>i<');
-    expect(html).toContain('>iii<');
+    // The trial label prints exactly as stored (MYK9-713): never lowercased.
+    expect(html).toContain('>Friday T 1<');
+    expect(html).toContain('>Saturday T 2<');
+    expect(html).not.toContain('saturday t 2');
     expect(html).toContain('—'); // null-armband fallback
   });
 
@@ -218,7 +220,7 @@ describe('buildMagazineHtml', () => {
       makeData({
         runs: [
           {
-            numeral: 'III',
+            numeral: 'Saturday T 2',
             dayLabel: 'Sat 13 Jun',
             classLabel: 'Excellent · Interiors',
             judgeName: 'C. Beagles',
@@ -228,7 +230,7 @@ describe('buildMagazineHtml', () => {
       })
     );
 
-    expect(html).toContain('>iii<');
+    expect(html).toContain('>Saturday T 2<');
     expect(html).toContain('Excellent · Interiors');
     expect(html).toContain('314');
   });

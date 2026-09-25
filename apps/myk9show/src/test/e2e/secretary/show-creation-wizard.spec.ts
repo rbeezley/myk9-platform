@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { currentMonthWizardDates } from '../shared/wizardDates';
 import { ADD_TRIALS_SHOW_ID } from '../uat/shared/seededShows';
+import { PHONE_AT_150_PERCENT_ZOOM, expectNoHorizontalScroll } from '../shared/horizontalOverflow';
 
 test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('secretary can open the show creation wizard', async ({ page }) => {
@@ -28,6 +29,41 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
 
     await page.getByRole('button', { name: /^Next$/ }).click();
     await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
+  });
+
+  // MYK9-643: at 150% zoom on a phone the breadcrumb, the clone picker and
+  // "Locate address" pushed the page 92px sideways.
+  test('Step 1 does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
+    await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /Locate address/i })).toBeVisible();
+    await expectNoHorizontalScroll(page, 'show wizard step 1');
+  });
+
+  // MYK9-643: every one of these measured 40px (the Back button 32px) at
+  // 390x844, under docs/INTENT.md's 44px floor.
+  test('every Step 1 control meets the 44px touch floor at phone width', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible({ timeout: 15000 });
+
+    const controls = {
+      Back: page.getByTestId('show-creation-wizard-header').getByRole('button', { name: 'Back' }),
+      'Show Name': page.getByLabel(/Show Name/i),
+      Organization: page.getByLabel(/Organization/i),
+      'Show Dates': page.getByRole('button', { name: /Show Dates/i }),
+      'Entry Period': page.getByRole('button', { name: /Entry Period/i }),
+      'Locate address': page.getByRole('button', { name: /Locate address/i }),
+      'Show Chairman': page.getByRole('button', { name: /Show Chairman/i }),
+    };
+    for (const [name, control] of Object.entries(controls)) {
+      const box = await control.boundingBox();
+      expect(box, `${name} must be rendered`).not.toBeNull();
+      // Rounded: layout lands a 44px box on 43.99997 after sub-pixel scaling.
+      const height = Math.round(box!.height);
+      expect(height, `${name} is ${Math.round(box!.width)}x${height}`).toBeGreaterThanOrEqual(44);
+    }
   });
 
   test('Step 1 exposes premium style options and independent date ranges', async ({ page }) => {
@@ -113,6 +149,26 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
   test('Add Trials mode lands on trial configuration with AKC event number guidance', async ({
     page,
   }) => {
+    // MYK9-758: before this show's trials are known, the step must never offer
+    // an ENABLED "Add First Trial" -- the show has trials. A flash can be too
+    // brief for a polled assertion, so record it from the first paint.
+    await page.addInitScript(() => {
+      const flag = '__myk9SawEnabledAddFirstTrial';
+      const scan = () => {
+        for (const button of document.querySelectorAll('button')) {
+          if (button.textContent?.trim() === 'Add First Trial' && !button.disabled) {
+            (window as unknown as Record<string, boolean>)[flag] = true;
+          }
+        }
+      };
+      new MutationObserver(scan).observe(document, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['disabled'],
+        characterData: true,
+      });
+    });
     await signInAsSecretary(
       page,
       `/secretary/create-show/wizard?showId=${ADD_TRIALS_SHOW_ID}&mode=add-trials`
@@ -125,8 +181,22 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       page.getByLabel('Wizard progress').getByText('Step 2 of 4', { exact: true })
     ).toBeVisible();
 
-    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
-    await expect(addTrialAction).toBeVisible();
+    // The seeded show already has trials, so once they load the banner names
+    // them and the action reads "Add Another Trial" (#2373); until then it is
+    // a disabled, neutral "Add Trial" (MYK9-758). Wait for the loaded state;
+    // the banner check also fails on the seed, not on a missing button, if the
+    // show ever has no trials (MYK9-755).
+    await expect(page.getByText(/\d+ existing trials?/)).toBeVisible({ timeout: 15000 });
+    const addTrialAction = page
+      .getByRole('button', { name: 'Add Another Trial', exact: true })
+      .first();
+    await expect(addTrialAction).toBeEnabled({ timeout: 15000 });
+    expect(
+      await page.evaluate(() =>
+        Boolean((window as unknown as Record<string, boolean>).__myk9SawEnabledAddFirstTrial)
+      ),
+      'an enabled "Add First Trial" was offered for a show that has trials'
+    ).toBe(false);
     await addTrialAction.click();
 
     await expect(page.getByPlaceholder('Required: AKC event number')).toBeVisible();
@@ -308,3 +378,113 @@ async function clickCalendarDay(dialog: Locator, name: RegExp) {
   await expect(day).toBeVisible();
   await day.click();
 }
+
+test.describe('Show Creation Wizard - fields clear the sticky chrome (MYK9-764)', () => {
+  for (const viewport of [
+    { name: 'desktop', width: 1440, height: 600 },
+    { name: 'phone', width: 390, height: 600 },
+  ]) {
+    test(`a field scrolled or tabbed to lands below the step indicator at ${viewport.width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+      const steps = page.getByTestId('show-creation-wizard-steps');
+      const showName = page.getByLabel(/Show Name/i);
+      await expect(steps).toBeVisible({ timeout: 30000 });
+      await expect(showName).toBeVisible();
+      // Past the mount-time focus, so it cannot move the page under us.
+      await page.waitForTimeout(600);
+
+      const parkAtBottom = async () => {
+        await page.evaluate(() =>
+          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
+        );
+        await expect
+          .poll(() => showName.evaluate(el => el.getBoundingClientRect().top), {
+            message: 'the field must start above the viewport for this to mean anything',
+          })
+          .toBeLessThan(0);
+      };
+      const expectClearOfChrome = async (how: string, maxGap = Infinity) => {
+        await expect
+          .poll(
+            async () => {
+              const [fieldTop, stepsBottom] = await Promise.all([
+                showName.evaluate(el => el.getBoundingClientRect().top),
+                steps.evaluate(el => el.getBoundingClientRect().bottom),
+              ]);
+              // Clear of the chrome (and, for a top-aligned scroll, not pushed
+              // needlessly far below it: Chrome centres a focus scroll instead).
+              return fieldTop >= stepsBottom && fieldTop - stepsBottom <= maxGap
+                ? 'clear'
+                : `${how}: field top ${fieldTop}, step indicator bottom ${stepsBottom}`;
+            },
+            { timeout: 3000 }
+          )
+          .toBe('clear');
+        expect(
+          await page.evaluate(() => window.scrollY),
+          `${how}: did not clamp at 0`
+        ).toBeGreaterThan(0);
+      };
+
+      // scrollIntoView (also what hash links and the validation banner use),
+      // aligned to the top: the worst case.
+      await parkAtBottom();
+      await showName.evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+      await expectClearOfChrome('scrollIntoView', 40);
+
+      // Keyboard focus: Tab onto the field from the control before it, which is
+      // focused without scrolling. Chrome centres a focus scroll, which in this
+      // 600px window would leave the field just under the step indicator; the
+      // form's focus handler re-reveals it clear of the chrome.
+      await parkAtBottom();
+      await showName.evaluate(el => {
+        const focusables = [
+          ...document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"]), select, textarea, a[href]'
+          ),
+        ].filter(node => node.offsetParent !== null);
+        const index = focusables.indexOf(el as HTMLElement);
+        focusables[index - 1]?.focus({ preventScroll: true });
+      });
+      await page.keyboard.press('Tab');
+      await expect(showName).toBeFocused();
+      await expectClearOfChrome('Tab');
+    });
+
+    test(`tabbing onto the wizard's own sticky Back button does not scroll the page at ${viewport.width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+      const back = page.getByTestId('show-creation-wizard-header').getByRole('button').first();
+      await expect(back).toBeVisible({ timeout: 30000 });
+      await page.waitForTimeout(600);
+      await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+      const before = await page.evaluate(() => window.scrollY);
+
+      // Focus via the keyboard path: Shift+Tab from the next focusable control.
+      await back.evaluate(el => {
+        const focusables = [
+          ...document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"]), select, textarea, a[href]'
+          ),
+        ].filter(node => node.offsetParent !== null);
+        focusables[focusables.indexOf(el as HTMLElement) + 1]?.focus({ preventScroll: true });
+      });
+      await page.keyboard.press('Shift+Tab');
+      await expect(back).toBeFocused();
+      await page.waitForTimeout(400);
+
+      expect(
+        await page.evaluate(() => window.scrollY),
+        'focusing the sticky Back button scrolled the page'
+      ).toBe(before);
+    });
+  }
+});

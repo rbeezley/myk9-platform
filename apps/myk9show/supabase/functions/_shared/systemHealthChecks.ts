@@ -25,8 +25,9 @@ import {
   LEGACY_HEALTH_CHECK_STALE_AFTER_MS,
   shouldRunHealthCheck,
   type HealthCheckRunMode,
-} from '../../../src/features/admin-system-health/healthCheckCadence.ts';
+} from './healthCheckCadence.ts';
 import { publicSchemaCreateAclCheck } from './publicSchemaAclChecks.ts';
+import { strayPublishedShowsCheck } from './strayShowChecks.ts';
 
 export type HealthStatus = 'ok' | 'warn' | 'fail';
 
@@ -102,6 +103,9 @@ export interface RawProbeFacts {
   anon_grants?: unknown;
   applied_acl_grants?: unknown;
   public_schema_create_acl?: unknown;
+  /** Every listed, non-deleted show the runner read directly (MYK9-741):
+   * `{ rows: { id, name, location }[] }` or `{ error }`. Full runs only. */
+  stray_published_shows?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -722,6 +726,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     anonGrantsCheck(f.anon_grants, probedAt),
     appliedAclCheck(f.applied_acl_grants, probedAt),
     publicSchemaCreateAclCheck(f.public_schema_create_acl, probedAt),
+    strayPublishedShowsCheck(f.stray_published_shows, probedAt),
   ];
 
   const previousByKey = new Map((opts.previousChecks ?? []).map(check => [check.key, check]));

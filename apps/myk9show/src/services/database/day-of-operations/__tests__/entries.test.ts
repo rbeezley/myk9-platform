@@ -150,6 +150,18 @@ describe('createDayOfEntry', () => {
     ]);
   });
 
+  it("counts the seats the server's capacity gate counts, not only confirmed and checked-in (MYK9-754)", async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      { id: 'e-submitted', classId: 'class-1', entryStatus: 'submitted' },
+      { id: 'e-paid', classId: 'class-1', entry_status: 'paid' },
+      { id: 'e-withdrawn', classId: 'class-1', entryStatus: 'withdrawn' },
+    ]);
+
+    const result = await getClassesWithCapacity('show-1');
+
+    expect(result.data?.[0]).toMatchObject({ accepted_count: 2, available_spots: 0 });
+  });
+
   it('searches day-of entry dogs from the replicated dog table', async () => {
     mockSupabase.from.mockReturnValue(
       createChainableQuery({

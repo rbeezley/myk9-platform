@@ -736,17 +736,18 @@ test('the phone entries bar totals the cart without covering the class list', as
       `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
     ).toBeLessThanOrEqual(barBox!.y + 1);
 
-    // The sticky header is pinned to the wizard's own scrollport, so it is still
-    // at the top of that scrollport after the scroll above.
+    // The sticky header is pinned to the wizard's own scrollport. Below `sm` it
+    // collapses to its step list (MYK9-622), so it is the step list, not the
+    // header's top edge, that must still sit at the top of that scrollport.
     const phoneShellTop = await page
       .getByTestId('registration-wizard-shell')
       .evaluate(el => el.getBoundingClientRect().top);
-    const phoneHeaderTop = await page
-      .getByTestId('registration-wizard-header')
+    const phoneStepListTop = await page
+      .getByTestId('wizard-step-list')
       .evaluate(el => el.getBoundingClientRect().top);
     expect(
-      Math.abs(phoneHeaderTop - phoneShellTop),
-      `header top ${phoneHeaderTop} must stay at the scrollport top ${phoneShellTop}`
+      Math.abs(phoneStepListTop - phoneShellTop),
+      `step list top ${phoneStepListTop} must stay at the scrollport top ${phoneShellTop}`
     ).toBeLessThanOrEqual(1);
 
     // Details expands the itemised list in place.
@@ -768,6 +769,69 @@ test('the phone entries bar totals the cart without covering the class list', as
     // Leave the staging cart as it was found.
     await removeAddedClass(page, added);
   }
+});
+
+// MYK9-622: on a Pixel 5 the sticky header (367px) and the entries bar (155px)
+// left 158px of a 727px viewport for the step. Measured on the dog step with
+// nothing selected, the worst case: the bar then also carries the
+// "Select at least one dog" reason above Back/Next.
+test('phone sticky chrome takes at most a third of the viewport once scrolled', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 393, height: 727 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+    timeout: 20000,
+  });
+  await expect(page.locator('[role="checkbox"][aria-label^="Select "]').first()).toBeVisible({
+    timeout: 20000,
+  });
+  const bar = page.getByTestId('entries-panel-bar');
+  await expect(bar).toBeVisible();
+
+  const shell = page.getByTestId('registration-wizard-shell');
+  // Known answer: a step too short to scroll would measure the unscrolled header
+  // and prove nothing about the collapse.
+  expect(
+    await shell.evaluate(el => el.scrollHeight - el.clientHeight),
+    'the step must be scrollable for this measurement to mean anything'
+  ).toBeGreaterThan(300);
+  await shell.evaluate(el => el.scrollTo(0, 400));
+  await page.waitForTimeout(300);
+  expect(await shell.evaluate(el => el.scrollTop)).toBeGreaterThan(300);
+
+  // Only the part of each sticky box that is inside the scrollport covers the
+  // step: the collapsed header's top sits above the scrollport by design.
+  const chrome = await page.evaluate(() => {
+    const visible = (el: Element | null, port: DOMRect) => {
+      if (!el) return 0;
+      const r = el.getBoundingClientRect();
+      return Math.max(0, Math.min(r.bottom, port.bottom) - Math.max(r.top, port.top));
+    };
+    const port = document
+      .querySelector('[data-testid="registration-wizard-shell"]')!
+      .getBoundingClientRect();
+    return {
+      header: visible(document.querySelector('[data-testid="registration-wizard-header"]'), port),
+      bar: visible(document.querySelector('[data-testid="entries-panel-bar"]'), port),
+      viewport: window.innerHeight,
+    };
+  });
+  // Known answers: both boxes were found and measured. A zero for either would
+  // make the ratio pass vacuously.
+  expect(chrome.header, 'the pinned header must still be on screen').toBeGreaterThan(44);
+  expect(chrome.bar, 'the entries bar must be on screen').toBeGreaterThan(44);
+  const ratio = (chrome.header + chrome.bar) / chrome.viewport;
+  expect(
+    ratio,
+    `header ${chrome.header}px + bar ${chrome.bar}px of ${chrome.viewport}px`
+  ).toBeLessThanOrEqual(1 / 3);
+
+  // The stepper stays reachable: its step list is what the header keeps.
+  const stepList = await page.getByTestId('wizard-step-list').boundingBox();
+  const portTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+  expect(stepList).not.toBeNull();
+  expect(Math.abs(stepList!.y - portTop)).toBeLessThanOrEqual(1);
 });
 
 test('the desktop entries panel is the only place the total appears', async ({ page }) => {

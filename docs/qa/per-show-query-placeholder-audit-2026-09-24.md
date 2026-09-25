@@ -2,6 +2,9 @@
 
 **Issue:** MYK9-648 (batch 3). **Baseline:** `origin/main` at `368ba2f65`. Static review, not a browser walk.
 
+> **Final status (MYK9-709):** every row below is now **OK**. The verdict tables record the state the
+> audit found; see [Final status](#final-status-myk9-709) for how it was closed.
+
 ## Why this exists
 
 `apps/myk9show/src/lib/queryClient.ts` sets `placeholderData: previousData => previousData` for every
@@ -163,3 +166,23 @@ would need:
   after visiting B then A;
 - assertions on the Actions item text and on every `href` in the Premium List card, with no publish,
   unpublish or download clicked.
+
+## Final status (MYK9-709)
+
+Closed at the source, not per hook. `lib/queryClient.ts` now builds an `EntityScopedQueryClient`
+(`lib/entityScopedPlaceholder.ts`), whose default placeholder keeps the previous data **only when the
+previous key and the new key name the same entity ids** (every UUID in the key, at any depth). A new
+search term, page or filter flag still keeps the list on screen; a new show, class, trial, dog or
+person id does not, and the query reports `isLoading` as on a first mount.
+
+| Rows                                                                       | Final status                                                                                                   |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Guarded (7 rows)                                                           | **OK**, unchanged. Their own overrides and `isPlaceholderData` guards still apply and are now belt and braces. |
+| Inherit the global `prev => prev` (all rows, including the three findings) | **OK**. Every key in that table carries the show id as a UUID (directly, nested, or in a filter object).       |
+| Findings 1–3 (scheduled emails, delivery history, volunteers)              | **OK**. Pinned by `lib/__tests__/showScopedPlaceholder.sites.test.tsx`: A → B with B's read held open.         |
+| Finding 4 (reduced motion on `/shows/:id`)                                 | **OK**. Same test file, `PageTransition` rendered with reduced motion on a `/shows/:id` route.                 |
+| Latent rows (settings money hooks, unmounted financial queries)            | **OK**: they inherit the same default, so mounting them somewhere that survives a show change is safe.         |
+
+Mutations: no write path can act on another show's placeholder rows any more, because no consumer
+receives another entity's rows. Within one show, a placeholder is the same show's data. Queries that
+set their own `placeholderData` are left exactly as written (`entityScopedPlaceholder.test.tsx`).

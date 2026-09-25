@@ -54,7 +54,9 @@ export function useClubSecretaryRequest(club: Pick<Club, 'id' | 'name'>): ClubRe
       const latest = await getMyClubSecretaryRequestStatus(club.id, authUserId!);
       switch (latest?.status) {
         case 'approved':
-          return { kind: 'approved' };
+          // A revoked appointment leaves its approved request behind; the
+          // person may ask again (MYK9-750).
+          return latest.appointmentActive === false ? { kind: 'available' } : { kind: 'approved' };
         case 'denied':
           return { kind: 'denied', reviewerNote: latest.reviewerNote };
         case 'pending':

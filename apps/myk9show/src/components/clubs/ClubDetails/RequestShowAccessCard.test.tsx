@@ -158,6 +158,21 @@ describe('RequestShowAccessCard', () => {
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 
+  // MYK9-750: after the appointment is revoked the approved request remains,
+  // and the person must be able to ask again.
+  it('offers the request again once an approved appointment was revoked', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'approved',
+      reviewerNote: null,
+      appointmentActive: false,
+    });
+
+    render(<RequestShowAccessCard club={club} />);
+
+    expect(await screen.findByRole('button', { name: /request show access/i })).toBeInTheDocument();
+  });
+
   it('shows the reviewer note alongside the unavailable message when a request was denied', async () => {
     mockAuth.userWithRoles = withScopes([]);
     vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({

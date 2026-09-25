@@ -25,6 +25,8 @@ const {
     sync: vi.fn(),
     getEntriesByShow: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    getSyncMetadata: vi.fn(),
+    getReplicatedRow: vi.fn(),
   },
   mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
   mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
@@ -79,6 +81,14 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
   beforeEach(() => {
     mockEntriesTable.sync.mockReset();
     mockEntriesTable.sync.mockResolvedValue({ success: true });
+    // Cached entries below come from a show scope that has synced before.
+    mockEntriesTable.getSyncMetadata.mockReset();
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mockEntriesTable.getReplicatedRow.mockReset();
+    mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: false,
+    }));
     onlineRows = [defaultOnlineRow];
     mockLoadHandlerPeople.mockReset();
     mockLoadHandlerPeople.mockResolvedValue(new Map());
@@ -172,6 +182,61 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('verifies online when the only cached entry came from a single write to a never-synced show (MYK9-746)', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: false });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-online-1',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+    onlineRows = [defaultOnlineRow, { id: 'entry-online-2', show_id: 's1', class: { id: 'c1' } }];
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+      'entry-online-1',
+      'entry-online-2',
+    ]);
+    // The online row as-is, with its class relation, not the clean local copy.
+    expect((result.data[0] as Record<string, unknown>).class).toEqual({ id: 'c1' });
+  });
+
+  it('keeps the local rows, unverified and without an online merge, while a write is unsaved', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: false });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-checked-in-offline',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+    mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: true,
+    }));
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.verified).toBe(false);
+    expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
+      'entry-checked-in-offline',
+    ]);
   });
 
   it('falls back to the online read when the local replica has zero rows for the show', async () => {

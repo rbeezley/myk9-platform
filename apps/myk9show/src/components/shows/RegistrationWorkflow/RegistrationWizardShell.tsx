@@ -47,6 +47,14 @@ interface RegistrationWizardShellProps {
  * two-line commit label) and neither can be hard-coded:
  *  - `--registration-header-height`, set here, is what the sticky panel offsets
  *    itself by.
+ *
+ * Below `sm` the header COLLAPSES as the step scrolls, with no scroll listener:
+ * its sticky `top` is negative by the distance from the header's top to the
+ * element marked `data-sticky-pin` (the stepper's step list). The exit row,
+ * title and show name scroll away; the step list stays pinned. On a 393x727
+ * phone the full header was 367px and, with the entries bar, left 158px for
+ * the step itself (MYK9-622). From `sm` up the whole header stays pinned.
+ * `--registration-header-collapse` carries that measured distance.
  */
 export function RegistrationWizardShell({
   children,
@@ -63,8 +71,14 @@ export function RegistrationWizardShell({
     // inherits downwards, and the panel is the header's cousin, not its child.
     const root = node?.parentElement ?? null;
     if (!node || !root) return;
-    const apply = () =>
+    const apply = () => {
       root.style.setProperty('--registration-header-height', `${node.offsetHeight}px`);
+      const pin = node.querySelector<HTMLElement>('[data-sticky-pin]');
+      const collapse = pin
+        ? Math.max(0, pin.getBoundingClientRect().top - node.getBoundingClientRect().top)
+        : 0;
+      root.style.setProperty('--registration-header-collapse', `${collapse}px`);
+    };
     apply();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(apply);
@@ -88,7 +102,7 @@ export function RegistrationWizardShell({
         ref={headerRef}
         data-layout="registration-wizard-header"
         data-testid="registration-wizard-header"
-        className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-xl"
+        className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-xl max-sm:top-[calc(var(--registration-header-collapse,0px)*-1)]"
       >
         {header}
       </header>

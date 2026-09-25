@@ -19,7 +19,6 @@ export function PullReconciliationActions({
   onResolved,
 }: PullReconciliationActionsProps) {
   const [isDenying, setIsDenying] = useState(false);
-  const [isDenyUnavailable, setIsDenyUnavailable] = useState(false);
 
   if ((entry.refundAmount ?? 0) > 0 || entry.refundedAt) {
     return <Badge variant="secondary">Refund issued</Badge>;
@@ -41,12 +40,7 @@ export function PullReconciliationActions({
   const denyRefund = async () => {
     setIsDenying(true);
     try {
-      const result = await denyPullRefundDecision(entry.id);
-      if (result === 'unavailable') {
-        setIsDenyUnavailable(true);
-        toast.info('Deny refund will be available after the database update.');
-        return;
-      }
+      await denyPullRefundDecision(entry.id);
       toast.success('Refund denied');
       onResolved();
     } catch {
@@ -74,10 +68,10 @@ export function PullReconciliationActions({
         variant={selected === 'denied' ? 'secondary' : 'outline'}
         className="min-h-11"
         aria-pressed={selected === 'denied'}
-        disabled={isDenying || isDenyUnavailable}
+        disabled={isDenying}
         onClick={() => void denyRefund()}
       >
-        {isDenying ? 'Saving…' : isDenyUnavailable ? 'Deny unavailable' : 'Deny refund'}
+        {isDenying ? 'Saving…' : 'Deny refund'}
       </Button>
     </div>
   );

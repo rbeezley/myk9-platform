@@ -93,6 +93,27 @@ describe('public migration grant decisions', () => {
     ]);
   });
 
+  it('ignores a table created in a non-public schema, but still checks public ones', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120009_private_table.sql',
+        sql: `
+          CREATE TABLE private.internal_claims (id uuid PRIMARY KEY);
+          CREATE TABLE IF NOT EXISTS private.other_claims (id uuid PRIMARY KEY);
+          CREATE TABLE public.exposed_events (id uuid PRIMARY KEY);
+          CREATE TABLE bare_events (id uuid PRIMARY KEY);
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120009_private_table.sql: public.exposed_events has no anon table decision',
+      '20260728120009_private_table.sql: public.exposed_events has no authenticated table decision',
+      '20260728120009_private_table.sql: public.bare_events has no anon table decision',
+      '20260728120009_private_table.sql: public.bare_events has no authenticated table decision',
+    ]);
+  });
+
   it('requires a decision for each function overload', () => {
     const violations = findUndecidedPublicObjects([
       {

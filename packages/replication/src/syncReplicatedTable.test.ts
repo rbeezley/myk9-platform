@@ -8,10 +8,12 @@ import type { SyncOptions, SyncResult } from './types';
 interface LocalEntry {
   id: string;
   name: string;
+  _localOnly?: boolean;
   status?: string;
   resultStatus?: string;
   finalPlacement?: number | null;
   license_key?: string;
+  scoring_completed_at?: string | null;
 }
 
 interface RemoteEntry {
@@ -21,6 +23,7 @@ interface RemoteEntry {
   result_status?: string;
   final_placement?: number | null;
   license_key?: string;
+  scoring_completed_at?: string | null;
   updated_at?: string | number | null;
 }
 
@@ -53,6 +56,7 @@ function makeAdapter(
       resultStatus: remote.result_status,
       finalPlacement: remote.final_placement,
       license_key: remote.license_key,
+      scoring_completed_at: remote.scoring_completed_at,
     }),
   };
 }
@@ -303,6 +307,38 @@ describe('syncReplicatedTable', () => {
       expect(result.rowsAffected).toBe(1);
       expect(result.conflictsResolved).toBe(1);
     });
+
+    // MYK9-740 + Codex P2 on PR #2436: the sync passes the TABLE's instant
+    // fields to conflict detection. The same echo (…Z locally, …+00:00 from
+    // PostgREST) is no conflict on `entries`, where the field is a timestamptz,
+    // and stays a text conflict on a table that declares no instant fields.
+    it.each([
+      ['entries', 0],
+      ['unlisted_table', 1],
+    ])(
+      'on %s, a server echo of the same instant in another spelling raises %i conflicts',
+      async (tableName, expectedConflicts) => {
+        const events: CustomEvent[] = [];
+        const handler = (e: Event) => events.push(e as CustomEvent);
+        window.addEventListener('replication:conflict', handler);
+        const namedTable = new TestTable(tableName);
+
+        await namedTable.set('1', { id: '1', name: 'Rex', scoring_completed_at: null });
+        await namedTable.set(
+          '1',
+          { id: '1', name: 'Rex', scoring_completed_at: '2026-09-24T21:19:38.574Z' },
+          true
+        );
+        const adapter = makeAdapter([
+          { id: 1, name: 'Rex', scoring_completed_at: '2026-09-24T21:19:38.574+00:00' },
+        ]);
+
+        await syncReplicatedTable(namedTable, adapter, {}, { conflictSurfacingEnabled: true });
+
+        window.removeEventListener('replication:conflict', handler);
+        expect(events).toHaveLength(expectedConflicts);
+      }
+    );
 
     it('does not conflict when local and remote changed different fields (field-merge path preserved)', async () => {
       const events: CustomEvent[] = [];
@@ -902,6 +938,40 @@ describe('syncReplicatedTable', () => {
         totalRows: 3,
         expectedRemoteRows: 3,
       });
+    });
+
+    it('does not let a pending local create hide an evicted row (MYK9-752)', async () => {
+      // Server holds 3; eviction left 2 of them locally, and a pending local
+      // create makes the raw local count 3 again.
+      await table.set('1', { id: '1', name: 'Rex' });
+      await table.set('2', { id: '2', name: 'Max' });
+      await table.set('local-1', { id: 'local-1', name: 'Pending', _localOnly: true });
+      await table.updateSyncMetadata({
+        lastIncrementalSyncAt: 1000,
+        totalRows: 3,
+        expectedRemoteRows: 3,
+      });
+
+      const fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) => {
+        expect(forceFullSync).toBe(true);
+        return [
+          { id: 1, name: 'Rex', updated_at: 2000 },
+          { id: 2, name: 'Max', updated_at: 2000 },
+          { id: 3, name: 'Luna', updated_at: 2000 },
+        ];
+      });
+      const adapter: SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> = {
+        fetchRemoteRows,
+        getRemoteRowCount: vi.fn(async () => 3),
+        getRemoteId: remote => String(remote.id),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+        toLocalRow: remote => ({ id: String(remote.id), name: remote.name }),
+      };
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('3')).toMatchObject({ id: '3', name: 'Luna' });
     });
 
     it('forces a full re-sync when the last full sync is older than the heal interval', async () => {

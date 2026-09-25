@@ -81,7 +81,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:deferred-reviews:test',
-    command: 'vitest run scripts/qa/deferred-reviews.test.ts',
+    command:
+      'vitest run scripts/qa/deferred-reviews.test.ts scripts/qa/deferred-reviews.window.test.ts',
   },
   { pkgDir: '.', script: 'lint', command: 'turbo lint' },
   {
@@ -185,7 +186,13 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:edge-function-drift:test',
-    command: 'vitest run scripts/qa/edge-function-drift.test.ts',
+    command:
+      'vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:worktree-liveness:test',
+    command: 'vitest run scripts/qa/worktree-liveness.test.ts',
   },
   {
     pkgDir: '.',

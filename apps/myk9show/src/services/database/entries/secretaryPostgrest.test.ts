@@ -20,68 +20,72 @@ import {
 describe('postgrestGetSecretaryPullMetadataMap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  // Both column groups are migration-backed and applied (20260722160000,
+  // 20260918041700). MYK9-654 retired the per-group retries: one read names
+  // every column, and a schema error is a failure the caller handles, never a
+  // quiet read that renders every pulled entry as "no saved decision".
+  it('asks for every pull column in one read, with no retry', async () => {
+    const schemaError = {
+      code: '42703',
+      message: 'column entries.withdrawal_reason_code does not exist',
+    };
     mocks.from.mockImplementation(() => {
-      let selectedColumns = '';
       const query = {
         select: vi.fn((columns: string) => {
-          selectedColumns = columns;
           mocks.select(columns);
           return query;
         }),
         eq: vi.fn(() => query),
-        // MYK9-632: the row scope is now BOTH terminal exhibitor states.
+        // MYK9-632: the row scope is BOTH terminal exhibitor states.
+        in: vi.fn(() => query),
+        then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
+          Promise.resolve(resolve({ data: null, error: schemaError })),
+      };
+      return query;
+    });
+
+    await expect(postgrestGetSecretaryPullMetadataMap('show-1')).rejects.toBeTruthy();
+    expect(mocks.select).toHaveBeenCalledTimes(1);
+    expect(mocks.select).toHaveBeenCalledWith(
+      'id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code'
+    );
+  });
+
+  it('maps the decision and reason code onto each row', async () => {
+    mocks.from.mockImplementation(() => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
         in: vi.fn(() => query),
         then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
           Promise.resolve(
-            resolve(
-              selectedColumns.includes('withdrawal_reason_code')
-                ? {
-                    data: null,
-                    error: {
-                      code: '42703',
-                      message: 'column entries.withdrawal_reason_code does not exist',
-                    },
-                  }
-                : selectedColumns.includes('refund_decision')
-                  ? {
-                      data: null,
-                      error: {
-                        code: '42703',
-                        message: 'column entries.refund_decision does not exist',
-                      },
-                    }
-                  : {
-                      data: [{ id: 'entry-1', withdrawn_at: '2026-06-18T11:00:00Z' }],
-                      error: null,
-                    }
-            )
+            resolve({
+              data: [
+                {
+                  id: 'entry-1',
+                  withdrawn_at: '2026-06-18T11:00:00Z',
+                  refund_decision: 'refund',
+                  refund_decided_at: '2026-06-19T11:00:00Z',
+                  withdrawal_reason_code: 'in_season',
+                },
+              ],
+              error: null,
+            })
           ),
       };
       return query;
     });
-  });
 
-  // MYK9-632 added a SECOND migration-backed column group. Each must be dropped
-  // on its own: folding them together would lose the refund decision on a
-  // database that only lacks the reason code, and re-invite a second refund.
-  it('drops each migration-backed column group independently', async () => {
     const result = await postgrestGetSecretaryPullMetadataMap('show-1');
 
-    expect(mocks.select).toHaveBeenNthCalledWith(
-      1,
-      'id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code'
-    );
-    expect(mocks.select).toHaveBeenNthCalledWith(
-      2,
-      'id, withdrawn_at, refund_decision, refund_decided_at'
-    );
-    expect(mocks.select).toHaveBeenNthCalledWith(3, 'id, withdrawn_at');
     expect(result.get('entry-1')).toEqual({
       id: 'entry-1',
       withdrawn_at: '2026-06-18T11:00:00Z',
-      refund_decision: null,
-      refund_decided_at: null,
-      withdrawal_reason_code: null,
+      refund_decision: 'refund',
+      refund_decided_at: '2026-06-19T11:00:00Z',
+      withdrawal_reason_code: 'in_season',
     });
   });
 });
@@ -92,34 +96,27 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
   });
 
   /**
-   * The payment bookkeeping columns arrive with migration 20260828200000. Until it
-   * is applied the view rejects them with 42703, and the whole secretary read would
-   * fail -- the same shape as the 42501 that made Entry Management render
-   * "Couldn't load entries". The read must degrade to the pre-migration columns.
+   * The payment bookkeeping columns (20260828200000) are applied. MYK9-654
+   * retired the pre-migration retry: the one read names them, and a schema
+   * error surfaces instead of quietly dropping the secretary's bookkeeping.
    */
-  it('retries without the payment columns when the migration is not applied', async () => {
+  it('selects the payment columns once, with no retry', async () => {
     const reads: Array<{ relation: string; select: string }> = [];
 
     mocks.from.mockImplementation((relation: string) => {
-      let selected = '';
-      const respond = () => {
-        if (relation !== 'view_authenticated_entry_results') {
-          return { data: [], error: null };
-        }
-        if (selected.includes('payment_received_on')) {
-          return {
-            data: null,
-            error: {
-              code: '42703',
-              message: 'column view_authenticated_entry_results.payment_received_on does not exist',
-            },
-          };
-        }
-        return { data: [{ id: 'entry-1' }], error: null };
-      };
+      const respond = () =>
+        relation === 'view_authenticated_entry_results'
+          ? {
+              data: null,
+              error: {
+                code: '42703',
+                message:
+                  'column view_authenticated_entry_results.payment_received_on does not exist',
+              },
+            }
+          : { data: [], error: null };
       const query = {
         select: vi.fn((columns: string) => {
-          selected = columns;
           reads.push({ relation, select: columns });
           return query;
         }),
@@ -131,24 +128,16 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
       return query;
     });
 
-    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
-
-    expect(result.error).toBeNull();
-    expect(result.data).toEqual([
-      expect.objectContaining({
-        id: 'entry-1',
-        handler_identity: { name: null, person: null, source: 'unknown' },
-      }),
-    ]);
+    await expect(
+      postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test')
+    ).rejects.toBeTruthy();
 
     const viewReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
-    expect(viewReads).toHaveLength(2);
-    expect(viewReads[0].select).toContain('payment_received_on');
-    // NOTE: `payment_reference` also appears inside the registration embed of the
+    expect(viewReads).toHaveLength(1);
+    // `payment_reference` also appears inside the registration embed of the
     // base select, so `payment_received_on` is the only safe discriminator here.
-    expect(viewReads[1].select).not.toContain('payment_received_on');
-    // The retry must not also drop the scored columns the reports depend on.
-    expect(viewReads[1].select).toContain('final_placement');
+    expect(viewReads[0].select).toContain('payment_received_on');
+    expect(viewReads[0].select).toContain('payment_notes');
   });
 
   it('projects the canonical handler identity from joined handler and owner rows', async () => {

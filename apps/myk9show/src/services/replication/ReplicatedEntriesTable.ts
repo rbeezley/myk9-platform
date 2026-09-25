@@ -19,6 +19,7 @@ import {
   type ColdInsertGuardMode,
   type ReplicatedSetResult,
   type SyncReplicatedTableAdapter,
+  type SyncOptions,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -140,7 +141,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
-  private readonly _syncsByShow = new Map<string, Promise<SyncResult>>();
+  private readonly _syncsByShow = new Map<string, { sync: Promise<SyncResult>; forced: boolean }>();
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -196,11 +197,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return false;
   }
 
-  async sync(syncScopeId: string): Promise<SyncResult> {
-    return this.syncForPrincipal(syncScopeId, 'anonymous');
+  async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
+    return this.syncForPrincipal(syncScopeId, 'anonymous', options);
   }
 
-  async syncForPrincipal(syncScopeId: string, principalId: string): Promise<SyncResult> {
+  async syncForPrincipal(
+    syncScopeId: string,
+    principalId: string,
+    options?: Partial<SyncOptions>
+  ): Promise<SyncResult> {
     const showScopeId = syncScopeId.trim();
     if (!showScopeId) {
       if (!this._hasWarnedMissingShowScope) {
@@ -219,12 +224,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // Background replication and report reads can request the same show together.
     // Share only the active operation; the next refresh must still contact the server.
     const syncKey = `${principalId}:${showScopeId}`;
-    const inFlight = this._syncsByShow.get(syncKey);
-    if (inFlight) return inFlight;
-    const sync = this.syncShow(showScopeId, principalId).finally(() => {
-      this._syncsByShow.delete(syncKey);
+    const running = this._syncsByShow.get(syncKey);
+    const forceFullSync = options?.forceFullSync === true;
+    // A forced full sync must not be answered by an incremental one already
+    // running (MYK9-752): wait that one out, then run its own. Anything shares
+    // a forced run; only an ordinary call shares an ordinary one.
+    if (running && (running.forced || !forceFullSync)) return running.sync;
+    const start = () => this.syncShow(showScopeId, principalId, forceFullSync);
+    // Start at once when nothing is running, as before: only a forced sync
+    // behind an ordinary one waits.
+    const sync = (running ? running.sync.then(noop, noop).then(start) : start()).finally(() => {
+      if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
     });
-    this._syncsByShow.set(syncKey, sync);
+    this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
     return sync;
   }
 
@@ -241,7 +253,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     );
   }
 
-  private async syncShow(showScopeId: string, principalId: string): Promise<SyncResult> {
+  private async syncShow(
+    showScopeId: string,
+    principalId: string,
+    forceFullSync = false
+  ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
@@ -373,7 +389,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       adapter,
       { value: showScopeId },
       {
-        forceFullSync: needsReceiptReferenceRefresh,
+        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
@@ -1256,9 +1272,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       );
     }
 
-    const cached = await this.get(entryId);
-    if (!cached) return;
     try {
+      const cached = await this.get(entryId);
+      if (!cached) return;
       this.reportSetResult(
         entryId,
         await this.set(
@@ -1275,8 +1291,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         )
       );
     } catch (writeError) {
-      // The server change is already COMMITTED; this is only a cache refresh.
-      // An eviction between the `get` above and the transaction turns the write
+      // The server change is already COMMITTED; this is only a cache refresh, so a
+      // store read or write failure is swallowed too (MYK9-749). An eviction between the `get` above and the transaction turns the write
       // into a cold INSERT, which the MYK9-575 guard refuses (loudly in dev) —
       // and refusing is correct here, so swallow it rather than fail a
       // withdrawal that succeeded.
@@ -1520,3 +1536,5 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
 // Singleton export
 export const replicatedEntriesTable = new ReplicatedEntriesTable();
+
+function noop() {}

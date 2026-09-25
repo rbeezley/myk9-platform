@@ -35,7 +35,7 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
-  syncSpy: vi.fn(async () => {}),
+  syncSpy: vi.fn(async (..._args: unknown[]) => {}),
   refreshSpy: vi.fn(async () => {}),
   authState: {
     userId: 'user-1' as string | undefined,
@@ -127,6 +127,9 @@ function primeAllSignals() {
 describe('useOfflineReadiness', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks keeps implementations set with mockImplementation(Once);
+    // reset the at-show sync so one test's behaviour never leaks into the next.
+    syncSpy.mockReset().mockImplementation(async () => {});
     rbacCache.entry = null;
     tables.trials.meta = null;
     tables.trials.rows = [];
@@ -273,7 +276,7 @@ describe('useOfflineReadiness', () => {
     expect(result.current.primeFailed).toBe(true);
   });
 
-  it('forces a full shows re-fetch when the show row is missing', async () => {
+  it('forces a full shows re-fetch when the show row is missing, without writing metadata', async () => {
     primeAllSignals();
     tables.shows.row = null;
 
@@ -287,13 +290,11 @@ describe('useOfflineReadiness', () => {
     });
 
     const { replicatedShowsTable } = await import('@/services/replication');
-    // A club-scoped incremental sync would skip a show older than the
-    // table-global watermark; resetting it first guarantees the fetch.
-    // The scoped watermark ('' scope) is what sync('') actually reads, so the
-    // table-global reset alone would still skip the missing show.
-    expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({ lastIncrementalSyncAt: 0, scopes: {} })
-    );
+    // A club-scoped incremental sync would skip a show older than its
+    // watermark; a forced full sync fetches it, with no metadata rewind that a
+    // background shows sync could overwrite (MYK9-752).
+    expect(replicatedShowsTable.sync).toHaveBeenCalledWith('', { forceFullSync: true });
+    expect(replicatedShowsTable.updateSyncMetadata).not.toHaveBeenCalled();
   });
 
   it('is NOT ready for a judge whose person identity is unresolved offline', async () => {
@@ -311,25 +312,45 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
-  it('rewinds an evicted scope watermark so prime() actually restores the rows', async () => {
+  // Restoring evicted rows must not depend on the server row count: when that
+  // count request fails, the engine's partialReplica check never fires and an
+  // incremental sync skips the unchanged evicted rows. Prime forces a full
+  // re-fetch instead, and writes no sync metadata (MYK9-752, MYK9-738).
+  it('restores an evicted replica in one prime by forcing a full sync, with no metadata writes', async () => {
     primeAllSignals();
     tables.entries.rows = rows(1); // metadata claims 3 — quota eviction
+    tables.classes.rowsByTrial.set('trial-2', []);
+    // Only a FULL re-fetch brings the unchanged evicted rows back.
+    syncSpy.mockImplementation(async (...args: unknown[]) => {
+      if ((args[1] as { forceFullSync?: boolean } | undefined)?.forceFullSync) primeAllSignals();
+    });
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
     await waitFor(() => {
-      expect(result.current.readiness?.missing).toEqual(['entries']);
+      expect(result.current.readiness?.missing).toEqual(['entries', 'classes']);
     });
 
     await act(async () => {
       await result.current.prime();
     });
 
-    const { replicatedEntriesTable } = await import('@/services/replication');
-    // An incremental sync would not restore unchanged evicted rows, and would
-    // then rewrite totalRows DOWN to the reduced count — a false green.
-    expect(replicatedEntriesTable.updateSyncMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({ lastIncrementalSyncAt: 0, scopes: {} })
-    );
+    expect(syncSpy).toHaveBeenCalledWith('show-1', { forceFullSync: true });
+    await waitFor(() => expect(result.current.readiness?.ready).toBe(true));
+    expect(result.current.primeFailed).toBe(false);
+    const {
+      replicatedEntriesTable,
+      replicatedClassesTable,
+      replicatedTrialsTable,
+      replicatedShowsTable,
+    } = await import('@/services/replication');
+    for (const table of [
+      replicatedEntriesTable,
+      replicatedClassesTable,
+      replicatedTrialsTable,
+      replicatedShowsTable,
+    ]) {
+      expect(table.updateSyncMetadata).not.toHaveBeenCalled();
+    }
   });
 
   it('is ready for a judge whose assignment table is hydrated but genuinely empty', async () => {
@@ -382,6 +403,22 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['entries']);
   });
 
+  it('does not let a pending local create hide an evicted entry (MYK9-752)', async () => {
+    primeAllSignals();
+    // The server holds 3; eviction left 2, and a pending local create brings
+    // the raw local count back to 3.
+    tables.entries.rows = [
+      ...rows(2),
+      { id: 'local-entry', _localOnly: true } as unknown as { id: string },
+    ];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+  });
+
   it('ignores a zero watermark instead of reporting a 1970 as-of', async () => {
     primeAllSignals();
     tables.entries.meta = meta(0, 3); // synced-but-empty-watermark shape
@@ -407,7 +444,7 @@ describe('useOfflineReadiness', () => {
       await result.current.prime();
     });
 
-    expect(syncSpy).toHaveBeenCalledWith('show-1');
+    expect(syncSpy).toHaveBeenCalledWith('show-1', { forceFullSync: true });
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });

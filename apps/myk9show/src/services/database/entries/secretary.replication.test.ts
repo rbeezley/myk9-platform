@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   updateSecretaryLifecycleStatus: vi.fn(),
   getEntryById: vi.fn(),
   getEntriesByShow: vi.fn(),
+  getEntriesSyncMetadata: vi.fn(),
+  getReplicatedRow: vi.fn(),
   syncEntries: vi.fn(),
   syncClasses: vi.fn(),
   syncTrials: vi.fn(),
@@ -32,6 +34,8 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     updateSecretaryLifecycleStatus: mocks.updateSecretaryLifecycleStatus,
     getEntryById: mocks.getEntryById,
     getEntriesByShow: mocks.getEntriesByShow,
+    getSyncMetadata: mocks.getEntriesSyncMetadata,
+    getReplicatedRow: mocks.getReplicatedRow,
     sync: mocks.syncEntries,
   },
 }));
@@ -286,6 +290,8 @@ describe('secretary entry status replication', () => {
 describe('secretary entry read replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // A completed show-scoped sync records the scope's row count (MYK9-746).
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 2 });
     mocks.syncEntries.mockResolvedValue({ success: false });
     mocks.syncClasses.mockResolvedValue({ success: true });
     mocks.syncTrials.mockResolvedValue({ success: true });
@@ -663,35 +669,34 @@ describe('secretary entry read replication', () => {
     expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
-  it('reads the view for entries and retries pull metadata without migration-backed refund columns', () => {
-    // The main fallback select no longer carries refund_decision at all -- the
-    // view does not expose it. The pre-migration guard therefore belongs to the
-    // pull-metadata read, which still goes to public.entries where those
-    // columns are allowlisted for `authenticated`.
+  it('reads the view for entries and merges pull metadata from public.entries in one read', () => {
+    // The main fallback select carries no refund_decision -- the view does not
+    // expose it. The pull-metadata read goes to public.entries, where those
+    // columns are allowlisted for `authenticated`. Its migrations are applied,
+    // so it asks once: MYK9-654 retired the pre-migration retry.
     return (async () => {
       mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
       const reads: Array<{ relation: string; select: string }> = [];
 
       mocks.supabaseFrom.mockImplementation((relation: string) => {
-        let selected = '';
         const respond = () => {
           if (relation !== 'entries') return { data: [{ id: 'entry-from-view' }], error: null };
-          if (selected.includes('refund_decision')) {
-            return {
-              data: null,
-              error: { code: '42703', message: 'column entries.refund_decision does not exist' },
-            };
-          }
-          // Pre-migration shape: withdrawn_at only, still merged onto the row.
           return {
-            data: [{ id: 'entry-from-view', withdrawn_at: '2026-08-28T12:00:00Z' }],
+            data: [
+              {
+                id: 'entry-from-view',
+                withdrawn_at: '2026-08-28T12:00:00Z',
+                refund_decision: 'denied',
+                refund_decided_at: '2026-08-29T12:00:00Z',
+                withdrawal_reason_code: null,
+              },
+            ],
             error: null,
           };
         };
 
         const query = {
           select: vi.fn((select: string) => {
-            selected = select;
             reads.push({ relation, select });
             return query;
           }),
@@ -714,6 +719,7 @@ describe('secretary entry read replication', () => {
       expect(result.data![0]).toMatchObject({
         id: 'entry-from-view',
         withdrawn_at: '2026-08-28T12:00:00Z',
+        refund_decision: 'denied',
       });
 
       const entryReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
@@ -722,9 +728,9 @@ describe('secretary entry read replication', () => {
       expect(entryReads[0].select).toContain('final_placement');
 
       const metadataReads = reads.filter(r => r.relation === 'entries');
-      expect(metadataReads).toHaveLength(2);
+      expect(metadataReads).toHaveLength(1);
       expect(metadataReads[0].select).toContain('refund_decision');
-      expect(metadataReads[1].select).not.toContain('refund_decision');
+      expect(metadataReads[0].select).toContain('withdrawal_reason_code');
     })();
   });
 
@@ -785,6 +791,165 @@ describe('secretary entry read replication', () => {
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(0);
+  });
+
+  describe('a cold show scope holding one locally written entry (MYK9-746)', () => {
+    const LOCAL_CHECK_IN = {
+      id: 'entry-checked-in',
+      showId: 'show-1',
+      classId: 'class-1',
+      entryStatus: 'confirmed',
+      checkInStatus: 'checked-in',
+      submittedAt: '2026-06-01T10:00:00.000Z',
+    };
+
+    beforeEach(() => {
+      // One check-in on a device that has never synced this show: the write
+      // stored its row, but no show-scoped sync has completed.
+      mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries' });
+      mocks.getEntriesByShow.mockResolvedValue([LOCAL_CHECK_IN]);
+      mocks.getAllDogs.mockResolvedValue([]);
+      mocks.getAllClasses.mockResolvedValue([]);
+      mocks.getArmbandsByShow.mockResolvedValue([]);
+    });
+
+    /** The replica's row state: `dirtyIds` hold a write not yet uploaded. */
+    function mockRowState(dirtyIds: string[]) {
+      mocks.getReplicatedRow.mockImplementation(async (id: string) => ({
+        id,
+        isDirty: dirtyIds.includes(id),
+      }));
+    }
+
+    const RETRY_STATE = expect.objectContaining({
+      message: "We couldn't load entries for this show. Please retry.",
+    });
+
+    it('shows the retry state, not a server list, while the check-in is unsaved', async () => {
+      mockRowState(['entry-checked-in']);
+      mocks.syncEntries.mockResolvedValue({ success: false });
+      // The server has not seen the queued check-in yet.
+      mockPostgrestEntriesRead([
+        { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
+      ]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        'Secretary entries replication cold; hydrating scoped replica',
+        'database',
+        { showId: 'show-1', operation: 'get_entries_for_show' }
+      );
+      expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('shows the retry state rather than resurrecting a queued deletion', async () => {
+      mockRowState(['entry-deleted']);
+      mocks.getEntriesByShow.mockResolvedValue([
+        { ...LOCAL_CHECK_IN, id: 'entry-clean' },
+        { ...LOCAL_CHECK_IN, id: 'entry-deleted', deletedAt: '2026-06-01T12:00:00.000Z' },
+      ]);
+      mocks.syncEntries.mockResolvedValue({ success: false });
+      // The server has not seen the delete, so it still returns the entry live.
+      mockPostgrestEntriesRead([
+        { id: 'entry-clean', show_id: 'show-1' },
+        { id: 'entry-deleted', show_id: 'show-1' },
+      ]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('re-reads the replica after a partial hydration and waits while a write is still unsaved', async () => {
+      // Before hydration the check-in looks saved; the entries sync then fails
+      // to upload it (still dirty) and the trial sync fails, so hydration
+      // returns nothing. The pre-sync snapshot must not decide.
+      mockRowState([]);
+      mocks.syncEntries.mockImplementation(async () => {
+        mockRowState(['entry-checked-in']);
+        return { success: true };
+      });
+      mocks.syncTrials.mockResolvedValue({ success: false });
+      mockPostgrestEntriesRead([{ id: 'entry-checked-in', show_id: 'show-1' }]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result).toEqual({ data: null, error: RETRY_STATE });
+    });
+
+    it('after a partial hydration with nothing unsaved, shows the server list verbatim', async () => {
+      // The check-in uploaded during the entries sync and another device then
+      // undid it: the server value is newer than this device's pre-sync row.
+      mockRowState(['entry-checked-in']);
+      mocks.syncEntries.mockImplementation(async () => {
+        mockRowState([]);
+        return { success: true };
+      });
+      mocks.syncTrials.mockResolvedValue({ success: false });
+      mockPostgrestEntriesRead([
+        { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
+      ]);
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data!.map(entry => [entry.id, entry.check_in_status])).toEqual([
+        ['entry-checked-in', 'not-checked-in'],
+        ['entry-2', 'not-checked-in'],
+      ]);
+    });
+
+    it('surfaces an error offline rather than a one-entry list presented as complete', async () => {
+      mockRowState([]);
+      mocks.syncEntries.mockResolvedValue({ success: false });
+      const query = mockPostgrestEntriesRead([]);
+      query.order.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(result.data).toBeNull();
+      expect(result.error).toEqual(
+        expect.objectContaining({
+          message: "We couldn't load entries for this show. Please retry.",
+        })
+      );
+    });
+
+    it('returns the complete replicated list once the show scope has fully synced', async () => {
+      const synced = [
+        LOCAL_CHECK_IN,
+        { ...LOCAL_CHECK_IN, id: 'entry-2', checkInStatus: 'not-checked-in' },
+        { ...LOCAL_CHECK_IN, id: 'entry-3', checkInStatus: 'not-checked-in' },
+      ];
+      mocks.syncEntries.mockImplementation(async () => {
+        mocks.getEntriesByShow.mockResolvedValue(synced);
+        mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 3 });
+        mocks.getAllClasses.mockResolvedValue([
+          { id: 'class-1', name: 'Novice Containers', maxEntries: 20 },
+        ]);
+        return { success: true };
+      });
+      mockMetadataLookups();
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(result.error).toBeNull();
+      expect(result.data!.map(entry => entry.id).sort()).toEqual([
+        'entry-2',
+        'entry-3',
+        'entry-checked-in',
+      ]);
+    });
   });
 
   it('warns when falling back to PostgREST after a replicated read failure', async () => {

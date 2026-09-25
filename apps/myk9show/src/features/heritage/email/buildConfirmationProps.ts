@@ -1,5 +1,5 @@
 import { getTrialRegistry } from '@/features/registries';
-import { toRoman } from '@/features/heritage/landing/useHeritageLandingData';
+import { formatTrialLabel } from '@myk9/core';
 import type { HeritageConfirmationProps, HeritageRunRow } from '@myk9/email';
 
 // ─── Input types (mirrors Supabase Row shapes we care about) ─────────────────
@@ -17,6 +17,8 @@ interface ShowInput {
 interface TrialInput {
   id: string;
   date: string;
+  /** trials.name — the display label (MYK9-704). */
+  name?: string | null;
   trial_number?: string | null;
   display_order?: number | null;
   timezone?: string | null;
@@ -161,12 +163,10 @@ export function buildConfirmationProps(
   // Single-registry show: every trial shares one sanctioning body, so read it off the first.
   const registry = getTrialRegistry(allTrials[0]);
 
-  // Build sorted trial numeral map
-  const sortedTrials = [...allTrials].sort(
-    (a, b) => (a.display_order ?? 999) - (b.display_order ?? 999)
-  );
+  // Trial label per run: the formatTrialLabel contract, the same string
+  // send-confirmation-email prints (MYK9-713).
   const trialNumeralMap = new Map(
-    sortedTrials.map((t, i) => [t.id, t.trial_number ?? toRoman(i + 1)])
+    allTrials.map(t => [t.id, formatTrialLabel({ name: t.name, trialNumber: t.trial_number })])
   );
 
   // Build run rows — one per entry, sorted by trial display_order

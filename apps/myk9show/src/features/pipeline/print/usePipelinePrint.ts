@@ -6,6 +6,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { notifications } from '@/lib/notifications';
 import { getEntriesByClass } from '@/services/database/entries';
+import {
+  getHandlerPeopleHydrationRevision,
+  settleHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';
@@ -102,9 +106,19 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
   );
 
   const fetchEntries = useCallback(async (classId: string): Promise<PrintReportEntry[]> => {
-    const { data, error } = await getEntriesByClass(classId);
-    if (error) throw error;
-    return (data as unknown as EntryRow[]).map(mapEntry);
+    const read = async () => {
+      const { data, error } = await getEntriesByClass(classId);
+      if (error) throw error;
+      return data as unknown as EntryRow[];
+    };
+    // A print is one-shot: it cannot replay when a handler people refresh
+    // that missed its fast window lands later, as Reports does. Wait for it,
+    // then re-read if it changed any cached identity (MYK9-743).
+    const revision = getHandlerPeopleHydrationRevision();
+    let rows = await read();
+    await settleHandlerPeopleHydration();
+    if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
+    return rows.map(mapEntry);
   }, []);
 
   const makePrintHandler = useCallback(

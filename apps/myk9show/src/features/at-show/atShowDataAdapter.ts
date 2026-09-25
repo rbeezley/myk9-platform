@@ -38,31 +38,50 @@ import {
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 
-const atShowSyncsInFlight = new Map<string, Promise<void>>();
+/** The operation running per show, and whether it re-fetches every row. */
+const atShowSyncsInFlight = new Map<string, { operation: Promise<void>; forced: boolean }>();
 
-export function syncAtShowData(showId: string): Promise<void> {
-  const existing = atShowSyncsInFlight.get(showId);
-  if (existing) return existing;
+/**
+ * Sync the show's trials, their classes and its entries. Concurrent callers
+ * share one operation. `forceFullSync` re-fetches every row instead of the
+ * changes since the watermark (offline readiness prime, MYK9-752); it never
+ * answers with an incremental operation already running, but waits that one
+ * out and runs its own, which later callers then share.
+ */
+export function syncAtShowData(
+  showId: string,
+  options?: { forceFullSync?: boolean }
+): Promise<void> {
+  const running = atShowSyncsInFlight.get(showId);
+  const forceFullSync = options?.forceFullSync === true;
+  // Anything shares a forced run; only an ordinary call shares an ordinary one.
+  if (running && (running.forced || !forceFullSync)) return running.operation;
+  const existing = running?.operation;
+  // Options only when forced, so ordinary calls stay exactly as they were.
+  const syncArgs: [] | [{ forceFullSync: true }] = forceFullSync ? [{ forceFullSync: true }] : [];
 
   const operation = (async () => {
-    await replicatedTrialsTable.sync(showId);
+    if (existing) await existing.then(noop, noop);
+    await replicatedTrialsTable.sync(showId, ...syncArgs);
     const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
     await Promise.all([
       // Classes are scoped by trial_id, so hydrate only the trials that belong
       // to this show. An empty scope would fetch every visible changed class.
-      ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
-      replicatedEntriesTable.sync(showId),
+      ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
+      replicatedEntriesTable.sync(showId, ...syncArgs),
     ]);
   })();
-  atShowSyncsInFlight.set(showId, operation);
+  atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {
-    if (atShowSyncsInFlight.get(showId) === operation) {
+    if (atShowSyncsInFlight.get(showId)?.operation === operation) {
       atShowSyncsInFlight.delete(showId);
     }
   };
   void operation.then(release, release);
   return operation;
 }
+
+function noop() {}
 
 /**
  * Pull only the authoritative replica path named by relevant Broadcast signals.

@@ -1,6 +1,7 @@
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
@@ -59,15 +60,15 @@ function buildEntryCountsByClassMap(entries: readonly EntryClassCountRow[]): Map
 }
 
 async function loadEntryCountsByShowMap(showId: string): Promise<Map<string, number>> {
-  const [entries, metadata] = await Promise.all([
+  const [entries, scopeSynced] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
-    replicatedEntriesTable.getSyncMetadata(showId),
+    hasShowEntriesSynced(showId),
   ]);
 
-  // An empty slice is only a confident zero after the show scope has completed
-  // at least one sync. A missing scoped row count means this browser has never
-  // hydrated the show and must use the normal PostgREST fallback.
-  if (entries.length === 0 && metadata?.totalRows === undefined) {
+  // Counts are only confident after the show scope has completed a sync. Until
+  // then the slice may be empty OR hold only rows a single write stored on this
+  // device (MYK9-746); either way use the normal PostgREST fallback.
+  if (!scopeSynced) {
     throw new Error(`Entries replica is cold for show ${showId}`);
   }
 

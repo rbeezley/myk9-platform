@@ -81,7 +81,7 @@ function makeViewEntriesQuery(
   let pageIndex = 0;
   const query = {
     // Typed with its argument so a test can assert WHICH columns were asked for
-    // (MYK9-632's optional `withdrawal_reason_code`), not merely that a select
+    // (the optional migration-backed columns), not merely that a select
     // happened.
     select: vi.fn((_columns: string) => query),
     is: vi.fn(() => query),
@@ -203,6 +203,9 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'entry_status',
     'payment_status',
     'moved_from_entry_id',
+    // MYK9-632 / MYK9-654: the withdrawal reason code is a required column now
+    // that 20260918041700 is applied; its retry arm is gone.
+    'withdrawal_reason_code',
     // 4.C: cash/check "pay at show" vs online "Finish Payment" depends on this
     // reaching the client — pin it so a future select edit can't drop it.
     'payment_method',
@@ -306,22 +309,12 @@ describe('getUserEntries account-scope read', () => {
   }
 
   /**
-   * MYK9-632: the read ASKS for `withdrawal_reason_code`, and survives a
-   * database that has not got it yet.
-   *
-   * This is not a nicety. Naming a column PostgREST cannot resolve fails the
-   * WHOLE query with 42703, `getUserEntries` reads that as "the view is
-   * unavailable" and falls back to the per-show replica — and `/my-entries` is
-   * a cross-show route that never syncs one. So the window between merging this
-   * branch and running `supabase db push` would have emptied My Shows, My
-   * Payments and the exhibitor dashboard, not merely dropped a badge suffix.
+   * MYK9-654: `withdrawal_reason_code` is required. Migration 20260918041700 is
+   * applied, so the read names the column on every select and a 42703 naming
+   * it is NOT retried without it: the retry arm, its second select string and
+   * its warning are gone.
    */
-  describe('withdrawal_reason_code (MYK9-632) — asked for, and optional', () => {
-    const schemaError = Object.assign(
-      new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
-      { code: '42703' }
-    );
-
+  describe('withdrawal_reason_code (MYK9-632, MYK9-654) — required, never retried', () => {
     it('names the column in the select', async () => {
       mockReplicatedStores();
       const { viewQuery } = mockSupabaseTables({ viewEntryRows: [{ id: 'entry-1' }] });
@@ -333,61 +326,13 @@ describe('getUserEntries account-scope read', () => {
       );
     });
 
-    it('drops the column and re-asks when the view has not got it yet', async () => {
+    it('has no retry branch: a schema error naming it is not re-asked without it', async () => {
       mockReplicatedStores();
-      const rows = [{ id: 'entry-1' }];
-      const viewQuery = makeViewEntriesQuery(rows);
-      // Fail ONLY the select that names the column; the retry without it
-      // succeeds, exactly as a pre-20260918041700 database behaves.
-      viewQuery.range.mockImplementation(() =>
-        Promise.resolve(
-          viewQuery.select.mock.calls.at(-1)?.[0]?.includes('withdrawal_reason_code')
-            ? { data: [] as Array<Record<string, unknown>>, error: schemaError }
-            : { data: rows, error: null }
-        )
-      );
-      mocks.supabaseFrom.mockImplementation((table: string) => {
-        if (table === 'view_authenticated_entry_results') return viewQuery;
-        throw new Error(`Unexpected table: ${table}`);
-      });
-
-      const result = await getUserEntries('user-1');
-
-      // The rows still arrive, from the VIEW — not from the replica, which on
-      // this route would have been empty or stale.
-      expect(result.source).toBe('confirmed');
-      expect(result.data).toEqual(rows);
-      expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
-      const selects = viewQuery.select.mock.calls.map(call => call[0]);
-      expect(selects).toHaveLength(2);
-      expect(selects[0]).toContain('withdrawal_reason_code');
-      expect(selects[1]).not.toContain('withdrawal_reason_code');
-      // The degraded window must not be silent: this warning is the only
-      // evidence anywhere that the migration has not been pushed, and later
-      // that the compat arm is safe to delete (MYK9-654).
-      expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('20260918041700'),
-        'database',
-        expect.objectContaining({ column: 'withdrawal_reason_code' })
-      );
-    });
-
-    it('also drops moved_from_entry_id when the move-up migration is not applied', async () => {
-      mockReplicatedStores();
-      const rows = [{ id: 'entry-1' }];
-      const moveUpSchemaError = Object.assign(
-        new Error('column view_authenticated_entry_results.moved_from_entry_id does not exist'),
+      const schemaError = Object.assign(
+        new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
         { code: '42703' }
       );
-      const viewQuery = makeViewEntriesQuery(rows);
-      viewQuery.range.mockImplementation(() => {
-        const select = viewQuery.select.mock.calls.at(-1)?.[0] ?? '';
-        return Promise.resolve(
-          select.includes('moved_from_entry_id')
-            ? { data: [], error: moveUpSchemaError }
-            : { data: rows, error: null }
-        );
-      });
+      const viewQuery = makeViewEntriesQuery([], schemaError);
       mocks.supabaseFrom.mockImplementation((table: string) => {
         if (table === 'view_authenticated_entry_results') return viewQuery;
         throw new Error(`Unexpected table: ${table}`);
@@ -395,16 +340,15 @@ describe('getUserEntries account-scope read', () => {
 
       const result = await getUserEntries('user-1');
 
-      expect(result.source).toBe('confirmed-move-up-link-unavailable');
-      expect(result.data).toEqual(rows);
       const selects = viewQuery.select.mock.calls.map(call => call[0]);
-      expect(selects).toHaveLength(2);
-      expect(selects[0]).toContain('moved_from_entry_id');
-      expect(selects[1]).not.toContain('moved_from_entry_id');
-      expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('moved_from_entry_id'),
-        'database',
-        expect.objectContaining({ column: 'moved_from_entry_id' })
+      expect(selects).toHaveLength(1);
+      expect(selects[0]).toContain('withdrawal_reason_code');
+      // The failed view read goes down the ordinary replica path, unconfirmed.
+      expect(result.source).not.toBe('confirmed');
+      expect(mocks.loggerWarn).not.toHaveBeenCalledWith(
+        expect.stringContaining('20260918041700'),
+        expect.anything(),
+        expect.anything()
       );
     });
   });
@@ -421,10 +365,6 @@ describe('getUserEntries account-scope read', () => {
       new Error(
         'column view_authenticated_entry_results.registration_confirmation_number does not exist'
       ),
-      { code: '42703' }
-    );
-    const withdrawalSchemaError = Object.assign(
-      new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
       { code: '42703' }
     );
 
@@ -488,55 +428,12 @@ describe('getUserEntries account-scope read', () => {
       const selects = viewQuery.select.mock.calls.map(call => call[0]);
       expect(selects[0]).toContain('registration_confirmation_number');
       expect(selects.at(-1)).not.toContain('registration_confirmation_number');
-      // ...and the OTHER optional column is not taken down with it.
+      // ...and the required reason code is not taken down with it.
       expect(selects.at(-1)).toContain('withdrawal_reason_code');
       expect(mocks.loggerWarn).toHaveBeenCalledWith(
         expect.stringContaining('20260918193700'),
         'database',
         expect.objectContaining({ column: 'registration_confirmation_number' })
-      );
-    });
-
-    it('drops both optional columns when both migrations are absent', async () => {
-      mockReplicatedStores();
-      const rows = [{ id: 'entry-1' }];
-      const viewQuery = makeViewEntriesQuery(rows);
-      viewQuery.range.mockImplementation(() => {
-        const select = viewQuery.select.mock.calls.at(-1)?.[0] ?? '';
-        if (select.includes('registration_confirmation_number')) {
-          return Promise.resolve({ data: [], error: schemaError });
-        }
-        if (select.includes('withdrawal_reason_code')) {
-          return Promise.resolve({ data: [], error: withdrawalSchemaError });
-        }
-        return Promise.resolve({ data: rows, error: null });
-      });
-      mocks.supabaseFrom.mockImplementation((table: string) => {
-        if (table === 'view_authenticated_entry_results') return viewQuery;
-        throw new Error(`Unexpected table: ${table}`);
-      });
-
-      const result = await getUserEntries('user-1');
-
-      expect(result.source).toBe('confirmed');
-      expect(result.data).toEqual(rows);
-      const selects = viewQuery.select.mock.calls.map(call => call[0]);
-      expect(selects).toHaveLength(3);
-      expect(selects[0]).toContain('registration_confirmation_number');
-      expect(selects[0]).toContain('withdrawal_reason_code');
-      expect(selects[1]).not.toContain('registration_confirmation_number');
-      expect(selects[1]).toContain('withdrawal_reason_code');
-      expect(selects[2]).not.toContain('registration_confirmation_number');
-      expect(selects[2]).not.toContain('withdrawal_reason_code');
-      expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('20260918193700'),
-        'database',
-        expect.objectContaining({ column: 'registration_confirmation_number' })
-      );
-      expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('20260918041700'),
-        'database',
-        expect.objectContaining({ column: 'withdrawal_reason_code' })
       );
     });
   });

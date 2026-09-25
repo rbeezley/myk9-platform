@@ -23,7 +23,7 @@ import type {
   CheckVerification,
 } from './systemHealthTypes';
 import type { AlertSummary } from './operatorAlertsSelectors';
-import { healthCheckStaleAfterMs } from './healthCheckCadence';
+import { healthCheckStaleAfterMs } from '../../../supabase/functions/_shared/healthCheckCadence';
 import { isStale } from './systemHealthSelectors';
 
 /** How many runs the history strip draws. */

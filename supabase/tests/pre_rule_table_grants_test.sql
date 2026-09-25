@@ -35,6 +35,7 @@ DECLARE
 BEGIN
   FOR v_row IN
     WITH expected(tbl, authenticated, anon, service_role) AS (VALUES
+    ('access_request_email_jobs','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('achievements','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('activity_log','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('allergies','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -227,7 +228,7 @@ BEGIN
   WHERE n.nspname = 'public'
     AND c.relkind = 'r'
     AND c.relname NOT IN (
-      'achievements','activity_log','allergies','analytics_events','announcement_reads',
+      'access_request_email_jobs','achievements','activity_log','allergies','analytics_events','announcement_reads',
       'announcements','armbands','calendar_feed_tokens','chatbot_feedback','chatbot_query_log',
       'class_visibility_overrides','classes','club_access_requests','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_stripe_accounts','clubs','dog_favorites',

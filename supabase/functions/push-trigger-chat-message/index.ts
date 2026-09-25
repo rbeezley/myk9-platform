@@ -5,7 +5,8 @@ import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+
+import { getShowStaffRecipientIds } from './recipients.ts';
 
 const CHUNK_SIZE = 100;
 
@@ -22,10 +23,6 @@ interface WebhookPayload {
   type?: 'INSERT';
   table?: string;
   record: ChatMessageRecord;
-}
-
-interface RecipientRoleRow {
-  people?: { auth_user_id?: string | null } | null;
 }
 
 interface PushSubscriptionRow {
@@ -73,32 +70,7 @@ handle<WebhookPayload>(
       assertAudienceQuerySucceeded(showError);
 
       if (show) {
-        const { data: secretaries, error: secretariesError } = await applyActiveRoleValidity(
-          supabase
-            .from('user_roles')
-            .select('id, club_id, people!inner(auth_user_id), roles!inner(name)')
-            .eq('club_id', show.club_id)
-            .in('roles.name', ['secretary', 'trial_secretary'])
-            .not('people.auth_user_id', 'is', null)
-        );
-
-        // Also include platform admins
-        const { data: admins, error: adminsError } = await applyActiveRoleValidity(
-          supabase
-            .from('user_roles')
-            .select('id, people!inner(auth_user_id), roles!inner(name)')
-            .eq('roles.name', 'platform_admin')
-            .not('people.auth_user_id', 'is', null)
-        );
-
-        assertAudienceQuerySucceeded(secretariesError);
-        assertAudienceQuerySucceeded(adminsError);
-
-        const allRecipients = [...(secretaries || []), ...(admins || [])];
-        const authIds = (allRecipients as RecipientRoleRow[])
-          .map(recipient => recipient.people?.auth_user_id)
-          .filter((authUserId): authUserId is string => Boolean(authUserId));
-        recipientUserIds = [...new Set(authIds)];
+        recipientUserIds = await getShowStaffRecipientIds(supabase, show.club_id);
       }
     } else {
       // Secretary sent message -> notify the participant -> exhibitor route

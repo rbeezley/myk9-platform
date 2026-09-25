@@ -13,6 +13,10 @@ import {
   type AccountEntryReadState,
 } from '@/features/account-entry-read/accountEntryReadState';
 import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
+import {
+  useRereadOnIdentityConfirmation,
+  type EntriesReadOutcome,
+} from './useRereadOnIdentityConfirmation';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
@@ -198,6 +202,11 @@ export function useMyEntriesData({
   const stateIdentityRef = useRef<string | null>(currentIdentity);
   /** The `user.id::personId` the rows in `entries` were loaded for. */
   const loadedIdentityRef = useRef<string | null>(null);
+  /** Incremented per read; only the latest read may write state (MYK9-738). */
+  const readSeqRef = useRef(0);
+  /** Set below once the re-read hook exists; loadMyEntries is declared first. */
+  const recordOutcomeRef = useRef<(outcome: EntriesReadOutcome) => void>(() => {});
+  const recordStartRef = useRef<() => void>(() => {});
 
   // Suppress prior-account rows in the render that observes a new identity;
   // the effect below then starts the new read. The generation fences every
@@ -384,8 +393,13 @@ export function useMyEntriesData({
 
     if (!isCurrentIdentity()) return;
 
+    const readSeq = ++readSeqRef.current;
+    // A later read (refresh, confirmation re-read) supersedes this one, so a
+    // slow unconfirmed read can never overwrite a newer confirmed result.
     const isCurrentRequest = () =>
-      requestGenerationRef.current === requestGeneration && isCurrentIdentity();
+      requestGenerationRef.current === requestGeneration &&
+      readSeqRef.current === readSeq &&
+      isCurrentIdentity();
 
     if (identity !== loadedIdentityRef.current) {
       loadedIdentityRef.current = null;
@@ -406,6 +420,7 @@ export function useMyEntriesData({
       return;
     }
 
+    recordStartRef.current();
     try {
       const { data, error, source: rowSource } = await getUserEntries(personId);
 
@@ -419,6 +434,7 @@ export function useMyEntriesData({
         // reload failure, which is exactly the "poor connectivity feels like
         // user failure" state PRODUCT.md forbids. Only the flag changes.
         setIsError(true);
+        recordOutcomeRef.current('error');
         return;
       }
 
@@ -439,6 +455,7 @@ export function useMyEntriesData({
       );
       loadedIdentityRef.current = identity;
       setIsError(false);
+      recordOutcomeRef.current(rowSource);
     } catch (error) {
       if (!isCurrentRequest()) return;
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -446,6 +463,7 @@ export function useMyEntriesData({
       // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
       // positive claim about what the exhibitor owes, not an absence of data.
       setIsError(true);
+      recordOutcomeRef.current('error');
     } finally {
       if (isCurrentRequest()) setIsLoading(false);
     }
@@ -464,6 +482,16 @@ export function useMyEntriesData({
       },
     });
   }, [loadMyEntries, user?.id]);
+
+  const { recordStart, recordOutcome } = useRereadOnIdentityConfirmation({
+    identityKey: currentIdentity,
+    identityConfirmed: entryPersonIdentityState === 'resolved',
+    reload: loadMyEntries,
+  });
+  useEffect(() => {
+    recordStartRef.current = recordStart;
+    recordOutcomeRef.current = recordOutcome;
+  }, [recordStart, recordOutcome]);
 
   /**
    * Refreshes entries data

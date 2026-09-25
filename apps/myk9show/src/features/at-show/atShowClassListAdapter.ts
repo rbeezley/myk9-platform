@@ -12,6 +12,7 @@
 
 import type { ClassEntry } from '@myk9/ringside';
 import type { SyncMetadata } from '@myk9/replication';
+import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import {
   replicatedTrialsTable,
   replicatedClassesTable,
@@ -170,8 +171,7 @@ export async function isAtShowClassDataHydrated(
  * Row counts alone cannot serve: a real 0-entry class is also empty.
  */
 export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean> {
-  const metadata = (await replicatedEntriesTable.getSyncMetadata(showId)) as SyncMetadata | null;
-  return metadata?.totalRows !== undefined;
+  return hasShowEntriesSynced(showId, replicatedEntriesTable);
 }
 
 /**

@@ -47,11 +47,7 @@ export interface SecretaryEntry {
   comped_reason?: string | null;
   refund_decision?: string | null;
   refund_decided_at?: string | null;
-  /**
-   * Secretary payment bookkeeping (20260828200000). Optional because the read
-   * degrades to the pre-migration column set -- see
-   * `isSecretaryPaymentSchemaUnavailable`.
-   */
+  /** Secretary payment bookkeeping (20260828200000). */
   payment_reference?: string | null;
   payment_received_on?: string | null;
   payment_notes?: string | null;

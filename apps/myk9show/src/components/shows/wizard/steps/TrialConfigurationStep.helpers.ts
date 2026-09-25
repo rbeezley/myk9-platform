@@ -12,12 +12,29 @@ interface TrialTypeTemplateOption {
 }
 
 export interface TrialCreationCopy {
-  addTrialLabel: 'Add First Trial' | 'Add Another Trial';
-  emptyStateTitle: 'Schedule Your Trials' | 'Add Another Trial';
+  addTrialLabel: 'Add First Trial' | 'Add Another Trial' | 'Add Trial';
+  emptyStateTitle: 'Schedule Your Trials' | 'Add Another Trial' | 'Add a Trial';
   emptyStateDescription: string;
 }
 
-export function getTrialCreationCopy(hasAnyTrials: boolean): TrialCreationCopy {
+/**
+ * @param existingTrialsKnown false while Add Trials mode has not yet confirmed
+ *   the show's current trials: the copy then claims neither "first" nor
+ *   "another", since a show that looks empty may not be (MYK9-758).
+ */
+export function getTrialCreationCopy(
+  hasAnyTrials: boolean,
+  existingTrialsKnown = true
+): TrialCreationCopy {
+  if (!existingTrialsKnown) {
+    return {
+      addTrialLabel: 'Add Trial',
+      emptyStateTitle: 'Add a Trial',
+      emptyStateDescription:
+        "You can add a trial as soon as this show's current trials have loaded.",
+    };
+  }
+
   if (!hasAnyTrials) {
     return {
       addTrialLabel: 'Add First Trial',

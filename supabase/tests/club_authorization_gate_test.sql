@@ -1023,24 +1023,24 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 15. Round 4 (P3-1): the authorized_by FK's ON DELETE SET NULL carve-out
---     in guard_club_authorization_write(). Person deletion in this app goes
---     through the delete-person edge function (service_role — see the
---     person-delete owns-dogs guard), which already bypasses this trigger
---     entirely via carve-out (a); actually deleting a person as a plain
---     `authenticated` caller here would also fight every OTHER FK that
---     references people(id) (user_roles, permission_audit_log, ...), which
---     is out of scope for this test. Assert the carve-out's PREDICATE
---     directly instead: an `authenticated` UPDATE that changes ONLY
---     authorized_by to NULL — exactly the shape ON DELETE SET NULL
---     produces — must succeed (case 10 above already proves the paired
---     authorized_at change still raises).
+-- 15. The authorized_by FK's ON DELETE SET NULL carve-out in
+--     guard_club_authorization_write().
+--
+--     Round 4 (P3-1) pinned only the carve-out's SHAPE (a bare
+--     authorized_by -> NULL with authorized_at untouched) by issuing that
+--     UPDATE directly. MYK9-750: that shape is also exactly what an ordinary
+--     club-admin PATCH produces, and it erased the recorded authorizer with no
+--     audit row. The carve-out now also requires that the authorizer no longer
+--     exists, so:
+--       15a. the direct PATCH is REFUSED while the authorizer exists;
+--       15b. the real FK action (deleting the authorizer's person row as an
+--            authenticated site admin) still nulls authorized_by and leaves
+--            authorized_at alone. A throwaway person with no other references
+--            is the authorizer, so no other people(id) FK is in the way.
 -- ---------------------------------------------------------------------------
 -- Precondition: club 572002 was last REVOKED (case 9b above), so re-arm it
 -- as the fixture owner (superuser session, guard carved out) with both
--- columns populated. Without this the bare authorized_by -> NULL below is a
--- no-op on an already-null pair and the authorized_at assertion reads the
--- revoke, not the carve-out.
+-- columns populated.
 UPDATE public.clubs
    SET authorized_at = now(),
        authorized_by = current_setting('myk9572.siteadmin_person_id')::uuid
@@ -1058,13 +1058,44 @@ BEGIN
 END;
 $$;
 
+-- 15a. A direct PATCH nulling authorized_by, authorizer still present.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
 
 DO $$
 BEGIN
-  UPDATE public.clubs SET authorized_by = NULL
-   WHERE id = '00000000-0000-0000-0000-000000572002';
+  BEGIN
+    UPDATE public.clubs SET authorized_by = NULL
+     WHERE id = '00000000-0000-0000-0000-000000572002';
+    RAISE EXCEPTION 'FAIL authorized-by-patch-refused: a direct PATCH nulled authorized_by while the authorizer exists';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS authorized-by-patch-refused: a direct PATCH cannot erase an existing authorizer (MYK9-750)';
+  END;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 15b. The FK action itself. The authorizer is a throwaway person the
+-- fixture owner creates, so deleting it fights no other people(id) FK.
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000000572099', 'MYK9-750', 'FormerAuthorizer',
+  'myk9750-former-authorizer@example.test');
+
+UPDATE public.clubs
+   SET authorized_by = '00000000-0000-0000-0000-000000572099'
+ WHERE id = '00000000-0000-0000-0000-000000572002';
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
+
+DO $$
+BEGIN
+  DELETE FROM public.people WHERE id = '00000000-0000-0000-0000-000000572099';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'FAIL authorized-by-set-null-carveout: the site admin could not delete the throwaway authorizer';
+  END IF;
 END;
 $$;
 
@@ -1085,7 +1116,7 @@ BEGIN
   IF v_authorized_at IS NULL THEN
     RAISE EXCEPTION 'FAIL authorized-by-set-null-carveout: authorized_at was unexpectedly cleared too';
   END IF;
-  RAISE NOTICE 'PASS authorized-by-set-null-carveout: a bare authorized_by -> NULL (mirroring ON DELETE SET NULL) is permitted';
+  RAISE NOTICE 'PASS authorized-by-set-null-carveout: deleting the authorizer nulls authorized_by through the FK action';
 END;
 $$;
 

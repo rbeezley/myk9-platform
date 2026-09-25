@@ -26,7 +26,6 @@ export { USER_ENTRIES_SELECT } from './userEntriesSelect';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
   isMoveUpLinkSchemaUnavailable,
-  isWithdrawalReasonCodeSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 
@@ -73,10 +72,9 @@ async function postgrestGetUserEntries() {
   const rows: Record<string, unknown>[] = [];
   // Local to THIS read, never module state: a flag at module scope would leak
   // one page's schema verdict into every later read (and into the next test in
-  // a shuffled run).
-  let includeReasonCode = true;
-  // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
-  // these two columns, so one missing must not drop the other.
+  // a shuffled run). MYK9-659's view column and MYK9-639's are tracked
+  // separately: INDEPENDENT migrations back them, so one missing must not drop
+  // the other.
   let includeRegistrationConfirmationNumber = true;
   // MYK9-639's view column is independently optional while deployments catch up.
   let includeMoveUpLink = true;
@@ -97,7 +95,6 @@ async function postgrestGetUserEntries() {
         .from('view_authenticated_entry_results')
         .select(
           buildUserEntriesSelect({
-            includeReasonCode,
             includeRegistrationConfirmationNumber,
             includeMoveUpLink,
           })
@@ -124,28 +121,13 @@ async function postgrestGetUserEntries() {
     let response;
     while (true) {
       response = await runPage();
-      if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-        // Pre-20260918041700 database. Drop the column and re-ask this page;
-        // every later page goes without it too.
-        includeReasonCode = false;
-        // SAY SO. This branch is the only evidence anywhere that the migration has
-        // not been pushed: without it the page renders correctly, silently pays a
-        // doubled first-page round trip, and nothing tells anyone that the push is
-        // outstanding — or, later, that the compat arm is safe to delete
-        // (MYK9-654). The file's other degraded states warn the same way.
-        logger.warn(
-          'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
-          'database',
-          { column: 'withdrawal_reason_code', migration: '20260918041700' }
-        );
-        continue;
-      }
       if (
         includeRegistrationConfirmationNumber &&
         isRegistrationConfirmationNumberSchemaUnavailable(response.error)
       ) {
-        // Pre-20260918193700 database. Same contract as the arm above: drop the
-        // column, re-ask this page, and go without it for every later page. The
+        // Pre-20260918193700 database. Drop the column, re-ask this page, and
+        // go without it for every later page. SAY SO: this warning is the only
+        // evidence anywhere that the push is outstanding. The
         // online receipt falls back to the `registration:registration_id(...)`
         // embed's confirmation number, which is what it read before MYK9-659.
         includeRegistrationConfirmationNumber = false;
@@ -175,10 +157,10 @@ async function postgrestGetUserEntries() {
     }
 
     // `as unknown as` rather than a direct cast: supabase-js resolves the select
-    // string at the TYPE level, and it cannot parse this one (the constant's
-    // trailing whitespace already defeated it before MYK9-632 added a second
-    // variant), so `data` arrives as a ParserError union that no longer
-    // overlaps the row shape. Every consumer reads this as an untyped row bag
+    // string at the TYPE level, and `buildUserEntriesSelect` returns a plain
+    // `string` (the remaining optional columns make it non-literal), so `data`
+    // arrives as a GenericStringError union that does not overlap the row
+    // shape. Rechecked when MYK9-654 folded `withdrawal_reason_code` in. Every consumer reads this as an untyped row bag
     // anyway — `transformEntry` casts each field — so nothing is lost here that
     // was ever enforced; `search.test.ts` is what pins the column list.
     const pageRows = (data || []) as unknown as Record<string, unknown>[];

@@ -206,7 +206,9 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             {totalsBlock}
           </div>
         )}
-        <div className="flex min-h-11 items-center gap-2 px-4 py-1.5">
+        {/* No vertical padding on a phone: the 44px Details button already sets
+            the row height, and every pixel here is taken from the step (MYK9-622). */}
+        <div className="flex min-h-11 items-center gap-2 px-4 sm:py-1.5">
           <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span data-testid="entries-panel-total" className="min-w-0 truncate text-sm font-medium">
             {classCount} class{classCount === 1 ? '' : 'es'} ·{' '}

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { detectDirtyRowConflict, mergeNonConflictingServerFields } from './detectDirtyRowConflict';
+import {
+  detectDirtyRowConflict,
+  instantFieldsFor,
+  mergeNonConflictingServerFields,
+} from './detectDirtyRowConflict';
+
+const ENTRY_INSTANTS = instantFieldsFor('entries');
 
 interface EntryLike {
   id: string;
@@ -46,6 +52,127 @@ describe('detectDirtyRowConflict', () => {
     });
 
     expect(result).toEqual({ hasConflict: true, fields: ['checkInStatus'] });
+  });
+
+  // MYK9-740, from the failing Regression trace: a judge's offline score upload
+  // committed but the page reloaded before its response arrived. On the next
+  // sync the server echoed the judge's own write back, and the only "difference"
+  // was how the timestamp was spelled — the client stamped `…Z`, PostgREST
+  // returned `…+00:00`. That surfaced "This record was changed elsewhere" for
+  // the judge's own score.
+  it('does not conflict when the server echoes the same instant in another ISO spelling', () => {
+    const result = detectDirtyRowConflict({
+      // Local entry rows carry the camelCase copy too (ReplicatedEntriesTable.mapper).
+      base: { id: '1', scoring_completed_at: null, scoringCompletedAt: null, result_status: null },
+      local: {
+        id: '1',
+        scoring_completed_at: '2026-09-24T21:19:38.574Z',
+        scoringCompletedAt: '2026-09-24T21:19:38.574Z',
+        result_status: 'nq',
+      },
+      remote: {
+        id: '1',
+        scoring_completed_at: '2026-09-24T21:19:38.574+00:00',
+        scoringCompletedAt: '2026-09-24T21:19:38.574+00:00',
+        result_status: 'nq',
+      },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
+  it('still conflicts when two timestamps name different instants', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.575+00:00' },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
+  });
+
+  it('keeps sub-millisecond differences that Date.parse would truncate', () => {
+    // Postgres timestamptz carries microseconds; two distinct values inside
+    // one millisecond are still different values.
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574001Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574999+00:00' },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
+  });
+
+  it('treats trailing fractional zeros and a zone offset as the same instant', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.5Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T16:19:38.500000-05:00' },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
+  // Codex P2 on PR #2436: only declared timestamptz columns compare as
+  // instants. A text column holding ISO-shaped strings keeps text equality, so
+  // two different spellings there are two different values.
+  it('keeps text equality for an ISO-shaped string in a text field', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', judge_notes: null },
+      local: { id: '1', judge_notes: '2026-09-24T21:19:38Z' },
+      remote: { id: '1', judge_notes: '2026-09-24T16:19:38-05:00' },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['judge_notes'] });
+  });
+
+  it('compares no field as an instant unless the caller names it', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: '1', scoring_completed_at: null },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574Z' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574+00:00' },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
+  });
+
+  it('lists entries timestamps and nothing for an unlisted table', () => {
+    expect(ENTRY_INSTANTS.has('scoring_completed_at')).toBe(true);
+    expect(ENTRY_INSTANTS.has('ring_exit_time')).toBe(true);
+    expect(ENTRY_INSTANTS.has('judge_notes')).toBe(false);
+    expect(instantFieldsFor('trials').size).toBe(0);
+  });
+
+  it('merge adopts no server field when the only difference is instant spelling', () => {
+    const result = mergeNonConflictingServerFields({
+      base: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574Z', judge_notes: 'a' },
+      local: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574Z', judge_notes: 'a' },
+      remote: { id: '1', scoring_completed_at: '2026-09-24T21:19:38.574+00:00', judge_notes: 'a' },
+      instantFields: ENTRY_INSTANTS,
+    });
+
+    expect(result.appliedFields).toEqual([]);
+  });
+
+  it('does not treat a zone-less or date-only string as an instant', () => {
+    // Without a zone the instant depends on the device's timezone, so these
+    // are compared as text, exactly as before.
+    const result = detectDirtyRowConflict({
+      base: { id: '1', ring_time: null, trial_date: null },
+      local: { id: '1', ring_time: '2026-09-24T21:19:38', trial_date: '2026-09-24' },
+      remote: {
+        id: '1',
+        ring_time: '2026-09-24T21:19:38.000',
+        trial_date: '2026-09-24T00:00:00Z',
+      },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['ring_time', 'trial_date'] });
   });
 });
 

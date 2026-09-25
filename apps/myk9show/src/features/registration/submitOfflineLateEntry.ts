@@ -160,7 +160,9 @@ export async function submitOfflineLateEntry({
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
       const entryFee =
-        paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
+        paymentMethod === 'waived'
+          ? 0
+          : getShowEntryFee(showFeeInfo, classData?.entryFee, entryIsDayOfShow);
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();

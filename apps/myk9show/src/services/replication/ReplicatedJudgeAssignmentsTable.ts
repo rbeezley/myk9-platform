@@ -126,6 +126,9 @@ export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJ
   };
 }
 
+/** PostgREST's max_rows (supabase/config.toml): one page of the sync fetch. */
+export const JUDGE_ASSIGNMENTS_PAGE_SIZE = 1000;
+
 export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJudgeAssignment> {
   private _lastMutationId: string | null = null;
 
@@ -235,9 +238,16 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           // Embed the class/trial snapshot so the globally-synced assignment row
           // is self-sufficient for the offline judge dashboard. To-one embeds via
           // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
-          const { data, error } = await supabase
-            .from('judge_assignments')
-            .select(
+          //
+          // Paged by keyset on (updated_at, id), as the entries sync is:
+          // PostgREST caps a response at max_rows, and the stale-row cleanup
+          // only runs after a fetch that returned the whole server count
+          // (MYK9-775, MYK9-776).
+          const rows: JudgeAssignmentJoinedRow[] = [];
+          let cursorUpdatedAt: string | null = null;
+          let cursorId: string | null = null;
+          for (;;) {
+            let query = supabase.from('judge_assignments').select(
               `id, person_id, show_id, trial_id, class_id, status,
                invited_at, confirmed_at, created_at, updated_at,
                day_capacity_override, version,
@@ -246,15 +256,30 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
                total_entries_count, trial_id,
                trials ( date, timezone, show_id )
              )`
-            )
-            .gt('updated_at', new Date(since).toISOString())
-            .order('updated_at', { ascending: true });
+            );
+            query =
+              cursorUpdatedAt && cursorId
+                ? query.or(
+                    `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+                  )
+                : query.gt('updated_at', new Date(since).toISOString());
+            const { data, error } = await query
+              .order('updated_at', { ascending: true })
+              .order('id', { ascending: true })
+              .range(0, JUDGE_ASSIGNMENTS_PAGE_SIZE - 1);
 
-          if (error) {
-            throw new Error(`Supabase query failed: ${error.message}`);
+            if (error) {
+              throw new Error(`Supabase query failed: ${error.message}`);
+            }
+
+            const page = (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
+            rows.push(...page);
+            if (page.length < JUDGE_ASSIGNMENTS_PAGE_SIZE) return rows;
+            const last = page[page.length - 1];
+            if (!last?.updated_at || !last.id) return rows;
+            cursorUpdatedAt = String(last.updated_at);
+            cursorId = String(last.id);
           }
-
-          return (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
         },
         getRemoteId: remote => String(remote.id),
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),

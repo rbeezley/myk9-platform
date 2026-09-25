@@ -165,6 +165,32 @@ describe('ShowCloseoutSummary', () => {
     const collected = screen.getByRole('group', { name: 'Payments received during the show' });
     expect(await within(collected).findByText('Unavailable')).toBeInTheDocument();
     expect(within(collected).queryByText('$0.00')).not.toBeInTheDocument();
+    expect(within(collected).queryByText(/0 payments/)).not.toBeInTheDocument();
+    expect(within(collected).getByText(/Unavailable: could not load payments/)).toBeInTheDocument();
+  });
+
+  it('shows no payment number, not even a zero, while the ledger read is still pending', async () => {
+    let resolve: (rows: unknown[]) => void = () => {};
+    mockListShowPayments.mockReturnValue(new Promise(r => (resolve = r)));
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        deskWindow={{
+          showStartDate: '2026-09-17',
+          showEndDate: '2026-09-17',
+          timeZone: 'America/New_York',
+        }}
+        entries={[]}
+      />
+    );
+
+    const payments = screen.getByRole('group', { name: 'Payments received during the show' });
+    expect(within(payments).getByText('…')).toBeInTheDocument();
+    expect(within(payments).getByText('Checking payments…')).toBeInTheDocument();
+    expect(within(payments).queryByText(/\$0\.00|0 payments/)).not.toBeInTheDocument();
+
+    resolve([]);
+    expect(await within(payments).findByText('0 payments during the show')).toBeInTheDocument();
   });
 
   it('renders reportable and urgent incident counts', async () => {

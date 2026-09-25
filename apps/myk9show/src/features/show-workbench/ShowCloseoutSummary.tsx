@@ -38,11 +38,18 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
   const hasDeskMoney = DESK_PAYMENT_METHODS.some(
     method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
   );
-  const paymentsText = paymentsQuery.isLoading
-    ? '…'
+  // Never a zero before the read completes: pending (including paused while
+  // offline, which is not `isLoading`) shows a placeholder, a failure says so.
+  const paymentsText = paymentsQuery.isSuccess
+    ? formatCurrency(recon.paymentAmount)
     : paymentsQuery.isError
       ? 'Unavailable'
-      : formatCurrency(recon.paymentAmount);
+      : '…';
+  const paymentCountText = paymentsQuery.isSuccess
+    ? `${recon.paymentCount} ${recon.paymentCount === 1 ? 'payment' : 'payments'} during the show`
+    : paymentsQuery.isError
+      ? 'Unavailable'
+      : 'Checking payments…';
   const refundReviewText =
     recon.refundReviewCount > 0
       ? `${formatCurrency(recon.refundReviewAmount)} paid entries`
@@ -116,13 +123,10 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             <p className={STAT_VALUE_CLASS}>{paymentsText}</p>
             {paymentsQuery.isError ? (
               <p className="text-xs text-destructive">
-                Could not load payments. Reconnect and reopen closeout.
+                {paymentCountText}: could not load payments. Reconnect and reopen closeout.
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                {recon.paymentCount} {recon.paymentCount === 1 ? 'payment' : 'payments'} during the
-                show
-              </p>
+              <p className="text-xs text-muted-foreground">{paymentCountText}</p>
             )}
           </div>
           <div role="group" aria-label="Pulled or no-show entries">
@@ -136,7 +140,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           </div>
         </div>
 
-        {hasDeskMoney && !paymentsQuery.isError && (
+        {hasDeskMoney && paymentsQuery.isSuccess && (
           <div className="mt-3 flex flex-wrap gap-2">
             {DESK_PAYMENT_METHODS.map(method => ({
               ...method,

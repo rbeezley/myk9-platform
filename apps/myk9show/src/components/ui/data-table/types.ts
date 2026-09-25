@@ -171,7 +171,12 @@ export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[st
  * correct if it equals the width.
  */
 export const STICKY_LEFT_LEAD_WIDTH_CLASS = 'w-10';
-const STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES = 'min-w-10 max-w-10';
+// `px-0`: the DataTable's own cell padding (`px-4`, or `px-3` compact) is
+// one-sided inside a 40px cell once TableCell's `pr-0` for checkbox cells
+// applies, which put the checkbox's centre at 28px instead of 20px (MYK9-751).
+// With no padding the inner wrapper centres it in the full 40px; `cn` merges
+// these after the density padding, so tailwind-merge drops that `px-*`.
+const STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES = 'min-w-10 max-w-10 px-0';
 const STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS = 'left-10';
 
 /**

@@ -55,21 +55,39 @@ function expectNear(actual: number, expected: number, tolerance: number, label: 
  * AC2 evidence: the enlarged tap-target pseudo-element must be the thing a
  * real pointer actually hits 8px past the checkbox's own edge — not occluded
  * by a higher-z, opaque neighbor cell painting on top of it (the P2a bug).
+ *
+ * Polled: the header checkbox can be briefly not visible while the table
+ * re-renders (a null bounding box in Regression run 36090720412, MYK9-751),
+ * which says nothing about stacking. A real occlusion never clears on its own,
+ * so it still fails when the poll times out.
  */
 async function assertPointHitsCheckbox(page: Page, checkbox: Locator, label: string) {
-  const box = await checkbox.boundingBox();
-  expect(box, `${label} has no bounding box (not visible?)`).not.toBeNull();
-  if (!box) return;
-  const point = { x: box.x + box.width + 8, y: box.y + box.height / 2 };
-  const hit = await checkbox.evaluate((el, pt) => {
-    const target = document.elementFromPoint(pt.x, pt.y);
-    return Boolean(target && (target === el || el.contains(target)));
-  }, point);
-  expect(
-    hit,
-    `${label}: elementFromPoint(${point.x}, ${point.y}) did not resolve inside the checkbox — ` +
-      'something else is painted on top of the enlarged tap target'
-  ).toBe(true);
+  await expect
+    .poll(
+      async () => {
+        const box = await checkbox.boundingBox();
+        if (!box) return 'no bounding box (not visible)';
+        const point = { x: box.x + box.width + 8, y: box.y + box.height / 2 };
+        const hit = await checkbox.evaluate((el, pt) => {
+          const target = document.elementFromPoint(pt.x, pt.y);
+          return Boolean(target && (target === el || el.contains(target)));
+        }, point);
+        return hit
+          ? 'hit'
+          : `elementFromPoint(${point.x}, ${point.y}) did not resolve inside the checkbox — ` +
+              'something else is painted on top of the enlarged tap target';
+      },
+      { message: label, timeout: 5_000 }
+    )
+    .toBe('hit');
+}
+
+/** MYK9-751: the checkbox sits in the middle of its 40px cell, not off to one side. */
+async function expectCheckboxCentred(checkbox: Locator, cell: Locator, label: string) {
+  const [box, cellBox] = await Promise.all([checkbox.boundingBox(), cell.boundingBox()]);
+  expect(box && cellBox, `${label}: no bounding box`).toBeTruthy();
+  const offset = box!.x + box!.width / 2 - (cellBox!.x + cellBox!.width / 2);
+  expect(Math.abs(offset), `${label} is ${offset}px off the cell's centre`).toBeLessThanOrEqual(1);
 }
 
 /**
@@ -84,8 +102,11 @@ async function assertPointHitsCheckbox(page: Page, checkbox: Locator, label: str
 async function forceHorizontalOverflow(scrollRegion: Locator): Promise<void> {
   const overflow = await scrollRegion.evaluate(el => el.scrollWidth - el.clientWidth);
   if (overflow > 0) return;
+  // Narrow enough to overflow whatever the dog names are: a fixed 120px cut
+  // stayed wider than the table's min-content with short names, so the
+  // overflow assertion failed before the pinning was exercised (MYK9-751).
   await scrollRegion.evaluate(el => {
-    const target = Math.max(el.clientWidth - 120, 100);
+    const target = Math.max(Math.min(el.clientWidth - 120, 240), 160);
     el.style.width = `${target}px`;
     el.style.maxWidth = `${target}px`;
   });
@@ -124,6 +145,8 @@ test.describe('dogs table pinned select column (MYK9-592)', () => {
       'body select cell width'
     );
 
+    await expectCheckboxCentred(headerCheckbox, selectHeaderCell, 'header checkbox');
+    await expectCheckboxCentred(rowCheckbox, selectBodyCell, 'row checkbox');
     await assertPointHitsCheckbox(page, headerCheckbox, 'header checkbox');
     await assertPointHitsCheckbox(page, rowCheckbox, 'row checkbox');
 

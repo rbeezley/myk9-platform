@@ -20,7 +20,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { saveWizardShowJudges } from './saveWizardShowJudges';
+import { saveWizardShowJudges, wizardEditJudgeBaseline } from './saveWizardShowJudges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -284,9 +284,7 @@ export function useShowCreationWizardActions({
         // The judge list the edit draft was built from (MYK9-772): the save
         // writes the difference from it. Not the live store, which can gain
         // judges after the draft was built and would turn them into removals.
-        const loadedJudges = (useWizardStore.getState().editBaselineJudgeIds ?? []).map(
-          judgeId => ({ judgeId })
-        );
+        const loadedJudges = wizardEditJudgeBaseline();
 
         // Save to show store and get the real DB UUID back
         let savedShow: Show;

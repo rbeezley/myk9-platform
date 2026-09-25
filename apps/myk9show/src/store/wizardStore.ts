@@ -384,8 +384,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         trials: state.trials,
         judgeAssignments: state.judgeAssignments,
         judgeDetails: state.judgeDetails,
-        // Persisted with the draft it describes, or a reloaded edit draft
-        // could only add judges and a removal would silently not save.
+        // Kept with the draft it describes. Edit mode rebuilds the draft (and
+        // this baseline) on mount today, so this is belt-and-braces: a draft
+        // restored without it could only add judges, never remove them.
         editBaselineJudgeIds: state.editBaselineJudgeIds,
       }),
       merge: (persisted, current) => {

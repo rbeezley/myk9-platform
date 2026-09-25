@@ -1,5 +1,6 @@
 import { persistShowJudgeAssignments, saveShowJudgeChanges } from '@/services/database/judges';
 import { logger } from '@/services/LoggingService';
+import { useWizardStore } from '@/store/wizardStore';
 
 /**
  * Save the wizard's show-level judges after the show itself saved.
@@ -36,4 +37,15 @@ export async function saveWizardShowJudges({
     });
     return false;
   }
+}
+
+/**
+ * The judge list a wizard EDIT started from: the ids `buildEditModeDraft`
+ * recorded when it built the draft. Deliberately NOT the show store's live
+ * `assignedJudges`, which can gain judges after the draft was built (they
+ * replicate in, or another device adds one); diffing against those would turn
+ * judges the draft never showed into removals (MYK9-772).
+ */
+export function wizardEditJudgeBaseline(): Array<{ judgeId: string }> {
+  return (useWizardStore.getState().editBaselineJudgeIds ?? []).map(judgeId => ({ judgeId }));
 }

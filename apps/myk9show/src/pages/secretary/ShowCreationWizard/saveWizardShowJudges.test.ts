@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services/database/judges', () => mocks);
 vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn() } }));
 
-import { saveWizardShowJudges } from './saveWizardShowJudges';
+import { saveWizardShowJudges, wizardEditJudgeBaseline } from './saveWizardShowJudges';
+import { useWizardStore } from '@/store/wizardStore';
 
 const j = (judgeId: string) => ({ judgeId });
 
@@ -65,5 +66,19 @@ describe('saveWizardShowJudges (MYK9-772)', () => {
       judges: [j('a')],
     });
     expect(ok).toBe(false);
+  });
+});
+
+describe('wizardEditJudgeBaseline (review P2)', () => {
+  it('is the list the draft was built from, not a newer list', () => {
+    useWizardStore.setState({ editBaselineJudgeIds: ['a'] });
+    // A judge that arrived later (replicated in, or another device) must not
+    // appear in the baseline, or the save would remove them.
+    expect(wizardEditJudgeBaseline()).toEqual([{ judgeId: 'a' }]);
+  });
+
+  it('is empty outside an edit draft, so a save can only add', () => {
+    useWizardStore.setState({ editBaselineJudgeIds: null });
+    expect(wizardEditJudgeBaseline()).toEqual([]);
   });
 });

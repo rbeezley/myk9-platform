@@ -1764,6 +1764,16 @@ describe('parseFileNameList', () => {
     expect(parseFileNameList('')).toEqual([]);
     expect(parseFileNameList('\n')).toEqual([]);
   });
+
+  // MYK9-748 (#2262 review): trimming turned ` docs/x.md` into `docs/x.md`,
+  // a different path that can sit under a lower review floor.
+  it('keeps a path exactly as GitHub returned it', () => {
+    expect(parseFileNameList(' docs/x.md\nscripts/qa/review-gate.ts \n')).toEqual([
+      ' docs/x.md',
+      'scripts/qa/review-gate.ts ',
+    ]);
+    expect(parseFileNameList('a.ts\r\nb.ts\r\n')).toEqual(['a.ts', 'b.ts']);
+  });
 });
 
 describe('evaluateReviewGate sees the declared count too', () => {

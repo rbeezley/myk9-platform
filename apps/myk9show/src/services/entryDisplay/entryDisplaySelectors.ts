@@ -86,8 +86,6 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'no-status':
     case 'pending-payment':
       return 'pending';
-    case 'waitlisted':
-      return 'waitlist';
     case 'checked-in':
     case 'at-gate':
     case 'in-ring':

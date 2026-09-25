@@ -120,61 +120,67 @@ export const mapDatabaseToShow = (
         timezone: trialObj.timezone as string | null | undefined,
       }),
       registryId: (trialObj.registry_id ?? trialObj.registryId ?? null) as string | null,
-      classes: ((trialObj.class as unknown[]) || []).map((cls: unknown) => {
-        const classObj = cls as Record<string, unknown>;
-        return {
-          id: classObj.id as string,
-          templateId:
-            ((classObj.template_id || classObj.templateId) as string | undefined) ?? undefined,
-          name: classObj.name as string,
-          description: (classObj.description || '') as string,
-          entryFee: (classObj.entry_fee || 0) as number,
-          jumpHeights: (classObj.jump_heights || []) as string[],
-          maxEntries: classObj.max_entries as number | undefined,
-          allowWaitlist: (classObj.allow_waitlist || false) as boolean,
-          maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
-          level: classObj.level as string | undefined,
-          element: classObj.element as string | undefined,
-          section: classObj.section as string | undefined,
-          competitionType: classObj.competition_type as string | undefined,
-          breedRestrictions: (classObj.breed_restrictions || []) as string[],
-          ageRestrictions: classObj.age_restrictions
-            ? {
-                min: (classObj.age_restrictions as Record<string, unknown>).min as number,
-                max: (classObj.age_restrictions as Record<string, unknown>).max as number,
-              }
-            : classObj.age_min !== undefined || classObj.age_max !== undefined
+      // `undefined` when the read did not embed classes (the guest Browse
+      // query leaves them out), `[]` only when it did and found none. Reading
+      // "not fetched" as "none" labelled every open show "Classes Not Ready"
+      // to a signed-out visitor (MYK9-756).
+      classes: (Array.isArray(trialObj.class) ? (trialObj.class as unknown[]) : undefined)?.map(
+        (cls: unknown) => {
+          const classObj = cls as Record<string, unknown>;
+          return {
+            id: classObj.id as string,
+            templateId:
+              ((classObj.template_id || classObj.templateId) as string | undefined) ?? undefined,
+            name: classObj.name as string,
+            description: (classObj.description || '') as string,
+            entryFee: (classObj.entry_fee || 0) as number,
+            jumpHeights: (classObj.jump_heights || []) as string[],
+            maxEntries: classObj.max_entries as number | undefined,
+            allowWaitlist: (classObj.allow_waitlist || false) as boolean,
+            maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
+            level: classObj.level as string | undefined,
+            element: classObj.element as string | undefined,
+            section: classObj.section as string | undefined,
+            competitionType: classObj.competition_type as string | undefined,
+            breedRestrictions: (classObj.breed_restrictions || []) as string[],
+            ageRestrictions: classObj.age_restrictions
               ? {
-                  min: classObj.age_min as number | undefined,
-                  max: classObj.age_max as number | undefined,
+                  min: (classObj.age_restrictions as Record<string, unknown>).min as number,
+                  max: (classObj.age_restrictions as Record<string, unknown>).max as number,
                 }
-              : undefined,
-          heightRestrictions: classObj.height_restrictions
-            ? {
-                min: (classObj.height_restrictions as Record<string, unknown>).min as number,
-                max: (classObj.height_restrictions as Record<string, unknown>).max as number,
-              }
-            : classObj.height_min !== undefined || classObj.height_max !== undefined
+              : classObj.age_min !== undefined || classObj.age_max !== undefined
+                ? {
+                    min: classObj.age_min as number | undefined,
+                    max: classObj.age_max as number | undefined,
+                  }
+                : undefined,
+            heightRestrictions: classObj.height_restrictions
               ? {
-                  min: classObj.height_min as number | undefined,
-                  max: classObj.height_max as number | undefined,
+                  min: (classObj.height_restrictions as Record<string, unknown>).min as number,
+                  max: (classObj.height_restrictions as Record<string, unknown>).max as number,
                 }
-              : undefined,
-          handlerAgeRestrictions: classObj.handler_age_restrictions
-            ? {
-                min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
-                max: (classObj.handler_age_restrictions as Record<string, unknown>).max as number,
-              }
-            : classObj.handler_age_min !== undefined || classObj.handler_age_max !== undefined
+              : classObj.height_min !== undefined || classObj.height_max !== undefined
+                ? {
+                    min: classObj.height_min as number | undefined,
+                    max: classObj.height_max as number | undefined,
+                  }
+                : undefined,
+            handlerAgeRestrictions: classObj.handler_age_restrictions
               ? {
-                  min: classObj.handler_age_min as number | undefined,
-                  max: classObj.handler_age_max as number | undefined,
+                  min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
+                  max: (classObj.handler_age_restrictions as Record<string, unknown>).max as number,
                 }
-              : undefined,
-          startTime: classObj.start_time as string | undefined,
-          estimatedDuration: classObj.estimated_duration as number | undefined,
-        };
-      }),
+              : classObj.handler_age_min !== undefined || classObj.handler_age_max !== undefined
+                ? {
+                    min: classObj.handler_age_min as number | undefined,
+                    max: classObj.handler_age_max as number | undefined,
+                  }
+                : undefined,
+            startTime: classObj.start_time as string | undefined,
+            estimatedDuration: classObj.estimated_duration as number | undefined,
+          };
+        }
+      ),
       maxEntriesPerDog: trialObj.max_entries_per_dog as number | undefined,
       maxTotalEntries: trialObj.max_total_entries as number | undefined,
       maxEntriesPerHandler: trialObj.max_entries_per_handler as number | undefined,

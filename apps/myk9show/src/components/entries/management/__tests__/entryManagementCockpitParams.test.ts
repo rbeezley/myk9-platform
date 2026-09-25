@@ -41,6 +41,14 @@ describe('normalizeEntryManagementCockpitParams', () => {
       { queue: 'needs-review', tab: 'exceptions', exception: 'waitlist' },
       'tab=exceptions&exception=waitlist',
     ],
+    // MYK9-754: waitlisted dogs live in waitlist_entries, never in an entries
+    // status, so a "waitlist" attention link opens the Waitlist sub-tab rather
+    // than filtering entry rows that can never match.
+    [
+      'attention=waitlist',
+      { queue: 'needs-review', tab: 'exceptions', exception: 'waitlist' },
+      'tab=exceptions&exception=waitlist',
+    ],
     [
       'attention=move-ups',
       { queue: 'needs-review', tab: 'exceptions', exception: 'move-ups' },

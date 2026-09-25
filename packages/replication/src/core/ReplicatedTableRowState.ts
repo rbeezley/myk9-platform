@@ -118,7 +118,20 @@ export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number):
 
 export function selectStaleCleanRows<T>(
   rows: readonly ReplicatedRow<T>[],
-  serverIds: ReadonlySet<string>
+  serverIds: ReadonlySet<string>,
+  options: { syncedBefore?: number } = {}
 ): ReplicatedRow<T>[] {
-  return rows.filter(row => !row.isDirty && !serverIds.has(row.id));
+  const { syncedBefore } = options;
+  return rows.filter(
+    row =>
+      !row.isDirty &&
+      !serverIds.has(row.id) &&
+      // A row marked synced after the fetch began (an upload that landed
+      // mid-fetch) is missing from serverIds only because the fetch predates
+      // it, and a pending local create (`_localOnly`) was never on the server:
+      // neither is stale (MYK9-775).
+      (syncedBefore === undefined ||
+        (row.lastSyncedAt < syncedBefore &&
+          (row.data as { _localOnly?: unknown } | null)?._localOnly !== true))
+  );
 }

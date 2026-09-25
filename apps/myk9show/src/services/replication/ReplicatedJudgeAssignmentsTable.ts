@@ -261,6 +261,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         toLocalRow: rowToJudgeAssignment,
         rebuildUpdatePayload: assignment => this.toSupabaseRow(assignment),
         resolveConflict: (_local, remote) => remote,
+        // Assignments are HARD-deleted and the incremental fetch can never see a
+        // deletion, so a removed judge stayed on every other device forever
+        // (MYK9-775). The fetch above has no scope filter — a full fetch
+        // returns every row this device stores — so a full sync may remove
+        // what the server no longer has.
+        cleanupStaleRowsOnFullSync: true,
       };
 
     const result = await syncReplicatedTable(

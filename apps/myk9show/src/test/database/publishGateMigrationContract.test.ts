@@ -12,27 +12,38 @@ import { describe, expect, it } from 'vitest';
 import {
   PUBLISH_BLOCKED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  ENTRY_WINDOW_REQUIRED_MESSAGE,
+  ENTRY_WINDOW_ORDER_MESSAGE,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '@/features/payments/onlineEntryGate';
 
-// Resolved by glob, not a hard-coded filename -- a re-versioned migration
-// (the file is renamed, never edited in place once merged) must fail this
-// test with a useful "no match" / "multiple matches" message instead of a
-// silent ENOENT against a stale path.
+// Resolved by content, not a hard-coded filename: the function body under
+// test is the one in the LATEST migration that (re)defines it (MYK9-716
+// replaced 20260916003500's body), and the trigger wiring is the latest
+// migration that creates the trigger. Migration versions sort
+// lexicographically, so the last match is the one applied last.
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
-const MIGRATION_NAME_PATTERN = /_enforce_show_publish_gate\.sql$/;
 
-function migrationPath(): string {
-  const matches = readdirSync(MIGRATIONS_DIR).filter(name => MIGRATION_NAME_PATTERN.test(name));
-  if (matches.length !== 1) {
-    throw new Error(
-      `expected exactly one migration matching ${MIGRATION_NAME_PATTERN} in ${MIGRATIONS_DIR}, found ${matches.length}: ${matches.join(', ')}`
-    );
+function latestMigrationContaining(marker: RegExp): string {
+  const matches = readdirSync(MIGRATIONS_DIR)
+    .filter(name => name.endsWith('.sql'))
+    .sort()
+    .filter(name => marker.test(readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8')));
+  const latest = matches.at(-1);
+  if (!latest) {
+    throw new Error(`expected a migration matching ${marker} in ${MIGRATIONS_DIR}, found none`);
   }
-  return resolve(MIGRATIONS_DIR, matches[0]);
+  return readFileSync(resolve(MIGRATIONS_DIR, latest), 'utf8');
 }
 
 function migrationSql(): string {
-  return readFileSync(migrationPath(), 'utf8');
+  return latestMigrationContaining(
+    /CREATE OR REPLACE FUNCTION public\.enforce_show_publish_gate\(\)/
+  );
+}
+
+function triggerSql(): string {
+  return latestMigrationContaining(/CREATE TRIGGER trg_enforce_show_publish_gate\b/);
 }
 
 /** A SQL string literal escapes an apostrophe as `''`, not `'` -- compare
@@ -42,8 +53,9 @@ function sqlEscaped(text: string): string {
 }
 
 describe('enforce_show_publish_gate migration text', () => {
-  it('resolves to exactly one enforce_show_publish_gate migration', () => {
+  it('resolves the latest enforce_show_publish_gate definition', () => {
     expect(() => migrationSql()).not.toThrow();
+    expect(migrationSql()).toMatch(/MYK9-716/);
   });
 
   it('raises PUBLISH_BLOCKED_MESSAGE verbatim for the no-Stripe-readiness refusal', () => {
@@ -62,8 +74,23 @@ describe('enforce_show_publish_gate migration text', () => {
     expect(mk003Count).toBe(2);
   });
 
-  it('fires on BEFORE INSERT OR UPDATE OF status, not UPDATE alone', () => {
+  // MYK9-716: publishing requires an entry window.
+  it('raises the entry-window refusals verbatim with their own SQLSTATE', () => {
     const sql = migrationSql();
-    expect(sql).toMatch(/BEFORE INSERT OR UPDATE OF status ON public\.shows/);
+    expect(sql).toContain(sqlEscaped(ENTRY_WINDOW_REQUIRED_MESSAGE));
+    expect(sql).toContain(sqlEscaped(ENTRY_WINDOW_ORDER_MESSAGE));
+    const code = `USING ERRCODE = '${PUBLISH_GATE_ERRCODE_ENTRY_WINDOW}'`;
+    expect(sql.split(code)).toHaveLength(3);
+  });
+
+  it('checks the entry window after the Stripe refusal, so MK003 keeps precedence', () => {
+    const sql = migrationSql();
+    expect(sql.indexOf(sqlEscaped(ENTRY_WINDOW_REQUIRED_MESSAGE))).toBeGreaterThan(
+      sql.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE))
+    );
+  });
+
+  it('fires on BEFORE INSERT OR UPDATE OF status, not UPDATE alone', () => {
+    expect(triggerSql()).toMatch(/BEFORE INSERT OR UPDATE OF status ON public\.shows/);
   });
 });

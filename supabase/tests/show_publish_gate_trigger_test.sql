@@ -35,6 +35,12 @@
 -- block or a plain SELECT outside one) so a stale identity never leaks into
 -- the next case's plain-postgres fixture setup.
 --
+-- MYK9-716 (20260925023700): publishing also requires an entry window, checked
+-- LAST, SQLSTATE MK005. Every fixture this file expects to PUBLISH is given a
+-- window right after it is inserted; the refusal fixtures keep none, since
+-- their MK003 fires first (section 12d pins that order). Section 12 covers
+-- the window itself.
+--
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 
 BEGIN;
@@ -140,6 +146,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579004', 'draft'),
   ('00000000-0000-0000-0000-000000579015', 'MYK9-579 Clubless Show', 'AKC',
    current_date, current_date + 1, NULL, 'draft');
+
+-- MYK9-716: publishing requires an entry window; case 3 publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579012';
 
 -- Already-published fixture: inserted directly as postgres, WITH no SET ROLE
 -- active, so `current_setting('role', true)` reads 'none' and the gate's
@@ -485,6 +496,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579017', 'MYK9-579 Live-Mode Ready Show (live cutover)', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579004', 'draft');
 
+-- MYK9-716: publishing requires an entry window; section 7's success case publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579017';
+
 DO $$
 BEGIN
   -- Club 3's account is test-mode only; now that the platform is live, it is
@@ -700,6 +716,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579041', 'MYK9-579 Authenticated Success Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft');
 
+-- MYK9-716: publishing requires an entry window; 9c publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579041';
+
 -- 9a. Secretary of a club with no Stripe account publishes -> MK003.
 DO $$
 BEGIN
@@ -840,6 +861,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579050', 'MYK9-579 Loses Readiness Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579005', 'draft');
 
+-- MYK9-716: publishing requires an entry window; section 11's first publish needs it.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579050';
+
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000579200',
@@ -901,6 +927,216 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', '', true);
     RAISE NOTICE 'PASS republish: publish -> draft -> publish is re-gated after the club loses Stripe readiness in between';
   END;
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- 12. MYK9-716: a draft may have no entry window, but publishing requires
+--     one. Club 3 is authorized and Stripe-ready in the platform's current
+--     mode (test, per section 9c), so the entry window is the only thing
+--     these fixtures lack. Secretary of club 3.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
+                          entry_open_date, entry_close_date) VALUES
+  ('00000000-0000-0000-0000-000000579060', 'MYK9-716 Windowless Draft', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft', NULL, NULL),
+  ('00000000-0000-0000-0000-000000579061', 'MYK9-716 Inverted Window', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
+   current_date - 1, current_date - 10),
+  ('00000000-0000-0000-0000-000000579062', 'MYK9-716 Zero-Length Window', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
+   current_date - 1, current_date - 1),
+  ('00000000-0000-0000-0000-000000579063', 'MYK9-716 Windowless, Not Stripe-Ready', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'draft', NULL, NULL);
+
+-- 12a. A draft saves without a window: an authenticated INSERT of a
+--      windowless draft, and an unrelated edit to one, both land.
+DO $$
+DECLARE
+  v_n int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+  VALUES ('00000000-0000-0000-0000-000000579064', 'MYK9-716 Draft Insert, No Window', 'AKC',
+          current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft');
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-draft-insert: expected 1 row, got %', v_n;
+  END IF;
+
+  UPDATE public.shows SET name = 'MYK9-716 Windowless Draft (renamed)'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-draft-edit: expected the rename to affect 1 row, affected %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS windowless-draft: a draft with no entry window inserts and saves edits as an authenticated secretary';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12b. Publishing the windowless draft is refused with MK005 and the
+--      "set the entry window" message, and the row stays a draft. The
+--      positive control proves the secretary really reaches the row.
+DO $$
+DECLARE
+  v_message text;
+  v_visible int;
+  v_status text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  SELECT count(*) INTO v_visible FROM public.shows
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  IF v_visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: expected the secretary to see the fixture, saw % rows', v_visible;
+  END IF;
+
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL windowless-publish: a show with no entry window was published';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_message IS NULL OR v_message !~* 'set the entry window before publishing' THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: unexpected message %', v_message;
+  END IF;
+  IF v_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: expected the show to stay draft, got %', v_status;
+  END IF;
+  RAISE NOTICE 'PASS windowless-publish: refused with MK005 and the set-the-entry-window message';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12c. A window that closes before, or at the same moment, it opens is
+--      refused with the order message.
+DO $$
+DECLARE
+  v_id uuid;
+  v_message text;
+BEGIN
+  FOREACH v_id IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000579061'::uuid,
+    '00000000-0000-0000-0000-000000579062'::uuid
+  ] LOOP
+    v_message := NULL;
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+    BEGIN
+      UPDATE public.shows SET status = 'published' WHERE id = v_id;
+      RAISE EXCEPTION 'FAIL window-order: show % with an inverted or empty window was published', v_id;
+    EXCEPTION WHEN SQLSTATE 'MK005' THEN
+      GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    END;
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    IF v_message IS NULL OR v_message !~* 'has to open before it closes' THEN
+      RAISE EXCEPTION 'FAIL window-order: unexpected message for %: %', v_id, v_message;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS window-order: an inverted and a zero-length window are both refused with MK005';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12d. The window is checked LAST: a windowless show on a club with no
+--      Stripe account still gets MK003 and the payment-account message.
+DO $$
+DECLARE
+  v_state text;
+  v_message text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579063';
+    RAISE EXCEPTION 'FAIL window-precedence: publish succeeded with no Stripe account and no window';
+  EXCEPTION WHEN SQLSTATE 'MK003' OR SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_state IS DISTINCT FROM 'MK003' OR v_message !~* 'payment account' THEN
+    RAISE EXCEPTION 'FAIL window-precedence: expected MK003 payment-account, got % %', v_state, v_message;
+  END IF;
+  RAISE NOTICE 'PASS window-precedence: the Stripe refusal (MK003) still wins over a missing window';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12e. INSERT arm: creating an already-published show with no window is
+--      refused with MK005 (the trigger's INSERT branch).
+DO $$
+DECLARE
+  v_state text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+    VALUES ('00000000-0000-0000-0000-000000579065', 'MYK9-716 Published Insert, No Window', 'AKC',
+            current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'published');
+    RAISE EXCEPTION 'FAIL windowless-insert-published: an already-published show was inserted with no window';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_state IS DISTINCT FROM 'MK005' THEN
+    RAISE EXCEPTION 'FAIL windowless-insert-published: expected MK005, got %', v_state;
+  END IF;
+  RAISE NOTICE 'PASS windowless-insert-published: refused with MK005';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12f. Once the secretary sets the window, the same draft publishes.
+DO $$
+DECLARE
+  v_n int;
+  v_status text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  UPDATE public.shows
+     SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_n <> 1 OR v_status IS DISTINCT FROM 'published' THEN
+    RAISE EXCEPTION 'FAIL window-set-publishes: expected 1 row published, got % row(s), status %', v_n, v_status;
+  END IF;
+  RAISE NOTICE 'PASS window-set-publishes: the draft publishes once its entry window is set';
 END;
 $$;
 RESET ROLE;

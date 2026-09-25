@@ -54,14 +54,51 @@ export const PUBLISH_GATE_ERRCODE_UNAUTHORIZED = 'MK004';
 export const CLUB_UNAUTHORIZED_MESSAGE =
   "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.";
 
+// MYK9-716: a draft may have no entry window, but publishing requires one —
+// both dates set, and the window opening before it closes. Checked LAST by
+// enforce_show_publish_gate() (supabase/migrations/20260925023700), after the
+// club and Stripe checks, with its own SQLSTATE so the client can link to the
+// entry dates instead of the payments page. The two messages below are that
+// trigger's RAISE text verbatim.
+export const PUBLISH_GATE_ERRCODE_ENTRY_WINDOW = 'MK005';
+
+export const ENTRY_WINDOW_REQUIRED_MESSAGE =
+  'Set the entry window before publishing — exhibitors need to know when entries open and close.';
+
+export const ENTRY_WINDOW_ORDER_MESSAGE =
+  'The entry window has to open before it closes. Fix the entry dates, then publish.';
+
+function parseEntryDate(value: string | null | undefined): number | null {
+  if (!value?.trim()) return null;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * Why this show's entry window cannot be published yet, or `null` when it can.
+ * Mirrors the trigger: a missing (or unreadable) date is "required", and an
+ * open that is not strictly before the close is "order".
+ */
+export function entryWindowPublishError(
+  entryOpenDate: string | null | undefined,
+  entryCloseDate: string | null | undefined
+): string | null {
+  const open = parseEntryDate(entryOpenDate);
+  const close = parseEntryDate(entryCloseDate);
+  if (open === null || close === null) return ENTRY_WINDOW_REQUIRED_MESSAGE;
+  return open < close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
+}
+
 const PUBLISH_GATE_ERRCODES: readonly string[] = [
   PUBLISH_GATE_ERRCODE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 ];
 
-/** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003
- * or MK004 — MYK9-572's club-authorization refusal), as opposed to any other
- * failure (network, unrelated constraint, ...). */
+/** True when `error` is a DB publish-gate trigger's refusal (SQLSTATE MK003,
+ * MK004 — MYK9-572's club-authorization refusal — or MK005, MYK9-716's
+ * entry-window refusal), as opposed to any other failure (network, unrelated
+ * constraint, ...). */
 export function isPublishGateDbError(error: unknown): boolean {
   return (
     typeof error === 'object' &&

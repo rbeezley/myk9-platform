@@ -38,6 +38,7 @@ import {
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
+import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
 
@@ -194,6 +195,9 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Is the edit-mode target show available to the same store that will write it?
   const { editModeResolution, retryWritableShow } = useWritableEditModeResolution(editMode);
+  // MYK9-716: a draft may skip the entry window, but a live show must keep it.
+  const requireEntryWindow =
+    editModeResolution.state === 'resolved' && isShowListingLive(editModeResolution.show.status);
 
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
@@ -256,7 +260,8 @@ const ShowCreationWizardPage: React.FC = () => {
       show,
       trials,
       trialView,
-      retainedClasses
+      retainedClasses,
+      { requireEntryWindow }
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -302,6 +307,7 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
     trialView,
     retainedClasses,
+    requireEntryWindow,
     scrollBannerIntoView,
   ]);
 
@@ -314,7 +320,8 @@ const ShowCreationWizardPage: React.FC = () => {
     show,
     trials,
     trialView,
-    retainedClasses
+    retainedClasses,
+    { requireEntryWindow }
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT

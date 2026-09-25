@@ -38,6 +38,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000572011', 'MYK9-572 Unauthorized Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
 
+-- MYK9-716: publishing requires an entry window; case 4 publishes this show (MK004 still fires first while the club is unauthorized).
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000572011';
+
 -- ---------------------------------------------------------------------------
 -- Shared secretary/club_admin identity for club 002, created EARLY so both
 -- the fixture build below and every publish case (3, 3b, 4, 5) can exercise
@@ -523,6 +528,11 @@ SELECT set_config('request.jwt.claim.sub', '', true);
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
   ('00000000-0000-0000-0000-000000572012', 'MYK9-572 Already Published (unauthorized club)', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
+
+-- MYK9-716: publishing requires an entry window; it is published below.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000572012';
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.admin_auth_user_id'), true);

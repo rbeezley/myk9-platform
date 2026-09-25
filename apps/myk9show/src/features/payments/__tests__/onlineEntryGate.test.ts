@@ -8,6 +8,10 @@ import {
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  entryWindowPublishError,
+  ENTRY_WINDOW_REQUIRED_MESSAGE,
+  ENTRY_WINDOW_ORDER_MESSAGE,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '../onlineEntryGate';
 import { createDatabaseError } from '@/services/database/databaseError';
 
@@ -102,5 +106,43 @@ describe('publishGateDbErrorMessage', () => {
 
     expect(isPublishGateDbError(dbError)).toBe(true);
     expect(publishGateDbErrorMessage(dbError)).toBe(PUBLISH_BLOCKED_MESSAGE);
+  });
+});
+
+// MYK9-716: a draft may have no entry window, but publishing requires one.
+// Mirrors enforce_show_publish_gate()'s MK005 refusal
+// (supabase/migrations/20260925023700).
+describe('entryWindowPublishError', () => {
+  const OPEN = '2026-10-01T12:00:00.000Z';
+  const CLOSE = '2026-10-20T04:59:00.000Z';
+
+  it('passes a window that opens before it closes', () => {
+    expect(entryWindowPublishError(OPEN, CLOSE)).toBeNull();
+  });
+
+  it('requires both dates', () => {
+    expect(entryWindowPublishError(null, null)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError(undefined, CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError(OPEN, '')).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError('  ', CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+  });
+
+  it('treats an unparseable date as missing, not as set', () => {
+    expect(entryWindowPublishError('not a date', CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+  });
+
+  it('refuses a window that closes before, or at the moment, it opens', () => {
+    expect(entryWindowPublishError(CLOSE, OPEN)).toBe(ENTRY_WINDOW_ORDER_MESSAGE);
+    expect(entryWindowPublishError(OPEN, OPEN)).toBe(ENTRY_WINDOW_ORDER_MESSAGE);
+  });
+
+  it('recognises the trigger refusal (MK005) as a publish-gate error with its own copy', () => {
+    const dbError = createDatabaseError({
+      code: PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
+      message: ENTRY_WINDOW_REQUIRED_MESSAGE,
+    });
+    expect(PUBLISH_GATE_ERRCODE_ENTRY_WINDOW).toBe('MK005');
+    expect(isPublishGateDbError(dbError)).toBe(true);
+    expect(publishGateDbErrorMessage(dbError)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
   });
 });

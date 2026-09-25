@@ -33,7 +33,7 @@ test.describe('Show Wizard UI — Step 1 (secretary)', () => {
     await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Entry Period *', { exact: true })).toBeVisible();
+    await expect(page.getByText('Entry Period', { exact: true })).toBeVisible();
     await expect(page.getByText('Location *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Chairman *', { exact: true })).toBeVisible();
     // Show Secretary auto-set to the signed-in user.

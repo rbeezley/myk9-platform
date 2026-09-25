@@ -6,7 +6,7 @@ user-invocable: true
 
 # Seed Reset
 
-Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026-06-17): the lean set of two clubs, the three Heartland shows, six dogs and the role accounts. The MYK9-109 load fixture (63 load dogs and 504 entries on the demo show, three load clubs and shows with 189 dogs) is a separate, opt-in file, `supabase/seed-load-fixture.sql` (MYK9-558). Most "data is broken" reports after a reseed are one of the known gaps below — check those before writing any SQL, and read the abort headings before deciding the seed is broken.
+Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026-06-17): the lean set of two clubs, the three Heartland shows, the `Heartland Scent Work Week` show-day fixture (a trial dated today for seven days after each reseed, so reseed at least weekly; MYK9-731), six dogs and the role accounts. The MYK9-109 load fixture (63 load dogs and 504 entries on the demo show, three load clubs and shows with 189 dogs) is a separate, opt-in file, `supabase/seed-load-fixture.sql` (MYK9-558). Most "data is broken" reports after a reseed are one of the known gaps below — check those before writing any SQL, and read the abort headings before deciding the seed is broken.
 
 ## Canonical accounts
 

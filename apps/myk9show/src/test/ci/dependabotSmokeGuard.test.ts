@@ -49,11 +49,6 @@ function ifExpressionForJob(jobHeading: string, source: string = workflow): stri
   return line.trimStart().slice('if:'.length).trim();
 }
 
-/** True if `node` is an atom whose text contains `substring`. */
-function isAtomContaining(node: GhaExpr, substring: string): boolean {
-  return node.type === 'atom' && node.text.includes(substring);
-}
-
 /** Recursively true if any atom under `node` contains `substring`. */
 function containsText(node: GhaExpr, substring: string): boolean {
   switch (node.type) {

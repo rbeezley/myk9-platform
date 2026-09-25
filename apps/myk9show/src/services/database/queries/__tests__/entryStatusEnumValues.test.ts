@@ -46,6 +46,8 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByShow: replicationMocks.getEntriesByShow,
+    // This show has completed a scoped entries sync on this device (MYK9-761).
+    getSyncMetadata: async () => ({ tableName: 'entries', totalRows: 1 }),
   },
 }));
 

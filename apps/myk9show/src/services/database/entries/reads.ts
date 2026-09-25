@@ -40,6 +40,7 @@ import {
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
+import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
 import {
   HANDLER_PERSON_SELECT,
   attachPostgrestHandlerIdentity,
@@ -502,6 +503,9 @@ const TRIAL_ENTRIES_SELECT = `
       )
     `;
 
+/** PostgREST's `max_rows`: one response never holds more than this. */
+const SHOW_FINANCIALS_PAGE_SIZE = 1000;
+
 async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // MYK9-639: this read is SUMMED as money, so it names the supersession link —
   // and retries without it for the deploy window, when the column does not
@@ -509,27 +513,72 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   // The ternary is on the WHOLE query, not inside `.select()`: the typed
   // builder parses each select literal at compile time, and a union of two of
   // them exhausts its parser.
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
+  //
+  // MYK9-761: PostgREST caps one response at `max_rows`, so a show larger than
+  // one page would be silently understated. Page by KEYSET on `id` alone
+  // (never null, unlike `created_at`): each page asks for ids strictly below
+  // the previous page's last one, so an entry registered mid-read can neither
+  // shift a boundary row onto the next page (double-counted) nor off it
+  // (skipped), as OFFSET paging would. A failed page throws, so the caller
+  // reports an error, never a partial total.
+  const rows: Record<string, unknown>[] = [];
+  let includeLink = true;
+  let cursorId: string | null = null;
+  for (;;) {
+    const { data, error } = await withMoveUpLinkFallback(withLink => {
+      if (!withLink) includeLink = false;
+      if (withLink && includeLink) {
+        let query = supabase
           .from('entries')
           .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
           .eq('show_id', showId)
           .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-      : supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-  );
+          .order('id', { ascending: false });
+        if (cursorId) query = query.lt('id', cursorId);
+        return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
+      }
+      let query = supabase
+        .from('entries')
+        .select(SHOW_FINANCIALS_SELECT)
+        .eq('show_id', showId)
+        .is('deleted_at', null)
+        .order('id', { ascending: false });
+      if (cursorId) query = query.lt('id', cursorId);
+      return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
+    });
 
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return {
-    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
-    error: null,
-  };
+    if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
+    const page = (data || []) as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
+
+    const lastRow = page[page.length - 1];
+    if (!lastRow?.id) {
+      throw createDatabaseError(
+        new Error('Show financials page is missing its stable pagination cursor'),
+        'entries',
+        'select_by_show_financials'
+      );
+    }
+    cursorId = String(lastRow.id);
+  }
+
+  // Paged by id alone: `id` is never null, unlike `created_at` (Codex P2 on
+  // #2463). A sum needs no date order, but callers list rows newest first, so
+  // restore that order here (null timestamps last, id as the tie-break).
+  rows.sort(compareNewestFirst);
+  return { data: attachPostgrestHandlerIdentity(rows), error: null };
+}
+
+function compareNewestFirst(a: Record<string, unknown>, b: Record<string, unknown>): number {
+  const aAt = a.created_at ? String(a.created_at) : null;
+  const bAt = b.created_at ? String(b.created_at) : null;
+  if (aAt !== bAt) {
+    if (aAt === null) return 1;
+    if (bAt === null) return -1;
+    return Date.parse(bAt) - Date.parse(aAt);
+  }
+  return String(b.id).localeCompare(String(a.id));
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {
@@ -884,12 +933,19 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
   });
 };
 
-// Get entries by show ID with financial joins (promo_code, trial name)
+// Get entries by show ID with financial joins (promo_code, trial name).
+// MYK9-761: summed as money, so a never-synced show is read online or reported
+// as an error, the same rule as the staff report read above.
 export const getEntriesByShowForFinancials = async (showId: string) => {
+  // A failed local sync-metadata read must not block the online read: the
+  // replication branch below re-reads it, and a throw there falls back to
+  // PostgREST (Codex P2 on #2463).
+  await ensureShowEntriesSynced(showId).catch(() => false);
   return readWithReplicationFallback({
     replication: async () => {
-      const [rawEntries, dogsMap, classesMap, trials] = await Promise.all([
+      const [rawEntries, scopeSynced, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
+        hasShowEntriesSynced(showId),
         loadDogsMap(),
         loadClassesMap(),
         replicatedTrialsTable.getTrialsByShow(showId),
@@ -940,12 +996,20 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
         });
       });
 
-      return { data, error: null };
+      return {
+        data,
+        error: null,
+        locallyDeletedIds: rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id),
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
+      };
     },
     postgrest: () => postgrestGetEntriesByShowForFinancials(showId),
     table: 'entries',
     operation: 'select_by_show_financials',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 

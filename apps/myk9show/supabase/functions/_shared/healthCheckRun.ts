@@ -7,7 +7,7 @@
 // the migration contains exactly these constants. Rename one without the other
 // and every run silently reads as the nightly full run again.
 
-import type { HealthCheckRunMode } from '../../../src/features/admin-system-health/healthCheckCadence.ts';
+import type { HealthCheckRunMode } from './healthCheckCadence.ts';
 
 export const HEALTH_CHECK_MODE_HEADER = 'x-health-check-mode';
 export const HEALTH_RUN_TOKEN_HEADER = 'x-health-run-token';

@@ -180,8 +180,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
+    // Compare the server count with SERVER-BACKED local rows only: a pending
+    // local create (`_localOnly`) is not on the server yet, so counting it would
+    // let it stand in for an evicted row and hide the gap (MYK9-752).
     const partialReplica =
-      expectedRemoteRows !== undefined && localRows.length < expectedRemoteRows;
+      expectedRemoteRows !== undefined && countServerBackedRows(localRows) < expectedRemoteRows;
     const forceFullSync =
       options.forceFullSync === true || localRows.length === 0 || partialReplica || fullSyncStale;
 
@@ -412,4 +415,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       ...(uploadError ? { uploadError } : {}),
     };
   }
+}
+
+/** Rows the server already holds: everything but pending local creates. */
+export function countServerBackedRows(rows: readonly object[]): number {
+  return rows.filter(row => (row as { _localOnly?: unknown })._localOnly !== true).length;
 }

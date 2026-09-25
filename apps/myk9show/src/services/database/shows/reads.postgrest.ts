@@ -1,7 +1,8 @@
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { supabase, createDatabaseError } from '../supabaseClient';
 
-const PUBLIC_SHOW_STATUSES = ['published', 'upcoming', 'in_progress', 'completed'];
+/** Statuses the public /shows listing shows; the stray-show health check (MYK9-741) mirrors them. */
+export const PUBLIC_SHOW_STATUSES = ['published', 'upcoming', 'in_progress', 'completed'];
 
 export async function postgrestGetPublicShows() {
   const { data, error } = await supabase

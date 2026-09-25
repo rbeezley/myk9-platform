@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { countServerBackedRows } from '@myk9/replication';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { useTrialStore } from '@/store/trialStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
@@ -38,7 +39,11 @@ async function scopeCovered(showId: string): Promise<boolean> {
     } | null>,
     replicatedTrialsTable.getTrialsByShow(showId),
   ]);
-  return meta?.expectedRemoteRows !== undefined && rows.length >= meta.expectedRemoteRows;
+  // Server-backed rows only: a pending local trial is not one of the show's
+  // current trials (MYK9-752).
+  return (
+    meta?.expectedRemoteRows !== undefined && countServerBackedRows(rows) >= meta.expectedRemoteRows
+  );
 }
 
 /** Resolves when the sync settles or the timeout passes, whichever is first; never rejects. */

@@ -11,6 +11,12 @@ import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
+import {
+  cartHasBlockedClass,
+  classGateRefusal,
+  newLineClassIds,
+  releasePriorSessionForClassGate,
+} from '../_shared/cartClassGate.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -372,6 +378,7 @@ async function handleEntryCheckout(
         id,
         dog_id,
         class_id,
+        entry_id,
         handler_id,
         entry_fee_cents,
         jump_height,
@@ -567,6 +574,55 @@ async function handleEntryCheckout(
         { error: "This club's payment account is not set up to receive online entry fees." },
         403
       );
+    }
+  }
+
+  // Class gate (MYK9-656): refuse a new line in a class that was cancelled, has
+  // started or finished, or filled with no wait list since it was added. The
+  // client reloads on 409, and that reload's reconcile removes the lines and
+  // says why. Fails closed: an unreadable verdict never opens a session.
+  {
+    const cartLines = cart.items as { class_id: string; entry_id: string | null }[];
+    const classIds = newLineClassIds(cartLines);
+    if (classIds.length > 0) {
+      const { data: availability, error: availabilityError } = await supabase.rpc(
+        'class_entry_availability',
+        { p_class_ids: classIds }
+      );
+      if (availabilityError || !availability) {
+        console.error(`Class gate read failed for cart ${cart_id}:`, availabilityError);
+        return corsResponse(
+          corsHeaders,
+          { error: 'Could not confirm the classes in your cart are still open. Please try again.' },
+          500
+        );
+      }
+      if (cartHasBlockedClass(cartLines, availability)) {
+        // The reconcile leaves a cart that links a session alone, so a live
+        // Stripe page can never pay for lines it deleted. Retire that session
+        // first (expire an open one; a complete one is processing) and only
+        // then clear the link, so the reload's reconcile can drop and explain.
+        const priorSessionId = cart.stripe_checkout_session_id ?? null;
+        const release = await releasePriorSessionForClassGate(
+          priorSessionId,
+          stripe.checkout.sessions
+        );
+        if (release.kind === 'blocked') {
+          console.error(`Class gate for cart ${cart_id}: ${release.diagnostic}`);
+          return corsResponse(corsHeaders, { error: release.error }, release.status);
+        }
+        const refusal = await classGateRefusal(priorSessionId, () =>
+          supabase
+            .from('entry_carts')
+            .update({ stripe_checkout_session_id: null })
+            .eq('id', cart_id)
+            .eq('stripe_checkout_session_id', priorSessionId)
+        );
+        if (refusal.diagnostic) {
+          console.error(`Class gate for cart ${cart_id}: ${refusal.diagnostic}`);
+        }
+        return corsResponse(corsHeaders, { error: refusal.error }, refusal.status);
+      }
     }
   }
 

@@ -1,15 +1,18 @@
 /**
  * Hook for fetching class availability for a show.
- * Uses the same combined fullness inputs as server-side entry submission:
- * assigned judge-day capacity and the class's own max_entries limit.
+ *
+ * Every capacity fact comes from `get_show_class_availability`, a SECURITY
+ * DEFINER read that counts every entry in the class, not the rows the caller's
+ * RLS returns (MYK9-705). It applies the same rule the entry submit enforces:
+ * `evaluate_entry_capacity`'s class count and `get_judge_day_capacity_live`'s
+ * self-service judge-day figure (migration 20260925004700). Counts and flags
+ * only; no other exhibitor's rows reach the client.
  */
 
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
-import { calculateMailInReserved } from '@/utils/waitlistCapacity';
 
 export interface ClassAvailability {
   classId: string;
@@ -34,9 +37,9 @@ export interface ClassAvailability {
    * thing from `is_in_ring` / scoring state — and neither may the wizard, or the
    * guard is open for exactly the window it exists to close (MYK9-516).
    *
-   * Derived from the entry rows the SERVER returned, using the same predicate
-   * `refresh_class_scoring_state` counts as scored (`is_scored = true`), never
-   * from a capacity recount.
+   * Computed by the server over EVERY entry in the class, with the predicate
+   * `submit_show_entries` refuses a started class on (`is_in_ring` or
+   * `is_scored`), so another exhibitor's dog in the ring counts.
    */
   hasStarted: boolean;
   trialId: string;
@@ -52,6 +55,7 @@ export interface ClassAvailability {
   // Judge-day capacity fields
   judgeId: string | null;
   judgeDayFull: boolean;
+  /** Self-service spots left on the tightest judge day; 0 when no judge is assigned. */
   judgeDayAvailable: number;
 }
 
@@ -77,24 +81,6 @@ interface ClassWithTrialRow {
   };
 }
 
-interface JudgeAssignmentRow {
-  class_id: string;
-  person_id: string;
-  day_capacity_override: number | null;
-  trials: {
-    date: string;
-  };
-}
-
-// These columns are added by migration 114; cast until types are regenerated.
-interface ShowCapacityRow {
-  default_judge_day_capacity: number;
-  mail_in_strategy: string | null;
-  mail_in_value: number | null;
-  mail_in_auto_release: boolean | null;
-  mail_in_release_date: string | null;
-}
-
 interface UseClassAvailabilityResult {
   classes: ClassAvailability[];
   isLoading: boolean;
@@ -104,8 +90,19 @@ interface UseClassAvailabilityResult {
   fullClasses: number;
 }
 
+/**
+ * Said when the server returned no counts for a class the caller can see. A
+ * missing count is never read as "open": that is the MYK9-705 failure again.
+ */
+export const CLASS_AVAILABILITY_UNREADABLE =
+  'Class availability could not be read for this show. Please try again.';
+
 export const classAvailabilityQueryKey = (showId: string | undefined) =>
   ['shows', showId, 'class-availability'] as const;
+
+function errorMessage(error: unknown): string {
+  return (error as { message?: string }).message ?? String(error);
+}
 
 export function useClassAvailability(
   showId: string | undefined,
@@ -148,151 +145,49 @@ export function useClassAvailability(
           { showId },
           classError as Error
         );
-        throw new Error((classError as { message?: string }).message ?? String(classError));
+        throw new Error(errorMessage(classError));
       }
 
       if (!classData || classData.length === 0) {
         return [];
       }
 
-      const classIds = classData.map((c: { id: string }) => c.id);
+      const { data: countRows, error: countError } = await supabase.rpc(
+        'get_show_class_availability',
+        { p_show_id: showId }
+      );
 
-      const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
-        supabase
-          .from('shows')
-          .select(
-            'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_auto_release, mail_in_release_date'
-          )
-          .eq('id', showId)
-          .single(),
-        supabase
-          .from('entries')
-          .select('class_id, is_in_ring, is_scored')
-          .in('class_id', classIds)
-          .is('deleted_at', null)
-          .in('entry_status', [
-            'submitted',
-            'paid',
-            'confirmed',
-            'checked-in',
-            ...IN_RING_STATUSES,
-            'pending-payment',
-          ]),
-        supabase
-          .from('waitlist_entries')
-          .select('class_id')
-          .in('class_id', classIds)
-          .eq('status', 'waiting'),
-        supabase
-          .from('judge_assignments')
-          .select('class_id, person_id, day_capacity_override, trials!inner(date)')
-          .eq('show_id', showId)
-          .eq('status', 'confirmed'),
-      ]);
-
-      const relatedQueryError =
-        showResult.error ?? entryResult.error ?? waitlistResult.error ?? judgeResult.error;
-      if (relatedQueryError) {
+      if (countError) {
         logger.error(
           'Error fetching class availability counts',
           'useClassAvailability',
           { showId },
-          relatedQueryError as Error
+          countError as Error
         );
-        throw new Error(
-          (relatedQueryError as { message?: string }).message ?? String(relatedQueryError)
-        );
+        throw new Error(errorMessage(countError));
       }
 
-      const show = showResult.data as unknown as ShowCapacityRow;
-      const defaultCapacity = show?.default_judge_day_capacity ?? 125;
+      const countsByClass = new Map((countRows ?? []).map(count => [count.class_id, count]));
 
-      const entryCountMap: Record<string, number> = {};
-      // Classes with a dog in the ring or a score already recorded. Same pass,
-      // same rows — no extra round trip, and no independent notion of "started".
-      const startedClassIds = new Set<string>();
-      for (const entry of entryResult.data ?? []) {
-        if (entry.class_id) {
-          entryCountMap[entry.class_id] = (entryCountMap[entry.class_id] ?? 0) + 1;
-          const row = entry as { is_in_ring?: boolean | null; is_scored?: boolean | null };
-          if (row.is_in_ring === true || row.is_scored === true) {
-            startedClassIds.add(entry.class_id);
-          }
-        }
-      }
-
-      const waitlistCountMap: Record<string, number> = {};
-      for (const entry of waitlistResult.data ?? []) {
-        if (entry.class_id) {
-          waitlistCountMap[entry.class_id] = (waitlistCountMap[entry.class_id] ?? 0) + 1;
-        }
-      }
-
-      const classJudgeMap: Record<string, string> = {};
-      // Composite key `${judgeId}:${date}` → total confirmed entries for that judge-day
-      const judgeDayEntryCount: Record<string, number> = {};
-      // Composite key `${judgeId}:${date}` → max day_capacity_override for that judge-day
-      const judgeDayCapacityOverride: Record<string, number> = {};
-
-      for (const ja of (judgeResult.data as unknown as JudgeAssignmentRow[]) ?? []) {
-        classJudgeMap[ja.class_id] = ja.person_id;
-        const date = ja.trials?.date;
-        if (date) {
-          const key = `${ja.person_id}:${date}`;
-          const count = entryCountMap[ja.class_id] ?? 0;
-          judgeDayEntryCount[key] = (judgeDayEntryCount[key] ?? 0) + count;
-          if (ja.day_capacity_override != null) {
-            judgeDayCapacityOverride[key] = Math.max(
-              judgeDayCapacityOverride[key] ?? 0,
-              ja.day_capacity_override
-            );
-          }
-        }
-      }
-
-      const defaultMailInReserved = calculateMailInReserved({
-        capacity: defaultCapacity,
-        strategy: show?.mail_in_strategy ?? null,
-        value: show?.mail_in_value ?? null,
-        autoRelease: show?.mail_in_auto_release ?? null,
-        releaseDate: show?.mail_in_release_date ?? null,
-      });
-
-      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
-        const trial = cls.trials;
-        const currentEntries = entryCountMap[cls.id] ?? 0;
-        const entryLimit = cls.max_entries ?? 0;
-        const waitlistCount = waitlistCountMap[cls.id] ?? 0;
-        const allowsWaitlist = cls.allow_waitlist ?? false;
-
-        const judgeId = classJudgeMap[cls.id] ?? null;
-        let judgeDayFull = false;
-        let judgeDayAvailable = defaultCapacity - defaultMailInReserved;
-
-        if (judgeId) {
-          const key = `${judgeId}:${trial.date}`;
-          const judgeDayConfirmed = judgeDayEntryCount[key] ?? 0;
-          const effectiveCapacity = judgeDayCapacityOverride[key] ?? defaultCapacity;
-          const judgeDayMailInReserved = calculateMailInReserved({
-            capacity: effectiveCapacity,
-            strategy: show?.mail_in_strategy ?? null,
-            value: show?.mail_in_value ?? null,
-            autoRelease: show?.mail_in_auto_release ?? null,
-            releaseDate: show?.mail_in_release_date ?? null,
+      return (classData as ClassWithTrialRow[]).map(cls => {
+        const counts = countsByClass.get(cls.id);
+        if (!counts) {
+          logger.error('No availability counts for a visible class', 'useClassAvailability', {
+            showId,
+            classId: cls.id,
           });
-          judgeDayAvailable = Math.max(
-            0,
-            effectiveCapacity - judgeDayConfirmed - judgeDayMailInReserved
-          );
-          judgeDayFull = judgeDayAvailable === 0;
+          throw new Error(CLASS_AVAILABILITY_UNREADABLE);
         }
 
-        const perClassFull = entryLimit > 0 && currentEntries >= entryLimit;
-        const spotsAvailable = perClassFull
+        const trial = cls.trials;
+        const entryLimit = cls.max_entries ?? 0;
+        const judgeId = counts.judge_id;
+        const judgeDayAvailable = counts.judge_day_available ?? 0;
+        const spotsAvailable = counts.class_full
           ? 0
           : judgeId
             ? judgeDayAvailable
-            : Math.max(0, entryLimit - currentEntries);
+            : Math.max(0, entryLimit - counts.entry_count);
 
         return {
           classId: cls.id,
@@ -301,24 +196,22 @@ export function useClassAvailability(
           level: cls.level ?? 'Open',
           section: cls.section,
           status: cls.status,
-          hasStarted: startedClassIds.has(cls.id),
+          hasStarted: counts.has_started,
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,
           entryLimit,
-          currentEntries,
+          currentEntries: counts.entry_count,
           spotsAvailable,
-          waitlistCount,
-          isFull: judgeDayFull || perClassFull,
-          hasWaitlist: waitlistCount > 0,
-          allowsWaitlist,
+          waitlistCount: counts.waitlist_count,
+          isFull: counts.class_full || counts.judge_day_full,
+          hasWaitlist: counts.waitlist_count > 0,
+          allowsWaitlist: counts.allow_waitlist,
           judgeId,
-          judgeDayFull,
+          judgeDayFull: counts.judge_day_full,
           judgeDayAvailable,
         };
       });
-
-      return availability;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
       logger.error(

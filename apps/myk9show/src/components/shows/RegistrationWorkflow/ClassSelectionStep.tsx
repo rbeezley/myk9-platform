@@ -57,6 +57,7 @@ import {
 import { buildFullChipReason } from './ClassSelectionStep.fullReason';
 import { useCartToggleGate } from './ClassSelectionStep.cartReady';
 import { canManageShowSurface } from '@/utils/roleScopes';
+import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -479,6 +480,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           Choose which classes each dog will enter. Select all that apply.
         </p>
       </div>
+
+      {useCartFlow && <ClosedClassRemovedNotice />}
 
       {useCartFlow && cartOpen?.kind === 'failed' && (
         // Rendered from the opener's own result, not from a separate error flag

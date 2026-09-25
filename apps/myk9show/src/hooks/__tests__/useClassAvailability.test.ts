@@ -4,10 +4,10 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClassAvailability } from '../useClassAvailability';
 
-const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }));
+const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }));
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: { from: mockFrom },
+  supabase: { from: mockFrom, rpc: mockRpc },
 }));
 
 vi.mock('@/services/LoggingService', () => ({
@@ -22,50 +22,78 @@ function makeClassQuery(data: unknown[] | null, error: unknown = null) {
   return { select };
 }
 
-// shows: .select().eq('id', ...).single()
-function makeShowQuery(data: unknown, error: unknown = null) {
-  const single = vi.fn().mockResolvedValue({ data, error });
-  const eq = vi.fn().mockReturnValue({ single });
-  const select = vi.fn().mockReturnValue({ eq });
-  return { select };
-}
-
-// entries: .select().in('class_id', ...).in('entry_status', ...)
-function makeEntryQuery(data: unknown[], error: unknown = null) {
-  const inStatus = vi.fn().mockResolvedValue({ data, error });
-  const isDeleted = vi.fn().mockReturnValue({ in: inStatus });
-  const inClass = vi.fn().mockReturnValue({ is: isDeleted });
-  const select = vi.fn().mockReturnValue({ in: inClass });
-  return { select, isDeleted, inStatus };
-}
-
-// waitlist_entries: .select().in('class_id', ...).eq('status', ...)
-function makeWaitlistQuery(data: unknown[]) {
-  const eq = vi.fn().mockResolvedValue({ data, error: null });
-  const inClass = vi.fn().mockReturnValue({ eq });
-  const select = vi.fn().mockReturnValue({ in: inClass });
-  return { select };
-}
-
-// judge_assignments: .select().eq('show_id', ...).eq('status', ...)
-function makeJudgeQuery(data: unknown[]) {
-  const eq2 = vi.fn().mockResolvedValue({ data, error: null });
-  const eq1 = vi.fn().mockReturnValue({ eq: eq2 });
-  const select = vi.fn().mockReturnValue({ eq: eq1 });
-  return { select };
+/**
+ * What an exhibitor's session actually gets back from `entries` for a class
+ * filled by OTHER exhibitors: nothing. The entries RLS returns only rows the
+ * caller handles or whose dog they own (MYK9-705), and
+ * myk9_705_656_class_entry_availability_test.sql proves that against the real
+ * policies. Any chain shape resolves to the empty set.
+ */
+function makeExhibitorRlsEntriesQuery() {
+  const result = Promise.resolve({ data: [], error: null });
+  const chain: Record<string, unknown> = {};
+  for (const method of ['select', 'in', 'is', 'eq']) {
+    chain[method] = vi.fn(() => Object.assign(result, chain));
+  }
+  chain.single = vi.fn(() =>
+    Promise.resolve({ data: { default_judge_day_capacity: 125 }, error: null })
+  );
+  return chain;
 }
 
 const CLASS_DATA = [
   {
     id: 'c1',
-    name: 'Novice A',
-    level: 'Novice',
-    max_entries: null,
-    allow_waitlist: true,
+    name: 'Handler Discrimination Advanced',
+    element: 'Handler Discrimination',
+    level: 'Advanced',
+    section: null,
+    status: 'upcoming',
+    max_entries: 1,
+    allow_waitlist: false,
     trial_id: 't1',
-    trials: { id: 't1', name: 'Trial 1', date: '2026-05-01', show_id: 'show-1' },
+    trials: { id: 't1', name: 'Trial 1', date: '2026-10-10', show_id: 'show-1' },
   },
 ];
+
+interface AvailabilityRow {
+  class_id: string;
+  entry_count: number;
+  waitlist_count: number;
+  has_started: boolean;
+  class_full: boolean;
+  judge_id: string | null;
+  judge_day_available: number | null;
+  judge_day_full: boolean;
+  allow_waitlist: boolean;
+  self_service_block: string | null;
+}
+
+function row(overrides: Partial<AvailabilityRow> = {}): AvailabilityRow {
+  return {
+    class_id: 'c1',
+    entry_count: 0,
+    waitlist_count: 0,
+    has_started: false,
+    class_full: false,
+    judge_id: null,
+    judge_day_available: null,
+    judge_day_full: false,
+    allow_waitlist: false,
+    self_service_block: null,
+    ...overrides,
+  };
+}
+
+function serve(rows: AvailabilityRow[] | null, rpcError: unknown = null, classes = CLASS_DATA) {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'classes') return makeClassQuery(classes);
+    // Everything else an exhibitor could read directly returns what it would:
+    // no wait-list rows of other people, and the show's own settings.
+    return makeExhibitorRlsEntriesQuery();
+  });
+  mockRpc.mockResolvedValue({ data: rows, error: rpcError });
+}
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -75,6 +103,12 @@ function createWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client: queryClient }, children);
   };
+}
+
+async function renderFor(showId: string | undefined) {
+  const hook = renderHook(() => useClassAvailability(showId), { wrapper: createWrapper() });
+  await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
+  return hook.result;
 }
 
 describe('useClassAvailability', () => {
@@ -90,276 +124,103 @@ describe('useClassAvailability', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('marks class as available when judge-day is under capacity', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return makeEntryQuery([{ class_id: 'c1' }, { class_id: 'c1' }]);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
+  it("reads a class filled by other exhibitors as full, although the exhibitor's RLS returns none of its entries (MYK9-705)", async () => {
+    serve([row({ entry_count: 1, class_full: true, self_service_block: 'full' })]);
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
 
+    expect(mockRpc).toHaveBeenCalledWith('get_show_class_availability', { p_show_id: 'show-1' });
     const cls = result.current.classes[0]!;
-    expect(cls.currentEntries).toBe(2);
-    expect(cls.judgeDayFull).toBe(false);
-    expect(cls.judgeDayAvailable).toBe(123); // 125 - 2
-    expect(cls.isFull).toBe(false);
-  });
-
-  it('marks class as full when judge-day capacity is exhausted', async () => {
-    const entries = Array.from({ length: 125 }, () => ({ class_id: 'c1' }));
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return makeEntryQuery(entries);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([{ class_id: 'c1' }]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
-
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    const cls = result.current.classes[0]!;
-    expect(cls.judgeDayFull).toBe(true);
-    expect(cls.isFull).toBe(true);
-    expect(cls.hasWaitlist).toBe(true);
-    expect(cls.spotsAvailable).toBe(0);
-  });
-
-  it('marks a class full when its per-class limit is reached', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') {
-        return makeClassQuery([{ ...CLASS_DATA[0], max_entries: 2 }]);
-      }
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return makeEntryQuery([{ class_id: 'c1' }, { class_id: 'c1' }]);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
-
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    const cls = result.current.classes[0]!;
+    expect(cls.currentEntries).toBe(1);
     expect(cls.isFull).toBe(true);
     expect(cls.judgeDayFull).toBe(false);
     expect(cls.spotsAvailable).toBe(0);
-  });
-
-  it('keeps wait-list denial separate from the fullness decision', async () => {
-    const entries = Array.from({ length: 125 }, () => ({ class_id: 'c1' }));
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') {
-        return makeClassQuery([{ ...CLASS_DATA[0], allow_waitlist: false }]);
-      }
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return makeEntryQuery(entries);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
-
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    const cls = result.current.classes[0]!;
-    expect(cls.isFull).toBe(true);
     expect(cls.allowsWaitlist).toBe(false);
   });
 
-  it('accounts for mail-in reserved spots (fixed strategy)', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'fixed',
-          mail_in_value: 20,
-        });
-      if (table === 'entries') return makeEntryQuery([]);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
+  it('reads a judge day filled by other exhibitors as full (MYK9-705)', async () => {
+    serve([
+      row({
+        entry_count: 0,
+        judge_id: 'judge-1',
+        judge_day_available: 0,
+        judge_day_full: true,
+        self_service_block: 'full',
+      }),
+    ]);
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
 
     const cls = result.current.classes[0]!;
-    expect(cls.judgeDayAvailable).toBe(105); // 125 - 0 - 20
-    expect(cls.isFull).toBe(false);
+    expect(cls.judgeId).toBe('judge-1');
+    expect(cls.judgeDayFull).toBe(true);
+    expect(cls.judgeDayAvailable).toBe(0);
+    expect(cls.isFull).toBe(true);
+    expect(cls.spotsAvailable).toBe(0);
   });
 
-  it('auto-releases mail-in reserved spots after the release date', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'fixed',
-          mail_in_value: 20,
-          mail_in_auto_release: true,
-          mail_in_release_date: '2020-01-01',
-        });
-      if (table === 'entries') return makeEntryQuery([]);
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
+  it('reports open judge-day room as the spots left', async () => {
+    serve([row({ entry_count: 2, judge_id: 'judge-1', judge_day_available: 103 })]);
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
 
     const cls = result.current.classes[0]!;
-    expect(cls.judgeDayAvailable).toBe(125);
     expect(cls.isFull).toBe(false);
+    expect(cls.spotsAvailable).toBe(103);
   });
 
-  it('returns empty classes when show has no classes', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery([]);
-      return makeClassQuery([]);
-    });
+  it('keeps wait-list permission separate from the fullness decision', async () => {
+    serve([row({ entry_count: 1, class_full: true, allow_waitlist: true, waitlist_count: 3 })]);
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
+
+    const cls = result.current.classes[0]!;
+    expect(cls.isFull).toBe(true);
+    expect(cls.allowsWaitlist).toBe(true);
+    expect(cls.hasWaitlist).toBe(true);
+    expect(cls.waitlistCount).toBe(3);
+  });
+
+  it('reports a class another exhibitor has in the ring as started', async () => {
+    serve([row({ has_started: true, self_service_block: 'started' })]);
+
+    const result = await renderFor('show-1');
+
+    expect(result.current.classes[0]!.hasStarted).toBe(true);
+  });
+
+  it('fails rather than reading every class as open when the server returns no counts', async () => {
+    serve([]);
+
+    const result = await renderFor('show-1');
+
+    expect(result.current.classes).toEqual([]);
+    expect(result.current.error).toMatch(/availability/i);
+  });
+
+  it('returns empty classes when the show has no classes', async () => {
+    serve([], null, []);
+
+    const result = await renderFor('show-1');
 
     expect(result.current.classes).toEqual([]);
     expect(result.current.fullClasses).toBe(0);
     expect(result.current.totalSpotsAvailable).toBe(0);
   });
 
-  it('sets error when class fetch fails', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(null, { message: 'network error' });
-      return makeClassQuery([]);
-    });
+  it('sets error when the class fetch fails', async () => {
+    mockFrom.mockImplementation(() => makeClassQuery(null, { message: 'network error' }));
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
 
     expect(result.current.error).toBe('network error');
   });
 
-  it('sets error when an availability count fetch fails', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return makeEntryQuery([], { message: 'entries network error' });
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments') return makeJudgeQuery([]);
-      return makeClassQuery([]);
-    });
+  it('sets error when the availability read fails', async () => {
+    serve(null, { message: 'availability network error' });
 
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const result = await renderFor('show-1');
 
-    expect(result.current.error).toBe('entries network error');
-  });
-
-  it('entry_status filter includes in-ring alongside competing', async () => {
-    // Regression: entries with entry_status='in-ring' (written by myK9Q) must be
-    // counted as active so class capacity is calculated correctly.
-    const inStatusSpy = vi.fn().mockResolvedValue({ data: [], error: null });
-    const isDeletedSpy = vi.fn().mockReturnValue({ in: inStatusSpy });
-    const inClassSpy = vi.fn().mockReturnValue({ is: isDeletedSpy });
-    const selectSpy = vi.fn().mockReturnValue({ in: inClassSpy });
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'classes') return makeClassQuery(CLASS_DATA);
-      if (table === 'shows')
-        return makeShowQuery({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: 'none',
-          mail_in_value: null,
-        });
-      if (table === 'entries') return { select: selectSpy };
-      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
-      if (table === 'judge_assignments')
-        return makeJudgeQuery([
-          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
-        ]);
-      return makeClassQuery([]);
-    });
-
-    const { result } = renderHook(() => useClassAvailability('show-1'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(inStatusSpy).toHaveBeenCalledWith(
-      'entry_status',
-      expect.arrayContaining(['in-ring', 'competing', 'pending-payment'])
-    );
-    expect(isDeletedSpy).toHaveBeenCalledWith('deleted_at', null);
+    expect(result.current.error).toBe('availability network error');
   });
 });

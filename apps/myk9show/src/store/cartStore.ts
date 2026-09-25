@@ -46,6 +46,7 @@ import {
 import { captureCartWriteGuard, guardedSet, invalidateCartWrites } from './cartStore.session';
 import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
 import { findRecoverableCart } from './cartStore.pickCart';
+import { dropItemsInClosedClasses, mergeDroppedItems } from './cartStore.classClosure';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -70,6 +71,7 @@ export const useCartStore = create<CartState>()(
         error: null,
         lastSyncedAt: null,
         expirationWarning: false,
+        droppedClosedClassItems: [],
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -118,11 +120,15 @@ export const useCartStore = create<CartState>()(
               throw itemsError;
             }
 
-            const items = await reconcileCartItemsAgainstExistingEntries({
+            const closure = await dropItemsInClosedClasses({
               cartId: cartData.id,
-              showId,
-              items: (itemsData || []) as CartItemWithDetails[],
+              items: await reconcileCartItemsAgainstExistingEntries({
+                cartId: cartData.id,
+                showId,
+                items: (itemsData || []) as CartItemWithDetails[],
+              }),
             });
+            const items = closure.items;
             const { subtotal, platformFee, total } = calculateCartTotals(items);
 
             const cartWithDetails: CartWithDetails = {
@@ -138,6 +144,11 @@ export const useCartStore = create<CartState>()(
               cart: cartWithDetails,
               isLoading: false,
               lastSyncedAt: new Date().toISOString(),
+              droppedClosedClassItems: mergeDroppedItems(
+                get().droppedClosedClassItems,
+                closure.dropped,
+                cartData.id
+              ),
             });
 
             const timeUntilExpiry = get().getTimeUntilExpiration();
@@ -303,11 +314,16 @@ export const useCartStore = create<CartState>()(
             });
           }
 
-          items = await reconcileCartItemsAgainstExistingEntries({
+          // A recovered draft may be months old: drop classes that closed or filled since.
+          const closure = await dropItemsInClosedClasses({
             cartId: cartData.id,
-            showId: cartData.show_id,
-            items,
+            items: await reconcileCartItemsAgainstExistingEntries({
+              cartId: cartData.id,
+              showId: cartData.show_id,
+              items,
+            }),
           });
+          items = closure.items;
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);
           const cartWithDetails: CartWithDetails = {
@@ -326,6 +342,11 @@ export const useCartStore = create<CartState>()(
             isLoading: false,
             lastSyncedAt: new Date().toISOString(),
             expirationWarning: false,
+            droppedClosedClassItems: mergeDroppedItems(
+              get().droppedClosedClassItems,
+              closure.dropped,
+              cartData.id
+            ),
           });
 
           return cartWithDetails;
@@ -978,6 +999,8 @@ export const useCartStore = create<CartState>()(
 
         setError: (error: string | null) => set({ error }),
 
+        dismissDroppedClosedClassItems: () => set({ droppedClosedClassItems: [] }),
+
         reset: () => {
           // Drop every write still in flight (MYK9-651) and forget in-flight
           // openers, so a user signing back in starts fresh rather than joining
@@ -995,6 +1018,7 @@ export const useCartStore = create<CartState>()(
             error: null,
             lastSyncedAt: null,
             expirationWarning: false,
+            droppedClosedClassItems: [],
           });
         },
       }),
@@ -1002,6 +1026,7 @@ export const useCartStore = create<CartState>()(
         name: 'myk9-cart-storage',
         partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
+          droppedClosedClassItems: state.droppedClosedClassItems,
           cartRecoveryInfo: state.cart
             ? {
                 id: state.cart.id,

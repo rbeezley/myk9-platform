@@ -30,6 +30,7 @@ import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import {
@@ -444,6 +445,8 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* The re-check may have removed every line (MYK9-656): say which and why. */}
+          <ClosedClassRemovedNotice />
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
                 1.08:1 on --background, so the circle was a void in both themes
@@ -535,6 +538,9 @@ export default function CartPage() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Classes a saved cart lost because they closed or filled (MYK9-656) */}
+        <ClosedClassRemovedNotice className="mb-6" />
 
         {/* Error Alert */}
         {error && (

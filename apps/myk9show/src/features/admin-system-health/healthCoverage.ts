@@ -81,7 +81,7 @@ export const HEALTH_COVERAGE_SURFACES: readonly HealthCoverageSurface[] = [
     label: 'Results Posted pushes',
     verificationLevel: 'full',
     detail:
-      'due classes whose results push was never queued, is still retrying or failed, and the retry schedule, are checked',
+      'results pushes that failed or are still pending after 20 minutes, and the retry schedule, are checked',
     checkKey: 'class_results_push',
   },
   {

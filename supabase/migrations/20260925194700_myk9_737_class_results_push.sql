@@ -26,11 +26,10 @@
 --     'class-results-push-retry' cron, re-posts every pending row whose last
 --     attempt is more than five minutes old and whose lease has lapsed. After
 --     the fifth attempt a still-pending row becomes 'failed', and the
---     class_results_push check on /admin/health goes red for it. That check
---     reads the source of truth, not just the rows: it also goes red for any
---     class due for 20+ minutes that is not sent (no row at all, or still
---     pending), and when the retry cron itself has not succeeded for 15
---     minutes (section 7).
+--     class_results_push check on /admin/health goes red for it, for any row
+--     still pending 20 minutes after it was queued, and when the retry cron
+--     itself has not succeeded for 15 minutes (section 7). Each run first
+--     prunes rows whose class is no longer due (section 6).
 --
 -- Delivery semantics: at-least-once per recipient. The lease makes two
 -- concurrent posts for one class unable to both send; a crash between the
@@ -52,10 +51,12 @@
 --     is not visible yet); setting results_released_at does, and fires then.
 --   * Released (or completed) before any entry is scored: nothing until the
 --     first scored entry, then the next retry-cron sweep queues and posts it.
---   * A class un-released (or soft-deleted) before the edge function runs:
---     begin_class_results_push finds it no longer due and DELETES the pending
---     row, so the next release queues a fresh push instead of the class being
---     marked as announced.
+--   * A class that stops being due after its row exists (un-released,
+--     visibility tightened, soft-deleted, results gone): the next retry-cron
+--     run DELETES its row, pending or failed (the one prune rule, section 6),
+--     so the next release queues a fresh push instead of the class being
+--     marked announced or failed. begin_class_results_push and the audience
+--     RPC re-check due too, as a backstop between runs.
 --
 -- Whose visibility: the push goes only to the signed-in owner, co-owner and
 -- handler of scored entries. They read their results through
@@ -517,8 +518,17 @@ GRANT EXECUTE ON FUNCTION public.class_results_push_audience(uuid) TO service_ro
 -- list_cron_vault_secret_refs() / audit_cron_vault_secrets() can see which
 -- secrets this job depends on (the 20260822190000 / 20260925054100 pattern).
 --
--- Two jobs per run:
---   1. Retry: re-post stale, unleased pending rows; fail them after 5 attempts.
+-- Three steps per run, in this order:
+--   0. Prune: DELETE every row that is not 'sent' (pending or failed) whose
+--      class is no longer due (private.class_results_push_due): un-released,
+--      visibility tightened, soft-deleted, or its results went away. This is
+--      THE rule for "a class left due after its row exists"; the due checks in
+--      begin_class_results_push and class_results_push_audience stay as a
+--      cheap backstop for the minutes between runs, but nothing depends on
+--      them. A pruned class is queued again, by the trigger or by a later
+--      run's sweep, when it is due again.
+--   1. Retry: after the prune, so a row is only ever marked 'failed' while its
+--      class is due: fail rows out of attempts, re-post stale unleased ones.
 --   2. Sweep: queue and post classes that became due WITHOUT a classes-column
 --      change, which the trigger cannot see: most often a class released
 --      before any dog was scored, whose first entry is scored later (also a
@@ -546,7 +556,14 @@ BEGIN
     RAISE EXCEPTION 'Missing Vault secret: edge_function_base_url or push_webhook_secret';
   END IF;
 
-  -- Out of attempts: the fifth post has had its five minutes.
+  -- 0. Prune rows whose class is no longer due. A leased row may be pruned
+  -- mid-send: its finish then matches nothing, and the audience it read
+  -- (which re-checks due) was empty anyway.
+  DELETE FROM private.class_results_push p
+  WHERE p.status IN ('pending', 'failed')
+    AND NOT private.class_results_push_due(p.class_id);
+
+  -- 1. Out of attempts: the fifth post has had its five minutes.
   UPDATE private.class_results_push
   SET status = 'failed',
       claim_token = NULL,
@@ -634,69 +651,25 @@ $schedule$;
 
 -- ============================================================================
 -- 7. /admin/health: the class_results_push check (cron-health-check calls
---    this every five minutes). It reads the SOURCE OF TRUTH, not the rows: a
---    class that is due (private.class_results_push_due, the predicate the
---    trigger and the sweep use) is owed a push whether or not a row exists.
---    Stuck =
---      * any 'failed' row (out of attempts; alarms whether or not the class is
---        still due), or
---      * a class due for more than 20 minutes that is not 'sent': row
---        missing (nothing ever queued it: trigger missed it and the sweep is
---        not running) or row still 'pending' (queued, not delivered).
---    The second rule subsumes the earlier row-only rules (pending after three
---    attempts, pending with no attempt for 20 minutes): a pending row belongs
---    to a class that has been due at least since its row was queued. 20
---    minutes = four retry periods: a healthy class is queued at once or by the
---    next sweep (<= 5 min) and retried within ~10 more, ~15 behind a lapsed
---    lease. Bounded like the sweep: only classes whose trial is within the
---    last 30 days are evaluated.
+--    this every five minutes). Names the classes. Stuck =
+--      * any 'failed' row (out of attempts while its class was due: the
+--        prune removes rows whose class is no longer due), or
+--      * any 'pending' row queued (created_at, the claim time) more than 20
+--        minutes ago. A healthy row is sent at once or retried within ~10
+--        minutes (~15 behind a lapsed lease); 20 = four retry periods.
+--    Plus the retry cron's liveness, read from cron.job /
+--    cron.job_run_details here because this function is the SECURITY DEFINER
+--    reader for the check (the pattern system_health_probe uses for cron.*).
 --
---    Plus the retry cron's own liveness (class-results-push-retry), read from
---    cron.job / cron.job_run_details here because this function is the
---    SECURITY DEFINER reader for the check (the pattern system_health_probe
---    uses for cron.*). The generic background_jobs check also lists this job,
---    but only flags failed or inactive runs and allows 26 hours before
+--    A class that is due but has NO row (it became due without a classes
+--    change, e.g. released before scoring, and the trigger could not see it)
+--    is not looked for here: the retry cron's sweep queues it within five
+--    minutes, after which the pending rule above covers it. What can leave it
+--    un-queued is the cron not running, and that is exactly what the
+--    liveness facts report. The generic background_jobs check also lists
+--    this job, but only flags failed or inactive runs, allows 26 hours before
 --    "overdue", and cannot see a job that was never scheduled.
 -- ============================================================================
-
--- When the class became due, as closely as the schema records it: the latest
--- of the events that can make a class due.
---   * classes.updated_at: bumped by update_classes_updated_at on every classes
---     UPDATE, so it is at or after the completion, finalization and release
---     that made the class done (classes has no completed_at/finalized_at;
---     results_released_at is included too, since it can be written in the
---     past).
---   * the latest scoring_completed_at among announceable entries: a class
---     released before scoring becomes due when its first entry is scored.
---   * the updated_at of the show / trial / class visibility settings: a
---     loosened setting can make a done class visible.
--- Taking the latest makes the estimate never earlier than the real moment,
--- so the check cannot alarm early; an unrelated later edit only delays it.
-CREATE OR REPLACE FUNCTION private.class_results_push_due_since(p_class_id uuid)
-RETURNS timestamptz
-LANGUAGE sql
-STABLE
-SET search_path = ''
-AS $$
-  SELECT greatest(
-    c.updated_at,
-    c.results_released_at,
-    (SELECT max(e.scoring_completed_at) FROM public.entries e
-     WHERE e.class_id = c.id
-       AND private.class_results_push_announces(e.deleted_at, e.scoring_completed_at, e.entry_status, e.result_status)),
-    (SELECT v.updated_at FROM public.show_visibility_settings v WHERE v.show_id = t.show_id),
-    (SELECT o.updated_at FROM public.trial_visibility_overrides o WHERE o.trial_id = t.id),
-    (SELECT o.updated_at FROM public.class_visibility_overrides o WHERE o.class_id = c.id)
-  )
-  FROM public.classes c
-  JOIN public.trials t ON t.id = c.trial_id
-  WHERE c.id = p_class_id;
-$$;
-
-COMMENT ON FUNCTION private.class_results_push_due_since(uuid) IS
-  'MYK9-737: the latest recorded event that can have made the class due (classes.updated_at, results_released_at, latest announceable scoring_completed_at, visibility settings updated_at). Never earlier than the real moment.';
-
-REVOKE ALL ON FUNCTION private.class_results_push_due_since(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.class_results_push_health()
 RETURNS jsonb
@@ -705,55 +678,27 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  WITH due AS (
-    -- The sweep's candidate set: recent, live, done classes that are due.
-    SELECT c.id AS class_id, private.class_results_push_due_since(c.id) AS due_since
-    FROM public.classes c
-    JOIN public.trials t ON t.id = c.trial_id
-    WHERE c.deleted_at IS NULL
-      AND t.date >= current_date - 30
-      AND (c.results_released_at IS NOT NULL
-           OR lower(coalesce(c.status, '')) = 'completed'
-           OR c.is_scoring_finalized IS TRUE)
-      AND private.class_results_push_due(c.id)
-  ),
-  owed AS (
-    SELECT d.class_id, coalesce(p.status, 'missing') AS status, p.attempts,
-           p.last_attempt_at, p.last_error, d.due_since
-    FROM due d
-    LEFT JOIN private.class_results_push p ON p.class_id = d.class_id
-    WHERE coalesce(p.status, 'missing') <> 'sent'
-      AND d.due_since < now() - interval '20 minutes'
-  ),
-  failed AS (
-    SELECT p.class_id, p.status, p.attempts, p.last_attempt_at, p.last_error,
-           NULL::timestamptz AS due_since
+  WITH stuck AS (
+    SELECT p.class_id, p.status, p.attempts, p.created_at AS queued_at,
+           p.last_attempt_at, p.last_error,
+           c.name AS class_name, s.name AS show_name
     FROM private.class_results_push p
-    WHERE p.status = 'failed'
-  ),
-  stuck AS (
-    SELECT * FROM failed
-    UNION ALL
-    SELECT * FROM owed WHERE status <> 'failed'
-  ),
-  named AS (
-    SELECT x.*, c.name AS class_name, s.name AS show_name
-    FROM stuck x
-    LEFT JOIN public.classes c ON c.id = x.class_id
+    LEFT JOIN public.classes c ON c.id = p.class_id
     LEFT JOIN public.trials t ON t.id = c.trial_id
     LEFT JOIN public.shows s ON s.id = t.show_id
+    WHERE p.status = 'failed'
+       OR (p.status = 'pending' AND p.created_at < now() - interval '20 minutes')
   ),
   job AS (
     SELECT j.jobid, j.active FROM cron.job j WHERE j.jobname = 'class-results-push-retry'
   )
   SELECT jsonb_build_object(
     'stuck', (SELECT count(*) FROM stuck),
-    'failed', (SELECT count(*) FROM failed),
-    'missing', (SELECT count(*) FROM stuck WHERE status = 'missing'),
+    'failed', (SELECT count(*) FROM stuck WHERE status = 'failed'),
     'pending', (SELECT count(*) FROM private.class_results_push WHERE status = 'pending'),
     'sample', (
-      SELECT coalesce(jsonb_agg(to_jsonb(n) ORDER BY n.status, n.class_name), '[]'::jsonb)
-      FROM (SELECT * FROM named ORDER BY status, class_name LIMIT 10) n
+      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.status, x.queued_at), '[]'::jsonb)
+      FROM (SELECT * FROM stuck ORDER BY status, queued_at LIMIT 10) x
     ),
     'retry_job', jsonb_build_object(
       'scheduled', EXISTS (SELECT 1 FROM job),
@@ -777,7 +722,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.class_results_push_health() IS
-  'MYK9-737: facts for the /admin/health class_results_push check: failed pushes, classes due for 20+ minutes (trial within 30 days) that are not sent (row missing or pending), and the class-results-push-retry cron''s liveness. service_role only.';
+  'MYK9-737: facts for the /admin/health class_results_push check: failed pushes, pending pushes queued 20+ minutes ago, and the class-results-push-retry cron''s liveness. service_role only.';
 
 REVOKE ALL ON FUNCTION public.class_results_push_health() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.class_results_push_health() TO service_role;

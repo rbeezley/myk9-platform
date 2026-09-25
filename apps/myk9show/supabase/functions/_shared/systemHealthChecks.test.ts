@@ -59,7 +59,6 @@ const facts = (over: Record<string, unknown> = {}) => ({
   class_results_push: {
     stuck: 0,
     failed: 0,
-    missing: 0,
     pending: 0,
     sample: [],
     retry_job: { scheduled: true, active: true, last_success_at: iso(0), last_status: 'succeeded' },

@@ -7,14 +7,15 @@
  * cron retries it until then (five attempts, then 'failed').
  *
  * This check reads `public.class_results_push_health()` (cron-health-check,
- * every run), which derives from the source of truth rather than the rows,
- * and fails, naming the classes, when:
- *   - a class has been due for 20+ minutes and is not sent: no row at all
- *     ('missing': nothing queued it) or still 'pending';
- *   - a push ran out of attempts ('failed');
+ * every run) and fails, naming the classes, when:
+ *   - a push is still 'pending' 20+ minutes after it was queued;
+ *   - a push ran out of attempts ('failed'; the cron prunes rows whose class
+ *     is no longer due, so a failed row is always a class still owed a push);
  *   - the retry cron is not scheduled, not active, its latest run failed, or
  *     it has not succeeded for 15 minutes (three missed five-minute runs).
- *     Without it nothing retries and nothing sweeps.
+ *     Without it nothing retries and nothing sweeps. A due class with no row
+ *     at all (it became due without a classes change) is queued by that
+ *     sweep within five minutes, so the cron's liveness is what covers it.
  *
  * Deno-free and side-effect free, like its `systemHealthChecks.ts` siblings.
  */
@@ -56,7 +57,6 @@ function parseStuck(raw: unknown): StuckClass | null {
 
 function describe(stuck: StuckClass): string {
   const where = stuck.showName ? `${stuck.className} (${stuck.showName})` : stuck.className;
-  if (stuck.status === 'missing') return `${where} never queued`;
   const attempts = stuck.attempts === null ? '' : `, ${stuck.attempts} attempts`;
   const error = stuck.lastError ? `: ${stuck.lastError}` : '';
   return `${where} ${stuck.status}${attempts}${error}`;
@@ -84,7 +84,7 @@ export function retryJobProblem(raw: unknown, nowMs: number): string | null {
 
 /**
  * `raw` is what `class_results_push_health()` returned —
- * `{ stuck, failed, missing, pending, sample[], retry_job }` — or `{ error }`
+ * `{ stuck, failed, pending, sample[], retry_job }` — or `{ error }`
  * when the RPC failed, or undefined when the runner did not ask.
  */
 export function classResultsPushCheck(raw: unknown, checkedAt: string): SnapshotCheck {
@@ -143,7 +143,7 @@ export function classResultsPushCheck(raw: unknown, checkedAt: string): Snapshot
   return {
     ...base,
     status: 'ok',
-    detail: `every due class's Results Posted push was sent or is within 20 minutes${inFlight}; ${RETRY_JOB_NAME} is running`,
+    detail: `no Results Posted push failed or pending past 20 minutes${inFlight}; ${RETRY_JOB_NAME} is running`,
     delta_value: 0,
   };
 }

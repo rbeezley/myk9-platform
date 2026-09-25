@@ -28,9 +28,10 @@
 --      retry sweep queues it once an entry is scored (and re-queues after a
 --      'held' finish); only-scratched/absent classes never queue or alarm;
 --      the audience RPC applies the same predicate; the sweep is bounded.
---   8. Health reads the source of truth: a class due 20+ minutes and not
---      sent (no row, or pending) is stuck, as is a failed row; a sent class
---      and one due 5 minutes are not; the retry cron's liveness facts.
+--   8. Health: failed rows and rows pending 20+ minutes after queueing are
+--      stuck; fresh pending and sent are not; the retry cron's liveness.
+--  8b. The retry run prunes pending and failed rows whose class is no longer
+--      due, before it fails anything; re-release re-queues.
 --   9. Wiring: the classes trigger exists, the per-entry push is gone, and
 --      the retry cron (when scheduled) reads both secrets inline.
 --  10. Backfill invariant: every class already due has a row.
@@ -745,33 +746,10 @@ END;
 $$;
 
 -- ============================================================================
--- 8. Health reads the source of truth (Codex round 3): a class due for 20+
---    minutes that is not sent is stuck whether its row is missing or
---    pending; a failed row is stuck; a sent class, or one due only 5 minutes,
---    is not. The retry cron's liveness facts come back with it.
+-- 8. Health: a failed row and a pending row queued 20+ minutes ago are
+--    stuck; a fresh pending row and a sent class are not. The retry cron's
+--    liveness facts come back with it.
 -- ============================================================================
-
--- A done class with a scored entry whose due moment is `p_ago` in the past
--- and which has NO push row: the trigger (and updated_at stamping) are off
--- while it is built, the way a class looks when it became due by scoring and
--- the sweep never ran.
-CREATE FUNCTION pg_temp.backdated_due_class(p_id uuid, p_name text, p_ago interval) RETURNS void
-LANGUAGE plpgsql AS $$
-BEGIN
-  ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_results_push;
-  ALTER TABLE public.classes DISABLE TRIGGER update_classes_updated_at;
-  INSERT INTO public.classes (id, trial_id, name, status, status_source, results_released_at, updated_at)
-  VALUES (p_id, '00000000-0000-0000-0000-000000737003', p_name, 'completed', 'manual',
-          now() - p_ago, now() - p_ago);
-  INSERT INTO public.entries
-    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, scoring_completed_at)
-  VALUES (p_id, '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003',
-          'completed', 'completed', true, 'qualified', now() - p_ago);
-  UPDATE public.classes SET updated_at = now() - p_ago WHERE id = p_id;
-  ALTER TABLE public.classes ENABLE TRIGGER update_classes_updated_at;
-  ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_results_push;
-END;
-$$;
 
 CREATE FUNCTION pg_temp.health_names(p_health jsonb, p_class text, p_status text) RETURNS boolean
 LANGUAGE sql AS $$
@@ -783,37 +761,12 @@ DO $$
 DECLARE
   v_health jsonb;
 BEGIN
-  -- The Codex scenario: due 30 minutes ago, never queued.
-  PERFORM pg_temp.backdated_due_class('00000000-0000-0000-0000-000073720001', 'MYK9-737 N missing 30m', interval '30 minutes');
-  -- Due only 5 minutes ago, not queued yet: the sweep still has time.
-  PERFORM pg_temp.backdated_due_class('00000000-0000-0000-0000-000073720002', 'MYK9-737 N missing 5m', interval '5 minutes');
-  -- Due 30 minutes ago and sent.
-  PERFORM pg_temp.backdated_due_class('00000000-0000-0000-0000-000073720003', 'MYK9-737 S sent 30m', interval '30 minutes');
-  INSERT INTO private.class_results_push (class_id, status, attempts, sent_at)
-  VALUES ('00000000-0000-0000-0000-000073720003', 'sent', 1, now());
-  IF private.class_results_push_due_since('00000000-0000-0000-0000-000073720001') > now() - interval '29 minutes'
-     OR NOT private.class_results_push_due('00000000-0000-0000-0000-000073720001')
-     OR EXISTS (SELECT 1 FROM private.class_results_push
-                WHERE class_id IN ('00000000-0000-0000-0000-000073720001', '00000000-0000-0000-0000-000073720002')) THEN
-    RAISE EXCEPTION 'FIXTURE the backdated classes are not due-without-a-row 30 minutes ago';
-  END IF;
-
-  -- E: queued (pending) when it completed, then due since 30 minutes ago.
+  -- E: queued when it completed, then backdated to 25 minutes ago.
   UPDATE public.classes SET status = 'completed'
   WHERE id = '00000000-0000-0000-0000-0000007370e1';
-  ALTER TABLE public.classes DISABLE TRIGGER update_classes_updated_at;
-  UPDATE public.classes SET updated_at = now() - interval '30 minutes'
-  WHERE id = '00000000-0000-0000-0000-0000007370e1';
-  ALTER TABLE public.classes ENABLE TRIGGER update_classes_updated_at;
-  UPDATE public.entries SET scoring_completed_at = now() - interval '30 minutes'
-  WHERE class_id = '00000000-0000-0000-0000-0000007370e1';
-  -- The rollup may touch the class again on that entry update; pin it back.
-  ALTER TABLE public.classes DISABLE TRIGGER update_classes_updated_at;
-  UPDATE public.classes SET updated_at = now() - interval '30 minutes'
-  WHERE id = '00000000-0000-0000-0000-0000007370e1';
-  ALTER TABLE public.classes ENABLE TRIGGER update_classes_updated_at;
-  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
-                 WHERE class_id = '00000000-0000-0000-0000-0000007370e1' AND status = 'pending') THEN
+  UPDATE private.class_results_push SET created_at = now() - interval '25 minutes'
+  WHERE class_id = '00000000-0000-0000-0000-0000007370e1' AND status = 'pending';
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'FIXTURE E did not queue a pending row';
   END IF;
 
@@ -821,31 +774,23 @@ BEGIN
   v_health := public.class_results_push_health();
   RESET ROLE;
 
-  IF NOT pg_temp.health_names(v_health, 'MYK9-737 N missing 30m', 'missing') THEN
-    RAISE EXCEPTION 'FAIL health did not name a class due 30 minutes with no push row: %', v_health;
-  END IF;
   IF NOT pg_temp.health_names(v_health, 'MYK9-737 E stalled', 'pending') THEN
-    RAISE EXCEPTION 'FAIL health did not name a class due 30 minutes whose push is still pending: %', v_health;
+    RAISE EXCEPTION 'FAIL health did not name a push pending 25 minutes after it was queued: %', v_health;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v_health -> 'sample') s
                  WHERE s ->> 'class_name' = 'MYK9-737 B standard' AND s ->> 'status' = 'failed'
                    AND s ->> 'show_name' = 'MYK9-737 Standard Show') THEN
     RAISE EXCEPTION 'FAIL health did not name the failed class: %', v_health;
   END IF;
+  -- C is pending but freshly queued; A is sent.
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_health -> 'sample') s
-             WHERE s ->> 'class_name' IN ('MYK9-737 N missing 5m', 'MYK9-737 S sent 30m',
-                                          'MYK9-737 A default', 'MYK9-737 C held')) THEN
-    RAISE EXCEPTION 'FAIL health named a class that is sent or due under 20 minutes: %', v_health;
+             WHERE s ->> 'class_name' IN ('MYK9-737 C held', 'MYK9-737 A default')) THEN
+    RAISE EXCEPTION 'FAIL health named a fresh pending or a sent class: %', v_health;
   END IF;
-  IF (v_health ->> 'failed')::int < 1 OR (v_health ->> 'missing')::int < 1 OR (v_health ->> 'stuck')::int < 3 THEN
+  IF (v_health ->> 'failed')::int < 1 OR (v_health ->> 'stuck')::int < 2 OR v_health ? 'missing' THEN
     RAISE EXCEPTION 'FAIL health counts are wrong: %', v_health;
   END IF;
-
-  -- Leave the backdated classes out of the invariant arm below.
-  UPDATE public.classes SET deleted_at = now()
-  WHERE id IN ('00000000-0000-0000-0000-000073720001', '00000000-0000-0000-0000-000073720002',
-               '00000000-0000-0000-0000-000073720003');
-  RAISE NOTICE 'PASS health: due 20+ min and not sent (missing or pending) and failed are stuck; sent and 5-minute-due are not';
+  RAISE NOTICE 'PASS health: failed and 20+-minute pending are stuck; fresh pending and sent are not';
 END;
 $$;
 
@@ -898,6 +843,60 @@ BEGIN
     PERFORM cron.unschedule(v_jobid);
   END IF;
   RAISE NOTICE 'PASS health reports the retry cron''s schedule, last success and last status';
+END;
+$$;
+
+-- ============================================================================
+-- 8b. One prune rule (Codex round 5): every retry run first deletes rows,
+--     pending or failed, whose class is no longer due; only then does it
+--     fail rows out of attempts. Re-release queues a fresh push.
+-- ============================================================================
+
+DO $$
+BEGIN
+  -- C: on its fifth attempt, stale and unleased, then un-released before the
+  -- next run.
+  UPDATE private.class_results_push
+  SET attempts = 5, last_attempt_at = now() - interval '6 minutes',
+      claim_token = NULL, claimed_until = NULL
+  WHERE class_id = '00000000-0000-0000-0000-0000007370c1' AND status = 'pending';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'FIXTURE C has no pending row';
+  END IF;
+  UPDATE public.classes SET results_released_at = NULL
+  WHERE id = '00000000-0000-0000-0000-0000007370c1';
+
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370c1') THEN
+    RAISE EXCEPTION 'FAIL a class un-released after its fifth attempt kept a row (%): it must be pruned, not failed',
+      (SELECT status FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370c1');
+  END IF;
+
+  UPDATE public.classes SET results_released_at = now()
+  WHERE id = '00000000-0000-0000-0000-0000007370c1';
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
+                 WHERE class_id = '00000000-0000-0000-0000-0000007370c1' AND status = 'pending' AND attempts = 1) THEN
+    RAISE EXCEPTION 'FAIL re-releasing the pruned class did not queue a fresh push';
+  END IF;
+
+  -- B: failed, then no longer done (finalization undone): pruned too.
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
+                 WHERE class_id = '00000000-0000-0000-0000-0000007370b1' AND status = 'failed') THEN
+    RAISE EXCEPTION 'FIXTURE B is not failed';
+  END IF;
+  UPDATE public.classes SET is_scoring_finalized = false
+  WHERE id = '00000000-0000-0000-0000-0000007370b1';
+  PERFORM private.retry_class_results_push('http://127.0.0.1:9/functions/v1', 'myk9-737-test-secret');
+  IF EXISTS (SELECT 1 FROM private.class_results_push WHERE class_id = '00000000-0000-0000-0000-0000007370b1') THEN
+    RAISE EXCEPTION 'FAIL a failed row whose class is no longer due was not pruned';
+  END IF;
+
+  -- A sent row is never pruned.
+  IF NOT EXISTS (SELECT 1 FROM private.class_results_push
+                 WHERE class_id = '00000000-0000-0000-0000-0000007370a1' AND status = 'sent') THEN
+    RAISE EXCEPTION 'FAIL the prune touched a sent row';
+  END IF;
+  RAISE NOTICE 'PASS the retry run prunes pending and failed rows whose class left due, before failing any; re-release re-queues';
 END;
 $$;
 
@@ -987,7 +986,6 @@ BEGIN
       'private.claim_class_results_push(uuid)',
       'private.post_class_results_push(uuid, text, text)',
       'private.retry_class_results_push(text, text, integer)',
-      'private.class_results_push_due_since(uuid)',
       'private.class_results_push_announces(timestamptz, timestamptz, text, text)',
       'public.notify_class_results_push()'
     ] LOOP

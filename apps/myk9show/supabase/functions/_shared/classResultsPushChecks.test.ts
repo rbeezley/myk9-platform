@@ -4,9 +4,9 @@ import { classResultsPushCheck, retryJobProblem } from './classResultsPushChecks
 import { buildSnapshot } from './systemHealthChecks';
 import { shouldRunHealthCheck } from './healthCheckCadence';
 
-// MYK9-737: the board goes red when a due class has not had its "Results
-// Posted" push delivered (never queued, still pending, or failed) or the retry
-// cron has stopped, and names the classes.
+// MYK9-737: the board goes red when a "Results Posted" push failed or is
+// still pending 20+ minutes after it was queued, or the retry cron has
+// stopped, and names the classes.
 
 const AT = '2026-09-25T19:00:00.000Z';
 const minutesBefore = (minutes: number) =>
@@ -23,7 +23,6 @@ const RUNNING = {
 const healthy = (over: Record<string, unknown> = {}) => ({
   stuck: 0,
   failed: 0,
-  missing: 0,
   pending: 0,
   sample: [],
   retry_job: RUNNING,
@@ -36,30 +35,6 @@ describe('classResultsPushCheck', () => {
     expect(check.status).toBe('ok');
     expect(check.detail).toContain('2 pending');
     expect(check.checked_at).toBe(AT);
-  });
-
-  it('fails and names a due class that was never queued (Codex round 3)', () => {
-    const check = classResultsPushCheck(
-      healthy({
-        stuck: 1,
-        missing: 1,
-        sample: [
-          {
-            class_id: 'c3',
-            class_name: 'Novice Container',
-            show_name: 'Fall Trial',
-            status: 'missing',
-            attempts: null,
-            last_error: null,
-          },
-        ],
-      }),
-      AT
-    );
-    expect(check.status).toBe('fail');
-    expect(check.detail).toBe(
-      '1 class has not had their Results Posted push delivered: Novice Container (Fall Trial) never queued'
-    );
   });
 
   it('fails and names failed and still-pending classes', () => {
@@ -135,14 +110,14 @@ describe('classResultsPushCheck', () => {
     const check = classResultsPushCheck(
       healthy({
         stuck: 1,
-        sample: [{ class_id: 'c1', class_name: 'A', status: 'missing' }],
+        sample: [{ class_id: 'c1', class_name: 'A', status: 'pending', attempts: 2 }],
         retry_job: { ...RUNNING, scheduled: false, active: false },
       }),
       AT
     );
     expect(check.status).toBe('fail');
     expect(check.detail).toBe(
-      '1 class has not had their Results Posted push delivered: A never queued. ' +
+      '1 class has not had their Results Posted push delivered: A pending, 2 attempts. ' +
         'class-results-push-retry is not scheduled'
     );
   });

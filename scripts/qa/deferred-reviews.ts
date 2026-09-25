@@ -111,6 +111,11 @@ export interface RepoComment {
   updatedAt: string;
   author?: string;
   authorAssociation?: string;
+  /**
+   * False for a comment on a plain issue, which has no merge to reconcile.
+   * Absent when unknown; that is treated as a pull request (MYK9-748).
+   */
+  onPullRequest?: boolean;
 }
 
 export interface PrView {
@@ -152,7 +157,6 @@ export interface ReconcileDeps {
   listRepoComments: (repo: string, since: string) => RepoComment[];
   viewPr: (repo: string, number: number) => PrView;
   resolveLinearIssue: (id: string, apiKey: string) => Promise<LinearIssueLookup>;
-  now?: Date;
 }
 
 function message(error: unknown): string {
@@ -185,6 +189,9 @@ export function groupCommentsByIssue(comments: readonly RepoComment[]): Map<numb
 export function candidateIssueNumbers(grouped: ReadonlyMap<number, RepoComment[]>): number[] {
   const out: number[] = [];
   for (const [number, comments] of grouped) {
+    // A plain issue quoting a deferral line has no merge behind it; `gh pr
+    // view` on it fails, and that used to abort the whole run (MYK9-748).
+    if (comments.some(comment => comment.onPullRequest === false)) continue;
     if (comments.some(comment => extractDeferredIds(comment.body).length > 0)) out.push(number);
   }
   return out.sort((a, b) => a - b);
@@ -239,13 +246,22 @@ export function dedupeCandidates(candidates: readonly DeferralCandidate[]): Defe
   });
 }
 
-/** Default lookback window: 30 days before `now`, as an ISO date (YYYY-MM-DD). */
-export function parseSinceFlag(argv: readonly string[], now: Date): string {
+/**
+ * The first day a merge could carry a `Deferred re-review:` line: the `owner`
+ * override shipped with #2243 on 2026-09-14. The default window starts here,
+ * never at a rolling "30 days ago": a deferral is debt until it is cleared,
+ * and an override whose comment nobody edited for 30 days fell out of the
+ * window and was reported as no debt at all (MYK9-748). The listing grows with
+ * the repo's comment history; COMMENT_PAGE_CAP fails loudly, never quietly,
+ * when that outgrows it.
+ */
+export const DEFERRAL_HISTORY_START = '2026-09-14';
+
+/** The lookback window's start, as an ISO date (YYYY-MM-DD). */
+export function parseSinceFlag(argv: readonly string[]): string {
   const flagIndex = argv.indexOf('--since');
   const explicit = flagIndex >= 0 ? argv[flagIndex + 1] : undefined;
-  if (explicit) return explicit;
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  return thirtyDaysAgo.toISOString().slice(0, 10);
+  return explicit || DEFERRAL_HISTORY_START;
 }
 
 function stateType(row: Pick<DeferralRow, 'stateType'>): string {
@@ -347,7 +363,7 @@ export async function reconcile(
     };
   }
 
-  const since = parseSinceFlag(argv, deps.now ?? new Date());
+  const since = parseSinceFlag(argv);
 
   let comments: RepoComment[];
   try {
@@ -455,6 +471,8 @@ interface RestComment {
   author_association?: string;
   user?: { login: string };
   issue_url: string;
+  /** `/pull/<n>#…` for a pull request, `/issues/<n>#…` for a plain issue. */
+  html_url?: string;
 }
 
 /**
@@ -481,6 +499,7 @@ export function parseRepoComments(slurped: string): RepoComment[] {
     updatedAt: comment.updated_at,
     author: comment.user?.login,
     authorAssociation: comment.author_association,
+    ...(comment.html_url ? { onPullRequest: comment.html_url.includes('/pull/') } : {}),
   }));
 }
 
@@ -574,7 +593,6 @@ export async function runCli(
     listRepoComments,
     viewPr,
     resolveLinearIssue: (id, apiKey) => resolveLinearIssue(id, apiKey),
-    now: new Date(),
   });
   console.log(result.output);
   return result.code;
@@ -618,13 +636,11 @@ async function selfTest(): Promise<number> {
     if (!ok) failures++;
   };
   const baseEnv = { REPO: 'self-test/self-test', LINEAR_API_KEY: 'self-test-key' };
-  const now = new Date('2026-01-02T00:00:00Z');
 
   const unresolvable = await reconcile(baseEnv, [], {
     listRepoComments: () => [comment(9999, 'deadbeef0', 'MYK9-000000', '2026-01-01T00:00:00Z')],
     viewPr: (_repo, number) => mergedPr(number),
     resolveLinearIssue: async () => ({ exists: false, stateName: null, stateType: null }),
-    now,
   });
   check('unresolvable id fails the exit code', unresolvable.code === 1);
   check('unresolvable id is named in the output', unresolvable.output.includes('MYK9-000000'));
@@ -637,7 +653,6 @@ async function selfTest(): Promise<number> {
       stateName: 'Canceled',
       stateType: 'canceled',
     }),
-    now,
   });
   check('a canceled deferral is NOT cleared', canceled.code === 1);
   check('the canceled id is named in the output', canceled.output.includes('MYK9-000001'));
@@ -649,7 +664,6 @@ async function selfTest(): Promise<number> {
     ],
     viewPr: (_repo, number) => mergedPr(number),
     resolveLinearIssue: async () => ({ exists: true, stateName: 'Done', stateType: 'completed' }),
-    now,
   });
   check(
     'only the latest override for the head carries debt',
@@ -671,7 +685,6 @@ async function selfTest(): Promise<number> {
       parseRepoComments(JSON.stringify(Array.from({ length: COMMENT_PAGE_CAP }, () => []))),
     viewPr: (_repo, number) => mergedPr(number),
     resolveLinearIssue: async () => ({ exists: true, stateName: 'Done', stateType: 'completed' }),
-    now,
   });
   check('a truncation-suspect listing fails loud (exit 2)', truncated.code === 2);
 

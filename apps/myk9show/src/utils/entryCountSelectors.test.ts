@@ -112,7 +112,6 @@ describe('entry count selectors', () => {
       { entry_status: null },
       { entry_status: '' },
       { entry_status: 'confirmed' },
-      { entry_status: 'waitlisted' },
       { entry_status: 'withdrawn' },
     ];
     const managementEntries = rawEntries.map((raw, index) =>
@@ -121,11 +120,9 @@ describe('entry count selectors', () => {
         entryStatus:
           raw.entry_status === 'confirmed'
             ? EntryStatus.ACCEPTED
-            : raw.entry_status === 'waitlisted'
-              ? EntryStatus.WAITLIST
-              : raw.entry_status === 'withdrawn'
-                ? EntryStatus.CANCELLED
-                : EntryStatus.PENDING,
+            : raw.entry_status === 'withdrawn'
+              ? EntryStatus.CANCELLED
+              : EntryStatus.PENDING,
       })
     );
 

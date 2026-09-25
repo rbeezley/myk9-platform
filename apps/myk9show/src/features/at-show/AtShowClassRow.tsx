@@ -82,7 +82,7 @@ export function AtShowClassRow({
   const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
 
   return (
-    <li>
+    <li data-class-id={entry.id}>
       {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
       <button
         type="button"

@@ -123,8 +123,10 @@ export function classifySharedStagingWrite(request: RequestLike): GuardedWrite |
  * all read as STABLE to a scanner, and a guard that fails open is worse than
  * none — MYK9-545 round 3 deleted exactly such a test).
  *
- * All nine below were read this way and cross-checked against the live catalog
- * (`pg_proc.provolatile`): every one is STABLE, with exactly one overload.
+ * All ten below were read this way: every one is declared STABLE, and no
+ * migration alters or overloads it. The first nine were also cross-checked
+ * against the live catalog (`pg_proc.provolatile`); `manageable_show_ids`
+ * (MYK9-730) was read from its migrations only.
  */
 export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   // 20260905090000_exhibitor_online_payment_readiness.sql — `select exists
@@ -148,6 +150,9 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   // wizard whose judge query could never succeed — invisible because no spec
   // asserts on judges.
   'get_show_judges',
+  // 20260830240000_show_officials_separates_label_from_permission.sql — the
+  // walk canaries' (MYK9-730) set of shows the secretary may manage.
+  'manageable_show_ids',
   // 20260730110000_restrict_rbac_access_lookups.sql
   'get_user_permissions',
   // 20260730110000_restrict_rbac_access_lookups.sql

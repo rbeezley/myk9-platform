@@ -63,7 +63,11 @@ const DEFAULT_ENTRY_FEE = 25;
  */
 export function getShowEntryFee(
   show: ShowFeeInfo | undefined,
-  classEntryFee?: number | undefined
+  classEntryFee?: number | undefined,
+  // A judgement the caller already made and records with the entry. A batch
+  // passes it so the fee cannot be re-decided on a clock that has crossed
+  // midnight since (MYK9-749). Omitted, the fee decides for itself.
+  isDayOfShow?: boolean
 ): number {
   // Show-level fee with date-based tier
   if (show) {
@@ -72,7 +76,8 @@ export function getShowEntryFee(
     // mail-in taken after entries closed was charged the day-of fee and then
     // certified to the registry as a pre-entry. Both judgements now come from
     // `isDayOfShowEntry`, which the server restates in `submit_show_entries`.
-    if (isDayOfShowEntry(showDayOfShowContext(show)) && show.dayOfShowFee) {
+    const dayOfShow = isDayOfShow ?? isDayOfShowEntry(showDayOfShowContext(show));
+    if (dayOfShow && show.dayOfShowFee) {
       const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
       // Zero means "no day-of tier", NOT "free". Leaving Day-of-Show Fee blank in
       // the creation wizard persists "0.00" rather than NULL, so there is nothing

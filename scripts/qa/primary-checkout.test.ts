@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -221,6 +221,38 @@ describe('render', () => {
     // Plain `git diff` omits the index, so a staged-only edit produces an empty
     // "backup" while `git restore <file>` is a no-op and the pull still aborts.
     const out = render(evaluate(dirty, 20));
-    expect(out).toContain('diff HEAD');
+    expect(out).toContain('diff --binary HEAD');
+  });
+
+  // MYK9-748 (#2277 review): without --binary a dirty binary backs up as
+  // "Binary files differ", and the remedy's `restore` then destroys the only
+  // copy. Run the rendered backup line for real, restore, and re-apply.
+  it('backs up a dirty binary file so it survives the restore', () => {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), 'primary-checkout-binary-')));
+    try {
+      git(['init', '-q'], repo);
+      git(['config', 'user.email', 'test@example.test'], repo);
+      git(['config', 'user.name', 'Test'], repo);
+      writeFileSync(join(repo, 'logo.bin'), Buffer.from([0, 1, 2, 3, 255, 0, 10, 13, 0]));
+      git(['add', 'logo.bin'], repo);
+      git(['commit', '-q', '-m', 'binary'], repo);
+      const edited = Buffer.from([0, 9, 9, 9, 255, 0, 10, 13, 0, 7]);
+      writeFileSync(join(repo, 'logo.bin'), edited);
+
+      const out = render(evaluate({ ...dirty, primaryPath: repo, dirtyFiles: ['logo.bin'] }, 20));
+      const backup = out
+        .split('\n')
+        .find(line => line.includes('.primary-checkout-keep.patch'))
+        ?.replace(/\s+#.*$/, '')
+        .trim();
+      expect(backup).toBeDefined();
+      execFileSync('bash', ['-c', backup!]);
+      git(['restore', '--staged', '--worktree', 'logo.bin'], repo);
+      git(['apply', '.primary-checkout-keep.patch'], repo);
+
+      expect(readFileSync(join(repo, 'logo.bin'))).toEqual(edited);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });

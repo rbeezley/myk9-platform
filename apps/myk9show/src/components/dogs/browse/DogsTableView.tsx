@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,75 +32,95 @@ interface DogsTableViewProps {
   showOwner?: boolean;
 }
 
-function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
-  return {
-    id: '_select',
-    // The 40px cell width is guaranteed entirely by `min-w-10 max-w-10` on
-    // the TH/TD itself (STICKY_LEFT_LEAD_WIDTH_CLASS in `data-table/types.ts`)
-    // — NOT by this wrapper. A `w-10` here was tried and measured wrong
-    // (round-3 delta review, Chromium): it makes the TD's own min-content 48px
-    // (16px padding + 40px wrapper), so min-content and max-content disagree,
-    // the rendered 40px comes only from `max-w-10` winning the auto-layout
-    // negotiation, and the wrapper itself overflows the cell to x=48 — pushing
-    // the checkbox 4px right of the cell's true centre. Dropping the width
-    // and keeping only `flex items-center justify-center` centres the
-    // checkbox within whatever the cell renders at, still measured at exactly
-    // 40px in `dogs-table-pinned-select.spec.ts`.
-    header: () => (
-      <span className="flex items-center justify-center">
-        <Checkbox
-          // Asymmetric on purpose, header only: a uniform -inset-3.5 (like the
-          // row checkbox below) grows the 16px control to 44x44, but the
-          // header row is only h-10 (40px) tall, so the vertical half
-          // overhangs ~2px into row 1 and can steal its first click.
-          // -inset-x-3.5 (14px) keeps the 44px-wide horizontal overhang
-          // (unchanged — it's what lets the tap target reach into the Name
-          // cell); -inset-y-3 (12px) gives a 40px-tall target that exactly
-          // fills the header row's own height, so nothing spills into row 1
-          // — but that 40px arithmetic depends on staying wrapped in the
-          // `<span>` above: TableHead's `[&>[role=checkbox]]:translate-y-[2px]`
-          // is a direct-child selector that only matches a checkbox that IS
-          // the `<th>`'s child, so it silently stops applying once the
-          // checkbox is wrapped. Unwrap this span and that 2px shift comes
-          // back, which would put `-inset-y-3`'s 40px-tall target 2px low —
-          // right back to overhanging into row 1.
-          className="relative before:absolute before:-inset-x-3.5 before:-inset-y-3 before:content-['']"
-          checked={selection.isAllSelected}
-          indeterminate={selection.isPartiallySelected}
-          onCheckedChange={() => selection.toggleAll()}
-          aria-label="Select all dogs"
-        />
-      </span>
-    ),
-    cell: ({ row }) => (
-      <span
-        className="flex items-center justify-center"
-        onClick={e => e.stopPropagation()}
-        role="presentation"
-      >
-        <Checkbox
-          className="relative before:absolute before:-inset-3.5 before:content-['']"
-          checked={selection.isSelected(row.original)}
-          onCheckedChange={() => selection.toggleItem(row.original)}
-          aria-label={`Select ${getDogDisplayName(row.original)}`}
-        />
-      </span>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    meta: {
-      interactive: true,
-      exportDisabled: true,
-      // MYK9-592: forces this column to STICKY_LEFT_LEAD_WIDTH_CLASS and pins it
-      // at left-0 above the Name column, which pins right after it instead of
-      // at left-0 itself (see `stickyLeft: { afterLead: true }` below) — the
-      // two now sit side by side under horizontal scroll instead of Name
-      // sliding on top of the checkbox, and the checkbox's enlarged tap-target
-      // pseudo-element can overhang into the Name cell without being occluded.
-      stickyLeftLead: true,
-    } satisfies DataTableColumnMeta,
-  };
+/**
+ * The live selection for the select column's checkboxes. The column itself is
+ * defined once at module level and reads the selection from here, so its
+ * header and cell functions keep their identity across renders: rebuilding
+ * them whenever the page re-rendered (`useBulkSelection` returns a new object
+ * each time) made TanStack's `flexRender` see a new component type and
+ * remount every checkbox, dropping keyboard focus and briefly detaching the
+ * header checkbox mid-measurement in Playwright Regression (MYK9-751).
+ */
+const DogsTableSelectionContext = createContext<DogsTableSelection | null>(null);
+
+function SelectAllDogsCheckbox() {
+  const selection = useContext(DogsTableSelectionContext);
+  if (!selection) return null;
+  return (
+    <span className="flex items-center justify-center">
+      <Checkbox
+        // Asymmetric on purpose, header only: a uniform 14px vertical
+        // overhang (like the row checkbox below) makes a 44px-tall target,
+        // but the header row can be as short as 40px (compact density; about
+        // 44px in comfortable), so it could overhang into row 1 and steal its
+        // first click.
+        // The horizontal span is the shared x=0..44 described on SELECT_COLUMN;
+        // -inset-y-3 (12px) gives a 40px-tall target, never taller than the
+        // header row in either density, so nothing spills into row 1
+        // — but that 40px arithmetic depends on staying wrapped in the
+        // `<span>` above: TableHead's `[&>[role=checkbox]]:translate-y-[2px]`
+        // is a direct-child selector that only matches a checkbox that IS
+        // the `<th>`'s child, so it silently stops applying once the
+        // checkbox is wrapped. Unwrap this span and that 2px shift comes
+        // back, which would put `-inset-y-3`'s 40px-tall target 2px low —
+        // right back to overhanging into row 1.
+        className="relative before:absolute before:-left-3 before:-right-4 before:-inset-y-3 before:content-['']"
+        checked={selection.isAllSelected}
+        indeterminate={selection.isPartiallySelected}
+        onCheckedChange={() => selection.toggleAll()}
+        aria-label="Select all dogs"
+      />
+    </span>
+  );
 }
+
+function SelectDogCheckbox({ dog }: { dog: Dog }) {
+  const selection = useContext(DogsTableSelectionContext);
+  if (!selection) return null;
+  return (
+    <span
+      className="flex items-center justify-center"
+      onClick={e => e.stopPropagation()}
+      role="presentation"
+    >
+      <Checkbox
+        className="relative before:absolute before:-left-3 before:-right-4 before:-inset-y-3.5 before:content-['']"
+        checked={selection.isSelected(dog)}
+        onCheckedChange={() => selection.toggleItem(dog)}
+        aria-label={`Select ${getDogDisplayName(dog)}`}
+      />
+    </span>
+  );
+}
+
+const SELECT_COLUMN: DisplayColumnDef<Dog, unknown> = {
+  id: '_select',
+  // The 40px cell width is guaranteed entirely by `min-w-10 max-w-10` on
+  // the TH/TD itself (STICKY_LEFT_LEAD_WIDTH_CLASS in `data-table/types.ts`),
+  // which also zeroes the cell's side padding, so this wrapper's
+  // `flex items-center justify-center` centres the checkbox in the full
+  // 40px (MYK9-751; `dogs-table-pinned-select.spec.ts` measures both).
+  //
+  // Tap target: the 16px checkbox sits at x=12..28, and the pseudo-element
+  // spans x=0..44 (`-left-3`, `-right-4`): a full 44px wide, nothing lost to
+  // the scroll wrapper's clip at x=0, and 4px into the Name cell, where the
+  // lead column's higher z-index keeps it on top.
+  header: () => <SelectAllDogsCheckbox />,
+  cell: ({ row }) => <SelectDogCheckbox dog={row.original} />,
+  enableSorting: false,
+  enableHiding: false,
+  meta: {
+    interactive: true,
+    exportDisabled: true,
+    // MYK9-592: forces this column to STICKY_LEFT_LEAD_WIDTH_CLASS and pins it
+    // at left-0 above the Name column, which pins right after it instead of
+    // at left-0 itself (see `stickyLeft: { afterLead: true }` below) — the
+    // two now sit side by side under horizontal scroll instead of Name
+    // sliding on top of the checkbox, and the checkbox's enlarged tap-target
+    // pseudo-element can overhang into the Name cell without being occluded.
+    stickyLeftLead: true,
+  } satisfies DataTableColumnMeta,
+};
 
 function getStatusBadge(status: DogStatus | undefined) {
   switch (status) {
@@ -247,30 +267,33 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  const hasSelection = Boolean(selection);
   const allColumns = useMemo(() => {
-    const cols = buildColumns(Boolean(selection));
+    const cols = buildColumns(hasSelection);
     // Dropped from the column model, not hidden with CSS: unlike the
     // responsive hide, this is not about width. The column carries nothing on
     // this roster, so it should not be in the Columns menu and should not be
     // in the CSV either.
     const visible = showOwner ? cols : cols.filter(col => col.id !== OWNER_COLUMN_ID);
-    return selection ? [buildSelectColumn(selection), ...visible] : visible;
-  }, [selection, showOwner]);
+    return hasSelection ? [SELECT_COLUMN, ...visible] : visible;
+  }, [hasSelection, showOwner]);
 
   return (
-    <DataTable
-      tableId="dogsBrowse"
-      // The remaining columns can still overflow on a narrow viewport, so the
-      // scroll region needs a name and a tab stop to be reachable at all
-      // without a pointer.
-      scrollAreaLabel="Dogs table"
-      columns={allColumns}
-      data={dogs}
-      // Page-level ListControls owns search; table keeps only its Columns control.
-      showSearch={false}
-      onRowClick={dog => navigate(`/dogs/${dog.id}`)}
-      getRowId={dog => dog.id}
-    />
+    <DogsTableSelectionContext.Provider value={selection ?? null}>
+      <DataTable
+        tableId="dogsBrowse"
+        // The remaining columns can still overflow on a narrow viewport, so the
+        // scroll region needs a name and a tab stop to be reachable at all
+        // without a pointer.
+        scrollAreaLabel="Dogs table"
+        columns={allColumns}
+        data={dogs}
+        // Page-level ListControls owns search; table keeps only its Columns control.
+        showSearch={false}
+        onRowClick={dog => navigate(`/dogs/${dog.id}`)}
+        getRowId={dog => dog.id}
+      />
+    </DogsTableSelectionContext.Provider>
   );
 };
 

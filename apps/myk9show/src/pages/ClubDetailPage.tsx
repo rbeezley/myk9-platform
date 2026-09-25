@@ -1,52 +1,45 @@
-import React, { useEffect, useMemo } from 'react';
+import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useClubStore } from '@/store/clubStore';
 import { ClubDetails } from '@/components/clubs/ClubDetails';
+import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { Button } from '@/components/ui/button';
+import { useClubDetailData } from '@/hooks/useClubDetailData';
 
 /**
  * ClubDetailPage is a thin wrapper around ClubDetails for the /clubs/:id route.
- * Loads the club from the store and renders ClubDetails.
+ * Loads the club (replica when signed in, server when signed out; see
+ * useClubDetailData) and renders ClubDetails.
  */
 const ClubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { club, status, isGuest, retry } = useClubDetailData(id);
 
-  const clubs = useClubStore(state => state.clubs);
-  const readiness = useClubStore(state => state.clubReadiness);
-  const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
-
-  useEffect(() => {
-    void ensureClubsReady({ requestedClubId: id });
-  }, [ensureClubsReady, id]);
-
-  const club = useMemo(() => {
-    if (!id) return null;
-    const found = clubs.find(c => c.id === id);
-    if (!found) return null;
-    // Ensure arrays are defined for ClubDetails
-    return {
-      ...found,
-      upcomingShows: Array.isArray(found.upcomingShows) ? found.upcomingShows : [],
-      pastShows: Array.isArray(found.pastShows) ? found.pastShows : [],
-    };
-  }, [clubs, id]);
-
-  if (readiness === 'loading' && !club) {
+  if (status === 'loading') {
     return <DetailPageSkeleton />;
   }
 
-  if ((readiness === 'unavailable' || readiness === 'offline') && !club) {
+  if (status === 'offline') {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-16">
+        <ClubsOfflineState
+          description="Connect to the internet to see this club."
+          onRetry={retry}
+        />
+      </div>
+    );
+  }
+
+  if (status === 'unavailable') {
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-6 py-16 text-center">
         <h1 className="text-2xl font-semibold">Club details are unavailable</h1>
         <p className="text-muted-foreground">
-          We couldn&apos;t check this club right now. Your saved club information is still safe.
+          We couldn&apos;t check this club right now.
+          {!isGuest && ' Your saved club information is still safe.'}
         </p>
         <div className="flex flex-wrap justify-center gap-3">
-          <Button onClick={() => void ensureClubsReady({ requestedClubId: id, force: true })}>
-            Try again
-          </Button>
+          <Button onClick={retry}>Try again</Button>
           <Button asChild variant="outline">
             <Link to="/clubs">Back to clubs</Link>
           </Button>
@@ -55,7 +48,7 @@ const ClubDetailPage: React.FC = () => {
     );
   }
 
-  if (readiness === 'fresh' && id && !club) {
+  if (status === 'not-found') {
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-6 py-16 text-center">
         <h1 className="text-2xl font-semibold">Club not found</h1>

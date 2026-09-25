@@ -22,7 +22,7 @@
  * reach turbo, not this script (MYK9-720).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
@@ -115,6 +115,58 @@ export function isGateInert(current: ScriptsDiagnostic[], baseline: ScriptsDiagn
   return current.length === 0 && baseline.length > 0;
 }
 
+/**
+ * MYK9-748: `isGateInert` infers coverage from the diagnostic COUNT, and with
+ * the baseline burned down to empty a narrowed `include` that compiled only
+ * clean files read as 0 new against 0 baselined: a pass that compiled nothing
+ * that mattered (`review-gate.ts` included). Coverage is asserted directly
+ * instead: every tracked `.ts` under the project's directory must be in the
+ * program `tsc --listFilesOnly` reports.
+ */
+export function findUncompiledFiles(
+  listedFiles: readonly string[],
+  trackedFiles: readonly string[],
+  rootDir: string
+): string[] {
+  const compiled = new Set(listedFiles.map(file => relative(rootDir, file)));
+  return trackedFiles.filter(file => !compiled.has(file));
+}
+
+/** The strictness this project exists to enforce (MYK9-531); weakening either is a gate failure. */
+const REQUIRED_TRUE_OPTIONS = ['strict', 'noUncheckedIndexedAccess'] as const;
+
+export function findWeakenedOptions(compilerOptions: Record<string, unknown>): string[] {
+  return REQUIRED_TRUE_OPTIONS.filter(option => compilerOptions[option] !== true);
+}
+
+function run(command: string, args: string[], rootDir: string): string {
+  const result = spawnSync(command, args, { cwd: rootDir, encoding: 'utf8' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr ?? ''}`);
+  }
+  return result.stdout ?? '';
+}
+
+/** Coverage and strictness problems with the project, or [] when it is whole. */
+function coverageProblems(configPath: string, rootDir: string): string[] {
+  const listed = run('tsc', ['--listFilesOnly', '--project', configPath], rootDir)
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const tracked = run('git', ['ls-files', '-z', '--', dirname(configPath)], rootDir)
+    .split('\0')
+    .filter(file => file.endsWith('.ts') && !file.endsWith('.d.ts'));
+  const resolved = JSON.parse(run('tsc', ['--showConfig', '--project', configPath], rootDir)) as {
+    compilerOptions?: Record<string, unknown>;
+  };
+  return [
+    ...findUncompiledFiles(listed, tracked, rootDir).map(file => `not compiled: ${file}`),
+    ...findWeakenedOptions(resolved.compilerOptions ?? {}).map(
+      option => `compilerOptions.${option} is not true`
+    ),
+  ];
+}
+
 export function readBaseline(path: string): ScriptsDiagnostic[] {
   return JSON.parse(readFileSync(path, 'utf8')) as ScriptsDiagnostic[];
 }
@@ -162,6 +214,16 @@ export function runCli(args: string[] = process.argv.slice(2), rootDir = process
   );
   console.log(renderDiagnostics('New diagnostics (gate failure)', comparison.newDiagnostics));
   console.log(renderDiagnostics('Known diagnostics (ratcheted)', current));
+
+  const problems = coverageProblems(configPath, rootDir);
+  if (problems.length > 0) {
+    console.error(
+      `scripts/qa typecheck ratchet: the project no longer covers what it must:\n${problems
+        .map(problem => `- ${problem}`)
+        .join('\n')}`
+    );
+    return 1;
+  }
 
   if (isGateInert(current, baseline)) {
     console.error(

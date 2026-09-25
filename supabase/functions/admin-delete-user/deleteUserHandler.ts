@@ -84,10 +84,15 @@ export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<Del
     // stripe_orders.enrollment_id is now ON DELETE RESTRICT, so deleting a
     // person who ever paid raises a bare 23503 from a table the admin never
     // named. Surface it as an actionable 409 rather than a generic 500.
+    // MYK9-750: matched by constraint name, because 23503 alone only says that
+    // SOMETHING references the row (e.g. secretary_tasks.created_by).
     if (deleteError.code === '23503') {
+      const ledger = /stripe_orders_(show|enrollment)_id_fkey/.test(deleteError.message ?? '');
       throw new HttpError(
         409,
-        'This person has Stripe orders that refunds and reconciliation still reference, so their record cannot be permanently deleted. Resolve or reassign those orders first.',
+        ledger
+          ? 'This person has Stripe orders that refunds and reconciliation still reference, so their record cannot be permanently deleted. Resolve or reassign those orders first.'
+          : 'Other records still reference this person, so their record cannot be permanently deleted.',
         '23503'
       );
     }

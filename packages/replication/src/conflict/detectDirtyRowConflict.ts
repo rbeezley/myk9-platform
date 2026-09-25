@@ -9,11 +9,58 @@ const DEFAULT_IGNORED_FIELDS = new Set([
   '_localOnly',
 ]);
 
+/**
+ * MYK9-740: the fields of each replicated table's LOCAL row that hold a
+ * `timestamptz` (verified against the live schema on 2026-09-25). Local entry
+ * rows carry both the column name and a camelCase copy (`scoring_completed_at`
+ * and `scoringCompletedAt`, see ReplicatedEntriesTable.mapper.ts), so both
+ * are listed, plus the denormalized `shows.deleted_at`. Only these fields
+ * compare as instants (so `…Z` equals `…+00:00`). Every other field compares
+ * as text, including text columns that happen to hold ISO-shaped strings
+ * (`judge_notes`, `trials.actual_start_time`), whose different spellings are
+ * different values (Codex P2 on PR #2436). A table missing here keeps plain
+ * text comparison, the behavior before MYK9-740.
+ */
+const INSTANT_FIELDS_BY_TABLE: Readonly<Record<string, ReadonlySet<string>>> = {
+  entries: new Set([
+    'confirmation_email_sent_at',
+    'createdAt',
+    'created_at',
+    'deletedAt',
+    'deleted_at',
+    'judge_signature_timestamp',
+    'last_synced_at',
+    'refundedAt',
+    'refund_decided_at',
+    'refunded_at',
+    'ring_entry_time',
+    'ring_exit_time',
+    'scoringCompletedAt',
+    'scoring_completed_at',
+    'scoring_started_at',
+    'showDeletedAt',
+    'show_deleted_at',
+    'submittedAt',
+    'submitted_at',
+    'updated_at',
+    'withdrawn_at',
+  ]),
+};
+
+const NO_INSTANT_FIELDS: ReadonlySet<string> = new Set();
+
+/** The fields of `tableName` that hold instants; empty for an unlisted table. */
+export function instantFieldsFor(tableName: string): ReadonlySet<string> {
+  return INSTANT_FIELDS_BY_TABLE[tableName] ?? NO_INSTANT_FIELDS;
+}
+
 export interface DirtyRowConflictInput<T extends object> {
   base: T;
   local: T;
   remote: T;
   ignoredFields?: Iterable<string>;
+  /** Fields compared as instants; see {@link instantFieldsFor}. Default: none. */
+  instantFields?: ReadonlySet<string>;
 }
 
 export interface DirtyRowConflictResult {
@@ -26,6 +73,7 @@ export function detectDirtyRowConflict<T extends object>({
   local,
   remote,
   ignoredFields = DEFAULT_IGNORED_FIELDS,
+  instantFields = NO_INSTANT_FIELDS,
 }: DirtyRowConflictInput<T>): DirtyRowConflictResult {
   const ignored = new Set(ignoredFields);
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
@@ -40,9 +88,10 @@ export function detectDirtyRowConflict<T extends object>({
     const baseValue = baseRecord[field];
     const localValue = localRecord[field];
     const remoteValue = remoteRecord[field];
-    const localChanged = !deepEqual(localValue, baseValue);
-    const remoteChanged = !deepEqual(remoteValue, baseValue);
-    const sidesDiffer = !deepEqual(localValue, remoteValue);
+    const asInstant = instantFields.has(field);
+    const localChanged = !deepEqual(localValue, baseValue, asInstant);
+    const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
+    const sidesDiffer = !deepEqual(localValue, remoteValue, asInstant);
 
     if (localChanged && remoteChanged && sidesDiffer) {
       conflicts.push(field);
@@ -76,6 +125,7 @@ export function mergeNonConflictingServerFields<T extends object>({
   local,
   remote,
   ignoredFields = DEFAULT_IGNORED_FIELDS,
+  instantFields = NO_INSTANT_FIELDS,
 }: DirtyRowConflictInput<T>): DirtyRowMergeResult<T> {
   const ignored = new Set(ignoredFields);
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
@@ -91,8 +141,9 @@ export function mergeNonConflictingServerFields<T extends object>({
     const baseValue = baseRecord[field];
     const localValue = localRecord[field];
     const remoteValue = remoteRecord[field];
-    const localChanged = !deepEqual(localValue, baseValue);
-    const remoteChanged = !deepEqual(remoteValue, baseValue);
+    const asInstant = instantFields.has(field);
+    const localChanged = !deepEqual(localValue, baseValue, asInstant);
+    const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
 
     // Server changed a field the client never touched → adopt the server value.
     if (remoteChanged && !localChanged) {
@@ -104,9 +155,9 @@ export function mergeNonConflictingServerFields<T extends object>({
   return { merged: merged as T, appliedFields: appliedFields.sort() };
 }
 
-function deepEqual(left: unknown, right: unknown): boolean {
+function deepEqual(left: unknown, right: unknown, asInstant: boolean): boolean {
   if (Object.is(left, right)) return true;
-  if (isSameInstant(left, right)) return true;
+  if (asInstant && isSameInstant(left, right)) return true;
   return JSON.stringify(left) === JSON.stringify(right);
 }
 

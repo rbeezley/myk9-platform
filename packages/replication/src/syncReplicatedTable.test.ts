@@ -12,6 +12,7 @@ interface LocalEntry {
   resultStatus?: string;
   finalPlacement?: number | null;
   license_key?: string;
+  scoring_completed_at?: string | null;
 }
 
 interface RemoteEntry {
@@ -21,6 +22,7 @@ interface RemoteEntry {
   result_status?: string;
   final_placement?: number | null;
   license_key?: string;
+  scoring_completed_at?: string | null;
   updated_at?: string | number | null;
 }
 
@@ -53,6 +55,7 @@ function makeAdapter(
       resultStatus: remote.result_status,
       finalPlacement: remote.final_placement,
       license_key: remote.license_key,
+      scoring_completed_at: remote.scoring_completed_at,
     }),
   };
 }
@@ -303,6 +306,38 @@ describe('syncReplicatedTable', () => {
       expect(result.rowsAffected).toBe(1);
       expect(result.conflictsResolved).toBe(1);
     });
+
+    // MYK9-740 + Codex P2 on PR #2436: the sync passes the TABLE's instant
+    // fields to conflict detection. The same echo (…Z locally, …+00:00 from
+    // PostgREST) is no conflict on `entries`, where the field is a timestamptz,
+    // and stays a text conflict on a table that declares no instant fields.
+    it.each([
+      ['entries', 0],
+      ['unlisted_table', 1],
+    ])(
+      'on %s, a server echo of the same instant in another spelling raises %i conflicts',
+      async (tableName, expectedConflicts) => {
+        const events: CustomEvent[] = [];
+        const handler = (e: Event) => events.push(e as CustomEvent);
+        window.addEventListener('replication:conflict', handler);
+        const namedTable = new TestTable(tableName);
+
+        await namedTable.set('1', { id: '1', name: 'Rex', scoring_completed_at: null });
+        await namedTable.set(
+          '1',
+          { id: '1', name: 'Rex', scoring_completed_at: '2026-09-24T21:19:38.574Z' },
+          true
+        );
+        const adapter = makeAdapter([
+          { id: 1, name: 'Rex', scoring_completed_at: '2026-09-24T21:19:38.574+00:00' },
+        ]);
+
+        await syncReplicatedTable(namedTable, adapter, {}, { conflictSurfacingEnabled: true });
+
+        window.removeEventListener('replication:conflict', handler);
+        expect(events).toHaveLength(expectedConflicts);
+      }
+    );
 
     it('does not conflict when local and remote changed different fields (field-merge path preserved)', async () => {
       const events: CustomEvent[] = [];

@@ -11,6 +11,12 @@ const pushFunction = readFileSync(
   resolve(repoRoot, 'supabase/functions/push-trigger-support-message/index.ts'),
   'utf8'
 );
+// MYK9-726 moved the recipient queries (and the disambiguated user_roles
+// embed) into recipients.ts.
+const pushRecipients = readFileSync(
+  resolve(repoRoot, 'supabase/functions/push-trigger-support-message/recipients.ts'),
+  'utf8'
+);
 const sendEmailFunction = readFileSync(
   resolve(repoRoot, 'supabase/functions/send-email/index.ts'),
   'utf8'
@@ -46,7 +52,7 @@ describe('support notifications contract', () => {
     expect(pushFunction).toContain('is_from_operator');
     expect(pushFunction).toContain('await getOwnerRecipient(supabase, ticket.owner_id)');
     expect(pushFunction).toContain('await getSiteAdminRecipients(supabase)');
-    expect(pushFunction).toContain(".eq('roles.name', 'site_admin')");
+    expect(pushRecipients).toContain(".eq('roles.name', 'site_admin')");
     expect(pushFunction).toContain("type: 'support_message'");
     expect(pushFunction).toContain('`/support?ticketId=${ticket_id}`');
     expect(pushFunction).toContain('`/admin/support?ticketId=${ticket_id}`');

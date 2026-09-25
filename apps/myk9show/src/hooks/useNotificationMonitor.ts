@@ -50,6 +50,8 @@ interface ClassRow {
 interface NotificationSnapshot {
   entries: unknown[];
   classes: unknown[];
+  /** When the request that produced this snapshot STARTED (MYK9-742). */
+  startedAt?: number;
 }
 
 /** What the monitor last saw of one class, to tell a change from a state. */
@@ -134,7 +136,8 @@ export function useNotificationMonitor(): void {
   const snapshotQuery = useQuery({
     queryKey: ['notification-monitor', 'entries', showIds],
     queryFn: async (): Promise<NotificationSnapshot> => {
-      if (showIds.length === 0) return { entries: [], classes: [] };
+      const startedAt = Date.now();
+      if (showIds.length === 0) return { entries: [], classes: [], startedAt };
 
       const { data: classRows, error: classError } = await supabase
         .from('classes')
@@ -146,7 +149,7 @@ export function useNotificationMonitor(): void {
       if (classError) throw classError;
 
       const classIds = (classRows ?? []).map((row: { id: string }) => row.id);
-      if (classIds.length === 0) return { entries: [], classes: classRows ?? [] };
+      if (classIds.length === 0) return { entries: [], classes: classRows ?? [], startedAt };
 
       const { data: entryRows, error: entryError } = await supabase
         .from('view_authenticated_entry_results')
@@ -157,7 +160,7 @@ export function useNotificationMonitor(): void {
         .in('class_id', classIds);
       if (entryError) throw entryError;
 
-      return { entries: entryRows ?? [], classes: classRows ?? [] };
+      return { entries: entryRows ?? [], classes: classRows ?? [], startedAt };
     },
     enabled: showIds.length > 0 && preferences.enabled,
     staleTime: 30_000,
@@ -178,14 +181,15 @@ export function useNotificationMonitor(): void {
   // Set when the app is hidden: backgrounded time counts as "away" too, so the
   // first snapshot processed while visible again is a baseline.
   const awaySinceLastBaselineRef = useRef(false);
-  // A token minted each time the app becomes visible after being away, null
-  // while hidden. Only a refresh STARTED under the current token that succeeds
-  // ends the away baseline (MYK9-742): a request begun while hidden can resolve
-  // after the resume carrying pre-resume state, and cached data handed back
-  // with a refetch error predates the resume too. Comparing a completion time
-  // against the resume time could not tell either of those apart.
-  const resumeTokenRef = useRef<number | null>(null);
-  const resumeCountRef = useRef(0);
+  // When the app last became visible, null while hidden. Only a snapshot whose
+  // request STARTED at or after it ends the away baseline (MYK9-742): a request
+  // begun while hidden can resolve after the resume carrying pre-resume state,
+  // and cached data handed back with a refetch error keeps its own, older
+  // start. Either path may end it, the explicit refresh or a later poll, so a
+  // failed resume refresh cannot leave the monitor silent. A completion time
+  // (`dataUpdatedAt`) could not tell these apart; the start time rides in the
+  // snapshot itself.
+  const visibleSinceRef = useRef<number | null>(null);
   // The live refresh, while the subscription effect is active; used to take the
   // post-away baseline the moment the app is visible again.
   const refreshNowRef = useRef<(() => void) | null>(null);
@@ -248,7 +252,7 @@ export function useNotificationMonitor(): void {
   }, []);
 
   const processSnapshot = useCallback(
-    (snapshot: NotificationSnapshot, endsAwayBaseline = false) => {
+    (snapshot: NotificationSnapshot) => {
       const classLookup = new Map<string, ClassRow>();
       const entriesByClass = new Map<string, ShowEntry[]>();
       const nextDogNames = new Map<string, string>();
@@ -320,7 +324,12 @@ export function useNotificationMonitor(): void {
       // Baseline: the first snapshot after mount, after a user change, or after
       // the app was hidden (every snapshot while hidden is a baseline too).
       const wasAway = awaySinceLastBaselineRef.current;
-      if (wasAway && endsAwayBaseline) awaySinceLastBaselineRef.current = false;
+      const visibleSince = visibleSinceRef.current;
+      const startedAfterResume =
+        visibleSince !== null &&
+        snapshot.startedAt !== undefined &&
+        snapshot.startedAt >= visibleSince;
+      if (wasAway && startedAfterResume) awaySinceLastBaselineRef.current = false;
       if (!previous || previous.userId !== userId || wasAway) return;
 
       for (const [classId, context] of nextContexts) {
@@ -377,8 +386,6 @@ export function useNotificationMonitor(): void {
     [notifyUpcomingDogs]
   );
 
-  // The polled snapshot never ends the away baseline: which request produced
-  // it is unknown here. Only `refresh` below, which knows when it started, can.
   useEffect(() => {
     if (snapshotQuery.data) processSnapshot(snapshotQuery.data);
   }, [snapshotQuery.data, processSnapshot]);
@@ -387,10 +394,9 @@ export function useNotificationMonitor(): void {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         awaySinceLastBaselineRef.current = true;
-        resumeTokenRef.current = null;
+        visibleSinceRef.current = null;
       } else if (awaySinceLastBaselineRef.current) {
-        resumeCountRef.current += 1;
-        resumeTokenRef.current = resumeCountRef.current;
+        visibleSinceRef.current = Date.now();
         // Take the baseline now rather than at the next poll, so a change
         // after the user is back is compared against it and still alerts. A
         // change during this one round trip is covered by server push.
@@ -425,14 +431,9 @@ export function useNotificationMonitor(): void {
         return;
       }
       inFlight = true;
-      const startedUnder = resumeTokenRef.current;
       try {
         const result = await refetchSnapshot();
-        if (!disposed && result.data) {
-          const startedAfterResume =
-            startedUnder !== null && startedUnder === resumeTokenRef.current;
-          processSnapshot(result.data, startedAfterResume && !result.isError);
-        }
+        if (!disposed && result.data) processSnapshot(result.data);
       } catch {
         // The 30-second query poll and next signal repair a transient failure.
       } finally {

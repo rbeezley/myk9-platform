@@ -19,6 +19,7 @@ import {
   type ColdInsertGuardMode,
   type ReplicatedSetResult,
   type SyncReplicatedTableAdapter,
+  type SyncOptions,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -196,11 +197,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return false;
   }
 
-  async sync(syncScopeId: string): Promise<SyncResult> {
-    return this.syncForPrincipal(syncScopeId, 'anonymous');
+  async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
+    return this.syncForPrincipal(syncScopeId, 'anonymous', options);
   }
 
-  async syncForPrincipal(syncScopeId: string, principalId: string): Promise<SyncResult> {
+  async syncForPrincipal(
+    syncScopeId: string,
+    principalId: string,
+    options?: Partial<SyncOptions>
+  ): Promise<SyncResult> {
     const showScopeId = syncScopeId.trim();
     if (!showScopeId) {
       if (!this._hasWarnedMissingShowScope) {
@@ -220,10 +225,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // Share only the active operation; the next refresh must still contact the server.
     const syncKey = `${principalId}:${showScopeId}`;
     const inFlight = this._syncsByShow.get(syncKey);
-    if (inFlight) return inFlight;
-    const sync = this.syncShow(showScopeId, principalId).finally(() => {
-      this._syncsByShow.delete(syncKey);
-    });
+    const forceFullSync = options?.forceFullSync === true;
+    // A forced full sync must not be answered by an incremental one already
+    // running (MYK9-752): wait that one out, then run its own. Later callers
+    // share the forced run like any other.
+    if (inFlight && !forceFullSync) return inFlight;
+    const sync = (inFlight ? inFlight.then(noop, noop) : Promise.resolve())
+      .then(() => this.syncShow(showScopeId, principalId, forceFullSync))
+      .finally(() => {
+        if (this._syncsByShow.get(syncKey) === sync) this._syncsByShow.delete(syncKey);
+      });
     this._syncsByShow.set(syncKey, sync);
     return sync;
   }
@@ -241,7 +252,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     );
   }
 
-  private async syncShow(showScopeId: string, principalId: string): Promise<SyncResult> {
+  private async syncShow(
+    showScopeId: string,
+    principalId: string,
+    forceFullSync = false
+  ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
@@ -373,7 +388,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       adapter,
       { value: showScopeId },
       {
-        forceFullSync: needsReceiptReferenceRefresh,
+        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
@@ -1520,3 +1535,5 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
 // Singleton export
 export const replicatedEntriesTable = new ReplicatedEntriesTable();
+
+function noop() {}

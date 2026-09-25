@@ -2,7 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { AKC_SCENT_WORK_TEMPLATE } from '@/data/templates/akcScentWorkTemplate';
 import { signInAsSecretary } from '../uat/shared/auth';
 
-const TRIAL_ID = 'trial-123';
+// A real-length id: the header has to fit a 36-character UUID at 390px, which
+// the old 'trial-123' never tested (review of #2434). Every hyphen here is
+// followed by a digit, where Chrome will not break a line, so the id only fits
+// because of `break-all`; an id with `-a…` would wrap at the hyphen anyway.
+const TRIAL_ID = '6d1f4c2a-9b3e-4f7a-8c5d-2e1b0a9f8c7d';
 const TEMPLATE_STORAGE = 'myk9show-template-storage';
 const seededTemplate = {
   ...AKC_SCENT_WORK_TEMPLATE,
@@ -99,6 +103,12 @@ test.describe('Secretary Class Creation Workflow', () => {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
       );
       expect(overflow).toBeLessThanOrEqual(1);
+
+      await expectNavRow(page, /^Next$/, { sameRow: true });
+      // The review step swaps Next for the wider Add Classes block.
+      await page.getByRole('button', { name: /^Next$/ }).click();
+      await expect(page.getByText('Step 4 of 4')).toBeVisible();
+      await expectNavRow(page, 'Add Classes', { sameRow: width > 390 });
     });
   }
 });
@@ -111,6 +121,44 @@ const OVERRIDE_TABS: ReadonlyArray<readonly [string, string]> = [
   ['Rules overrides', 'Rules'],
   ['Other overrides', 'Other'],
 ];
+
+/**
+ * The wizard nav at every width (review of #2434: an earlier wrap fix left the
+ * primary action under Previous, on the left, on a phone). The template
+ * summary sits on its own line above; the primary action is always flush with
+ * the row's right edge, and shares Previous's row when `sameRow`. The review
+ * step's Add Classes block is wider than a 390px card leaves beside Previous
+ * (~294px), so there it may wrap, but only to the right.
+ */
+async function expectNavRow(
+  page: Page,
+  primary: string | RegExp,
+  { sameRow }: { sameRow: boolean }
+) {
+  const previous = (await page.getByRole('button', { name: 'Previous' }).boundingBox())!;
+  const action = (await page.getByRole('button', { name: primary }).boundingBox())!;
+  // The summary is basis-full, so its box spans the row's content width.
+  const summary = (await page.getByText(/^Template: /).boundingBox())!;
+  expect(summary.y + summary.height, 'the summary sits above the buttons').toBeLessThanOrEqual(
+    previous.y
+  );
+  expect(
+    Math.abs(action.x + action.width - (summary.x + summary.width)),
+    `${primary} is flush with the row's right edge`
+  ).toBeLessThanOrEqual(1);
+  expect(previous.x - summary.x, 'Previous is flush with the left edge').toBeLessThanOrEqual(1);
+  if (sameRow) {
+    const middle = (box: { y: number; height: number }) => box.y + box.height / 2;
+    expect(
+      Math.abs(middle(action) - middle(previous)),
+      `${primary} shares a row with Previous`
+    ).toBeLessThan(previous.height / 2);
+  } else {
+    expect(action.x + action.width, `${primary} ends right of Previous`).toBeGreaterThan(
+      previous.x + previous.width
+    );
+  }
+}
 
 async function reachOverrideStep(page: Page) {
   await page.getByRole('combobox').first().click();

@@ -65,6 +65,22 @@ export function syncAtShowData(showId: string): Promise<void> {
 }
 
 /**
+ * Resolves once any at-show sync ALREADY running for this show has settled,
+ * success or failure; immediately when none is. `syncAtShowData` hands an
+ * in-flight operation back to a new caller, so a caller that needs a sync
+ * which STARTED after some point (offline readiness prime, where the page's
+ * own mount-time sync is usually still running) awaits this first. It covers
+ * this adapter's coalescing only: a table that coalesces its own syncs (the
+ * entries table's per-show map) may still hand back one already running.
+ */
+export function settleAtShowSync(showId: string): Promise<void> {
+  const existing = atShowSyncsInFlight.get(showId);
+  return existing ? existing.then(noop, noop) : Promise.resolve();
+}
+
+function noop() {}
+
+/**
  * Pull only the authoritative replica path named by relevant Broadcast signals.
  * Legacy/unscoped signals retain the complete-sync fallback during rolling deploys.
  */

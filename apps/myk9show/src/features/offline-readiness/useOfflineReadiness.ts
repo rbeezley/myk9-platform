@@ -10,7 +10,7 @@ import {
 import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { settleAtShowSync, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -211,26 +211,25 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
-      // Rewind the watermark of every cold/short scope before syncing. An
-      // incremental sync does not restore rows that quota eviction removed
-      // (the engine only force-syncs a COMPLETELY empty replica) and then
-      // rewrites totalRows down to the reduced local count — which would turn
-      // the badge falsely green. Rewinding re-fetches without clearing rows.
-      const missing = readiness?.missing ?? [];
-      const REWIND = { lastIncrementalSyncAt: 0, scopes: {} };
-      await Promise.all([
-        missing.includes('trials') ? replicatedTrialsTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('entries') ? replicatedEntriesTable.updateSyncMetadata(REWIND) : null,
-        missing.includes('classes') ? replicatedClassesTable.updateSyncMetadata(REWIND) : null,
-      ]);
+      // Wait out any at-show sync already running (usually the page's own
+      // mount-time one). syncAtShowData hands an in-flight operation back to a
+      // new caller, so without this prime's re-check could judge a sync that
+      // began before the click instead of one that began after it (MYK9-738).
+      await settleAtShowSync(showId);
+      // No watermark rewind for trials, entries or classes. Every sync compares
+      // the local rows with a fresh server count and forces a full re-fetch
+      // when any are missing (syncReplicatedTable `partialReplica`), which is
+      // what restores quota-evicted rows. Rewinding there only raced other
+      // syncs and, as first written, wiped the expected-row counts readiness is
+      // judged by (MYK9-738). Known gap: when that count request fails, no full
+      // re-fetch runs until the 24h stale-sync rule (MYK9-752). The shows
+      // table has no server count, so a missing show row still needs its ''
+      // watermark rewound for sync('') to fetch it.
       if (readiness?.missing.includes('show')) {
-        await replicatedShowsTable.updateSyncMetadata({
-          lastIncrementalSyncAt: 0,
-          // sync('') reads scopes['']; resetting only the table-global
-          // watermark would still skip the missing show. Clearing the scope
-          // map costs a re-fetch, never cached rows.
-          scopes: {},
-        });
+        await replicatedShowsTable.updateSyncMetadata(
+          { lastIncrementalSyncAt: 0 },
+          { scopeValue: '' }
+        );
       }
       await Promise.all([
         syncAtShowData(showId),

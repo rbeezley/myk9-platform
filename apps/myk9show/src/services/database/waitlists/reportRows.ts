@@ -39,12 +39,10 @@ function personName(person: { first_name?: string | null; last_name?: string | n
 }
 
 /**
- * An empty local answer is verified online before it is printed, as MYK9-721's
- * replica reads do (`errorOnOnlineVerificationFailure`): a replica that never
- * synced, or was cleared, reads exactly like a show nobody is waiting for. A
- * verification that cannot run is an error, never "empty".
+ * How many dogs the SERVER has waiting in these classes, or null when it
+ * cannot be asked (offline, or the request failed).
  */
-async function verifyNobodyIsWaiting(classIds: readonly string[]): Promise<void> {
+async function countServerWaiting(classIds: readonly string[]): Promise<number | null> {
   let result: { count: number | null; error: unknown };
   try {
     result = await supabase
@@ -52,17 +50,39 @@ async function verifyNobodyIsWaiting(classIds: readonly string[]): Promise<void>
       .select('id', { count: 'exact', head: true })
       .in('class_id', [...classIds])
       .or('status.is.null,status.eq.waiting');
-  } catch (error) {
-    throw createDatabaseError(error, 'waitlist_entries', 'waitlist_report_online_verify');
+  } catch {
+    return null;
   }
-  if (result.error || result.count === null) {
+  return result.error ? null : result.count;
+}
+
+/**
+ * The local waitlist is checked against the server before it is printed. A
+ * replica that never synced reads exactly like a show nobody is waiting for,
+ * and one that is part-synced (a newer waiting dog in another class not yet
+ * downloaded) reads like a shorter waitlist. When the counts disagree the
+ * report is blocked until the next waitlist sync lands; the replica
+ * subscription in useWaitlistReportQuery re-reads it then.
+ *
+ * When the server cannot be asked, an empty local answer is an error (as
+ * MYK9-721's reads treat it, `errorOnOnlineVerificationFailure`), while local
+ * rows are the best answer available offline and print, the same stance as
+ * the report rows (a paused read over settled rows is printable).
+ */
+async function verifyAgainstServer(
+  classIds: readonly string[],
+  localWaitingCount: number
+): Promise<void> {
+  const serverCount = await countServerWaiting(classIds);
+  if (serverCount === null) {
+    if (localWaitingCount > 0) return;
     throw createDatabaseError(
-      result.error ?? new Error('No row count returned'),
+      new Error('Could not confirm the waitlist is empty'),
       'waitlist_entries',
       'waitlist_report_online_verify'
     );
   }
-  if (result.count > 0) throw new WaitlistNotDownloadedError();
+  if (serverCount !== localWaitingCount) throw new WaitlistNotDownloadedError();
 }
 
 export async function getWaitlistReportRows(
@@ -71,15 +91,15 @@ export async function getWaitlistReportRows(
   if (classIds.length === 0) return [];
   const allWaitlist = await replicatedWaitlistEntriesTable.getAll();
 
-  // Only the classes someone is waiting in are read row by row.
   const inScope = new Set(classIds);
-  const waitingClassIds = [
-    ...new Set(filterQueuedWaitlistEntries(allWaitlist).map(row => row.classId)),
-  ].filter(classId => inScope.has(classId));
-  if (waitingClassIds.length === 0) {
-    await verifyNobodyIsWaiting(classIds);
-    return [];
-  }
+  const localWaiting = filterQueuedWaitlistEntries(allWaitlist).filter(row =>
+    inScope.has(row.classId)
+  );
+  await verifyAgainstServer(classIds, localWaiting.length);
+  if (localWaiting.length === 0) return [];
+
+  // Only the classes someone is waiting in are read row by row.
+  const waitingClassIds = [...new Set(localWaiting.map(row => row.classId))];
 
   const perClass = await Promise.all(waitingClassIds.map(id => getWaitlistByClass(id)));
   const failed = perClass.find(result => result.error);

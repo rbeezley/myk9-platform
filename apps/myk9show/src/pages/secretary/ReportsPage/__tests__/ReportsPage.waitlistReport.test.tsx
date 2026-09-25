@@ -201,6 +201,7 @@ describe.each([
 
   it('prints each class waitlist from waitlist_entries, in position order, with handlers', async () => {
     await seedShowWithWaitlist();
+    serverWaitingCount = 3;
 
     render(<ReportsPage />, { initialRoute: WAITLIST_ROUTE, queryClient: appLikeClient() });
 
@@ -253,12 +254,27 @@ describe.each([
       timeout: 5000,
     });
 
+    // A dog joins on the server, and the waitlist sync brings the row down.
+    serverWaitingCount = 1;
     await act(async () => {
       await replicatedWaitlistEntriesTable.batchSet([
         waiting('wl-a', 'class-int', 'dog-a', 1),
       ] as never);
     });
     await waitFor(() => expect(previewText()).toContain('Aster'), { timeout: 5000 });
+  });
+
+  it('blocks a part-synced waitlist instead of printing it short', async () => {
+    await seedShowWithWaitlist();
+    // The server has a fourth waiting dog this device has not downloaded yet.
+    serverWaitingCount = 4;
+
+    render(<ReportsPage />, { initialRoute: WAITLIST_ROUTE, queryClient: appLikeClient() });
+
+    expect(
+      await screen.findByText(/could not load the report data/i, {}, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(previewText()).not.toContain('Bramble');
   });
 
   it('shows an error, not an empty waitlist, when the waitlist has never synced here', async () => {

@@ -119,6 +119,7 @@ describe('getWaitlistReportRows', () => {
     mockWaitlistTable.getByClass.mockImplementation(async (classId: string) =>
       rows.filter(r => r.classId === classId)
     );
+    mockOnlineCount.mockReturnValue({ count: 2, error: null });
 
     await expect(getWaitlistReportRows(['class-1', 'class-2'])).resolves.toEqual([
       { id: 'wl-1', classId: 'class-1', position: 1, callName: 'Buddy', handler: 'Jane Mitchell' },
@@ -141,9 +142,12 @@ describe('getWaitlistReportRows', () => {
       rows.filter(r => r.classId === classId)
     );
 
+    mockOnlineCount.mockReturnValue({ count: 1, error: null });
+
     const result = await getWaitlistReportRows(['class-1']);
 
     expect(result.map(row => row.id)).toEqual(['wl-1']);
+    expect(lastQuery.in).toHaveBeenCalledWith('class_id', ['class-1']);
     expect(mockWaitlistTable.getByClass).not.toHaveBeenCalledWith('class-elsewhere');
   });
 
@@ -168,6 +172,29 @@ describe('getWaitlistReportRows', () => {
     mockWaitlistTable.getAll.mockResolvedValue([]);
     mockOnlineCount.mockReturnValue({ count: null, error: { message: 'Failed to fetch' } });
     await expect(getWaitlistReportRows(['class-1'])).rejects.toBeTruthy();
+  });
+
+  it('blocks a part-synced waitlist: the server has a waiting dog this replica lacks', async () => {
+    const rows = [waiting({ id: 'wl-1', dogId: 'dog-1', position: 1 })];
+    mockWaitlistTable.getAll.mockResolvedValue(rows);
+    mockWaitlistTable.getByClass.mockResolvedValue(rows);
+    // A newer waiting row in class-2 has not synced to this device yet.
+    mockOnlineCount.mockReturnValue({ count: 2, error: null });
+
+    await expect(getWaitlistReportRows(['class-1', 'class-2'])).rejects.toBeInstanceOf(
+      WaitlistNotDownloadedError
+    );
+  });
+
+  it('prints the local rows when the server cannot be asked (offline)', async () => {
+    const rows = [waiting({ id: 'wl-1', dogId: 'dog-1', position: 1 })];
+    mockWaitlistTable.getAll.mockResolvedValue(rows);
+    mockWaitlistTable.getByClass.mockResolvedValue(rows);
+    mockOnlineCount.mockReturnValue({ count: null, error: { message: 'Failed to fetch' } });
+
+    const result = await getWaitlistReportRows(['class-1']);
+
+    expect(result.map(row => row.id)).toEqual(['wl-1']);
   });
 
   it('rejects instead of reporting an empty waitlist when the read fails', async () => {

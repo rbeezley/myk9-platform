@@ -141,7 +141,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
-  private readonly _syncsByShow = new Map<string, Promise<SyncResult>>();
+  private readonly _syncsByShow = new Map<string, { sync: Promise<SyncResult>; forced: boolean }>();
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -224,18 +224,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // Background replication and report reads can request the same show together.
     // Share only the active operation; the next refresh must still contact the server.
     const syncKey = `${principalId}:${showScopeId}`;
-    const inFlight = this._syncsByShow.get(syncKey);
+    const running = this._syncsByShow.get(syncKey);
     const forceFullSync = options?.forceFullSync === true;
     // A forced full sync must not be answered by an incremental one already
-    // running (MYK9-752): wait that one out, then run its own. Later callers
-    // share the forced run like any other.
-    if (inFlight && !forceFullSync) return inFlight;
-    const sync = (inFlight ? inFlight.then(noop, noop) : Promise.resolve())
+    // running (MYK9-752): wait that one out, then run its own. Anything shares
+    // a forced run; only an ordinary call shares an ordinary one.
+    if (running && (running.forced || !forceFullSync)) return running.sync;
+    const sync = (running ? running.sync.then(noop, noop) : Promise.resolve())
       .then(() => this.syncShow(showScopeId, principalId, forceFullSync))
       .finally(() => {
-        if (this._syncsByShow.get(syncKey) === sync) this._syncsByShow.delete(syncKey);
+        if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
       });
-    this._syncsByShow.set(syncKey, sync);
+    this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
     return sync;
   }
 

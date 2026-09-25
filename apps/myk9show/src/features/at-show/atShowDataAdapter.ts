@@ -38,7 +38,8 @@ import {
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 
-const atShowSyncsInFlight = new Map<string, Promise<void>>();
+/** The operation running per show, and whether it re-fetches every row. */
+const atShowSyncsInFlight = new Map<string, { operation: Promise<void>; forced: boolean }>();
 
 /**
  * Sync the show's trials, their classes and its entries. Concurrent callers
@@ -51,9 +52,11 @@ export function syncAtShowData(
   showId: string,
   options?: { forceFullSync?: boolean }
 ): Promise<void> {
-  const existing = atShowSyncsInFlight.get(showId);
+  const running = atShowSyncsInFlight.get(showId);
   const forceFullSync = options?.forceFullSync === true;
-  if (existing && !forceFullSync) return existing;
+  // Anything shares a forced run; only an ordinary call shares an ordinary one.
+  if (running && (running.forced || !forceFullSync)) return running.operation;
+  const existing = running?.operation;
   // Options only when forced, so ordinary calls stay exactly as they were.
   const syncArgs: [] | [{ forceFullSync: true }] = forceFullSync ? [{ forceFullSync: true }] : [];
 
@@ -68,9 +71,9 @@ export function syncAtShowData(
       replicatedEntriesTable.sync(showId, ...syncArgs),
     ]);
   })();
-  atShowSyncsInFlight.set(showId, operation);
+  atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {
-    if (atShowSyncsInFlight.get(showId) === operation) {
+    if (atShowSyncsInFlight.get(showId)?.operation === operation) {
       atShowSyncsInFlight.delete(showId);
     }
   };

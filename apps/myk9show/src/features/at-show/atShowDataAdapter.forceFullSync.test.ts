@@ -99,4 +99,16 @@ describe('syncAtShowData forceFullSync', () => {
 
     expect(trialsSync).toHaveBeenCalledTimes(1);
   });
+
+  it('overlapping forced calls share one full sync', async () => {
+    const forcedTrials = deferred();
+    trialsSync.mockReturnValueOnce(forcedTrials.promise).mockResolvedValue({ success: true });
+    const first = syncAtShowData('show-f', { forceFullSync: true });
+    await flush();
+    const second = syncAtShowData('show-f', { forceFullSync: true });
+    forcedTrials.resolve();
+    await Promise.all([first, second]);
+
+    expect(trialsSync).toHaveBeenCalledTimes(1);
+  });
 });

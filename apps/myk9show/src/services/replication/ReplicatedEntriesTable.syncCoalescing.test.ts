@@ -99,6 +99,18 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
     expect(syncShow).toHaveBeenCalledTimes(1);
   });
 
+  it('overlapping forced syncs share one full sync', async () => {
+    const forcedRun = deferred<SyncResult>();
+    syncShow.mockReturnValueOnce(forcedRun.promise);
+    const first = table.sync('show-1', { forceFullSync: true });
+    await flush();
+    const second = table.sync('show-1', { forceFullSync: true });
+    forcedRun.resolve(ok());
+    await Promise.all([first, second]);
+
+    expect(syncShow).toHaveBeenCalledTimes(1);
+  });
+
   it('a new sync after the shared one finished contacts the server again', async () => {
     await table.sync('show-1');
     await table.sync('show-1');

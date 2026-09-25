@@ -39,7 +39,7 @@ BEGIN
   RAISE NOTICE 'PASS show_payments FKs are ON DELETE RESTRICT';
 
   IF has_function_privilege('anon',
-       'public.record_enrollment_payment(uuid, text, numeric, text, date, text, text)', 'EXECUTE') THEN
+       'public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL anon can execute record_enrollment_payment';
   END IF;
   RAISE NOTICE 'PASS anon cannot execute record_enrollment_payment';
@@ -74,7 +74,8 @@ VALUES
    '00000000-0000-0000-0000-000000677152'),
   ('00000000-0000-0000-0000-000000677053', 'Pay', 'Exhibitor', NULL),
   ('00000000-0000-0000-0000-000000677054', 'Refund', 'Exhibitor', NULL),
-  ('00000000-0000-0000-0000-000000677055', 'Shortfall', 'Exhibitor', NULL);
+  ('00000000-0000-0000-0000-000000677055', 'Shortfall', 'Exhibitor', NULL),
+  ('00000000-0000-0000-0000-000000677056', 'Retry', 'Exhibitor', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000677051', id, '00000000-0000-0000-0000-000000677001',
@@ -96,7 +97,9 @@ VALUES
   ('00000000-0000-0000-0000-000000677063', '00000000-0000-0000-0000-000000677011',
    '00000000-0000-0000-0000-000000677054', 'pending', 'cash', 5000),
   ('00000000-0000-0000-0000-000000677064', '00000000-0000-0000-0000-000000677011',
-   '00000000-0000-0000-0000-000000677055', 'pending', 'check', 5000);
+   '00000000-0000-0000-0000-000000677055', 'pending', 'check', 5000),
+  ('00000000-0000-0000-0000-000000677065', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677056', 'pending', 'cash', 3000);
 
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
@@ -319,6 +322,50 @@ BEGIN
       v_status, v_net, v_last;
   END IF;
   RAISE NOTICE 'PASS a partial refund then Paid in Full records the $20 shortfall; ledger net = fee';
+END;
+$$;
+
+-- --- a retried payment (same client_payment_id) is recorded once -------------
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', NULL, NULL, NULL,
+  '00000000-0000-0000-0000-0000006770a1');
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', NULL, NULL, NULL,
+  '00000000-0000-0000-0000-0000006770a1');
+
+DO $$
+DECLARE
+  v_rows integer; v_paid numeric; v_status text;
+BEGIN
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677065';
+  SELECT paid_amount, payment_status INTO v_paid, v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677065';
+  IF v_rows <> 1 OR v_paid <> 30 OR v_status <> 'paid_by_cash' THEN
+    RAISE EXCEPTION 'FAIL a retried payment: % rows, paid %, status %', v_rows, v_paid, v_status;
+  END IF;
+  RAISE NOTICE 'PASS the same client_payment_id twice writes one row and adds paid_amount once';
+END;
+$$;
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677065', 'payment', 25, 'cash', NULL, NULL, NULL,
+      '00000000-0000-0000-0000-0000006770a1');
+    RAISE EXCEPTION 'FAIL a client_payment_id was reused for a different amount';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'PASS a client_payment_id reused for a different payment is refused';
+  END;
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677063', 'payment', 30, 'cash', NULL, NULL, NULL,
+      '00000000-0000-0000-0000-0000006770a1');
+    RAISE EXCEPTION 'FAIL a client_payment_id was reused on another enrollment';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'PASS a client_payment_id reused on another enrollment is refused';
+  END;
 END;
 $$;
 

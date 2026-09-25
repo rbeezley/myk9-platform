@@ -295,6 +295,7 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
       p_method: 'cash',
       p_received_on: '2026-07-07',
       p_reference: null,
+      p_client_payment_id: expect.any(String),
     });
   });
 });

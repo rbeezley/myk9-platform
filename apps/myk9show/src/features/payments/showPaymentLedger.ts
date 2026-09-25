@@ -38,6 +38,11 @@ export type EnrollmentLedgerAction =
       amount: number | null;
       receivedOn: string;
       reference?: string | null | undefined;
+      /**
+       * Makes the write retryable: a second call with the same key is answered
+       * from the row the first one wrote, never recorded twice.
+       */
+      clientPaymentId?: string | undefined;
     }
   | {
       kind: 'refund';
@@ -73,6 +78,7 @@ export function ledgerActionRpcArgs(
         p_method: action.method,
         p_received_on: action.receivedOn,
         p_reference: action.reference?.trim() || null,
+        ...(action.clientPaymentId ? { p_client_payment_id: action.clientPaymentId } : {}),
       };
     case 'refund':
       return {

@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitShowRegistration } from './submitShowRegistration';
 import type { SubmitShowRegistrationParams } from './submitShowRegistration';
 import { fromAny } from '@total-typescript/shoehorn';
+import { PENDING_LEDGER_PAYMENTS_KEY } from './pendingLedgerPayments';
 
 function makeParams(
   overrides: Partial<SubmitShowRegistrationParams> = {}
@@ -56,12 +57,16 @@ function makeParams(
       claimNextArmband: vi.fn().mockResolvedValue({ armband: '101' }),
       createSubmissionId: () => 'submission-1',
       recordLedgerPayment: vi.fn().mockResolvedValue({ id: 'db-reg-2' }),
+      createClientPaymentId: () => 'pay-1',
     },
     ...overrides,
   };
 }
 
 describe('submitShowRegistration', () => {
+  // Pending ledger payments live in localStorage (they must survive a reload).
+  beforeEach(() => localStorage.clear());
+
   // MYK9-567: the handler name the exhibitor typed is printed on the check-in
   // sheet, the running order, the catalog and the registry entry form. Pin the
   // value at the RPC boundary so a future "normalise the name" helper cannot
@@ -212,7 +217,84 @@ describe('submitShowRegistration', () => {
         amount: 30,
         receivedOn: '2026-07-07',
         reference: 'receipt-100',
+        clientPaymentId: 'pay-1',
       });
+      // Confirmed, so nothing is left pending.
+      expect(localStorage.getItem(PENDING_LEDGER_PAYMENTS_KEY)).toBeNull();
+    });
+
+    it('a failed ledger write is retried by the next submit, once, with the same key', async () => {
+      const first = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: { paymentDate: '2026-07-07', receivedMethod: 'check' },
+      });
+      vi.mocked(first.deps.recordLedgerPayment!).mockRejectedValueOnce(new Error('network'));
+
+      await expect(submitShowRegistration(first)).rejects.toThrow('network');
+
+      // The retry (a fresh call, as after a reload: only localStorage carries
+      // over) creates no new entries; the RPC dedupes a repeated key.
+      const retry = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: { receivedMethod: 'check' },
+      });
+      vi.mocked(retry.deps.submitShowEntries!).mockResolvedValue({
+        entries: [],
+        outcomes: [],
+        registrationId: 'db-reg-2',
+        submissionId: 'submission-2',
+      } as Awaited<ReturnType<NonNullable<typeof retry.deps.submitShowEntries>>>);
+      retry.deps.createClientPaymentId = () => 'pay-2-never-used';
+
+      await submitShowRegistration(retry);
+
+      expect(retry.deps.recordLedgerPayment).toHaveBeenCalledTimes(1);
+      expect(retry.deps.recordLedgerPayment).toHaveBeenCalledWith('db-reg-2', {
+        kind: 'payment',
+        method: 'check',
+        amount: 30,
+        receivedOn: '2026-07-07',
+        reference: null,
+        clientPaymentId: 'pay-1',
+      });
+      // The retry wrote no second enrollment payment update, so paid_amount /
+      // total_amount are not added to twice; only ensureEnrollment ran.
+      expect(retry.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(PENDING_LEDGER_PAYMENTS_KEY)).toBeNull();
+
+      // A third submit has nothing left to settle.
+      const third = makeParams({ paymentMethod: 'check', paymentDetails: {} });
+      vi.mocked(third.deps.submitShowEntries!).mockResolvedValue({
+        entries: [],
+        outcomes: [],
+        registrationId: 'db-reg-2',
+        submissionId: 'submission-3',
+      } as Awaited<ReturnType<NonNullable<typeof third.deps.submitShowEntries>>>);
+      await submitShowRegistration(third);
+      expect(third.deps.recordLedgerPayment).not.toHaveBeenCalled();
+    });
+
+    it('never settles pending payments on an exhibitor self-service submit', async () => {
+      localStorage.setItem(
+        PENDING_LEDGER_PAYMENTS_KEY,
+        JSON.stringify([
+          {
+            clientPaymentId: 'pay-x',
+            showId: 'show-1',
+            ownerId: 'owner-1',
+            enrollmentId: 'db-reg-2',
+            amount: 30,
+            method: 'cash',
+            receivedOn: '2026-07-07',
+            reference: null,
+          },
+        ])
+      );
+      const params = makeParams({ submissionSource: 'self_service' });
+
+      await submitShowRegistration(params);
+
+      expect(params.deps.recordLedgerPayment).not.toHaveBeenCalled();
     });
 
     it('dates the payment today on the show calendar when no Payment Date was typed', async () => {

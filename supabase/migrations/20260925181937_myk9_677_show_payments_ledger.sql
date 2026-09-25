@@ -102,6 +102,10 @@ CREATE TABLE public.show_payments (
   reference text,
   note text,
   recorded_by uuid,
+  -- A client-generated key that makes a payment write retryable: the wizard
+  -- sends the same key again after a failed or lost response, and the RPC
+  -- answers from the row it already wrote instead of writing a second one.
+  client_payment_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT show_payments_one_parent CHECK (num_nonnulls(enrollment_id, entry_id) = 1),
   CONSTRAINT show_payments_kind_check CHECK (kind IN ('payment', 'refund', 'reversal')),
@@ -120,6 +124,9 @@ COMMENT ON TABLE public.show_payments IS
 CREATE UNIQUE INDEX show_payments_entry_payment_key
   ON public.show_payments (entry_id)
   WHERE entry_id IS NOT NULL AND kind = 'payment';
+CREATE UNIQUE INDEX show_payments_client_payment_id_key
+  ON public.show_payments (client_payment_id)
+  WHERE client_payment_id IS NOT NULL;
 CREATE INDEX show_payments_show_received_idx ON public.show_payments (show_id, received_on);
 CREATE INDEX show_payments_enrollment_idx
   ON public.show_payments (enrollment_id)
@@ -152,7 +159,8 @@ CREATE OR REPLACE FUNCTION public.record_enrollment_payment(
   p_method text DEFAULT NULL,
   p_received_on date DEFAULT NULL,
   p_reference text DEFAULT NULL,
-  p_note text DEFAULT NULL
+  p_note text DEFAULT NULL,
+  p_client_payment_id uuid DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -174,6 +182,7 @@ DECLARE
   v_entry_status text;
   v_group record;
   v_row public.enrollments%ROWTYPE;
+  v_existing public.show_payments%ROWTYPE;
 BEGIN
   IF p_kind NOT IN ('payment', 'refund', 'reversal') OR p_kind IS NULL THEN
     RAISE EXCEPTION 'unsupported payment kind: %', p_kind USING ERRCODE = '22023';
@@ -194,6 +203,39 @@ BEGIN
   IF NOT private.can_record_show_payment(v_show_id) THEN
     RAISE EXCEPTION 'not authorized to record payments for enrollment %', p_enrollment_id
       USING ERRCODE = '42501';
+  END IF;
+
+  -- IDEMPOTENT RETRY. A payment sent with a key that already has a row was
+  -- recorded by an earlier call whose answer never arrived (or whose caller
+  -- failed after it): answer from the enrollment as it stands and write
+  -- nothing, so paid_amount is not added twice. The same key for a different
+  -- payment is a caller bug, refused. Checked after the enrollment lock, so two
+  -- concurrent calls with one key are serialized.
+  IF p_client_payment_id IS NOT NULL THEN
+    IF p_kind <> 'payment' THEN
+      RAISE EXCEPTION 'client_payment_id is only accepted for a payment' USING ERRCODE = '22023';
+    END IF;
+    SELECT * INTO v_existing FROM public.show_payments sp
+     WHERE sp.client_payment_id = p_client_payment_id;
+    IF FOUND THEN
+      IF v_existing.enrollment_id IS DISTINCT FROM p_enrollment_id
+         OR v_existing.kind <> 'payment'
+         OR v_existing.method IS DISTINCT FROM p_method
+         OR (p_amount IS NOT NULL AND v_existing.amount <> p_amount) THEN
+        RAISE EXCEPTION 'client_payment_id % was already used for a different payment',
+          p_client_payment_id USING ERRCODE = '22023';
+      END IF;
+      SELECT * INTO v_row FROM public.enrollments WHERE id = p_enrollment_id;
+      RETURN jsonb_build_object(
+        'id', v_row.id,
+        'payment_status', v_row.payment_status,
+        'paid_amount', v_row.paid_amount,
+        'payment_reference', v_row.payment_reference,
+        'refund_amount', v_row.refund_amount,
+        'refund_notes', v_row.refund_notes,
+        'refunded_at', v_row.refunded_at
+      );
+    END IF;
   END IF;
 
   -- NET RECEIVED: the ONE figure every branch below reads. paid_amount is the
@@ -235,10 +277,12 @@ BEGIN
 
     IF v_amount > 0 THEN
       INSERT INTO public.show_payments
-        (show_id, enrollment_id, kind, amount, method, received_on, reference, note, recorded_by)
+        (show_id, enrollment_id, kind, amount, method, received_on, reference, note,
+         recorded_by, client_payment_id)
       VALUES
         (v_show_id, p_enrollment_id, 'payment', v_amount, p_method, v_received,
-         NULLIF(btrim(p_reference), ''), NULLIF(btrim(p_note), ''), auth.uid());
+         NULLIF(btrim(p_reference), ''), NULLIF(btrim(p_note), ''), auth.uid(),
+         p_client_payment_id);
     END IF;
 
     v_paid := v_paid + v_amount;
@@ -358,13 +402,13 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) IS
-  'MYK9-677: the only writer of an enrollment''s cash/check money. Every branch reads one net-received figure, paid_amount - refund_amount (the enrollment columns, which also cover pre-ledger payments and non-desk refunds). kind=payment (amount NULL = pay fee - net), refund (capped at net; refund_amount accumulates; method NULL = not desk money, no ledger row), reversal ("Payment Due": nets the ledger to zero per method and day, and the enrollment to paid 0 / no refund). Updates paid_amount, payment_status and the entries cascade atomically. Restates the record predicate (site admin, or show office manager holding the secretary role).';
+COMMENT ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid) IS
+  'MYK9-677: the only writer of an enrollment''s cash/check money. Every branch reads one net-received figure, paid_amount - refund_amount (the enrollment columns, which also cover pre-ledger payments and non-desk refunds). kind=payment (amount NULL = pay fee - net), refund (capped at net; refund_amount accumulates; method NULL = not desk money, no ledger row), reversal ("Payment Due": nets the ledger to zero per method and day, and the enrollment to paid 0 / no refund). A payment may carry p_client_payment_id: a retry with a key already recorded writes nothing and returns the enrollment. Updates paid_amount, payment_status and the entries cascade atomically. Restates the record predicate (site admin, or show office manager holding the secretary role).';
 
-REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) FROM anon;
-GRANT EXECUTE ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text) TO service_role;
+REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_enrollment_payment(uuid, text, numeric, text, date, text, text, uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- desk late entries: one ledger row per paid cash/check entry with no enrollment
@@ -442,6 +486,49 @@ SELECT e.show_id, e.id, 'payment', round(e.paid_amount, 2),
   FROM public.enrollments e
  WHERE e.payment_status IN ('paid_by_cash', 'paid_by_check')
    AND round(COALESCE(e.paid_amount, 0), 2) > 0;
+
+-- Refunded / partially refunded enrollments whose original cash or check
+-- method is provable (the enrollment's payment_method, else a check number):
+-- the gross payment row plus a negative refund row, the same pair
+-- record_enrollment_payment writes, so the card nets them and paid_amount /
+-- refund_amount stay the source of the refund cap. The refund row only when
+-- the refund left the box: refund_notes starts with the dialog's "Cash
+-- Returned" / "Check Mailed" label; a Stripe or Other refund writes none, as
+-- the RPC does.
+WITH refunded AS (
+  SELECT e.*,
+         CASE
+           WHEN e.payment_method IN ('cash', 'check') THEN e.payment_method
+           WHEN e.check_number IS NOT NULL THEN 'check'
+         END AS method,
+         (e.created_at AT TIME ZONE private.show_time_zone(e.show_id))::date AS paid_day
+    FROM public.enrollments e
+   WHERE e.payment_status IN ('partial_refund', 'refunded')
+     AND round(COALESCE(e.paid_amount, 0), 2) > 0
+)
+INSERT INTO public.show_payments
+  (show_id, enrollment_id, kind, amount, method, received_on, reference, note)
+SELECT r.show_id, r.id, 'payment', round(r.paid_amount, 2), r.method,
+       COALESCE(
+         (SELECT min(en.payment_received_on) FROM public.entries en
+           WHERE en.registration_id = r.id AND en.payment_received_on IS NOT NULL),
+         CASE WHEN r.payment_date ~ '^\d{4}-\d{2}-\d{2}$' THEN r.payment_date::date END,
+         r.paid_day
+       ),
+       COALESCE(r.check_number, r.payment_reference),
+       'backfilled by 20260925181937'
+  FROM refunded r
+ WHERE r.method IS NOT NULL
+UNION ALL
+SELECT r.show_id, r.id, 'refund', -round(r.refund_amount, 2),
+       CASE WHEN r.refund_notes ILIKE 'Cash Returned%' THEN 'cash' ELSE 'check' END,
+       COALESCE((r.refunded_at AT TIME ZONE private.show_time_zone(r.show_id))::date, r.paid_day),
+       NULL,
+       'backfilled by 20260925181937'
+  FROM refunded r
+ WHERE r.method IS NOT NULL
+   AND round(COALESCE(r.refund_amount, 0), 2) > 0
+   AND (r.refund_notes ILIKE 'Cash Returned%' OR r.refund_notes ILIKE 'Check Mailed%');
 
 -- Desk entries with no enrollment, paid by cash or check. No recorded_by: the
 -- migration cannot know who took the money.

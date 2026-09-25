@@ -11,6 +11,7 @@ import { recordEnrollmentPayment as recordLedgerPayment } from '@/services/datab
 import { currentCalendarDate } from '@/features/_shared/isDayOfShowEntry';
 import { getTrialTimezone } from '@/features/registries';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
+import { pendingLedgerPayments, type PendingLedgerPaymentStore } from './pendingLedgerPayments';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -59,6 +60,8 @@ interface SubmitShowRegistrationDeps {
   claimNextArmband: typeof claimNextArmband;
   createSubmissionId: () => string;
   recordLedgerPayment: typeof recordLedgerPayment;
+  pendingLedger: PendingLedgerPaymentStore;
+  createClientPaymentId: () => string;
 }
 
 export interface SubmitShowRegistrationParams {
@@ -92,6 +95,8 @@ const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration'> = {
   claimNextArmband,
   createSubmissionId: () => crypto.randomUUID(),
   recordLedgerPayment,
+  pendingLedger: pendingLedgerPayments,
+  createClientPaymentId: () => crypto.randomUUID(),
 };
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
@@ -193,13 +198,19 @@ export async function submitShowRegistration({
       });
       if (!isStillActive(isActive)) return { aborted: true };
 
-      // The entries went in as cash/check "pay at show"; the ledger now records
-      // the money as received, which marks them paid once the balance is met.
+      // The entries went in as cash/check "pay at show". The money they were
+      // paid with is saved as a pending ledger payment, with its own key,
+      // BEFORE the ledger call below, so a failed or lost call is retried by
+      // the next submit instead of being lost with the created outcomes.
       if (receivedMethod && createdAmountCents > 0) {
-        await resolvedDeps.recordLedgerPayment(enrollment.dbRegistrationId, {
-          kind: 'payment',
-          method: receivedMethod,
+        assertResolvedEnrollmentOwner(ownerResolution);
+        resolvedDeps.pendingLedger.add({
+          clientPaymentId: resolvedDeps.createClientPaymentId(),
+          showId,
+          ownerId: ownerResolution.ownerId,
+          enrollmentId: enrollment.dbRegistrationId,
           amount: createdAmountCents / 100,
+          method: receivedMethod,
           receivedOn:
             paymentDetails?.paymentDate?.trim() ||
             currentCalendarDate(
@@ -208,8 +219,15 @@ export async function submitShowRegistration({
             ),
           reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
         });
-        if (!isStillActive(isActive)) return { aborted: true };
       }
+    }
+
+    // Record every payment this owner still has pending on this show: the one
+    // just saved and any a failed earlier submit left behind. Only staff record
+    // money, so an exhibitor's own submit never settles anything.
+    if (submissionSource !== 'self_service') {
+      await settlePendingLedgerPayments(showId, ownerResolution, resolvedDeps);
+      if (!isStillActive(isActive)) return { aborted: true };
     }
 
     // Only staff may claim armbands; exhibitor self-entries skip this so the
@@ -307,6 +325,31 @@ async function recordEnrollmentPayment({
 
   if (result.error) {
     throw result.error;
+  }
+}
+
+/**
+ * Records each pending payment, removing it only once the server confirmed it.
+ * A failure throws with the rest still pending; the RPC answers a repeated
+ * `clientPaymentId` from the row it already wrote, so paid_amount is never
+ * added twice.
+ */
+async function settlePendingLedgerPayments(
+  showId: string,
+  ownerResolution: SelectedDogsOwnerResult,
+  deps: SubmitShowRegistrationDeps
+): Promise<void> {
+  assertResolvedEnrollmentOwner(ownerResolution);
+  for (const pending of deps.pendingLedger.forOwner(showId, ownerResolution.ownerId)) {
+    await deps.recordLedgerPayment(pending.enrollmentId, {
+      kind: 'payment',
+      method: pending.method,
+      amount: pending.amount,
+      receivedOn: pending.receivedOn,
+      reference: pending.reference,
+      clientPaymentId: pending.clientPaymentId,
+    });
+    deps.pendingLedger.remove(pending.clientPaymentId);
   }
 }
 

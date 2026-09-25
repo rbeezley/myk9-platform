@@ -41,7 +41,7 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         // resync picks up the new authorized_at on the next incremental
         // pull — this is how the badge/menu item reflect the change
         // immediately instead of waiting for the next background sync.
-        await ensureClubsReady({ requestedClubId: clubId, force: true });
+        const readiness = await ensureClubsReady({ requestedClubId: clubId, force: true });
         // useClubAuthorization (useClubStripeAccount.ts) caches the SAME
         // authorized_at under a separate react-query key for the publish
         // gate (ShowStatusPill / ShowEditPanel). That cache has its own
@@ -50,7 +50,14 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         // stale authorization state after a site admin authorizes/revokes
         // the club from THIS page, until the cache happens to go stale.
         await queryClient.invalidateQueries({ queryKey: ['club-authorization', clubId] });
-        notifications.success(authorized ? 'Club authorized.' : 'Club authorization revoked.');
+        const done = authorized ? 'Club authorized.' : 'Club authorization revoked.';
+        // The change is saved either way; only a fresh resync means the header
+        // and menu on this page already show it (MYK9-750).
+        if (readiness.status === 'fresh') notifications.success(done);
+        else
+          notifications.warning(
+            `${done} This page could not refresh yet; reload to see the change.`
+          );
       } catch (error) {
         notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
       } finally {

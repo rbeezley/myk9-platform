@@ -8,6 +8,7 @@ import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { permanentDeleteRefusalMessage } from '@/services/database/permanentDeleteRefusal';
 
 export interface DeleteShowDialogProps {
   open: boolean;
@@ -44,7 +45,8 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
         // Hard delete via RPC (site admin only)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase.rpc as any)('hard_delete_show', { p_show_id: showId });
-        if (error) throw new Error(error.message);
+        // Thrown as-is: the code is what tells a refusal from a failure.
+        if (error) throw error;
         // Remove from local stores
         useShowStore.getState().removeShow(showId);
         toast.success('Show permanently deleted');
@@ -58,7 +60,7 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       onOpenChange(false);
     } catch (error) {
       logger.error('Failed to delete show:', 'shows', {}, error as Error);
-      toast.error(getUserFriendlyError(error));
+      toast.error(permanentDeleteRefusalMessage(error) ?? getUserFriendlyError(error));
     } finally {
       setIsDeleting(false);
     }

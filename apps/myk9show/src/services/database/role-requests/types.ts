@@ -9,6 +9,12 @@ export type RoleRequestStatus = 'pending' | 'approved' | 'denied';
 export interface ClubSecretaryRequestStatus {
   status: RoleRequestStatus;
   reviewerNote: string | null;
+  /**
+   * Approved requests only: whether the appointment the approval produced is
+   * still in force. False after a club admin revoked it, so the person may ask
+   * again. Absent when it could not be read; nothing is claimed then (MYK9-750).
+   */
+  appointmentActive?: boolean;
 }
 export type RequestedRole = 'club_admin' | 'secretary';
 export type RequestedScope = 'club' | 'show';

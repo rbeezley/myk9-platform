@@ -2,7 +2,11 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { saveShowDraftStyle } from './showStylePersistence';
+import {
+  ShowStyleEntitlementError,
+  ShowStyleSaveError,
+  saveShowDraftStyle,
+} from './showStylePersistence';
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -162,6 +166,34 @@ describe('saveShowDraftStyle', () => {
 
     expect(mocks.setReplicaRow).not.toHaveBeenCalled();
     expect(queryClient.getQueryData<Show>(showQueryKeys.detail(show.id))?.style).toBe('monogram');
+  });
+
+  // MYK9-744: a definitive server rejection saved nothing; it must not read as
+  // an ambiguous "could not confirm" outcome.
+  it.each([
+    ['Premium access is required for this show style', ShowStyleEntitlementError, undefined],
+    [
+      'Not authorized to update this show style',
+      ShowStyleSaveError,
+      'You no longer have permission to change this show’s style. Nothing was saved.',
+    ],
+  ])('maps a 42501 "%s" to a definite refusal', async (message, errorClass, copy) => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: '42501', message } });
+
+    const save = saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' });
+    await expect(save).rejects.toBeInstanceOf(errorClass);
+    if (copy) await expect(save).rejects.toThrow(copy);
+  });
+
+  it('maps a 22023 refusal to "this show can no longer be updated"', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '22023', message: 'Show not found' },
+    });
+
+    const save = saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' });
+    await expect(save).rejects.toBeInstanceOf(ShowStyleSaveError);
+    await expect(save).rejects.toThrow('This show can no longer be updated. Nothing was saved.');
   });
 
   it('does not request sync when authentication changes while the RPC is in flight', async () => {

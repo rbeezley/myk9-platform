@@ -220,9 +220,11 @@ export function render(verdict: Verdict): string {
     // `diff HEAD`, not `diff`: dirtyFiles includes STAGED-only files, which a
     // plain `git diff` omits -- the backup would be empty while `restore`
     // (without --staged) is a no-op, so the pull keeps aborting.
+    // `--binary`: without it a dirty binary backs up as "Binary files differ"
+    // and the `restore` below destroys the only copy (MYK9-748).
     // Not /tmp: it is shared by every session on this Mac and a concurrent run
     // can clobber the user's only copy of the draft (LESSONS shared-tmp-log).
-    `    git -C "${status.primaryPath}" diff HEAD > "${status.primaryPath}/.primary-checkout-keep.patch"  # keep a copy first`,
+    `    git -C "${status.primaryPath}" diff --binary HEAD > "${status.primaryPath}/.primary-checkout-keep.patch"  # keep a copy first`,
     `    git -C "${status.primaryPath}" restore --staged --worktree <files>`,
     `    git -C "${status.primaryPath}" pull --ff-only`,
   ];

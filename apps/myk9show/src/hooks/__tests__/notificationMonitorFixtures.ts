@@ -3,6 +3,8 @@
 export interface NotificationSnapshot {
   classes: Array<Record<string, unknown>>;
   entries: Array<Record<string, unknown>>;
+  /** When the request that produced it started (MYK9-742). */
+  startedAt?: number;
 }
 
 export function entry(overrides: Record<string, unknown> = {}) {

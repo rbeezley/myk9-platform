@@ -126,9 +126,12 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
       .length;
   }
 
-  /** The next refetches succeed with this snapshot, fetched "now". */
+  /** The next refetches succeed with this snapshot, requested "now". */
   function refetchFresh(snapshot: NotificationSnapshot) {
-    mockRefetch.mockImplementation(async () => ({ data: snapshot, dataUpdatedAt: Date.now() }));
+    mockRefetch.mockImplementation(async () => ({
+      data: { ...snapshot, startedAt: Date.now() },
+      dataUpdatedAt: Date.now(),
+    }));
   }
 
   function loadSnapshot(snapshot: NotificationSnapshot) {
@@ -358,6 +361,115 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
       refetchFresh(later);
       await emitShowChange();
       expect(mockDeliver).toHaveBeenCalledTimes(1);
+      expect(countOf('your_turn')).toBe(1);
+    });
+  });
+
+  // MYK9-742: a refresh that STARTED while hidden can resolve after the app is
+  // visible again, carrying pre-resume state. Its completion time is after the
+  // resume, but it must not end the away baseline, or the next refresh would
+  // announce what changed while the user was away.
+  it('keeps the away baseline through a refresh that started while hidden', async () => {
+    await withVisibility(async setVisibility => {
+      const before: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete' })],
+        entries: [entry()],
+      };
+      loadSnapshot(before);
+      renderHook(() => useNotificationMonitor());
+
+      await setVisibility('hidden');
+      let resolveHidden: (snapshot: NotificationSnapshot) => void = () => {};
+      mockRefetch.mockImplementationOnce(() => {
+        // The request starts NOW, while hidden, and carries that start.
+        const startedAt = Date.now();
+        return new Promise(resolve => {
+          resolveHidden = snapshot =>
+            resolve({ data: { ...snapshot, startedAt }, dataUpdatedAt: Date.now() });
+        });
+      });
+      // A show-change signal while hidden starts a refresh that is still in
+      // flight when the user comes back.
+      await emitShowChange();
+      expect(mockRefetch).toHaveBeenCalledOnce();
+
+      const whileAway: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+        entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
+      };
+      refetchFresh(whileAway);
+      // Time passes while the app is in the background.
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await setVisibility('visible');
+
+      // The hidden-era request resolves after the resume with pre-resume state.
+      await act(async () => {
+        resolveHidden(before);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockRefetch).toHaveBeenCalledTimes(2);
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      const later: NotificationSnapshot = {
+        ...whileAway,
+        entries: [
+          entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+          entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      };
+      refetchFresh(later);
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledTimes(1);
+      expect(countOf('your_turn')).toBe(1);
+    });
+  });
+
+  // Codex review of #2458: if the refresh fired on resume FAILS, a later
+  // successful poll that started after the resume must end the away baseline,
+  // or the monitor stays silent until the next show-change signal.
+  it('lets a later successful poll end the away baseline after a failed resume refresh', async () => {
+    await withVisibility(async setVisibility => {
+      const before: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete' })],
+        entries: [entry()],
+      };
+      loadSnapshot(before);
+      const { rerender } = renderHook(() => useNotificationMonitor());
+
+      await setVisibility('hidden');
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      mockRefetch.mockResolvedValueOnce({ data: before, isError: true });
+      await setVisibility('visible');
+      expect(mockRefetch).toHaveBeenCalledOnce();
+
+      // The 30-second poll lands, requested after the resume: a baseline.
+      const whileAway: NotificationSnapshot = {
+        classes: [classRow({ status: 'Complete', is_scoring_finalized: true })],
+        entries: [entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'in-ring' }), entry()],
+        startedAt: Date.now(),
+      };
+      loadSnapshot(whileAway);
+      rerender();
+      expect(mockDeliver).not.toHaveBeenCalled();
+
+      // The next poll carries a change seen while open, and it alerts.
+      loadSnapshot({
+        ...whileAway,
+        entries: [
+          entry({ id: 'in-ring-b', dog_id: 'dog-b', check_in_status: 'checked-in' }),
+          entry({ id: 'in-ring-c', dog_id: 'dog-c', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+        startedAt: Date.now(),
+      });
+      rerender();
       expect(countOf('your_turn')).toBe(1);
     });
   });

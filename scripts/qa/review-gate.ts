@@ -672,11 +672,16 @@ export function clampDescription(text: string): string {
  * The count check is what actually covers this — a split makes the fetched
  * count disagree with GitHub's declared count in either direction, and
  * `fileListIsUnusable` rejects both.
+ *
+ * Lines are NOT trimmed: a leading or trailing space is part of the path, and
+ * trimming ` docs/x.md` into `docs/x.md` names a different file that can sit
+ * under a lower floor while the count still matches (MYK9-748). Only the
+ * line terminator is removed.
  */
 export function parseFileNameList(out: string): string[] {
   return out
     .split('\n')
-    .map(line => line.trim())
+    .map(line => line.replace(/\r$/, ''))
     .filter(line => line.length > 0);
 }
 

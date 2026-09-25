@@ -1272,9 +1272,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       );
     }
 
-    const cached = await this.get(entryId);
-    if (!cached) return;
     try {
+      const cached = await this.get(entryId);
+      if (!cached) return;
       this.reportSetResult(
         entryId,
         await this.set(
@@ -1291,8 +1291,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         )
       );
     } catch (writeError) {
-      // The server change is already COMMITTED; this is only a cache refresh.
-      // An eviction between the `get` above and the transaction turns the write
+      // The server change is already COMMITTED; this is only a cache refresh, so a
+      // store read or write failure is swallowed too (MYK9-749). An eviction between the `get` above and the transaction turns the write
       // into a cold INSERT, which the MYK9-575 guard refuses (loudly in dev) —
       // and refusing is correct here, so swallow it rather than fail a
       // withdrawal that succeeded.

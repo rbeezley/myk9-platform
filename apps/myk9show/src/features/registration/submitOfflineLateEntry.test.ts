@@ -39,6 +39,16 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: createEntryMock,
     getEntriesByShow: getEntriesByShowMock,
+    getAllWithStatus: async () => ({
+      ok: true,
+      rows: (((await getEntriesByShowMock('show-1')) ?? []) as Array<Record<string, unknown>>).map(
+        row => ({
+          showId: 'show-1',
+          ...row,
+        })
+      ),
+      error: null,
+    }),
   },
   replicatedDogsTable: {
     getPendingMutationIdsForRow: getPendingMutationIdsForRowMock,
@@ -51,9 +61,24 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedClassesTable: {
     getAll: getAllClassesMock,
+    getAllWithStatus: async () => ({
+      ok: true,
+      rows: (await getAllClassesMock()) ?? [],
+      error: null,
+    }),
   },
   replicatedTrialsTable: {
     getTrialsByShow: getTrialsByShowMock,
+    getAllWithStatus: async () => ({
+      ok: true,
+      rows: (((await getTrialsByShowMock('show-1')) ?? []) as Array<Record<string, unknown>>).map(
+        row => ({
+          showId: 'show-1',
+          ...row,
+        })
+      ),
+      error: null,
+    }),
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: getJudgeAssignmentsByShowMock,

@@ -17,14 +17,23 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: mocks.createEntry,
     getEntriesByShow: vi.fn().mockResolvedValue([]),
+    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
   },
   replicatedDogsTable: { getPendingMutationIdsForRow: mocks.dogPending },
   replicatedDogRegistrationsTable: { getPendingMutationIdsForDog: vi.fn().mockResolvedValue([]) },
   replicatedShowsTable: { getShowById: vi.fn().mockResolvedValue({ id: 'show-1' }) },
   replicatedClassesTable: {
     getAll: vi.fn().mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }]),
+    getAllWithStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      rows: [{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }],
+      error: null,
+    }),
   },
-  replicatedTrialsTable: { getTrialsByShow: vi.fn().mockResolvedValue([]) },
+  replicatedTrialsTable: {
+    getTrialsByShow: vi.fn().mockResolvedValue([]),
+    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+  },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn().mockResolvedValue([]),
     getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),

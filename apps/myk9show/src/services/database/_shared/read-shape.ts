@@ -21,6 +21,13 @@ export interface ReplicationReadResult<T> extends ReadResult<T> {
    * resurrect a just-deleted row.
    */
   locallyDeletedIds?: readonly string[];
+  /**
+   * The local replica holds rows for this read's scope, but the scope has never
+   * completed a sync on this device, so those rows are not the scope (MYK9-746:
+   * one check-in on a fresh device stores one row). With `verifyOnlineWhenEmpty`
+   * the helper verifies such a result online exactly as it would an empty one.
+   */
+  scopeUnsynced?: boolean;
 }
 
 interface ReadWithReplicationFallbackOptions<T> {
@@ -53,7 +60,10 @@ interface ReadWithReplicationFallbackOptions<T> {
    * to resurrect the locally-deleted one from a stale server row. For a
    * scope-equals-replication-unit read (per-show), the same exclusion is a
    * strict superset of "trust the local delete". Online-verify failures are
-   * swallowed; the safe default is the original empty result.
+   * swallowed; the safe default is the original local result.
+   *
+   * A non-empty result the replication callback marks `scopeUnsynced` is
+   * verified the same way.
    */
   verifyOnlineWhenEmpty?: boolean;
   /**
@@ -91,6 +101,7 @@ export async function readWithReplicationFallback<T>({
   rowId,
 }: ReadWithReplicationFallbackOptions<T>): Promise<ReadResult<T>> {
   let locallyDeletedIds: readonly string[] | undefined;
+  let scopeUnsynced = false;
   // Distinguishes "the result came from the local replica" from "the result came
   // from the PostgREST fallback because replication threw". Only the former is a
   // candidate for empty-verify; a fallback result is already an authoritative
@@ -103,6 +114,7 @@ export async function readWithReplicationFallback<T>({
       async () => {
         const r = await replication();
         locallyDeletedIds = r.locallyDeletedIds;
+        scopeUnsynced = r.scopeUnsynced === true;
         replicationSucceeded = true;
         return { data: r.data, error: r.error };
       },
@@ -118,16 +130,16 @@ export async function readWithReplicationFallback<T>({
     !verifyOnlineWhenEmpty ||
     !replicationSucceeded ||
     result.error ||
-    !isEmptyReadData(result.data)
+    (!isEmptyReadData(result.data) && !scopeUnsynced)
   ) {
     return result;
   }
 
-  // Empty local result: the scope may simply not have synced (entries replicate
-  // per-show). Verify against the authoritative online read, then drop any rows
-  // the local replica has already tombstoned so a stale server row can't
-  // resurrect a just-deleted entry. Swallow failures (offline, RLS edge case) —
-  // the safe default is the original empty replication result.
+  // Empty (or never-synced) local result: the scope may simply not have synced
+  // (entries replicate per-show). Verify against the authoritative online read,
+  // then drop any rows the local replica has already tombstoned so a stale
+  // server row can't resurrect a just-deleted entry. Swallow failures (offline, RLS edge case) —
+  // the safe default is the original replication result.
   try {
     const online = await postgrest();
     if (online.error || !Array.isArray(online.data)) return online;

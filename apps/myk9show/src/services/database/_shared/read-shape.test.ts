@@ -78,6 +78,54 @@ describe('read-shape helpers', () => {
   });
 
   describe('verifyOnlineWhenEmpty', () => {
+    it('verifies a non-empty result from a never-synced scope online (MYK9-746)', async () => {
+      const postgrest = vi
+        .fn()
+        .mockResolvedValue({ data: [{ id: 'one' }, { id: 'two' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: true }),
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(postgrest).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ data: [{ id: 'one' }, { id: 'two' }], error: null });
+    });
+
+    it('fails a never-synced scope closed when verification is required and fails', async () => {
+      const result = await readWithReplicationFallback({
+        replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: true }),
+        postgrest: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+        table: 'entries',
+        operation: 'select_by_show_report',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+        errorOnOnlineVerificationFailure: true,
+      });
+
+      expect(result.error).not.toBeNull();
+    });
+
+    it('trusts a non-empty result from a synced scope without an online read', async () => {
+      const postgrest = vi.fn();
+
+      const result = await readWithReplicationFallback({
+        replication: async () => ({ data: [{ id: 'one' }], error: null, scopeUnsynced: false }),
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(postgrest).not.toHaveBeenCalled();
+      expect(result).toEqual({ data: [{ id: 'one' }], error: null });
+    });
+
     it('online-verifies a genuinely cold replica (empty result, no local tombstones)', async () => {
       const replication = vi.fn().mockResolvedValue({ data: [], error: null });
       const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'online' }], error: null });

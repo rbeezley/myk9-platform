@@ -10,6 +10,7 @@ import {
   type ReplicatedEntry,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
+import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import {
   ACTIVE_JUDGE_ASSIGNMENT_STATUSES,
   isActiveJudgeAssignmentStatus,
@@ -175,11 +176,12 @@ async function loadEntryCountsForShow(showId: string): Promise<EntryCountsSnapsh
   }
 
   try {
-    const [entries, metadata] = await Promise.all([
+    const [entries, scopeSynced] = await Promise.all([
       replicatedEntriesTable.getEntriesByShow(showId),
-      replicatedEntriesTable.getSyncMetadata(showId),
+      hasShowEntriesSynced(showId, replicatedEntriesTable),
     ]);
-    if (entries.length === 0 && metadata?.totalRows === undefined) return null;
+    // Rows alone are not the show: one local write stores one row (MYK9-746).
+    if (!scopeSynced) return null;
     return { countsByClassId: buildJudgeEntryCountsByClass(entries as ReplicatedEntry[]) };
   } catch {
     return null;

@@ -161,8 +161,11 @@ describe('submitOfflineLateEntry', () => {
         payment_notes: 'Paid at desk',
         paymentReference: 'CHK-1042',
         payment_reference: 'CHK-1042',
-        paymentReceivedOn: '2026-08-28',
-        payment_received_on: '2026-08-28',
+        paymentReceivedOn: null,
+        // MYK9-677 (Codex round 9): this entry is still pending, so nothing
+        // has been received and no received date is written, even the one
+        // typed; the ledger would otherwise date a later payment by it.
+        payment_received_on: null,
       }),
       ['dog-mutation-1', 'registration-mutation-1', 'armband-mutation-1']
     );
@@ -511,6 +514,51 @@ describe('submitOfflineLateEntry', () => {
         paymentReceivedOn: '2026-11-07',
         payment_received_on: '2026-11-07',
       }),
+      expect.anything()
+    );
+  });
+
+  it('writes no received date for a pending entry even when a date was typed (MYK9-677)', async () => {
+    // The ledger dates a later payment by this column; a date typed while the
+    // money was still due would place it on a day it was not received.
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'check',
+      paymentDetails: { paymentDate: '2026-06-30' },
+      showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentStatus: 'pending',
+        paymentReceivedOn: null,
+        payment_received_on: null,
+      }),
+      expect.anything()
+    );
+  });
+
+  it('keeps the typed received date for an entry paid at submission', async () => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'check',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentDetails: { paymentDate: '2026-06-30' },
+      showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'paid', payment_received_on: '2026-06-30' }),
       expect.anything()
     );
   });

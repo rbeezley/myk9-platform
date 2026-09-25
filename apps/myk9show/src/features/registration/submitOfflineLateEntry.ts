@@ -74,9 +74,9 @@ function paymentStatusFor(
 
 /**
  * MYK9-677: the day the desk received this late entry's money, for the Show
- * Closeout card. The date the secretary typed wins; otherwise a payment taken
- * now is received today on the SHOW's calendar (never the browser's). A pending
- * payment has not been received, so it stays null.
+ * Closeout card. Only a PAID entry has one: the date the secretary typed, or
+ * today on the SHOW's calendar (never the browser's). A pending entry has
+ * received nothing, so it stays null whatever was typed.
  */
 export function lateEntryPaymentReceivedOn(
   entryPaymentStatus: ReplicatedEntry['paymentStatus'],
@@ -84,9 +84,12 @@ export function lateEntryPaymentReceivedOn(
   showTimeZone: string | undefined,
   now: Date = new Date()
 ): string | null {
+  // Nothing has been received yet: no date, even one the secretary typed. The
+  // ledger dates a payment by this column, so a date written now would place
+  // money on a day it was not received once the entry is marked paid later.
+  if (entryPaymentStatus !== 'paid') return null;
   const typed = paymentDetails?.paymentDate?.trim();
   if (typed) return typed;
-  if (entryPaymentStatus !== 'paid') return null;
   return currentCalendarDate(now, showTimeZone ?? getTrialTimezone(undefined));
 }
 

@@ -505,9 +505,14 @@ $$;
 -- Another club's admin can insert nothing on this show (entries RLS), so the
 -- no-row branch is exercised with a pending desk entry by the secretary.
 INSERT INTO public.entries (id, show_id, trial_id, entry_status, payment_status,
-                            payment_method, entry_fee)
+                            payment_method, entry_fee, payment_received_on)
 VALUES ('00000000-0000-0000-0000-000000677073', '00000000-0000-0000-0000-000000677011',
-        '00000000-0000-0000-0000-000000677021', 'confirmed', 'pending', 'cash', 20);
+        '00000000-0000-0000-0000-000000677021', 'confirmed', 'pending', 'cash', 20,
+        current_date - 10);
+INSERT INTO public.entries (id, show_id, trial_id, entry_status, payment_status,
+                            payment_method, entry_fee)
+VALUES ('00000000-0000-0000-0000-000000677075', '00000000-0000-0000-0000-000000677011',
+        '00000000-0000-0000-0000-000000677021', 'confirmed', 'pending', 'check', 20);
 
 DO $$
 BEGIN
@@ -516,6 +521,33 @@ BEGIN
     RAISE EXCEPTION 'FAIL a pending desk entry wrote a ledger row';
   END IF;
   RAISE NOTICE 'PASS a pending desk entry writes no ledger row';
+END;
+$$;
+
+-- Marked paid later: the money arrived that day, not on a date left on the row
+-- from before, and not on the submission day; unless the same update sets the
+-- received date.
+RESET ROLE;
+UPDATE public.entries SET payment_status = 'paid'
+ WHERE id = '00000000-0000-0000-0000-000000677073';
+UPDATE public.entries SET payment_status = 'paid', payment_received_on = current_date - 2
+ WHERE id = '00000000-0000-0000-0000-000000677075';
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  v_late date; v_typed date;
+  v_today date := (now() AT TIME ZONE 'America/Chicago')::date;
+BEGIN
+  SELECT received_on INTO v_late FROM public.show_payments
+   WHERE entry_id = '00000000-0000-0000-0000-000000677073';
+  SELECT received_on INTO v_typed FROM public.show_payments
+   WHERE entry_id = '00000000-0000-0000-0000-000000677075';
+  IF v_late IS DISTINCT FROM v_today OR v_typed IS DISTINCT FROM current_date - 2 THEN
+    RAISE EXCEPTION 'FAIL a desk entry marked paid later: dated % (want %), typed % (want %)',
+      v_late, v_today, v_typed, current_date - 2;
+  END IF;
+  RAISE NOTICE 'PASS a desk entry marked paid later is dated the day it was marked, or the date set then';
 END;
 $$;
 

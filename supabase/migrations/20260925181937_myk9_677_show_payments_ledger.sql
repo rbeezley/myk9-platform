@@ -477,15 +477,26 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- The day the money was received. On INSERT (paid at submission): the
+  -- entry's received date, else its submission day. On UPDATE (a pending entry
+  -- marked paid later): a received date written IN THIS UPDATE, else TODAY on
+  -- the show's calendar -- never a date left on the row from before, and never
+  -- the submission day, since the money arrived when it was marked paid.
   INSERT INTO public.show_payments
     (show_id, entry_id, kind, amount, method, received_on, reference, note, recorded_by)
   VALUES (
     NEW.show_id, NEW.id, 'payment', round(NEW.entry_fee, 2), NEW.payment_method,
-    COALESCE(
-      NEW.payment_received_on,
-      (COALESCE(NEW.submitted_at, NEW.created_at, now())
-        AT TIME ZONE private.show_time_zone(NEW.show_id))::date
-    ),
+    CASE
+      WHEN TG_OP = 'INSERT' THEN COALESCE(
+        NEW.payment_received_on,
+        (COALESCE(NEW.submitted_at, NEW.created_at, now())
+          AT TIME ZONE private.show_time_zone(NEW.show_id))::date
+      )
+      WHEN NEW.payment_received_on IS DISTINCT FROM OLD.payment_received_on
+        THEN COALESCE(NEW.payment_received_on,
+                      (now() AT TIME ZONE private.show_time_zone(NEW.show_id))::date)
+      ELSE (now() AT TIME ZONE private.show_time_zone(NEW.show_id))::date
+    END,
     NULLIF(btrim(NEW.payment_reference), ''), NULLIF(btrim(NEW.payment_notes), ''), auth.uid()
   )
   ON CONFLICT (entry_id) WHERE entry_id IS NOT NULL AND kind = 'payment' DO NOTHING;

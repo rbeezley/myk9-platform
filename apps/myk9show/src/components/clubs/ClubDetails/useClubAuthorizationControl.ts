@@ -54,7 +54,10 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         // The change is saved either way; only a fresh resync means the header
         // and menu on this page already show it (MYK9-750).
         if (readiness.status === 'fresh') notifications.success(done);
-        else notifications.warning(`${done} This page could not refresh yet; reload to see the change.`);
+        else
+          notifications.warning(
+            `${done} This page could not refresh yet; reload to see the change.`
+          );
       } catch (error) {
         notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
       } finally {

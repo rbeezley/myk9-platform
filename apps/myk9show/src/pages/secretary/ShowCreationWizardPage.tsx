@@ -39,6 +39,7 @@ import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
 import {
   focusWithoutJump,
+  revealFocusedBelowChrome,
   useWizardChromeHeight,
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
   WIZARD_SCROLL_MARGIN_CLASS,
@@ -435,6 +436,7 @@ const ShowCreationWizardPage: React.FC = () => {
               <div
                 ref={stepContentRef}
                 key={currentStep}
+                onFocus={revealFocusedBelowChrome}
                 className={`animate-in fade-in slide-in-from-right-4 p-4 duration-300 sm:p-8 ${WIZARD_CONTENT_SCROLL_MARGIN_CLASS}`}
                 role="region"
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}

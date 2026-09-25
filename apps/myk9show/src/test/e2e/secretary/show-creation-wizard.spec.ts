@@ -436,13 +436,10 @@ test.describe('Show Creation Wizard - fields clear the sticky chrome (MYK9-764)'
       await showName.evaluate(el => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
       await expectClearOfChrome('scrollIntoView', 40);
 
-      // The browser's own focus scrolling: Tab onto the field from the control
-      // before it, which is focused without scrolling. Chrome centres a focus
-      // scroll and does not always honour scroll-margin, so in a 600px-tall
-      // window (centre 300px, chrome ending at 308-320px) the field can land
-      // just under the step indicator; at a realistic 800px it clears it.
-      // That short-window residual is noted on MYK9-764.
-      await page.setViewportSize({ width: viewport.width, height: 800 });
+      // Keyboard focus: Tab onto the field from the control before it, which is
+      // focused without scrolling. Chrome centres a focus scroll, which in this
+      // 600px window would leave the field just under the step indicator; the
+      // form's focus handler re-reveals it clear of the chrome.
       await parkAtBottom();
       await showName.evaluate(el => {
         const focusables = [

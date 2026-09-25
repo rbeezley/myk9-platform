@@ -76,18 +76,43 @@ export function useWizardChromeHeight(stepsRef: RefObject<HTMLElement | null>): 
   }, [stepsRef]);
 }
 
+/** Top of the band a control must sit in to be clear of the chrome: the
+ * document's scroll padding (app header) plus the control's own scroll margin
+ * (the wizard chrome). */
+function reservedTop(element: HTMLElement): number {
+  return (
+    (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) +
+    (parseFloat(getComputedStyle(element).scrollMarginTop) || 0)
+  );
+}
+
+function isClearOfChrome(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.top >= reservedTop(element) && rect.bottom <= window.innerHeight;
+}
+
 /**
  * Focus without moving a page the secretary is already looking at: when the
- * control is fully on screen below the reserved chrome — the document's scroll
- * padding plus the control's own scroll margin — `preventScroll`; otherwise let
- * the browser bring it into view, clear of the chrome. A bare `focus()` 350ms
- * after every step change used to jump a scrolled page back to the top.
+ * control is on screen below the chrome, `preventScroll`. Otherwise bring it
+ * into view with `scrollIntoView({ block: 'nearest' })`, which honours the
+ * scroll margin, then focus without scrolling: a bare `focus()` leaves the
+ * position to Chrome's centred focus scroll, which in a ~600px window can put
+ * the field back under the chrome.
  */
 export function focusWithoutJump(element: HTMLElement): void {
-  const rect = element.getBoundingClientRect();
-  const reserved =
-    (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) +
-    (parseFloat(getComputedStyle(element).scrollMarginTop) || 0);
-  const onScreen = rect.top >= reserved && rect.bottom <= window.innerHeight;
-  element.focus(onScreen ? { preventScroll: true } : undefined);
+  if (!isClearOfChrome(element)) element.scrollIntoView({ block: 'nearest' });
+  element.focus({ preventScroll: true });
+}
+
+/**
+ * The same guarantee for keyboard focus inside the wizard's form: after Tab
+ * or Shift+Tab, a control the browser's own focus scroll left under the
+ * chrome (or off screen) is re-revealed with a margin-honouring
+ * `scrollIntoView`. Attach to the step content's `onFocus` (React's focus
+ * event bubbles, like `focusin`).
+ */
+export function revealFocusedBelowChrome(event: { target: EventTarget | null }): void {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (!isClearOfChrome(target)) target.scrollIntoView({ block: 'nearest' });
 }

@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   focusWithoutJump,
+  revealFocusedBelowChrome,
   useWizardChromeHeight,
   wizardChromeHeightPx,
 } from './wizardScrollChrome';
@@ -27,25 +28,25 @@ function Harness({ headerPx, stepsPx }: { headerPx: number; stepsPx: number }) {
   );
 }
 
+let mounted: HTMLInputElement[] = [];
+
+/** An input at `rect`, with its own scroll margin, and spies on how it moves. */
 function mountInput(rect: { top: number; bottom: number }, scrollMarginTop = '') {
   const input = document.createElement('input');
   input.style.scrollMarginTop = scrollMarginTop;
   document.body.append(input);
-  const rectSpy = vi.spyOn(input, 'getBoundingClientRect').mockReturnValue(rect as DOMRect);
+  mounted.push(input);
+  vi.spyOn(input, 'getBoundingClientRect').mockReturnValue(rect as DOMRect);
+  input.scrollIntoView = vi.fn();
   const focus = vi.spyOn(input, 'focus');
-  return {
-    focus,
-    cleanup: () => {
-      rectSpy.mockRestore();
-      focus.mockRestore();
-      input.remove();
-    },
-  };
+  return { input, focus, scrollIntoView: input.scrollIntoView as ReturnType<typeof vi.fn> };
 }
 
 describe('wizard sticky chrome vs focus (MYK9-764)', () => {
   afterEach(() => {
     document.documentElement.style.scrollPaddingTop = '';
+    for (const input of mounted) input.remove();
+    mounted = [];
   });
 
   it('measures the header, the step indicator and a small gap', () => {
@@ -66,25 +67,35 @@ describe('wizard sticky chrome vs focus (MYK9-764)', () => {
 
   it('focuses a control already on screen below the chrome without scrolling', () => {
     document.documentElement.style.scrollPaddingTop = '48px';
-    const { focus, cleanup } = mountInput({ top: 300, bottom: 340 }, '200px');
-    focusWithoutJump(document.querySelector('input') as HTMLElement);
+    const { input, focus, scrollIntoView } = mountInput({ top: 300, bottom: 340 }, '200px');
+    focusWithoutJump(input);
+    expect(scrollIntoView).not.toHaveBeenCalled();
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
-    cleanup();
   });
 
-  it('lets the browser scroll a control under the chrome into view (padding + its own margin)', () => {
+  it('reveals a control under the chrome with a margin-honouring scroll, then focuses without one', () => {
     document.documentElement.style.scrollPaddingTop = '48px';
     // 220 clears the 48px padding alone, but not padding + the 200px margin.
-    const { focus, cleanup } = mountInput({ top: 220, bottom: 260 }, '200px');
-    focusWithoutJump(document.querySelector('input') as HTMLElement);
-    expect(focus).toHaveBeenCalledWith(undefined);
-    cleanup();
+    const { input, focus, scrollIntoView } = mountInput({ top: 220, bottom: 260 }, '200px');
+    focusWithoutJump(input);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
-  it('lets the browser scroll a control below the fold into view', () => {
-    const { focus, cleanup } = mountInput({ top: 700, bottom: 800 });
-    focusWithoutJump(document.querySelector('input') as HTMLElement);
-    expect(focus).toHaveBeenCalledWith(undefined);
-    cleanup();
+  it('reveals a control below the fold the same way', () => {
+    const { input, scrollIntoView } = mountInput({ top: 700, bottom: 800 });
+    focusWithoutJump(input);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  it('re-reveals a keyboard-focused control the browser left under the chrome', () => {
+    document.documentElement.style.scrollPaddingTop = '48px';
+    const under = mountInput({ top: 150, bottom: 190 }, '200px');
+    revealFocusedBelowChrome({ target: under.input });
+    expect(under.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+
+    const clear = mountInput({ top: 400, bottom: 440 }, '200px');
+    revealFocusedBelowChrome({ target: clear.input });
+    expect(clear.scrollIntoView).not.toHaveBeenCalled();
   });
 });

@@ -27,6 +27,7 @@ const state = vi.hoisted(() => ({
   entries: [] as Array<Record<string, unknown>>,
   synced: false,
   judgeReadFails: false,
+  otherShowEntries: [] as Array<Record<string, unknown>>,
   sync: vi.fn(),
 }));
 
@@ -48,7 +49,10 @@ vi.mock('@/services/replication', () => ({
     getEntriesByShow: vi.fn(async () => state.entries),
     getAllWithStatus: vi.fn(async () => ({
       ok: true,
-      rows: state.entries.map(entry => ({ showId: SHOW_ID, ...entry })),
+      rows: [
+        ...state.entries.map(entry => ({ showId: SHOW_ID, ...entry })),
+        ...state.otherShowEntries,
+      ],
       error: null,
     })),
   },
@@ -246,6 +250,26 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
         state.judgeReadFails = false;
       }
     });
+  });
+
+  // The entries read is the whole device table; only THIS show's entries may
+  // count toward its class (review P3: every fixture was one show, so dropping
+  // the showId filter passed every test).
+  it("the offline capacity override ignores another show's entries", async () => {
+    state.synced = true;
+    state.entries = [entry('only-one', 'confirmed')];
+    state.otherShowEntries = [
+      { ...entry('elsewhere-1', 'confirmed'), showId: 'show-other' },
+      { ...entry('elsewhere-2', 'confirmed'), showId: 'show-other' },
+    ];
+    try {
+      const overrides = await loadOfflineCapacityOverrides(SHOW_ID, [
+        { key: 'dog-new|class-1', classId: 'class-1' },
+      ]);
+      expect(overrides).toEqual({ 'dog-new|class-1': false });
+    } finally {
+      state.otherShowEntries = [];
+    }
   });
 
   it('a show that has synced reads locally without a refresh, offline too', async () => {

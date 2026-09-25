@@ -54,6 +54,7 @@ TEST_FILES=(
   "$TEST_DIR/club_routed_role_requests_test.sql"
   "$TEST_DIR/club_membership_requests_test.sql"
   "$TEST_DIR/myk9_727_role_request_review_lock_test.sql"
+  "$TEST_DIR/myk9_681_access_request_email_jobs_test.sql"
   "$TEST_DIR/club_members_own_row_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/entry_requires_dog_registration_test.sql"

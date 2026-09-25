@@ -9,6 +9,7 @@
 import type { SnapshotCheck } from './systemHealthChecks.ts';
 
 export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
+  access_request_email_jobs: '',
   achievements: 'SELECT,INSERT,UPDATE,DELETE',
   activity_log: 'SELECT,INSERT',
   allergies: 'SELECT,INSERT,UPDATE,DELETE',

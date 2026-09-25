@@ -13,6 +13,11 @@
 const AMBIGUOUS_EMBEDS: Record<string, readonly string[]> = {
   // user_roles.user_id and user_roles.granted_by both reference people.id.
   user_roles: ['people'],
+  // Each access-request table references people twice: the requester and
+  // the reviewer (reviewed_by). MYK9-681.
+  club_access_requests: ['people'],
+  club_membership_requests: ['people'],
+  role_requests: ['people'],
 };
 
 const JOIN_MODIFIERS = new Set(['inner', 'left']);

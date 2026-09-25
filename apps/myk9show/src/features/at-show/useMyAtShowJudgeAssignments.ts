@@ -150,15 +150,14 @@ export function useMyAtShowJudgeAssignments(
   // then holds a settled [] that is indistinguishable from "none assigned".
   const judgeTableNeverSynced =
     judgeTableStatus === 'idle' || judgeTableStatus === 'syncing' || judgeTableStatus === 'error';
-  // A failed read is unknown too (MYK9-769): it must fail open to the full
-  // picker with the "couldn't load your assigned classes" banner, not narrow a
-  // judge-only account to a page with no classes at the ring.
+  // A read that never completed is unknown, failed ones included (MYK9-769):
+  // it fails open to the full picker with the "couldn't load your assigned
+  // classes" banner instead of a page with no classes at the ring. A failed
+  // REFETCH keeps the assignments it already read, so the ring stays narrowed.
   const assignmentsUnresolved =
     isApplicable &&
     !query.isLoading &&
-    (Boolean(query.error) ||
-      query.data === undefined ||
-      (!hasAssignments && judgeTableNeverSynced));
+    (query.data === undefined || (!hasAssignments && judgeTableNeverSynced));
 
   return {
     assignedClassIds,

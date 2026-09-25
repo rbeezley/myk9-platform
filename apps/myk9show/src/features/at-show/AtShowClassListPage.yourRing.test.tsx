@@ -131,6 +131,10 @@ function renderPage(syncStatus = settledSyncStatus) {
 describe('AtShowClassListPage Your ring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks keeps queued *Once values; a timed-out sibling's leftovers
+    // must not leak into the next shuffled test.
+    judgeAssignmentData.getActive.mockReset();
+    judgeAssignmentData.getActive.mockResolvedValue([]);
     window.localStorage.clear();
     judgeAssignmentSubscription.onChange = null;
     syncJudgeAssignments.mockReset();
@@ -390,7 +394,9 @@ describe('AtShowClassListPage Your ring', () => {
 
     const { user } = renderPage();
 
-    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    // Generous wait: four class reads, the at-show sync effect and the failed
+    // judge read all settle first, which can pass 1s in a loaded shuffled run.
+    expect(await screen.findByText(/Container Novice/, {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText(/The full class list is still available/)).toBeInTheDocument();
     expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));

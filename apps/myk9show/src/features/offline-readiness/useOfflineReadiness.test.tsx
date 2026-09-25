@@ -392,6 +392,24 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
+  it('is not ready when the filtered warm read fails after a good table read', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    const { getActiveJudgeAssignmentsForShow } =
+      await import('@/services/database/judges/assignmentReads');
+    vi.mocked(getActiveJudgeAssignmentsForShow).mockRejectedValueOnce(
+      new Error('IndexedDB read timed out')
+    );
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
   it('treats an evicted judge assignment scope as cold', async () => {
     primeAllSignals();
     authState.isJudge = true;

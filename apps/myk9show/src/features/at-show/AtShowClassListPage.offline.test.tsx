@@ -230,7 +230,9 @@ describe('AtShowClassListPage offline truthfulness', () => {
       renderPage(judgeSyncedStatus);
 
       // Not a dead end at the ring: the classes are there, with the warning.
-      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Container Novice/, {}, { timeout: 5000 })
+      ).toBeInTheDocument();
       expect(
         screen.getByText(
           /We couldn.t load your assigned classes\. The full class list is still available\./

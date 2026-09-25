@@ -328,6 +328,7 @@ export function useShowCreationWizardActions({
 
         // Persist judge assignments to judge_assignments table
         const judges = wizardShow.assignedJudges || [];
+        let judgesNotSaved = false;
         if (judges.length > 0) {
           try {
             await persistShowJudgeAssignments(realShowId, judges, {
@@ -337,8 +338,9 @@ export function useShowCreationWizardActions({
             logger.warn('Failed to persist judge assignments', 'wizard', {
               error: judgeError instanceof Error ? judgeError.message : String(judgeError),
             });
-            // The show itself saved; say the judges did not rather than let
-            // the success toast imply they did (MYK9-769).
+            // The show itself saved; say the judges did not, and skip the
+            // success toast that would contradict it (MYK9-769).
+            judgesNotSaved = true;
             notifications.warning(
               'The show was saved, but its judges could not be updated. Open the show and save the judges again.'
             );
@@ -397,7 +399,9 @@ export function useShowCreationWizardActions({
 
         // Edit saves return to the existing show; creation saves may use the
         // overlay instead of a toast so one-time passcodes remain visible.
-        if (editMode?.showId) {
+        if (judgesNotSaved) {
+          // The warning above already says what saved and what did not.
+        } else if (editMode?.showId) {
           notifications.success(`"${savedShow.name}" updated successfully`);
         } else if (status === 'draft' && !shouldShowCompletion) {
           notifications.success(`"${savedShow.name}" saved as draft`);

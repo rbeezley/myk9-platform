@@ -36,7 +36,10 @@ const SHOWS_TO_PROBE = 8;
 
 async function guardAndCapture(page: Page) {
   const ledger: SharedStagingWriteLedgerEntry[] = [];
-  await installSharedStagingWriteGuard(page, { ledger });
+  // Strict: an RPC POST is opaque, so any RPC outside AUDIT_READ_ONLY_RPCS is
+  // blocked, and ringside presence writes from /at-show are answered locally.
+  // Without it an ambient writer would reach shared staging unrecorded.
+  await installSharedStagingWriteGuard(page, { ledger, strictRpcWrites: true });
   const auth = captureRestAuth(page);
   return { ledger, auth };
 }
@@ -345,7 +348,8 @@ test('the ringside class list shows each class its real entry count, never "0 / 
   await signInAsSecretary(page, '/');
   const auth = await captured.get();
 
-  let target: { showId: string; trialId: string; counts: number[] } | undefined;
+  let target:
+    { showId: string; trialId: string; classes: { id: string; count: number }[] } | undefined;
   for (const showId of (await manageableShowIds(page, auth)).slice(0, SHOWS_TO_PROBE)) {
     const entries = await requireRead<ReplicatedEntryRow>(
       page,
@@ -370,7 +374,9 @@ test('the ringside class list shows each class its real entry count, never "0 / 
     target = {
       showId,
       trialId: first.trial_id,
-      counts: unmerged.filter(c => c.trial_id === first.trial_id).map(c => perClass.get(c.id) ?? 0),
+      classes: unmerged
+        .filter(c => c.trial_id === first.trial_id)
+        .map(c => ({ id: c.id, count: perClass.get(c.id) ?? 0 })),
     };
     break;
   }
@@ -379,13 +385,20 @@ test('the ringside class list shows each class its real entry count, never "0 / 
   await page.goto(`/at-show/${target.showId}`);
   const trial = page.getByTestId(`at-show-trial-${target.trialId}`);
   await expect(trial).toBeVisible({ timeout: 30000 });
-  for (const count of unique(target.counts)) {
+  // Each class against ITS OWN row: two classes with the same count must not
+  // let one of them regress to "0 / 0" behind the other.
+  for (const { id, count } of target.classes) {
     await expect(
-      trial.getByRole('button', { name: new RegExp(`\\b\\d+ of ${count} scored\\b`) }).first(),
-      `a class in this trial has ${count} entries expected to run; its row must say so`
+      trial
+        .locator(`li[data-class-id="${id}"]`)
+        .getByRole('button', { name: new RegExp(`\\b\\d+ of ${count} scored\\b`) }),
+      `class ${id} has ${count} entries expected to run; its row must say so`
     ).toBeVisible({ timeout: 30000 });
   }
-  noteChecked(`trial ${target.trialId} on show ${target.showId}: counts ${unique(target.counts)}`);
+  noteChecked(
+    `trial ${target.trialId} on show ${target.showId}: ` +
+      target.classes.map(c => `${c.id}=${c.count}`).join(', ')
+  );
   annotateBlockedWrites(ledger);
 });
 

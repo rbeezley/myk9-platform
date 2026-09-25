@@ -14,6 +14,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { BannerLandingPage } from '../BannerLandingPage';
 import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
+import { bannerColors } from '../../tokens';
 import type { BannerLandingData } from '../types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -140,6 +141,11 @@ describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
     expect(status?.style.color).toBe('var(--bn-flag)');
     const scope = status?.closest<HTMLElement>('[data-banner]');
     expect(scope?.style.getPropertyValue('--bn-flag')).toBe(baseData.brandColors.flag);
-    expect(baseData.brandColors.flag).not.toBe('#0d4d4f');
+    // Nothing between them re-sets the variable to something else.
+    for (let el = status?.parentElement; el && el !== scope; el = el.parentElement) {
+      expect(el.style.getPropertyValue('--bn-flag')).toBe('');
+    }
+    // The fixture's flag must differ from the default, or this proves nothing.
+    expect(baseData.brandColors.flag).not.toBe(bannerColors.flag);
   });
 });

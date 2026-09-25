@@ -156,7 +156,11 @@ export function ShowWorkbenchShowDeskPage() {
     [associatedTrials, entriesKnown, entryTallies, trialClasses]
   );
   const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
-  const deskWindow = useShowDeskCollectionWindow(currentShow?.startDate, associatedTrials);
+  const deskWindow = useShowDeskCollectionWindow(
+    currentShow?.startDate,
+    currentShow?.endDate,
+    associatedTrials
+  );
   const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
     () =>
       associatedTrials.map(trial => ({

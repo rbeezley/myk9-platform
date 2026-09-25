@@ -25,6 +25,7 @@ import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armb
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
+import { paymentReceivedOnForStatus } from '@/features/payments/paymentReceivedOn';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import { getEntryPaidAmount, hasEntryLevelRefund } from '@/utils/entryManagementUtils';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
@@ -46,6 +47,8 @@ interface UseEntryManagementActionsProps {
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   selectedShowId: string;
   selectedShow: { name?: string | null; start_date?: string | null } | null;
+  /** The show's IANA zone: Mark paid stamps the received date on its calendar (MYK9-677). */
+  showTimeZone: string;
   setError: (error: string | null) => void;
   user: { id?: string; email?: string } | null;
 }
@@ -119,6 +122,7 @@ export function useEntryManagementActions({
   setEntries,
   selectedShowId,
   selectedShow,
+  showTimeZone,
   setError,
   user,
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
@@ -343,7 +347,8 @@ export function useEntryManagementActions({
           paidAmount,
           refundAmount,
           refundNotes,
-          checkNumber
+          checkNumber,
+          paymentReceivedOnForStatus(status, paidAmount, showTimeZone)
         );
         if (dbError) {
           if (data) {
@@ -372,7 +377,7 @@ export function useEntryManagementActions({
         logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
       }
     },
-    [entries, setEntries]
+    [entries, setEntries, showTimeZone]
   );
 
   // Handle check-in status change (inline, no dialog)

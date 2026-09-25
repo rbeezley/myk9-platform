@@ -4,7 +4,8 @@ import {
   showDayOfShowContext,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import { isDayOfShowEntry } from '@/features/_shared/isDayOfShowEntry';
+import { currentCalendarDate, isDayOfShowEntry } from '@/features/_shared/isDayOfShowEntry';
+import { getTrialTimezone } from '@/features/registries';
 import {
   replicatedArmbandsTable,
   replicatedDogRegistrationsTable,
@@ -70,6 +71,24 @@ function paymentStatusFor(
   return 'pending';
 }
 
+/**
+ * MYK9-677: the day the desk received this late entry's money, for the Show
+ * Closeout card. The date the secretary typed wins; otherwise a payment taken
+ * now is received today on the SHOW's calendar (never the browser's). A pending
+ * payment has not been received, so it stays null.
+ */
+export function lateEntryPaymentReceivedOn(
+  entryPaymentStatus: ReplicatedEntry['paymentStatus'],
+  paymentDetails: PaymentDetails | undefined,
+  showTimeZone: string | undefined,
+  now: Date = new Date()
+): string | null {
+  const typed = paymentDetails?.paymentDate?.trim();
+  if (typed) return typed;
+  if (entryPaymentStatus !== 'paid') return null;
+  return currentCalendarDate(now, showTimeZone ?? getTrialTimezone(undefined));
+}
+
 function maxArmbandNumber(armbands: Array<{ armbandNumber: string }>): string | null {
   const max = armbands
     .map(armband => parseInt(armband.armbandNumber, 10))
@@ -103,6 +122,12 @@ export async function submitOfflineLateEntry({
   // Evaluated once so every entry in one submission lands in the same bucket
   // even if the clock crosses midnight mid-loop.
   const entryIsDayOfShow = isDayOfShowEntry(showDayOfShowContext(showFeeInfo));
+  const entryPaymentStatus = paymentStatusFor(paymentMethod, paymentStatus);
+  const paymentReceivedOn = lateEntryPaymentReceivedOn(
+    entryPaymentStatus,
+    paymentDetails,
+    showFeeInfo.entryWindowTimezone
+  );
 
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
   const capacitySelections = classSelections.flatMap(selection =>
@@ -177,7 +202,7 @@ export async function submitOfflineLateEntry({
         entrySource: 'myk9',
         capacityOverride,
         paymentMethod,
-        paymentStatus: paymentStatusFor(paymentMethod, paymentStatus),
+        paymentStatus: entryPaymentStatus,
         entryStatus: 'confirmed',
         entry_status: 'confirmed',
         entryFee,
@@ -191,8 +216,8 @@ export async function submitOfflineLateEntry({
         // payment date were dropped entirely.
         paymentReference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
         payment_reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
-        paymentReceivedOn: paymentDetails?.paymentDate ?? null,
-        payment_received_on: paymentDetails?.paymentDate ?? null,
+        paymentReceivedOn,
+        payment_received_on: paymentReceivedOn,
         paymentNotes: paymentDetails?.paymentNotes ?? null,
         payment_notes: paymentDetails?.paymentNotes ?? null,
         submittedAt,

@@ -15,6 +15,7 @@ interface ShowDeskTrial {
  */
 export function useShowDeskCollectionWindow(
   showStartDate: string | null | undefined,
+  showEndDate: string | null | undefined,
   trials: readonly ShowDeskTrial[]
 ): DeskCollectionWindow {
   return useMemo(() => {
@@ -23,6 +24,6 @@ export function useShowDeskCollectionWindow(
       date: trial.trialDate,
       timezone: trial.timezone,
     }));
-    return { showStartDate, timeZone: getEntryWindowTimezone(windowTrials) };
-  }, [showStartDate, trials]);
+    return { showStartDate, showEndDate, timeZone: getEntryWindowTimezone(windowTrials) };
+  }, [showStartDate, showEndDate, trials]);
 }

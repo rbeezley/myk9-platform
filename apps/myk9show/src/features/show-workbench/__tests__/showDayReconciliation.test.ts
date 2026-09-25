@@ -4,9 +4,10 @@ import {
   type DeskCollectionWindow,
 } from '../showDayReconciliationSummary';
 
-/** A show that starts 2026-09-17 in New York (stored as midnight UTC). */
+/** A two-day show, 2026-09-17..18 in New York (stored as midnight UTC). */
 const WINDOW: DeskCollectionWindow = {
   showStartDate: '2026-09-17T00:00:00+00:00',
+  showEndDate: '2026-09-18T00:00:00+00:00',
   timeZone: 'America/New_York',
 };
 /** Mid-morning on show day at the venue. */
@@ -216,6 +217,7 @@ describe('summarizeShowDayReconciliation', () => {
       expect(
         summarizeShowDayReconciliation([paidCheck(AT_SHOW)], {
           showStartDate: null,
+          showEndDate: null,
           timeZone: 'America/New_York',
         }).lateEntryCount
       ).toBe(0);

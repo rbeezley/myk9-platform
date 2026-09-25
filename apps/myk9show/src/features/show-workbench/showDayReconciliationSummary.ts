@@ -1,4 +1,5 @@
 import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
+import { resolvePaymentChannel } from '@/features/payments/paymentChannel';
 
 export const LATE_ENTRY_PAYMENT_METHODS = [
   { id: 'cash', label: 'Cash' },
@@ -26,6 +27,12 @@ export interface ShowDayReconciliationEntry {
   payment_method?: string | null;
   submitted_at?: string | null;
   created_at?: string | null;
+  /**
+   * `entries.payment_received_on` (a Postgres `date`): the day the desk
+   * received the money, stamped in the show's zone by Entry Management's Mark
+   * paid and by the desk late-entry path.
+   */
+  payment_received_on?: string | null;
 }
 
 /**
@@ -38,6 +45,8 @@ export interface ShowDayReconciliationEntry {
 export interface DeskCollectionWindow {
   /** `shows.start_date`: timestamptz at midnight UTC, or a bare `YYYY-MM-DD`. */
   showStartDate: string | null | undefined;
+  /** `shows.end_date`, same shape. Missing means a one-day show. */
+  showEndDate: string | null | undefined;
   /** IANA zone of the show's first trial; the calendar the desk works in. */
   timeZone: string | null | undefined;
 }
@@ -90,27 +99,59 @@ function isPulledEntry(entry: ShowDayReconciliationEntry): boolean {
   );
 }
 
+/** A Postgres `date` (or anything that starts with one) as `YYYY-MM-DD`. */
+function calendarDateOf(value: string | null | undefined): string | undefined {
+  const day = value?.slice(0, 10);
+  return day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
+}
+
 /**
- * MYK9-677: taken at the desk = SUBMITTED on or after the show's first day, in
- * the show's own calendar.
+ * The show-zone calendar day the desk received this entry's money.
+ *
+ * `payment_received_on` when the row has one: Mark paid and the desk
+ * late-entry path stamp it in the show's zone, so it is already a show
+ * calendar day. Otherwise the day the entry was submitted, which for a row
+ * nothing stamped is the best evidence of when the money changed hands.
+ */
+function paymentReceivedDay(
+  entry: ShowDayReconciliationEntry,
+  timeZone: string | null | undefined
+): string | undefined {
+  const receivedOn = calendarDateOf(entry.payment_received_on);
+  if (receivedOn) return receivedOn;
+  const takenAt = entry.submitted_at ?? entry.created_at;
+  if (!takenAt) return undefined;
+  const instant = new Date(takenAt);
+  if (Number.isNaN(instant.getTime())) return undefined;
+  return currentCalendarDate(instant, timeZone);
+}
+
+/**
+ * MYK9-677: desk money = a non-online payment RECEIVED between the show's
+ * first and last day inclusive, in the show's own calendar.
  *
  * Not `is_day_of_show`. That column is the registry bucket (pre-entry vs
- * day-of-show, MYK9-642), and a mail-in keyed after entries close but weeks
- * before the show is a day-of-show entry to UKC while its check was banked
- * long before anyone opened a cash box. The card reconciles the box, so it asks
- * when the entry was taken, not which registry line it is billed on.
+ * day-of-show, MYK9-642), and a mail-in keyed after entries close is a
+ * day-of-show entry to UKC while its check was banked long before anyone opened
+ * a cash box. Not the submission time either: a mail-in keyed weeks early and
+ * paid at the desk IS in the box. The card reconciles the box, so it asks when
+ * the money arrived. An online (Stripe) payment never reaches the box.
  */
-export function isTakenAtShow(
+export function isCollectedAtShow(
   entry: ShowDayReconciliationEntry,
   window: DeskCollectionWindow | null
 ): boolean {
   const startDay = utcCalendarDate(window?.showStartDate);
   if (!startDay) return false;
-  const takenAt = entry.submitted_at ?? entry.created_at;
-  if (!takenAt) return false;
-  const instant = new Date(takenAt);
-  if (Number.isNaN(instant.getTime())) return false;
-  return currentCalendarDate(instant, window?.timeZone) >= startDay;
+  const endDay = utcCalendarDate(window?.showEndDate) ?? startDay;
+  const channel = resolvePaymentChannel({
+    paymentMethod: entry.payment_method,
+    paymentStatus: entry.payment_status,
+  });
+  if (channel === 'online') return false;
+  const receivedDay = paymentReceivedDay(entry, window?.timeZone);
+  if (!receivedDay) return false;
+  return receivedDay >= startDay && receivedDay <= endDay;
 }
 
 export function summarizeShowDayReconciliation(
@@ -147,8 +188,8 @@ export function summarizeShowDayReconciliation(
       }
     }
 
-    // Only entries TAKEN while the show was running are desk money (MYK9-677).
-    if (!isTakenAtShow(entry, deskWindow)) continue;
+    // Only money RECEIVED while the show was running is desk money (MYK9-677).
+    if (!isCollectedAtShow(entry, deskWindow)) continue;
 
     const method = normalizeMethod(entry);
     summary.lateEntryCount += 1;

@@ -152,4 +152,52 @@ describe('updateEnrollmentPaymentStatus', () => {
       })
     );
   });
+
+  it('stamps payment_received_on on the linked entries when a received date is given (MYK9-677)', async () => {
+    const enrollmentQuery = makeEnrollmentUpdateQuery();
+    const entriesQuery = makeEntriesUpdateQuery();
+    mocks.from.mockImplementation((table: string) =>
+      table === 'enrollments' ? enrollmentQuery : entriesQuery
+    );
+
+    await updateEnrollmentPaymentStatus(
+      'enrollment-1',
+      PaymentStatus.PAID_BY_CASH,
+      null,
+      70,
+      undefined,
+      undefined,
+      undefined,
+      '2026-09-17'
+    );
+
+    expect(entriesQuery.update).toHaveBeenCalledWith({
+      payment_status: 'paid',
+      payment_received_on: '2026-09-17',
+      updated_at: expect.any(String),
+    });
+  });
+
+  it('clears payment_received_on when the received date is null', async () => {
+    const enrollmentQuery = makeEnrollmentUpdateQuery();
+    const entriesQuery = makeEntriesUpdateQuery();
+    mocks.from.mockImplementation((table: string) =>
+      table === 'enrollments' ? enrollmentQuery : entriesQuery
+    );
+
+    await updateEnrollmentPaymentStatus(
+      'enrollment-1',
+      PaymentStatus.PENDING,
+      null,
+      0,
+      undefined,
+      undefined,
+      undefined,
+      null
+    );
+
+    expect(entriesQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_received_on: null })
+    );
+  });
 });

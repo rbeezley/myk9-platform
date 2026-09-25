@@ -23,9 +23,13 @@ const EMPTY_RELATIONS = {
   pullMetadataMap: new Map(),
 } as unknown as Parameters<typeof toSecretaryEntry>[1];
 
-const DESK_WINDOW = { showStartDate: '2026-09-17T00:00:00+00:00', timeZone: 'America/New_York' };
+const DESK_WINDOW = {
+  showStartDate: '2026-09-17T00:00:00+00:00',
+  showEndDate: '2026-09-18T00:00:00+00:00',
+  timeZone: 'America/New_York',
+};
 
-function replicaEntry(id: string, submittedAt: string) {
+function replicaEntry(id: string, submittedAt: string, paymentReceivedOn: string | null = null) {
   return toSecretaryEntry(
     {
       id,
@@ -38,6 +42,7 @@ function replicaEntry(id: string, submittedAt: string) {
       paymentMethod: 'cash',
       isDayOfShow: true,
       submittedAt,
+      paymentReceivedOn,
     } as never,
     EMPTY_RELATIONS
   );
@@ -63,5 +68,15 @@ describe('Show Closeout money card on the secretary read (MYK9-677)', () => {
 
     expect(summary.lateEntryCount).toBe(0);
     expect(summary.collectedAmount).toBe(0);
+  });
+
+  it('counts a mail-in keyed weeks early whose payment the desk received on show day', () => {
+    const summary = summarizeShowDayReconciliation(
+      [replicaEntry('mail-in-paid-at-desk', '2026-08-27T15:00:00Z', '2026-09-17')],
+      DESK_WINDOW
+    );
+
+    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.collectedAmount).toBe(35);
   });
 });

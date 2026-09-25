@@ -106,7 +106,11 @@ describe('The Show Closeout money card does NOT follow the registry bucket (MYK9
   // `submitted_at` at that same moment. Reading (1) counts every row whose flag
   // is true; reading (2) counts only rows taken once the show was running. The
   // first case is where they disagree, which is what makes this discriminate.
-  const deskWindow = { showStartDate: SHOW.startDate, timeZone: SHOW.timeZone };
+  const deskWindow = {
+    showStartDate: SHOW.startDate,
+    showEndDate: SHOW.startDate,
+    timeZone: SHOW.timeZone,
+  };
   const entryAt = (submittedOn: string, fee: number) => {
     const instant = `${submittedOn}T16:00:00Z`;
     return {

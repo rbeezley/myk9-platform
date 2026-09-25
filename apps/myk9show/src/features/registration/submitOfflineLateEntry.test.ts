@@ -419,4 +419,57 @@ describe('submitOfflineLateEntry', () => {
       expect.anything()
     );
   });
+
+  it('stamps a desk payment received today on the show calendar (MYK9-677)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-08T04:30:00Z')); // 22:30 CT on Nov 7, show day
+    try {
+      await submitOfflineLateEntry({
+        showId: 'show-1',
+        paymentMethod: 'cash',
+        paymentStatus: PaymentStatus.PAID_BY_CASH,
+        paymentDetails: { paymentDate: '' },
+        showFeeInfo: {
+          preEntryFee: '30',
+          dayOfShowFee: '35',
+          startDate: '2026-11-07T00:00:00+00:00',
+          entryWindowTimezone: 'America/Chicago',
+        },
+        classes: [{ id: 'class-1', entryFee: 30 }],
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+        handlerAssignments: {},
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentStatus: 'paid',
+        paymentReceivedOn: '2026-11-07',
+        payment_received_on: '2026-11-07',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('leaves the received date empty for a desk entry whose payment is still due', async () => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'check',
+      showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'pending', payment_received_on: null }),
+      expect.anything()
+    );
+  });
 });

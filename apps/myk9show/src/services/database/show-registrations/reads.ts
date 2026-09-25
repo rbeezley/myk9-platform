@@ -307,6 +307,11 @@ export const updateRegistrationPayment = async (
 /**
  * Update the payment status (and optionally payment_reference) for an enrollment.
  * Used by secretaries to record cash/check payments received on show day.
+ *
+ * `paymentReceivedOn` (MYK9-677) is written to every linked entry's
+ * `payment_received_on`, the column the Show Closeout money card reads: a
+ * `YYYY-MM-DD` in the show's zone stamps it, `null` clears it, `undefined`
+ * leaves it alone. See `paymentReceivedOnForStatus`.
  */
 export const updateEnrollmentPaymentStatus = async (
   enrollmentId: string,
@@ -315,7 +320,8 @@ export const updateEnrollmentPaymentStatus = async (
   paidAmount?: number | null,
   refundAmount?: number | null,
   refundNotes?: string | null,
-  checkNumber?: string | null
+  checkNumber?: string | null,
+  paymentReceivedOn?: string | null
 ) => {
   const startTime = Date.now();
   try {
@@ -355,6 +361,7 @@ export const updateEnrollmentPaymentStatus = async (
     const entryPaymentStatus = mapEnrollmentPaymentStatusToEntryStatus(paymentStatus);
     const entryUpdateData: TablesUpdate<'entries'> = {
       payment_status: entryPaymentStatus,
+      ...(paymentReceivedOn !== undefined ? { payment_received_on: paymentReceivedOn } : {}),
       updated_at: new Date().toISOString(),
     };
     const { error: entriesError } = await supabase

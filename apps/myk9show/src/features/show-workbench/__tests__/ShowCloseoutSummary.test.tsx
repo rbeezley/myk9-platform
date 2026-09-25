@@ -83,7 +83,11 @@ describe('ShowCloseoutSummary', () => {
     render(
       <ShowCloseoutSummary
         showId="show-1"
-        deskWindow={{ showStartDate: '2026-09-17', timeZone: 'America/New_York' }}
+        deskWindow={{
+          showStartDate: '2026-09-17',
+          showEndDate: '2026-09-17',
+          timeZone: 'America/New_York',
+        }}
         entries={[
           {
             id: 'late-cash',

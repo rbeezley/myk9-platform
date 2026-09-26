@@ -30,7 +30,6 @@ import {
   replicatedClassesTable,
   replicatedEntriesTable,
 } from '@/services/replication';
-import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 import { validatePasscode, type ValidatePasscodeResult } from './validatePasscode';
 
 /**
@@ -145,20 +144,4 @@ export async function startAnonymousRingsideSession(
   ]);
 
   return result;
-}
-
-/**
- * End an anonymous ringside session (the "leave show" / exit affordance, when
- * one is wired). No-op when the current session is a real account — we must
- * never sign a signed-in user out as a side effect of leaving a ring.
- */
-export async function endAnonymousRingsideSession(): Promise<void> {
-  const { data } = await supabase.auth.getSession();
-  if (data.session?.user?.is_anonymous) {
-    await supabase.auth.signOut();
-    await replicatedClassesTable.clearCachedHideCounts();
-    // Explicit exit ends ringside access for this device — the offline-reload
-    // fallback cache must not resurrect it on the next reload.
-    persistRingsideClaim(null);
-  }
 }

@@ -24,6 +24,7 @@
 import { create } from 'zustand';
 import type { User } from '@supabase/supabase-js';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
+import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 
 export interface RingsideGrant {
   /** The show this grant is scoped to. A grant for show X never applies to Y. */
@@ -75,7 +76,19 @@ interface RingsideGrantState {
 
 export const useRingsideGrantStore = create<RingsideGrantState>()(set => ({
   activeGrant: null,
-  setGrant: grant => set({ activeGrant: grant }),
+  setGrant: grant => {
+    // Every confirmed passcode grant — account-less or account-expansion,
+    // whether attached here directly (SmartSignInPage) or re-derived by
+    // `useRehydrateRingsideGrant` — snapshots into the offline-reload fallback
+    // cache. This is the one choke point every successful passcode entry
+    // passes through (MYK9-834): persisting only from the rehydrate hook's own
+    // effect missed the normal case, where `setGrant` is called directly and
+    // the store already holding a grant short-circuits that effect entirely.
+    if (grant.source === 'passcode') {
+      persistRingsideClaim({ showId: grant.showId, role: grant.role });
+    }
+    set({ activeGrant: grant });
+  },
   clearGrant: () => set({ activeGrant: null }),
   suppressRehydration: false,
   setSuppressRehydration: value => set({ suppressRehydration: value }),

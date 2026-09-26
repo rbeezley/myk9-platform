@@ -3,6 +3,10 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { User } from '@supabase/supabase-js';
+import {
+  persistRingsideClaim,
+  readPersistedRingsideClaim,
+} from '@/features/at-show/ringsideClaimCache';
 
 const captureAuthEmailRequestFailure = vi.hoisted(() => vi.fn());
 
@@ -811,6 +815,65 @@ describe('useAuth', () => {
       // Should not crash
       expect(result.current.user).toBeDefined();
       expect(typeof result.current.signUp).toBe('function');
+    });
+  });
+
+  // MYK9-834 (P1 #2): `endAnonymousRingsideSession` clearing the cache was
+  // dead code — the Account menu's real sign-out path is
+  // `useAuthContext().signOut()` → `useAuth().signOut()` → `supabase.auth.signOut()`
+  // → this `onAuthStateChange` listener's `SIGNED_OUT` branch. That branch is
+  // the one place every sign-out passes through (explicit, suspension-forced,
+  // or session-expiry), so it must be the one that purges the offline-reload
+  // fallback cache — otherwise a judge who explicitly signs out, goes
+  // offline, and reloads gets ringside access back from the stale claim.
+  describe('ringside offline-reload cache clearing (MYK9-834)', () => {
+    let authChangeCallback: (event: string, session: { user: User } | null) => void;
+
+    beforeEach(() => {
+      window.localStorage.clear();
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+    });
+
+    it('clears the cached ringside claim on SIGNED_OUT', async () => {
+      persistRingsideClaim({ showId: 'show-oct10', role: 'judge' });
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback('SIGNED_OUT', null);
+      });
+
+      expect(readPersistedRingsideClaim('show-oct10')).toBeNull();
+    });
+
+    it('the real Account-menu sign-out path (useAuth().signOut) reaches the same clear', async () => {
+      persistRingsideClaim({ showId: 'show-oct10', role: 'judge' });
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signOut();
+        // supabase.auth.signOut() resolving is what the real client uses to
+        // fire its own SIGNED_OUT notification — simulate that here since
+        // mockSupabase.auth.signOut() is a bare stub with no listener wiring.
+        authChangeCallback('SIGNED_OUT', null);
+      });
+
+      expect(readPersistedRingsideClaim('show-oct10')).toBeNull();
+    });
+
+    it('clears a stale cached claim left by a previous identity when a new session signs in', async () => {
+      persistRingsideClaim({ showId: 'show-oct10', role: 'judge' });
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback('SIGNED_IN', { user: mockUser });
+      });
+
+      expect(readPersistedRingsideClaim('show-oct10')).toBeNull();
     });
   });
 });

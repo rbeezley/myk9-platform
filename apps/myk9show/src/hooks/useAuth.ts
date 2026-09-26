@@ -4,6 +4,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { replicatedClassesTable } from '@/services/replication';
+import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 import type { User } from '@supabase/supabase-js';
 import {
   decodeOAuthRoleIntent,
@@ -164,8 +165,22 @@ export function useAuth() {
       // Clear the cached per-user appearance preferences on ANY sign-out —
       // explicit signOut, suspension-forced, session expiry, or another tab —
       // so the next user on a shared browser doesn't inherit them.
+      //
+      // The ringside offline-reload fallback cache (ringsideClaimCache.ts)
+      // rides along on the same event for the same reason (MYK9-834): it must
+      // never outlive a real sign-out (Account menu → useAuth().signOut() is
+      // the only production caller, and this listener is the single choke
+      // point every sign-out — that one included — passes through), and a new
+      // SIGNED_IN is a different identity taking over this device, so any
+      // claim cached for whoever was here before must not leak into that
+      // identity's own offline fallback. A genuinely-still-valid passcode
+      // grant re-persists immediately after via `setGrant` (ringsideGrantStore.ts).
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
+        persistRingsideClaim(null);
+      }
+      if (_event === 'SIGNED_IN') {
+        persistRingsideClaim(null);
       }
     });
 

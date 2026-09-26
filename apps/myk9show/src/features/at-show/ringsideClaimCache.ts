@@ -23,8 +23,9 @@
  * Every write here is a snapshot of a value `deriveRingsideRoleFromClaim`
  * already derived from a real, server-stamped session — this cache never
  * originates a claim on its own, and it is purged on every path that ends
- * ringside access (`endAnonymousRingsideSession`, passcode revocation) so it
- * can never outlive an explicit sign-out or a revoked passcode.
+ * ringside access (the `SIGNED_OUT`/`SIGNED_IN` handling in `useAuth.ts`,
+ * passcode revocation) so it can never outlive a sign-out, a different
+ * identity signing in, or a revoked passcode.
  */
 
 import type { UserRole as RingsideRole } from '@myk9/ringside';

@@ -57,7 +57,7 @@ import {
   deriveRingsideRoleFromClaim,
   type RingsideGrant,
 } from '@/store/ringsideGrantStore';
-import { persistRingsideClaim, readPersistedRingsideClaim } from './ringsideClaimCache';
+import { readPersistedRingsideClaim } from './ringsideClaimCache';
 
 export function useRehydrateRingsideGrant(
   showId: string | undefined
@@ -79,7 +79,8 @@ export function useRehydrateRingsideGrant(
   useEffect(() => {
     if (!resolvable || storeRole) return;
     if (claimRole) {
-      persistRingsideClaim({ showId: showId!, role: claimRole });
+      // `setGrant` itself persists the confirmed claim to the offline-reload
+      // fallback cache (ringsideGrantStore.ts) — no need to do it here too.
       setGrant({
         showId: showId!,
         role: claimRole,

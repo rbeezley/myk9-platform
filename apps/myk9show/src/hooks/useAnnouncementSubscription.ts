@@ -37,11 +37,15 @@ export function useAnnouncementSubscription() {
   const selectedShowId = useShowStore(s => s.selectedShowId);
 
   // Union both sources, deduplicated
-  const showIds = useMemo(() => {
+  const subscriptionKey = useMemo(() => {
     const ids = new Set(exhibitorShowIds);
     if (selectedShowId) ids.add(selectedShowId);
-    return [...ids];
+    return [...ids].sort().join('\0');
   }, [exhibitorShowIds, selectedShowId]);
+  const showIds = useMemo(
+    () => (subscriptionKey ? subscriptionKey.split('\0') : []),
+    [subscriptionKey]
+  );
 
   useEffect(() => {
     if (!userWithRoles) {
@@ -54,5 +58,5 @@ export function useAnnouncementSubscription() {
     return () => {
       unsubscribe();
     };
-  }, [userWithRoles, showIds, subscribe, unsubscribe]);
+  }, [userWithRoles, subscriptionKey, showIds, subscribe, unsubscribe]);
 }

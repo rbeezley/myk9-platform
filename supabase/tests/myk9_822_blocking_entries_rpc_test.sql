@@ -261,8 +261,23 @@ BEGIN
     RAISE NOTICE 'PASS soft_delete_dog refuses the same absent-but-unscored dog the RPC counted';
   END;
 
-  -- And the one the RPC said does NOT block must actually be deletable.
+  -- And the one the RPC said does NOT block must actually be deletable. Still
+  -- run as the owner (not yet RESET) so this exercises the same ownership
+  -- path as the calls above, not an admin/superuser shortcut.
   PERFORM public.soft_delete_dog('00000000-0000-0000-0000-000000822051');
+END;
+$$;
+
+-- dogs_select (20260612090000) requires deleted_at IS NULL, so the owner's
+-- own SELECT of a dog it just soft-deleted returns ZERO rows under RLS — a
+-- scalar subquery over that read is NULL either way, which would make an
+-- in-role verification pass on a delete that silently never happened. Verify
+-- as the elevated role, after RESET ROLE, exactly like
+-- soft_delete_dog_cascade_test.sql does.
+RESET ROLE;
+
+DO $$
+BEGIN
   IF (SELECT deleted_at FROM public.dogs
       WHERE id = '00000000-0000-0000-0000-000000822051') IS NULL THEN
     RAISE EXCEPTION 'FAIL soft_delete_dog did not delete the dog the RPC counted as clean';
@@ -270,8 +285,6 @@ BEGIN
   RAISE NOTICE 'PASS soft_delete_dog accepts the same clean dog the RPC counted as 0';
 END;
 $$;
-
-RESET ROLE;
 
 -- A non-owner, non-admin caller must be refused a count for a dog it cannot
 -- manage, not shown a number for it.

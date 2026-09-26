@@ -13619,6 +13619,10 @@ export type Database = {
         Returns: undefined
       }
       manageable_show_ids: { Args: never; Returns: string[] }
+      mark_enrollment_paid_online: {
+        Args: { p_enrollment_id: string }
+        Returns: Json
+      }
       move_up_entry: {
         Args: {
           p_entry_id: string

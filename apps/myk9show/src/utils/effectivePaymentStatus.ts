@@ -108,8 +108,8 @@ export function resolveEffectivePaymentStatus(
 
   // 5. Both sides agree on what happened. The ORDER carries the finer value —
   //    the payment METHOD (`paid_by_check`, where an entry row can only persist
-  //    the coarse `paid`) and the partial-vs-full refund distinction that
-  //    `mapEnrollmentPaymentStatusToEntryStatus` collapses on the way down — so
+  //    the coarse `paid`) and the partial-vs-full refund distinction that the
+  //    server's entries cascade collapses on the way down — so
   //    it wins, exactly as it did before MYK9-495.
   return enrollmentPaymentStatus;
 }

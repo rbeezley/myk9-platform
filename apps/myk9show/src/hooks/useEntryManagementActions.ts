@@ -24,9 +24,7 @@ import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armb
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
-import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
-import { getEntryPaidAmount, hasEntryLevelRefund } from '@/utils/entryManagementUtils';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
 import type {
   EntryManagementEntry,
@@ -72,15 +70,6 @@ interface UseEntryManagementActionsReturn {
     status: CheckInStatus
   ) => Promise<void>;
   handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
-  handleEnrollmentPaymentChange: (
-    enrollmentId: string,
-    status: PaymentStatus,
-    reference?: string | null,
-    paidAmount?: number | null,
-    refundAmount?: number | null,
-    refundNotes?: string | null,
-    checkNumber?: string | null
-  ) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
@@ -93,8 +82,8 @@ interface UseEntryManagementActionsReturn {
 }
 
 export function mapEnrollmentStatusToEntryPaymentStatus(status: PaymentStatus): PaymentStatus {
-  // Keep this collapse aligned with mapEnrollmentPaymentStatusToEntryStatus in
-  // services/database/show-registrations/reads.ts. Entries only persist coarse
+  // The local fallback for a server answer without per-entry statuses
+  // (applyRecordedEnrollmentPayment). Entries only persist coarse
   // payment_status values; the UI enum carries the method-specific paid state.
   switch (status) {
     case PaymentStatus.PAID_ONLINE:
@@ -305,83 +294,6 @@ export function useEntryManagementActions({
       }
     },
     [bulkStatusDispatch, setEntries, setError, user, runBulkUndo]
-  );
-
-  const handleEnrollmentPaymentChange = useCallback(
-    async (
-      enrollmentId: string,
-      status: PaymentStatus,
-      reference?: string | null,
-      paidAmount?: number | null,
-      refundAmount?: number | null,
-      refundNotes?: string | null,
-      checkNumber?: string | null
-    ) => {
-      const snapshot = entries;
-
-      setEntries(prev =>
-        prev.map(e => {
-          if (e.registrationId !== enrollmentId) return e;
-          const entryPaymentStatus = hasEntryLevelRefund(e)
-            ? e.paymentStatus
-            : mapEnrollmentStatusToEntryPaymentStatus(status);
-
-          return {
-            ...e,
-            enrollmentPaymentStatus: status,
-            paymentStatus: entryPaymentStatus,
-            paidAmount: getEntryPaidAmount({
-              ...e,
-              paymentStatus: entryPaymentStatus,
-              enrollmentPaymentStatus: status,
-            }),
-            ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
-            ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
-            ...(refundAmount != null ? { enrollmentRefundAmount: refundAmount } : {}),
-            ...(refundNotes != null ? { enrollmentRefundNotes: refundNotes } : {}),
-            ...(refundAmount != null ? { enrollmentRefundedAt: new Date().toISOString() } : {}),
-          };
-        })
-      );
-
-      try {
-        const { data, error: dbError } = await updateEnrollmentPaymentStatus(
-          enrollmentId,
-          status,
-          reference,
-          paidAmount,
-          refundAmount,
-          refundNotes,
-          checkNumber
-        );
-        if (dbError) {
-          if (data) {
-            toast.error('Payment saved, but linked entry rows may need a refresh');
-            logger.error(
-              'DB error cascading enrollment payment to entries:',
-              'secretary',
-              {},
-              new Error(dbError.message)
-            );
-            return;
-          }
-
-          setEntries(snapshot);
-          toast.error(friendlyDbError(dbError, 'Failed to update payment status'));
-          logger.error(
-            'DB error updating enrollment payment:',
-            'secretary',
-            {},
-            new Error(dbError.message)
-          );
-        }
-      } catch (err) {
-        setEntries(snapshot);
-        toast.error('Failed to update payment status');
-        logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
-      }
-    },
-    [entries, setEntries]
   );
 
   // Handle check-in status change (inline, no dialog)
@@ -707,7 +619,6 @@ export function useEntryManagementActions({
     handleNextArmband,
     handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentPaymentChange,
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,

@@ -887,10 +887,25 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * How this table's rows leave a collection read. Every collection reader
+   * (getAll, getAllWithStatus, getByShowWithStatus) applies it, so a table
+   * that must strip fields from its cached rows says so once here and no new
+   * reader can bypass it (MYK9-788: the show read skipped the judge-assignment
+   * redaction that lived in a getAllWithStatus override). `get()` stays raw.
+   */
+  protected presentRows(rows: T[]): T[] {
+    return rows;
+  }
+
+  private presentResult(result: ReplicatedReadResult<T>): ReplicatedReadResult<T> {
+    return result.ok ? { ...result, rows: this.presentRows(result.rows) } : result;
+  }
+
+  /**
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
-    return this.queryManager.getAll(licenseKey);
+    return this.presentRows(await this.queryManager.getAll(licenseKey));
   }
 
   /**
@@ -898,7 +913,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * would drive a user-visible or operational claim.
    */
   async getAllWithStatus(licenseKey?: string): Promise<ReplicatedReadResult<T>> {
-    return this.queryManager.getAllWithStatus(licenseKey);
+    return this.presentResult(await this.queryManager.getAllWithStatus(licenseKey));
+  }
+
+  /**
+   * One show's rows (by the mapped row's `showId`) with explicit local-read
+   * status, read through the show index instead of a whole-table scan
+   * (MYK9-788).
+   */
+  async getByShowWithStatus(showId: string): Promise<ReplicatedReadResult<T>> {
+    return this.presentResult(await this.queryManager.getByShowWithStatus(showId));
   }
 
   /**

@@ -181,6 +181,21 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       expect(result.rows[0].notes).toBeNull();
     });
 
+    // MYK9-788: the show-index read went through the base class and skipped
+    // the redaction a getAllWithStatus override carried.
+    it('redacts private fields from the show-scoped read', async () => {
+      await table.set('ja-1', baseAssignment);
+
+      const result = await table.getByShowWithStatus('show-1');
+
+      expect(result.ok).toBe(true);
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].fee).toBeNull();
+      expect(result.rows[0].notes).toBeNull();
+      // get() stays raw for mutation merge payloads.
+      expect((await table.get('ja-1'))?.fee).toBe(150.0);
+    });
+
     it('should return null for non-existent assignment', async () => {
       const result = await table.get('nonexistent');
       expect(result).toBeNull();

@@ -1,6 +1,7 @@
 // React Query hooks for Show database operations
 import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { usePublicShowDetailQuery } from './publicShowDetailQuery';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
@@ -84,13 +85,14 @@ export const useShowsQuery = ({ enabled = true }: { enabled?: boolean } = {}) =>
 };
 
 /**
- * Get a specific show by ID. A signed-out guest (no session at all; a ringside
- * passcode session is not one) gets the server's anon answer instead, never
- * the replica: see usePublicShowDetailQuery (MYK9-783).
+ * Get a specific show by ID. A guest (signed out, or a ringside passcode
+ * session: isPublicGuest) gets the server's anon answer instead, never the
+ * replica: see usePublicShowDetailQuery (MYK9-783). No /at-show page calls
+ * this, so ringside keeps its own replica path.
  */
 export const useShowQuery = (id: string): UseQueryResult<Show> => {
   const { user, loading: authLoading } = useAuthContext();
-  const isGuest = !authLoading && !user;
+  const isGuest = isPublicGuest(user, authLoading);
   const readable = !!id && isValidUUID(id);
   const guestQuery = usePublicShowDetailQuery(id, readable && isGuest);
   const memberQuery = useQuery({
@@ -100,7 +102,7 @@ export const useShowQuery = (id: string): UseQueryResult<Show> => {
       if (error) throw error;
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
-    enabled: readable && !authLoading && !!user,
+    enabled: readable && !authLoading && isAccountSession(user),
     // NO `networkMode` override: this query inherits 'online' and PAUSES when
     // the device is offline, which every consumer depends on. Forcing 'always'
     // here to help management deep links resolve offline bought nothing — the

@@ -32,7 +32,7 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePublicClassContextQuery } from '@/hooks/queries/publicClassContextQuery';
-import type { GuestReadState } from '@/hooks/guestServerRead';
+import { isAccountSession, isPublicGuest, type GuestReadState } from '@/hooks/guestServerRead';
 
 /**
  * Exported for its contract test: this hand-written projection is the last hop
@@ -130,14 +130,15 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { user, loading: authLoading } = useAuthContext();
-  // MYK9-783: no session at all. A ringside passcode session is not a guest.
-  const isGuest = !authLoading && !user;
+  // MYK9-783: signed out, or a ringside passcode session (isPublicGuest): on
+  // this public page a passcode reads the server like any guest.
+  const isGuest = isPublicGuest(user, authLoading);
   // MYK9-785: the class, trial and show stores are the device replica, which
-  // holds what an earlier signed-in session could see. Only a viewer with a
-  // session (signed in, or a ringside passcode) reads them; a guest, or a
-  // viewer whose auth has not resolved yet, never does.
-  const readsDeviceStores = Boolean(user);
-  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
+  // holds what an earlier signed-in session could see. Only a real signed-in
+  // account reads them; a guest, a passcode session, or a viewer whose auth
+  // has not resolved yet never does.
+  const readsDeviceStores = isAccountSession(user);
+  const canReadEntryRows = readsDeviceStores;
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -169,8 +170,8 @@ export function useClassDetailsData() {
   // skipped), which would dead-end the public `/results` route on "No Classes Available"
   // even though the release-gated results view returns data. Read the class identity directly
   // via PostgREST (anon-safe — class + trial only). Enabled ONLY when the store has nothing,
-  // so warm/authed sessions are unaffected. A cold session with no user at all (a guest) uses
-  // the guest context below instead (MYK9-785); this covers a cold passcode session.
+  // so warm/authed sessions are unaffected. A guest or passcode session uses the guest context
+  // below instead (MYK9-785); this covers a cold signed-in session.
   const { data: publicClass } = usePublicClassById(classId, {
     enabled: readsDeviceStores && !classFromStore && !!classId,
   });

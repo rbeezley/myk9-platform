@@ -20,7 +20,6 @@ const DECLARED: Record<string, number> = {
   'apps/myk9show/src/hooks/useClassCompletion.tsx': 1,
   'apps/myk9show/src/services/replication/ReplicatedClassesTable.ts': 1,
   'apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts': 1,
-  'apps/myk9show/src/services/replication/ReplicatedJudgeAssignmentsTable.ts': 1,
 };
 
 // A table (or this/super inside one) calling getAll(). Not IndexedDB's own

@@ -6,6 +6,7 @@ import {
 } from '@/services/replication';
 import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
 import { readJudgeAssignmentsOrThrow } from '@/services/database/judges/assignmentReads';
+import { rowsOrThrow } from '@/services/database/_shared/readRows';
 
 const CAPACITY_STATUSES = new Set([
   'submitted',
@@ -143,12 +144,6 @@ export function calculateOfflineCapacityOverrides({
 const CAPACITY_UNREADABLE =
   "We couldn't check class capacity on this device. Reload the page and try again.";
 
-async function rowsOrThrow<T>(read: Promise<{ ok: boolean; rows: T[] }>): Promise<T[]> {
-  const result = await read;
-  if (!result.ok) throw new Error(CAPACITY_UNREADABLE);
-  return result.rows;
-}
-
 export async function loadOfflineCapacityOverrides(
   showId: string,
   selections: OfflineCapacitySelection[]
@@ -163,8 +158,8 @@ export async function loadOfflineCapacityOverrides(
   // on instead.
   const [show, classes, trials, assignments, entries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
-    rowsOrThrow(replicatedClassesTable.getAllWithStatus()),
-    rowsOrThrow(replicatedTrialsTable.getAllWithStatus()).then(rows =>
+    rowsOrThrow(replicatedClassesTable.getAllWithStatus(), CAPACITY_UNREADABLE),
+    rowsOrThrow(replicatedTrialsTable.getAllWithStatus(), CAPACITY_UNREADABLE).then(rows =>
       rows
         .filter(trial => trial.showId === showId)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -175,7 +170,7 @@ export async function loadOfflineCapacityOverrides(
         throw new Error(CAPACITY_UNREADABLE);
       }
     ),
-    rowsOrThrow(replicatedEntriesTable.getAllWithStatus()).then(rows =>
+    rowsOrThrow(replicatedEntriesTable.getAllWithStatus(), CAPACITY_UNREADABLE).then(rows =>
       rows.filter(entry => entry.showId === showId)
     ),
   ]);

@@ -2,7 +2,7 @@ export interface ShareOptions {
   title: string;
   text: string;
   url: string;
-  /** If set, copy this instead of url on clipboard fallback (e.g., LiveResults copies results text). */
+  /** If set, copy this instead of url on clipboard fallback. */
   clipboardText?: string;
 }
 

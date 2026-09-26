@@ -266,6 +266,10 @@ describe('ShowDeskPeopleRoster', () => {
   it('MYK9-826: a rosterFilter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
     const alreadyCheckedIn = entry({
       id: 'entry-2',
+      // A genuinely different person from Alice: distinct handler_id, not just
+      // a distinct printed name. Rows are keyed by handler_id (MYK9-824), so
+      // without this override the two entries collapse into one row.
+      handler_id: 'person-2',
       handler_identity: {
         name: 'Bea Handler',
         person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },

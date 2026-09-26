@@ -13,6 +13,7 @@ import {
   deriveRingsideRoleFromClaim,
   type RingsideGrant,
 } from './ringsideGrantStore';
+import { readPersistedRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 
 const judgeGrantForX: RingsideGrant = { showId: 'show-X', role: 'judge', source: 'passcode' };
 
@@ -20,6 +21,7 @@ describe('useRingsideGrantStore', () => {
   beforeEach(() => {
     useRingsideGrantStore.getState().clearGrant();
     useRingsideGrantStore.getState().setSuppressRehydration(false);
+    window.localStorage.clear();
   });
 
   it('starts with no active grant', () => {
@@ -44,6 +46,27 @@ describe('useRingsideGrantStore', () => {
   it('resolves a grant with source "account"', () => {
     const accountGrant: RingsideGrant = { showId: 'show-X', role: 'admin', source: 'account' };
     expect(selectGrantRoleForShow(accountGrant, 'show-X')).toBe('admin');
+  });
+
+  // MYK9-834 (P1 #1): the normal passcode path calls `setGrant` directly
+  // (SmartSignInPage) BEFORE `useRehydrateRingsideGrant`'s own effect ever
+  // runs — that effect's early return (store already holds a grant) must
+  // never be the only place a confirmed claim gets cached, or a judge who
+  // reloads offline after this has no fallback to rehydrate from.
+  it('setGrant persists a passcode-source grant to the offline-reload fallback cache', () => {
+    expect(readPersistedRingsideClaim('show-X')).toBeNull();
+
+    useRingsideGrantStore.getState().setGrant(judgeGrantForX);
+
+    expect(readPersistedRingsideClaim('show-X')).toBe('judge');
+  });
+
+  it('setGrant does not cache a grant with source "account" (never claim-derived)', () => {
+    const accountGrant: RingsideGrant = { showId: 'show-X', role: 'admin', source: 'account' };
+
+    useRingsideGrantStore.getState().setGrant(accountGrant);
+
+    expect(readPersistedRingsideClaim('show-X')).toBeNull();
   });
 
   it('starts with rehydration not suppressed; setSuppressRehydration toggles it', () => {

@@ -22,6 +22,7 @@ import {
   projectHandlerIdentity,
   resolveHandlerPerson,
 } from '@/features/registries/handlerIdentity';
+import { computeDayTrialNumber } from './dayTrialNumber';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -296,23 +297,6 @@ export function buildTrialReportProps(input: {
       clubName: show.clubName ?? undefined,
     };
   });
-}
-
-/**
- * This trial's 1-based position among trials sharing its calendar day in the
- * show, ordered by `display_order` (the field the show-creation wizard sets to
- * the trial's real creation sequence -- `trial_number`/`name` are free text a
- * secretary can retype, MYK9-827). Undefined when the day has only one trial.
- */
-function computeDayTrialNumber(trial: DbTrial, allTrials: DbTrial[]): number | undefined {
-  const sameDay = allTrials
-    .filter(t => t.date === trial.date)
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.id.localeCompare(b.id));
-
-  if (sameDay.length <= 1) return undefined;
-
-  const position = sameDay.findIndex(t => t.id === trial.id);
-  return position < 0 ? undefined : position + 1;
 }
 
 export function buildClassReportProps(input: {

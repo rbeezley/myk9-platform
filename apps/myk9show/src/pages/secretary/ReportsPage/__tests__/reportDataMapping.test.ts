@@ -26,7 +26,8 @@ const trial = fromAny<DbTrial, unknown>({
   date: '2026-04-12',
   event_number: '2026123401',
   registry_id: 'UKC',
-  trial_number: 2026123401,
+  // `trials.trial_number` is a TEXT column; matches the real shape (MYK9-827).
+  trial_number: '2026123401',
 });
 
 const classData = {

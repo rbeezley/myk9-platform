@@ -79,7 +79,11 @@ export function filterUsers<T extends User>(
   filters: UserFilter,
   now: number = Date.now()
 ): T[] {
-  let filtered = users;
+  // Removed people only with "Removed users" on. The roster query already
+  // drops them otherwise, but the view and option counts reuse this function
+  // over a roster that may include them — pressing a view turns the option off,
+  // so its count must too (Codex P2).
+  let filtered = filters.showDeleted ? users : users.filter(user => !user.deletedAt);
 
   // Apply search filter
   const tokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);

@@ -71,6 +71,29 @@ describe('user views', () => {
     expect(views.at(-1)?.href).toBe('/admin/role-requests');
   });
 
+  // Codex P2: with "Removed users" on, the roster query returns removed people
+  // too, but pressing a view turns that option off — so its count must not
+  // include them, or "All 100" shows fewer once clicked.
+  it('counts each view without removed people, as pressing it would show', () => {
+    const withRemoved = [
+      ...roster,
+      user('removed', { deletedAt: new Date(NOW).toISOString(), lastSignInAt: null }),
+    ];
+    const counts = Object.fromEntries(
+      buildUserViews(withRemoved, NOW).map(view => [view.id, view.count])
+    );
+    expect(counts.all).toBe(6);
+    expect(counts.never).toBe(1);
+  });
+
+  it('filterUsers leaves removed people out unless "Removed users" is on', () => {
+    const withRemoved = [...roster, user('removed', { deletedAt: new Date(NOW).toISOString() })];
+    expect(filterUsers(withRemoved, '', DEFAULT_USER_FILTER, NOW)).toHaveLength(6);
+    expect(
+      filterUsers(withRemoved, '', { ...DEFAULT_USER_FILTER, showDeleted: true }, NOW)
+    ).toHaveLength(7);
+  });
+
   it('is active only when the filters match a view exactly', () => {
     expect(activeUserViewId(DEFAULT_USER_FILTER, NOW)).toBe('all');
     expect(activeUserViewId(userViewFilters('dormant', NOW), NOW)).toBe('dormant');

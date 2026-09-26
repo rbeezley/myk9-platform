@@ -1,20 +1,50 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within, userEvent } from '@/test/utils/testUtils';
+import { render, screen, within, userEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 
+// Daniel is Secretary for another club; Sam for Golden Gate.
+const grantRows = [
+  {
+    user_id: '1',
+    club_id: 'club-2',
+    show_id: null,
+    expires_at: null,
+    roles: { name: 'secretary' },
+  },
+  {
+    user_id: '2',
+    club_id: 'club-1',
+    show_id: null,
+    expires_at: null,
+    roles: { name: 'secretary' },
+  },
+];
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        is: vi.fn(() => ({
-          order: vi.fn(() =>
-            Promise.resolve({ data: [{ id: 'club-1', name: 'Golden Gate SWC' }], error: null })
-          ),
-        })),
-      })),
-    })),
+    from: vi.fn((table: string) =>
+      table === 'user_roles'
+        ? {
+            select: () => ({
+              in: () => ({ eq: () => Promise.resolve({ data: grantRows, error: null }) }),
+            }),
+          }
+        : {
+            select: () => ({
+              is: () => ({
+                order: () =>
+                  Promise.resolve({
+                    data: [
+                      { id: 'club-1', name: 'Golden Gate SWC' },
+                      { id: 'club-2', name: 'Gold Coast KC' },
+                    ],
+                    error: null,
+                  }),
+              }),
+            }),
+          }
+    ),
   },
 }));
 
@@ -51,6 +81,34 @@ function choice(role: string, label: 'Add' | 'Keep' | 'Remove') {
 }
 
 describe('BulkRoleEditPanel', () => {
+  // Codex P2: a club-scoped removal names only people who hold the role for a
+  // chosen club — the runner leaves other clubs' grants alone.
+  it('names only holders for the chosen club in a club-scoped removal', async () => {
+    render(
+      <BulkRoleEditPanel
+        open
+        onClose={vi.fn()}
+        selectedUsers={[
+          person('1', 'Daniel Reyes', [UserRole.SECRETARY]),
+          person('2', 'Sam Whitfield', [UserRole.SECRETARY]),
+        ]}
+        isProcessing={false}
+        error={null}
+        onSubmit={vi.fn()}
+      />
+    );
+    await userEvent.click(choice('Secretary', 'Remove'));
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Add a club' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Golden Gate SWC' }));
+
+    const summary = screen.getByRole('region', { name: 'What will happen' });
+    await waitFor(() =>
+      expect(summary).toHaveTextContent('Remove Secretary for 1 club from Sam Whitfield')
+    );
+    expect(summary).not.toHaveTextContent('Daniel');
+    expect(screen.getByRole('button', { name: 'Apply changes' })).toBeEnabled();
+  });
+
   it('shows who holds each role and starts every role on Keep with Apply off', () => {
     renderPanel();
     expect(screen.getByText('Change roles for 2 people')).toBeInTheDocument();

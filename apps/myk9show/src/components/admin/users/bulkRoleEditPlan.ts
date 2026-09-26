@@ -19,8 +19,22 @@ export interface RoleHolding {
   role: string;
   /** How many of the selected people hold the role now. */
   holders: number;
-  /** Their names, for the "Remove X from …" line. */
+  /** Their ids and names (aligned), for the "Remove X from …" line. */
+  holderIds: string[];
   holderNames: string[];
+}
+
+/**
+ * One active grant of a club-scoped role, as the runner sees it. A role name
+ * alone cannot say WHICH club a Secretary grant is for, and the runner revokes
+ * only grants for the chosen clubs — so a removal summary must read these.
+ */
+export interface ClubGrant {
+  userId: string;
+  role: string;
+  clubId: string | null;
+  /** Limited to one show or with an end date — the runner never revokes these. */
+  protected: boolean;
 }
 
 export function nameOf(user: SelectedUser): string {
@@ -30,7 +44,12 @@ export function nameOf(user: SelectedUser): string {
 export function roleHoldings(selected: SelectedUser[], roles: readonly string[]): RoleHolding[] {
   return roles.map(role => {
     const holding = selected.filter(item => (item.user.roles ?? []).some(r => r === role));
-    return { role, holders: holding.length, holderNames: holding.map(nameOf) };
+    return {
+      role,
+      holders: holding.length,
+      holderIds: holding.map(item => item.id),
+      holderNames: holding.map(nameOf),
+    };
   });
 }
 
@@ -103,28 +122,66 @@ function listNames(names: string[]): string {
 }
 
 export interface SummaryLine {
-  tone: 'add' | 'remove';
+  tone: 'add' | 'remove' | 'note';
   text: string;
 }
 
-/** The "What will happen" lines. Club-scoped lines name how many clubs. */
+/** True when a removal needs the selection's club grants before it can be stated. */
+export function needsClubGrants(plan: RoleEditPlan): boolean {
+  return plan.remove.some(role => CLUB_SCOPED_ROLES.has(role));
+}
+
+/**
+ * The "What will happen" lines. Club-scoped lines name how many clubs, and a
+ * club-scoped removal names only the people the runner will actually change:
+ * holders of an unprotected grant for one of `clubIds`. Until `clubGrants` is
+ * known it names nobody.
+ */
 export function summarizePlan(
   plan: RoleEditPlan,
   holdings: RoleHolding[],
   total: number,
-  clubCount: number
+  clubIds: string[],
+  clubGrants?: ClubGrant[]
 ): SummaryLine[] {
   const byRole = new Map(holdings.map(h => [h.role, h]));
+  const clubCount = clubIds.length;
+  const clubWord = clubCount === 1 ? 'club' : 'clubs';
   const clubs = (role: string) =>
-    CLUB_SCOPED_ROLES.has(role) ? ` for ${clubCount === 1 ? '1 club' : `${clubCount} clubs`}` : '';
+    CLUB_SCOPED_ROLES.has(role) ? ` for ${clubCount} ${clubWord}` : '';
   const label = (role: string) => ROLE_LABELS[role] ?? role;
 
   const lines: SummaryLine[] = [];
   for (const role of plan.remove) {
     const holding = byRole.get(role);
+    let names = holding?.holderNames ?? [];
+    if (CLUB_SCOPED_ROLES.has(role)) {
+      if (!clubGrants) {
+        lines.push({
+          tone: 'note',
+          text: `Checking who holds ${label(role)} for the chosen ${clubWord}…`,
+        });
+        continue;
+      }
+      const affected = new Set(
+        clubGrants
+          .filter(g => g.role === role && !g.protected && !!g.clubId && clubIds.includes(g.clubId))
+          .map(g => g.userId)
+      );
+      names = (holding?.holderIds ?? [])
+        .map((id, index) => (affected.has(id) ? holding?.holderNames[index] : undefined))
+        .filter((name): name is string => !!name);
+      if (names.length === 0) {
+        lines.push({
+          tone: 'note',
+          text: `Nobody selected holds ${label(role)} for the chosen ${clubWord} — nothing to remove`,
+        });
+        continue;
+      }
+    }
     lines.push({
       tone: 'remove',
-      text: `Remove ${label(role)}${clubs(role)} from ${listNames(holding?.holderNames ?? [])}`,
+      text: `Remove ${label(role)}${clubs(role)} from ${listNames(names)}`,
     });
   }
   for (const role of plan.add) {

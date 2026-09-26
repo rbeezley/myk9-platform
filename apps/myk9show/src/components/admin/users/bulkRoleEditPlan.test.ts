@@ -68,7 +68,7 @@ describe('buildRoleEditPlan / planToSteps / summarizePlan', () => {
       { mode: 'add', roleNames: ['judge'], clubIds: [] },
     ]);
 
-    expect(summarizePlan(plan, holdings, 4, 0)).toEqual([
+    expect(summarizePlan(plan, holdings, 4, [])).toEqual([
       { tone: 'remove', text: 'Remove Steward from Daniel Reyes, Lena Fischer' },
       { tone: 'add', text: 'Add Judge to 4 people' },
     ]);
@@ -78,13 +78,19 @@ describe('buildRoleEditPlan / planToSteps / summarizePlan', () => {
     const plan = buildRoleEditPlan({ exhibitor: 'add', steward: 'add' }, holdings, 4);
     // Exhibitor is locked, so only Steward is added — to the two who lack it.
     expect(plan.add).toEqual(['steward']);
-    expect(summarizePlan(plan, holdings, 4, 0)[0]?.text).toBe('Add Steward to 2 people');
+    expect(summarizePlan(plan, holdings, 4, [])[0]?.text).toBe('Add Steward to 2 people');
   });
 
   it('needs clubs for a club-scoped change and names how many in the summary', () => {
     const plan = buildRoleEditPlan({ secretary: 'remove' }, holdings, 4);
     expect(plan.needsClubs).toBe(true);
-    expect(summarizePlan(plan, holdings, 4, 2)[0]?.text).toBe(
+    const everyone = ['1', '2', '3', '4'].map(userId => ({
+      userId,
+      role: 'secretary',
+      clubId: 'c1',
+      protected: false,
+    }));
+    expect(summarizePlan(plan, holdings, 4, ['c1', 'c2'], everyone)[0]?.text).toBe(
       'Remove Secretary for 2 clubs from Daniel Reyes, Sam Whitfield, Lena Fischer and 1 more'
     );
     expect(planToSteps(plan, ['c1', 'c2'])).toEqual([
@@ -92,9 +98,43 @@ describe('buildRoleEditPlan / planToSteps / summarizePlan', () => {
     ]);
   });
 
+  // Codex P2: the runner revokes a club-scoped grant only for the chosen clubs,
+  // so the summary may only name people who hold the role THERE — not anyone
+  // who holds it for some other club, or only for one show / until a date.
+  it('names only people who hold a club-scoped role for a chosen club', () => {
+    const plan = buildRoleEditPlan({ secretary: 'remove' }, holdings, 4);
+    const grants = [
+      { userId: '1', role: 'secretary', clubId: 'c1', protected: false },
+      { userId: '2', role: 'secretary', clubId: 'c2', protected: false }, // other club
+      { userId: '3', role: 'secretary', clubId: 'c1', protected: true }, // show-limited
+      { userId: '4', role: 'secretary', clubId: null, protected: false }, // no club
+    ];
+    expect(summarizePlan(plan, holdings, 4, ['c1'], grants)).toEqual([
+      { tone: 'remove', text: 'Remove Secretary for 1 club from Daniel Reyes' },
+    ]);
+  });
+
+  it('says so when nobody holds the role for the chosen clubs', () => {
+    const plan = buildRoleEditPlan({ secretary: 'remove' }, holdings, 4);
+    const grants = [{ userId: '2', role: 'secretary', clubId: 'c2', protected: false }];
+    expect(summarizePlan(plan, holdings, 4, ['c1'], grants)).toEqual([
+      {
+        tone: 'note',
+        text: 'Nobody selected holds Secretary for the chosen club — nothing to remove',
+      },
+    ]);
+  });
+
+  it('does not name anyone for a club-scoped removal until the grants are known', () => {
+    const plan = buildRoleEditPlan({ secretary: 'remove' }, holdings, 4);
+    expect(summarizePlan(plan, holdings, 4, ['c1'], undefined)).toEqual([
+      { tone: 'note', text: 'Checking who holds Secretary for the chosen club…' },
+    ]);
+  });
+
   it('an all-Keep plan has no steps', () => {
     const plan = buildRoleEditPlan({}, holdings, 4);
     expect(planToSteps(plan, [])).toEqual([]);
-    expect(summarizePlan(plan, holdings, 4, 0)).toEqual([]);
+    expect(summarizePlan(plan, holdings, 4, [])).toEqual([]);
   });
 });

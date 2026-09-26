@@ -29,12 +29,13 @@ import { supabase } from '@/services/database/supabaseClient';
 import { LOCKED_ROLES, MANAGEABLE_ROLES, ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { cn } from '@/lib/utils';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import type { BulkRoleSubmitConfig } from './bulkRoleRunner';
+import { fetchClubScopedGrants, type BulkRoleSubmitConfig } from './bulkRoleRunner';
 import {
   buildRoleEditPlan,
   describeHolding,
   effectiveChoice,
   nameOf,
+  needsClubGrants,
   planToSteps,
   roleHoldings,
   summarizePlan,
@@ -99,7 +100,21 @@ export function BulkRoleEditPanel({
   const total = selectedUsers.length;
   const holdings = useMemo(() => roleHoldings(selectedUsers, MANAGEABLE_ROLES), [selectedUsers]);
   const plan = buildRoleEditPlan(choices, holdings, total);
-  const summary = summarizePlan(plan, holdings, total, clubIds.length);
+  // A club-scoped removal only changes holders for the chosen clubs, so the
+  // summary reads the real grants before it names anyone (Codex P2).
+  const wantGrants = open && needsClubGrants(plan);
+  const selectedIds = useMemo(() => selectedUsers.map(item => item.id), [selectedUsers]);
+  const {
+    data: clubGrants,
+    error: grantsError,
+    refetch: refetchGrants,
+  } = useQuery({
+    queryKey: ['bulk-role-club-grants', selectedIds],
+    queryFn: () => fetchClubScopedGrants(selectedIds),
+    enabled: wantGrants,
+  });
+  const grantsPending = wantGrants && !clubGrants;
+  const summary = summarizePlan(plan, holdings, total, clubIds, clubGrants);
 
   const {
     data: clubs = [],
@@ -133,7 +148,13 @@ export function BulkRoleEditPanel({
             {summary.map(line => (
               <li
                 key={line.text}
-                className={line.tone === 'add' ? 'text-success' : 'text-destructive-strong'}
+                className={
+                  line.tone === 'add'
+                    ? 'text-success'
+                    : line.tone === 'remove'
+                      ? 'text-destructive-strong'
+                      : 'text-muted-foreground'
+                }
               >
                 {line.text}
               </li>
@@ -142,6 +163,14 @@ export function BulkRoleEditPanel({
         )}
         {missingClubs && (
           <p className="mt-2 text-sm font-medium">Choose at least one club to continue.</p>
+        )}
+        {grantsError && (
+          <p className="mt-2 flex items-center gap-2 text-sm font-medium">
+            Could not check who holds these roles.
+            <Button variant="outline" onClick={() => void refetchGrants()}>
+              Retry
+            </Button>
+          </p>
         )}
         <p className="mt-2 text-sm text-muted-foreground">
           Grants limited to one show or with an end date are left unchanged.
@@ -153,7 +182,7 @@ export function BulkRoleEditPanel({
         </Button>
         <Button
           onClick={() => onSubmit(planToSteps(plan, clubIds))}
-          disabled={isProcessing || nothingToDo || missingClubs || !!clubsError}
+          disabled={isProcessing || nothingToDo || missingClubs || !!clubsError || grantsPending}
         >
           {isProcessing ? 'Applying…' : 'Apply changes'}
         </Button>

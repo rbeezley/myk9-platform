@@ -63,7 +63,14 @@ export function UserListToolbar<T extends User>({
   // One clock for the page's life, so every count and the active-view match agree.
   const [now] = useState(() => Date.now());
   const views = useMemo(() => buildUserViews(users, now), [users, now]);
-  const roleStats = useMemo(() => calculateRoleStats(users), [users]);
+  // Option counts answer "how many would picking this show", so they follow the
+  // removed-users setting (picking an option keeps it) and nothing else.
+  const optionBase = { ...DEFAULT_USER_FILTER, showDeleted: filters.showDeleted };
+  const roleStats = useMemo(
+    () => calculateRoleStats(filterUsers(users, '', optionBase, now)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- optionBase is derived from filters.showDeleted
+    [users, filters.showDeleted, now]
+  );
 
   const fields: ListFilterField[] = [
     {
@@ -89,7 +96,7 @@ export function UserListToolbar<T extends User>({
       options: (['active', 'suspended'] as const).map(status => ({
         value: status,
         label: status === 'active' ? 'Active' : 'Suspended',
-        count: countWith(users, { ...DEFAULT_USER_FILTER, status }, now),
+        count: countWith(users, { ...optionBase, status }, now),
       })),
     },
     {
@@ -102,7 +109,7 @@ export function UserListToolbar<T extends User>({
       options: (Object.keys(LOGIN_LABELS) as (keyof typeof LOGIN_LABELS)[]).map(login => ({
         value: login,
         label: LOGIN_LABELS[login],
-        count: countWith(users, { ...DEFAULT_USER_FILTER, login }, now),
+        count: countWith(users, { ...optionBase, login }, now),
       })),
     },
     {

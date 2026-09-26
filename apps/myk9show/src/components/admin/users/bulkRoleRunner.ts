@@ -12,6 +12,7 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
 import { CLUB_SCOPED_ROLES, LOCKED_ROLES } from '@/services/rbac/roleUiConstants';
+import type { ClubGrant } from './bulkRoleEditPlan';
 
 export type BulkRoleMode = 'add' | 'remove' | 'replace';
 
@@ -47,6 +48,38 @@ async function fetchActiveAssignments(userId: string): Promise<ActiveAssignmentR
 
 function isProtectedAssignment(assignment: ActiveAssignmentRow): boolean {
   return assignment.showId !== null || assignment.expiresAt !== null;
+}
+
+/**
+ * Every selected person's active club-scoped grants, in one read, for the bulk
+ * panel's removal summary. Same row shape and protected-grant rule as the
+ * runner, so the summary names exactly who a removal will change.
+ */
+export async function fetchClubScopedGrants(userIds: string[]): Promise<ClubGrant[]> {
+  if (userIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('user_id, club_id, show_id, expires_at, roles(name)')
+    .in('user_id', userIds)
+    .eq('is_active', true);
+  if (error) throw error;
+  return (data ?? [])
+    .map((row: Record<string, unknown>) => {
+      const assignment: ActiveAssignmentRow = {
+        id: '',
+        roleName: (row.roles as { name: string } | null)?.name ?? '',
+        clubId: (row.club_id as string | null) ?? null,
+        showId: (row.show_id as string | null) ?? null,
+        expiresAt: (row.expires_at as string | null) ?? null,
+      };
+      return {
+        userId: row.user_id as string,
+        role: assignment.roleName,
+        clubId: assignment.clubId,
+        protected: isProtectedAssignment(assignment),
+      };
+    })
+    .filter(grant => CLUB_SCOPED_ROLES.has(grant.role));
 }
 
 function getProtectedRoleNames(assignments: ActiveAssignmentRow[]): Set<string> {

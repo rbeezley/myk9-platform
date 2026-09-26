@@ -257,34 +257,4 @@ describe('TrialsTab', () => {
     fireEvent.click(screen.getByText('Trial 1'));
     expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/trials/t1');
   });
-
-  // MYK9-811, owner-approved: search only earns its place once the list
-  // outgrows a typical 2-7 trial show.
-  describe('search (list-toolkit, only past the threshold)', () => {
-    function manyTrials(count: number) {
-      return Array.from({ length: count }, (_, i) =>
-        makeTrial({ id: `t${i}`, name: `Trial ${i}`, trialNumber: `Trial ${i}` })
-      );
-    }
-
-    it('hides the search box for a typical small show', () => {
-      const trials = manyTrials(7);
-      render(<TrialsTab trials={trials} showId="show-1" trialStats={{}} />);
-      expect(screen.queryByPlaceholderText('Search trials...')).not.toBeInTheDocument();
-    });
-
-    it('shows the search box once the show has more than 7 trials', () => {
-      const trials = manyTrials(8);
-      render(<TrialsTab trials={trials} showId="show-1" trialStats={{}} />);
-      expect(screen.getByPlaceholderText('Search trials...')).toBeInTheDocument();
-    });
-
-    it('filters the trial list by name', async () => {
-      const trials = manyTrials(8);
-      const { user } = render(<TrialsTab trials={trials} showId="show-1" trialStats={{}} />);
-      await user.type(screen.getByPlaceholderText('Search trials...'), 'Trial 3');
-      expect(screen.getByText('Trial 3')).toBeInTheDocument();
-      expect(screen.queryByText('Trial 4')).not.toBeInTheDocument();
-    });
-  });
 });

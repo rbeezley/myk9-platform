@@ -9,23 +9,11 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import {
-  deriveTrialStatusKey,
-  formatTrialLabel,
-  matchesAny,
-  type ClassStatusValue,
-} from '@myk9/core';
+import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
-import { ListFilterBar } from '@/components/list-toolkit';
-
-/**
- * Below this many trials, a search box is clutter — a show usually runs 2-7
- * (owner-approved plan, MYK9-811). Above it, search earns its place.
- */
-const TRIALS_SEARCH_THRESHOLD = 7;
 
 export interface TrialStats {
   classCount: number;
@@ -133,7 +121,6 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
   const statusCounts = useMemo(() => {
@@ -145,20 +132,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   }, [trials, trialStats]);
 
   const filteredTrials = useMemo(() => {
-    let result = trials;
-    if (statusFilter !== 'all') {
-      result = result.filter(trial => {
-        const isCompleted = getTrialDisplayStatus(trial, trialStats) === 'completed';
-        return statusFilter === 'completed' ? isCompleted : !isCompleted;
-      });
-    }
-    if (searchTerm) {
-      result = result.filter(trial =>
-        matchesAny([trial.name, trial.trialNumber, trial.trialType ?? ''], searchTerm)
-      );
-    }
-    return result;
-  }, [trials, trialStats, statusFilter, searchTerm]);
+    if (statusFilter === 'all') return trials;
+    return trials.filter(trial => {
+      const isCompleted = getTrialDisplayStatus(trial, trialStats) === 'completed';
+      return statusFilter === 'completed' ? isCompleted : !isCompleted;
+    });
+  }, [trials, trialStats, statusFilter]);
 
   const tableData = useMemo<TrialRow[]>(
     () =>
@@ -181,14 +160,6 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   return (
     <div className="space-y-4">
-      {(trials.length > TRIALS_SEARCH_THRESHOLD || searchTerm !== '') && (
-        <ListFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search trials..."
-          fields={[]}
-        />
-      )}
       <div className="flex items-center justify-between gap-4">
         <StatusFilter
           filter={statusFilter}
@@ -225,13 +196,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                 ? 'No trials completed yet.'
                 : 'No trials match the current filter.'
           }
-          action={{
-            label: 'Show all trials',
-            onClick: () => {
-              setStatusFilter('all');
-              setSearchTerm('');
-            },
-          }}
+          action={{ label: 'Show all trials', onClick: () => setStatusFilter('all') }}
         />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

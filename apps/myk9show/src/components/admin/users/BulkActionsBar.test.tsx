@@ -200,7 +200,7 @@ describe('BulkActionsBar', () => {
   it('renders when users are selected', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -213,7 +213,7 @@ describe('BulkActionsBar', () => {
   it('shows correct user count and names', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -248,7 +248,7 @@ describe('BulkActionsBar', () => {
 
     render(<BulkActionsBar {...defaultProps} selectedUsers={manyUsers} />);
 
-    expect(screen.getByText('4 selected')).toBeInTheDocument();
+    expect(screen.getByText('4 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe(
       'Selected users: John Doe, Jane Smith, Bob Johnson and 1 more'
     );

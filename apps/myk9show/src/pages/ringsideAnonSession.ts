@@ -30,6 +30,7 @@ import {
   replicatedClassesTable,
   replicatedEntriesTable,
 } from '@/services/replication';
+import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 import { validatePasscode, type ValidatePasscodeResult } from './validatePasscode';
 
 /**
@@ -156,5 +157,8 @@ export async function endAnonymousRingsideSession(): Promise<void> {
   if (data.session?.user?.is_anonymous) {
     await supabase.auth.signOut();
     await replicatedClassesTable.clearCachedHideCounts();
+    // Explicit exit ends ringside access for this device — the offline-reload
+    // fallback cache must not resurrect it on the next reload.
+    persistRingsideClaim(null);
   }
 }

@@ -1,7 +1,8 @@
 /**
  * useRehydrateRingsideGrant — repopulates the client-only `ringsideGrantStore`
  * from a still-valid anonymous session's `ringside_passcode` claim when the
- * store doesn't already reflect it.
+ * store doesn't already reflect it, and returns the role the CALLER should
+ * treat as active right now.
  *
  * Why this exists: `ringsideGrantStore` is deliberately NOT persisted (plan
  * decision 5-E) — a hard reload wipes it. But Supabase's own session
@@ -27,6 +28,25 @@
  * and the anon session's `signOut()` actually completing. Without this, a
  * revocation could be immediately undone by re-deriving from the not-yet-
  * invalidated claim still sitting in `app_metadata`.
+ *
+ * OFFLINE FALLBACK (offline-identity-pairing): when `user` comes back null
+ * while the device is offline, that is not proof of a signed-out session —
+ * `@supabase/auth-js` reports `session: null` for a genuinely-expired anon
+ * session it never actually invalidated whenever refreshing it fails offline
+ * (see `ringsideClaimCache.ts`). In that specific combination — no user, no
+ * network — fall back to the last claim this hook itself confirmed for this
+ * show. Never applied while online, where a null user is the real signal.
+ *
+ * RETURN VALUE, AND WHY THE STORE WRITE ALONE ISN'T ENOUGH: the store is
+ * populated from a `useEffect`, which runs AFTER this render commits.
+ * `AtShowAccessGate` redirects to sign-in synchronously — in the SAME render
+ * — whenever `user` is null, which unmounts the whole subtree before that
+ * effect ever gets to fire. A grant that only exists one tick later is a
+ * grant the gate never lives to see. Returning the resolved role lets the
+ * gate (and anything else that needs an immediate answer) use it on the very
+ * first render; the effect still runs afterward to make the store agree for
+ * every other consumer (`useRingsideGrantRole`, presence, the revocation
+ * flow).
  */
 
 import { useEffect } from 'react';
@@ -35,27 +55,41 @@ import {
   useRingsideGrantStore,
   selectGrantRoleForShow,
   deriveRingsideRoleFromClaim,
+  type RingsideGrant,
 } from '@/store/ringsideGrantStore';
+import { persistRingsideClaim, readPersistedRingsideClaim } from './ringsideClaimCache';
 
-export function useRehydrateRingsideGrant(showId: string | undefined): void {
+export function useRehydrateRingsideGrant(showId: string | undefined): RingsideGrant['role'] | null {
   const { user, loading } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const setGrant = useRingsideGrantStore(state => state.setGrant);
   const suppressRehydration = useRingsideGrantStore(state => state.suppressRehydration);
 
+  const resolvable = !loading && !!showId && !suppressRehydration;
+  const storeRole = resolvable ? selectGrantRoleForShow(activeGrant, showId) : null;
+  const claimRole = resolvable && !storeRole ? deriveRingsideRoleFromClaim(user, showId) : null;
+  const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const offlineFallbackRole =
+    resolvable && !storeRole && !claimRole && !user && isOffline
+      ? readPersistedRingsideClaim(showId!)
+      : null;
+
   useEffect(() => {
-    if (loading || !showId || suppressRehydration) return;
-    // The store already agrees with this show — nothing to rehydrate. Also
-    // covers the signed-in-account grant case, which never needs claim-based
-    // rehydration (its session is never anonymous).
-    if (selectGrantRoleForShow(activeGrant, showId)) return;
-    const claimRole = deriveRingsideRoleFromClaim(user, showId);
-    if (!claimRole) return;
-    setGrant({
-      showId,
-      role: claimRole,
-      sessionId: crypto.randomUUID(),
-      source: 'passcode',
-    });
-  }, [loading, showId, suppressRehydration, user, activeGrant, setGrant]);
+    if (!resolvable || storeRole) return;
+    if (claimRole) {
+      persistRingsideClaim({ showId: showId!, role: claimRole });
+      setGrant({ showId: showId!, role: claimRole, sessionId: crypto.randomUUID(), source: 'passcode' });
+      return;
+    }
+    if (offlineFallbackRole) {
+      setGrant({
+        showId: showId!,
+        role: offlineFallbackRole,
+        sessionId: crypto.randomUUID(),
+        source: 'passcode',
+      });
+    }
+  }, [resolvable, storeRole, claimRole, offlineFallbackRole, showId, setGrant]);
+
+  return storeRole ?? claimRole ?? offlineFallbackRole;
 }

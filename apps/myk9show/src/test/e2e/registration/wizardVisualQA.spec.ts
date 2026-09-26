@@ -6,6 +6,7 @@ import {
   saveDraftThroughDialog,
   submitSaveDraftDialog,
 } from './wizardDraftDialog';
+import { assertContrastHarness, CONTRAST_OF } from './compositedContrast';
 
 // In order, one worker, but NOT serial (MYK9-627). No scenario reads state an
 // earlier one left: drafts live in each test's own localStorage, and every
@@ -278,114 +279,6 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
 // -muted-foreground failure (it clears AA on the flat card and fails on the
 // composited surfaces the wizard actually paints).
 
-// Composites a colour over its ancestors' backgrounds and returns the WCAG
-// ratio. Reads channels by compositing over black and over white rather than
-// parsing the colour string: computed styles here serialise as
-// color(srgb 0..1), whose components are NOT 8-bit, and parsing them as such
-// makes every ratio collapse to ~1.0.
-// Returns the WORST ratio across every match, not the first one. Selecting a
-// single element made this assertion vacuous: the first .text-muted-foreground
-// in the header is the 14px breadcrumb sitting on the flat page background,
-// which passes on the old token too, so the test stayed green with the fix
-// reverted. The defect lives on the 12px captions over the elevated panel.
-const CONTRAST_OF = (selector: string) => {
-  const els = Array.from(document.querySelectorAll(selector)).filter(el => {
-    const r = el.getBoundingClientRect();
-    const cs = getComputedStyle(el);
-    if (!(r.width > 0 && r.height > 0)) return false;
-    if (cs.visibility === 'hidden') return false;
-    if (!(el.textContent || '').trim()) return false;
-    // WCAG 1.4.3 exempts inactive controls, and this app dims them with
-    // disabled:opacity-50 — "Load Draft (0)" measures 3.46:1 while disabled.
-    // Counting them would fail the assertion on text the standard excuses.
-    return !el.closest('[disabled],[aria-disabled="true"],:disabled');
-  });
-  if (!els.length) return null;
-  const cv = document.createElement('canvas');
-  cv.width = 1;
-  cv.height = 1;
-  const ctx = cv.getContext('2d', { willReadFrequently: true })!;
-  const parse = (c: string) => {
-    const sample = (backdrop: string) => {
-      ctx.globalCompositeOperation = 'copy';
-      ctx.fillStyle = backdrop;
-      ctx.fillRect(0, 0, 1, 1);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = backdrop;
-      ctx.fillStyle = c;
-      ctx.fillRect(0, 0, 1, 1);
-      return ctx.getImageData(0, 0, 1, 1).data;
-    };
-    const w = sample('#fff');
-    const b = sample('#000');
-    const a = 1 - (w[0] - b[0]) / 255;
-    return a <= 0.002 ? [0, 0, 0, 0] : [b[0] / a, b[1] / a, b[2] / a, a];
-  };
-  const lum = (rgb: number[]) => {
-    const f = (v: number) => {
-      const s = v / 255;
-      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
-  };
-  const over = (fg: number[], bg: number[]) => [
-    fg[0] * fg[3] + bg[0] * (1 - fg[3]),
-    fg[1] * fg[3] + bg[1] * (1 - fg[3]),
-    fg[2] * fg[3] + bg[2] * (1 - fg[3]),
-    1,
-  ];
-  let worst = Infinity;
-  let worstText = '';
-  for (const el of els) {
-    // Composite the translucent layers rather than skipping to the first
-    // opaque ancestor. The step-progress captions sit on a semi-transparent
-    // tint over the card, so the surface they are actually read against is
-    // rgb(48,38,32), not the card's #1e1c19 — a 3.96:1 caption looks like
-    // 4.55:1 if the tint is ignored, which is what hid this defect.
-    let bg: number[] = [255, 255, 255, 1];
-    let acc: number[] | null = null;
-    let cur: Element | null = el;
-    while (cur) {
-      const c = parse(getComputedStyle(cur).backgroundColor)!;
-      if (c[3] > 0) {
-        acc = acc ? over(acc, c) : c;
-        if (c[3] === 1) {
-          bg = acc;
-          break;
-        }
-      }
-      cur = cur.parentElement;
-    }
-    if (acc && acc[3] < 1) bg = over(acc, bg);
-    // Fold in every ancestor's opacity, not just the element's own colour
-    // alpha. The shared Button ships disabled:opacity-50, so a dimmed label
-    // would otherwise be certified at the token's full contrast while its
-    // rendered pixels are half-composited against the surface.
-    let effOpacity = 1;
-    let opCur: Element | null = el;
-    while (opCur) {
-      effOpacity *= Number(getComputedStyle(opCur).opacity);
-      opCur = opCur.parentElement;
-    }
-    const rawFg = parse(getComputedStyle(el).color)!;
-    const fg = [rawFg[0], rawFg[1], rawFg[2], rawFg[3] * effOpacity];
-    const l1 = lum(over(fg, bg));
-    const l2 = lum(bg);
-    const r = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-    if (r < worst) {
-      worst = r;
-      worstText =
-        (el.textContent || '').trim().slice(0, 40) +
-        ' [' +
-        getComputedStyle(el).fontSize +
-        ', n=' +
-        els.length +
-        ']';
-    }
-  }
-  return { worst, worstText };
-};
-
 test('the only exit from the wizard meets the 44px touch floor', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
@@ -413,20 +306,10 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
     timeout: 20000,
   });
 
-  // Known answers first: if the measurement itself breaks, this test must fail
-  // loudly rather than certify whatever it computed.
-  const sanity = await page.evaluate(() => {
-    const el = document.createElement('div');
-    el.style.cssText = 'color:#000;background:#fff;position:fixed;top:0';
-    el.id = 'contrast-sanity';
-    el.textContent = 'x';
-    document.body.appendChild(el);
-    return true;
-  });
-  expect(sanity).toBe(true);
-  const known = await page.evaluate(CONTRAST_OF, '#contrast-sanity');
-  expect(known).not.toBeNull();
-  expect(known!.worst).toBeGreaterThan(20.5); // black on white == 21
+  // Known answers first, through the same page function, printed every run:
+  // if the measurement itself breaks, this test must fail loudly rather than
+  // certify whatever it computed (MYK9-784).
+  await assertContrastHarness(page);
 
   // Wait for the dog list to actually populate. Measuring as soon as the
   // heading appears caught the page at "No eligible dogs found.", where the
@@ -459,6 +342,17 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
   const muted = await page.evaluate(CONTRAST_OF, '.text-muted-foreground');
   expect(muted).not.toBeNull();
   console.log('WORST_MUTED ' + muted!.worst.toFixed(2) + ' :: ' + muted!.worstText);
+  console.log(
+    'WORST_MUTED_DETAIL ' +
+      JSON.stringify({
+        ...muted!.details,
+        awaitedAnimations: muted!.awaitedAnimations,
+        initialMinOpacity: muted!.initialMinOpacity,
+      })
+  );
+  // A reading taken while a finite animation still runs is a frame of that
+  // animation, not the design: refuse it rather than report it.
+  expect(muted!.unsettledAnimations, 'animations still running at measurement').toBe(0);
   expect(muted!.worst, 'worst muted caption: ' + muted!.worstText).toBeGreaterThanOrEqual(4.5);
 });
 

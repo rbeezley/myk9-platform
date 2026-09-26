@@ -155,3 +155,61 @@ export function buildClassDisambiguator(
     return classNameExtra(cls.name, cls.element, cls.level, cls.section);
   };
 }
+
+/**
+ * One disambiguator per GROUP (e.g. per trial), built from that group's own
+ * classes only. `buildClassDisambiguator`'s collision test is a single-group
+ * contract — a Saturday and a Sunday "Interior Advanced" are already told
+ * apart by which group they're in, and a cross-group collision test would
+ * publish one of their stored names for no reason (see
+ * `groupCartByDogAndDay`'s per-trial disambiguators, the same shape repeated
+ * here for callers outside the wizard).
+ *
+ * Returns a lookup by group key rather than a single function, since most
+ * callers hold many classes across many groups and want one disambiguator
+ * per class's own group.
+ */
+export function buildClassDisambiguatorsByGroup<T extends ClassIdentity>(
+  classes: readonly T[],
+  groupKeyOf: (cls: T) => string
+): (groupKey: string) => (cls: ClassIdentity) => string {
+  const byGroup = new Map<string, T[]>();
+  for (const cls of classes) {
+    const key = groupKeyOf(cls);
+    const group = byGroup.get(key);
+    if (group) group.push(cls);
+    else byGroup.set(key, [cls]);
+  }
+
+  const disambiguatorsByGroup = new Map(
+    [...byGroup].map(([key, group]) => [key, buildClassDisambiguator(group)])
+  );
+  const noop = () => '';
+  return groupKey => disambiguatorsByGroup.get(groupKey) ?? noop;
+}
+
+/**
+ * The full exhibitor-facing label for a class OUTSIDE its element's own
+ * grouping — "Vehicle Novice B", not just "Novice B" — composed from
+ * element + level + section rather than trusted from the stored name/
+ * className. A stored name can predate a later edit, or (UKC classes created
+ * outside `generateScentWorkClasses`) never have carried the section at all,
+ * which is what let two different UKC A/B classes render as the identical
+ * "Vehicle Novice" on the Show Desk schedule, roster and Move-up picker
+ * (MYK9-825). `extra` is `buildClassDisambiguator`'s output — pass '' when
+ * the caller has no group to disambiguate against. Falls back to
+ * `fallback` (the stored name) only when element AND level are both
+ * unresolvable, so a class with no configured registry fields still renders
+ * as something.
+ */
+export function buildFullClassLabel(
+  fields: Pick<ClassIdentity, 'element' | 'level' | 'section'>,
+  extra: string,
+  fallback: string | null | undefined
+): string {
+  const computed = [fields.element, fields.level, fields.section, extra]
+    .map(clean)
+    .filter(Boolean)
+    .join(' ');
+  return computed || clean(fallback) || 'Class';
+}

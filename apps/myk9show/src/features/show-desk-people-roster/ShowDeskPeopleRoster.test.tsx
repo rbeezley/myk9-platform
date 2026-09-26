@@ -109,6 +109,7 @@ function renderRoster(
     trialDate?: string;
     loadError?: unknown;
     onRetry?: () => void;
+    initialRoute?: string;
   } = {}
 ) {
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
@@ -154,7 +155,7 @@ function renderRoster(
       />
       <LocationProbe />
     </>,
-    { initialRoute: '/shows/show-1/show-day' }
+    { initialRoute: options.initialRoute ?? '/shows/show-1/show-day' }
   );
 }
 
@@ -172,7 +173,10 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.getByText('Poppy')).toBeInTheDocument();
-    expect(screen.getByText(/Container Novice A - 9:00 AM/i)).toBeInTheDocument();
+    // MYK9-825: the trial label now renders alongside the class (previously
+    // computed but silently dropped), so a dog entered in the same class
+    // shape across two trials is distinguishable.
+    expect(screen.getByText(/Container Novice A · Trial 1 - 9:00 AM/i)).toBeInTheDocument();
     expect(screen.getByText('114')).toBeInTheDocument();
     expect(
       container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')
@@ -180,6 +184,41 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-826: the Show Desk "Check in N entries" card links here via
+   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&filter=needs-check-in`).
+   * Landing pre-filtered must still surface a working Check in control for an
+   * accepted, not-yet-checked-in entry — not just open the roster.
+   */
+  it('MYK9-826: a filter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
+    const alreadyCheckedIn = entry({
+      id: 'entry-2',
+      handler_identity: {
+        name: 'Bea Handler',
+        person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },
+        source: 'assigned-person',
+      },
+      handler_person: {
+        id: 'person-2',
+        first_name: 'Bea',
+        last_name: 'Handler',
+        auth_user_id: 'auth-2',
+      },
+      check_in_status: 'checked-in',
+    });
+    const { user } = renderRoster([entry(), alreadyCheckedIn], {
+      initialRoute: '/shows/show-1/show-day?tool=people-at-show&filter=needs-check-in',
+    });
+
+    // Pre-filtered to "Needs check-in": the already-checked-in exhibitor is
+    // excluded, proving the filter (not just the tool sheet) applied on arrival.
+    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /alice martin/i }));
+    expect(screen.getByRole('button', { name: /^check in$/i })).toBeInTheDocument();
   });
 
   it('shows a retryable error instead of a false empty roster when entries fail to load', async () => {

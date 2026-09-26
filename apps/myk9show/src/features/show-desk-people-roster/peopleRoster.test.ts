@@ -412,4 +412,58 @@ describe('peopleRoster', () => {
       })
     );
   });
+
+  /**
+   * MYK9-825: a UKC dog entered in the same-shaped class ("Vehicle Novice")
+   * in two same-day trials rendered as two IDENTICAL rows -- no section, no
+   * trial -- so a secretary could not tell which "Check in" checked in which
+   * entry. The row must show both the section and the trial.
+   */
+  it('distinguishes two same-day trials entered by the same dog in the same class shape', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          id: 'entry-trial-1',
+          classes: [
+            { id: 'class-t1', name: 'Vehicle Novice', number: '1', fee: 30, status: 'entered', checkInStatus: 'no-status' },
+          ],
+        }),
+        entry({
+          id: 'entry-trial-2',
+          classes: [
+            { id: 'class-t2', name: 'Vehicle Novice', number: '1', fee: 30, status: 'entered', checkInStatus: 'no-status' },
+          ],
+        }),
+      ],
+      presence: [],
+      classes: [
+        {
+          id: 'class-t1',
+          name: 'Vehicle Novice',
+          trialId: 'trial-1',
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'A',
+          ring: 'Trial 1',
+        },
+        {
+          id: 'class-t2',
+          name: 'Vehicle Novice',
+          trialId: 'trial-2',
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'B',
+          ring: 'Trial 2',
+        },
+      ],
+    });
+
+    expect(roster[0]?.classRows).toHaveLength(2);
+    const [row1, row2] = roster[0]!.classRows;
+    expect(row1).not.toEqual(row2);
+    expect(row1?.className).toBe('Vehicle Novice A');
+    expect(row1?.ring).toBe('Trial 1');
+    expect(row2?.className).toBe('Vehicle Novice B');
+    expect(row2?.ring).toBe('Trial 2');
+  });
 });

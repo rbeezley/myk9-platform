@@ -3,6 +3,7 @@ import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { ShowPresence } from '@/features/show-presence/types';
 import { getStatusDescriptor } from '@/components/status';
+import { buildClassDisambiguatorsByGroup, buildFullClassLabel } from '@/features/_shared/classLabel';
 
 export type PeopleRosterFilter = 'all' | 'needs-check-in' | 'online';
 
@@ -10,7 +11,17 @@ export interface PeopleRosterClassInfo {
   id: string;
   name: string;
   time?: string;
+  /** Trial identity shown alongside the class (e.g. "Trial 2") — a dog entered
+   *  in the same class shape across two same-day trials needs this to tell
+   *  the rows apart (MYK9-825). Despite the name, this is a trial label, not
+   *  a physical ring number — see `ring` usage at the ShowDeskPeopleRoster call site. */
   ring?: string;
+  trialId?: string;
+  /** Registry element/level/section — the row label is composed from these,
+   *  not `name` alone, so a UKC A/B split still renders its section. */
+  element?: string | null;
+  level?: string | null;
+  section?: string | null;
   trialDate?: string;
   timezone?: string | null;
 }
@@ -23,6 +34,7 @@ export interface PeopleRosterClassRow {
   className: string;
   classNumber: string;
   time: string | null;
+  /** Trial label (e.g. "Trial 2"), shown so the same class in two trials is distinguishable. */
   ring: string | null;
   statusLabel: string;
   statusValue: string;
@@ -199,11 +211,28 @@ function statusPresentation(
   };
 }
 
+function classLabelResolver(
+  classes: readonly PeopleRosterClassInfo[]
+): (info: PeopleRosterClassInfo) => string {
+  // One disambiguator per trial (LESSONS label-rule-vs-real-columns): two
+  // classes sharing element+level+section across DIFFERENT trials are not a
+  // collision, they're the ordinary two-trials-same-day case this fix exists
+  // to distinguish some other way (the `ring` trial label, not extra words).
+  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes, info => info.trialId ?? '');
+
+  return info => {
+    const identity = { name: info.name, element: info.element, level: info.level, section: info.section };
+    const extra = disambiguatorFor(info.trialId ?? '')(identity);
+    return buildFullClassLabel(identity, extra, info.name);
+  };
+}
+
 function buildClassRows(
   entries: EntryManagementEntry[],
   classesById: Map<string, PeopleRosterClassInfo>,
   currentDate: Date | null | undefined
 ): PeopleRosterClassRow[] {
+  const labelOf = classLabelResolver([...classesById.values()]);
   return entries.flatMap(entry =>
     entry.classes.map(cls => {
       const classId = cls.classId ?? cls.id;
@@ -215,7 +244,7 @@ function buildClassRows(
         entryId: entry.id,
         armband: entry.armbandNumber || entry.entryNumber || null,
         dogName: entry.dogName,
-        className: info?.name ?? cls.name,
+        className: info ? labelOf(info) : cls.name,
         classNumber: cls.number,
         time: info?.time || null,
         ring: info?.ring || null,

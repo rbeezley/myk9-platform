@@ -7,6 +7,7 @@ import {
   type RawOperationalEntryInput,
 } from '@/features/entry-operations/attentionClassification';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { getShowDeskPeopleAtShowHref } from '@/features/show-desk-people-roster/peopleRosterRoutes';
 
 export type ShowDeskPendingSignalId =
   | 'entries-waiting-review'
@@ -151,7 +152,9 @@ export function computeShowDeskPendingSignals({
       count: waitingCheckIn,
       priority: 'high',
       label: `Check in ${waitingCheckIn} ${waitingCheckIn === 1 ? 'entry' : 'entries'}`,
-      href: getEntryManagementHref({ showId, attention: 'accepted', mode: 'day-of' }),
+      // MYK9-826: Entry Management's `mode: 'day-of'` was retired and had no
+      // check-in control; the People-at-show roster does.
+      href: getShowDeskPeopleAtShowHref({ showId, filter: 'needs-check-in' }),
       scope,
     });
   }

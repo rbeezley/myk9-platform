@@ -135,6 +135,14 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
   const resultStatus = readString(entry, 'result_status')?.toLowerCase();
   const checkInStatus = readString(entry, 'check_in_status')?.toLowerCase();
 
+  // A 'moved' entry is the RETIRED source record left behind when an entry is
+  // promoted to a higher class — it still carries the OLD class_id, so
+  // without this it rendered in its old class's run order as an ordinary
+  // pending entry and offered "Move up" a second time (MYK9-825).
+  if (entryStatus === 'moved') {
+    return { value: 'moved', label: 'Moved', kind: 'muted' };
+  }
+
   if (isEntryPulledOrScratched(entry)) {
     return { value: entryStatus ?? 'pulled', label: 'Pulled', kind: 'muted' };
   }

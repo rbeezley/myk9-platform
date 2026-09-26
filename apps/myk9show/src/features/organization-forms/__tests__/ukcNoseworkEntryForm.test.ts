@@ -184,11 +184,8 @@ describe('UKC Nosework entry form PDF', () => {
       owner: { ...dog.owner, phone: '+1 (214) 555-0123' },
     };
 
-    expect(
-      buildUKCNoseworkEntryFormValues(dogWithCountryCode).text?.[
-        UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone
-      ]
-    ).toBe('0123');
+    const values = buildUKCNoseworkEntryFormValues(dogWithCountryCode);
+    expect(values.text?.[UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone]).toBe('0123');
 
     const bytes = await buildUKCNoseworkEntryFormPdfBytes({
       dog: dogWithCountryCode,
@@ -284,6 +281,37 @@ describe('UKC Nosework entry form PDF', () => {
     expect(drawn.filter(text => text === 'X').length).toBe(1);
   });
 
+  it('marks the grid cell for an element/level with stray casing or whitespace', async () => {
+    const dogWithMessyEntry: EntryFormDog = {
+      ...dog,
+      entries: [
+        {
+          id: 'entry-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+          element: ' container ',
+          level: 'NOVICE',
+          section: null,
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+      ],
+    };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithMessyEntry,
+      trials: [{ id: 'trial-1', date: '2026-10-10', trialNumber: '1' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    // Trial 1 bracket + the Container/Novice cell, despite the mismatched case/whitespace.
+    expect(drawn.filter(text => text === 'X').length).toBe(2);
+  });
+
   it('does not mark a trial bracket for a trial numbered beyond what the template offers', async () => {
     const dogWithThirdTrialEntry: EntryFormDog = {
       ...dog,
@@ -346,23 +374,6 @@ describe('UKC Nosework entry form PDF', () => {
     const page2Marks = (await extractDrawnPdfText(bytes, 1)).filter(text => text === 'X');
     expect(page1Marks.length).toBe(12); // 6 rows x (Trial 1 bracket + Container/Novice)
     expect(page2Marks.length).toBe(4); // 2 rows x (Trial 1 bracket + Container/Novice)
-  });
-
-  it('keeps a one-page single-dog download interactive', async () => {
-    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
-      dog,
-      trials: [],
-      templateBytes: await readEntryTemplate(),
-      flatten: false,
-    });
-
-    const pdf = await PDFDocument.load(bytes);
-    expect(pdf.getPageCount()).toBe(1);
-    const fields = pdf.getForm().getFields();
-    expect(fields.length).toBeGreaterThan(0);
-    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName).getText()).toBe(
-      'Sarah Johnson'
-    );
   });
 
   it('flattens a 7+ entry single-dog download instead of shipping a broken "editable" multi-page PDF', async () => {

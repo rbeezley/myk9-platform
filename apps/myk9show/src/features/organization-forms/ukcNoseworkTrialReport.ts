@@ -2,8 +2,6 @@ import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import { UKC_NOSEWORK_REPORT_FEE_PER_ENTRY } from '@/lib/reports/reportConstants';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { ReportEntry, ReportProps, UKCTrialReportOfficial } from '@/lib/reports/types';
-import { getTrialTimezone } from '@/features/registries';
-import { formatTime } from '@/lib/format/dates';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined } from './reportValueHelpers';
 import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from './ukcNoseworkTrialReportFields';
@@ -94,10 +92,15 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
   addOfficial(text, CHAIRPERSON_FIELD_PREFIX, context?.chairperson);
   addOfficial(text, SECRETARY_FIELD_PREFIX, context?.secretary);
 
-  const timezone = getTrialTimezone(props.trial);
-  const timeTrialStarted = formatTime(props.trial?.actualStartTime, timezone);
+  // `trials.actual_start_time`/`actual_end_time` are TEXT columns holding an
+  // already-formatted display string ("9:00 AM" — see 073_trial_field_sync.sql
+  // and TrialEditPanel's free-text input), never an ISO timestamp. Printing it
+  // as typed is correct; running it through `new Date(...)` (as an earlier
+  // version of this builder did via `formatTime`) parses "9:00 AM" as Invalid
+  // Date and silently blanks both fields on every real trial (MYK9-828 review).
+  const timeTrialStarted = textOrUndefined(props.trial?.actualStartTime);
   if (timeTrialStarted) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted] = timeTrialStarted;
-  const conclusionOfLastClass = formatTime(props.trial?.actualEndTime, timezone);
+  const conclusionOfLastClass = textOrUndefined(props.trial?.actualEndTime);
   if (conclusionOfLastClass) {
     text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass] = conclusionOfLastClass;
   }

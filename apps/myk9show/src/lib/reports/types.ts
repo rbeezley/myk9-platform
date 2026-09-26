@@ -210,11 +210,12 @@ export interface ReportProps {
     judgeName: string;
     eventNumber?: string;
     registryId?: string;
-    /** `trials.timezone`, for formatting actualStartTime/actualEndTime in ring-local time. */
-    timezone?: string;
-    /** `trials.actual_start_time` — set once the trial's first class actually starts. */
+    /**
+     * `trials.actual_start_time` — a TEXT column holding an already-formatted
+     * display string ("9:00 AM"), never an ISO timestamp; print it as-is.
+     */
     actualStartTime?: string;
-    /** `trials.actual_end_time` — set once the trial's last class actually ends. */
+    /** `trials.actual_end_time` — same shape as `actualStartTime`. */
     actualEndTime?: string;
   };
   classData?: {

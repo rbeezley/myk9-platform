@@ -281,9 +281,20 @@ export default function ReportsPage() {
     }
   };
 
+  // Scoped by the selected trial's actual registry, not just the reportType
+  // string: 'trial-secretary-report' serves both AKC and UKC trials, and the
+  // AKC one never reads this context, so it should not fetch officials'
+  // personal contact data it will never print (MYK9-828 review).
+  const selectedTrialIsUKC = useMemo(() => {
+    const trial = (trials as Array<{ id: string; registry_id?: string | null }> | undefined)?.find(
+      t => t.id === trialId
+    );
+    return trial?.registry_id?.trim().toUpperCase() === 'UKC';
+  }, [trials, trialId]);
+
   const ukcTrialReportContextQuery = useUKCTrialReportContext(
     show?.id,
-    UKC_TRIAL_REPORT_TYPES.has(reportType)
+    UKC_TRIAL_REPORT_TYPES.has(reportType) && selectedTrialIsUKC
   );
 
   const officialPdfProps = useMemo(() => {
@@ -328,7 +339,9 @@ export default function ReportsPage() {
     officialPdfProps,
     officialClassPdfProps,
     ukcTrialReportContextLoading:
-      UKC_TRIAL_REPORT_TYPES.has(reportType) && ukcTrialReportContextQuery.isLoading,
+      UKC_TRIAL_REPORT_TYPES.has(reportType) &&
+      selectedTrialIsUKC &&
+      ukcTrialReportContextQuery.isLoading,
   });
 
   return (

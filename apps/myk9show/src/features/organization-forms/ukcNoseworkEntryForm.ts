@@ -8,8 +8,8 @@ import {
   computeUKCEntryFormDobMarks,
   computeUKCEntryFormGridMarks,
   computeUKCEntryFormPhoneMarks,
-  normalizeUSPhoneDigits,
   MAX_GRID_ROWS,
+  normalizeUSPhoneDigits,
   type EntryFormGridMark,
 } from './ukcNoseworkEntryFormGrid';
 
@@ -92,25 +92,9 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
   const flatten = input.flatten || entryBatches.length > 1;
-  const pagePdfs: PDFDocument[] = [];
-
-  for (const entries of entryBatches) {
-    const filledBytes = await fillPdfForm(input.templateBytes, values, {
-      flatten,
-    });
-    const pagePdf = await PDFDocument.load(filledBytes);
-    const page = pagePdf.getPages()[0];
-    if (page) {
-      const font = await pagePdf.embedFont(StandardFonts.Helvetica);
-      const marks = [
-        ...computeUKCEntryFormGridMarks({ entries }, input.trials),
-        ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
-        ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
-      ];
-      drawMarks(page, font, marks);
-    }
-    pagePdfs.push(pagePdf);
-  }
+  const pagePdfs = await Promise.all(
+    entryBatches.map(entries => fillAndMarkPage(input, values, entries, flatten))
+  );
 
   // The common single-page, unflattened download (fields must stay editable)
   // can return the filled document as-is. Assembling it into a fresh
@@ -129,8 +113,32 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
       outputPdf.addPage(copiedPage);
     }
   }
-
   return outputPdf.save();
+}
+
+async function fillAndMarkPage(
+  input: {
+    dog: EntryFormDog;
+    trials: readonly EntryFormTrial[];
+    templateBytes: Uint8Array;
+  },
+  values: PdfFormFillValues,
+  entries: EntryFormDog['entries'],
+  flatten: boolean
+): Promise<PDFDocument> {
+  const filledBytes = await fillPdfForm(input.templateBytes, values, { flatten });
+  const pagePdf = await PDFDocument.load(filledBytes);
+  const page = pagePdf.getPages()[0];
+  if (page) {
+    const font = await pagePdf.embedFont(StandardFonts.Helvetica);
+    const marks = [
+      ...computeUKCEntryFormGridMarks({ entries }, input.trials),
+      ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
+      ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
+    ];
+    drawMarks(page, font, marks);
+  }
+  return pagePdf;
 }
 
 export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {

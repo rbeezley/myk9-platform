@@ -1,6 +1,7 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
 import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
+import { countCoveredRows, staleCleanupKeepIds } from './replicaCoverage';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -34,6 +35,12 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * make a partial replica appear complete.
    */
   getRemoteRowCount?: (context: RemoteRowCountContext) => Promise<number | undefined>;
+  /**
+   * Ids of this scope's server rows the device deleted and has a DELETE queued
+   * for. Read after the row count and added back to the local side of the
+   * coverage check, so a pending delete never reads as a missing row (MYK9-762).
+   */
+  getPendingDeleteIds?: (context: RemoteRowCountContext) => Promise<ReadonlySet<string>>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
 
@@ -79,9 +86,9 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * more server-backed rows than the server counts, so a server-side hard
    * delete leaves the device on its next sync rather than the 24h self-heal.
    *
-   * Only for adapters whose full fetch returns every row of the table's local
-   * scope (no scope filter narrower than what the device stores), or rows of
-   * other scopes would be removed. MYK9-775 (judge_assignments).
+   * Only for adapters whose full fetch returns every row `filterLocalRows`
+   * keeps for the scope; rows outside the scope are never removed (MYK9-762).
+   * MYK9-775 (judge_assignments).
    */
   cleanupStaleRowsOnFullSync?: boolean;
   afterSuccessfulSync?: (context: {
@@ -181,6 +188,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       rawExpectedRemoteRows >= 0
         ? Math.floor(rawExpectedRemoteRows)
         : undefined;
+    // After the count: a DELETE that lands in between then reads short, never over.
+    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
 
     // Periodic self-heal. The server-authoritative watermark below removes the
     // systemic drop, but a *partially* stale replica (most rows present, a few
@@ -192,11 +201,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
-    // Compare the server count with SERVER-BACKED local rows only: a pending
-    // local create (`_localOnly`) is not on the server yet, so counting it would
-    // let it stand in for an evicted row and hide the gap (MYK9-752).
+    // Compare the server count with the rows this device accounts for: never a
+    // pending local create (MYK9-752), always a pending delete (MYK9-762).
     const partialReplica =
-      expectedRemoteRows !== undefined && countServerBackedRows(localRows) < expectedRemoteRows;
+      expectedRemoteRows !== undefined &&
+      countCoveredRows(localRows, pendingDeleteIds) < expectedRemoteRows;
     // More server-backed rows here than on the server: something was deleted
     // there. Only acted on when a full sync can clean it up (MYK9-775).
     const overReplica =
@@ -387,7 +396,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       expectedRemoteRows !== undefined &&
       serverIds.size >= expectedRemoteRows
     ) {
-      rowsAffected += await table.removeStaleEntries(serverIds, { syncedBefore: fetchStartedAt });
+      const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
+      if (keep)
+        rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
     }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });

@@ -141,6 +141,7 @@ export {
   configureConflictSurfacing,
   countServerBackedRows,
 } from './syncReplicatedTable';
+export { countCoveredRows } from './replicaCoverage';
 export type {
   RemoteFetchContext,
   RemoteRowCountContext,

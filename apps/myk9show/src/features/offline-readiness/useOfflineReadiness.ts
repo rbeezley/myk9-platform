@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { countServerBackedRows } from '@myk9/replication';
+import { countCoveredRows, countServerBackedRows } from '@myk9/replication';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -35,8 +35,9 @@ interface ScopedMeta {
  * known and every expected row is present locally. The older local-only
  * `totalRows` value is intentionally not sufficient: quota eviction can
  * rewrite it downward and make a partial replica look complete. Callers pass
- * SERVER-BACKED rows only (`countServerBackedRows`): a pending local create is
- * not on the server, and counting it would hide an evicted row (MYK9-752).
+ * the rows the device accounts for (`countCoveredRows`): never a pending local
+ * create, which would hide an evicted row (MYK9-752), and always a row deleted
+ * here whose DELETE is still queued, which the server still counts (MYK9-762).
  */
 function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
   const hydrated =
@@ -63,15 +64,20 @@ async function gatherReadiness(
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedShowsTable.getShowById(showId),
   ]);
+  // Read after the rows, so a delete landing in between is still counted once.
+  const [trialDeletes, entryDeletes] = await Promise.all([
+    replicatedTrialsTable.pendingDeletes.coveredIds(showId),
+    replicatedEntriesTable.pendingDeletes.coveredIds(showId),
+  ]);
 
-  const trialsScope = toScope('trials', trialsMeta, countServerBackedRows(trialRows));
+  const trialsScope = toScope('trials', trialsMeta, countCoveredRows(trialRows, trialDeletes));
   const scopes: ScopeReadiness[] = [
     // The show row itself is load-bearing offline — /at-show/:showId reads
     // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
     // row presence directly rather than a per-show watermark.
     { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
     trialsScope,
-    toScope('entries', entriesMeta, countServerBackedRows(entryRows)),
+    toScope('entries', entriesMeta, countCoveredRows(entryRows, entryDeletes)),
   ];
 
   // Classes are scoped by TRIAL id, so a truthful per-show answer fans out

@@ -164,16 +164,19 @@ export class MutationQueueStore {
     rowId: string,
     authUserId: string
   ): Promise<PendingMutation[]> {
+    const pending = await this.getPendingMutationsForTable(tableName, authUserId);
+    return pending.filter(mutation => mutation.rowId === rowId);
+  }
+
+  async getPendingMutationsForTable(
+    tableName: string,
+    authUserId: string
+  ): Promise<PendingMutation[]> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
 
     return all
-      .filter(
-        mutation =>
-          mutation.tableName === tableName &&
-          mutation.rowId === rowId &&
-          mutation.authUserId === authUserId
-      )
+      .filter(mutation => mutation.tableName === tableName && mutation.authUserId === authUserId)
       .sort((a, b) => {
         const sequenceA = a.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
         const sequenceB = b.sequenceNumber ?? Number.MAX_SAFE_INTEGER;

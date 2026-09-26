@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { countServerBackedRows } from '@myk9/replication';
+import { countCoveredRows } from '@myk9/replication';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { useTrialStore } from '@/store/trialStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
@@ -39,10 +39,13 @@ async function scopeCovered(showId: string): Promise<boolean> {
     } | null>,
     replicatedTrialsTable.getTrialsByShow(showId),
   ]);
-  // Server-backed rows only: a pending local trial is not one of the show's
-  // current trials (MYK9-752).
+  // A pending local trial is not one of the show's current trials (MYK9-752);
+  // a trial deleted here whose DELETE is still queued is still counted by the
+  // server, and must not make the step unusable offline (MYK9-762).
+  const pendingDeletes = await replicatedTrialsTable.pendingDeletes.coveredIds(showId);
   return (
-    meta?.expectedRemoteRows !== undefined && countServerBackedRows(rows) >= meta.expectedRemoteRows
+    meta?.expectedRemoteRows !== undefined &&
+    countCoveredRows(rows, pendingDeletes) >= meta.expectedRemoteRows
   );
 }
 

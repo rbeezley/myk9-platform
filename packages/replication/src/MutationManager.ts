@@ -214,24 +214,27 @@ export class MutationManager {
     this.scheduleUpload();
   }
 
-  /**
-   * Get the count of pending mutations in the queue
-   */
   async getPendingCount(): Promise<number> {
     return this.queueStore.getPendingCount();
   }
 
-  /**
-   * List queued mutations for a specific table row.
-   *
-   * This is intentionally narrow: callers can depend on a local row's pending
-   * mutation without reaching into the queue store directly.
-   */
+  /** This user's queued mutations for one row, or (ForTable, MYK9-762) a whole table. */
   async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
+    return this.readAsCurrentUser(id =>
+      this.queueStore.getPendingMutationsForRow(tableName, rowId, id)
+    );
+  }
+
+  async getPendingMutationsForTable(tableName: string): Promise<PendingMutation[]> {
+    return this.readAsCurrentUser(id => this.queueStore.getPendingMutationsForTable(tableName, id));
+  }
+
+  /** An owner-scoped queue read, refused if the signed-in user changed during it. */
+  private async readAsCurrentUser<R>(read: (authUserId: string) => Promise<R>): Promise<R> {
     const authUserId = await this.requireCurrentUserId();
-    const pending = await this.queueStore.getPendingMutationsForRow(tableName, rowId, authUserId);
+    const result = await read(authUserId);
     await this.requireSameCurrentUserId(authUserId);
-    return pending;
+    return result;
   }
 
   // ========================================
@@ -246,10 +249,7 @@ export class MutationManager {
    * never deleted automatically — the user must retry or discard them.
    */
   async getFailedMutations(): Promise<PendingMutation[]> {
-    const authUserId = await this.requireCurrentUserId();
-    const failed = await this.queueStore.getFailedMutations(authUserId);
-    await this.requireSameCurrentUserId(authUserId);
-    return failed;
+    return this.readAsCurrentUser(id => this.queueStore.getFailedMutations(id));
   }
 
   /**

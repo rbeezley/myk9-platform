@@ -20,6 +20,7 @@ import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeleteUserMutation: vi.fn(),
   usePermanentDeleteUserMutation: vi.fn(),
+  useUpdateUserMutation: vi.fn(() => ({ mutateAsync: vi.fn() })),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -33,8 +34,8 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
 }));
 
-// BulkRoleDialog's clubs-list query — resolve empty so opening the dialog doesn't
-// hit a real client. Role-change behavior itself is covered in useBulkActions.test.ts.
+// A clubs-list query — resolve empty so opening a dialog doesn't
+// hit a real client.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({
@@ -87,9 +88,9 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// BulkRoleDialog (rendered by this component) reads via useQuery/useQueryClient
-// (clubs-list + role change cache invalidation) — wrap every render in a
-// QueryClientProvider so those hooks don't throw outside a provider.
+// Components rendered by this bar (AdminDeleteUserDialog) read via useQuery —
+// wrap every render in a QueryClientProvider so those hooks don't throw
+// outside a provider.
 function render(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -200,7 +201,7 @@ describe('BulkActionsBar', () => {
   it('renders when users are selected', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -213,7 +214,7 @@ describe('BulkActionsBar', () => {
   it('shows correct user count and names', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -248,7 +249,7 @@ describe('BulkActionsBar', () => {
 
     render(<BulkActionsBar {...defaultProps} selectedUsers={manyUsers} />);
 
-    expect(screen.getByText('4 selected')).toBeInTheDocument();
+    expect(screen.getByText('4 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe(
       'Selected users: John Doe, Jane Smith, Bob Johnson and 1 more'
     );
@@ -409,19 +410,37 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders a "Change roles" action opening BulkRoleDialog (MYK9-58 rebuild)', () => {
+    // Bulk role editing is deferred (docs/plan-list-toolkit.md, MYK9-820); roles
+    // change one person at a time from Manage roles.
+    it('offers no bulk role action', () => {
       render(<BulkActionsBar {...defaultProps} />);
-
-      const rolesButton = screen.getByRole('button', { name: /change roles/i });
-      fireEvent.click(rolesButton);
-
-      expect(screen.getByText('Change Roles')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /roles/i })).not.toBeInTheDocument();
     });
 
-    it('does not render a status action (no real per-user status mutation exists)', () => {
+    // Bulk account actions (Suspend, Reinstate, Send invitation, Restore) are
+    // deferred (docs/plan-list-toolkit.md, MYK9-835); the bar hosts only the
+    // read-only More menu (Copy emails, Export CSV) alongside Delete.
+    it('has no account-action buttons, only the More menu', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.queryByRole('button', { name: /^status$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /suspend/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /send invitation/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /reinstate/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
+    });
+
+    it('copies the selected emails from the More menu', async () => {
+      render(<BulkActionsBar {...defaultProps} />);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy emails' }));
+
+      await waitFor(() =>
+        expect(writeText).toHaveBeenCalledWith('john.doe@example.com, jane.smith@example.com')
+      );
     });
   });
 

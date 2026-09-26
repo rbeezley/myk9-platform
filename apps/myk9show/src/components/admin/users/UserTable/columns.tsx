@@ -11,6 +11,7 @@ import { Mail, Phone } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 
 import { User } from '@/types/user-types';
+import { USER_ROLE_HIERARCHY, type UserRole } from '@/types/auth-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { DENSITY_CONFIG, ROLE_CONFIG, UNKNOWN_ROLE_CHIP } from './types';
@@ -40,6 +41,12 @@ function isStaleLogin(dateString: string | null | undefined, thresholdDays = STA
   if (!dateString) return false;
   const diffMs = Date.now() - new Date(dateString).getTime();
   return diffMs > thresholdDays * 86400000;
+}
+
+/** Hierarchy position, highest first; unknown roles sort last. */
+function rolePriority(role: UserRole): number {
+  const index = USER_ROLE_HIERARCHY.indexOf(role);
+  return index === -1 ? USER_ROLE_HIERARCHY.length : index;
 }
 
 const CHIP_CLASS = 'text-xs font-medium px-3 py-1 rounded-full border-0';
@@ -215,21 +222,31 @@ export function buildColumns(
             </Badge>
           );
         }
+        // One badge, the highest role, plus "+N" — wrapped badges stacked three
+        // deep and tripled the row height. The full list stays in the accessible
+        // name and the tooltip; the person record lists every grant.
+        const [lead, ...rest] = [...roles].sort((a, b) => rolePriority(a) - rolePriority(b));
+        const labelOf = (role: string) =>
+          ROLE_CONFIG[role as keyof typeof ROLE_CONFIG]?.label || role;
+        const leadConfig = ROLE_CONFIG[lead as keyof typeof ROLE_CONFIG];
         return (
-          <div className="flex flex-wrap gap-2">
-            {roles.map(role => {
-              const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
-              return (
-                <Badge
-                  key={role}
-                  variant="outline"
-                  className={`${CHIP_CLASS} ${roleConfig?.chipClass ?? UNKNOWN_ROLE_CHIP}`}
-                >
-                  {roleConfig?.icon && <roleConfig.icon className="h-3 w-3 mr-1" />}
-                  {roleConfig?.label || role}
-                </Badge>
-              );
-            })}
+          <div
+            className="flex items-center gap-1.5 whitespace-nowrap"
+            title={roles.map(labelOf).join(', ')}
+          >
+            <Badge
+              variant="outline"
+              className={`${CHIP_CLASS} ${leadConfig?.chipClass ?? UNKNOWN_ROLE_CHIP}`}
+            >
+              {leadConfig?.icon && <leadConfig.icon className="h-3 w-3 mr-1" aria-hidden="true" />}
+              {labelOf(lead ?? '')}
+            </Badge>
+            {rest.length > 0 && (
+              <Badge variant="outline" className={`${CHIP_CLASS} bg-muted text-muted-foreground`}>
+                <span aria-hidden="true">+{rest.length}</span>
+                <span className="sr-only">also {rest.map(labelOf).join(', ')}</span>
+              </Badge>
+            )}
           </div>
         );
       },
@@ -281,7 +298,9 @@ export function buildColumns(
     {
       id: '_actions',
       enableSorting: false,
-      meta: { interactive: true },
+      // Pinned right: on a roster wider than its container the menu — the only
+      // route to edit, suspend or delete a row — sat half-clipped at the edge.
+      meta: { interactive: true, stickyRight: true },
       header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => {
         const user = row.original;

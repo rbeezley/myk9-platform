@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { countCoveredRows, countServerBackedRows } from '@myk9/replication';
+import { countCoveredRows } from '@myk9/replication';
 import {
-  replicatedClassesTable,
   replicatedEntriesTable,
   replicatedJudgeAssignmentsTable,
   replicatedShowsTable,
-  replicatedTrialsTable,
 } from '@/services/replication';
 import {
   getActiveJudgeAssignmentsForShow,
@@ -23,31 +21,12 @@ import {
   type OfflineReadiness,
   type ScopeReadiness,
 } from './computeOfflineReadiness';
-
-interface ScopedMeta {
-  totalRows?: number;
-  expectedRemoteRows?: number;
-  lastIncrementalSyncAt?: number;
-}
-
-/**
- * A scope counts as hydrated only when its server-derived expected row count is
- * known and every expected row is present locally. The older local-only
- * `totalRows` value is intentionally not sufficient: quota eviction can
- * rewrite it downward and make a partial replica look complete. Callers pass
- * the rows the device accounts for (`countCoveredRows`): never a pending local
- * create, which would hide an evicted row (MYK9-752), and always a row deleted
- * here whose DELETE is still queued, which the server still counts (MYK9-762).
- */
-function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
-  const hydrated =
-    meta?.expectedRemoteRows !== undefined && localRowCount >= meta.expectedRemoteRows;
-  return {
-    label,
-    hydrated,
-    lastSyncAt: hydrated ? meta?.lastIncrementalSyncAt || null : null,
-  };
-}
+import {
+  gatherShowStructureScopes,
+  isJudgeAssignmentsTableHydrated,
+  toScope,
+  type ScopedMeta,
+} from './showStructureScopes';
 
 async function gatherReadiness(
   showId: string,
@@ -57,54 +36,20 @@ async function gatherReadiness(
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
 
-  const [trialsMeta, entriesMeta, trialRows, entryRows, showRow] = await Promise.all([
-    replicatedTrialsTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
+  const [structure, entriesMeta, entryRows] = await Promise.all([
+    gatherShowStructureScopes(showId),
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
-    replicatedTrialsTable.getTrialsByShow(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
-    replicatedShowsTable.getShowById(showId),
   ]);
   // Read after the rows, so a delete landing in between is still counted once.
-  const [trialDeletes, entryDeletes] = await Promise.all([
-    replicatedTrialsTable.pendingDeletes.coveredIds(showId),
-    replicatedEntriesTable.pendingDeletes.coveredIds(showId),
-  ]);
+  const entryDeletes = await replicatedEntriesTable.pendingDeletes.coveredIds(showId);
 
-  const trialsScope = toScope('trials', trialsMeta, countCoveredRows(trialRows, trialDeletes));
   const scopes: ScopeReadiness[] = [
-    // The show row itself is load-bearing offline — /at-show/:showId reads
-    // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
-    // row presence directly rather than a per-show watermark.
-    { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
-    trialsScope,
+    structure.show,
+    structure.trials,
     toScope('entries', entriesMeta, countCoveredRows(entryRows, entryDeletes)),
+    structure.classes,
   ];
-
-  // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
-  // over the show's trials — every trial's classes must be hydrated. Until the
-  // trials scope itself is hydrated the fan-out is unknowable: report cold.
-  if (trialsScope.hydrated) {
-    const perTrial = await Promise.all(
-      trialRows.map(async trial => {
-        const [classMeta, classRows] = await Promise.all([
-          replicatedClassesTable.getSyncMetadata(trial.id) as Promise<ScopedMeta | null>,
-          replicatedClassesTable.getClassesByTrial(trial.id),
-        ]);
-        return toScope('classes', classMeta, countServerBackedRows(classRows));
-      })
-    );
-    const allHydrated = perTrial.every(scope => scope.hydrated);
-    const watermarks = perTrial
-      .map(scope => scope.lastSyncAt)
-      .filter((t): t is number => t !== null);
-    scopes.push({
-      label: 'classes',
-      hydrated: allHydrated,
-      lastSyncAt: allHydrated && watermarks.length > 0 ? Math.min(...watermarks) : null,
-    });
-  } else {
-    scopes.push({ label: 'classes', hydrated: false, lastSyncAt: null });
-  }
 
   // A judge's at-show surface is driven by useMyAtShowJudgeAssignments; with
   // no cached assignments they see "No classes assigned yet" offline even
@@ -140,8 +85,7 @@ async function gatherReadiness(
       hydrated:
         readable &&
         Boolean(judge.personId) &&
-        assignmentsMeta?.expectedRemoteRows !== undefined &&
-        countServerBackedRows(assignmentRows ?? []) >= assignmentsMeta.expectedRemoteRows,
+        isJudgeAssignmentsTableHydrated(assignmentsMeta, assignmentRows),
       lastSyncAt: null,
     });
   }

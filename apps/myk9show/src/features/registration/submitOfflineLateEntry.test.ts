@@ -35,6 +35,18 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   },
 }));
 
+// Structure coverage has its own tests (offlineCapacityOverride.structure.test.ts);
+// here the show's structure is whole on the device.
+vi.mock('@/features/offline-readiness/showStructureScopes', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/offline-readiness/showStructureScopes')>()),
+  showStructureCoverage: async () => ({
+    show: true,
+    trials: true,
+    classes: true,
+    assignments: true,
+  }),
+}));
+
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: createEntryMock,

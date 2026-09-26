@@ -8,6 +8,7 @@ import {
 import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
 import { readJudgeAssignmentsOrThrow } from '@/services/database/judges/assignmentReads';
 import { rowsOrThrow } from '@/services/database/_shared/readRows';
+import { showStructureCoverage } from '@/features/offline-readiness/showStructureScopes';
 import { refreshShowStructureForRead } from './refreshShowStructureForRead';
 
 const CAPACITY_STATUSES = new Set([
@@ -180,23 +181,34 @@ async function readCapacityInputs(showId: string) {
 type CapacityInputs = Awaited<ReturnType<typeof readCapacityInputs>>;
 
 /**
- * MYK9-788: a cold but readable classes, trials or shows replica reads as "no
- * class, so nothing is full; no trial date, so no judge-day; no show, so the
- * default capacity" and would record capacity_override=false as fact. Every
- * selected class, the trial it belongs to in this show, and the show itself
- * must be on the device before anything is counted.
+ * MYK9-788: a cold but readable classes, trials, shows or judge-assignments
+ * replica reads as "no class, so nothing is full; no trial date or judge, so
+ * no judge-day; no show, so the default capacity" and would record
+ * capacity_override=false as fact. A judge-day spans classes the desk never
+ * selected, so the whole structure must be on the device, by the same test the
+ * offline-ready badge uses, and every selected class must belong to it.
  */
-function isShowStructureMissing(
-  { show, classes, trials }: CapacityInputs,
+async function missingShowStructure(
+  showId: string,
+  { classes, trials }: CapacityInputs,
   selections: OfflineCapacitySelection[]
-): boolean {
-  if (!show) return true;
+): Promise<{ show: boolean; assignments: boolean } | null> {
+  const coverage = await showStructureCoverage(showId).catch(() => {
+    throw new Error(CAPACITY_UNREADABLE);
+  });
   const showTrialIds = new Set(trials.map(trial => trial.id));
   const classesById = new Map(classes.map(entryClass => [entryClass.id, entryClass]));
-  return selections.some(selection => {
+  const selectionOutsideShow = selections.some(selection => {
     const trialId = classesById.get(selection.classId)?.trialId;
     return !trialId || !showTrialIds.has(trialId);
   });
+  const cold =
+    !coverage.show ||
+    !coverage.trials ||
+    !coverage.classes ||
+    !coverage.assignments ||
+    selectionOutsideShow;
+  return cold ? { show: !coverage.show, assignments: !coverage.assignments } : null;
 }
 
 export async function loadOfflineCapacityOverrides(
@@ -207,13 +219,16 @@ export async function loadOfflineCapacityOverrides(
   // record the entry as within capacity. The submission surfaces the error.
   await requireShowEntriesSynced(showId);
   let inputs = await readCapacityInputs(showId);
-  if (isShowStructureMissing(inputs, selections)) {
+  const missing = await missingShowStructure(showId, inputs, selections);
+  if (missing) {
     // Online, give the show's structure one bounded sync, as MYK9-761 does for
     // entries; offline there is nothing to wait for.
     if (!onlineManager.isOnline()) throw new Error(STRUCTURE_NOT_LOADED);
-    await refreshShowStructureForRead(showId, { includeShow: !inputs.show });
+    await refreshShowStructureForRead(showId, missing);
     inputs = await readCapacityInputs(showId);
-    if (isShowStructureMissing(inputs, selections)) throw new Error(STRUCTURE_NOT_LOADED);
+    if (await missingShowStructure(showId, inputs, selections)) {
+      throw new Error(STRUCTURE_NOT_LOADED);
+    }
   }
   const { show, classes, trials, assignments, entries } = inputs;
 

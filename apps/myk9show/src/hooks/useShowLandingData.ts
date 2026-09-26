@@ -87,27 +87,25 @@ export function useShowLandingData(
   // entry with an account session: for an account getClassesByTrialId answers
   // from the device replica, which may hold a previous secretary's classes.
   const audience = isSignedOut ? 'anon' : 'authenticated';
-  const classesQuery = useQuery<TrialClassRows[]>(
-    {
-      queryKey: ['public-show-classes', showId, audience, landingTrialIdsKey],
-      queryFn: async () => {
-        const results = await Promise.all(
-          landingTrials.map(async trial => {
-            const { data, error } = await getClassesByTrialId(trial.id);
-            // The service returns { data: [], error } on a fallback failure — NOT a
-            // throw. Swallowing that error would turn a failed read into a silent
-            // empty tab, re-creating the exact false-empty bug this query fixes.
-            // Throw so React Query surfaces the error (and retries) instead.
-            if (error) throw error;
-            return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
-          })
-        );
-        return results;
-      },
-      enabled: !!showId && !storeTrialsAreAuthoritative && landingTrials.length > 0,
-      ...(isSignedOut ? GUEST_READ_QUERY_OPTIONS : { staleTime: 60_000 }),
-    }
-  );
+  const classesQuery = useQuery<TrialClassRows[]>({
+    queryKey: ['public-show-classes', showId, audience, landingTrialIdsKey],
+    queryFn: async () => {
+      const results = await Promise.all(
+        landingTrials.map(async trial => {
+          const { data, error } = await getClassesByTrialId(trial.id);
+          // The service returns { data: [], error } on a fallback failure — NOT a
+          // throw. Swallowing that error would turn a failed read into a silent
+          // empty tab, re-creating the exact false-empty bug this query fixes.
+          // Throw so React Query surfaces the error (and retries) instead.
+          if (error) throw error;
+          return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
+        })
+      );
+      return results;
+    },
+    enabled: !!showId && !storeTrialsAreAuthoritative && landingTrials.length > 0,
+    ...(isSignedOut ? GUEST_READ_QUERY_OPTIONS : { staleTime: 60_000 }),
+  });
   // Same guest rule as guestServerRead.ts: only THIS mount's completed server
   // read is shown, never a copy cached before it.
   const classesFresh = !isSignedOut || classesQuery.isFetchedAfterMount;

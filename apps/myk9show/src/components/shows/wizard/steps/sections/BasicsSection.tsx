@@ -119,10 +119,7 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
           <Label htmlFor="show-timezone">
             Timezone <span className="text-destructive">*</span>
           </Label>
-          <Select
-            value={timezoneValue}
-            onValueChange={value => onUpdate({ timezone: value })}
-          >
+          <Select value={timezoneValue} onValueChange={value => onUpdate({ timezone: value })}>
             <SelectTrigger id="show-timezone" className="bg-input">
               <SelectValue />
             </SelectTrigger>

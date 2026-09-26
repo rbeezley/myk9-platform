@@ -59,9 +59,8 @@ import { PaymentStatus } from '@/types/show-registration-types';
 
 /**
  * Bump when the shape of `OperationalView` (or a surface's filter set) changes
- * in a way that makes previously-stored/serialized views unsafe to reapply
- * without revalidation. Stored local preferences record the version they were
- * saved with; restore rejects a mismatch (see localViewPreferences.ts).
+ * in a way that makes previously serialized views unsafe to reapply.
+ * Validation rejects a mismatched version.
  */
 export const OPERATIONAL_VIEW_SERIALIZATION_VERSION = 1;
 

@@ -154,7 +154,7 @@ export function computeShowDeskPendingSignals({
       label: `Check in ${waitingCheckIn} ${waitingCheckIn === 1 ? 'entry' : 'entries'}`,
       // MYK9-826: Entry Management's `mode: 'day-of'` was retired and had no
       // check-in control; the People-at-show roster does.
-      href: getShowDeskPeopleAtShowHref({ showId, filter: 'needs-check-in' }),
+      href: getShowDeskPeopleAtShowHref({ showId }),
       scope,
     });
   }

@@ -156,17 +156,29 @@ describe('buildClassDisambiguator', () => {
  */
 describe('buildFullClassLabel', () => {
   it('composes element, level and section, ignoring a section-less stored name', () => {
-    expect(buildFullClassLabel({ element: 'Vehicle', level: 'Novice', section: 'A' }, '', 'Vehicle Novice')).toBe(
-      'Vehicle Novice A'
-    );
-    expect(buildFullClassLabel({ element: 'Vehicle', level: 'Novice', section: 'B' }, '', 'Vehicle Novice')).toBe(
-      'Vehicle Novice B'
-    );
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'A' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice A');
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'B' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice B');
   });
 
   it('appends the disambiguator extra when the caller supplies one', () => {
     expect(
-      buildFullClassLabel({ element: 'Container', level: 'Advanced', section: null }, 'Preliminary', 'Container Advanced Preliminary')
+      buildFullClassLabel(
+        { element: 'Container', level: 'Advanced', section: null },
+        'Preliminary',
+        'Container Advanced Preliminary'
+      )
     ).toBe('Container Advanced Preliminary');
   });
 
@@ -178,7 +190,13 @@ describe('buildFullClassLabel', () => {
 
 describe('buildClassDisambiguatorsByGroup', () => {
   it('scopes the collision test to each class own group, not across groups', () => {
-    const trial1 = { trialId: 't1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced', section: null };
+    const trial1 = {
+      trialId: 't1',
+      name: 'Interior Advanced',
+      element: 'Interior',
+      level: 'Advanced',
+      section: null,
+    };
     const trial2 = {
       trialId: 't2',
       name: 'Interior Advanced Preliminary',
@@ -197,6 +215,8 @@ describe('buildClassDisambiguatorsByGroup', () => {
 
   it('returns a no-op disambiguator for an unknown group key', () => {
     const lookup = buildClassDisambiguatorsByGroup([], () => 'x');
-    expect(lookup('missing')({ name: 'Anything', element: 'E', level: 'L', section: null })).toBe('');
+    expect(lookup('missing')({ name: 'Anything', element: 'E', level: 'L', section: null })).toBe(
+      ''
+    );
   });
 });

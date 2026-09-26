@@ -3,7 +3,10 @@ import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { ShowPresence } from '@/features/show-presence/types';
 import { getStatusDescriptor } from '@/components/status';
-import { buildClassDisambiguatorsByGroup, buildFullClassLabel } from '@/features/_shared/classLabel';
+import {
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+} from '@/features/_shared/classLabel';
 
 export type PeopleRosterFilter = 'all' | 'needs-check-in' | 'online';
 
@@ -221,7 +224,12 @@ function classLabelResolver(
   const disambiguatorFor = buildClassDisambiguatorsByGroup(classes, info => info.trialId ?? '');
 
   return info => {
-    const identity = { name: info.name, element: info.element, level: info.level, section: info.section };
+    const identity = {
+      name: info.name,
+      element: info.element,
+      level: info.level,
+      section: info.section,
+    };
     const extra = disambiguatorFor(info.trialId ?? '')(identity);
     return buildFullClassLabel(identity, extra, info.name);
   };

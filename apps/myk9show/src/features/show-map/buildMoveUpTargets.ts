@@ -37,13 +37,23 @@ export function buildMoveUpTargets(
   // Scoped to the entry's own trial: a same-shaped class in another trial is
   // never a collision to disambiguate, it's excluded entirely by the filter above.
   const disambiguate = buildClassDisambiguator(
-    sameTrial.map(cls => ({ name: cls.name, element: cls.element, level: cls.level, section: cls.section }))
+    sameTrial.map(cls => ({
+      name: cls.name,
+      element: cls.element,
+      level: cls.level,
+      section: cls.section,
+    }))
   );
 
   return sameTrial
     .filter(cls => cls.id !== currentClassId && isEligibleMoveUpTarget(current, cls, registryId))
     .map(cls => {
-      const identity = { name: cls.name, element: cls.element, level: cls.level, section: cls.section };
+      const identity = {
+        name: cls.name,
+        element: cls.element,
+        level: cls.level,
+        section: cls.section,
+      };
       return {
         id: cls.id,
         label: buildFullClassLabel(identity, disambiguate(identity), cls.name),

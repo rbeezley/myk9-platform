@@ -1,6 +1,9 @@
 import { formatTrialLabel } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
-import { buildCockpitClassLabelResolver, compareCockpitClasses } from './secretaryCockpitClassLabel';
+import {
+  buildCockpitClassLabelResolver,
+  compareCockpitClasses,
+} from './secretaryCockpitClassLabel';
 import type {
   CockpitAttentionKind,
   CockpitFilter,

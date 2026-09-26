@@ -188,36 +188,19 @@ describe('ShowDeskPeopleRoster', () => {
 
   /**
    * MYK9-826: the Show Desk "Check in N entries" card links here via
-   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&filter=needs-check-in`).
-   * Landing pre-filtered must still surface a working Check in control for an
-   * accepted, not-yet-checked-in entry — not just open the roster.
+   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show`). It deliberately
+   * does NOT also pre-select the "Needs check-in" filter (that filter param
+   * doesn't survive the cockpit's own URL rewrites, and the signal count
+   * isn't scoped to today's trial the way the filter is — see
+   * `peopleRosterRoutes.ts`), so landing here must still surface a working
+   * Check in control under the default "All exhibitors" view.
    */
-  it('MYK9-826: a filter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
-    const alreadyCheckedIn = entry({
-      id: 'entry-2',
-      handler_identity: {
-        name: 'Bea Handler',
-        person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },
-        source: 'assigned-person',
-      },
-      handler_person: {
-        id: 'person-2',
-        first_name: 'Bea',
-        last_name: 'Handler',
-        auth_user_id: 'auth-2',
-      },
-      check_in_status: 'checked-in',
-    });
-    const { user } = renderRoster([entry(), alreadyCheckedIn], {
-      initialRoute: '/shows/show-1/show-day?tool=people-at-show&filter=needs-check-in',
+  it('MYK9-826: following the card href renders a Check in control for an accepted, not-checked-in entry', async () => {
+    const { user } = renderRoster([entry()], {
+      initialRoute: '/shows/show-1/show-day?tool=people-at-show',
     });
 
-    // Pre-filtered to "Needs check-in": the already-checked-in exhibitor is
-    // excluded, proving the filter (not just the tool sheet) applied on arrival.
-    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /alice martin/i }));
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
     expect(screen.getByRole('button', { name: /^check in$/i })).toBeInTheDocument();
   });
 

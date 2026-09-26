@@ -52,7 +52,7 @@ function fixture() {
     `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$GH_CALLS"
 case "$*" in
-  'repo view --json nameWithOwner --jq .nameWithOwner') echo 'owner/repo' ;;
+  'api repos/{owner}/{repo} --jq .full_name') echo 'owner/repo' ;;
   'api repos/owner/repo/issues/comments?sort=created&direction=desc&per_page=100&page='*)
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
     if [ -f "$GH_FIXTURE_DIR/page-$page.json" ]; then cat "$GH_FIXTURE_DIR/page-$page.json"; else echo '[]'; fi ;;

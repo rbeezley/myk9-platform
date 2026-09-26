@@ -101,6 +101,23 @@ describe('useClassDetailsData parent show for a signed-out guest (MYK9-783)', ()
     expect(result.current.parentShow).toEqual(PUBLISHED);
   });
 
+  it('a ringside passcode session never takes the parent show from the store', () => {
+    mocks.useAuthContext.mockReturnValue({
+      user: { id: 'anon-1', is_anonymous: true },
+      loading: false,
+      hasRole: () => false,
+      userWithRoles: { scopes: [] },
+    });
+    mocks.useShowStore.mockReturnValue({
+      shows: [{ ...PUBLISHED, name: 'Secret Draft Trial', status: 'draft' }],
+    });
+
+    const { result } = renderHook(() => useClassDetailsData(), { wrapper });
+
+    expect(result.current.parentShow).toBeUndefined();
+    expect(mocks.useShowQuery).toHaveBeenCalledWith('show-1');
+  });
+
   it('a signed-in viewer still reads the store first', () => {
     mocks.useAuthContext.mockReturnValue({
       user: { id: 'user-1' },

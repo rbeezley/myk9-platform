@@ -11,6 +11,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
@@ -68,10 +69,10 @@ const ShowDetailsPage: React.FC = () => {
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
-  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
-  // MYK9-783: a guest's trials and classes are the server's (useShowLandingData),
-  // never the device store, which holds what an earlier session could see.
-  const isGuest = !authLoading && !user;
+  const canReadEntryRows = isAccountSession(user);
+  // MYK9-783: a guest's (passcode included) trials and classes come from
+  // useShowLandingData, never the device store (what an earlier session saw).
+  const isGuest = isPublicGuest(user, authLoading);
   const trials = useTrialStore(s => (isGuest ? NO_STORE_TRIALS : s.trials));
   const trialClasses = useTrialStore(s => (isGuest ? NO_STORE_TRIAL_CLASSES : s.trialClasses));
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -103,9 +104,8 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  // Fallback: the replica-backed show list. Never for a signed-out guest, whose
-  // show is only what the server returns to anon (MYK9-779).
-  const readsReplica = Boolean(user);
+  // Replica-backed show list fallback: never for a guest or passcode (MYK9-779).
+  const readsReplica = isAccountSession(user);
   const { data: shows = [] } = useShowsQuery({ enabled: readsReplica });
   const actualCurrentShow = useMemo(() => {
     if (currentShow) return currentShow;

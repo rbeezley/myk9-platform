@@ -19,6 +19,8 @@ import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   GUEST_READ_QUERY_OPTIONS,
+  isAccountSession,
+  isPublicGuest,
   resolveGuestRead,
   useQueryOnlineStatus,
 } from '@/hooks/guestServerRead';
@@ -67,11 +69,13 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   const [loadTime, setLoadTime] = useState(0);
   const hasRecordedLoadTime = useRef(false);
 
-  // Signed out means no session at all. A ringside passcode session is an
-  // anonymous auth user scoped to one show; it keeps the replica path.
+  // A guest is signed out or a ringside passcode session (isPublicGuest): a
+  // passcode is an anonymous auth user scoped to one show, and on a public
+  // page it reads the server like any guest. Only a real account reads the
+  // replica.
   const { user, loading: authLoading } = useAuthContext();
-  const isGuest = !authLoading && !user;
-  const readsReplica = !authLoading && !!user;
+  const isGuest = isPublicGuest(user, authLoading);
+  const readsReplica = !authLoading && isAccountSession(user);
 
   // Only a session that reads the replica reads the store (INTENT below).
   const storeShows = useShowStore(s => (readsReplica ? s.shows : NO_STORE_SHOWS));
@@ -110,8 +114,8 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   });
 
   // INTENT: MYK9-779, same owner decision as MYK9-747/768/780: public,
-  // signed-out surfaces read online and never read the shared replica. The
-  // replica-first getShowById, the list cache and the store all hold whatever
+  // signed-out surfaces (and a ringside passcode session on them) read online
+  // and never read the shared replica. The replica-first getShowById, the list cache and the store all hold whatever
   // an earlier signed-in session on this device could see (a secretary's
   // drafts, shows soft-deleted on the server since), so a guest's show is
   // shows_select's answer for anon, never a cached row, not even as a

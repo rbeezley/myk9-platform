@@ -86,6 +86,18 @@ function isTodayOrFuture(entry: DogActivityEntry, today: Date): boolean {
 }
 
 function isTodayOrPast(entry: DogActivityEntry, today: Date): boolean {
+  // Prefer the entry's OWN trial day, reckoned in the trial's timezone — same
+  // rule isTodayOrFuture uses. A multi-day show shares one start date across
+  // every trial, so gating on show.start_date instead means "the show has
+  // started" rather than "this trial ran": a later, not-yet-run trial in the
+  // same show would count as a past result the moment day one runs (MYK9-823).
+  // Falls back to the show-date rule for rows whose trial join hasn't landed
+  // yet (legacy rows, pending offline writes).
+  const trialDate = parseShowDate(entry.trial?.date);
+  if (trialDate) {
+    const timezone = getTrialTimezone(entry.trial);
+    return !isTrialDayAhead(trialDate, timezone, today);
+  }
   const showDate = parseShowDate(entry.show?.start_date);
   return showDate != null && showDate <= startOfLocalDay(today);
 }

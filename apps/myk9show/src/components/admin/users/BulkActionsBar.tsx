@@ -4,13 +4,14 @@
  * Features:
  * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
  *   is in view wherever the rows were ticked
- * - Change roles, account actions (BulkAccountActions: suspend, reinstate,
- *   invite, restore, copy emails, export), bulk delete with confirmation
+ * - Account actions (BulkAccountActions: suspend, reinstate, invite, restore,
+ *   copy emails, export), bulk delete with confirmation. Bulk role editing is
+ *   deferred (docs/plan-list-toolkit.md); single-person Manage roles is unchanged.
  *   (soft/permanent for admins, cascade for related data)
  */
 
 import React from 'react';
-import { Trash2, AlertCircle, Shield } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,7 +27,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
-import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 import { BulkAccountActions } from './BulkAccountActions';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
@@ -49,10 +49,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-    handleBulkRoleEdit,
-    isRoleProcessing,
-    roleError,
-  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
+  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted });
 
   if (selectedUsers.length === 0) {
     return null;
@@ -69,12 +66,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             .join(', ')}
           {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
         </p>
-        <BulkBarButton
-          onClick={() => setCurrentDialog('role')}
-          icon={<Shield className="h-4 w-4" aria-hidden="true" />}
-        >
-          Change roles
-        </BulkBarButton>
         <BulkAccountActions selectedUsers={selectedUsers} onClearSelection={onClearSelection} />
         <BulkBarButton
           tone="destructive"
@@ -202,14 +193,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       </Dialog>
 
       {/* Change Roles Dialog */}
-      <BulkRoleEditPanel
-        open={currentDialog === 'role'}
-        onClose={closeDialog}
-        selectedUsers={selectedUsers}
-        isProcessing={isRoleProcessing}
-        error={roleError}
-        onSubmit={handleBulkRoleEdit}
-      />
     </>
   );
 };

@@ -26,15 +26,13 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - `apps/myk9show/src/components/list-toolkit/` — `ListViewTabs`, `ListFilterBar`, `ListResultLine`, `FloatingBulkBar`.
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
 - `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New this week, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
-- Bulk role-edit panel (canvas variant D): per role Add / Keep / Remove with "who has it now" counts, club picker for club-scoped roles, and a "What will happen" summary beside Apply. Replaces `BulkRoleDialog` and its Add / Remove / Replace mode switch.
-- One planner decides what a bulk role edit writes (`bulkRolePlanner.ts`, after two Codex rounds on the same path): it reads every selected person's active assignments (paginated past PostgREST's 1,000-row cap; a failed read throws, never a partial plan) and returns the exact per-person plan — assignment ids to revoke, (role, club) grants to add — skipping show-limited or expiring grants and scoping Secretary / Club Admin to the chosen clubs. The summary renders only that plan; `bulkRoleRunner.executePersonPlan` executes only that plan through the existing `revokeUserRole` / `ensureUserHasRole` calls. Canonical role validation stays in `useBulkActions` before any write.
-- Bulk account actions on the floating bar, each shown only when it applies (count when it reaches fewer than all): Suspend / Reinstate (admin:manage; never the admin's own account; Suspend confirms), Send invitation (never-signed-in people with an email; confirms), Restore (removed people). A More menu holds Copy emails and Export. Each reuses the single-person path (`useUpdateUserMutation`, `invokeAdminInvite`, `restoreUser`) through `useBulkDispatch`.
+- Bulk account actions on the floating bar, each shown only when it applies (count when it reaches fewer than all): Suspend / Reinstate (admin:manage; never the admin's own account; Suspend confirms), Send invitation (never-signed-in people with an email; confirms), Restore (removed people). A More menu holds Copy emails and Export. Each reuses the single-person path (`useUpdateUserMutation`, `invokeAdminInvite`, `restoreUser`) through `useBulkDispatch`. A mutating account action always ends by refreshing the list and clearing the selection — full, partial or failed — so no stale user objects stay selected (Codex round 3). Bulk delete keeps its existing rule: people blocked from deletion stay selected.
 - The bar gets a raised surface (accent wash, accent border, deep shadow) — in dark mode `--popover` equals the card colour, so it blended into the list.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.
 
 ## Non-goals
 
-- Replace mode in bulk (deleted with the old runner derivation). A club-less legacy Secretary/Club Admin grant is still removable one person at a time from Manage roles.
+- **Bulk role editing — deferred.** The Add / Keep / Remove panel (canvas variant D) and its planner drew Codex P2s three rounds running, so per the convergence rule it is cut from this change and redone after Oct 10 under its own Linear issue; the code stays in this branch's history (4fb86ccee). This change has no bulk role action: `BulkRoleDialog` and its runner are removed, and roles change one person at a time from Manage roles, unchanged.
 - Change-notification emails and bulk messaging (no notification path; needs compose, audit and unsubscribe rules). Bulk password reset and duplicate merge.
 - Adopting the kit on Dogs and Entries — separate follow-ups.
 - Keyboard shortcuts on the bulk bar.
@@ -44,6 +42,6 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - Unit tests for each kit component (render, chip removal, option pick, date range, bulk bar visibility and clear).
 - `userListParams` round-trip for `login`; `filterUsers` login buckets; view matching and counts.
 - `getColumnLayoutClasses` for `stickyRight`.
-- `bulkRolePlanner`: a grant on page 2 of the assignment read is planned; show-limited / expiring grants are never revoked; cross-club holders are not removed; the set of (person, assignment) pairs the plan lists equals exactly what the runner revokes. `bulkRoleEditPlan` summary lines render only the plan. The panel submits exactly the plan it showed and shows an error, never a plan, on a failed read. `useBulkActions` executes a plan (canonical validation, removals before adds, partial failure, retry eligibility, latch).
+- `BulkAccountActions`: shown only when applicable, confirmation, never the admin's own account, and the selection cleared after a partial or failed action.
 - Update the existing UserManagementPage and BulkActionsBar suites; run them and the shuffled app suite for touched files.
 - Typecheck, lint, format, `qa:code-quality-ratchet`.

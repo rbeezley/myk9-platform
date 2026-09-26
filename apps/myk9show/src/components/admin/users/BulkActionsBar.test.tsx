@@ -34,8 +34,8 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
 }));
 
-// BulkRoleEditPanel's clubs-list query — resolve empty so opening the dialog doesn't
-// hit a real client. Role-change behavior itself is covered in useBulkActions.test.ts.
+// A clubs-list query — resolve empty so opening a dialog doesn't
+// hit a real client.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({
@@ -88,8 +88,8 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// BulkRoleEditPanel (rendered by this component) reads via useQuery/useQueryClient
-// (clubs-list + role change cache invalidation) — wrap every render in a
+// Components rendered by this bar read via useQuery/useQueryClient
+// (account actions invalidate the users list) — wrap every render in a
 // QueryClientProvider so those hooks don't throw outside a provider.
 function render(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -410,14 +410,11 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders a "Change roles" action opening the bulk role-edit panel', () => {
+    // Bulk role editing is deferred (docs/plan-list-toolkit.md); roles change
+    // one person at a time from Manage roles.
+    it('offers no bulk role action', () => {
       render(<BulkActionsBar {...defaultProps} />);
-
-      const rolesButton = screen.getByRole('button', { name: /change roles/i });
-      fireEvent.click(rolesButton);
-
-      expect(screen.getByText('Change roles for 2 people')).toBeInTheDocument();
-      expect(screen.getByText('What will happen')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /roles/i })).not.toBeInTheDocument();
     });
 
     // Account actions live in BulkAccountActions (own suite); here, only that

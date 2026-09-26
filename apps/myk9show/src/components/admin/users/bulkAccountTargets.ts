@@ -19,6 +19,11 @@ export interface AccountTargets {
   selfSkipped: boolean;
 }
 
+/** A selected person's display name, falling back to their id. */
+export function nameOf(item: SelectedUser): string {
+  return `${item.user.firstName ?? ''} ${item.user.lastName ?? ''}`.trim() || item.id;
+}
+
 export function isSelf(item: SelectedUser, currentUserId: string | null | undefined): boolean {
   // Roster rows are people rows; the caller's people id is `databaseUserId`. The
   // auth uuid is checked too, matching the row menu's guard.

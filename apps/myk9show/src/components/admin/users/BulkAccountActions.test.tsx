@@ -89,6 +89,28 @@ describe('BulkAccountActions', () => {
     ]);
   });
 
+  // Codex P2 (round 3): a kept selection holds stale user objects — after a
+  // partial Suspend, the ones that WERE suspended would still read as active and
+  // be offered Suspend again. Every mutating bulk action therefore ends by
+  // clearing the selection, whatever the outcome.
+  it('clears the selection after a partial Suspend, so a follow-up cannot target stale people', async () => {
+    mutateAsync.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('boom'));
+    const onClear = renderActions([person('a'), person('b')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onClear).toHaveBeenCalledOnce());
+  });
+
+  it('clears the selection even when every person fails', async () => {
+    restoreUser.mockResolvedValue({ error: new Error('nope') });
+    const onClear = renderActions([person('gone', { deletedAt: new Date() })]);
+    await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(onClear).toHaveBeenCalledOnce());
+  });
+
   it('reinstates without a confirmation', async () => {
     renderActions([person('b', { status: 'suspended' })]);
     await userEvent.click(screen.getByRole('button', { name: 'Reinstate' }));

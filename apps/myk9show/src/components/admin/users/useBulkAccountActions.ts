@@ -22,8 +22,7 @@ import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
 import { invokeAdminInvite } from '@/components/users/UserDetails/useSendUserInvitation';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import { accountTargets, selectedEmails } from './bulkAccountTargets';
-import { nameOf } from './bulkRoleEditPlan';
+import { accountTargets, nameOf, selectedEmails } from './bulkAccountTargets';
 
 export type BulkAccountAction = 'suspend' | 'reinstate' | 'invite' | 'restore';
 
@@ -70,20 +69,19 @@ export function useBulkAccountActions({
     },
   };
 
+  // Whatever the outcome — full success, partial, or every person failed — a
+  // mutating action ends by refreshing the list and CLEARING the selection. A
+  // kept selection holds the pre-action user objects, so after a partial
+  // Suspend the people who were suspended would still read as active and be
+  // offered Suspend again (Codex P2, round 3). The dispatch's own toast keeps
+  // "Retry failed" for the ones that did not go through.
   const run = async (action: BulkAccountAction) => {
-    const items = targets[action];
-    const outcome = await dispatch.run(items, workers[action], {
-      onFullSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-        onClearSelection();
-      },
-    });
-    // null = a batch is already in flight; leave the confirmation open.
+    const outcome = await dispatch.run(targets[action], workers[action]);
+    // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;
     setConfirming(null);
-    if (outcome.succeeded.length > 0 && outcome.failed.length > 0) {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    onClearSelection();
   };
 
   const copyEmails = async () => {

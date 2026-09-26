@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import { nameOf } from './bulkRoleEditPlan';
+import { nameOf } from './bulkAccountTargets';
 
 interface BulkAccountConfirmDialogProps {
   action: 'suspend' | 'invite' | null;

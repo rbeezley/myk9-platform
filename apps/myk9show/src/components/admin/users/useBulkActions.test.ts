@@ -5,7 +5,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import type { ErrorWithRelatedData } from './BulkActionsBar.types';
-import type { BulkRolePlan } from './bulkRolePlanner';
 
 const deleteUserMutateAsync = vi.fn();
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
@@ -22,21 +21,6 @@ vi.mock('sonner', () => ({
   toast: { error: toastErrorMock, success: toastSuccessMock, info: toastInfoMock },
 }));
 
-const getAllRolesMock = vi.hoisted(() => vi.fn());
-const ensureUserHasRoleMock = vi.hoisted(() => vi.fn());
-const revokeRoleMock = vi.hoisted(() => vi.fn());
-const revokeUserRoleMock = vi.hoisted(() => vi.fn());
-vi.mock('@/services/rbac/RBACService', () => ({
-  rbacService: {
-    getAllRoles: (...args: unknown[]) => getAllRolesMock(...args),
-    ensureUserHasRole: (...args: unknown[]) => ensureUserHasRoleMock(...args),
-    revokeRole: (...args: unknown[]) => revokeRoleMock(...args),
-    revokeUserRole: (...args: unknown[]) => revokeUserRoleMock(...args),
-    clearAllCache: vi.fn(),
-    clearUserCache: vi.fn(),
-  },
-}));
-
 import { useBulkActions } from './useBulkActions';
 
 function renderBulkActions(options: Parameters<typeof useBulkActions>[0]) {
@@ -50,10 +34,6 @@ function renderBulkActions(options: Parameters<typeof useBulkActions>[0]) {
     wrapper,
     initialProps: options,
   });
-}
-
-function role(name: string, id = name): { id: string; name: string } {
-  return { id, name };
 }
 
 function selectedUser(id: string, firstName: string): SelectedUser {
@@ -84,12 +64,12 @@ function hasRelatedDataError(entryCount: number, dogCount: number): ErrorWithRel
   return error;
 }
 
-describe('useBulkActions — no simulated bulk status action', () => {
+describe('useBulkActions — delete only (account actions live in useBulkAccountActions)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('exposes real bulk actions (delete/cascade/permanent/role) — no broken status action', () => {
+  it('exposes the delete actions and no bulk role or status action (both deferred or elsewhere)', () => {
     const selectedUsers = [selectedUser('u1', 'Alice')];
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
@@ -100,7 +80,8 @@ describe('useBulkActions — no simulated bulk status action', () => {
     expect(typeof result.current.handleBulkDelete).toBe('function');
     expect(typeof result.current.handleCascadeDelete).toBe('function');
     expect(typeof result.current.handleBulkPermanentDelete).toBe('function');
-    expect(typeof result.current.handleBulkRoleEdit).toBe('function');
+    expect(result.current).not.toHaveProperty('handleBulkRoleEdit');
+    expect(result.current).not.toHaveProperty('handleBulkRoleChange');
   });
 });
 
@@ -214,231 +195,5 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
 
     expect(onBulkComplete).toHaveBeenCalledWith(['u1']);
     expect(onBulkComplete).not.toHaveBeenCalledWith(['u1', 'u2']);
-  });
-});
-
-describe('useBulkActions — handleBulkRoleEdit (executes a bulkRolePlanner plan)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    revokeUserRoleMock.mockResolvedValue(undefined);
-  });
-
-  function grant(userId: string, roleName: string, clubId: string | null = null): BulkRolePlan {
-    return {
-      people: [{ userId, remove: [], add: [{ role: roleName, clubId }] }],
-      leftUnchanged: [],
-    };
-  }
-
-  function grantAll(userIds: string[], roleName: string): BulkRolePlan {
-    return {
-      people: userIds.map(userId => ({
-        userId,
-        remove: [],
-        add: [{ role: roleName, clubId: null }],
-      })),
-      leftUnchanged: [],
-    };
-  }
-
-  it('rejects the whole batch when a granted role is not canonical — no dispatch at all', async () => {
-    getAllRolesMock.mockResolvedValue([role('site_admin'), role('exhibitor')]);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit(grant('u1', 'admin'));
-    });
-
-    expect(ensureUserHasRoleMock).not.toHaveBeenCalled();
-    expect(revokeUserRoleMock).not.toHaveBeenCalled();
-    expect(result.current.roleError).toMatch(/Unknown role\(s\): admin/);
-  });
-
-  it('carries the planned clubId on every scoped grant', async () => {
-    getAllRolesMock.mockResolvedValue([role('secretary')]);
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit({
-        people: [
-          {
-            userId: 'u1',
-            remove: [],
-            add: [
-              { role: 'secretary', clubId: 'club-1' },
-              { role: 'secretary', clubId: 'club-2' },
-            ],
-          },
-        ],
-        leftUnchanged: [],
-      });
-    });
-
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-2' });
-    expect(result.current.roleError).toBeNull();
-  });
-
-  it('revokes the planned assignment rows before granting, and nothing else', async () => {
-    getAllRolesMock.mockResolvedValue([role('steward')]);
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit({
-        people: [
-          {
-            userId: 'u1',
-            remove: [
-              {
-                id: 'ur-judge',
-                userId: 'u1',
-                role: 'judge',
-                clubId: null,
-                showId: null,
-                expiresAt: null,
-              },
-            ],
-            add: [{ role: 'steward', clubId: null }],
-          },
-        ],
-        leftUnchanged: [],
-      });
-    });
-
-    expect(revokeUserRoleMock.mock.calls).toEqual([['ur-judge']]);
-    expect(ensureUserHasRoleMock.mock.calls).toEqual([['u1', 'steward', undefined]]);
-    expect(revokeUserRoleMock.mock.invocationCallOrder[0]).toBeLessThan(
-      ensureUserHasRoleMock.mock.invocationCallOrder[0]!
-    );
-    // u2 is selected but not in the plan: untouched.
-    expect(ensureUserHasRoleMock).not.toHaveBeenCalledWith(
-      'u2',
-      expect.anything(),
-      expect.anything()
-    );
-  });
-
-  it('treats ensureUserHasRole returning false as a no-op skip, not a failure', async () => {
-    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
-    ensureUserHasRoleMock.mockResolvedValue(false); // "already has this role"
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit(grant('u1', 'exhibitor'));
-    });
-
-    expect(result.current.roleError).toBeNull();
-    expect(toastSuccessMock).toHaveBeenCalled();
-  });
-
-  it('reports a thrown error as an honest partial failure naming the count', async () => {
-    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
-    ensureUserHasRoleMock.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error('boom'));
-    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit(grantAll(['u1', 'u2'], 'exhibitor'));
-    });
-
-    expect(result.current.roleError).toMatch(/1 of 2 users updated — 1 failed/);
-  });
-
-  it('full success invalidates the users query family and clears the selection', async () => {
-    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    const onClearSelection = vi.fn();
-    const onBulkComplete = vi.fn();
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
-    const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
-      React.createElement(QueryClientProvider, { client }, children);
-    const { result } = renderHook(
-      () => useBulkActions({ selectedUsers, onBulkComplete, onClearSelection }),
-      { wrapper }
-    );
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit(grant('u1', 'exhibitor'));
-    });
-
-    expect(onClearSelection).toHaveBeenCalledOnce();
-    expect(onBulkComplete).toHaveBeenCalledOnce();
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['users'] });
-  });
-
-  it('retry skips a user no longer present in the current selection', async () => {
-    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
-    ensureUserHasRoleMock.mockRejectedValue(new Error('transient'));
-    const u1 = selectedUser('u1', 'Alice');
-    const u2 = selectedUser('u2', 'Bob');
-    const { result, rerender } = renderBulkActions({
-      selectedUsers: [u1, u2],
-      onBulkComplete: vi.fn(),
-    });
-
-    await act(async () => {
-      await result.current.handleBulkRoleEdit(grantAll(['u1', 'u2'], 'exhibitor'));
-    });
-
-    expect(toastErrorMock).toHaveBeenCalled();
-    const retryAction = toastErrorMock.mock.calls[0]?.[1]?.action;
-    expect(retryAction).toBeDefined();
-
-    // u2 drops out of the current admin list (e.g. deleted) before "Retry failed".
-    rerender({ selectedUsers: [u1], onBulkComplete: vi.fn() });
-
-    ensureUserHasRoleMock.mockClear();
-    ensureUserHasRoleMock.mockResolvedValue(true);
-
-    await act(async () => {
-      retryAction.onClick();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(ensureUserHasRoleMock).toHaveBeenCalledTimes(1);
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'exhibitor', undefined);
-    expect(toastInfoMock).toHaveBeenCalledWith(expect.stringMatching(/no longer eligible/));
-  });
-
-  it('latches duplicate concurrent dispatches — a second call while one is in flight is a no-op', async () => {
-    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
-    let resolveEnsure: (() => void) | undefined;
-    ensureUserHasRoleMock.mockImplementation(
-      () =>
-        new Promise<boolean>(resolve => {
-          resolveEnsure = () => resolve(true);
-        })
-    );
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    let firstDone = false;
-    let secondDone = false;
-    await act(async () => {
-      const p1 = result.current.handleBulkRoleEdit(grant('u1', 'exhibitor')).then(() => {
-        firstDone = true;
-      });
-      const p2 = result.current.handleBulkRoleEdit(grant('u1', 'exhibitor')).then(() => {
-        secondDone = true;
-      });
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      resolveEnsure?.();
-      await Promise.all([p1, p2]);
-    });
-
-    expect(firstDone).toBe(true);
-    expect(secondDone).toBe(true);
-    expect(ensureUserHasRoleMock).toHaveBeenCalledTimes(1);
   });
 });

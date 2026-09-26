@@ -387,10 +387,12 @@ BEGIN
 END;
 $$;
 
--- --- entry statuses: EXACTLY the pre-ledger cascade ---------------------------
+-- --- entry statuses: the pre-ledger cascade, plus MYK9-773 --------------------
 -- origin/main's updateEnrollmentPaymentStatus set every entry of the enrollment
 -- except 'refunded' and 'waived' ones to the coarse status (paid_* -> paid,
--- pending -> pending, refunds -> refunded). Each action is checked against it.
+-- pending -> pending, refunds -> refunded). Each action is checked against it,
+-- except that an entry the enrollment itself refunded follows a later payment
+-- or reset (MYK9-773; supabase/tests/myk9_773_inherited_refund_follows_payment_test.sql).
 CREATE TEMP TABLE myk9_677_parity (step text, ordinary text, waived text, refunded text);
 GRANT ALL ON myk9_677_parity TO authenticated;
 
@@ -425,11 +427,13 @@ DECLARE
 BEGIN
   SELECT string_agg(step || ':' || ordinary || '/' || waived || '/' || refunded, ', ' ORDER BY ctid)
     INTO v_got FROM myk9_677_parity;
-  -- The last line is the pre-ledger behaviour Codex round 7 flagged (a
-  -- refunded entry stays refunded after a reset); it is kept, not changed.
+  -- MYK9-773: the last line used to keep the ordinary entry refunded after a
+  -- reset (the pre-ledger behaviour Codex round 7 flagged). It was refunded BY
+  -- THE ENROLLMENT, so it now follows the reset to pending; the entry that was
+  -- refunded on its own stays refunded.
   IF v_got IS DISTINCT FROM
      'partial:pending/waived/refunded, paid in full:paid/waived/refunded, '
-     || 'refund:refunded/waived/refunded, payment due:refunded/waived/refunded' THEN
+     || 'refund:refunded/waived/refunded, payment due:pending/waived/refunded' THEN
     RAISE EXCEPTION 'FAIL entry statuses differ from the pre-ledger cascade: %', v_got;
   END IF;
   RAISE NOTICE 'PASS entry statuses match the pre-ledger cascade for every action';

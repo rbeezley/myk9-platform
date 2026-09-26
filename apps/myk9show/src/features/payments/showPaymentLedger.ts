@@ -57,6 +57,19 @@ export interface RecordedEnrollmentPayment {
   refund_amount: number | string | null;
   refund_notes: string | null;
   refunded_at: string | null;
+  /**
+   * MYK9-773 (migration 20260926024300): every entry of the enrollment as the
+   * cascade left it. The server decides which refunded entries follow a
+   * payment or reset (those the enrollment refunded, never an entry's own
+   * refund); absent from a server that predates it.
+   */
+  entries?: RecordedEntryPaymentStatus[];
+}
+
+/** One entry's `payment_status` in a `record_enrollment_payment` answer. */
+export interface RecordedEntryPaymentStatus {
+  id: string;
+  payment_status: string;
 }
 
 /** The RPC's named arguments for one action. */

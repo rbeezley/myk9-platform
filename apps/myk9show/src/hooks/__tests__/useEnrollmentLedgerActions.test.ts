@@ -63,6 +63,39 @@ describe('applyRecordedEnrollmentPayment', () => {
     expect(next.enrollmentPaidAmount).toBe(50);
     expect(next.paidAmount).toBe(50);
   });
+
+  // MYK9-773: after an enrollment refund, a later Paid in Full brings back the
+  // entries the ENROLLMENT refunded, and only those. Which ones is the server's
+  // call (it records each refund's origin); the client applies its answer.
+  it("applies each entry's status from the server's answer, not a local rule", () => {
+    const answer = {
+      ...PAID_IN_FULL,
+      entries: [
+        { id: 'inherited', payment_status: 'paid' },
+        { id: 'own-refund', payment_status: 'refunded' },
+        { id: 'waived', payment_status: 'waived' },
+      ],
+    };
+    const refunded = { paymentStatus: PaymentStatus.REFUNDED };
+
+    const inherited = applyRecordedEnrollmentPayment(
+      entry({ id: 'inherited', ...refunded }),
+      answer
+    );
+    const ownRefund = applyRecordedEnrollmentPayment(
+      entry({ id: 'own-refund', ...refunded, refundAmount: 50 }),
+      answer
+    );
+    const waived = applyRecordedEnrollmentPayment(
+      entry({ id: 'waived', paymentStatus: PaymentStatus.WAIVED, totalFee: 0 }),
+      answer
+    );
+
+    expect(inherited.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+    expect(inherited.paidAmount).toBe(50);
+    expect(ownRefund.paymentStatus).toBe(PaymentStatus.REFUNDED);
+    expect(waived.paymentStatus).toBe(PaymentStatus.WAIVED);
+  });
 });
 
 describe('useEnrollmentLedgerActions', () => {
@@ -110,6 +143,39 @@ describe('useEnrollmentLedgerActions', () => {
     expect(mocks.record).toHaveBeenCalledWith('enr-1', action);
     expect(entries[0]!.enrollmentPaymentStatus).toBe(PaymentStatus.PAID_BY_CASH);
     expect(entries[1]!.enrollmentPaymentStatus).toBe(PaymentStatus.PENDING);
+  });
+
+  it('Payment Due after an enrollment refund shows the inherited refund as pending (MYK9-773)', async () => {
+    mocks.record.mockResolvedValue({
+      ...PAID_IN_FULL,
+      payment_status: 'pending',
+      paid_amount: '0.00',
+      entries: [
+        { id: 'entry-1', payment_status: 'pending' },
+        { id: 'own-refund', payment_status: 'refunded' },
+      ],
+    });
+    const refunded = {
+      paymentStatus: PaymentStatus.REFUNDED,
+      enrollmentPaymentStatus: PaymentStatus.REFUNDED,
+    };
+    let entries = [entry(refunded), entry({ id: 'own-refund', ...refunded, refundAmount: 50 })];
+    const setEntries = vi.fn(update => {
+      entries = typeof update === 'function' ? update(entries) : update;
+    });
+    const { result } = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+
+    await act(async () => {
+      await result.current.record('enr-1', { kind: 'reversal' });
+    });
+
+    expect(entries.map(e => [e.id, e.paymentStatus, e.enrollmentPaymentStatus])).toEqual([
+      ['entry-1', PaymentStatus.PENDING, PaymentStatus.PENDING],
+      ['own-refund', PaymentStatus.REFUNDED, PaymentStatus.PENDING],
+    ]);
   });
 
   it('leaves the entries alone and says why when the server refuses', async () => {

@@ -490,4 +490,69 @@ describe('codex-review.sh', () => {
     expect(src).toMatch(/review --base "\$BASE_REF"/);
     expect(src).not.toMatch(/--commit/);
   });
+
+  describe('CODEX_REVIEW_MODEL override', () => {
+    function runWithModel(
+      stub: { bin: string; log: string },
+      model: string | undefined,
+      args: string[] = ['HEAD']
+    ): { code: number; out: string } {
+      try {
+        const out = execFileSync('bash', [SCRIPT, ...args], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CODEX_BIN: stub.bin,
+            CODEX_REVIEW_LOG: stub.log,
+            CODEX_REVIEW_MODEL: model,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        return { code: 0, out };
+      } catch (error) {
+        const e = error as { status: number; stdout: string; stderr: string };
+        return { code: e.status, out: `${e.stdout}${e.stderr}` };
+      }
+    }
+
+    it('passes -c model="gpt-6-luna" to the CLI when the override is set', () => {
+      const stub = stubCodex('codex\nNo actionable defects found.');
+      const r = runWithModel(stub, 'gpt-6-luna');
+      expect(r.code).toBe(0);
+      const args = readFileSync(stub.args, 'utf8').trimEnd().split('\n');
+      expect(args).toContain('-c');
+      expect(args).toContain('model="gpt-6-luna"');
+    });
+
+    it('passes no model= arg when the override is unset', () => {
+      const stub = stubCodex('codex\nNo actionable defects found.');
+      const r = runWithModel(stub, undefined);
+      expect(r.code).toBe(0);
+      const args = readFileSync(stub.args, 'utf8').trimEnd().split('\n');
+      expect(args.some(a => a.startsWith('model='))).toBe(false);
+    });
+
+    it('the override plus --post exits 2 and never invokes the stub or gh', () => {
+      const stub = stubCodex('codex\nNo actionable defects found.');
+      const gh = stubGh();
+      const r = runWithModel(stub, 'gpt-6-luna', ['HEAD', '--post']);
+      expect(r.code).toBe(2);
+      expect(existsSync(stub.args)).toBe(false);
+      expect(bodies(gh.calls)).toEqual([]);
+    });
+
+    it('rejects an invalid model slug and exits 2', () => {
+      const stub = stubCodex('codex\nNo actionable defects found.');
+      const r = runWithModel(stub, 'x"; rm');
+      expect(r.code).toBe(2);
+      expect(existsSync(stub.args)).toBe(false);
+    });
+
+    it('a clean verdict with the override prints no Review gate: line', () => {
+      const stub = stubCodex('codex\nNo actionable defects found.');
+      const r = runWithModel(stub, 'gpt-6-luna');
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain('Review gate:');
+    });
+  });
 });

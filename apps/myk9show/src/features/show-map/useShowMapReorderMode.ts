@@ -228,7 +228,14 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
       if (!current) return;
       if (isPersistingRef.current) return;
       const activeId = stripEntryPrefix(nodeId);
-      const entries = await replicatedEntriesTable.getEntriesByClass(current.classId);
+      let entries: Awaited<ReturnType<typeof replicatedEntriesTable.getEntriesByClass>>;
+      try {
+        entries = await replicatedEntriesTable.getEntriesByClass(current.classId);
+      } catch (error) {
+        // The key handler does not await this; say why nothing moved (MYK9-774).
+        toast.error(getUserFriendlyError(error));
+        return;
+      }
       const reorderable = getReorderableEntryIds(entries);
       const cursor = reorderable.indexOf(activeId);
       if (cursor === -1) return;

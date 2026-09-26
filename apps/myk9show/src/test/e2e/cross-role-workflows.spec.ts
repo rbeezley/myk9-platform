@@ -56,9 +56,7 @@ test.describe('Cross-role workflow smoke', () => {
     });
   });
 
-  test('judge can land on the assignment dashboard without myK9Show scoring controls', async ({
-    page,
-  }) => {
+  test("judge lands on the assignment dashboard with today's show-day class", async ({ page }) => {
     await signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, '/judge/dashboard');
 
     await expect(page).toHaveURL(/\/judge\/dashboard/);
@@ -69,6 +67,13 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(
       page.getByRole('heading', { name: 'Judging Assignments', exact: true })
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No Classes Today' })).toBeVisible();
+    // The seed's show-day fixture (section 19, MYK9-731) runs TODAY in
+    // America/Chicago and assigns this judge its Container Novice A, so Today
+    // is never empty on the seeded database this suite runs against. The old
+    // "No Classes Today" assertion predated that fixture.
+    const today = page.getByRole('tabpanel', { name: 'Today' });
+    await expect(today.getByRole('heading', { name: 'Container Novice A' })).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

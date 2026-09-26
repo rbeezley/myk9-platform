@@ -6,7 +6,9 @@ const show = (id: string, startDate: string): Show =>
   ({ id, startDate, status: 'Upcoming' }) as unknown as Show;
 
 describe('showFilters date bucketing', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('classifies a first-of-month start date into the correct local month (not the prior month via UTC)', () => {
     vi.useFakeTimers();

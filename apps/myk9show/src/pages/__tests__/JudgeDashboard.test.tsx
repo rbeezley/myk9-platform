@@ -208,6 +208,12 @@ describe('JudgeDashboard', () => {
 
     const { user } = render(<JudgeDashboard />);
 
+    // Today is empty but assignments exist: the "No Classes Today" state, with
+    // its pointer to Upcoming (the e2e check of this state moved to the seeded
+    // show-day class, so it lives here now).
+    expect(screen.getByRole('heading', { name: 'No Classes Today' })).toBeInTheDocument();
+    expect(screen.getByText(/Check the Upcoming tab for your next assignment/)).toBeInTheDocument();
+
     await user.click(screen.getByRole('tab', { name: /upcoming/i }));
 
     expect(screen.getByText('Future Container Class')).toBeInTheDocument();

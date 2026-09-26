@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@/test/utils/testUtils';
-import { replicatedShowsTable } from '@/services/replication';
+import { replicatedShowsTable, replicatedTrialsTable } from '@/services/replication';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 /**
@@ -25,14 +25,26 @@ function renderHook<T>(callback: () => T) {
 
 const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
   tables: {
-    trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    trials: {
+      meta: null as unknown,
+      rows: [] as Array<{ id: string }>,
+      pendingDeleteIds: new Set<string>(),
+    },
     classes: {
       metaByTrial: new Map<string, unknown>(),
       rowsByTrial: new Map<string, Array<{ id: string }>>(),
     },
-    entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    entries: {
+      meta: null as unknown,
+      rows: [] as Array<{ id: string }>,
+      pendingDeleteIds: new Set<string>(),
+    },
     shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
+    judgeAssignments: {
+      rows: [] as Array<{ id: string }>,
+      meta: null as unknown,
+      readFails: false,
+    },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async (..._args: unknown[]) => {}),
@@ -46,6 +58,10 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
   replicationState: { lastSyncAt: null as number | null },
 }));
 
+const { settledListeners } = vi.hoisted(() => ({
+  settledListeners: new Map<string, Set<() => void>>(),
+}));
+
 vi.mock('@/hooks/useOptionalReplicationSync', () => ({
   useOptionalReplicationSync: () => ({ status: { lastSyncAt: replicationState.lastSyncAt } }),
 }));
@@ -55,6 +71,7 @@ vi.mock('@/services/replication', () => ({
     getSyncMetadata: vi.fn(async () => tables.trials.meta),
     getTrialsByShow: vi.fn(async () => tables.trials.rows),
     updateSyncMetadata: vi.fn(async () => {}),
+    pendingDeletes: { coveredIds: vi.fn(async () => tables.trials.pendingDeleteIds) },
   },
   replicatedClassesTable: {
     getSyncMetadata: vi.fn(
@@ -69,6 +86,7 @@ vi.mock('@/services/replication', () => ({
     getSyncMetadata: vi.fn(async () => tables.entries.meta),
     getEntriesByShow: vi.fn(async () => tables.entries.rows),
     updateSyncMetadata: vi.fn(async () => {}),
+    pendingDeletes: { coveredIds: vi.fn(async () => tables.entries.pendingDeleteIds) },
   },
   replicatedShowsTable: {
     getShowById: vi.fn(async () => tables.shows.row),
@@ -79,11 +97,18 @@ vi.mock('@/services/replication', () => ({
     sync: vi.fn(async () => ({ success: true })),
     getSyncMetadata: vi.fn(async () => tables.judgeAssignments.meta),
     getAll: vi.fn(async () => tables.judgeAssignments.rows),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 
 vi.mock('@/services/database/judges/assignmentReads', () => ({
   getActiveJudgeAssignmentsForShow: vi.fn(async () => tables.judgeAssignments.rows),
+  readJudgeAssignmentsOrThrow: vi.fn(async () => {
+    if (tables.judgeAssignments.readFails) throw new Error('IndexedDB read timed out');
+    return tables.judgeAssignments.rows;
+  }),
 }));
 
 vi.mock('@/context/rbacPermissionsCache', () => ({
@@ -92,7 +117,18 @@ vi.mock('@/context/rbacPermissionsCache', () => ({
 
 vi.mock('@/features/at-show/atShowDataAdapter', () => ({
   syncAtShowData: syncSpy,
+  subscribeAtShowSyncSettled: (showId: string, listener: () => void) => {
+    const listeners = settledListeners.get(showId) ?? new Set<() => void>();
+    listeners.add(listener);
+    settledListeners.set(showId, listeners);
+    return () => listeners.delete(listener);
+  },
 }));
+
+/** What `syncAtShowData` does once its rows are written (MYK9-766). */
+function settleAtShowSync(showId: string) {
+  for (const listener of settledListeners.get(showId) ?? []) listener();
+}
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -133,18 +169,22 @@ describe('useOfflineReadiness', () => {
     rbacCache.entry = null;
     tables.trials.meta = null;
     tables.trials.rows = [];
+    tables.trials.pendingDeleteIds = new Set();
     tables.classes.metaByTrial.clear();
     tables.classes.rowsByTrial.clear();
     tables.entries.meta = null;
     tables.entries.rows = [];
+    tables.entries.pendingDeleteIds = new Set();
     tables.shows.row = null;
     tables.judgeAssignments.rows = [];
     tables.judgeAssignments.meta = null;
+    tables.judgeAssignments.readFails = false;
     authState.userId = 'user-1';
     authState.isJudge = false;
     authState.isAnonymous = false;
     authState.databaseUserId = 'person-1';
     replicationState.lastSyncAt = null;
+    settledListeners.clear();
   });
 
   it('reports ready with the oldest timestamp when everything is on disk', async () => {
@@ -366,6 +406,41 @@ describe('useOfflineReadiness', () => {
     });
   });
 
+  // MYK9-769: getAll() turned a failed device read into [], and with a table
+  // hydrated at 0 expected rows that read as "ready". A failed read is not
+  // hydrated: the badge says "Not offline ready" and keeps its Save now.
+  it('is not ready, and names the judge assignments, when their read fails', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    tables.judgeAssignments.readFails = true;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
+  it('is not ready when the filtered warm read fails after a good table read', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    const { getActiveJudgeAssignmentsForShow } =
+      await import('@/services/database/judges/assignmentReads');
+    vi.mocked(getActiveJudgeAssignmentsForShow).mockRejectedValueOnce(
+      new Error('IndexedDB read timed out')
+    );
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
   it('treats an evicted judge assignment scope as cold', async () => {
     primeAllSignals();
     authState.isJudge = true;
@@ -411,6 +486,47 @@ describe('useOfflineReadiness', () => {
       ...rows(2),
       { id: 'local-entry', _localOnly: true } as unknown as { id: string },
     ];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+  });
+
+  // MYK9-762: the server counts a deleted row until its queued DELETE uploads.
+  it('does not read an entry deleted here, DELETE still queued, as missing', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(2); // the server still counts 3
+    tables.entries.pendingDeleteIds = new Set(['row-deleted']);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it('stays ready offline after a trial is deleted here, its DELETE still queued', async () => {
+    primeAllSignals();
+    tables.trials.rows = [{ id: 'trial-1' }]; // the server still counts 2
+    tables.trials.pendingDeleteIds = new Set(['trial-2']);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+    expect(vi.mocked(replicatedTrialsTable.pendingDeletes.coveredIds)).toHaveBeenCalledWith(
+      'show-1'
+    );
+  });
+
+  it('does not let a pending delete hide a row that is genuinely missing', async () => {
+    primeAllSignals();
+    // The server counts 3: one deleted here (DELETE queued), one evicted.
+    tables.entries.rows = rows(1);
+    tables.entries.pendingDeleteIds = new Set(['row-deleted']);
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 
@@ -548,6 +664,39 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  // MYK9-766: the at-show page hydrates through syncAtShowData, which never
+  // advances the provider's lastSyncAt. A badge that checked before that sync
+  // wrote its rows stayed "Not offline ready" for a device that was ready.
+  it("rechecks when the at-show page's own sync settles", async () => {
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    primeAllSignals();
+    act(() => settleAtShowSync('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it("ignores another show's sync settling", async () => {
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    const { replicatedEntriesTable } = await import('@/services/replication');
+    const reads = vi.mocked(replicatedEntriesTable.getEntriesByShow).mock.calls.length;
+
+    act(() => settleAtShowSync('show-2'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(replicatedEntriesTable.getEntriesByShow).mock.calls.length).toBe(reads);
   });
 
   it('returns no readiness for an anonymous passcode session', async () => {

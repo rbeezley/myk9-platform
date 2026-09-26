@@ -26,7 +26,6 @@ vi.mock('@/services/database/entries', () => ({
   deleteEntry: vi.fn(),
   updateEntryStatusWithAudit: vi.fn(),
   createMultipleEntries: vi.fn(),
-  getEntryStatistics: vi.fn(),
   searchEntries: vi.fn(),
 }));
 

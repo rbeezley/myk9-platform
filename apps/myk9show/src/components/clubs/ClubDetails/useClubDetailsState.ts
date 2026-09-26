@@ -4,7 +4,6 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
 import { useDeleteClubMutation } from '@/hooks/queries/useClubsDatabase';
-import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
@@ -13,10 +12,10 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
-import { showDateRangeStatus } from '@/utils/date-format';
 import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
-import type { ClubTab, ClubShow, StatCard } from './types';
+import { clubShowsStat, useClubShows } from './useClubShows';
+import type { ClubTab, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -49,14 +48,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // replication DELETE that never reached the DB, so clubs "deleted" from the UI
   // resurrected on sync and never showed up in the restore UI.
   const deleteClubMutation = useDeleteClubMutation();
-  const shows = useShowStore(s => s.shows);
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
@@ -115,32 +106,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
   }, [activeTab, canEditBranding, setActiveTab]);
 
-  // Get shows for this club from the show store (club store doesn't populate shows)
-  const clubShows = useMemo((): { upcoming: ClubShow[]; past: ClubShow[] } => {
-    if (!selectedClub) return { upcoming: [], past: [] };
-
-    const clubShowsList = shows.filter(s => s.clubId === selectedClub.id);
-    const upcoming: ClubShow[] = [];
-    const past: ClubShow[] = [];
-
-    for (const show of clubShowsList) {
-      const clubShow: ClubShow = {
-        id: show.id,
-        name: show.name,
-        date: show.startDate,
-        location: show.location,
-        description: show.events?.join(', ') || '',
-        accentColor: show.accentColor || null,
-      };
-      if (showDateRangeStatus(show.startDate, show.endDate, now) === 'past') {
-        past.push(clubShow);
-      } else {
-        upcoming.push(clubShow);
-      }
-    }
-
-    return { upcoming, past };
-  }, [selectedClub, shows, now]);
+  // MYK9-768: replica for signed-in viewers, the server for guests.
+  const clubShows = useClubShows(selectedClub);
 
   // Keep the profile roster on the same club_members projection as the club
   // administration page. The selected club replica may contain stale legacy
@@ -157,20 +124,10 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const stats: StatCard[] = useMemo(() => {
     if (!selectedClub) return [];
 
-    const upcomingCount = clubShows.upcoming.length;
-    const pastCount = clubShows.past.length;
-    const totalShows = upcomingCount + pastCount;
     const memberCount = activeMembers.length;
 
     return [
-      {
-        title: 'Total Shows',
-        value: totalShows.toString(),
-        detail1: totalShows > 0 ? `Upcoming: ${upcomingCount}` : 'No shows scheduled',
-        detail2: totalShows > 0 ? `Completed: ${pastCount}` : 'Add your first show',
-        type: 'shows' as const,
-        tab: 'upcoming' as const,
-      },
+      clubShowsStat(clubShows),
       {
         title: 'Active Members',
         value: memberCount.toString(),
@@ -437,9 +394,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Tab
     activeTab: visibleActiveTab,
     setActiveTab,
-    // Shows (from show store, not club model)
+    // Shows (useClubShows: replica when signed in, server for guests)
     upcomingShows: clubShows.upcoming,
     pastShows: clubShows.past,
+    showsStatus: clubShows.status,
+    retryShows: clubShows.retry,
     // Stats
     stats,
     // Members — sourced from club_members, with inactive records retained for

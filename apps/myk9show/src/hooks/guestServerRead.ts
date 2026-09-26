@@ -1,6 +1,38 @@
 import { useSyncExternalStore } from 'react';
 import { onlineManager, type UseQueryResult } from '@tanstack/react-query';
 
+/** The raw session user's fields the public-guest rule reads. */
+export type PublicViewerSessionUser = { is_anonymous?: boolean } | null | undefined;
+
+/**
+ * INTENT: the ONE rule for "is this viewer a guest on a public page" (Find
+ * Shows, show details, the club directory and club pages, public class
+ * results). A guest is signed out, OR a ringside passcode session (an
+ * anonymous auth user scoped to one show). Owner decision: a passcode session
+ * on a public page reads the server like a signed-out guest, never the device
+ * replica, because on a shared device the replica still holds what an earlier
+ * signed-in session could see (a secretary's draft or deleted shows).
+ *
+ * Pass the RAW session user (`useAuthContext().user`), never `userWithRoles`:
+ * a signed-in account whose roles have not resolved is NOT a guest, and keeps
+ * its replica path offline. While auth is resolving nobody is a guest yet.
+ *
+ * Public pages only: `/at-show` ringside pages keep the replica/offline path
+ * for a passcode session and must not use this.
+ */
+export function isPublicGuest(user: PublicViewerSessionUser, authLoading: boolean): boolean {
+  return !authLoading && (!user || user.is_anonymous === true);
+}
+
+/**
+ * A real signed-in account (not a passcode session): the only viewer whose
+ * public-page reads may come from the device replica/stores. The complement
+ * of isPublicGuest once auth has resolved.
+ */
+export function isAccountSession(user: PublicViewerSessionUser): boolean {
+  return Boolean(user && user.is_anonymous !== true);
+}
+
 /**
  * MYK9-747: query options for a guest club read. A cached result is never an
  * authoritative answer (a club may have been revoked since), so every mount

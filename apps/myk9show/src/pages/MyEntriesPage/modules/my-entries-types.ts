@@ -163,6 +163,8 @@ export interface MyEntry {
   showName: string;
   /** True when the show cascade tombstoned this entry; displayed as cancelled. */
   isShowCancelled?: boolean | undefined;
+  /** The secretary closed the show out (`shows.status = 'completed'`, MYK9-778). */
+  isShowClosedOut?: boolean | undefined;
   showDate: Date;
   /** Final calendar day the show runs; absent for legacy/single-day rows. */
   showEndDate?: Date | undefined;

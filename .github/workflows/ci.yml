@@ -36,9 +36,8 @@ jobs:
   # for docs/tooling-only PRs. This job keeps required CI checks present while
   # letting E2E/a11y smoke run only when relevant paths changed. Add the
   # `run-smoke` PR label to force browser smoke, or `skip-smoke` for an explicit
-  # tooling/docs override. `run-smoke` ALSO overrides the separate Dependabot
-  # actor skip on smoke-build/a11y/e2e-myk9show below (MYK9-520) -- see the
-  # rationale comment on `smoke-build` and .github/dependabot.yml.
+  # tooling/docs override. Dependabot PRs get no special treatment (MYK9-520):
+  # see the comment on `smoke-build` and .github/dependabot.yml.
   smoke-scope:
     name: Smoke scope
     runs-on: ubuntu-latest
@@ -91,6 +90,8 @@ jobs:
               apps/myk9show/scripts/*|\
               apps/myk9show/index.html|\
               apps/myk9show/package.json|\
+              package.json|\
+              pnpm-lock.yaml|\
               apps/myk9show/playwright.config.*|\
               apps/myk9show/playwright.ci.config.ts|\
               apps/myk9show/vite.config.*|\
@@ -648,25 +649,25 @@ jobs:
   # build above intentionally runs without shared-project configuration.
   # Build this once and share it between the a11y and E2E smoke jobs.
   #
-  # `github.actor != 'dependabot[bot]' || run-smoke` (MYK9-520): a
-  # Dependabot-triggered `pull_request` run gets only the Dependabot-scope
-  # secrets, never the repository's Actions secrets. ALL THREE of smoke-build,
-  # a11y and e2e-myk9show need secrets: THIS job reads VITE_SUPABASE_URL /
-  # VITE_SUPABASE_ANON_KEY, the other two the E2E_* logins. Those are
-  # registered in the Dependabot scope, and .github/dependabot.yml applies the
-  # `run-smoke` label to every PR it opens, so a Dependabot bump runs all three
-  # jobs. An unlabelled Dependabot PR still skips (the actor guard stays so a
-  # PR without the label never builds against secrets it may not have). Each
-  # job's actor-gated "Verify Dependabot-run secrets are available" step fails
-  # loudly if a secret is missing from that scope, instead of building against
-  # an empty value and going green. Never `pull_request_target` here: it would
-  # run the PR's code with the repository's secrets and a write token.
+  # Dependabot PRs run all three browser jobs like any other PR (MYK9-520).
+  # A Dependabot-triggered `pull_request` run gets only the Dependabot-scope
+  # secrets, never the repository's Actions secrets, and ALL THREE of
+  # smoke-build, a11y and e2e-myk9show need secrets: THIS job reads
+  # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, the other two the E2E_* logins.
+  # Those are registered in the Dependabot scope (verified 2026-09-25), so the
+  # old `github.actor != 'dependabot[bot]'` skip was removed: it hid dependency
+  # bumps that change runtime code (a React renderer bump reached main with no
+  # rendered-app test). Each job's actor-gated "Verify Dependabot-run secrets
+  # are available" step fails loudly if a secret is ever missing from that
+  # scope, instead of building against an empty value and going green. Never
+  # `pull_request_target` here: it would run the PR's code with the
+  # repository's secrets and a write token.
   smoke-build:
     name: Smoke build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build, smoke-scope]
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7
@@ -731,12 +732,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
-    # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR by default — skip it there
-    # rather than permanently blocking those PRs on a required check that
-    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
-    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
+    # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
+    # see the comment on `smoke-build` above.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7
@@ -838,12 +836,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
-    # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR by default — skip it there
-    # rather than permanently blocking those PRs on a required check that
-    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
-    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
+    # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
+    # see the comment on `smoke-build` above.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7

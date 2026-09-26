@@ -10,6 +10,7 @@ import {
   sortedCopy,
 } from '../_shared/read-shape';
 import type { ReadResult } from '../_shared/read-shape';
+import { hasAuthenticatedSession } from '../_shared/session';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -22,6 +23,7 @@ import {
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -29,13 +31,15 @@ import { buildMapFromArray } from '../_shared/maps';
 
 async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
   return loadLookupMap(
-    () => replicatedTrialsTable.getAll(),
+    // A join: trial details on classes (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedTrialsTable.getAllOrThrow(), 'trial details'),
     t => t.id
   );
 }
 
 async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
-  const entries = await replicatedEntriesTable.getAll();
+  // A join: entry counts on classes (see joinRowsOrEmpty).
+  const entries = await joinRowsOrEmpty(replicatedEntriesTable.getAllOrThrow(), 'entry counts');
   const map = new Map<string, number>();
   for (const e of entries) {
     if (e.classId) {
@@ -43,13 +47,6 @@ async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
     }
   }
   return map;
-}
-
-async function hasAuthenticatedSession(): Promise<boolean> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return Boolean(session?.user && !session.user.is_anonymous);
 }
 
 /**
@@ -372,7 +369,7 @@ export const getAllClasses = async () => {
       if (!(await hasAuthenticatedSession())) return await postgrestGetAllClasses();
 
       const [classes, trialsMap, entryCountsMap] = await Promise.all([
-        replicatedClassesTable.getAll(),
+        replicatedClassesTable.getAllOrThrow(),
         loadTrialsMap(),
         loadEntryCountsByClassMap(),
       ]);
@@ -428,7 +425,7 @@ export const getClassById = async (id: string) => {
       const [trial, classEntries, allDogs] = await Promise.all([
         cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
         replicatedEntriesTable.getEntriesByClass(id),
-        replicatedDogsTable.getAll(),
+        joinRowsOrEmpty(replicatedDogsTable.getAllOrThrow(), 'dog names'),
       ]);
 
       const dogsMap = buildMapFromArray(allDogs, d => d.id);
@@ -629,7 +626,7 @@ export const deleteClass = async (id: string, _deletedBy?: string) => {
 export const searchClasses = async (searchTerm: string, limit = 50) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const allClasses = await replicatedClassesTable.getAll();
+      const allClasses = await replicatedClassesTable.getAllOrThrow();
       const term = searchTerm.toLowerCase();
       const filtered = allClasses.filter(
         cls =>
@@ -657,7 +654,7 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
 export const getClassStatistics = async () => {
   return readWithReplicationFallback({
     replication: async () => {
-      const allClasses = await replicatedClassesTable.getAll();
+      const allClasses = await replicatedClassesTable.getAllOrThrow();
       return { data: { total: allClasses.length }, error: null };
     },
     postgrest: postgrestGetClassStatistics,

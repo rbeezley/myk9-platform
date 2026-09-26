@@ -1,12 +1,20 @@
 import { Text, View } from '@react-pdf/renderer';
 import { BODY, INK, MUTE, PAPER_WARM, SectionHeader } from './pdfPrimitives';
 
-export function AgreementSection({ agreementText, flag }: { agreementText: string; flag: string }) {
+export function AgreementSection({
+  agreementText,
+  flag,
+  flagText,
+}: {
+  agreementText: string;
+  flag: string;
+  flagText: string;
+}) {
   const firstParagraph = agreementText.split('\n\n')[0] ?? agreementText;
 
   return (
     <View>
-      <SectionHeader number="05" title="Agreement & signature" flag={flag} />
+      <SectionHeader number="05" title="Agreement & signature" flagText={flagText} />
 
       <View
         style={{

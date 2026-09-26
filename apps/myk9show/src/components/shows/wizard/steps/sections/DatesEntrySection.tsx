@@ -46,9 +46,10 @@ export const DatesEntrySection: React.FC<DatesEntrySectionProps> = ({
       </div>
 
       <div className="space-y-2 md:col-span-2">
-        <Label htmlFor="show-entry-period">
-          Entry Period <span className="text-destructive">*</span>
-        </Label>
+        {/* MYK9-716: a draft may be saved without an entry window; publishing
+            requires one, so the field says so instead of carrying an asterisk. */}
+        <Label htmlFor="show-entry-period">Entry Period</Label>
+        <p className="text-sm text-muted-foreground">Needed before the show can be published.</p>
         <DateRangePicker
           id="show-entry-period"
           startDate={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}

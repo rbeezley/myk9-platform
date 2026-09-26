@@ -38,7 +38,9 @@ function mockIdentity(
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('useEntriesPersonId', () => {
   it('uses the resolved person id', () => {

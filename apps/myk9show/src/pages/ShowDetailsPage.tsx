@@ -11,6 +11,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
@@ -55,6 +56,10 @@ import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
 import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
+const NO_STORE_TRIALS: never[] = [];
+const NO_STORE_TRIAL_CLASSES: Record<string, never[]> = {};
+const SHOW_OFFLINE_MESSAGE = "You're offline. Connect to the internet to see this show.";
+
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,9 +69,12 @@ const ShowDetailsPage: React.FC = () => {
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
-  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
-  const trials = useTrialStore(s => s.trials);
-  const trialClasses = useTrialStore(s => s.trialClasses);
+  const canReadEntryRows = isAccountSession(user);
+  // MYK9-783: a guest's (passcode included) trials and classes come from
+  // useShowLandingData, never the device store (what an earlier session saw).
+  const isGuest = isPublicGuest(user, authLoading);
+  const trials = useTrialStore(s => (isGuest ? NO_STORE_TRIALS : s.trials));
+  const trialClasses = useTrialStore(s => (isGuest ? NO_STORE_TRIAL_CLASSES : s.trialClasses));
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
@@ -83,6 +91,7 @@ const ShowDetailsPage: React.FC = () => {
     show: currentShow,
     isLoading: fastLoading,
     isError: fastError,
+    isOffline: fastOffline,
     refetch: refetchShow,
     isFromCache,
     refreshFailed,
@@ -95,16 +104,16 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  const { data: shows = [] } = useShowsQuery();
-
-  // Fallback: Find current show from database
+  // Replica-backed show list fallback: never for a guest or passcode (MYK9-779).
+  const readsReplica = isAccountSession(user);
+  const { data: shows = [] } = useShowsQuery({ enabled: readsReplica });
   const actualCurrentShow = useMemo(() => {
     if (currentShow) return currentShow;
-    if (id && shows.length > 0) {
+    if (readsReplica && id && shows.length > 0) {
       return shows.find(show => show.id === id) || null;
     }
     return null;
-  }, [currentShow, id, shows]);
+  }, [currentShow, readsReplica, id, shows]);
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = useShowManageGate(actualCurrentShow?.clubId);
@@ -461,12 +470,14 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  // Error state — fetch failed
-  if (fastError) {
+  // Error state — fetch failed, or a guest's online-only read is offline
+  if (fastError || fastOffline) {
     return (
       <PageShell>
         <ErrorState
-          message="We couldn't load this show. Please try again."
+          message={
+            fastOffline ? SHOW_OFFLINE_MESSAGE : "We couldn't load this show. Please try again."
+          }
           onRetry={refetchShow}
           headingLevel={1}
         />

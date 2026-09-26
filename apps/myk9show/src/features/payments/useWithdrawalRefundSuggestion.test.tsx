@@ -25,7 +25,9 @@ const snapshot = {
 };
 
 describe('useWithdrawalRefundSuggestion', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('drives the cutoff off withdrawn_at, NOT now: withdrawn before cutoff → full refund', async () => {
     // withdrawn_at is May 15 (before the June 1 cutoff). If the hook regressed to

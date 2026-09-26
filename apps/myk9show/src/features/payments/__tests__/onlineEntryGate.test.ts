@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   canEnableOnlineEntries,
   isPublishGateDbError,
@@ -8,6 +8,10 @@ import {
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  entryWindowPublishError,
+  ENTRY_WINDOW_REQUIRED_MESSAGE,
+  ENTRY_WINDOW_ORDER_MESSAGE,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '../onlineEntryGate';
 import { createDatabaseError } from '@/services/database/databaseError';
 
@@ -102,5 +106,90 @@ describe('publishGateDbErrorMessage', () => {
 
     expect(isPublishGateDbError(dbError)).toBe(true);
     expect(publishGateDbErrorMessage(dbError)).toBe(PUBLISH_BLOCKED_MESSAGE);
+  });
+});
+
+// MYK9-716: a draft may have no entry window, but publishing requires one.
+// Mirrors enforce_show_publish_gate()'s MK005 refusal
+// (supabase/migrations/20260925023700).
+describe('entryWindowPublishError', () => {
+  const OPEN = '2026-10-01T12:00:00.000Z';
+  const CLOSE = '2026-10-20T04:59:00.000Z';
+
+  it('passes a window that opens before it closes', () => {
+    expect(entryWindowPublishError(OPEN, CLOSE)).toBeNull();
+  });
+
+  it('requires both dates', () => {
+    expect(entryWindowPublishError(null, null)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError(undefined, CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError(OPEN, '')).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+    expect(entryWindowPublishError('  ', CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+  });
+
+  it('treats an unparseable date as missing, not as set', () => {
+    expect(entryWindowPublishError('not a date', CLOSE)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
+  });
+
+  it('refuses a window that closes before it opens', () => {
+    expect(entryWindowPublishError(CLOSE, OPEN)).toBe(ENTRY_WINDOW_ORDER_MESSAGE);
+  });
+
+  // Entry dates are persisted as calendar days (the online create path stores
+  // toLocalDateOnly, i.e. midnight UTC) and the close day is inclusive, so a
+  // same-day window is a one-day window. The wizard's picker stores 8:00 AM
+  // and 11:59 PM; once persisted both read as the same midnight. Neither
+  // shape may be refused, or Review would pass what the trigger rejects.
+  it('accepts a same-day window, both as the wizard holds it and as it is stored', () => {
+    expect(
+      entryWindowPublishError('2026-10-01T13:00:00.000Z', '2026-10-02T04:59:00.000Z')
+    ).toBeNull();
+    expect(
+      entryWindowPublishError('2026-10-01T00:00:00+00:00', '2026-10-01T00:00:00+00:00')
+    ).toBeNull();
+  });
+
+  // Codex round 3: the rule compares the calendar dates exactly as the save
+  // stores them (toLocalDateOnly), never raw times. Picking one day with the
+  // close time earlier than the open time stores the same date twice, which
+  // the trigger accepts, so the client must not warn.
+  it('accepts a same-day window whose close time is earlier than its open time', () => {
+    const open = new Date(2026, 9, 1, 20, 0).toISOString();
+    const close = new Date(2026, 9, 1, 8, 0).toISOString();
+    expect(entryWindowPublishError(open, close)).toBeNull();
+  });
+
+  // Every show write now stores the calendar day (ReplicatedShowsTable runs
+  // toLocalDateOnly like the online create), so the pill sees either the
+  // written date-only value or the server's midnight-UTC read-back. Both must
+  // decide the same way in every timezone, exactly as the trigger does.
+  describe.each(['America/Los_Angeles', 'Pacific/Auckland'])('with normalized values in %s', tz => {
+    const originalTimezone = process.env.TZ;
+    afterEach(() => {
+      if (originalTimezone) process.env.TZ = originalTimezone;
+      else delete process.env.TZ;
+    });
+
+    it('treats the written day and its midnight-UTC read-back as the same day', () => {
+      process.env.TZ = tz;
+      expect(entryWindowPublishError('2026-10-01', '2026-10-01T00:00:00+00:00')).toBeNull();
+      expect(entryWindowPublishError('2026-10-01T00:00:00+00:00', '2026-10-01')).toBeNull();
+      expect(entryWindowPublishError('2026-10-02', '2026-10-01T00:00:00+00:00')).toBe(
+        ENTRY_WINDOW_ORDER_MESSAGE
+      );
+      expect(entryWindowPublishError('2026-10-02T00:00:00+00:00', '2026-10-01')).toBe(
+        ENTRY_WINDOW_ORDER_MESSAGE
+      );
+    });
+  });
+
+  it('recognises the trigger refusal (MK005) as a publish-gate error with its own copy', () => {
+    const dbError = createDatabaseError({
+      code: PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
+      message: ENTRY_WINDOW_REQUIRED_MESSAGE,
+    });
+    expect(PUBLISH_GATE_ERRCODE_ENTRY_WINDOW).toBe('MK005');
+    expect(isPublishGateDbError(dbError)).toBe(true);
+    expect(publishGateDbErrorMessage(dbError)).toBe(ENTRY_WINDOW_REQUIRED_MESSAGE);
   });
 });

@@ -33,6 +33,36 @@ interface InviteResponse {
   deliveredTo?: string;
 }
 
+/**
+ * Calls `admin-invite-user` for one existing person. Shared by this hook and the
+ * roster's bulk "Send invitation", so both reach the backend the same way.
+ */
+export async function invokeAdminInvite({
+  personId,
+  email,
+  firstName,
+  roleNames,
+}: SendInvitationArgs): Promise<{ data: InviteResponse | null }> {
+  if (!email) {
+    throw new Error('NO_EMAIL');
+  }
+  const { data, error } = await supabase.functions.invoke('admin-invite-user', {
+    body: {
+      email,
+      firstName: firstName ?? '',
+      roleLabels: roleNames ?? [],
+      // Nothing syncs people.email to auth.users.email, so a person whose
+      // address was edited after signup can no longer be found by it. The
+      // function resolves the identity from this instead. MYK9-134.
+      personId,
+    },
+  });
+  if (error) throw error;
+  // The request email is deliberately NOT returned: the toast must have no
+  // way to name it, since it can differ from where the link actually went.
+  return { data: data as InviteResponse | null };
+}
+
 export function useSendUserInvitation() {
   const queryClient = useQueryClient();
   // isPending lags a render behind the click; the ref does not. Without this a
@@ -40,26 +70,7 @@ export function useSendUserInvitation() {
   const inFlight = useRef(false);
 
   const mutation = useMutation({
-    mutationFn: async ({ personId, email, firstName, roleNames }: SendInvitationArgs) => {
-      if (!email) {
-        throw new Error('NO_EMAIL');
-      }
-      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
-        body: {
-          email,
-          firstName: firstName ?? '',
-          roleLabels: roleNames ?? [],
-          // Nothing syncs people.email to auth.users.email, so a person whose
-          // address was edited after signup can no longer be found by it. The
-          // function resolves the identity from this instead. MYK9-134.
-          personId,
-        },
-      });
-      if (error) throw error;
-      // The request email is deliberately NOT returned: the toast must have no
-      // way to name it, since it can differ from where the link actually went.
-      return { data: data as InviteResponse | null };
-    },
+    mutationFn: invokeAdminInvite,
     onSuccess: ({ data }) => {
       // Name the address the backend ACTUALLY delivered to. It differs from the
       // contact email whenever that address drifted from the auth identity, and

@@ -7,6 +7,9 @@ vi.mock('@/services/replication', () => ({
     updateEntry: vi.fn().mockResolvedValue(undefined),
     deleteEntry: vi.fn().mockResolvedValue(undefined),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   },
 }));

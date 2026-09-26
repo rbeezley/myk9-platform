@@ -110,6 +110,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_money_locks: '',
   show_officials: 'SELECT,INSERT,UPDATE,DELETE',
   show_passcodes: '',
+  show_payments: 'SELECT',
   show_payouts: 'SELECT',
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',
   show_visibility_settings: 'SELECT,INSERT,UPDATE',

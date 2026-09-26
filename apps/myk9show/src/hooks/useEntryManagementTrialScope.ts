@@ -12,6 +12,8 @@ export interface EntryManagementTrial {
   name: string | null;
   date: string | null;
   trial_number: string | number | null;
+  /** IANA zone; the show's calendar for dates the desk stamps (MYK9-677). */
+  timezone?: string | null;
 }
 
 interface TrialScopeInput {

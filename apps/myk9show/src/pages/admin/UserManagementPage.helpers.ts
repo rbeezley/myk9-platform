@@ -27,6 +27,25 @@ function endOfDay(date: Date): number {
   return d.getTime();
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * Does this sign-in timestamp fall in the login bucket? `lastSignInAt` exists
+ * only on the admin roster rows (AdminUser); a plain User reads as never.
+ */
+export function matchesLoginFilter(
+  lastSignInAt: string | null | undefined,
+  login: UserFilter['login'],
+  now: number
+): boolean {
+  if (login === 'all') return true;
+  const signedIn = lastSignInAt ? new Date(lastSignInAt).getTime() : NaN;
+  if (login === 'never') return Number.isNaN(signedIn);
+  if (Number.isNaN(signedIn)) return false;
+  const ageDays = (now - signedIn) / DAY_MS;
+  return login === 'recent30' ? ageDays <= 30 : ageDays >= 90;
+}
+
 /**
  * Everything one row is searchable by, lower-cased and whitespace-collapsed.
  *
@@ -57,9 +76,14 @@ function searchHaystack(user: User): string {
 export function filterUsers<T extends User>(
   users: T[],
   searchTerm: string,
-  filters: UserFilter
+  filters: UserFilter,
+  now: number = Date.now()
 ): T[] {
-  let filtered = users;
+  // Removed people only with "Removed users" on. The roster query already
+  // drops them otherwise, but the view and option counts reuse this function
+  // over a roster that may include them — pressing a view turns the option off,
+  // so its count must too (Codex P2).
+  let filtered = filters.showDeleted ? users : users.filter(user => !user.deletedAt);
 
   // Apply search filter
   const tokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
@@ -78,6 +102,13 @@ export function filterUsers<T extends User>(
   // Apply status filter
   if (filters.status !== 'all') {
     filtered = filtered.filter(user => user.status === filters.status);
+  }
+
+  // Apply sign-in recency
+  if (filters.login !== 'all') {
+    filtered = filtered.filter(user =>
+      matchesLoginFilter((user as Partial<AdminUser>).lastSignInAt, filters.login, now)
+    );
   }
 
   // Apply created-date range
@@ -148,15 +179,6 @@ export function calculateRoleStats(users: User[]): Record<string, number> {
     });
   });
   return stats;
-}
-
-/**
- * Count users whose account is actually usable — active status, not deleted.
- * (Previously counted "has an email and a first name", which measured profile
- * completeness, not account state.)
- */
-export function countActiveUsers(users: User[]): number {
-  return users.filter(user => (user.status ?? 'active') === 'active' && !user.deletedAt).length;
 }
 
 /**

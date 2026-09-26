@@ -21,6 +21,14 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+// MYK9-716: publishing requires an entry window. Every case here is about
+// another gate, so every render carries a valid one; the missing-window cases
+// live in ShowStatusPill.entryWindow.test.tsx.
+const WINDOW = {
+  entryOpenDate: '2026-10-01T12:00:00.000Z',
+  entryCloseDate: '2026-10-20T04:59:00.000Z',
+};
+
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
 const mockedUseAuth = vi.mocked(useClubAuthorization);
 const mockedUseMutation = vi.mocked(useUpdateShowMutation);
@@ -73,37 +81,37 @@ describe('ShowStatusPill', () => {
 
   describe('labels', () => {
     it('renders "Draft" label for draft status', () => {
-      render(<ShowStatusPill showId="show-1" status="draft" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
       expect(screen.getByText('Draft')).toBeInTheDocument();
     });
 
     it('renders a qualified label for published status', () => {
-      render(<ShowStatusPill showId="show-1" status="published" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
       expect(screen.getByText('Published show')).toBeInTheDocument();
     });
 
     it('renders "Upcoming" label for upcoming status', () => {
-      render(<ShowStatusPill showId="show-1" status="upcoming" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" />);
       expect(screen.getByText('Upcoming')).toBeInTheDocument();
     });
 
     it('renders "In Progress" label for in_progress status', () => {
-      render(<ShowStatusPill showId="show-1" status="in_progress" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="in_progress" />);
       expect(screen.getByText('In Progress')).toBeInTheDocument();
     });
 
     it('renders "Completed" label for completed status', () => {
-      render(<ShowStatusPill showId="show-1" status="completed" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="completed" />);
       expect(screen.getByText('Completed')).toBeInTheDocument();
     });
 
     it('renders "Cancelled" label for cancelled status', () => {
-      render(<ShowStatusPill showId="show-1" status="cancelled" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="cancelled" />);
       expect(screen.getByText('Cancelled')).toBeInTheDocument();
     });
 
     it('renders unknown status string as label with muted styling', () => {
-      render(<ShowStatusPill showId="show-1" status="unknown_future_status" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="unknown_future_status" />);
       expect(screen.getByText('unknown_future_status')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -111,22 +119,22 @@ describe('ShowStatusPill', () => {
 
   describe('available transitions', () => {
     it('renders a button (dropdown trigger) for draft status', () => {
-      render(<ShowStatusPill showId="show-1" status="draft" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
       expect(screen.getByRole('button', { name: /draft/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for published status', () => {
-      render(<ShowStatusPill showId="show-1" status="published" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
       expect(screen.getByRole('button', { name: /published/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for upcoming status', () => {
-      render(<ShowStatusPill showId="show-1" status="upcoming" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" />);
       expect(screen.getByRole('button', { name: /upcoming/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for in_progress status', () => {
-      render(<ShowStatusPill showId="show-1" status="in_progress" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="in_progress" />);
       expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
     });
 
@@ -135,26 +143,26 @@ describe('ShowStatusPill', () => {
     // one-click action here, so neither offers a transition (no dropdown at
     // all, just the static pill).
     it('renders completed status with no dropdown trigger (no transitions)', () => {
-      render(<ShowStatusPill showId="show-1" status="completed" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="completed" />);
       expect(screen.getByText('Completed')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('cancelled renders no publish action', () => {
-      render(<ShowStatusPill showId="show-1" status="cancelled" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="cancelled" />);
       expect(screen.getByText('Cancelled')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
       expect(screen.queryByText('Publish Show')).not.toBeInTheDocument();
     });
 
     it('shows "Publish Show" option when status is draft', async () => {
-      render(<ShowStatusPill showId="show-1" status="draft" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       expect(await screen.findByText('Publish Show')).toBeInTheDocument();
     });
 
     it('shows "Move to Draft" option when status is published', async () => {
-      render(<ShowStatusPill showId="show-1" status="published" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
       fireEvent.click(screen.getByRole('button', { name: /published/i }));
       expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
     });
@@ -164,7 +172,7 @@ describe('ShowStatusPill', () => {
         mutateAsync,
         isPending: true,
       } as unknown as ReturnType<typeof useUpdateShowMutation>);
-      render(<ShowStatusPill showId="show-1" status="draft" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
       expect(screen.getByRole('button', { name: /draft/i })).toBeDisabled();
     });
   });
@@ -173,7 +181,7 @@ describe('ShowStatusPill', () => {
     it('blocks publishing when the club has no payout-enabled account', async () => {
       mockAccount(null);
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -188,7 +196,7 @@ describe('ShowStatusPill', () => {
     it('publishes when payouts are enabled', async () => {
       mockAccount(true);
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -197,7 +205,7 @@ describe('ShowStatusPill', () => {
     });
 
     it('calls updateShow with published when "Publish Show" is clicked', async () => {
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       fireEvent.click(await screen.findByText('Publish Show'));
       await waitFor(() =>
@@ -211,7 +219,7 @@ describe('ShowStatusPill', () => {
     it('an upcoming show publishes when Stripe-ready', async () => {
       mockAccount(true);
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /upcoming/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -226,7 +234,7 @@ describe('ShowStatusPill', () => {
       // nowhere to go.
       mockAccount(null);
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -238,7 +246,7 @@ describe('ShowStatusPill', () => {
     it('moving a published show back to draft is never gated', async () => {
       mockAccount(null);
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="published" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /published/i }));
       await user.click(await screen.findByText(/move to draft/i));
@@ -247,7 +255,7 @@ describe('ShowStatusPill', () => {
     });
 
     it('calls updateShow with draft when "Move to Draft" is clicked', async () => {
-      render(<ShowStatusPill showId="show-1" status="published" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
       fireEvent.click(screen.getByRole('button', { name: /published/i }));
       fireEvent.click(await screen.findByText('Move to Draft'));
       await waitFor(() =>
@@ -267,7 +275,7 @@ describe('ShowStatusPill', () => {
           "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
       });
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -289,7 +297,7 @@ describe('ShowStatusPill', () => {
           'Assign a club to this show before publishing — entry fees are paid out to the club.',
       });
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -305,7 +313,7 @@ describe('ShowStatusPill', () => {
       mockAccount(true);
       mutateAsync.mockRejectedValueOnce(new Error('Network error'));
       const user = userEvent.setup();
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -315,7 +323,7 @@ describe('ShowStatusPill', () => {
 
     it('shows error toast when mutation fails', async () => {
       mutateAsync.mockRejectedValueOnce(new Error('Network error'));
-      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       fireEvent.click(await screen.findByText('Publish Show'));
       await waitFor(() =>
@@ -343,7 +351,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
   it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
     mockAuthorization(null);
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -361,7 +369,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     mockAccount(false);
     mockAuthorization(null);
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -383,7 +391,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       refetch: refetchAuth,
     } as unknown as ReturnType<typeof useClubAuthorization>);
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -403,7 +411,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       refetch: refetchAuth,
     } as unknown as ReturnType<typeof useClubAuthorization>);
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -427,7 +435,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       refetch: refetchAuth,
     } as unknown as ReturnType<typeof useClubAuthorization>);
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -443,7 +451,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
   it('publishes once the club is authorized and Stripe-ready', async () => {
     mockAuthorization('2026-01-01T00:00:00Z');
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
@@ -459,7 +467,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
         "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
     });
     const user = userEvent.setup();
-    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));

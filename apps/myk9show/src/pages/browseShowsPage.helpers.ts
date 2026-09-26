@@ -57,3 +57,7 @@ export function buildChipFilters(
   }
   return chips;
 }
+
+export const SHOWS_UNAVAILABLE = "We couldn't load the shows.";
+/** A signed-out guest's list is online-only (MYK9-780), so offline says so. */
+export const SHOWS_OFFLINE = "You're offline. Connect to the internet to see shows.";

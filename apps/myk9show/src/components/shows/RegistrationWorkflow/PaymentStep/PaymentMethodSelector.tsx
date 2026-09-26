@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
@@ -100,6 +101,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const [paymentReference, setPaymentReference] = useState('');
   const [groupReference, setGroupReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [receivedMethod, setReceivedMethod] = useState<PaymentDetails['receivedMethod']>();
 
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
@@ -113,6 +115,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       paymentReference,
       groupReference,
       paymentNotes,
+      ...(receivedMethod ? { receivedMethod } : {}),
       ...patch,
     });
   };
@@ -140,6 +143,11 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const handlePaymentNotesChange = (value: string) => {
     setPaymentNotes(value);
     notifyDetailsChange({ paymentNotes: value });
+  };
+
+  const handleReceivedMethodChange = (value: 'cash' | 'check') => {
+    setReceivedMethod(value);
+    notifyDetailsChange({ receivedMethod: value });
   };
 
   const handleSelect = (value: PaymentMethod) => {
@@ -261,9 +269,32 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     system.
                   </AlertDescription>
                 </Alert>
+                {/* MYK9-677: the payments ledger and the closeout card count cash
+                    and check separately, so money received names its method. */}
+                <div role="group" aria-labelledby="received-method-label" className="space-y-1">
+                  <Label id="received-method-label">Received as</Label>
+                  <div className="flex gap-2">
+                    {(['cash', 'check'] as const).map(method => (
+                      <Button
+                        key={method}
+                        type="button"
+                        size="sm"
+                        className="flex-1"
+                        variant={receivedMethod === method ? 'default' : 'outline'}
+                        aria-pressed={receivedMethod === method}
+                        onClick={() => handleReceivedMethodChange(method)}
+                      >
+                        {method === 'cash' ? 'Cash' : 'Check'}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Required when money was received. Not needed for a $0 entry.
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="payment-date">Payment Date</Label>
+                    <Label htmlFor="payment-date">Payment Date (received on)</Label>
                     <Input
                       id="payment-date"
                       type="date"

@@ -5,7 +5,7 @@ import { BannerSectionHead } from '../components/BannerSectionHead';
 describe('BannerSectionHead', () => {
   it('renders the folio number and uppercased label as "NN / LABEL"', () => {
     const { container } = render(
-      <BannerSectionHead number="04" label="roster" flag="#0d4d4f">
+      <BannerSectionHead number="04" label="roster" flagText="#0d4d4f">
         Filling
       </BannerSectionHead>
     );
@@ -14,7 +14,7 @@ describe('BannerSectionHead', () => {
 
   it('renders the heading as an h2', () => {
     const { container } = render(
-      <BannerSectionHead number="01" label="Welcome" flag="#0d4d4f">
+      <BannerSectionHead number="01" label="Welcome" flagText="#0d4d4f">
         A note from the chair.
       </BannerSectionHead>
     );
@@ -23,7 +23,7 @@ describe('BannerSectionHead', () => {
 
   it('paints the folio number with the supplied flag color', () => {
     const { container } = render(
-      <BannerSectionHead number="03" label="Judges" flag="#7a1f1f">
+      <BannerSectionHead number="03" label="Judges" flagText="#7a1f1f">
         Two judges, panel
       </BannerSectionHead>
     );
@@ -33,7 +33,7 @@ describe('BannerSectionHead', () => {
 
   it('exposes the flag color as a CSS var on the head element', () => {
     const { container } = render(
-      <BannerSectionHead number="02" label="x" flag="#7a1f1f">
+      <BannerSectionHead number="02" label="x" flagText="#7a1f1f">
         Title
       </BannerSectionHead>
     );
@@ -43,7 +43,7 @@ describe('BannerSectionHead', () => {
 
   it('accepts ReactNode titles with nested spans', () => {
     const { container } = render(
-      <BannerSectionHead number="01" label="x" flag="#0d4d4f">
+      <BannerSectionHead number="01" label="x" flagText="#0d4d4f">
         Filling <span style={{ color: '#0d4d4f' }}>fast.</span>
       </BannerSectionHead>
     );

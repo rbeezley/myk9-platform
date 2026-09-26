@@ -38,10 +38,23 @@ interface Trial {
   }>;
 }
 
+export interface ShowDetailsValidationOptions {
+  /**
+   * MYK9-716: a draft may have no entry window; publishing requires one (the
+   * status pill and enforce_show_publish_gate refuse a windowless publish, and
+   * Review names the gap). Set when the wizard is editing a show that is
+   * already live, so adding trials or classes can never clear its window.
+   */
+  requireEntryWindow?: boolean;
+}
+
 /**
  * Get validation messages for the Show Details step (step 0)
  */
-export function getShowDetailsValidationMessages(show: ShowData): string[] {
+export function getShowDetailsValidationMessages(
+  show: ShowData,
+  { requireEntryWindow = false }: ShowDetailsValidationOptions = {}
+): string[] {
   const messages: string[] = [];
 
   if (!show.name?.trim()) messages.push('Show name is required');
@@ -52,8 +65,10 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
   if (!show.clubId) messages.push('Club selection is required');
   if (show.officials.chairman.length === 0) messages.push('Show chairman is required');
   if (show.officials.secretary.length === 0) messages.push('Show secretary is required');
-  if (!show.entryOpenDate) messages.push('Entry open date is required');
-  if (!show.entryCloseDate) messages.push('Entry close date is required');
+  if (requireEntryWindow) {
+    if (!show.entryOpenDate) messages.push('Entry open date is required');
+    if (!show.entryCloseDate) messages.push('Entry close date is required');
+  }
 
   // Normalize to YYYY-MM-DD so lexicographic comparison is date-only safe
   // regardless of whether the picker stores dates or ISO datetimes.
@@ -155,11 +170,12 @@ export function getValidationMessagesForStep(
   trials: Trial[],
   trialView: WizardTrialView,
   /** Add-classes mode: the show's stored classes, retained rather than re-validated. */
-  persistedClasses: readonly PersistedClassIdentity[] = []
+  persistedClasses: readonly PersistedClassIdentity[] = [],
+  showDetailsOptions: ShowDetailsValidationOptions = {}
 ): string[] {
   switch (step) {
     case 0:
-      return getShowDetailsValidationMessages(show);
+      return getShowDetailsValidationMessages(show, showDetailsOptions);
     case 1:
       return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:

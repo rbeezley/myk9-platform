@@ -22,6 +22,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => {
       getDogsByOwner: t(),
       searchDogs: t(),
       getAll: t(),
+      getAllOrThrow: t(),
       get: t(),
     },
   };
@@ -32,6 +33,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => {
   return {
     replicatedEntriesTable: {
       getAll: t(),
+      getAllOrThrow: t(),
       getEntriesByShow: t(),
       getEntriesByClass: t(),
     },
@@ -40,12 +42,28 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => {
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => {
   const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
-  return { replicatedClassesTable: { get: t(), getAll: t() } };
+  return {
+    replicatedClassesTable: {
+      get: t(),
+      getAll: t(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
+  };
 });
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => {
   const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
-  return { replicatedShowsTable: { get: t(), getAll: t() } };
+  return {
+    replicatedShowsTable: {
+      get: t(),
+      getAll: t(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
+  };
 });
 
 const TEST_PERSON_ID = 'test-person-123';

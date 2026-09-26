@@ -10,6 +10,7 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { requireShowEntriesSynced } from '../entries/requireShowEntriesSynced';
 import {
   replicatedClassesTable,
   replicatedDogsTable,
@@ -72,6 +73,9 @@ export const getClassesWithCapacity = async (showId: string) => {
       return { data: [], error: null };
     }
 
+    // MYK9-761: accepted counts from a never-synced show would count only the
+    // rows this device happened to write, and call a full class open.
+    await requireShowEntriesSynced(showId);
     const [classesByTrial, showEntries] = await Promise.all([
       Promise.all(trialIds.map(trialId => replicatedClassesTable.getClassesByTrial(trialId))),
       replicatedEntriesTable.getEntriesByShow(showId),

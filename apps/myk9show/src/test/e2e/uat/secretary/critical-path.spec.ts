@@ -67,7 +67,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     });
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Entry Period *', { exact: true })).toBeVisible();
+    await expect(page.getByText('Entry Period', { exact: true })).toBeVisible();
     await expect(page.getByText('Location *', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Select a past show to clone' })).toBeVisible();
     await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();

@@ -125,6 +125,9 @@ export function buildEditModeDraft({
     },
     trials: wizardTrials,
     judgeDetails: judgeDetailsMap,
+    // The judge list this draft starts from: the save writes the difference
+    // from it, never a replace (MYK9-772).
+    editBaselineJudgeIds: showJudges.map(j => j.judgeId),
     currentStep: editMode.mode === 'add-trials' ? 1 : editMode.mode === 'add-classes' ? 2 : 0,
     completedSteps:
       editMode.mode === 'add-trials' ? [0] : editMode.mode === 'add-classes' ? [0, 1] : [],

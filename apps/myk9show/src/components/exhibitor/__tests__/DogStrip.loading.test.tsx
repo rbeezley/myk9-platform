@@ -38,7 +38,9 @@ beforeEach(() => {
     }
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const dogs = Array.from({ length: 252 }, (_, i) => ({ id: `dog-${i}`, call_name: `Dog ${i}` }));
 

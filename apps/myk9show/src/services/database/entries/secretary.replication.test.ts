@@ -49,6 +49,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getAll: mocks.getAllClasses,
+    getAllOrThrow: mocks.getAllClasses,
     sync: mocks.syncClasses,
   },
 }));
@@ -950,6 +951,52 @@ describe('secretary entry read replication', () => {
         'entry-checked-in',
       ]);
     });
+  });
+
+  // MYK9-774: a failed device read of the entries throws out of the
+  // replicated read. The server list must not then be served over a check-in
+  // this device has not uploaded: the secretary would see it undone.
+  it('shows the retry state, not a server list, when the entries read fails over an unsaved write', async () => {
+    const LOCAL_CHECK_IN = { id: 'entry-checked-in', showId: 'show-1', classId: 'class-1' };
+    mocks.getEntriesByShow
+      .mockRejectedValueOnce(new Error("This device couldn't read its saved show data. Try again."))
+      .mockResolvedValue([LOCAL_CHECK_IN]);
+    mocks.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: id === 'entry-checked-in',
+    }));
+    const query = mockPostgrestEntriesRead([
+      { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+    ]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(query.order).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      data: null,
+      error: expect.objectContaining({
+        message: "We couldn't load entries for this show. Please retry.",
+      }),
+    });
+  });
+
+  // A failed class lookup is only a missing label (joinRowsOrEmpty): the local
+  // entries, the unsaved check-in among them, stay on screen.
+  it('keeps the local entries when only the class lookup fails', async () => {
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mocks.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-checked-in', showId: 'show-1', classId: 'class-1', checkInStatus: 'checked-in' },
+    ]);
+    mocks.getAllClasses.mockRejectedValueOnce(
+      new Error("This device couldn't read its saved show data. Try again.")
+    );
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.error).toBeNull();
+    expect((result.data ?? []).map(row => (row as { id: string }).id)).toEqual([
+      'entry-checked-in',
+    ]);
   });
 
   it('warns when falling back to PostgREST after a replicated read failure', async () => {

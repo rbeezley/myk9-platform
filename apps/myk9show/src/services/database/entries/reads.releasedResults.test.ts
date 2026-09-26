@@ -43,7 +43,9 @@ beforeEach(() => {
   mocks.read.mockResolvedValue({ data: [entry], error: null });
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('getEntriesByShow released result hydration', () => {
   it('reads released Q/time from the authenticated view while retaining entry identity', async () => {

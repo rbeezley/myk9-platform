@@ -208,6 +208,52 @@ describe('AtShowClassListPage offline truthfulness', () => {
     expect(screen.queryByText(/has not assigned you to a class/)).not.toBeInTheDocument();
   });
 
+  describe('a judge whose device read of their assignments fails (MYK9-769)', () => {
+    const judgeSyncedStatus: ReplicationSyncContextValue['status'] = {
+      ...syncedStatus,
+      tablesStatus: { ...syncedStatus.tablesStatus, judge_assignments: 'success' },
+    };
+
+    function signInAsIdentifiedJudge() {
+      authState.hasRole = role => role === UserRole.JUDGE;
+      authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+      authState.user = { is_anonymous: false };
+    }
+
+    it('falls open to the full class list with a load warning, never "No classes assigned yet"', async () => {
+      signInAsIdentifiedJudge();
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockRejectedValue(
+        new Error('Could not read judge assignments on this device: IndexedDB read timed out')
+      );
+
+      renderPage(judgeSyncedStatus);
+
+      // Not a dead end at the ring: the classes are there, with the warning.
+      expect(
+        await screen.findByText(/Container Novice/, {}, { timeout: 5000 })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /We couldn.t load your assigned classes\. The full class list is still available\./
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+      expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
+      expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();
+    });
+
+    it('positive control: a read that succeeds empty does say "No classes assigned yet"', async () => {
+      signInAsIdentifiedJudge();
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockResolvedValue([]);
+
+      renderPage(judgeSyncedStatus);
+
+      expect(await screen.findByText(/No classes assigned yet/)).toBeInTheDocument();
+    });
+  });
+
   it('says the classes are not on this device rather than that the show has none', async () => {
     seedColdDevice();
     goOffline();

@@ -1,44 +1,73 @@
-export const LATE_ENTRY_PAYMENT_METHODS = [
+import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
+import {
+  ledgerAmount,
+  type LedgerMethod,
+  type ShowPaymentLedgerRow,
+} from '@/features/payments/showPaymentLedger';
+
+/** The two ways money reaches the desk's cash box. */
+export const DESK_PAYMENT_METHODS = [
   { id: 'cash', label: 'Cash' },
   { id: 'check', label: 'Check' },
-  { id: 'waived', label: 'Waived' },
-  { id: 'paid', label: 'Paid' },
-  { id: 'unknown', label: 'Unspecified' },
-] as const;
+] as const satisfies ReadonlyArray<{ id: LedgerMethod; label: string }>;
 
-export type ReconciliationPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
-
+/**
+ * The entry fields the card reads. Every one is on `SecretaryEntry`, so the
+ * Show Desk hands its canonical entry read straight in with no cast.
+ */
 export interface ShowDayReconciliationEntry {
   id?: string | null;
-  is_day_of_show?: boolean | null;
   entry_fee?: number | string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  submitted_at?: string | null;
+  created_at?: string | null;
 }
 
+/**
+ * When the show was running. `null` when the caller has no show dates (the
+ * close-out readiness gate reads only the pull/refund figures); nothing then
+ * counts as taken during the show.
+ */
+export interface DeskCollectionWindow {
+  /** `shows.start_date`: timestamptz at midnight UTC, or a bare `YYYY-MM-DD`. */
+  showStartDate: string | null | undefined;
+  /** `shows.end_date`, same shape. Missing means a one-day show. */
+  showEndDate: string | null | undefined;
+  /** IANA zone of the show's first trial; the calendar the desk works in. */
+  timeZone: string | null | undefined;
+}
+
+/**
+ * MYK9-677. Two independent questions, deliberately not joined:
+ *
+ * - PAYMENTS received during the show come from the payments ledger, one row
+ *   per payment. An enrollment's payment is not attributed to its entries:
+ *   one payment can cover an old entry and a new one, or finish online what
+ *   the desk started, so no entry count can honestly follow it.
+ * - ENTRIES MADE DURING THE SHOW: entries submitted on a show day, on the
+ *   show's calendar, whatever they were paid with (or not yet). Context for
+ *   the payments figure, not a reconciliation: the entry row does not record
+ *   who entered it, so this includes an exhibitor's own show-day entry when
+ *   entries close during the show (owner decision, Codex round 8).
+ */
 export interface ShowDayReconciliationSummary {
   totalEntryCount: number;
-  lateEntryCount: number;
-  collectedAmount: number;
-  waivedCount: number;
+  /** Entries made during the show: submitted on a show day, show calendar. */
+  entriesDuringShowCount: number;
+  /** Of those, the ones the secretary waived. */
+  waivedDuringShowCount: number;
+  /** Cash and check payments received during the show, net of refunds and resets. */
+  paymentCount: number;
+  paymentAmount: number;
+  byMethod: Record<LedgerMethod, { count: number; amount: number }>;
   pulledCount: number;
   refundReviewCount: number;
   refundReviewAmount: number;
   refundedCount: number;
   refundedAmount: number;
-  byMethod: Record<ReconciliationPaymentMethod, { count: number; amount: number }>;
-}
-
-function emptyBreakdown(): ShowDayReconciliationSummary['byMethod'] {
-  return LATE_ENTRY_PAYMENT_METHODS.reduce(
-    (acc, method) => {
-      acc[method.id] = { count: 0, amount: 0 };
-      return acc;
-    },
-    {} as ShowDayReconciliationSummary['byMethod']
-  );
 }
 
 function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
@@ -46,18 +75,9 @@ function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
   return Number.isFinite(parsed) ? Number(parsed) : 0;
 }
 
-function normalizeMethod(entry: ShowDayReconciliationEntry): ReconciliationPaymentMethod {
-  const method = entry.payment_method?.toLowerCase();
-  if (method === 'cash' || method === 'check' || method === 'waived') return method;
-  if (entry.payment_status === 'waived') return 'waived';
-  if (entry.payment_status === 'paid') return 'paid';
-  return 'unknown';
-}
-
 function isPulledEntry(entry: ShowDayReconciliationEntry): boolean {
   const entryStatus = entry.entry_status?.toLowerCase();
   const checkInStatus = entry.check_in_status?.toLowerCase();
-
   return (
     checkInStatus === 'pulled' ||
     entryStatus === 'scratched' ||
@@ -66,21 +86,104 @@ function isPulledEntry(entry: ShowDayReconciliationEntry): boolean {
   );
 }
 
+function isWaived(entry: ShowDayReconciliationEntry): boolean {
+  return (
+    entry.payment_status?.toLowerCase() === 'waived' ||
+    entry.payment_method?.toLowerCase() === 'waived'
+  );
+}
+
+/** A Postgres `date` (or anything that starts with one) as `YYYY-MM-DD`. */
+function calendarDateOf(value: string | null | undefined): string | undefined {
+  const day = value?.slice(0, 10);
+  return day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
+}
+
+/** The show's first and last day, or null when nothing can be during the show. */
+function windowDays(window: DeskCollectionWindow | null): { start: string; end: string } | null {
+  const start = utcCalendarDate(window?.showStartDate);
+  if (!start) return null;
+  return { start, end: utcCalendarDate(window?.showEndDate) ?? start };
+}
+
+/**
+ * An entry made during the show: submitted on one of the show's days, on the
+ * show's own calendar.
+ *
+ * Not `is_day_of_show`: that is the registry bucket (MYK9-642), and a mail-in
+ * keyed after entries close but weeks before the show is day-of-show to the
+ * registry. Who entered it is not recorded on the row, so this does not claim
+ * the desk took it.
+ */
+function isEntryMadeDuringShow(
+  entry: ShowDayReconciliationEntry,
+  days: { start: string; end: string } | null,
+  timeZone: string | null | undefined
+): boolean {
+  if (!days) return false;
+  const takenAt = entry.submitted_at ?? entry.created_at;
+  if (!takenAt) return false;
+  const instant = new Date(takenAt);
+  if (Number.isNaN(instant.getTime())) return false;
+  const day = currentCalendarDate(instant, timeZone);
+  return day >= days.start && day <= days.end;
+}
+
+/**
+ * Payments received during the show. Dollars are every in-window row summed,
+ * refunds and resets included. Counts are netted first, per parent (enrollment
+ * or desk entry) and method: a parent whose rows net to $0 or less holds no
+ * money in the box (a "Payment Due" reset, a payment handed back in full) and
+ * adds no payment; one that still holds money counts each of its payments.
+ */
+function applyLedger(
+  summary: ShowDayReconciliationSummary,
+  payments: readonly ShowPaymentLedgerRow[],
+  days: { start: string; end: string } | null
+): void {
+  if (!days) return;
+  const groups = new Map<string, { method: LedgerMethod; net: number; payments: number }>();
+  for (const row of payments) {
+    const day = calendarDateOf(row.received_on);
+    if (!day || day < days.start || day > days.end) continue;
+    const value = ledgerAmount(row);
+    summary.byMethod[row.method].amount += value;
+    summary.paymentAmount += value;
+    const key = `${row.enrollment_id ?? `entry:${row.entry_id}`}|${row.method}`;
+    const group = groups.get(key) ?? { method: row.method, net: 0, payments: 0 };
+    group.net += value;
+    if (row.kind === 'payment') group.payments += 1;
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    // Cents, so float noise cannot keep a reset parent alive.
+    if (Math.round(group.net * 100) <= 0) continue;
+    summary.byMethod[group.method].count += group.payments;
+    summary.paymentCount += group.payments;
+  }
+}
+
 export function summarizeShowDayReconciliation(
-  entries: ShowDayReconciliationEntry[]
+  entries: ShowDayReconciliationEntry[],
+  deskWindow: DeskCollectionWindow | null,
+  payments: readonly ShowPaymentLedgerRow[] = []
 ): ShowDayReconciliationSummary {
   const summary: ShowDayReconciliationSummary = {
     totalEntryCount: 0,
-    lateEntryCount: 0,
-    collectedAmount: 0,
-    waivedCount: 0,
+    entriesDuringShowCount: 0,
+    waivedDuringShowCount: 0,
+    paymentCount: 0,
+    paymentAmount: 0,
+    byMethod: { cash: { count: 0, amount: 0 }, check: { count: 0, amount: 0 } },
     pulledCount: 0,
     refundReviewCount: 0,
     refundReviewAmount: 0,
     refundedCount: 0,
     refundedAmount: 0,
-    byMethod: emptyBreakdown(),
   };
+  const days = windowDays(deskWindow);
+
+  applyLedger(summary, payments, days);
 
   for (const entry of entries) {
     const fee = amount(entry.entry_fee);
@@ -89,7 +192,6 @@ export function summarizeShowDayReconciliation(
 
     if (isPulledEntry(entry)) {
       summary.pulledCount += 1;
-
       if (paymentStatus === 'refunded') {
         summary.refundedCount += 1;
         summary.refundedAmount += fee;
@@ -99,26 +201,9 @@ export function summarizeShowDayReconciliation(
       }
     }
 
-    // Only rows the registry counts as day-of-show entries belong in Wrap-up
-    // totals. NOTE (MYK9-642): this column used to be written by the offline
-    // late-entry dialog alone; `submit_show_entries` now writes it too, so a
-    // mail-in keyed after entries closed — possibly weeks before the show —
-    // counts here where it did not before. No unit test can pin that widening:
-    // this function is pure and never sees which writer produced the row, so a
-    // fixture with the flag set is indistinguishable from the cases above.
-    // Whether this card should key on "submitted while the show was running"
-    // instead of the registry bucket is MYK9-677; THIS LINE is what changes.
-    if (entry.is_day_of_show !== true) continue;
-
-    const method = normalizeMethod(entry);
-    summary.lateEntryCount += 1;
-    summary.byMethod[method].count += 1;
-    summary.byMethod[method].amount += fee;
-
-    if (method === 'waived') {
-      summary.waivedCount += 1;
-    } else if (paymentStatus === 'paid') {
-      summary.collectedAmount += fee;
+    if (isEntryMadeDuringShow(entry, days, deskWindow?.timeZone)) {
+      summary.entriesDuringShowCount += 1;
+      if (isWaived(entry)) summary.waivedDuringShowCount += 1;
     }
   }
 

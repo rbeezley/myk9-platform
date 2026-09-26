@@ -171,33 +171,96 @@ describe('submitShowRegistration', () => {
     );
   });
 
-  it('persists the initial secretary-paid enrollment totals and paid state after entries submit', async () => {
-    const params = makeParams({
-      paymentMethod: 'secretary_paid',
-      paymentDetails: {
-        paymentReference: 'receipt-100',
-        paymentDate: '2026-07-07',
-      },
-      classes: [{ id: 'class-1', entryFee: 20 }],
+  describe('Secretary Payment (Already Received) names cash or check (MYK9-677)', () => {
+    it('sends the received payment in the single submit call, with no second ledger step', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: {
+          paymentReference: 'receipt-100',
+          paymentDate: '2026-07-07',
+          receivedMethod: 'check',
+        },
+        classes: [{ id: 'class-1', entryFee: 20 }],
+      });
+
+      await submitShowRegistration(params);
+
+      expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'check',
+          entries: [expect.objectContaining({ paymentMethod: 'check' })],
+          payment: { method: 'check', receivedOn: '2026-07-07', reference: 'receipt-100' },
+        })
+      );
+      // The follow-up enrollment write carries only the payment details: no
+      // method, no total, so the RPC's total and paid_amount are not added to twice.
+      expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+        2,
+        'show-1',
+        'owner-1',
+        'receipt-100',
+        expect.objectContaining({ paymentReference: 'receipt-100', paymentDate: '2026-07-07' }),
+        undefined,
+        undefined,
+        { selfService: false }
+      );
     });
 
-    await submitShowRegistration(params);
+    it('leaves the received date to the server (today on the show calendar) when none was typed', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: { receivedMethod: 'cash' },
+      });
 
-    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(1, 'show-1', 'owner-1');
-    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
-    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
-      2,
-      'show-1',
-      'owner-1',
-      'receipt-100',
-      expect.objectContaining({
-        paymentReference: 'receipt-100',
-        paymentDate: '2026-07-07',
-      }),
-      'secretary_paid',
-      3000,
-      { selfService: false }
-    );
+      await submitShowRegistration(params);
+
+      expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payment: { method: 'cash', receivedOn: null, reference: null },
+        })
+      );
+    });
+
+    it('refuses money received with no method before writing anything', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: { paymentReference: 'receipt-100' },
+      });
+
+      await expect(submitShowRegistration(params)).rejects.toThrow(
+        'Choose whether the payment was received as cash or check.'
+      );
+
+      expect(params.deps.submitRegistration).not.toHaveBeenCalled();
+      expect(params.deps.createShowRegistration).not.toHaveBeenCalled();
+      expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+    });
+
+    it('sends no payment for a $0 entry and keeps the secretary_paid label', async () => {
+      const params = makeParams({
+        paymentMethod: 'secretary_paid',
+        paymentDetails: {},
+        classes: [{ id: 'class-1', entryFee: 0 }],
+        showFeeInfo: { preEntryFee: '0', dayOfShowFee: '0', startDate: '2026-05-01' },
+      });
+
+      await submitShowRegistration(params);
+
+      const call = vi.mocked(params.deps.submitShowEntries!).mock.calls[0]![0];
+      expect(call.paymentMethod).toBe('secretary_paid');
+      expect(call).not.toHaveProperty('payment');
+    });
+
+    it('sends no payment for any other method, so other callers are unchanged', async () => {
+      const params = makeParams({ paymentMethod: 'check' });
+
+      await submitShowRegistration(params);
+
+      expect(vi.mocked(params.deps.submitShowEntries!).mock.calls[0]![0]).not.toHaveProperty(
+        'payment'
+      );
+    });
   });
 
   it('does not persist enrollment payment totals when entry submission fails', async () => {
@@ -206,6 +269,7 @@ describe('submitShowRegistration', () => {
       paymentDetails: {
         paymentReference: 'receipt-100',
         paymentDate: '2026-07-07',
+        receivedMethod: 'check',
       },
     });
     vi.mocked(params.deps.submitShowEntries!).mockRejectedValue(new Error('fee mismatch'));
@@ -219,6 +283,7 @@ describe('submitShowRegistration', () => {
   it('records payment and claims armbands only for created capacity outcomes', async () => {
     const params = makeParams({
       paymentMethod: 'secretary_paid',
+      paymentDetails: { paymentReference: 'check-1', receivedMethod: 'check' },
       classSelections: [
         {
           dogId: 'dog-1',
@@ -273,9 +338,9 @@ describe('submitShowRegistration', () => {
       'show-1',
       'owner-1',
       'check-1',
-      { paymentReference: 'check-1' },
-      'secretary_paid',
-      3000,
+      { paymentReference: 'check-1', receivedMethod: 'check' },
+      undefined,
+      undefined,
       { selfService: false }
     );
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
@@ -297,6 +362,7 @@ describe('submitShowRegistration', () => {
       paymentDetails: {
         paymentReference: 'receipt-100',
         paymentDate: '2026-07-07',
+        receivedMethod: 'cash',
       },
     });
     vi.mocked(params.deps.createShowRegistration!)

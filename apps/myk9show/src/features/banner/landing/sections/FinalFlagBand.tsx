@@ -40,6 +40,9 @@ export function FinalFlagBand({
         variant="final"
         color={brandColors.flag}
         colorDeep={brandColors.flagDeep}
+        // Paper on the band is safe by construction: the derivation darkens
+        // `flagDeep` until paper reaches 4.5:1 on it, and the accents below
+        // use `flagBrightOnDeep`, not the decorative `flagBright` (MYK9-765).
         textColor={bannerColors.paper}
       >
         {closesLabel && (
@@ -50,7 +53,7 @@ export function FinalFlagBand({
               fontSize: 11,
               letterSpacing: '0.32em',
               textTransform: 'uppercase',
-              color: brandColors.flagBright,
+              color: brandColors.flagBrightOnDeep,
               margin: '0 0 18px',
             }}
           >
@@ -71,16 +74,17 @@ export function FinalFlagBand({
         >
           {canEnterOnline ? (
             <>
-              {closingLead} <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
+              {closingLead}{' '}
+              <span style={{ color: brandColors.flagBrightOnDeep }}>{closingAccent}.</span>
             </>
           ) : entryClosed ? (
             <>
-              Entries are <span style={{ color: brandColors.flagBright }}>closed.</span>
+              Entries are <span style={{ color: brandColors.flagBrightOnDeep }}>closed.</span>
             </>
           ) : (
             <>
               Entries open when{' '}
-              <span style={{ color: brandColors.flagBright }}>classes are assigned.</span>
+              <span style={{ color: brandColors.flagBrightOnDeep }}>classes are assigned.</span>
             </>
           )}
         </h2>

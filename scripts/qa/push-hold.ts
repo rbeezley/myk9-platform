@@ -81,7 +81,10 @@ function gh(args: string[]): string {
 }
 
 export function fetchPushDirective(): PushDirective | undefined {
-  const repo = gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).trim();
+  // REST, not `gh repo view`: that goes through GraphQL, which cloud sessions
+  // cannot reach, so every cloud push failed closed here. gh fills
+  // {owner}/{repo} from the git remote.
+  const repo = gh(['api', 'repos/{owner}/{repo}', '--jq', '.full_name']).trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('cannot resolve GitHub repository');
   // Repository issue comments include PRs after they close. Read newest first.
   // GitHub timestamps have second precision and the order within a second is

@@ -239,7 +239,9 @@ describe('auditInventory on fixtures', () => {
 
   describe('against git check-ignore', () => {
     let root = '';
-    afterEach(() => rmSync(root, { recursive: true, force: true }));
+    afterEach(() => {
+      rmSync(root, { recursive: true, force: true });
+    });
 
     it('a force-added local-only skill is tracked, so it is not ignored and fails', () => {
       root = mkdtempSync(join(tmpdir(), 'skill inventory '));

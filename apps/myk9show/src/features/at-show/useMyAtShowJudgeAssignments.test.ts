@@ -119,4 +119,49 @@ describe('useMyAtShowJudgeAssignments', () => {
 
     expect(getActiveJudgeAssignmentsForShow.mock.calls.length).toBe(callsAfterFirstLoad);
   });
+
+  // MYK9-769: a failed device read reaches the hook as a rejection. It must
+  // surface as `error` (the page's "We couldn't load your judge assignments"),
+  // not as a settled empty set, which the page renders as "No classes assigned".
+  it('surfaces a failed device read as an error, not an empty assignment set', async () => {
+    judgeTableStatus = 'success';
+    getActiveJudgeAssignmentsForShow.mockRejectedValue(
+      new Error('Could not read judge assignments on this device: IndexedDB read timed out')
+    );
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.error?.message).toMatch(/Could not read judge assignments/);
+    expect(result.current.isLoading).toBe(false);
+    // Unknown, not "none": the page must fall open to the full picker.
+    expect(result.current.isUnknown).toBe(true);
+    expect(result.current.assignedClassIds.size).toBe(0);
+  });
+
+  it('keeps a judge narrowed to their ring when a later refetch fails (review P2)', async () => {
+    judgeTableStatus = 'success';
+    getActiveJudgeAssignmentsForShow.mockResolvedValue([{ id: 'a1', classId: 'class-1' }]);
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.assignedClassIds.has('class-1')).toBe(true));
+
+    getActiveJudgeAssignmentsForShow.mockRejectedValue(new Error('IndexedDB read timed out'));
+    await client.refetchQueries({ queryKey: ['at-show', 'judge-assignments'] });
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.isUnknown).toBe(false);
+    expect(result.current.assignedClassIds.has('class-1')).toBe(true);
+  });
+
+  it('does not retry a failed device read even when the client would (review P2)', async () => {
+    client = new QueryClient({ defaultOptions: { queries: { retry: 3, retryDelay: 1 } } });
+    judgeTableStatus = 'success';
+    getActiveJudgeAssignmentsForShow.mockRejectedValue(new Error('IndexedDB read timed out'));
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(getActiveJudgeAssignmentsForShow).toHaveBeenCalledTimes(1);
+  });
 });

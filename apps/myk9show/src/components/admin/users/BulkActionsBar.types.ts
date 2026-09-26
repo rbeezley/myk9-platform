@@ -8,11 +8,11 @@ export interface BulkActionsBarProps {
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-// 'status' dialog removed: no correct per-user account-status mutation exists to
-// mirror in bulk. 'role' was removed in MYK9-47 (broken canonical values, ignored
-// ensureUserHasRole result, no club scope) and rebuilt correctly in MYK9-58 —
-// see BulkRoleDialog.tsx and useBulkActions.handleBulkRoleChange.
-export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
+// Bulk account actions (Suspend, Reinstate, Send invitation, Restore) and bulk
+// role editing are both deferred (docs/plan-list-toolkit.md, MYK9-835 and
+// MYK9-820); roles and status change one person at a time, via the row menu's
+// existing paths.
+export type DialogType = 'delete' | 'cascadeConfirm' | null;
 
 export interface RelatedDataDetails {
   entryCount: number;

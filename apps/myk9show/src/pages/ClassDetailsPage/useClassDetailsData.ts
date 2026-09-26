@@ -31,6 +31,8 @@ import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { usePublicClassContextQuery } from '@/hooks/queries/publicClassContextQuery';
+import { isAccountSession, isPublicGuest, type GuestReadState } from '@/hooks/guestServerRead';
 
 /**
  * Exported for its contract test: this hand-written projection is the last hop
@@ -127,8 +129,16 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
-  const { user } = useAuthContext();
-  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
+  const { user, loading: authLoading } = useAuthContext();
+  // MYK9-783: signed out, or a ringside passcode session (isPublicGuest): on
+  // this public page a passcode reads the server like any guest.
+  const isGuest = isPublicGuest(user, authLoading);
+  // MYK9-785: the class, trial and show stores are the device replica, which
+  // holds what an earlier signed-in session could see. Only a real signed-in
+  // account reads them; a guest, a passcode session, or a viewer whose auth
+  // has not resolved yet never does.
+  const readsDeviceStores = isAccountSession(user);
+  const canReadEntryRows = readsDeviceStores;
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -145,7 +155,7 @@ export function useClassDetailsData() {
   // Query cache for getAllClasses hasn't loaded yet — classes created by the
   // wizard exist in IndexedDB before they've synced to Supabase.
   const classFromStore = useMemo(() => {
-    if (!classId) return null;
+    if (!classId || !readsDeviceStores) return null;
     const fromQuery = classes.find(cls => cls.id === classId);
     if (fromQuery) return fromQuery;
     // Search replication-layer classes grouped by trial
@@ -154,37 +164,58 @@ export function useClassDetailsData() {
       if (found) return found as unknown as (typeof classes)[number];
     }
     return null;
-  }, [classId, classes, replicatedTrialClasses]);
+  }, [classId, classes, replicatedTrialClasses, readsDeviceStores]);
 
   // Cold-session fallback. A true guest's replicated class store is empty (guest sync is
   // skipped), which would dead-end the public `/results` route on "No Classes Available"
   // even though the release-gated results view returns data. Read the class identity directly
   // via PostgREST (anon-safe — class + trial only). Enabled ONLY when the store has nothing,
-  // so warm/authed sessions are unaffected.
+  // so warm/authed sessions are unaffected. A guest or passcode session uses the guest context
+  // below instead (MYK9-785); this covers a cold signed-in session.
   const { data: publicClass } = usePublicClassById(classId, {
-    enabled: !classFromStore && !!classId,
+    enabled: readsDeviceStores && !classFromStore && !!classId,
   });
 
-  const currentClass = classFromStore ?? publicClass ?? null;
+  // A guest's class, trial and class list are the server's anon answer only.
+  const guestContext = usePublicClassContextQuery({ showId, trialId, classId }, isGuest);
+  const guestClassState: GuestReadState<unknown>['kind'] | null = readsDeviceStores
+    ? null
+    : authLoading
+      ? 'loading'
+      : guestContext.read.kind;
+  const guestData =
+    !readsDeviceStores && guestContext.read.kind === 'ready' ? guestContext.read.data : null;
+
+  const currentClass = readsDeviceStores
+    ? (classFromStore ?? publicClass ?? null)
+    : (guestData?.currentClass ?? null);
 
   // Filter classes to only show classes from the same trial
-  const trialClasses = currentClass
-    ? classes.filter(cls => cls.trialId === currentClass.trialId)
-    : classes;
+  const trialClasses = !readsDeviceStores
+    ? (guestData?.trialClasses ?? [])
+    : currentClass
+      ? classes.filter(cls => cls.trialId === currentClass.trialId)
+      : classes;
 
   // Resolve the class's show before loading entries so staff surfaces can use
   // the same show-scoped cache as Show Desk and Entry Management.
-  const parentTrial = trialId
-    ? trials.find(trial => trial.id === trialId)
-    : currentClass
-      ? trials.find(trial => trial.id === currentClass.trialId)
-      : undefined;
+  const parentTrial = !readsDeviceStores
+    ? guestData?.parentTrial
+    : trialId
+      ? trials.find(trial => trial.id === trialId)
+      : currentClass
+        ? trials.find(trial => trial.id === currentClass.trialId)
+        : undefined;
 
-  const storedParentShow = showId
-    ? shows.find(show => show.id === showId)
-    : parentTrial
-      ? shows.find(show => show.id === parentTrial.showId)
-      : undefined;
+  // A guest's show is the server's anon answer (useShowQuery), never the
+  // device store, which holds what an earlier signed-in session could see.
+  const storedParentShow = !readsDeviceStores
+    ? undefined
+    : showId
+      ? shows.find(show => show.id === showId)
+      : parentTrial
+        ? shows.find(show => show.id === parentTrial.showId)
+        : undefined;
   const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? undefined;
 
   // Parent show for DISPLAY (section links, headers). Separate concern from the
@@ -327,10 +358,14 @@ export function useClassDetailsData() {
     trialId,
     isResultsView,
 
-    // Class data
-    classes,
+    // Class data. A guest's `classes` is the server's list for the trial.
+    classes: readsDeviceStores ? classes : trialClasses,
     currentClass,
     trialClasses,
+    // Non-null only for a viewer with no session: the page renders the
+    // guest's loading / offline / error / not-found state from it.
+    guestClassState,
+    retryGuestClassRead: guestContext.refetch,
 
     // Entries
     localRawEntries,

@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -23,6 +24,7 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
+import { withStoredDays, withTypedDays } from './showCalendarDays';
 
 /**
  * Database row type from Supabase schema
@@ -166,7 +168,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Convert app-level Show to Supabase row format (snake_case).
    * Strips sync metadata fields (_version, _lastModified, etc.)
    */
-  private toSupabaseRow(show: ReplicatedShow): Record<string, unknown> {
+  private toSupabaseRow(rawShow: ReplicatedShow): Record<string, unknown> {
+    // Every date here is already a calendar day or a stored value: typed
+    // dates were normalized when they entered the row (updateShow/createShow).
+    const show = withStoredDays(rawShow);
     return {
       id: show.id,
       name: show.name,
@@ -220,10 +225,32 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /**
    * Sync shows from Supabase
    */
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<ShowRow, ReplicatedShow> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('shows')
+          .select('*')
+          .is('deleted_at', null)
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return (data ?? []) as unknown as ShowRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToShow,
+      rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
+    };
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')
@@ -252,10 +279,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
         return (data ?? []) as unknown as ShowRow[];
       },
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToShow,
-      rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.clubId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
@@ -291,7 +315,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get all shows sorted by start date
    */
   async getAllShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     return allShows.sort(
       (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
@@ -308,7 +332,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get shows by club
    */
   async getShowsByClub(clubId: string): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     return allShows
       .filter(show => show.clubId === clubId)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
@@ -318,7 +342,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get upcoming shows
    */
   async getUpcomingShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     const now = Date.now();
 
     return allShows
@@ -330,7 +354,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get active shows (currently ongoing)
    */
   async getActiveShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     const now = Date.now();
 
     return allShows
@@ -363,7 +387,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete resolvedUpdates.style;
     const updatedShow: ReplicatedShow = {
       ...currentShow,
-      ...resolvedUpdates,
+      ...withTypedDays(resolvedUpdates, currentShow),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
@@ -398,7 +422,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   async createShow(show: Omit<ReplicatedShow, 'id'>): Promise<ReplicatedShow> {
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
-      ...show,
+      ...withTypedDays(show),
       id,
       _version: 1,
       _lastModified: new Date(),

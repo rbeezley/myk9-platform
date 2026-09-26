@@ -20,6 +20,8 @@ import {
   useEntryManagementTrialClasses,
   useEntryManagementTrialScope,
 } from '@/hooks/useEntryManagementTrialScope';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import { useEnrollmentLedgerActions } from '@/hooks/useEnrollmentLedgerActions';
 import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management';
 import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
@@ -150,6 +152,11 @@ const EntryManagementPage: React.FC = () => {
   } = useEntryManagementTrialClasses(trialParam);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
+  const { trials, isLoadingTrials } = useEntryManagementTrialScope({
+    selectedShowId,
+  });
+  const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
+  const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
   const {
     isProcessing,
@@ -159,7 +166,6 @@ const EntryManagementPage: React.FC = () => {
     handleAssignArmband,
     handleNextArmband,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentPaymentChange,
     handleCheckInStatusChange,
     handleExportCSV,
     handleCompEntry,
@@ -173,10 +179,6 @@ const EntryManagementPage: React.FC = () => {
     selectedShow,
     setError,
     user,
-  });
-
-  const { trials, isLoadingTrials } = useEntryManagementTrialScope({
-    selectedShowId,
   });
 
   const [compDialog, setCompDialog] = useState<{
@@ -468,7 +470,7 @@ const EntryManagementPage: React.FC = () => {
                   onUncompEntry={handleUncompEntry}
                   onRemoveEntry={handleRemoveEntry}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                  onPaymentStatusChange={handleEnrollmentPaymentChange}
+                  paymentLedger={paymentLedger}
                   onSendDecisionEmail={async (registrationId, message, amountDue) => {
                     await handleSendDecisionEmail(registrationId, message, amountDue);
                     const registrationIds = [

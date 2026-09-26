@@ -14,6 +14,7 @@ import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
 import {
   DEFAULT_USER_FILTER,
+  USER_LOGIN_FILTER_VALUES,
   USER_ROLE_FILTER_VALUES,
   USER_STATUS_FILTER_VALUES,
 } from './UserManagementPage.types';
@@ -73,6 +74,7 @@ function parsePositiveInt(raw: string | null, fallback: number): number {
 export function parseUserListParams(params: URLSearchParams): UserListParams {
   const role = params.get('role');
   const status = params.get('status');
+  const login = params.get('login');
   const sortId = params.get('sort');
 
   return {
@@ -83,6 +85,9 @@ export function parseUserListParams(params: URLSearchParams): UserListParams {
         : 'all',
       status: (USER_STATUS_FILTER_VALUES as readonly string[]).includes(status ?? '')
         ? (status as UserFilter['status'])
+        : 'all',
+      login: (USER_LOGIN_FILTER_VALUES as readonly string[]).includes(login ?? '')
+        ? (login as UserFilter['login'])
         : 'all',
       showDeleted: params.get('deleted') === '1',
       dateRange: {
@@ -103,6 +108,7 @@ const LIST_PARAM_KEYS = new Set([
   'q',
   'role',
   'status',
+  'login',
   'deleted',
   'from',
   'to',
@@ -138,6 +144,7 @@ export function userListParamsToSearch(
   if (searchTerm.trim()) params.set('q', searchTerm);
   if (filters.role !== 'all') params.set('role', filters.role);
   if (filters.status !== 'all') params.set('status', filters.status);
+  if (filters.login !== 'all') params.set('login', filters.login);
   if (filters.showDeleted) params.set('deleted', '1');
   if (filters.dateRange.start) params.set('from', formatDate(filters.dateRange.start));
   if (filters.dateRange.end) params.set('to', formatDate(filters.dateRange.end));

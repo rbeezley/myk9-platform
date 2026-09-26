@@ -245,7 +245,7 @@ export const PublicRoutes = () => (
     <Route
       path="/shows/:showId/trials/:trialId"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute accountOnly>
           <SuspenseWrapper>
             <PageTransition>
               <TrialDetailsPage />
@@ -258,7 +258,7 @@ export const PublicRoutes = () => (
     <Route
       path="/trials/:trialId"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute accountOnly>
           <SuspenseWrapper>
             <PageTransition>
               <TrialDetailsPage />

@@ -89,7 +89,7 @@ describe('buildCartFulfillmentView', () => {
     const view = buildCartFulfillmentView(
       [recovered],
       [judgeDay(0, ['class-full'])],
-      ['class-full']
+      [{ classId: 'class-full', availableSpots: 0 }]
     );
 
     expect(view.fulfillmentByItemId['item-recovered']).toBe('payable');

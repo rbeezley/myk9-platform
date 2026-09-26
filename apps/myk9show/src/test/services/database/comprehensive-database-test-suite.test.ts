@@ -10,11 +10,17 @@ const { mockDogsTable, mockShowsTable } = vi.hoisted(() => ({
     getDogById: vi.fn(),
     searchDogs: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
   mockShowsTable: {
     getAllShows: vi.fn(),
     getShowById: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 

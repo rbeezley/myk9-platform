@@ -6,9 +6,11 @@ import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
 } from '@/services/database/show-incidents';
+import { listShowPayments, showPaymentsQueryKey } from '@/services/database/show-payments';
 import {
-  LATE_ENTRY_PAYMENT_METHODS,
+  DESK_PAYMENT_METHODS,
   summarizeShowDayReconciliation,
+  type DeskCollectionWindow,
   type ShowDayReconciliationEntry,
 } from './showDayReconciliationSummary';
 import { summarizeCloseoutStatus, type IncidentState } from './showCloseoutStatus';
@@ -17,15 +19,37 @@ import { formatIncidentType, summarizeShowIncidents } from './showIncidents';
 interface ShowCloseoutSummaryProps {
   showId: string;
   entries: ShowDayReconciliationEntry[];
+  /** When the show ran: payments and entries within it are counted (MYK9-677). */
+  deskWindow: DeskCollectionWindow | null;
 }
 
 const STAT_LABEL_CLASS = 'text-xs font-medium uppercase text-muted-foreground';
 const STAT_VALUE_CLASS = 'text-xl font-semibold';
 
-export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProps) {
-  const recon = summarizeShowDayReconciliation(entries);
+export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseoutSummaryProps) {
+  // Cash and check money is read from the payments ledger (MYK9-677), online
+  // like the incident read below; see services/database/show-payments.ts.
+  const paymentsQuery = useQuery({
+    queryKey: showPaymentsQueryKey(showId),
+    queryFn: () => listShowPayments(showId),
+  });
+  const recon = summarizeShowDayReconciliation(entries, deskWindow, paymentsQuery.data ?? []);
   const reconNeedsReview = recon.pulledCount > 0 || recon.refundReviewCount > 0;
-  const hasLateEntries = recon.lateEntryCount > 0;
+  const hasDeskMoney = DESK_PAYMENT_METHODS.some(
+    method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
+  );
+  // Never a zero before the read completes: pending (including paused while
+  // offline, which is not `isLoading`) shows a placeholder, a failure says so.
+  const paymentsText = paymentsQuery.isSuccess
+    ? formatCurrency(recon.paymentAmount)
+    : paymentsQuery.isError
+      ? 'Unavailable'
+      : '…';
+  const paymentCountText = paymentsQuery.isSuccess
+    ? `${recon.paymentCount} ${recon.paymentCount === 1 ? 'payment' : 'payments'} during the show`
+    : paymentsQuery.isError
+      ? 'Unavailable'
+      : 'Checking payments…';
   const refundReviewText =
     recon.refundReviewCount > 0
       ? `${formatCurrency(recon.refundReviewAmount)} paid entries`
@@ -63,7 +87,8 @@ export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProp
             Show closeout
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Reconcile desk fees and pulls, then clear reportable incidents before final filing.
+            Check the cash box against the payments below, settle pulls, then clear reportable
+            incidents before final filing.
           </p>
         </div>
         <Chip color={status.color} size="sm" className="w-fit">
@@ -77,21 +102,32 @@ export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProp
           id="show-closeout-attendance-title"
           className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         >
-          Attendance &amp; fees
+          Entries &amp; payments
         </h4>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div role="group" aria-label="Show entries">
             <p className={STAT_LABEL_CLASS}>Entries</p>
             <p className={STAT_VALUE_CLASS}>{recon.totalEntryCount}</p>
-            <p className="text-xs text-muted-foreground">{recon.lateEntryCount} day-of</p>
           </div>
-          <div role="group" aria-label="Collected at-show late-entry fees">
-            <p className={STAT_LABEL_CLASS}>At-show collected</p>
-            <p className={STAT_VALUE_CLASS}>{formatCurrency(recon.collectedAmount)}</p>
+          <div role="group" aria-label="Entries made during the show">
+            <p className={STAT_LABEL_CLASS}>Entries made during the show</p>
+            <p className={STAT_VALUE_CLASS}>{recon.entriesDuringShowCount}</p>
+            <p className="text-xs text-muted-foreground">
+              {recon.waivedDuringShowCount > 0
+                ? `${recon.waivedDuringShowCount} waived`
+                : 'Submitted on a show day'}
+            </p>
           </div>
-          <div role="group" aria-label="Waived late-entry fees">
-            <p className={STAT_LABEL_CLASS}>Waived</p>
-            <p className={STAT_VALUE_CLASS}>{recon.waivedCount}</p>
+          <div role="group" aria-label="Payments received during the show">
+            <p className={STAT_LABEL_CLASS}>Payments received</p>
+            <p className={STAT_VALUE_CLASS}>{paymentsText}</p>
+            {paymentsQuery.isError ? (
+              <p className="text-xs text-destructive">
+                {paymentCountText}: could not load payments. Reconnect and reopen closeout.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{paymentCountText}</p>
+            )}
           </div>
           <div role="group" aria-label="Pulled or no-show entries">
             <p className={STAT_LABEL_CLASS}>Pulled / no-show</p>
@@ -104,13 +140,13 @@ export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProp
           </div>
         </div>
 
-        {hasLateEntries && (
+        {hasDeskMoney && paymentsQuery.isSuccess && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {LATE_ENTRY_PAYMENT_METHODS.map(method => ({
+            {DESK_PAYMENT_METHODS.map(method => ({
               ...method,
               value: recon.byMethod[method.id],
             }))
-              .filter(method => method.value.count > 0)
+              .filter(method => method.value.count > 0 || method.value.amount !== 0)
               .map(method => (
                 <span
                   key={method.id}

@@ -78,6 +78,19 @@ export const HEALTH_COVERAGE_SURFACES: readonly HealthCoverageSurface[] = [
     checkKey: 'stray_published_shows',
   },
   {
+    label: 'Results Posted pushes',
+    verificationLevel: 'full',
+    detail:
+      'results pushes that failed or are still pending after 20 minutes, and the retry schedule, are checked',
+    checkKey: 'class_results_push',
+  },
+  {
+    label: 'Platform settings row',
+    verificationLevel: 'full',
+    detail: 'the platform fee and Stripe mode row is checked every five minutes',
+    checkKey: 'platform_settings_singleton',
+  },
+  {
     label: 'Sign-in email failures',
     verificationLevel: 'full',
     detail: 'delivery failures raise alerts',

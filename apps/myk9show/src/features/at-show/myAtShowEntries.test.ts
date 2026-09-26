@@ -53,7 +53,9 @@ beforeEach(() => {
   mockUser = { id: USER };
   mockAccountEntries = { data: undefined, isLoading: false };
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('deriveMyAtShowEntrySets', () => {
   it('filters to the requested show and dedupes class ids', () => {

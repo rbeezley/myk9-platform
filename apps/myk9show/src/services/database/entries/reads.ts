@@ -26,8 +26,6 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
-import { logger } from '@/services/LoggingService';
-import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -39,13 +37,16 @@ import {
   AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK,
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
+import { compareNewestFirst, compareRunOrder, readAllEntryPages } from './entryPagedRead';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
+import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
 import {
   HANDLER_PERSON_SELECT,
   attachPostgrestHandlerIdentity,
   mapReplicatedEntriesWithHandlerIdentity,
   projectPostgrestEntryHandlerIdentity,
 } from './entryHandlerReadBoundary';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -58,21 +59,24 @@ const ENROLLMENT_FINANCIAL_SELECT = `
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
   return loadLookupMap(
-    () => replicatedDogsTable.getAllDogs(),
+    // A join: dog and owner labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedDogsTable.getAllDogs(), 'dog labels'),
     d => d.id
   );
 }
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
   return loadLookupMap(
-    () => replicatedClassesTable.getAll(),
+    // A join: class labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
     c => c.id
   );
 }
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   return loadLookupMap(
-    () => replicatedShowsTable.getAllShows(),
+    // A join: show labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedShowsTable.getAllShows(), 'show labels'),
     s => s.id
   );
 }
@@ -327,33 +331,6 @@ async function postgrestGetEntriesByShow(showId: string) {
 }
 
 /**
- * Run an entries read twice if it has to: once naming MYK9-639's
- * `moved_from_entry_id`, and again without it when the column does not exist.
- *
- * `supabase db push` is run by hand after the merge and Vercel serves `main`
- * before that happens, so for the length of that window PostgREST answers 42703
- * and fails the WHOLE request, not just the column. Only the two reads that are
- * SUMMED as money name the link, so this is the only place the window has to be
- * handled; the other entry reads use the plain list and are unaffected.
- *
- * The degraded read simply carries no supersession link, which
- * `resolveMoneyRoot` already treats as "this row is its own root" — the
- * pre-MYK9-639 behaviour, not a new failure mode.
- */
-async function withMoveUpLinkFallback<T>(
-  run: (withLink: boolean) => PromiseLike<{ data: T | null; error: unknown }>
-): Promise<{ data: T | null; error: unknown }> {
-  const first = await run(true);
-  if (!isMoveUpLinkSchemaUnavailable(first.error as { code?: string; message?: string } | null)) {
-    return first;
-  }
-  logger.warn(
-    '[entries] moved_from_entry_id is not in the schema yet; reading without the move-up link'
-  );
-  return run(false);
-}
-
-/**
  * The two money reads name MYK9-639's `moved_from_entry_id`; every other entry
  * read does not.
  *
@@ -503,58 +480,51 @@ const TRIAL_ENTRIES_SELECT = `
     `;
 
 async function postgrestGetEntriesByShowForFinancials(showId: string) {
-  // MYK9-639: this read is SUMMED as money, so it names the supersession link —
-  // and retries without it for the deploy window, when the column does not
-  // exist yet and PostgREST would 42703 the whole request.
+  // MYK9-639: this read is SUMMED as money, so it names the supersession link.
+  // MYK9-761: paged past PostgREST's `max_rows` (see readAllEntryPages).
   // The ternary is on the WHOLE query, not inside `.select()`: the typed
   // builder parses each select literal at compile time, and a union of two of
   // them exhausts its parser.
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-      : supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
+            .eq('show_id', showId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT)
+            .eq('show_id', showId)
+            .is('deleted_at', null),
+    'select_by_show_financials'
   );
-
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return {
-    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
-    error: null,
-  };
+  // Paged by id alone; callers list rows newest first.
+  rows.sort(compareNewestFirst);
+  return { data: attachPostgrestHandlerIdentity(rows), error: null };
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {
-  // MYK9-639: the trial-scoped Financial Report sums this one. Same fallback.
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(TRIAL_ENTRIES_SELECT_WITH_LINK)
-          .eq('class.trial_id', trialId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-      : supabase
-          .from('entries')
-          .select(TRIAL_ENTRIES_SELECT)
-          .eq('class.trial_id', trialId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
+  // MYK9-639: the trial-scoped Financial Report sums this one.
+  // MYK9-767: paged past `max_rows` exactly like the show-scoped read.
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(TRIAL_ENTRIES_SELECT_WITH_LINK)
+            .eq('class.trial_id', trialId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(TRIAL_ENTRIES_SELECT)
+            .eq('class.trial_id', trialId)
+            .is('deleted_at', null),
+    'select_by_trial'
   );
-
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
-  return {
-    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
-    error: null,
-  };
+  rows.sort(compareNewestFirst);
+  return { data: attachPostgrestHandlerIdentity(rows), error: null };
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
@@ -578,25 +548,29 @@ async function postgrestGetEntriesByClass(classId: string) {
     `;
   const CLASS_ENTRIES_SELECT_WITH_LINK = `${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},${CLASS_ENTRY_RELATIONS_SELECT}`;
   const CLASS_ENTRIES_SELECT = `${AUTHENTICATED_ENTRY_READ_COLUMNS},${CLASS_ENTRY_RELATIONS_SELECT}`;
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(CLASS_ENTRIES_SELECT_WITH_LINK)
-          .eq('class_id', classId)
-          .is('deleted_at', null)
-          .order('run_order', { ascending: true, nullsFirst: false })
-      : supabase
-          .from('entries')
-          .select(CLASS_ENTRIES_SELECT)
-          .eq('class_id', classId)
-          .is('deleted_at', null)
-          .order('run_order', { ascending: true, nullsFirst: false })
+  // MYK9-767: paged past `max_rows`, then put back in run order (nulls last).
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(CLASS_ENTRIES_SELECT_WITH_LINK)
+            .eq('class_id', classId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(CLASS_ENTRIES_SELECT)
+            .eq('class_id', classId)
+            .is('deleted_at', null),
+    'select_by_class'
   );
-
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
-
-  const entries = data || [];
+  const entries = rows.sort(compareRunOrder) as Array<
+    Record<string, unknown> & {
+      armband: string | null;
+      show_id: string | null;
+      dog_id: string | null;
+    }
+  >;
 
   // Backfill armbands from the authoritative armbands table
   const armbandMap = await fetchMissingArmbands(entries);
@@ -645,6 +619,10 @@ async function postgrestGetEntriesByDog(dogId: string) {
         start_date,
         end_date,
         location
+      ),
+      trial:trial_id (
+        date,
+        timezone
       )
     `
     )
@@ -720,7 +698,7 @@ export const getAllEntries = async () => {
   return readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
         loadClassesMap(),
         loadShowsMap(),
@@ -884,12 +862,19 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
   });
 };
 
-// Get entries by show ID with financial joins (promo_code, trial name)
+// Get entries by show ID with financial joins (promo_code, trial name).
+// MYK9-761: summed as money, so a never-synced show is read online or reported
+// as an error, the same rule as the staff report read above.
 export const getEntriesByShowForFinancials = async (showId: string) => {
+  // A failed local sync-metadata read must not block the online read: the
+  // replication branch below re-reads it, and a throw there falls back to
+  // PostgREST (Codex P2 on #2463).
+  await ensureShowEntriesSynced(showId).catch(() => false);
   return readWithReplicationFallback({
     replication: async () => {
-      const [rawEntries, dogsMap, classesMap, trials] = await Promise.all([
+      const [rawEntries, scopeSynced, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
+        hasShowEntriesSynced(showId),
         loadDogsMap(),
         loadClassesMap(),
         replicatedTrialsTable.getTrialsByShow(showId),
@@ -940,12 +925,20 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
         });
       });
 
-      return { data, error: null };
+      return {
+        data,
+        error: null,
+        locallyDeletedIds: rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id),
+        scopeUnsynced: !scopeSynced,
+        unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
+      };
     },
     postgrest: () => postgrestGetEntriesByShowForFinancials(showId),
     table: 'entries',
     operation: 'select_by_show_financials',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 
@@ -959,7 +952,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       // Get classes for this trial, then filter entries by those class IDs
       const [trialClasses, allEntries, dogsMap] = await Promise.all([
         replicatedClassesTable.getClassesByTrial(trialId),
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
       ]);
       const trialClassIds = new Set(trialClasses.map(c => c.id));
@@ -1112,7 +1105,7 @@ export interface DogEntriesReadResult {
 //     copy for exactly this reason; merging follows that same rule.
 async function replicaGetEntriesByDog(dogId: string) {
   const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
-    replicatedEntriesTable.getAll(),
+    replicatedEntriesTable.getAllOrThrow(),
     loadDogsMap(),
     loadClassesMap(),
     loadShowsMap(),
@@ -1238,9 +1231,33 @@ export const countActiveEntriesByDog = async (dogId: string): Promise<number> =>
   return count ?? 0;
 };
 
-// Count a dog's live entries that BLOCK a delete — the exact predicate
-// soft_delete_dog refuses on (MK002, migration 20260830140000). Kept in step
-// with it by `entryBlocksDogDelete.contract.test.ts`, which reads both.
+// Count a dog's live entries that BLOCK a delete — a NARROWED copy of the
+// predicate soft_delete_dog refuses on (MK002, migration 20260830140000).
+// Kept in step with the arms it still shares with the server by
+// `entryBlocksDogDelete.contract.test.ts`, which reads both.
+//
+// Deliberately excludes result_status (MYK9-799): migration
+// 20260620001929_restrict_authenticated_entry_results.sql revoked
+// `authenticated`'s column-SELECT grant on entries.result_status, so naming
+// it in a PostgREST filter — even inside an `or()` — makes PostgREST refuse
+// the WHOLE request with 403, which permanently disabled Delete for every
+// dog.
+//
+// This predicate is deliberately NARROWER than soft_delete_dog's guard, not
+// merely a readable rephrasing of it: an entry can carry a settled
+// result_status ('absent' or 'excused') without is_scored or
+// scoring_completed_at ever being set — migrations 20260712180000 and
+// 20260904160000 define "accounted for" as exactly
+// `is_scored OR result_status IN ('absent', 'excused')` because the two
+// diverge, and `replicatedRunQueue.ts` documents a real staging row in that
+// state. Such an entry reads here as not blocking, so Delete proceeds; the
+// server's soft_delete_dog still evaluates the full predicate including
+// result_status and refuses with MK002, translateDogDbError turns that into
+// "This dog has paid or scored entries. Pull or refund them before
+// deleting.", and the delete dialog stays open — so the gap costs a wrong
+// pre-click warning, never a lost delete. See MYK9-822 for a server-side
+// count (e.g. an RPC) that can share soft_delete_dog's own predicate instead
+// of a client-side approximation of it.
 //
 // 'refunded' and 'waived' do not block: no money is being kept. A direct
 // head-count for the same reason as countActiveEntriesByDog above — a
@@ -1251,9 +1268,7 @@ export const countBlockingEntriesByDog = async (dogId: string): Promise<number> 
     .select('id', { count: 'exact', head: true })
     .eq('dog_id', dogId)
     .is('deleted_at', null)
-    .or(
-      'payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null,and(result_status.not.is.null,result_status.neq.pending)'
-    );
+    .or('payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null');
   if (error) throw error;
   return count ?? 0;
 };
@@ -1263,7 +1278,7 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({
     replication: async () => {
       const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
         loadClassesMap(),
         loadShowsMap(),

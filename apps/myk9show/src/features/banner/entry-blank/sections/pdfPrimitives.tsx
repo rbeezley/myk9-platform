@@ -4,8 +4,12 @@ import { Text, View } from '@react-pdf/renderer';
  * Banner PDF primitives. Mirrors the Heritage / Monogram pattern but uses
  * the Banner palette and Inter Tight + Inter type stack. The flag color is
  * passed through as a prop (not a constant) because Banner is per-club
- * configurable — sections receive `flag` from the Document and forward it
- * down to SectionHeader, Field, and Checkbox where needed.
+ * configurable. Two colours travel down from the Document (MYK9-786):
+ * `flag` — the raw club colour — for borders and rules only (Field's dashed
+ * line, section boxes), and `flagText` — `BannerBrandColors.flagText`, the
+ * flag darkened until it reaches 4.5:1 on paper — for every flag-coloured
+ * glyph (SectionHeader, Checkbox mark, and the sections' own labels). A light
+ * flag such as yellow #f5c211 is 1.59:1 on paper, so it can never be text.
  */
 
 export const INK = '#111111';
@@ -32,16 +36,17 @@ export function FlagRule({ color, height = 2 }: { color: string; height?: number
   );
 }
 
-/** Section header — "01 / SECTION" left-aligned in Inter Tight on the
- *  brand color, plus a thin ink rule beneath. */
+/** Section header — "01 / SECTION" left-aligned in Inter Tight in the
+ *  text-safe flag colour, plus a thin ink rule beneath. */
 export function SectionHeader({
   number,
   title,
-  flag,
+  flagText,
 }: {
   number: string;
   title: string;
-  flag: string;
+  /** `BannerBrandColors.flagText` — never the raw flag. */
+  flagText: string;
 }) {
   return (
     <View
@@ -60,7 +65,7 @@ export function SectionHeader({
           fontWeight: 800,
           fontSize: 10,
           letterSpacing: 1.8,
-          color: flag,
+          color: flagText,
         }}
       >
         {number} / {title.toUpperCase()}
@@ -113,7 +118,8 @@ export function Field({
   );
 }
 
-export function Checkbox({ checked = false, flag }: { checked?: boolean; flag: string }) {
+/** `flagText` colours the ✕ mark: `BannerBrandColors.flagText`, never the raw flag. */
+export function Checkbox({ checked = false, flagText }: { checked?: boolean; flagText: string }) {
   return (
     <View
       style={{
@@ -128,7 +134,13 @@ export function Checkbox({ checked = false, flag }: { checked?: boolean; flag: s
     >
       {checked ? (
         <Text
-          style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 9, color: flag, lineHeight: 1 }}
+          style={{
+            fontFamily: DISPLAY,
+            fontWeight: 800,
+            fontSize: 9,
+            color: flagText,
+            lineHeight: 1,
+          }}
         >
           {'✕'}
         </Text>

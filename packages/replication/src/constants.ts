@@ -10,8 +10,11 @@
 /** Database name for local IndexedDB storage */
 export const DB_NAME = 'myK9_Replication';
 
-/** Database schema version (v8, MYK9-616: dropped the unread `data.*` indexes) */
-export const DB_VERSION = 8;
+/**
+ * Database schema version (v8, MYK9-616: dropped the unread `data.*` indexes;
+ * v9, MYK9-788: added the read `tableName_showId` index)
+ */
+export const DB_VERSION = 9;
 
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;

@@ -1,4 +1,5 @@
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isPublicGuest } from '@/hooks/guestServerRead';
 
 export interface DirectoryViewer {
   /** Signed out, or an anonymous (ringside passcode) session. */
@@ -12,13 +13,13 @@ export interface DirectoryViewer {
 }
 
 /**
- * MYK9-747: who is looking at the public club directory or a club page. Same
- * principal rule as ReplicatedClubsTable.sync(): an anonymous (ringside
- * passcode) session is a guest too. See the INTENT in useBrowseClubsData.
+ * MYK9-747: who is looking at the public club directory or a club page. The
+ * shared public-guest rule (isPublicGuest): an anonymous (ringside passcode)
+ * session is a guest too. See the INTENT in useBrowseClubsData.
  */
 export function useDirectoryViewer(): DirectoryViewer {
   const { user, loading: authLoading } = useAuthContext();
-  const isGuest = !authLoading && (!user || user.is_anonymous === true);
+  const isGuest = isPublicGuest(user, authLoading);
   return {
     isGuest,
     isSignedIn: !authLoading && !isGuest,

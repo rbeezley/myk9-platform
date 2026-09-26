@@ -57,7 +57,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
         showCheckInStatus={false}
         matchingEntryIds={new Set(['entry-2'])}
       />
@@ -89,7 +89,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -110,7 +110,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
         onSendDecisionEmail={vi.fn()}
       />
     );
@@ -143,7 +143,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={onBulkStatusChange}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -183,7 +183,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 
@@ -211,7 +211,7 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onPaymentStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       />
     );
 

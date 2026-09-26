@@ -38,6 +38,12 @@ export interface PaymentDetails {
   /** Group/club reference number (used for group_payment) */
   groupReference?: string;
   paymentNotes?: string;
+  /**
+   * MYK9-677: how a "Secretary Payment (Already Received)" arrived. Required
+   * when money changed hands, so the payments ledger and the Financial Report
+   * record cash or check rather than an unnamed channel.
+   */
+  receivedMethod?: 'cash' | 'check';
 }
 
 // Registration context for role-based workflows

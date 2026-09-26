@@ -27,7 +27,9 @@ const mockEntry = {
 };
 
 describe('usePendingEntries', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('fetches pending entries across all shows', async () => {
     vi.mocked(getPendingEntries).mockResolvedValue([mockEntry]);

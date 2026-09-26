@@ -12,6 +12,7 @@ const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
+const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
 const upsertClassJudgeAssignmentMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
@@ -36,6 +37,15 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
 // needed -- which is exactly how an AKC show came to offer UKC-only judges.
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: useShowQueryMock,
+}));
+
+// MYK9-790: left real, this query runs the replicated read, a cold-store
+// hydration and a logger.warn that nothing here awaits. The synchronous test
+// returns before that chain settles, so when it runs last the warn reaches the
+// worker after the file has finished, and a slow CI runner closes its RPC first
+// (EnvironmentTeardownError: "onUserConsoleLog" was pending).
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: useSecretaryShowEntriesQueryMock,
 }));
 
 vi.mock('@/services/database/judges', () => ({
@@ -98,6 +108,11 @@ describe('ClassManagementPage judge assignment', () => {
       isPending: false,
     });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
     useJudgesWithQualificationsMock.mockReturnValue({
       data: [
         {

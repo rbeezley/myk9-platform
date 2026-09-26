@@ -7,10 +7,10 @@ import { bannerColors, bannerSpacing } from '../../tokens';
 interface WelcomeSectionProps {
   welcomeText: string | null;
   trialChairName: string | null;
-  flag: string;
+  flagText: string;
 }
 
-export function WelcomeSection({ welcomeText, trialChairName, flag }: WelcomeSectionProps) {
+export function WelcomeSection({ welcomeText, trialChairName, flagText }: WelcomeSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (!welcomeText) return null;
 
@@ -29,8 +29,8 @@ export function WelcomeSection({ welcomeText, trialChairName, flag }: WelcomeSec
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="01" label="Welcome" flag={flag}>
-        A note from <span style={{ color: flag }}>the chair.</span>
+      <BannerSectionHead number="01" label="Welcome" flagText={flagText}>
+        A note from <span style={{ color: flagText }}>the chair.</span>
       </BannerSectionHead>
 
       <div

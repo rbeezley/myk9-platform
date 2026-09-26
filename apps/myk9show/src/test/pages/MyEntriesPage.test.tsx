@@ -883,7 +883,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByText('A Trial');
       // A secretary recording payment on the order cascades `paid` down onto
-      // its entry rows (`updateEnrollmentPaymentStatus`), so an entry left at
+      // its entry rows (the server's entries cascade), so an entry left at
       // `pending` under a `paid` enrollment is unreconciled debt — and
       // `enrollments` is one row per (show, handler) reused by every later
       // submission, so the order's status cannot vouch for it.
@@ -1376,7 +1376,9 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   // `vi.clearAllMocks()` clears call history but NOT return-value overrides
   // (see the note in the first describe), so a seeded position would otherwise
   // follow this file into whichever describe runs next.
-  afterEach(() => seedPosition([]));
+  afterEach(() => {
+    seedPosition([]);
+  });
 
   it('counts the position on the Waitlist chip', async () => {
     renderWithProviders(<MyEntriesPage />);

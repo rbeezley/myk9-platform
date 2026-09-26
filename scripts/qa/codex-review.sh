@@ -25,8 +25,12 @@
 #        pnpm qa:codex-review --post                      (no `--`: see the parser)
 #        Check `pnpm qa:review-tier --base origin/main` FIRST — a cross-harness
 #        review is only required when the printed tier is `independent`.
-# Env:   CODEX_BIN  override the codex executable (tests use a stub)
-#        GH_BIN     override the gh executable (tests use a stub)
+# Env:   CODEX_BIN          override the codex executable (tests use a stub)
+#        GH_BIN             override the gh executable (tests use a stub)
+#        CODEX_REVIEW_MODEL run the review on this model instead of the
+#          config default. A cheaper model (e.g. gpt-6-luna) is for re-checks,
+#          never the gate: when set, the wrapper refuses --post and prints no
+#          evidence line.
 # Exit:  0 review ran and found nothing actionable
 #        1 review ran and reported findings (fix, re-run against the new head)
 #        2 review did NOT complete (usage limit, interrupted, cli failure, or
@@ -49,6 +53,23 @@ POSTER="$HERE/post-review-gate.sh"
 # shellcheck source=scripts/qa/review-verdict.sh
 . "$HERE/review-verdict.sh"
 CODEX="${CODEX_BIN:-codex}"
+MODEL="${CODEX_REVIEW_MODEL:-}"
+MODEL_ARGS=()
+if [ -n "$MODEL" ]; then
+  # Interpolated into a TOML string below — reject anything that could break
+  # out of the quoted value.
+  case "$MODEL" in
+  *[!A-Za-z0-9._-]*)
+    echo "codex-review: CODEX_REVIEW_MODEL \"$MODEL\" is not a valid model slug (allowed: A-Za-z0-9._-). Exit 2." >&2
+    exit 2
+    ;;
+  esac
+  if [ "$POST" = 1 ]; then
+    echo "codex-review: CODEX_REVIEW_MODEL is for re-checks, not the gate. Refusing --post. Exit 2." >&2
+    exit 2
+  fi
+  MODEL_ARGS=(-c "model=\"${MODEL}\"")
+fi
 BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
 LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
@@ -60,8 +81,8 @@ LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
 # file, and leaves the built-in review prompt and repository instructions intact.
 REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict.'
 
-echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
-"$CODEX" review --base "$BASE_REF" -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
+echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG} (model ${MODEL:-config default})"
+"$CODEX" review --base "$BASE_REF" ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
 abort_lines() {
@@ -177,6 +198,9 @@ if [ "$POST" = 1 ]; then
     echo "codex-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2
   fi
+elif [ -n "$MODEL" ]; then
+  echo
+  echo "codex-review: clean on ${MODEL}. This is a re-check, not gate evidence — run the gate without CODEX_REVIEW_MODEL."
 else
   echo
   echo "codex-review: clean. Do NOT type the evidence by hand — re-run with --post, or:"

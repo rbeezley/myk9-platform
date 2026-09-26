@@ -55,8 +55,30 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
     ...(baseData !== undefined && { baseData }),
     ...(baseVersion !== undefined && { baseVersion }),
     ...(serverVersion !== undefined && { serverVersion }),
+    // A local (dirty) write keeps the server token, so it keeps the record of
+    // how this device last moved it; a server write replaces both.
+    ...(isDirty && existingRow?.lastOwnUpload && { lastOwnUpload: existingRow.lastOwnUpload }),
     conflict,
   };
+}
+
+/**
+ * True when a server snapshot is older than the version the row already holds
+ * (MYK9-794). A re-fetch can read v8, then a sync download applies v9 before
+ * the re-fetch's write. Applying v8 then would roll the row's data and base
+ * back while its token stays at v9, and could mark a conflict against a
+ * version the server has left. Callers check this inside the same readwrite
+ * transaction as their write, so it is atomic against the download.
+ */
+export function isOlderThanRow(
+  row: Pick<ReplicatedRow<unknown>, 'serverVersion'>,
+  remoteServerVersion: number | undefined
+): boolean {
+  return (
+    remoteServerVersion !== undefined &&
+    row.serverVersion !== undefined &&
+    remoteServerVersion < row.serverVersion
+  );
 }
 
 interface BuildReconciledDirtyRowOptions<T extends { id: string }> {
@@ -115,7 +137,18 @@ export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number):
 
 export function selectStaleCleanRows<T>(
   rows: readonly ReplicatedRow<T>[],
-  serverIds: ReadonlySet<string>
+  serverIds: ReadonlySet<string>,
+  options: { syncedBefore?: number } = {}
 ): ReplicatedRow<T>[] {
-  return rows.filter(row => !row.isDirty && !serverIds.has(row.id));
+  const { syncedBefore } = options;
+  return rows.filter(
+    row =>
+      !row.isDirty &&
+      !serverIds.has(row.id) &&
+      // A row marked synced after the fetch began (an upload that landed
+      // mid-fetch) is missing from serverIds only because the fetch predates
+      // it — never stale (MYK9-775). A pending local create is dirty, so the
+      // isDirty check above already keeps it.
+      (syncedBefore === undefined || row.lastSyncedAt < syncedBefore)
+  );
 }

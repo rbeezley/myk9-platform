@@ -177,4 +177,50 @@ describe('useShowLandingData', () => {
       expect(classesQuery?.state.status).toBe('error');
     });
   });
+
+  // Codex P1 on the passcode-guest change: an account session with a cold
+  // trial store caches replica-backed classes for this show. A guest on the
+  // same device (a ringside passcode session, or signed out) must never see
+  // that cached copy, only its own server read.
+  it("a guest never sees classes an account session cached, only this mount's server read", async () => {
+    const t1 = makeTrial('t1');
+    pickLandingTrialsMock.mockReturnValue([t1]);
+    getTrialsByShowMock.mockResolvedValue({ data: [{ id: 't1' }], error: null });
+    getPublicTrialsByShowMock.mockResolvedValue({ data: [{ id: 't1' }], error: null });
+    const replicaRows = [{ id: 'class-draft', name: 'Secret Draft Class' }];
+    const serverRows = [{ id: 'class-pub', name: 'Interior Novice A' }];
+    getClassesByTrialIdMock.mockResolvedValue({ data: replicaRows, error: null });
+
+    const { wrapper } = createWrapper();
+    const account = renderHook(() => useShowLandingData('show-1', [], []), { wrapper });
+    await waitFor(() => expect(account.result.current.publicClassInventoryResolved).toBe(true));
+    account.unmount();
+
+    let releaseServerRead: (value: unknown) => void = () => {};
+    getClassesByTrialIdMock.mockReturnValue(
+      new Promise(resolve => {
+        releaseServerRead = resolve;
+      })
+    );
+    buildPublicShowClassesMock.mockClear();
+    const guest = renderHook(() => useShowLandingData('show-1', [], null, true), { wrapper });
+
+    // While the guest's own read is in flight, nothing cached reaches it.
+    await waitFor(() => expect(getClassesByTrialIdMock).toHaveBeenCalledTimes(2));
+    expect(guest.result.current.publicClassInventoryResolved).toBe(false);
+    for (const [, byTrial] of buildPublicShowClassesMock.mock.calls) {
+      expect(JSON.stringify(byTrial)).not.toContain('class-draft');
+    }
+
+    releaseServerRead({ data: serverRows, error: null });
+    await waitFor(() => expect(guest.result.current.publicClassInventoryResolved).toBe(true));
+    expect(buildPublicShowClassesMock).toHaveBeenLastCalledWith(
+      [t1],
+      [{ trialId: 't1', rows: serverRows }],
+      null
+    );
+    for (const [, byTrial] of buildPublicShowClassesMock.mock.calls) {
+      expect(JSON.stringify(byTrial)).not.toContain('class-draft');
+    }
+  });
 });

@@ -41,6 +41,7 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
   return {
     ...actual,
     MutationManager: class {
+      rowRefetchers = { register: () => () => undefined };
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
       getPendingCount = vi.fn().mockResolvedValue(0);
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);

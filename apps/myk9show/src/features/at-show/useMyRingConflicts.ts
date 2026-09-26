@@ -58,6 +58,8 @@ export function useMyRingConflicts(
   }, [enabled, queryClient, showId]);
 
   return useMemo(() => {
+    // A failed read leaves no badges, not a claim of no conflicts: the entry
+    // list these decorate reads the same tables and shows its own error (MYK9-774).
     if (!query.data || ownEntryIds.size === 0) return EMPTY_CONFLICTS;
     return detectMyRingConflicts({
       entries: query.data.entries,

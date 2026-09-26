@@ -31,7 +31,8 @@ import {
   PremiumPublishError,
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
-import { persistShowJudgeAssignments } from '@/services/database/judges';
+import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -58,7 +59,8 @@ function parseOptionalCurrency(value: string | number | undefined): number | und
 
 function applyShowFormDataToPremium(
   premium: GeneratedPremium,
-  formData: Partial<ShowInput>
+  formData: Partial<ShowInput>,
+  judges: ShowJudgeAssignment[]
 ): GeneratedPremium {
   const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
@@ -81,11 +83,10 @@ function applyShowFormDataToPremium(
     },
     trials: premium.trials.map(trial => ({
       ...trial,
-      judges:
-        formData.assignedJudges?.map(judge => ({
-          name: judge.judgeName,
-          elements: judge.assignedClasses ?? [],
-        })) ?? trial.judges,
+      judges: judges.map(judge => ({
+        name: judge.judgeName,
+        elements: judge.assignedClasses ?? [],
+      })),
     })),
   };
 }
@@ -285,7 +286,13 @@ function AuthorizedShowManagementShell({
                   <LiveUpdateIndicator />
                   <ShowPresenceStack />
                   <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                    <ShowStatusPill showId={show.id} status={show.status} clubId={show.clubId} />
+                    <ShowStatusPill
+                      showId={show.id}
+                      status={show.status}
+                      clubId={show.clubId}
+                      entryOpenDate={show.entryOpenDate}
+                      entryCloseDate={show.entryCloseDate}
+                    />
                   </span>
                 </>
               }
@@ -401,8 +408,14 @@ function AuthorizedShowManagementShell({
               if (!localShow) {
                 throw new Error('Show was not available in the local store.');
               }
-              // Persist judge assignments to judge_assignments table
-              await persistShowJudgeAssignments(id, showData.assignedJudges || []);
+              // Save only what the secretary changed in the judge list: the
+              // loaded list can be empty because a device read failed, and
+              // replacing it deleted the real judges (MYK9-772).
+              await saveShowJudgeChanges(
+                id,
+                show.assignedJudges || [],
+                showData.assignedJudges || []
+              );
               // `localShow` is a StoreShow and carries no `trials`; merge rather
               // than replace, or the query's embedded trials are wiped (MYK9-676).
               queryClient.setQueryData<Show>(showQueryKeys.detail(id), current => ({
@@ -421,9 +434,14 @@ function AuthorizedShowManagementShell({
               // none of those may discard what the secretary just typed.
               await persistShowChanges();
               try {
+                // The form's judge list is a device read and is empty when that
+                // read failed; the published premium lists the server's judges,
+                // and only when this device agrees with them (MYK9-774).
+                const judges = await fetchShowJudgesForPublish(id);
                 const premium = applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>
+                  showData as Partial<ShowInput>,
+                  judges
                 );
                 await runPremiumPublishOperation({
                   showId: id,

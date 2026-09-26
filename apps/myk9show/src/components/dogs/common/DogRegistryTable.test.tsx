@@ -31,7 +31,9 @@ beforeAll(async () => {
   style.textContent = css;
   document.head.appendChild(style);
 });
-afterAll(() => style?.remove());
+afterAll(() => {
+  style?.remove();
+});
 
 describe('DogRegistryTable readability', () => {
   it('renders identity labels, breeds and numbers at the 16px body floor', () => {

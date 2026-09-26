@@ -20,7 +20,10 @@ import {
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+  PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
+  entryWindowPublishError,
 } from '@/features/payments/onlineEntryGate';
+import { getShowEditHref } from '@/components/shows/showEditRoutes';
 
 interface ShowStatusPillProps {
   showId: string;
@@ -28,6 +31,11 @@ interface ShowStatusPillProps {
   /** Publishing requires the club's Stripe payouts. Omitting this does NOT
    * skip the gate — publish fails closed without a club. */
   clubId?: string;
+  /** MYK9-716: publishing requires an entry window (a draft may have none).
+   * Required keys, so a caller cannot forget them and publish past the gate;
+   * a null or empty value fails closed. */
+  entryOpenDate: string | null | undefined;
+  entryCloseDate: string | null | undefined;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -66,7 +74,13 @@ const TRANSITIONS: Record<string, { label: string; next: string }[]> = {
   cancelled: [],
 };
 
-export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) {
+export function ShowStatusPill({
+  showId,
+  status,
+  clubId,
+  entryOpenDate,
+  entryCloseDate,
+}: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(clubId);
@@ -76,6 +90,11 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
     className: 'bg-muted border border-border text-muted-foreground',
   };
   const transitions = TRANSITIONS[status] ?? [];
+  // The entry dates live on the Edit panel's Basic Info tab.
+  const setEntryWindowAction = {
+    label: 'Set entry window',
+    onClick: () => navigate(getShowEditHref(showId)),
+  };
 
   async function handleTransition(next: string) {
     // Publishing opens online entries; fail closed unless the club's Stripe
@@ -130,6 +149,12 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         });
         return;
       }
+      // MYK9-716: checked last, the same order as enforce_show_publish_gate.
+      const windowError = entryWindowPublishError(entryOpenDate, entryCloseDate);
+      if (windowError) {
+        toast.error(windowError, { action: setEntryWindowAction });
+        return;
+      }
     }
 
     try {
@@ -143,6 +168,10 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
       if (isPublishGateDbError(error)) {
         const message = publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE;
         const code = (error as { code?: string }).code;
+        if (code === PUBLISH_GATE_ERRCODE_ENTRY_WINDOW) {
+          toast.error(message, { action: setEntryWindowAction });
+          return;
+        }
         // "Open Payments" only makes sense for the Stripe-readiness refusal.
         // The missing-club refusal shares MK003 but needs "assign a club",
         // not a trip to the payments page; MK004 (club not authorized) has

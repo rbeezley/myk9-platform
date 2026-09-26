@@ -86,7 +86,9 @@ describe('check-bundle-budget — collectBundleStats', () => {
     );
   });
 
-  afterAll(() => fs.rmSync(distDir, { recursive: true, force: true }));
+  afterAll(() => {
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
 
   it('sums only index.html-referenced assets into the initial payload', () => {
     const stats = collectBundleStats(distDir);

@@ -211,6 +211,9 @@ export function useAtShowScoresheet({
     setSubmitError(null);
     const completionClassId = classInfo.id;
     let wasFinalPendingEntry = false;
+    // A failed read here only skips the class-complete prompt; the score still
+    // saves, and scoring is never blocked on it. The class can be completed by
+    // hand (MYK9-774).
     try {
       wasFinalPendingEntry = await isCurrentFinalPendingEntry(completionClassId, entry.entryId);
     } catch (err) {

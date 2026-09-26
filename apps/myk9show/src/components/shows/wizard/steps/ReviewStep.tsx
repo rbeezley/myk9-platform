@@ -13,7 +13,7 @@ import { formatTrialTypeLabel } from '@/types/template.types';
 import { countLabel } from '@/utils/pluralize';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
-import { ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
+import { ReviewEntryWindowNotice, ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
 
 interface ReviewStepProps {
   className?: string;
@@ -156,6 +156,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               judges later.
             </ReviewWarningCard>
           )}
+
+          <ReviewEntryWindowNotice
+            entryOpenDate={show.entryOpenDate}
+            entryCloseDate={show.entryCloseDate}
+            onSetWindow={() => setCurrentStep(0)}
+          />
 
           {/* MYK9-686: location text with no pin is allowed, but never silent. */}
           {missingVenuePin && (

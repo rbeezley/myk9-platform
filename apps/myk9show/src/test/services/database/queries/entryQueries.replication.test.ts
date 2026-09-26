@@ -1,4 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
+import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/replication-fallback';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -15,6 +16,9 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
   vi.hoisted(() => ({
     mockEntriesTable: {
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
       getEntriesByShow: vi.fn(),
       getEntriesByClass: vi.fn(),
       getEntryById: vi.fn(),
@@ -25,9 +29,15 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
       getAllDogs: vi.fn(),
       getDogById: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockClassesTable: {
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
       getClassById: vi.fn(),
       getClassesByTrial: vi.fn(),
     },
@@ -35,10 +45,16 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
       getAllShows: vi.fn(),
       getShowById: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockTrialsTable: {
       getTrialsByShow: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
   }));
 
@@ -134,7 +150,6 @@ import {
   getEntriesByClass,
   getEntriesByDog,
   getEntriesByStatus,
-  getEntryStatistics,
   getUserEntries,
   searchEntries,
   canModifyEntry,
@@ -575,59 +590,6 @@ describe('entryQueries (replication)', () => {
   });
 
   // -----------------------------------------------------------------------
-  // getEntryStatistics
-  // -----------------------------------------------------------------------
-  describe('getEntryStatistics', () => {
-    it('calculates correct statistics', async () => {
-      const entries = [
-        makeEntry({ id: 'e1', entryStatus: 'confirmed', entryFee: 30, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e2', entryStatus: 'confirmed', entryFee: 25, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e3', entryStatus: 'completed', entryFee: 30, paymentStatus: 'paid' }),
-        makeEntry({ id: 'e4', entryStatus: 'draft', entryFee: 30, paymentStatus: 'pending' }),
-      ];
-      mockEntriesTable.getAll.mockResolvedValue(entries);
-
-      const result = await getEntryStatistics();
-
-      expect(result.error).toBeNull();
-      expect(result.data.totalEntries).toBe(4);
-      expect(result.data.byStatus).toEqual({
-        confirmed: 2,
-        completed: 1,
-        draft: 1,
-      });
-      expect(result.data.totalRevenue).toBe(115);
-      expect(result.data.paidRevenue).toBe(85);
-      // completionRate = completed(1) / paid(3) * 100
-      expect(result.data.completionRate).toBeCloseTo(33.33, 1);
-    });
-
-    it('filters by showId when provided', async () => {
-      const entries = [makeEntry({ showId: 'show-1', entryFee: 30 })];
-      mockEntriesTable.getEntriesByShow.mockResolvedValue(entries);
-
-      const result = await getEntryStatistics('show-1');
-
-      expect(result.data.totalEntries).toBe(1);
-      expect(mockEntriesTable.getEntriesByShow).toHaveBeenCalledWith('show-1');
-    });
-
-    it('returns zeros when no entries exist', async () => {
-      mockEntriesTable.getAll.mockResolvedValue([]);
-
-      const result = await getEntryStatistics();
-
-      expect(result.data).toEqual({
-        totalEntries: 0,
-        byStatus: {},
-        totalRevenue: 0,
-        paidRevenue: 0,
-        completionRate: 0,
-      });
-    });
-  });
-
-  // -----------------------------------------------------------------------
   // getUserEntries
   // -----------------------------------------------------------------------
   describe('getUserEntries', () => {
@@ -856,6 +818,77 @@ describe('entryQueries (replication)', () => {
   // -----------------------------------------------------------------------
   // searchEntries
   // -----------------------------------------------------------------------
+  // MYK9-774: the real tables answer [] from getAll() on a failed device read
+  // and throw from getAllOrThrow(). These tests model exactly that, so a caller
+  // that goes back to getAll() would read the failure as "no entries".
+  describe('a failed device read', () => {
+    function failDeviceRead(table: { getAll: ReturnType<typeof vi.fn> }): () => void {
+      const original = Object.getOwnPropertyDescriptor(table, 'getAllOrThrow');
+      table.getAll.mockResolvedValue([]);
+      Object.defineProperty(table, 'getAllOrThrow', {
+        configurable: true,
+        value: vi.fn().mockRejectedValue(
+          Object.assign(new Error("This device couldn't read its saved show data."), {
+            name: 'ReplicaReadError',
+          })
+        ),
+      });
+      return () => {
+        if (original) Object.defineProperty(table, 'getAllOrThrow', original);
+      };
+    }
+
+    it('My Entries offline reports an error, not an empty list', async () => {
+      setupListMocks([]);
+      const restore = failDeviceRead(mockEntriesTable);
+      const client = await import('@/services/database/supabaseClient');
+      vi.spyOn(client.supabase, 'from').mockImplementationOnce(() => {
+        throw new TypeError('Failed to fetch');
+      });
+      try {
+        const result = await getUserEntries('user-1');
+
+        expect(result.error).not.toBeNull();
+        expect(result.data).toEqual([]);
+      } finally {
+        restore();
+      }
+    });
+
+    it('getAllEntries returns the error, not a server list, while a write waits to upload', async () => {
+      setupListMocks([]);
+      const restore = failDeviceRead(mockEntriesTable);
+      const { mutationManager } = await import('@/services/replication/sharedMutationManager');
+      const pending = vi.spyOn(mutationManager, 'getPendingCount').mockResolvedValue(1);
+      try {
+        const result = await getAllEntries();
+
+        // The guard's own message: the server list was never asked for.
+        expect(result.error?.message).toBe(UNSYNCED_UNREADABLE_MESSAGE);
+        expect(result.data).toEqual([]);
+      } finally {
+        pending.mockRestore();
+        restore();
+      }
+    });
+
+    it('getAllEntries does not answer from an unreadable device', async () => {
+      setupListMocks([]);
+      const restore = failDeviceRead(mockEntriesTable);
+      try {
+        const result = await getAllEntries();
+
+        // The replica read threw, so the answer came from the server path (the
+        // mocked client), never from the device's false empty.
+        expect(mockEntriesTable.getAllOrThrow).toHaveBeenCalled();
+        expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
+        expect(result).toBeDefined();
+      } finally {
+        restore();
+      }
+    });
+  });
+
   describe('searchEntries', () => {
     it('searches by armband case-insensitively', async () => {
       const entries = [

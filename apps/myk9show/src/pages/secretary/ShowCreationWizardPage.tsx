@@ -38,13 +38,14 @@ import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreati
 import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 import { useAddTrialsExistingTrials } from './ShowCreationWizard/useAddTrialsExistingTrials';
 import {
-  focusWithoutJump,
+  useStepEntryFocus,
   revealFocusedBelowChrome,
   useWizardChromeHeight,
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
   WIZARD_SCROLL_MARGIN_CLASS,
 } from './ShowCreationWizard/wizardScrollChrome';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
+import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
 
@@ -180,24 +181,15 @@ const ShowCreationWizardPage: React.FC = () => {
   // dropping it: `handleClose` still raises the same dialog for the deliberate exit,
   // which is the action that warrants a confirmation.
 
-  // Focus first input when step changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (stepContentRef.current) {
-        const firstInput = stepContentRef.current.querySelector<HTMLInputElement>(
-          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
-        );
-        if (firstInput && typeof firstInput.focus === 'function') {
-          focusWithoutJump(firstInput);
-        }
-      }
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [currentStep]);
+  // Focus the step's first control shortly after mount or a step change,
+  // unless the secretary has already scrolled or focused something (MYK9-764).
+  useStepEntryFocus(stepContentRef, currentStep);
 
   // Is the edit-mode target show available to the same store that will write it?
   const { editModeResolution, retryWritableShow } = useWritableEditModeResolution(editMode);
+  // MYK9-716: a draft may skip the entry window, but a live show must keep it.
+  const requireEntryWindow =
+    editModeResolution.state === 'resolved' && isShowListingLive(editModeResolution.show.status);
 
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
@@ -262,7 +254,8 @@ const ShowCreationWizardPage: React.FC = () => {
       show,
       trials,
       trialView,
-      retainedClasses
+      retainedClasses,
+      { requireEntryWindow }
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -308,6 +301,7 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
     trialView,
     retainedClasses,
+    requireEntryWindow,
     scrollBannerIntoView,
   ]);
 
@@ -320,7 +314,8 @@ const ShowCreationWizardPage: React.FC = () => {
     show,
     trials,
     trialView,
-    retainedClasses
+    retainedClasses,
+    { requireEntryWindow }
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT

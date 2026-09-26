@@ -2,6 +2,9 @@ import { render } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  focusStepEntry,
+  STEP_ENTRY_FOCUS_DELAY_MS,
+  useStepEntryFocus,
   focusWithoutJump,
   revealFocusedBelowChrome,
   useWizardChromeHeight,
@@ -82,6 +85,19 @@ describe('wizard sticky chrome vs focus (MYK9-764)', () => {
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
+  it('does not move the page for a control whose bottom edge overflows the fold by a sub-pixel', () => {
+    // Measured at 390x600: mount focus lands on "Select a past show to clone",
+    // whose bottom sits at 600.5. Revealing that half pixel scrolled the page
+    // by 1px (MYK9-764, the flaking "stays pinned at 390" regression test).
+    const { input, focus, scrollIntoView } = mountInput({
+      top: window.innerHeight - 66,
+      bottom: window.innerHeight + 0.5,
+    });
+    focusWithoutJump(input);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
   it('reveals a control below the fold the same way', () => {
     const { input, scrollIntoView } = mountInput({ top: 700, bottom: 800 });
     focusWithoutJump(input);
@@ -132,5 +148,128 @@ describe('wizard sticky chrome vs focus (MYK9-764)', () => {
     revealFocusedBelowChrome({ target: overlayItem.input, currentTarget: form });
     expect(overlayItem.scrollIntoView).not.toHaveBeenCalled();
     form.remove();
+  });
+
+  describe('focusStepEntry (the delayed step-entry focus)', () => {
+    /** A step content with one on-screen control, clear of any chrome. */
+    function mountStep() {
+      const content = document.createElement('div');
+      document.body.append(content);
+      const first = document.createElement('input');
+      content.append(first);
+      vi.spyOn(first, 'getBoundingClientRect').mockReturnValue({
+        top: 400,
+        bottom: 440,
+      } as DOMRect);
+      first.scrollIntoView = vi.fn();
+      const focus = vi.spyOn(first, 'focus');
+      return { content, first, focus };
+    }
+
+    afterEach(() => {
+      document.body.replaceChildren();
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    });
+
+    it("focuses the step's first control when nothing has moved", () => {
+      const { content, focus } = mountStep();
+      focusStepEntry(content, 0);
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+
+    it('leaves a page the secretary scrolled in the meantime alone', () => {
+      const { content, first, focus } = mountStep();
+      Object.defineProperty(window, 'scrollY', { value: 969, configurable: true });
+      focusStepEntry(content, 0);
+      expect(focus).not.toHaveBeenCalled();
+      expect(first.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('does not take focus from a field the secretary already chose', () => {
+      const { content, focus } = mountStep();
+      const chosen = document.createElement('input');
+      content.append(chosen);
+      chosen.focus();
+      focus.mockClear();
+      focusStepEntry(content, 0);
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(chosen);
+    });
+
+    it.each(['dialog', 'alertdialog', 'listbox', 'menu'])(
+      'does not take focus out of an open %s',
+      role => {
+        const { content, focus } = mountStep();
+        const overlay = document.createElement('div');
+        overlay.setAttribute('role', role);
+        const inOverlay = document.createElement('button');
+        overlay.append(inOverlay);
+        document.body.append(overlay);
+        inOverlay.focus();
+        focusStepEntry(content, 0);
+        expect(focus).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(inOverlay);
+      }
+    );
+  });
+
+  describe('useStepEntryFocus (the page wiring)', () => {
+    function StepHarness({ step }: { step: number }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useStepEntryFocus(ref, step);
+      return (
+        <div ref={ref}>
+          <input aria-label={`step ${step} first`} key={step} />
+        </div>
+      );
+    }
+
+    function placeClear() {
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        top: 400,
+        bottom: 440,
+      } as DOMRect);
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    });
+
+    it('focuses the first control after the delay, not before', () => {
+      vi.useFakeTimers();
+      placeClear();
+      const { getByLabelText } = render(<StepHarness step={1} />);
+      vi.advanceTimersByTime(STEP_ENTRY_FOCUS_DELAY_MS - 1);
+      expect(document.activeElement).not.toBe(getByLabelText('step 1 first'));
+      vi.advanceTimersByTime(1);
+      expect(document.activeElement).toBe(getByLabelText('step 1 first'));
+    });
+
+    it('measures the scroll from when the step started, so a scroll during the delay skips it', () => {
+      vi.useFakeTimers();
+      placeClear();
+      const { getByLabelText } = render(<StepHarness step={1} />);
+      Object.defineProperty(window, 'scrollY', { value: 969, configurable: true });
+      vi.advanceTimersByTime(STEP_ENTRY_FOCUS_DELAY_MS);
+      expect(document.activeElement).not.toBe(getByLabelText('step 1 first'));
+    });
+
+    it("moves focus to the new step's first control on a step change", () => {
+      vi.useFakeTimers();
+      placeClear();
+      const { getByLabelText, rerender } = render(<StepHarness step={1} />);
+      vi.advanceTimersByTime(STEP_ENTRY_FOCUS_DELAY_MS);
+      // Parked at the footer's Next, scrolled down, then Next is pressed.
+      Object.defineProperty(window, 'scrollY', { value: 1200, configurable: true });
+      const next = document.createElement('button');
+      document.body.append(next);
+      next.focus();
+      rerender(<StepHarness step={2} />);
+      vi.advanceTimersByTime(STEP_ENTRY_FOCUS_DELAY_MS);
+      expect(document.activeElement).toBe(getByLabelText('step 2 first'));
+      next.remove();
+    });
   });
 });

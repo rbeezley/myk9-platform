@@ -77,7 +77,11 @@ const defaultProps = {
   onOpenArmbandDialog: vi.fn(),
   onRemoveEntry: vi.fn(),
   onBulkStatusChange: vi.fn(),
-  onPaymentStatusChange: vi.fn(),
+  paymentLedger: {
+    record: vi.fn().mockResolvedValue(true),
+    markPaidOnline: vi.fn().mockResolvedValue(true),
+    todayInShowZone: '2026-09-17',
+  },
 };
 
 describe('EnrollmentCard', () => {
@@ -184,7 +188,7 @@ describe('EnrollmentCard', () => {
   it('payment badge is a manual-edit dropdown for enrollment (mail-in) groups', () => {
     render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
     fireEvent.click(screen.getByText('Paid'));
-    expect(screen.getByText('Paid in Full: Cash')).toBeTruthy();
+    expect(screen.getByText('Paid in Full: Cash…')).toBeTruthy();
   });
 
   it('payment badge is NOT editable for online-checkout groups (no enrollment record)', () => {
@@ -199,7 +203,7 @@ describe('EnrollmentCard', () => {
     );
     const badge = screen.getByText('Paid');
     fireEvent.click(badge);
-    expect(screen.queryByText('Paid in Full: Cash')).toBeNull();
+    expect(screen.queryByText('Paid in Full: Cash…')).toBeNull();
     expect(badge.closest('button')).toBeNull();
   });
 
@@ -214,25 +218,123 @@ describe('EnrollmentCard', () => {
     expect(screen.getByText('Reset')).toBeTruthy();
   });
 
-  it('still fires onPaymentStatusChange from the regrouped payment menu', () => {
-    // Guards against the regrouping silently dropping a handler: a money action
-    // must still write through onPaymentStatusChange with the right enrollment +
-    // status.
-    const onPaymentStatusChange = vi.fn();
+  it('Paid in Full: Online goes to the server, never as a ledger payment (MYK9-773)', () => {
+    // Online money is not the desk's (no ledger row), but the server still runs
+    // the entries cascade, so an entry the enrollment refunded follows it.
+    const record = vi.fn().mockResolvedValue(true);
+    const markPaidOnline = vi.fn().mockResolvedValue(true);
     render(
       <EnrollmentCard
         {...defaultProps}
         group={makeGroup({ enrollmentId: 'enroll-1' })}
-        onPaymentStatusChange={onPaymentStatusChange}
+        paymentLedger={{ record, markPaidOnline, todayInShowZone: '2026-09-17' }}
       />
     );
     fireEvent.click(screen.getByText('Paid'));
-    fireEvent.click(screen.getByText('Paid in Full: Cash'));
+    fireEvent.click(screen.getByText('Paid in Full: Online'));
 
-    expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
-    const [enrollmentId, status] = onPaymentStatusChange.mock.calls[0];
-    expect(enrollmentId).toBe('enroll-1');
-    expect(status).toBe(PaymentStatus.PAID_BY_CASH);
+    expect(markPaidOnline).toHaveBeenCalledTimes(1);
+    expect(markPaidOnline).toHaveBeenCalledWith('enroll-1');
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  describe('cash and check money goes through the payments ledger (MYK9-677)', () => {
+    function renderPending(record = vi.fn().mockResolvedValue(true), paidAmount = 0) {
+      const markPaidOnline = vi.fn().mockResolvedValue(true);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          paymentLedger={{ record, markPaidOnline, todayInShowZone: '2026-09-17' }}
+          group={makeGroup({
+            enrollmentId: 'enroll-1',
+            paymentStatus: PaymentStatus.PENDING,
+            paidAmount,
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Payment Due'));
+      return { record, markPaidOnline };
+    }
+
+    it('Paid in Full: Cash records the balance, received today on the show calendar', () => {
+      const { record, markPaidOnline } = renderPending();
+      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
+      expect((screen.getByLabelText('Received on') as HTMLInputElement).value).toBe('2026-09-17');
+      fireEvent.click(screen.getByText('Confirm'));
+
+      expect(record).toHaveBeenCalledWith('enroll-1', {
+        kind: 'payment',
+        method: 'cash',
+        amount: null,
+        receivedOn: '2026-09-17',
+        reference: null,
+      });
+      expect(markPaidOnline).not.toHaveBeenCalled();
+    });
+
+    it('Paid in Full: Check keeps the day a check was actually received', () => {
+      const { record } = renderPending();
+      fireEvent.click(screen.getByText('Paid in Full: Check…'));
+      fireEvent.change(screen.getByPlaceholderText('Check number (optional)'), {
+        target: { value: '1042' },
+      });
+      fireEvent.change(screen.getByLabelText('Received on'), { target: { value: '2026-08-27' } });
+      fireEvent.click(screen.getByText('Confirm'));
+
+      expect(record).toHaveBeenCalledWith('enroll-1', {
+        kind: 'payment',
+        method: 'check',
+        amount: null,
+        receivedOn: '2026-08-27',
+        reference: '1042',
+      });
+    });
+
+    it('a partial payment records its own method and amount', () => {
+      const { record } = renderPending();
+      fireEvent.click(screen.getByText('Partial Payment…'));
+      fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+        target: { value: '35' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+      fireEvent.click(screen.getByText('Record Payment'));
+
+      expect(record).toHaveBeenCalledWith('enroll-1', {
+        kind: 'payment',
+        method: 'check',
+        amount: 35,
+        receivedOn: '2026-09-17',
+        reference: null,
+      });
+    });
+
+    it('offers a refund of what is still held after an earlier refund, not the gross paid', () => {
+      const record = vi.fn().mockResolvedValue(true);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          paymentLedger={{ record, markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
+          group={makeGroup({
+            enrollmentId: 'enroll-1',
+            paymentStatus: PaymentStatus.PARTIAL_REFUND,
+            paidAmount: 50,
+            entries: [makeEntry({ enrollmentRefundAmount: 30 })],
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Partial Refund'));
+      fireEvent.click(screen.getByText('Refunded…'));
+
+      expect((screen.getByLabelText(/Refund Amount/i) as HTMLInputElement).value).toBe('20.00');
+    });
+
+    it('Payment Due records a reversal, not a blind zero', () => {
+      const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue(true), 35);
+      fireEvent.click(screen.getAllByText('Payment Due').at(-1)!);
+
+      expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });
+      expect(markPaidOnline).not.toHaveBeenCalled();
+    });
   });
 
   it('omits show-day check-in and waitlist actions from the registration menu', () => {

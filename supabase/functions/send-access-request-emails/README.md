@@ -21,7 +21,7 @@ Reviewers: site admins for a new-club request and for any role request not route
 ## Once-only and retries
 
 - The trigger's job key is `(request_kind, request_id, event)`, unique, so a repeat, a refresh or a second review never queues a second job.
-- The worker claims **one job at a time** (`claim_access_request_email_jobs(1)`), each with a token and a 10-minute lease, so a slow provider can never leave later jobs claimed but untouched until their lease runs out. A run stops claiming after 20 jobs or 45 seconds; the rest wait for the next minute. `finish_access_request_email_job` only accepts that token.
+- The worker claims **one job at a time** (`claim_access_request_email_jobs(1)`), each with a token and a 10-minute lease, so a slow provider can never leave later jobs claimed but untouched until their lease runs out. A run stops claiming after 20 jobs or 45 seconds; the rest wait for the next run. `finish_access_request_email_job` only accepts that token.
 - A failed send moves the job back to `pending` with a 1, 4, 16 then 64-minute backoff; the fifth failure is terminal (`failed`, with `last_error`). Addresses already reached are kept in `delivered_to` and skipped on the retry.
 - A submitted job whose request was already reviewed sends nothing (`skipped`): a "waiting for review" confirmation would contradict the decision email.
 - Each provider call carries `Idempotency-Key: access-request-<job id>-<address>`, which covers a send that landed but whose result was never recorded.
@@ -63,4 +63,4 @@ supabase functions deploy send-access-request-emails --no-verify-jwt --project-r
 
 ## The schedule
 
-`pg_cron` job `access-request-emails`, every minute. It posts only when a job is due (or a lease has expired), so an idle minute is one indexed read. The migration schedules it **only if `access_request_email_cron_secret` already exists in Vault**; otherwise it warns and skips, and jobs wait in the queue until the schedule exists. A successful `db push` is not proof the schedule exists: check `cron.job` by name.
+`pg_cron` job `access-request-emails`, every 5 minutes (`*/5 * * * *`, owner decision 2026-09-26, set live with `cron.alter_job`). It posts only when a job is due (or a lease has expired), so an idle run is one indexed read. An email therefore goes out up to 5 minutes after the request, and the 1-minute first retry waits for the next run. The migration's own `cron.schedule` still says `* * * * *`; when you schedule it by hand, use `*/5 * * * *`. The migration schedules it **only if `access_request_email_cron_secret` already exists in Vault**; otherwise it warns and skips, and jobs wait in the queue until the schedule exists. A successful `db push` is not proof the schedule exists: check `cron.job` by name.

@@ -8,35 +8,16 @@ version: 2
 # See docs/plan-dependabot-remediation.md for the policy this codifies.
 #
 # Browser-level CI coverage (MYK9-520): ci.yml's smoke-build / A11y smoke /
-# E2E PR Smoke jobs skip by default when `github.actor == 'dependabot[bot]'`,
-# because GitHub withholds repository secrets from Dependabot-triggered
-# `pull_request` runs. ALL THREE jobs are affected -- smoke-build itself
-# reads VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, and a11y / e2e-myk9show
-# additionally need real E2E_* login credentials.
-#
-# PREREQUISITE, before the label below does anything real: a maintainer must
-# register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and every E2E_* secret
-# these jobs use under this repository's Dependabot secrets scope (Settings
-# -> Secrets and variables -> Dependabot) -- a separate, one-time action
-# outside any single PR, not done by this change. Without it, `pull_request`
-# runs triggered by Dependabot still don't get repository secrets even once
-# the actor skip is overridden: each job now runs an early
-# "Verify Dependabot-run secrets are available" step that fails loudly and
-# names the missing secrets in that case, rather than smoke-build silently
-# building against an EMPTY VITE_SUPABASE_URL/ANON_KEY and going GREEN on a
-# meaningless bundle while a11y/e2e-myk9show fail against it with a
-# confusing "Missing required env" message.
-#
-# Once that prerequisite is done, a maintainer reviewing a bump that touches
-# runtime `dependencies` (not just `devDependencies`) should add the
-# `run-smoke` label to the PR before merging -- it overrides the actor skip
-# so the three jobs run instead of silently SKIPping. That label does not
-# exist in this repository yet and nothing here creates it (`labels:` below
-# is deliberately unchanged) -- a maintainer must create it by hand first.
-# Until BOTH the label exists and the secrets above are registered, treat
-# this mechanism as inert for Dependabot PRs and push a follow-up commit
-# (which flips `github.actor` off dependabot) or verify manually before
-# merging a dependency bump that needs real browser coverage.
+# E2E PR Smoke jobs run on Dependabot PRs exactly as on any other PR. GitHub
+# withholds repository secrets from Dependabot-triggered `pull_request` runs,
+# so the secrets those jobs need (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and
+# the E2E_* logins) are registered separately under Settings -> Secrets and
+# variables -> Dependabot (verified 2026-09-25). If one is ever missing there,
+# each job's "Verify Dependabot-run secrets are available" step fails loudly
+# and names it, rather than building against an empty value and going green.
+# Smoke scope treats the root package.json and pnpm-lock.yaml as runtime
+# changes, so a transitive-only bump gets browser coverage too. No label is
+# needed; `run-smoke` remains a general "force browser smoke" label for any PR.
 #
 # Note on the npm "ignore semver-major" rule below: this suppresses ONLY the
 # scheduled / non-security major-version PRs. Dependabot security updates

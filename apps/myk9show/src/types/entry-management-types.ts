@@ -157,6 +157,8 @@ export interface ArmbandDialogState {
   entry: EntryManagementEntry | null;
   value: string;
   error?: string | null;
+  /** `value` came from "next armband", not from the secretary's typing. */
+  autoFilled?: boolean;
 }
 
 export interface BulkActionDialogState {

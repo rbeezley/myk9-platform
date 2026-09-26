@@ -44,7 +44,9 @@ function renderBar(selectedCount: number, options?: { hasManualReleaseClasses?: 
 }
 
 describe('BulkOperationsBar', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('does not render when no classes are selected', () => {
     renderBar(0);

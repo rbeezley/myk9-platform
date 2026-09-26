@@ -9,6 +9,9 @@ import { replicatedJudgeAssignmentsTable } from '@/services/replication/Replicat
 import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { withReplicationFallback } from '../_shared/replication-fallback';
+import { readWithReplicationFallback } from '../_shared/read-shape';
+import { joinRowsOrEmpty, rowsOrThrow } from '../_shared/readRows';
+import { hasAuthenticatedSession } from '../_shared/session';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -36,13 +39,32 @@ const EMPTY_JUDGE_MAP = new Map<string, ReplicatedJudgeAssignment[]>();
 const EMPTY_TRIALS_MAP = new Map<string, ReplicatedTrial[]>();
 const EMPTY_CLASSES_MAP = new Map<string, ReplicatedClass[]>();
 
+// Every loader below throws on a failed device read instead of taking getAll()'s
+// []: an empty join reads as fact ("no judges", "no classes") on the show list
+// and in the show store. Every caller runs inside withReplicationFallback, so
+// the throw falls back to the server, and offline it surfaces as an error
+// (MYK9-774).
+const unreadable = (what: string) => `Could not read ${what} on this device`;
+
+async function loadAllShows(): Promise<ReplicatedShow[]> {
+  const shows = await rowsOrThrow(replicatedShowsTable.getAllWithStatus(), unreadable('shows'));
+  return shows.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+}
+
 async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
-  const clubs = await replicatedClubsTable.getAllClubs();
+  // A join: club labels on shows (see joinRowsOrEmpty); the show rows and their
+  // unsynced edits must not be dropped for a missing club name.
+  const clubs = await joinRowsOrEmpty(
+    rowsOrThrow(replicatedClubsTable.getAllWithStatus(), unreadable('clubs')),
+    'club labels'
+  );
   return buildMapFromArray(clubs, c => c.id);
 }
 
 async function loadTrialsByShowMap(): Promise<Map<string, ReplicatedTrial[]>> {
-  const trials = await replicatedTrialsTable.getAll();
+  const trials = await rowsOrThrow(replicatedTrialsTable.getAllWithStatus(), unreadable('trials'));
+  // Date order per show, as getTrialsByShow() returned it.
+  trials.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const map = new Map<string, ReplicatedTrial[]>();
   for (const t of trials) {
     if (t.showId) {
@@ -55,7 +77,10 @@ async function loadTrialsByShowMap(): Promise<Map<string, ReplicatedTrial[]>> {
 }
 
 async function loadClassesByTrialMap(): Promise<Map<string, ReplicatedClass[]>> {
-  const classes = await replicatedClassesTable.getAll();
+  const classes = await rowsOrThrow(
+    replicatedClassesTable.getAllWithStatus(),
+    unreadable('classes')
+  );
   const map = new Map<string, ReplicatedClass[]>();
   for (const cls of classes) {
     if (cls.trialId) {
@@ -68,7 +93,10 @@ async function loadClassesByTrialMap(): Promise<Map<string, ReplicatedClass[]>> 
 }
 
 async function loadJudgeAssignmentsByShowMap(): Promise<Map<string, ReplicatedJudgeAssignment[]>> {
-  const assignments = await replicatedJudgeAssignmentsTable.getAll();
+  const assignments = await rowsOrThrow(
+    replicatedJudgeAssignmentsTable.getAllWithStatus(),
+    unreadable('judge assignments')
+  );
   const map = new Map<string, ReplicatedJudgeAssignment[]>();
   for (const a of assignments) {
     if (a.showId) {
@@ -122,29 +150,33 @@ export const getPublicShows = async () => {
   }
 };
 
-// Get all shows with club and trial information (excluding soft-deleted)
-export const getAllShows = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap] = await Promise.all([
-          replicatedShowsTable.getAllShows(),
-          loadClubsMap(),
-          loadTrialsByShowMap(),
-          loadClassesByTrialMap(),
-          loadJudgeAssignmentsByShowMap(),
-        ]);
-        const data = mapShowsWithJoins(shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap);
-        return { data, error: null };
-      },
-      postgrestGetAllShows,
-      'show',
-      'select_all_detailed'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
-  }
-};
+// Get all shows with club and trial information (excluding soft-deleted).
+// An empty local list is checked against the server before it is believed: on
+// a fresh device the replica answers `[]` until its first sync lands, and the
+// show wizard's clone card vanished on that false empty and reappeared a second
+// later, shifting the form by 182px (MYK9-764). Offline, the empty local list
+// still stands. Signed-in sessions only: a guest's replica never syncs, and
+// `prefetchCriticalData` calls this on every app load, so verifying for guests
+// would send the whole catalog query on every public visit.
+export const getAllShows = async () =>
+  readWithReplicationFallback<Record<string, unknown>[]>({
+    replication: async () => {
+      const [shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap] = await Promise.all([
+        loadAllShows(),
+        loadClubsMap(),
+        loadTrialsByShowMap(),
+        loadClassesByTrialMap(),
+        loadJudgeAssignmentsByShowMap(),
+      ]);
+      const data = mapShowsWithJoins(shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap);
+      return { data, error: null };
+    },
+    postgrest: postgrestGetAllShows,
+    table: 'show',
+    operation: 'select_all_detailed',
+    errorData: [],
+    verifyOnlineWhenEmpty: await hasAuthenticatedSession(),
+  });
 
 /** The classes a trial row carries. PostgREST returns the embed under `class`
  *  (the alias in the select) and the replicated mapper writes the same key, so
@@ -203,9 +235,9 @@ export const getShowById = async (id: string) => {
 
         const [club, trials, classesMap, judgeAssignments] = await Promise.all([
           show.clubId ? replicatedClubsTable.getClubById(show.clubId) : Promise.resolve(null),
-          replicatedTrialsTable.getTrialsByShow(id),
+          loadTrialsByShowMap().then(map => map.get(id) ?? []),
           loadClassesByTrialMap(),
-          replicatedJudgeAssignmentsTable.getByShowId(id),
+          loadJudgeAssignmentsByShowMap().then(map => map.get(id) ?? []),
         ]);
 
         const data = mapReplicatedShowToDbRow(show, {
@@ -285,7 +317,7 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
     return await withReplicationFallback(
       async () => {
         const [allShows, clubsMap, trialsMap] = await Promise.all([
-          replicatedShowsTable.getAllShows(),
+          loadAllShows(),
           loadClubsMap(),
           loadTrialsByShowMap(),
         ]);
@@ -345,7 +377,7 @@ export const searchShows = async (searchTerm: string) => {
   try {
     return await withReplicationFallback(
       async () => {
-        const allShows = await replicatedShowsTable.getAllShows();
+        const allShows = await loadAllShows();
         const term = searchTerm.toLowerCase();
         const filtered = allShows.filter(
           show =>
@@ -370,7 +402,7 @@ export const getShowStatistics = async () => {
   try {
     return await withReplicationFallback(
       async () => {
-        const allShows = await replicatedShowsTable.getAllShows();
+        const allShows = await loadAllShows();
         return { data: { total: allShows.length }, error: null };
       },
       postgrestGetShowStatistics,
@@ -387,10 +419,7 @@ export const getShowsWithEntryCounts = async () => {
   try {
     return await withReplicationFallback(
       async () => {
-        const [shows, clubsMap] = await Promise.all([
-          replicatedShowsTable.getAllShows(),
-          loadClubsMap(),
-        ]);
+        const [shows, clubsMap] = await Promise.all([loadAllShows(), loadClubsMap()]);
         const rows = mapShowsWithJoins(
           shows,
           clubsMap,
@@ -416,7 +445,7 @@ export const getShowsByStatus = async (status: string) => {
   try {
     return await withReplicationFallback(
       async () => {
-        const allShows = await replicatedShowsTable.getAllShows();
+        const allShows = await loadAllShows();
         const filtered = allShows.filter(show => show.status === status);
         // Return bare rows (no joins) matching original getShowsByStatus select('*')
         const data = filtered.map(show => mapReplicatedShowToDbRow(show));
@@ -436,7 +465,7 @@ export const getSecretaryShows = async (_userId: string) => {
   try {
     return await withReplicationFallback(
       async () => {
-        const allShows = await replicatedShowsTable.getAllShows();
+        const allShows = await loadAllShows();
         if (allShows.length === 0) {
           return await postgrestGetSecretaryShows();
         }

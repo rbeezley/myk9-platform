@@ -35,6 +35,12 @@
 -- block or a plain SELECT outside one) so a stale identity never leaks into
 -- the next case's plain-postgres fixture setup.
 --
+-- MYK9-716 (20260925023700): publishing also requires an entry window, checked
+-- LAST, SQLSTATE MK005. Every fixture this file expects to PUBLISH is given a
+-- window right after it is inserted; the refusal fixtures keep none, since
+-- their MK003 fires first (section 12d pins that order). Section 12 covers
+-- the window itself.
+--
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 
 BEGIN;
@@ -76,8 +82,10 @@ BEGIN
   IF v_timing IS DISTINCT FROM 'BEFORE' THEN
     RAISE EXCEPTION 'FAIL wiring: guard must be BEFORE so the bad row never lands, found %', v_timing;
   END IF;
-  IF v_columns IS DISTINCT FROM 'status' THEN
-    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status only, found %', v_columns;
+  -- MYK9-716: also the entry-window columns, so a published show cannot lose
+  -- its window after publishing (the function ignores unchanged dates).
+  IF v_columns IS DISTINCT FROM 'entry_close_date,entry_open_date,status' THEN
+    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status, entry_open_date, entry_close_date, found %', v_columns;
   END IF;
   IF NOT v_has_insert THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to also fire on INSERT (create_show_with_children and createShow() both let the caller set status)';
@@ -85,7 +93,7 @@ BEGIN
   IF NOT v_has_update THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to fire on UPDATE';
   END IF;
-  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status on public.shows';
+  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date on public.shows';
 END;
 $$;
 
@@ -140,6 +148,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579004', 'draft'),
   ('00000000-0000-0000-0000-000000579015', 'MYK9-579 Clubless Show', 'AKC',
    current_date, current_date + 1, NULL, 'draft');
+
+-- MYK9-716: publishing requires an entry window; case 3 publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579012';
 
 -- Already-published fixture: inserted directly as postgres, WITH no SET ROLE
 -- active, so `current_setting('role', true)` reads 'none' and the gate's
@@ -485,6 +498,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579017', 'MYK9-579 Live-Mode Ready Show (live cutover)', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579004', 'draft');
 
+-- MYK9-716: publishing requires an entry window; section 7's success case publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579017';
+
 DO $$
 BEGIN
   -- Club 3's account is test-mode only; now that the platform is live, it is
@@ -700,6 +718,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579041', 'MYK9-579 Authenticated Success Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft');
 
+-- MYK9-716: publishing requires an entry window; 9c publishes this show.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579041';
+
 -- 9a. Secretary of a club with no Stripe account publishes -> MK003.
 DO $$
 BEGIN
@@ -840,6 +863,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579050', 'MYK9-579 Loses Readiness Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579005', 'draft');
 
+-- MYK9-716: publishing requires an entry window; section 11's first publish needs it.
+UPDATE public.shows
+   SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+ WHERE id = '00000000-0000-0000-0000-000000579050';
+
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000579200',
@@ -905,6 +933,411 @@ END;
 $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- 12. MYK9-716: a draft may have no entry window, but publishing requires
+--     one. Club 3 is authorized and Stripe-ready in the platform's current
+--     mode (test, per section 9c), so the entry window is the only thing
+--     these fixtures lack. Secretary of club 3.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
+                          entry_open_date, entry_close_date) VALUES
+  ('00000000-0000-0000-0000-000000579060', 'MYK9-716 Windowless Draft', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft', NULL, NULL),
+  ('00000000-0000-0000-0000-000000579061', 'MYK9-716 Inverted Window', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
+   current_date - 1, current_date - 10),
+  ('00000000-0000-0000-0000-000000579062', 'MYK9-716 Same-Day Window', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft',
+   current_date - 1, current_date - 1),
+  ('00000000-0000-0000-0000-000000579063', 'MYK9-716 Windowless, Not Stripe-Ready', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'draft', NULL, NULL);
+
+-- 12a. A draft saves without a window: an authenticated INSERT of a
+--      windowless draft, and an unrelated edit to one, both land.
+DO $$
+DECLARE
+  v_n int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+  VALUES ('00000000-0000-0000-0000-000000579064', 'MYK9-716 Draft Insert, No Window', 'AKC',
+          current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft');
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-draft-insert: expected 1 row, got %', v_n;
+  END IF;
+
+  UPDATE public.shows SET name = 'MYK9-716 Windowless Draft (renamed)'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-draft-edit: expected the rename to affect 1 row, affected %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS windowless-draft: a draft with no entry window inserts and saves edits as an authenticated secretary';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12b. Publishing the windowless draft is refused with MK005 and the
+--      "set the entry window" message, and the row stays a draft. The
+--      positive control proves the secretary really reaches the row.
+DO $$
+DECLARE
+  v_message text;
+  v_visible int;
+  v_status text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  SELECT count(*) INTO v_visible FROM public.shows
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  IF v_visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: expected the secretary to see the fixture, saw % rows', v_visible;
+  END IF;
+
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL windowless-publish: a show with no entry window was published';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_message IS NULL OR v_message !~* 'set the entry window before publishing' THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: unexpected message %', v_message;
+  END IF;
+  IF v_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'FAIL windowless-publish: expected the show to stay draft, got %', v_status;
+  END IF;
+  RAISE NOTICE 'PASS windowless-publish: refused with MK005 and the set-the-entry-window message';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12c. A window that closes before it opens is refused with the order
+--      message. A same-day window is NOT: entry dates are stored as calendar
+--      days (the wizard's online create writes toLocalDateOnly, so open and
+--      close on one day land as the same midnight) and the close day is
+--      inclusive, so it is a valid one-day window and must publish.
+DO $$
+DECLARE
+  v_message text;
+  v_n int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579061';
+    RAISE EXCEPTION 'FAIL window-order: a show whose window closes before it opens was published';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000000579062';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_message IS NULL OR v_message !~* 'can.t close before it opens' THEN
+    RAISE EXCEPTION 'FAIL window-order: unexpected message %', v_message;
+  END IF;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL window-same-day: expected the same-day window to publish 1 row, got %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS window-order: an inverted window is refused with MK005, and a same-day window publishes';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12d. The window is checked LAST: a windowless show on a club with no
+--      Stripe account still gets MK003 and the payment-account message.
+DO $$
+DECLARE
+  v_state text;
+  v_message text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000579063';
+    RAISE EXCEPTION 'FAIL window-precedence: publish succeeded with no Stripe account and no window';
+  EXCEPTION WHEN SQLSTATE 'MK003' OR SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_state IS DISTINCT FROM 'MK003' OR v_message !~* 'payment account' THEN
+    RAISE EXCEPTION 'FAIL window-precedence: expected MK003 payment-account, got % %', v_state, v_message;
+  END IF;
+  RAISE NOTICE 'PASS window-precedence: the Stripe refusal (MK003) still wins over a missing window';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12e. INSERT arm: creating an already-published show with no window is
+--      refused with MK005 (the trigger's INSERT branch).
+DO $$
+DECLARE
+  v_state text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  BEGIN
+    INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+    VALUES ('00000000-0000-0000-0000-000000579065', 'MYK9-716 Published Insert, No Window', 'AKC',
+            current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'published');
+    RAISE EXCEPTION 'FAIL windowless-insert-published: an already-published show was inserted with no window';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+  END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_state IS DISTINCT FROM 'MK005' THEN
+    RAISE EXCEPTION 'FAIL windowless-insert-published: expected MK005, got %', v_state;
+  END IF;
+  RAISE NOTICE 'PASS windowless-insert-published: refused with MK005';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12f. Once the secretary sets the window, the same draft publishes.
+DO $$
+DECLARE
+  v_n int;
+  v_status text;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  UPDATE public.shows
+     SET entry_open_date = current_date - 10, entry_close_date = current_date - 1
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  IF v_n <> 1 OR v_status IS DISTINCT FROM 'published' THEN
+    RAISE EXCEPTION 'FAIL window-set-publishes: expected 1 row published, got % row(s), status %', v_n, v_status;
+  END IF;
+  RAISE NOTICE 'PASS window-set-publishes: the draft publishes once its entry window is set';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- 12g. MYK9-716 (Codex P1): the window must stay valid WHILE the show is
+--      published, not just at the moment it is published. The trigger also
+--      fires on UPDATE OF entry_open_date / entry_close_date; on an
+--      already-published show it re-checks only the window, and only when a
+--      date actually changes (never the club or Stripe checks, never
+--      retroactively). 579060 was published in 12f with a valid window.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_state text;
+  v_message text;
+  v_n int;
+  v_open timestamptz;
+  v_close timestamptz;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
+  -- Clearing a date on a published show -> MK005.
+  v_state := NULL;
+  BEGIN
+    UPDATE public.shows SET entry_close_date = NULL
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL published-clear-date: a published show lost its entry close date';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+  END;
+  IF v_message IS NULL OR v_message !~* 'published show has to keep its entry window' THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-clear-date: unexpected message %', v_message;
+  END IF;
+
+  -- Reversing the window on a published show -> MK005.
+  v_state := NULL;
+  BEGIN
+    UPDATE public.shows
+       SET entry_open_date = current_date + 5, entry_close_date = current_date + 1
+     WHERE id = '00000000-0000-0000-0000-000000579060';
+    RAISE EXCEPTION 'FAIL published-reverse-window: a published show got a window that closes before it opens';
+  EXCEPTION WHEN SQLSTATE 'MK005' THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM 'MK005' THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-reverse-window: expected MK005, got %', v_state;
+  END IF;
+
+  -- A valid change to a published show's window passes.
+  UPDATE public.shows SET entry_close_date = current_date + 3
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  SELECT entry_open_date, entry_close_date INTO v_open, v_close
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579060';
+  IF v_n <> 1 OR v_close IS DISTINCT FROM (current_date + 3)::timestamptz THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-valid-change: expected the new close date to land (rows=%, close=%)', v_n, v_close;
+  END IF;
+
+  -- A legacy non-midnight window is compared by UTC calendar day, the reading
+  -- the entry-open/close guards use: opening at 15:00 and closing at 02:00 on
+  -- the same UTC day is a valid one-day window, not an inverted one. (A
+  -- regression raises MK005 here, uncaught, which fails the file.)
+  UPDATE public.shows
+     SET entry_open_date = ((current_date + 4)::timestamp + interval '15 hours') AT TIME ZONE 'UTC',
+         entry_close_date = ((current_date + 4)::timestamp + interval '2 hours') AT TIME ZONE 'UTC'
+   WHERE id = '00000000-0000-0000-0000-000000579060';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL published-same-utc-day: expected a same-UTC-day window to land, affected %', v_n;
+  END IF;
+
+  -- A draft may still clear or reverse its window (579061 is a draft).
+  UPDATE public.shows SET entry_open_date = NULL, entry_close_date = NULL
+   WHERE id = '00000000-0000-0000-0000-000000579061';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n <> 1 THEN
+    RESET ROLE;
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    RAISE EXCEPTION 'FAIL draft-clear-window: expected the draft to clear its window, affected %', v_n;
+  END IF;
+
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  RAISE NOTICE 'PASS published-window-edits: a published show cannot clear or reverse its window (MK005), a valid change passes (a same-UTC-day legacy window included), and a draft can clear it';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+-- 12h. Never retroactive: 579014 was inserted already published with NO
+--      window (section 6's fixture, club with no Stripe account). An edit that
+--      re-sends its unchanged NULL dates, as a full-row client save does,
+--      still lands; only a CHANGE to a published show's dates is checked.
+DO $$
+DECLARE
+  v_n int;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+  UPDATE public.shows
+     SET name = 'MYK9-716 Legacy Windowless Published (renamed)',
+         entry_open_date = NULL, entry_close_date = NULL
+   WHERE id = '00000000-0000-0000-0000-000000579014';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL legacy-windowless-edit: expected the rename to land, affected %', v_n;
+  END IF;
+  RAISE NOTICE 'PASS legacy-windowless-edit: an unchanged (NULL) window on an already-published show is never re-gated';
+END;
+$$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- 13. MYK9-716 legacy normalization: the migration rewrites every non-midnight
+--     date to midnight UTC of its own UTC calendar day (the day every guard
+--     reads), leaves NULL and midnight values alone, and is idempotent. The
+--     migration ran before these fixtures existed, so seed legacy values and
+--     run its statement again, verbatim (publishGateMigrationContract.test.ts
+--     pins that this copy matches the migration's text). Superuser session.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
+                          entry_open_date, entry_close_date) VALUES
+  ('00000000-0000-0000-0000-000000579070', 'MYK9-716 Legacy Non-Midnight', 'AKC',
+   '2026-11-07T00:00:00+00', '2026-11-08T13:15:00+00',
+   '00000000-0000-0000-0000-000000579003', 'draft',
+   '2026-10-02T02:30:00+00', '2026-10-24T23:59:00-07'),
+  ('00000000-0000-0000-0000-000000579071', 'MYK9-716 Legacy No Window', 'AKC',
+   '2026-11-07T18:00:00+00', '2026-11-07T00:00:00+00',
+   '00000000-0000-0000-0000-000000579003', 'draft', NULL, NULL);
+
+UPDATE public.shows
+   SET start_date       = (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       end_date         = (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_open_date  = (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC',
+       entry_close_date = (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+ WHERE start_date       IS DISTINCT FROM (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR end_date         IS DISTINCT FROM (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_open_date  IS DISTINCT FROM (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+    OR entry_close_date IS DISTINCT FROM (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC';
+
+DO $$
+DECLARE
+  r record;
+  v_n int;
+BEGIN
+  SELECT start_date, end_date, entry_open_date, entry_close_date INTO r
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579070';
+  IF r.start_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.end_date IS DISTINCT FROM '2026-11-08T00:00:00+00'::timestamptz
+     OR r.entry_open_date IS DISTINCT FROM '2026-10-02T00:00:00+00'::timestamptz
+     -- 23:59 PDT on Oct 24 is 06:59 UTC on Oct 25: its UTC day, not its local one.
+     OR r.entry_close_date IS DISTINCT FROM '2026-10-25T00:00:00+00'::timestamptz THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize: expected each date at midnight UTC of its UTC day, got % / % / % / %',
+      r.start_date, r.end_date, r.entry_open_date, r.entry_close_date;
+  END IF;
+
+  SELECT start_date, end_date, entry_open_date, entry_close_date INTO r
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579071';
+  IF r.start_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.end_date IS DISTINCT FROM '2026-11-07T00:00:00+00'::timestamptz
+     OR r.entry_open_date IS NOT NULL OR r.entry_close_date IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize-null: expected NULL dates to stay NULL, got % / % / % / %',
+      r.start_date, r.end_date, r.entry_open_date, r.entry_close_date;
+  END IF;
+
+  SELECT count(*) INTO v_n FROM public.shows
+   WHERE start_date       IS DISTINCT FROM (start_date       AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR end_date         IS DISTINCT FROM (end_date         AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR entry_open_date  IS DISTINCT FROM (entry_open_date  AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'
+      OR entry_close_date IS DISTINCT FROM (entry_close_date AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC';
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL legacy-normalize-idempotent: % rows still hold a non-midnight date', v_n;
+  END IF;
+  RAISE NOTICE 'PASS legacy-normalize: non-midnight dates land on midnight UTC of their UTC day, NULL stays NULL, and a re-run has nothing left to change';
+END;
+$$;
 
 
 ROLLBACK;

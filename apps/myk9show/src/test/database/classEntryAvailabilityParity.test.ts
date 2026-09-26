@@ -89,9 +89,37 @@ describe('class_entry_availability parity', () => {
     expect(judgeDayLists[0]).toEqual(evaluateList);
   });
 
-  it('reads judge-day capacity by calling get_judge_day_capacity_live, not restating it', () => {
-    expect(compact(availability.body)).toContain('public.get_judge_day_capacity_live(');
-    expect(availability.body).toContain('available_spots');
+  // MYK9-753: the class -> judge-day mapping lives in ONE helper,
+  // class_judge_day_capacity, which the wizard's verdict and the cart's
+  // per-day read both call. The arithmetic stays in get_judge_day_capacity_live.
+  it('reads judge-day capacity through class_judge_day_capacity, which calls get_judge_day_capacity_live', () => {
+    const helper = latestDefinition('class_judge_day_capacity');
+    expect(compact(availability.body)).toContain('public.class_judge_day_capacity(p_class_ids)');
+    expect(compact(availability.body)).not.toContain('get_judge_day_capacity_live');
+    expect(compact(helper.body)).toContain('public.get_judge_day_capacity_live(');
+    expect(helper.body).toContain('COALESCE(jd.available_spots, 0)');
+  });
+
+  it("maps a class to exactly evaluate_entry_capacity's judge days", () => {
+    const helper = compact(latestDefinition('class_judge_day_capacity').body);
+    const evaluateBody = compact(evaluate.body);
+    // evaluate_entry_capacity's loop: confirmed, named judges of the class in its show.
+    expect(evaluateBody).toContain("AND ja.status = 'confirmed' AND ja.person_id IS NOT NULL");
+    expect(evaluateBody).toContain(
+      'get_judge_day_capacity_live(v_judge_id, resolved_show_id, v_trial_date)'
+    );
+    expect(helper).toContain(
+      "ON ja.class_id = c.id AND ja.show_id = t.show_id AND ja.status = 'confirmed' AND ja.person_id IS NOT NULL"
+    );
+    expect(helper).toContain('get_judge_day_capacity_live( d.person_id, d.show_id, d.trial_date )');
+  });
+
+  it("gates the cart's per-day read on the wizard read's show visibility", () => {
+    const visibility = (body: string) =>
+      compact(body).match(/s\.deleted_at IS NULL AND \(.*?is_show_official\(p_show_id\) \)/)?.[0];
+    const wizard = visibility(latestDefinition('get_show_class_availability').body);
+    expect(wizard).toBeDefined();
+    expect(visibility(latestDefinition('get_show_class_judge_day_availability').body)).toBe(wizard);
   });
 
   it('refuses a paid line on the same closure verdict, checked before any wait-list write', () => {

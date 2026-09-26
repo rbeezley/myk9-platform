@@ -1,6 +1,7 @@
-import type { IDBPDatabase } from 'idb';
+import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
 
@@ -146,7 +147,7 @@ export class MutationQueueStore {
     // dropping the score (audit M2). Dirty/unsynced rows and other mutations are
     // never touched by the evictor.
     await withQuotaEviction(
-      () => db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation),
+      () => putStampingCurrentServerVersion(db, mutation),
       () => this.evictCleanCacheRows(db),
       this.logger
     );
@@ -164,16 +165,19 @@ export class MutationQueueStore {
     rowId: string,
     authUserId: string
   ): Promise<PendingMutation[]> {
+    const pending = await this.getPendingMutationsForTable(tableName, authUserId);
+    return pending.filter(mutation => mutation.rowId === rowId);
+  }
+
+  async getPendingMutationsForTable(
+    tableName: string,
+    authUserId: string
+  ): Promise<PendingMutation[]> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
 
     return all
-      .filter(
-        mutation =>
-          mutation.tableName === tableName &&
-          mutation.rowId === rowId &&
-          mutation.authUserId === authUserId
-      )
+      .filter(mutation => mutation.tableName === tableName && mutation.authUserId === authUserId)
       .sort((a, b) => {
         const sequenceA = a.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
         const sequenceB = b.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
@@ -285,15 +289,15 @@ export class MutationQueueStore {
     if (toUpdate.length === 0) return 0;
 
     await confirmOwner?.();
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    for (const mutation of toUpdate) {
-      await tx.store.put({ ...mutation, serverVersion: newServerVersion });
-    }
-    await tx.done;
-    this.logger.log(
-      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${toUpdate.length} mutation(s) on ${tableName}/${rowId}`
+    const updated = await rewriteQueuedMutations(
+      db,
+      toUpdate.map(mutation => mutation.id),
+      mutation => ({ ...mutation, serverVersion: newServerVersion })
     );
-    return toUpdate.length;
+    this.logger.log(
+      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${updated} mutation(s) on ${tableName}/${rowId}`
+    );
+    return updated;
   }
 
   async reconcilePendingMutationsForRow(
@@ -317,46 +321,12 @@ export class MutationQueueStore {
     if (candidates.length === 0) return 0;
 
     await confirmOwner?.();
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    let changed = 0;
-    for (const mutation of candidates) {
-      const isRpc = mutation.rpc !== undefined;
-      // A full-row UPDATE can only be advanced if we can also refresh its payload;
-      // otherwise advancing the token would trade a 40001 for a silent clobber.
-      if (!isRpc && rebuiltData === undefined) continue;
-
-      const nextServerVersion =
-        mutation.serverVersion === undefined || newServerVersion > mutation.serverVersion
-          ? newServerVersion
-          : mutation.serverVersion;
-
-      const explicitDataKeys =
-        mutation.explicitDataKeys ??
-        Object.keys(mutation.data).filter(key => !legacyOmittedKeysServerWins.includes(key));
-      const reconciledData =
-        !isRpc && rebuiltData !== undefined ? { ...rebuiltData } : mutation.data;
-
-      if (!isRpc && rebuiltData !== undefined) {
-        for (const key of explicitDataKeys) {
-          if (
-            !(key in reconciledData) &&
-            Object.prototype.hasOwnProperty.call(mutation.data, key)
-          ) {
-            reconciledData[key] = mutation.data[key];
-          }
-        }
-      }
-
-      const next: PendingMutation = {
-        ...mutation,
-        serverVersion: nextServerVersion,
-        explicitDataKeys,
-        ...(!isRpc && rebuiltData !== undefined ? { data: reconciledData } : {}),
-      };
-      await tx.store.put(next);
-      changed++;
-    }
-    await tx.done;
+    const changed = await rewriteQueuedMutations(
+      db,
+      candidates.map(mutation => mutation.id),
+      mutation =>
+        rebaseQueuedMutation(mutation, newServerVersion, rebuiltData, legacyOmittedKeysServerWins)
+    );
 
     if (changed > 0) {
       this.logger.log(
@@ -393,4 +363,62 @@ export class MutationQueueStore {
       tx.done,
     ]);
   }
+}
+
+/**
+ * Persist a queued mutation, moving its OCC token forward past THIS device's
+ * own upload that landed while the caller was queuing it (MYK9-770).
+ *
+ * The caller (ReplicatedTable.queueMutation) reads `row.serverVersion` before
+ * calling in. If this device's previous write to the row uploads in between,
+ * the upload marks the row with the new version and re-stamps the row's queued
+ * mutations (updateMutationServerVersions) — before this one is in the queue.
+ * It would then carry the stale token forever: every upload matches 0 rows and
+ * a full-row UPDATE is never rebased (MYK9-771).
+ *
+ * Only that step is taken: the token moves from `from` to `to` exactly when
+ * the row's `lastOwnUpload` says this device's own upload moved it so and the
+ * row still holds `to`. The payload was built on the local row, which already
+ * held that upload's change, so it is based on `to`. Any other advance — a
+ * download carrying another device's write — leaves the token alone, so that
+ * conflict still surfaces instead of being overwritten (Codex P1).
+ *
+ * The read and the put share ONE readwrite transaction over both stores, which
+ * IndexedDB orders wholly before or after the upload's row write; either order
+ * leaves this mutation on the current token.
+ */
+async function putStampingCurrentServerVersion(
+  db: IDBPDatabase,
+  mutation: PendingMutation
+): Promise<void> {
+  if (mutation.operation !== 'UPDATE' || mutation.serverVersion === undefined) {
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+    return;
+  }
+  const requestedVersion = mutation.serverVersion;
+  // Raw IndexedDB, with the put issued from the read's own success callback:
+  // that is the one place the transaction is guaranteed active. Resuming after
+  // an awaited promise is not (under fake timers the transaction had already
+  // committed), and a put that lands in a second transaction reopens the gap.
+  const tx = (unwrap(db) as IDBDatabase).transaction(
+    [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+    'readwrite'
+  );
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('Queue transaction aborted'));
+    const read = tx
+      .objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      .get([mutation.tableName, String(mutation.rowId)]);
+    read.onsuccess = () => {
+      const row = read.result as ReplicatedRow<unknown> | undefined;
+      const step = row?.lastOwnUpload;
+      const stamped =
+        step !== undefined && step.from === requestedVersion && row?.serverVersion === step.to
+          ? { ...mutation, serverVersion: step.to }
+          : mutation;
+      tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(stamped);
+    };
+  });
 }

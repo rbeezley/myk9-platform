@@ -13,6 +13,7 @@ import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { formatEntryDate } from '@/lib/format/dates';
 import { useCompetitionStore } from '@/store/competitionStore';
 import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
+import { getEntryDisplayDate } from '@/features/_shared/dogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
 interface UpcomingShowsSectionProps {
@@ -206,7 +207,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
           </div>
         ) : (
           <div className="text-xs text-muted-foreground">
-            {pluralEntries(upcoming.length)} on myK9Show
+            {pluralEntries(upcoming.length)} upcoming on myK9Show
             {externalShows.length > 0 ? ` · ${pluralExternal(externalShows.length)}` : ''}
           </div>
         )}
@@ -233,7 +234,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
                   </div>
                   <div className="text-sm mb-1">{entry.class?.name ?? 'Unknown class'}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatEntryDate(entry.show?.start_date)}
+                    {formatEntryDate(getEntryDisplayDate(entry))}
                   </div>
                   <div className="text-xs text-muted-foreground font-semibold">{statusLine}</div>
                 </div>

@@ -127,7 +127,9 @@ describe('useNotificationMonitor', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('subscribes per show and cleans up without row-payload channels', () => {
     const { unmount } = renderHook(() => useNotificationMonitor());

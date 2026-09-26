@@ -7,6 +7,7 @@ import {
   type EntrySubmissionSource,
 } from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
+import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -117,9 +118,6 @@ export async function submitShowRegistration({
     throw new Error('Invariant: submitShowRegistration called with credit_card payment method');
   }
 
-  await resolvedDeps.submitRegistration(registrationId, paymentDetails);
-  if (!isStillActive(isActive)) return { aborted: true };
-
   const entryInputs = registrationToEntries(
     showId,
     classSelections,
@@ -127,6 +125,21 @@ export async function submitShowRegistration({
     classes,
     showFeeInfo
   );
+  const feeTotal = entryInputs.reduce(
+    (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
+    0
+  );
+  // MYK9-677: money a secretary says was already received is recorded as cash
+  // or check (entries, enrollment and ledger alike), so it must name one
+  // before anything is written.
+  assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  const receivedMethod =
+    feeTotal > 0 ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod = receivedMethod ?? paymentMethod;
+
+  await resolvedDeps.submitRegistration(registrationId, paymentDetails);
+  if (!isStillActive(isActive)) return { aborted: true };
+
   const enrollment = await ensureEnrollment({
     showId,
     ownerResolution,
@@ -147,12 +160,24 @@ export async function submitShowRegistration({
         classId: entry.classId,
         handlerId: entry.registrationData.handlerId,
         handlerName: entry.registrationData.handler,
-        paymentMethod,
+        paymentMethod: submitMethod,
         clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),
       })),
       submissionId: resolvedDeps.createSubmissionId(),
-      paymentMethod,
+      paymentMethod: submitMethod,
       submissionSource,
+      // MYK9-677: money already received is recorded by the RPC in the same
+      // transaction as the entries, so there is no window in which entries
+      // exist without it and nothing for a retry to settle.
+      ...(receivedMethod
+        ? {
+            payment: {
+              method: receivedMethod,
+              receivedOn: paymentDetails?.paymentDate?.trim() || null,
+              reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+            },
+          }
+        : {}),
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
@@ -164,9 +189,13 @@ export async function submitShowRegistration({
       await recordEnrollmentPayment({
         showId,
         ownerResolution,
-        paymentMethod,
+        // With a received payment the RPC already grew the enrollment total and
+        // recorded the money, so this write carries only the payment details
+        // (reference, date, notes): no method, no total, no status, no
+        // paid_amount, which would otherwise be added twice.
+        paymentMethod: receivedMethod ? undefined : submitMethod,
         paymentDetails,
-        totalAmountCents: createdAmountCents,
+        totalAmountCents: receivedMethod ? undefined : createdAmountCents,
         // An exhibitor entering their own dogs is not allowed to move
         // enrollments.payment_status; the BEFORE UPDATE trigger rejects the
         // whole statement, so nothing was entered at all (MYK9-486).
@@ -251,9 +280,9 @@ async function recordEnrollmentPayment({
 }: {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | undefined;
   paymentDetails?: PaymentDetails | undefined;
-  totalAmountCents: number;
+  totalAmountCents: number | undefined;
   selfService: boolean;
   deps: SubmitShowRegistrationDeps;
 }): Promise<void> {

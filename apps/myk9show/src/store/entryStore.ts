@@ -495,7 +495,7 @@ export const useEntryStore = create<EntryStoreState>()((set, get): EntryStoreSta
       set({ isLoading: true, error: null });
 
       // Load from replicated table
-      const replicatedEntries = await replicatedEntriesTable.getAll();
+      const replicatedEntries = await replicatedEntriesTable.getAllOrThrow();
       const currentEntries = get().entries;
       const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
 

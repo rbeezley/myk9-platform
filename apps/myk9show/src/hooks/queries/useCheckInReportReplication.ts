@@ -7,6 +7,7 @@ import {
   type ReplicatedClass,
   type ReplicatedEntry,
 } from '@/services/replication';
+import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
 import type { CheckInEntryRow } from './useCheckInReport';
 
 function isNotDeleted(entry: ReplicatedEntry) {
@@ -80,6 +81,8 @@ async function getClassForEntry(
 }
 
 export async function fetchReplicatedCheckInEntries(showId: string): Promise<CheckInEntryRow[]> {
+  // MYK9-761: a never-synced show's rows are only what this device wrote.
+  await requireShowEntriesSynced(showId);
   const [entries, trials, armbands] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedTrialsTable.getTrialsByShow(showId),

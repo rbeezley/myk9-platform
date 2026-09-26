@@ -8,7 +8,9 @@ import {
   type AtShowClassGroup,
 } from './atShowClassListAdapter';
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function makeGroups(): AtShowClassGroup[] {
   return [

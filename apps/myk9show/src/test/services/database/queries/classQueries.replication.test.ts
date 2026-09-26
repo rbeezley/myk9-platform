@@ -13,19 +13,31 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 const { mockClassesTable, mockEntriesTable, mockTrialsTable, mockDogsTable } = vi.hoisted(() => ({
   mockClassesTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getClassById: vi.fn(),
     getClassesByTrial: vi.fn(),
   },
   mockEntriesTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getEntriesByClass: vi.fn(),
   },
   mockTrialsTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getTrialById: vi.fn(),
   },
   mockDogsTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 

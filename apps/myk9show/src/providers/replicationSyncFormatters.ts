@@ -1,4 +1,5 @@
 import type { PendingMutation } from '@myk9/replication';
+import { ENTRY_WINDOW_PUBLISHED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 export interface SyncFailedEventDetail {
   count: number;
@@ -102,6 +103,12 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   }
 
   const first = detail.mutations[0];
+  // MYK9-716: the publish gate's refusal to let a published show clear or
+  // reverse its entry window is the whole answer; say it instead of the
+  // generic line. Retrying cannot succeed, so point at Discard.
+  if (detail.count === 1 && first?.error?.includes(ENTRY_WINDOW_PUBLISHED_MESSAGE)) {
+    return `We couldn't save this show change. ${ENTRY_WINDOW_PUBLISHED_MESSAGE}`;
+  }
   if (detail.count === 1 && first) {
     return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Retry or discard this change.`;
   }

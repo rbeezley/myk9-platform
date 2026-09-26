@@ -43,18 +43,43 @@ describe('active judge assignment reads', () => {
   });
 
   it('returns only active class assignments for the requested judge and show', async () => {
-    mocks.getByShowId.mockResolvedValue([
-      { id: 'confirmed', personId: 'judge-1', classId: 'class-1', status: 'confirmed' },
-      { id: 'invited', personId: 'judge-1', classId: 'class-2', status: 'invited' },
-      { id: 'declined', personId: 'judge-1', classId: 'class-3', status: 'declined' },
-      { id: 'other', personId: 'judge-2', classId: 'class-4', status: 'confirmed' },
-      { id: 'show-level', personId: 'judge-1', classId: null, status: 'confirmed' },
-    ]);
+    const row = (id: string, overrides: Record<string, unknown>) => ({
+      id,
+      showId: 'show-1',
+      personId: 'judge-1',
+      classId: `class-${id}`,
+      status: 'confirmed',
+      ...overrides,
+    });
+    mocks.getAllWithStatus.mockResolvedValue(
+      okRows([
+        row('confirmed', {}),
+        row('invited', { status: 'invited' }),
+        row('declined', { status: 'declined' }),
+        row('other', { personId: 'judge-2' }),
+        row('show-level', { classId: null }),
+        row('other-show', { showId: 'show-2' }),
+      ])
+    );
 
     const result = await getActiveJudgeAssignmentsForShow('show-1', 'judge-1');
 
-    expect(mocks.getByShowId).toHaveBeenCalledWith('show-1');
     expect(result.map(assignment => assignment.id)).toEqual(['confirmed', 'invited']);
+  });
+
+  // MYK9-769: getByShowId() -> getAll() turned a failed IndexedDB read into [],
+  // which the at-show class list then showed a judge as "No classes assigned
+  // yet". A failed read must throw so the hook reaches its error state.
+  it('throws when the device read fails instead of reporting no assignments', async () => {
+    mocks.getAllWithStatus.mockResolvedValue({
+      ok: false,
+      rows: [],
+      error: new Error('IndexedDB read timed out'),
+    });
+
+    await expect(getActiveJudgeAssignmentsForShow('show-1', 'judge-1')).rejects.toThrow(
+      /Could not read judge assignments on this device/
+    );
   });
 
   // MYK9-722: the Message Center composer's judge list. Every active row counts,

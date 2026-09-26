@@ -36,6 +36,7 @@ import {
   type EntryBalanceRawRow,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
+import { isShowClosedOut } from '@/features/show-workbench/showCloseOutShow';
 import { resolveTrialTimezone, type EntryRowTrial } from './entryRowTrial';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
@@ -230,6 +231,7 @@ export function useMyEntriesData({
       start_date: string;
       end_date?: string | null;
       deleted_at?: string | null;
+      status?: string | null;
       entry_close_date?: string | null;
       venue_name?: string;
       city?: string;
@@ -345,6 +347,9 @@ export function useMyEntriesData({
       showId: show?.id || entry.show_id || '',
       showName: show?.name || 'Unknown Show',
       isShowCancelled,
+      // MYK9-778: closeout ends the show for "Leave class", as the server's
+      // withdraw_own_entry does. Both read paths carry shows.status.
+      isShowClosedOut: isShowClosedOut(show?.status),
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
       // or a show ending today is misread as yesterday (see parseShowDate).
       showDate: parseShowDate(show?.start_date) ?? new Date(),

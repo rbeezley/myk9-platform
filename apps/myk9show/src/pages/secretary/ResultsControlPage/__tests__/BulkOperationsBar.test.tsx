@@ -42,7 +42,9 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof BulkOperations
 }
 
 describe('BulkOperationsBar', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders nothing when no classes are selected', () => {
     const { container } = renderBar({ selectedClasses: new Set() });

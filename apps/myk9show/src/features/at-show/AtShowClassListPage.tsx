@@ -19,7 +19,11 @@ import { useAtShowClassList } from './useAtShowClassList';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
-import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
+import {
+  isExhibitorOnlyForAtShow,
+  type AtShowClassSummary,
+  type AtShowTrialSummary,
+} from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
@@ -190,11 +194,23 @@ export const AtShowClassListPage: React.FC = () => {
     }
     return map;
   }, [groups]);
-  const {
-    entries: myEntries,
-    isLoading: myEntriesLoading,
-    dataUpdatedAt: myEntriesUpdatedAt,
-  } = useMyAtShowEntryDetails(showId, ownEntryIds, ownershipLoading, classesById);
+  // 'Your dogs today' filters an exhibitor's entries to today's trial in the
+  // trial's own timezone (MYK9-800) — one summary per trial, keyed by trial
+  // id so an entry can resolve its day even before a class is posted.
+  const trialsById = useMemo(() => {
+    const map = new Map<string, AtShowTrialSummary>();
+    for (const group of groups) {
+      map.set(group.trial.id, { date: group.trial.date, timezone: getTrialTimezone(group.trial) });
+    }
+    return map;
+  }, [groups]);
+  const myEntryDetails = useMyAtShowEntryDetails(
+    showId,
+    ownEntryIds,
+    ownershipLoading,
+    classesById,
+    trialsById
+  );
 
   // `null` = no manual override yet, so the view tracks ownership as it
   // resolves (starts 'all' while ownEntryIds is still loading, flips to
@@ -340,9 +356,7 @@ export const AtShowClassListPage: React.FC = () => {
     return (
       <AtShowMyEntriesToday
         showId={showId as string}
-        entries={myEntries}
-        isLoading={myEntriesLoading}
-        dataUpdatedAt={myEntriesUpdatedAt}
+        {...myEntryDetails}
         onSeeAllClasses={() => setManualView('all')}
       />
     );

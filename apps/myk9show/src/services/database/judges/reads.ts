@@ -21,6 +21,7 @@ import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '@/services/replication';
 import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from './assignmentStatus';
+import { diffShowJudges } from './showJudgeChanges';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
@@ -314,39 +315,52 @@ export async function getJudgeQualificationSummary(
 const assignmentsTable = () => untypedFrom('judge_assignments');
 
 /**
- * Replace all judge assignments for a show (delete + insert).
- * Used by both the show creation wizard and the show edit form.
- * Writes are queued through `ReplicatedJudgeAssignmentsTable` so they survive
- * offline show-day use and sync on reconnect.
+ * Create the show-level judge assignments for a NEW show (the creation
+ * wizard). Nothing exists yet, so this only creates, without reading first:
+ * a failed device read must not cost a brand-new show its judges. Writes are
+ * queued through `ReplicatedJudgeAssignmentsTable` so they survive offline.
  */
 export async function persistShowJudgeAssignments(
   showId: string,
-  judges: Array<{ judgeId: string }>,
-  options?: { skipDelete?: boolean }
+  judges: Array<{ judgeId: string }>
 ): Promise<void> {
   try {
-    if (options?.skipDelete) {
-      for (const judge of judges) {
-        await replicatedJudgeAssignmentsTable.createAssignment({
-          personId: judge.judgeId,
-          showId,
-          trialId: null,
-          classId: null,
-          status: 'confirmed',
-          invitedAt: null,
-          confirmedAt: new Date().toISOString(),
-          fee: null,
-          notes: null,
-        });
-      }
-      return;
+    for (const judgeId of new Set(judges.map(j => j.judgeId))) {
+      await replicatedJudgeAssignmentsTable.createAssignment({
+        personId: judgeId,
+        showId,
+        trialId: null,
+        classId: null,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: new Date().toISOString(),
+        fee: null,
+        notes: null,
+      });
     }
-    await replicatedJudgeAssignmentsTable.replaceShowLevelAssignments(
-      showId,
-      judges.map(j => j.judgeId)
-    );
   } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'persist_show_assignments');
+  }
+}
+
+/**
+ * Save an edit of an EXISTING show's judge list as the difference between the
+ * list the form was loaded from and the list the secretary saved: add what was
+ * added, remove what was removed, touch nothing else (MYK9-772). An unchanged
+ * list writes nothing; a list that loaded empty because a device read failed
+ * can only add.
+ */
+export async function saveShowJudgeChanges(
+  showId: string,
+  loaded: ReadonlyArray<{ judgeId: string }>,
+  saved: ReadonlyArray<{ judgeId: string }>
+): Promise<void> {
+  const changes = diffShowJudges(loaded, saved);
+  if (changes.add.length === 0 && changes.remove.length === 0) return;
+  try {
+    await replicatedJudgeAssignmentsTable.applyShowLevelJudgeChanges(showId, changes);
+  } catch (error) {
+    throw createDatabaseError(error, 'judge_assignments', 'save_show_judge_changes');
   }
 }
 

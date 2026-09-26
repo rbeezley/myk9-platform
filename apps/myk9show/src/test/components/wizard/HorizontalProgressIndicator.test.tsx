@@ -25,7 +25,9 @@ function renderIndicator(
 }
 
 describe('HorizontalProgressIndicator', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders every step label', () => {
     renderIndicator();

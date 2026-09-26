@@ -41,7 +41,9 @@ describe('useAtShowEntryListActions', () => {
     updateSelfCheckInStatus.mockClear();
     refresh.mockClear();
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   const render = (writer?: CheckInWriter) =>
     renderHook(() => useAtShowEntryListActions(writer ? { refresh, writer } : { refresh }));

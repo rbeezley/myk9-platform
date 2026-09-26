@@ -167,7 +167,9 @@ const readOnlyProps: ClassResultsTableProps = {
 };
 
 describe('ClassResultsTable released-results tab default', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('defaults a read-only viewer to the All tab when results are released', () => {
     render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt="2026-06-16T00:00:00Z" />);

@@ -4,22 +4,37 @@ import { supabase, createDatabaseError } from '../supabaseClient';
 /** Statuses the public /shows listing shows; the stray-show health check (MYK9-741) mirrors them. */
 export const PUBLIC_SHOW_STATUSES = ['published', 'upcoming', 'in_progress', 'completed'];
 
+interface ShowVisibilityFilterable<Q> {
+  in(column: 'status', values: string[]): Q;
+  is(column: 'deleted_at', value: null): Q;
+}
+
+/**
+ * The shows anon may see. shows_select (latest:
+ * 20260823190000_admin_soft_deleted_show_visibility.sql) returns exactly
+ * `deleted_at IS NULL AND status IN PUBLIC_SHOW_STATUSES` to anon; every
+ * public read states both filters so it means the same thing whoever runs it
+ * (MYK9-768, MYK9-779, MYK9-780).
+ */
+export function onlyPublicShows<Q extends ShowVisibilityFilterable<Q>>(query: Q): Q {
+  return query.in('status', PUBLIC_SHOW_STATUSES).is('deleted_at', null);
+}
+
 export async function postgrestGetPublicShows() {
-  const { data, error } = await supabase
-    .from('shows')
-    // Exclude logo_url / cover_image_url: they can be multi-MB base64 blobs.
-    // The trials embed is load-bearing, not decorative: `mapDatabaseToShow`
-    // derives `show.events` from the trials' `trial_type`, and `show.events` is
-    // the only input to the /shows discipline filter. Without it every show
-    // falls back to `[organization]` and every discipline chip matches nothing.
-    // Nested classes are deliberately NOT embedded — a browse list does not
-    // need them and they dominate the payload. `timezone` IS: Browse judges
-    // entry status in the show's first-trial zone, as `submit_show_entries`
-    // does, and without it every guest label fell back to Eastern (MYK9-714).
-    .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
-    .in('status', PUBLIC_SHOW_STATUSES)
-    .is('deleted_at', null)
-    .order('start_date', { ascending: true });
+  const { data, error } = await onlyPublicShows(
+    supabase
+      .from('shows')
+      // Exclude logo_url / cover_image_url: they can be multi-MB base64 blobs.
+      // The trials embed is load-bearing, not decorative: `mapDatabaseToShow`
+      // derives `show.events` from the trials' `trial_type`, and `show.events` is
+      // the only input to the /shows discipline filter. Without it every show
+      // falls back to `[organization]` and every discipline chip matches nothing.
+      // Nested classes are deliberately NOT embedded — a browse list does not
+      // need them and they dominate the payload. `timezone` IS: Browse judges
+      // entry status in the show's first-trial zone, as `submit_show_entries`
+      // does, and without it every guest label fell back to Eastern (MYK9-714).
+      .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
+  ).order('start_date', { ascending: true });
 
   if (error) throw createDatabaseError(error, 'show', 'select_public');
   return { data: data || [], error: null };
@@ -276,8 +291,13 @@ export async function postgrestGetSecretaryShows() {
   return { data: data || [], error: null };
 }
 
-export async function postgrestGetShowById(id: string) {
-  const { data, error } = await supabase
+/**
+ * One show with its full detail. `publicOnly` is the signed-out guest's read
+ * (MYK9-779): it states anon's visibility rule (onlyPublicShows), so a draft
+ * or a soft-deleted show is "no row" whoever runs it.
+ */
+export async function postgrestGetShowById(id: string, options: { publicOnly?: boolean } = {}) {
+  const byId = supabase
     .from('shows')
     .select(
       `
@@ -346,9 +366,9 @@ export async function postgrestGetShowById(id: string) {
       )
     `
     )
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle();
+    .eq('id', id);
+  const query = options.publicOnly ? onlyPublicShows(byId) : byId.is('deleted_at', null);
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw createDatabaseError(error, 'show', 'select_by_id');
   return { data: Array.isArray(data) ? null : data, error: null };

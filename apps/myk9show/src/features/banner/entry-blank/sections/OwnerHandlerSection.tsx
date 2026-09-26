@@ -2,10 +2,18 @@ import { View } from '@react-pdf/renderer';
 import type { EntryBlankOwner } from '@/features/heritage/entry-blank/types';
 import { Field, SectionHeader } from './pdfPrimitives';
 
-export function OwnerHandlerSection({ owner, flag }: { owner: EntryBlankOwner; flag: string }) {
+export function OwnerHandlerSection({
+  owner,
+  flag,
+  flagText,
+}: {
+  owner: EntryBlankOwner;
+  flag: string;
+  flagText: string;
+}) {
   return (
     <View>
-      <SectionHeader number="03" title="Owner & handler" flag={flag} />
+      <SectionHeader number="03" title="Owner & handler" flagText={flagText} />
 
       <View style={{ flexDirection: 'row' }}>
         <Field

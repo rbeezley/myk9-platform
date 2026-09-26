@@ -2,10 +2,18 @@ import { View } from '@react-pdf/renderer';
 import type { EntryBlankDog } from '@/features/heritage/entry-blank/types';
 import { Field, SectionHeader } from './pdfPrimitives';
 
-export function DogParticularsSection({ dog, flag }: { dog: EntryBlankDog; flag: string }) {
+export function DogParticularsSection({
+  dog,
+  flag,
+  flagText,
+}: {
+  dog: EntryBlankDog;
+  flag: string;
+  flagText: string;
+}) {
   return (
     <View>
-      <SectionHeader number="01" title="The dog" flag={flag} />
+      <SectionHeader number="01" title="The dog" flagText={flagText} />
 
       <View style={{ flexDirection: 'row' }}>
         <Field

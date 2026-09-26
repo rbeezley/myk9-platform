@@ -20,7 +20,9 @@ export interface BannerEntryBlankProps extends EntryBlankProps {
 
 export function BannerEntryBlankDocument(props: BannerEntryBlankProps) {
   const pad = 38;
-  const { flag, textOnFlag } = deriveBannerBrandColors(props.brandColor);
+  // `flag` for borders and rules, `flagText` for flag-coloured text on paper
+  // (MYK9-786): a light club flag is unreadable as text.
+  const { flag, flagText, textOnFlag } = deriveBannerBrandColors(props.brandColor);
 
   return (
     <Document title={`Entry Blank — ${props.showTitle}`} author={props.clubName}>
@@ -46,12 +48,17 @@ export function BannerEntryBlankDocument(props: BannerEntryBlankProps) {
             textOnFlag={textOnFlag}
           />
 
-          <DogParticularsSection dog={props.dog} flag={flag} />
-          <ClassesEnteredSection trials={props.trials} levelCells={props.levelCells} flag={flag} />
-          <OwnerHandlerSection owner={props.owner} flag={flag} />
-          <FeesSection fees={props.fees} flag={flag} />
-          <AgreementSection agreementText={props.agreementText} flag={flag} />
-          <MailToPanel mailTo={props.mailTo} flag={flag} />
+          <DogParticularsSection dog={props.dog} flag={flag} flagText={flagText} />
+          <ClassesEnteredSection
+            trials={props.trials}
+            levelCells={props.levelCells}
+            flag={flag}
+            flagText={flagText}
+          />
+          <OwnerHandlerSection owner={props.owner} flag={flag} flagText={flagText} />
+          <FeesSection fees={props.fees} flag={flag} flagText={flagText} />
+          <AgreementSection agreementText={props.agreementText} flag={flag} flagText={flagText} />
+          <MailToPanel mailTo={props.mailTo} flag={flag} flagText={flagText} />
 
           {props.closeDate && (
             <Text

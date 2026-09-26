@@ -121,6 +121,11 @@ export const mapDatabaseToShow = (
         timezone: trialObj.timezone as string | null | undefined,
       }),
       registryId: (trialObj.registry_id ?? trialObj.registryId ?? null) as string | null,
+      // MYK9-827: the same ordinal `computeDayTrialNumber` reads off the warm
+      // `trials.display_order` column, carried here so a fallback report built
+      // from a cached show detail (useReportData) sorts same-day trials the
+      // same way instead of falling back to UUID order.
+      displayOrder: (trialObj.display_order ?? trialObj.displayOrder ?? null) as number | null,
       // `undefined` when the read did not embed classes (the guest Browse
       // query leaves them out), `[]` only when it did and found none. Reading
       // "not fetched" as "none" labelled every open show "Classes Not Ready"
@@ -559,6 +564,7 @@ export const mapReplicatedTrialToRow = (
     max_entries_per_dog: 'maxEntriesPerDog',
     max_total_entries: 'maxTotalEntries',
     max_entries_per_handler: 'maxEntriesPerHandler',
+    display_order: 'displayOrder',
   }),
   class: classes.map(mapReplicatedClassToRow),
 });

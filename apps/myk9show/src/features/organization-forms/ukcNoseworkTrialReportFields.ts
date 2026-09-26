@@ -1,6 +1,9 @@
 export const UKC_NOSEWORK_TRIAL_REPORT_FIELDS = {
-  oneTrial: '1',
-  twoOrMoreTrials: '2 only indicate if more than one Trial per day',
+  // These tick the trial's own NUMBER for the day (1 or 2), not a trial COUNT
+  // (MYK9-827) -- the printed header reads "TRIAL [ ]1 [ ]2 (only indicate if
+  // more than one Trial per day)".
+  trialNumberOne: '1',
+  trialNumberTwo: '2 only indicate if more than one Trial per day',
   eventDate: 'EVENT DATE',
   clubName: 'Club Name do not abbreviate',
   clubId: 'Club ID',

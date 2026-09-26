@@ -185,6 +185,12 @@ export interface ReportProps {
     judgeName: string;
     eventNumber?: string;
     registryId?: string;
+    /**
+     * This trial's 1-based ordinal among trials sharing its calendar day in
+     * this show, ordered by `trials.display_order`. Undefined when the day
+     * has only one trial (MYK9-827).
+     */
+    dayTrialNumber?: number;
   };
   classData?: {
     element: string;

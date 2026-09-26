@@ -19,19 +19,29 @@ interface ServerJudgeRow {
 const assignmentKey = (personId: string, classId: string | null | undefined) =>
   `${personId}|${classId ?? ''}`;
 
+const SERVER_PAGE_SIZE = 1000;
+
 async function readServerJudges(
   showId: string
 ): Promise<{ judges: ShowJudgeAssignment[]; keys: Set<string> }> {
-  const { data, error } = await supabase
-    .from('judge_assignments')
-    .select(
-      `person_id, show_id, class_id, invited_at, confirmed_at,
-       judge:people!judge_assignments_person_id_fkey(id, first_name, last_name)`
-    )
-    .eq('show_id', showId);
-  if (error) throw createDatabaseError(error, 'judge_assignments', 'select_for_premium_publish');
-
-  const rows = (data ?? []) as unknown as ServerJudgeRow[];
+  // Paged: PostgREST caps a response at 1000 rows, and a truncated list would
+  // read as missing judges.
+  const rows: ServerJudgeRow[] = [];
+  for (let from = 0; ; from += SERVER_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('judge_assignments')
+      .select(
+        `id, person_id, show_id, class_id, invited_at, confirmed_at,
+         judge:people!judge_assignments_person_id_fkey(id, first_name, last_name)`
+      )
+      .eq('show_id', showId)
+      .order('id', { ascending: true })
+      .range(from, from + SERVER_PAGE_SIZE - 1);
+    if (error) throw createDatabaseError(error, 'judge_assignments', 'select_for_premium_publish');
+    const page = (data ?? []) as unknown as ServerJudgeRow[];
+    rows.push(...page);
+    if (page.length < SERVER_PAGE_SIZE) break;
+  }
   const assignments = rows.map(
     row =>
       ({

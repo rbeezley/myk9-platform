@@ -5,7 +5,13 @@ import {
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
 
-const server = vi.hoisted(() => ({ eq: vi.fn(), select: vi.fn(), from: vi.fn() }));
+const server = vi.hoisted(() => ({
+  range: vi.fn(),
+  order: vi.fn(),
+  eq: vi.fn(),
+  select: vi.fn(),
+  from: vi.fn(),
+}));
 const device = vi.hoisted(() => ({ read: vi.fn() }));
 const queue = vi.hoisted(() => ({ requestUpload: vi.fn() }));
 
@@ -50,7 +56,11 @@ describe('fetchShowJudgesForPublish', () => {
     vi.clearAllMocks();
     server.from.mockReturnValue({ select: server.select });
     server.select.mockReturnValue({ eq: server.eq });
-    server.eq.mockResolvedValue({ data: [row('j1', 'Pat'), row('j2', 'Sam')], error: null });
+    server.eq.mockReturnValue({ order: server.order });
+    server.order.mockReturnValue({ range: server.range });
+    server.range
+      .mockReset()
+      .mockResolvedValue({ data: [row('j1', 'Pat'), row('j2', 'Sam')], error: null });
     device.read.mockResolvedValue([onDevice('j1'), onDevice('j2')]);
   });
 
@@ -90,7 +100,7 @@ describe('fetchShowJudgesForPublish', () => {
   });
 
   it('stops when the device moved a class to a different judge', async () => {
-    server.eq.mockResolvedValue({
+    server.range.mockResolvedValue({
       data: [row('j1', 'Pat', 'c1'), row('j2', 'Sam', 'c2')],
       error: null,
     });
@@ -99,8 +109,21 @@ describe('fetchShowJudgesForPublish', () => {
     expect((await publishError()).code).toBe('judges-syncing');
   });
 
+  it('reads every page when a show has more rows than one response holds', async () => {
+    const first = Array.from({ length: 1000 }, (_, i) => row(`p${i}`, 'P', `c${i}`));
+    server.range
+      .mockResolvedValueOnce({ data: first, error: null })
+      .mockResolvedValueOnce({ data: [row('last', 'Lee')], error: null });
+    device.read.mockRejectedValue(new Error('IDB timeout'));
+
+    const judges = await fetchShowJudgesForPublish('show-1');
+
+    expect(judges).toHaveLength(1001);
+    expect(server.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+  });
+
   it("groups a judge's class rows into one judge", async () => {
-    server.eq.mockResolvedValue({
+    server.range.mockResolvedValue({
       data: [row('j1', 'Pat', 'c1'), row('j1', 'Pat', 'c2')],
       error: null,
     });
@@ -114,7 +137,7 @@ describe('fetchShowJudgesForPublish', () => {
   });
 
   it('throws when the server cannot be read, so publishing fails instead of listing none', async () => {
-    server.eq.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
+    server.range.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
 
     const error = await fetchShowJudgesForPublish('show-1').catch((e: unknown) => e);
 

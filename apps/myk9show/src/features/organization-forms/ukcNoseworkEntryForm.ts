@@ -90,7 +90,6 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
 }): Promise<Uint8Array> {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
-
   const pagePdfs = await Promise.all(
     entryBatches.map(entries => fillAndMarkPage(input, values, entries))
   );

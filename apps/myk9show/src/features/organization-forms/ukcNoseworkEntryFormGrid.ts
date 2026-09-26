@@ -184,6 +184,7 @@ function lineBaseline(band: TopBand): number {
 }
 
 /**
+/**
  * Strips a stored phone value to its 10 US digits, tolerating a leading "1"
  * country code (`+1 (555) 123-4567` is 11 digits after stripping punctuation).
  * Anything else — an extension, an international number, too few digits — is

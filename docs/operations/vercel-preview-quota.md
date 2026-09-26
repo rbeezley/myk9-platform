@@ -46,6 +46,8 @@ Skip-unaffected alone was not enough. On 2026-09-25 the guides project made 78 d
 
 So [`apps/docs/vercel.json`](../../apps/docs/vercel.json) turns Git deploys off for `claude/*`, `codex/*` and `worktree-*`, as well as `main` (the guides site is released deliberately, not on merge). Hand-made branches still preview. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins the list. If an agent edits the guides and a preview is needed, push the same commit to a hand-named branch.
 
+**A red "Deployment rate limited" status on an agent branch does not mean this setting leaked.** While the day's quota is spent, Vercel posts that failure (`targetUrl` ending `?upgradeToPro=build-rate-limit`) for every push it receives, before it checks whether the branch builds at all. Nothing is built. On 2026-09-26, #2493, #2497, #2499 and #2503 got one each between 02:01 and 03:23 UTC. All four commits already carried the `claude/*` exclusion, and the pushes around them read "Skipped – Not affected". To check, read the commit's own `apps/docs/vercel.json` (`git show <sha>:apps/docs/vercel.json`), then look at statuses outside the quota window. Only a guides deployment that actually built on an agent branch is a leak.
+
 ## 2. Keep Vercel previews non-required
 
 GitHub branch protection should continue to use GitHub CI as the required gate. As of 2026-07-07, the `main-required-checks` ruleset requires only:

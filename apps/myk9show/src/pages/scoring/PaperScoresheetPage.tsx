@@ -9,7 +9,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
-import { reloadEntriesAfterSave, type LandedScoreChange } from './paperScoresheetReload';
+import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -18,7 +18,6 @@ import { SplitPanelView } from './components/SplitPanelView';
 import { SequentialView } from './components/SequentialView';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
-import { notifications } from '@/lib/notifications';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
 
@@ -51,6 +50,7 @@ export function PaperScoresheetPage() {
   const [className, setClassName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -73,7 +73,7 @@ export function PaperScoresheetPage() {
       }
     }
     load();
-  }, [classId]);
+  }, [classId, loadAttempt]);
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
@@ -107,12 +107,13 @@ export function PaperScoresheetPage() {
     autoSelectedClassRef.current = classId;
   }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
 
-  const reloadEntries = async (landed: LandedScoreChange): Promise<ScoringEntry[]> => {
+  // After a landed save: a list that cannot refresh pauses scoring rather than
+  // letting the judge act on stale rows (MYK9-774).
+  const reloadEntries = async (): Promise<ScoringEntry[] | null> => {
     if (!classId) return entries;
-    const { entries: fresh, refreshed } = await reloadEntriesAfterSave(classId, entries, landed);
-    if (!refreshed)
-      notifications.warning("Saved. This class's list couldn't refresh on this device.");
-    setEntries(fresh);
+    const fresh = await refreshEntriesAfterSave(classId);
+    if (fresh) setEntries(fresh);
+    else setError(REFRESH_FAILED_MESSAGE);
     return fresh;
   };
 
@@ -125,7 +126,7 @@ export function PaperScoresheetPage() {
     if (!scoring.selectedEntryId) return;
     const entryId = scoring.selectedEntryId;
     await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
-    await reloadEntries({ entryId, scored: true });
+    await reloadEntries();
   };
 
   const handleSaveAndNext = async (
@@ -137,7 +138,8 @@ export function PaperScoresheetPage() {
     if (!scoring.selectedEntryId) return;
     const currentEntryId = scoring.selectedEntryId;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
-    const fresh = await reloadEntries({ entryId: currentEntryId, scored: true });
+    const fresh = await reloadEntries();
+    if (!fresh) return;
     const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
     scoring.selectEntry(next?.entryId ?? null);
   };
@@ -146,7 +148,7 @@ export function PaperScoresheetPage() {
     if (!scoring.selectedEntryId) return;
     const entryId = scoring.selectedEntryId;
     await scoring.clearEntry(entryId);
-    await reloadEntries({ entryId, scored: false });
+    await reloadEntries();
   };
 
   const handleModeChange = (mode: PaperScoringMode) => {
@@ -165,9 +167,14 @@ export function PaperScoresheetPage() {
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          Go Back
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setLoadAttempt(attempt => attempt + 1)}>
+            Try again
+          </Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }

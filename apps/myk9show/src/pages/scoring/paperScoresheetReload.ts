@@ -1,36 +1,22 @@
 import { loadEntriesWithDogs } from './paperScoresheetData';
 import { calculatePlacements, type ScoringEntry } from './types';
 
-/** The change that just landed, applied locally when the list cannot refresh. */
-export interface LandedScoreChange {
-  entryId: string;
-  scored: boolean;
-}
-
 /**
- * The class's entries after a save or clear. The change has already landed, so
- * a failed device read must not read as a failed save (MYK9-774). Nor may it
- * leave the list as it was: the saved dog would still read unscored, and the
- * next "save and next" could route the judge back to it and overwrite its
- * score. So the fallback applies the landed change to the current list.
+ * The class's entries after a save or clear has landed, or null when the
+ * device cannot read them (MYK9-774). The caller must not keep scoring on the
+ * list it already holds: that list still shows the saved dog as it was, so
+ * "save and next" could route the judge back to it and the old result would
+ * show. Rebuilding results locally would duplicate the scoring rules, so the
+ * caller pauses scoring until a read succeeds instead.
  */
-export async function reloadEntriesAfterSave(
-  classId: string,
-  current: ScoringEntry[],
-  landed: LandedScoreChange
-): Promise<{ entries: ScoringEntry[]; refreshed: boolean }> {
+export async function refreshEntriesAfterSave(classId: string): Promise<ScoringEntry[] | null> {
   try {
-    return { entries: calculatePlacements(await loadEntriesWithDogs(classId)), refreshed: true };
+    return calculatePlacements(await loadEntriesWithDogs(classId));
   } catch {
-    const entries = current.map(entry =>
-      entry.entryId === landed.entryId
-        ? {
-            ...entry,
-            isScored: landed.scored,
-            status: landed.scored ? ('scored' as const) : ('pending' as const),
-          }
-        : entry
-    );
-    return { entries, refreshed: false };
+    return null;
   }
 }
+
+/** Shown in place of the scoresheet while the refreshed list cannot be read. */
+export const REFRESH_FAILED_MESSAGE =
+  "Saved. This class's list couldn't refresh on this device, so scoring is paused until it does.";

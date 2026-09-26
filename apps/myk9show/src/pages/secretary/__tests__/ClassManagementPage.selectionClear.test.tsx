@@ -75,10 +75,8 @@ describe('ClassManagementPage selection clearing on view-identity change', () =>
     // Bulk actions bar should now be visible with 1 selected.
     expect(await screen.findByText('1 class selected')).toBeInTheDocument();
 
-    // Click the "Completed" preset tile — this changes the status filter (view identity).
-    const completedTile = screen.getByText('Completed').closest('[role="button"]');
-    expect(completedTile).not.toBeNull();
-    await user.click(completedTile as HTMLElement);
+    // Select the "Completed" view tab — this changes the status filter (view identity).
+    await user.click(screen.getByRole('button', { name: /^Completed/ }));
 
     // Selection must be cleared — the bulk actions bar/count should disappear.
     expect(screen.queryByText('1 class selected')).not.toBeInTheDocument();

@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  *
  * Isolated from entryQueries.replication.test.ts for the same reason as its
  * sibling files: that file's shared supabase mock doesn't support the
- * `.eq().is().order()` chain these postgrest reads need.
+ * `.eq().is().order().range()` chain these paged postgrest reads need.
  */
 
 const {
@@ -78,10 +78,13 @@ vi.mock('@/services/database/supabaseClient', () => ({
       select: () => ({
         eq: () => ({
           is: () => ({
-            order: () => {
-              onlineCallCount += 1;
-              return Promise.resolve({ data: onlineRows, error: null });
-            },
+            // MYK9-767: the online read pages by id (see entryPagedRead.ts).
+            order: () => ({
+              range: () => {
+                onlineCallCount += 1;
+                return Promise.resolve({ data: onlineRows, error: null });
+              },
+            }),
           }),
         }),
       }),
@@ -292,7 +295,15 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     const result = await getEntriesByTrial('t1');
 
     expect(onlineCallCount).toBe(1);
-    expect(result.data).toMatchObject([defaultOnlineRow, SECOND_ONLINE_ROW]);
+    // Order is the client's newest-first sort after paging (MYK9-767); neither
+    // row carries a timestamp here, so only membership is asserted.
+    expect(result.data).toHaveLength(2);
+    expect(result.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining(defaultOnlineRow),
+        expect.objectContaining(SECOND_ONLINE_ROW),
+      ])
+    );
   });
 
   it('returns the report error, without an online read, while the trial holds an unsaved write', async () => {

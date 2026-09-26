@@ -26,8 +26,6 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
-import { logger } from '@/services/LoggingService';
-import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -39,6 +37,7 @@ import {
   AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK,
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
+import { compareNewestFirst, compareRunOrder, readAllEntryPages } from './entryPagedRead';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
 import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
 import {
@@ -328,33 +327,6 @@ async function postgrestGetEntriesByShow(showId: string) {
 }
 
 /**
- * Run an entries read twice if it has to: once naming MYK9-639's
- * `moved_from_entry_id`, and again without it when the column does not exist.
- *
- * `supabase db push` is run by hand after the merge and Vercel serves `main`
- * before that happens, so for the length of that window PostgREST answers 42703
- * and fails the WHOLE request, not just the column. Only the two reads that are
- * SUMMED as money name the link, so this is the only place the window has to be
- * handled; the other entry reads use the plain list and are unaffected.
- *
- * The degraded read simply carries no supersession link, which
- * `resolveMoneyRoot` already treats as "this row is its own root" — the
- * pre-MYK9-639 behaviour, not a new failure mode.
- */
-async function withMoveUpLinkFallback<T>(
-  run: (withLink: boolean) => PromiseLike<{ data: T | null; error: unknown }>
-): Promise<{ data: T | null; error: unknown }> {
-  const first = await run(true);
-  if (!isMoveUpLinkSchemaUnavailable(first.error as { code?: string; message?: string } | null)) {
-    return first;
-  }
-  logger.warn(
-    '[entries] moved_from_entry_id is not in the schema yet; reading without the move-up link'
-  );
-  return run(false);
-}
-
-/**
  * The two money reads name MYK9-639's `moved_from_entry_id`; every other entry
  * read does not.
  *
@@ -503,107 +475,52 @@ const TRIAL_ENTRIES_SELECT = `
       )
     `;
 
-/** PostgREST's `max_rows`: one response never holds more than this. */
-const SHOW_FINANCIALS_PAGE_SIZE = 1000;
-
 async function postgrestGetEntriesByShowForFinancials(showId: string) {
-  // MYK9-639: this read is SUMMED as money, so it names the supersession link —
-  // and retries without it for the deploy window, when the column does not
-  // exist yet and PostgREST would 42703 the whole request.
+  // MYK9-639: this read is SUMMED as money, so it names the supersession link.
+  // MYK9-761: paged past PostgREST's `max_rows` (see readAllEntryPages).
   // The ternary is on the WHOLE query, not inside `.select()`: the typed
   // builder parses each select literal at compile time, and a union of two of
   // them exhausts its parser.
-  //
-  // MYK9-761: PostgREST caps one response at `max_rows`, so a show larger than
-  // one page would be silently understated. Page by KEYSET on `id` alone
-  // (never null, unlike `created_at`): each page asks for ids strictly below
-  // the previous page's last one, so an entry registered mid-read can neither
-  // shift a boundary row onto the next page (double-counted) nor off it
-  // (skipped), as OFFSET paging would. A failed page throws, so the caller
-  // reports an error, never a partial total.
-  const rows: Record<string, unknown>[] = [];
-  let includeLink = true;
-  let cursorId: string | null = null;
-  for (;;) {
-    const { data, error } = await withMoveUpLinkFallback(withLink => {
-      if (!withLink) includeLink = false;
-      if (withLink && includeLink) {
-        let query = supabase
-          .from('entries')
-          .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
-          .eq('show_id', showId)
-          .is('deleted_at', null)
-          .order('id', { ascending: false });
-        if (cursorId) query = query.lt('id', cursorId);
-        return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
-      }
-      let query = supabase
-        .from('entries')
-        .select(SHOW_FINANCIALS_SELECT)
-        .eq('show_id', showId)
-        .is('deleted_at', null)
-        .order('id', { ascending: false });
-      if (cursorId) query = query.lt('id', cursorId);
-      return query.range(0, SHOW_FINANCIALS_PAGE_SIZE - 1);
-    });
-
-    if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-    const page = (data || []) as Record<string, unknown>[];
-    rows.push(...page);
-    if (page.length < SHOW_FINANCIALS_PAGE_SIZE) break;
-
-    const lastRow = page[page.length - 1];
-    if (!lastRow?.id) {
-      throw createDatabaseError(
-        new Error('Show financials page is missing its stable pagination cursor'),
-        'entries',
-        'select_by_show_financials'
-      );
-    }
-    cursorId = String(lastRow.id);
-  }
-
-  // Paged by id alone: `id` is never null, unlike `created_at` (Codex P2 on
-  // #2463). A sum needs no date order, but callers list rows newest first, so
-  // restore that order here (null timestamps last, id as the tie-break).
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
+            .eq('show_id', showId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(SHOW_FINANCIALS_SELECT)
+            .eq('show_id', showId)
+            .is('deleted_at', null),
+    'select_by_show_financials'
+  );
+  // Paged by id alone; callers list rows newest first.
   rows.sort(compareNewestFirst);
   return { data: attachPostgrestHandlerIdentity(rows), error: null };
 }
 
-function compareNewestFirst(a: Record<string, unknown>, b: Record<string, unknown>): number {
-  const aAt = a.created_at ? String(a.created_at) : null;
-  const bAt = b.created_at ? String(b.created_at) : null;
-  if (aAt !== bAt) {
-    if (aAt === null) return 1;
-    if (bAt === null) return -1;
-    return Date.parse(bAt) - Date.parse(aAt);
-  }
-  return String(b.id).localeCompare(String(a.id));
-}
-
 async function postgrestGetEntriesByTrial(trialId: string) {
-  // MYK9-639: the trial-scoped Financial Report sums this one. Same fallback.
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(TRIAL_ENTRIES_SELECT_WITH_LINK)
-          .eq('class.trial_id', trialId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-      : supabase
-          .from('entries')
-          .select(TRIAL_ENTRIES_SELECT)
-          .eq('class.trial_id', trialId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
+  // MYK9-639: the trial-scoped Financial Report sums this one.
+  // MYK9-767: paged past `max_rows` exactly like the show-scoped read.
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(TRIAL_ENTRIES_SELECT_WITH_LINK)
+            .eq('class.trial_id', trialId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(TRIAL_ENTRIES_SELECT)
+            .eq('class.trial_id', trialId)
+            .is('deleted_at', null),
+    'select_by_trial'
   );
-
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
-  return {
-    data: attachPostgrestHandlerIdentity((data || []) as Record<string, unknown>[]),
-    error: null,
-  };
+  rows.sort(compareNewestFirst);
+  return { data: attachPostgrestHandlerIdentity(rows), error: null };
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
@@ -627,25 +544,29 @@ async function postgrestGetEntriesByClass(classId: string) {
     `;
   const CLASS_ENTRIES_SELECT_WITH_LINK = `${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},${CLASS_ENTRY_RELATIONS_SELECT}`;
   const CLASS_ENTRIES_SELECT = `${AUTHENTICATED_ENTRY_READ_COLUMNS},${CLASS_ENTRY_RELATIONS_SELECT}`;
-  const { data, error } = await withMoveUpLinkFallback(withLink =>
-    withLink
-      ? supabase
-          .from('entries')
-          .select(CLASS_ENTRIES_SELECT_WITH_LINK)
-          .eq('class_id', classId)
-          .is('deleted_at', null)
-          .order('run_order', { ascending: true, nullsFirst: false })
-      : supabase
-          .from('entries')
-          .select(CLASS_ENTRIES_SELECT)
-          .eq('class_id', classId)
-          .is('deleted_at', null)
-          .order('run_order', { ascending: true, nullsFirst: false })
+  // MYK9-767: paged past `max_rows`, then put back in run order (nulls last).
+  const rows = await readAllEntryPages(
+    withLink =>
+      withLink
+        ? supabase
+            .from('entries')
+            .select(CLASS_ENTRIES_SELECT_WITH_LINK)
+            .eq('class_id', classId)
+            .is('deleted_at', null)
+        : supabase
+            .from('entries')
+            .select(CLASS_ENTRIES_SELECT)
+            .eq('class_id', classId)
+            .is('deleted_at', null),
+    'select_by_class'
   );
-
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
-
-  const entries = data || [];
+  const entries = rows.sort(compareRunOrder) as Array<
+    Record<string, unknown> & {
+      armband: string | null;
+      show_id: string | null;
+      dog_id: string | null;
+    }
+  >;
 
   // Backfill armbands from the authoritative armbands table
   const armbandMap = await fetchMissingArmbands(entries);

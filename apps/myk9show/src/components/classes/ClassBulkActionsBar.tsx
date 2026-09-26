@@ -1,20 +1,28 @@
 /**
- * ClassBulkActionsBar — sticky bar for Class Management's multi-select.
+ * ClassBulkActionsBar — Class Management's multi-select bar, on the shared
+ * list-toolkit `FloatingBulkBar` (MYK9-811) instead of a bespoke fixed
+ * bottom-0 div — consistent floating position/styling with every other kit
+ * surface, and its own in-flow spacer replaces `useRegisterActionBar`'s
+ * measured height.
  *
  * Renders the shared class action catalog (`classActions.ts`) via
- * `RowActionMenu`/`toBulkActions`. Bulk status change (MYK9-59) dispatches
- * directly through `onBulkStatusChange` — `classActions.ts`'s `runBulkAndClear`
- * clears the selection only when the handler resolves to something other than
- * `false`, i.e. only on full success, same as bulk delete's post-confirm clear.
- * Bulk delete stays destructive and keeps a confirmation dialog (design.md
+ * `RowActionMenu`/`toBulkActions` as the bar's one child, the same pattern the
+ * admin Users bar uses for its "More" dropdown — the status catalog is a
+ * dynamic, per-status-value list, too many entries for individual
+ * `BulkBarButton`s. Bulk status change (MYK9-59) dispatches directly through
+ * `onBulkStatusChange` — `classActions.ts`'s `runBulkAndClear` clears the
+ * selection only when the handler resolves to something other than `false`,
+ * i.e. only on full success, same as bulk delete's post-confirm clear. Bulk
+ * delete stays destructive and keeps a confirmation dialog (design.md
  * decision D3/D6).
  */
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
 import { DeleteConfirmationDialog } from '@/components/base';
+import { FloatingBulkBar } from '@/components/list-toolkit';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
-import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+
+const CLASS_NOUN = ['class', 'classes'] as const;
 
 interface ClassBulkActionsBarProps {
   selectedClasses: ClassActionItem[];
@@ -36,15 +44,8 @@ export function ClassBulkActionsBar({
   onClear,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
-  // Same reservation the dogs bar makes: the bar is `fixed`, so without an
-  // in-flow spacer it sits on top of the last rows of the class list. Measured
-  // rather than a constant `pb-*` — the bar wraps to two rows on narrow widths.
-  const [barHeight, setBarHeight] = useState(0);
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
 
   if (selectedClasses.length === 0) return null;
-
-  const count = selectedClasses.length;
 
   const handlers: ClassActionHandlers = {
     // Return `false` (not `undefined`) — the resolver's runBulkAndClear clears the
@@ -69,31 +70,14 @@ export function ClassBulkActionsBar({
 
   return (
     <>
-      <div aria-hidden="true" style={{ height: barHeight }} />
-
-      <div
-        ref={actionBarRef}
-        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
-        role="region"
-        aria-label="Bulk class actions"
-      >
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-sm font-medium">
-              {count} class{count !== 1 ? 'es' : ''} selected
-            </span>
-            <Button variant="ghost" size="sm" onClick={onClear} disabled={bulkBusy}>
-              Clear
-            </Button>
-          </div>
-          <RowActionMenu
-            actions={actions}
-            size="touch"
-            label="Bulk class actions"
-            disabled={bulkBusy}
-          />
-        </div>
-      </div>
+      <FloatingBulkBar count={selectedClasses.length} noun={CLASS_NOUN} onClear={onClear}>
+        <RowActionMenu
+          actions={actions}
+          size="touch"
+          label="Bulk class actions"
+          disabled={bulkBusy}
+        />
+      </FloatingBulkBar>
 
       <DeleteConfirmationDialog
         open={confirmDeleteIds !== null}

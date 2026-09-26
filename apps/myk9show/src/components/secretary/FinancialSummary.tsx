@@ -5,14 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardGridSkeleton, TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -22,11 +14,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Download, DollarSign, Users, Tag, Gift, Search } from 'lucide-react';
+import { Download, DollarSign, Users, Tag, Gift } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
+import { ListFilterBar, type ListOptionsFilterField } from '@/components/list-toolkit';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
+import { filterFinancialEntries } from './financialSummaryFilters';
 import { resolveShowFinancialRows } from './showFinancialSummaryCalc';
 import { UnresolvedMoneyRootNotice } from './UnresolvedMoneyRootNotice';
+
+const PAYMENT_STATUS_OPTIONS: ListOptionsFilterField['options'] = [
+  { value: 'paid', label: 'Paid' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'refunded', label: 'Refunded' },
+  { value: 'comped', label: 'Comped' },
+];
 
 interface FinancialSummaryProps {
   trialId: string;
@@ -34,7 +35,7 @@ interface FinancialSummaryProps {
 
 export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   const { data: rawEntries = [], isLoading } = useTrialEntries(trialId);
 
@@ -78,28 +79,28 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     [allEntries]
   );
 
-  // Filtered entries
-  const filteredEntries = useMemo(() => {
-    let result = entries;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        e =>
-          e.dogName.toLowerCase().includes(term) ||
-          e.ownerName.toLowerCase().includes(term) ||
-          e.handler?.toLowerCase().includes(term) ||
-          e.className.toLowerCase().includes(term)
-      );
-    }
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'comped') {
-        result = result.filter(e => e.comped);
-      } else {
-        result = result.filter(e => e.paymentStatus === statusFilter && !e.comped);
-      }
-    }
-    return result;
-  }, [entries, searchTerm, statusFilter]);
+  // Filtered entries — the same function that computes each payment-status
+  // option's count below, so the filter bar's counts always match what
+  // picking them shows.
+  const filteredEntries = useMemo(
+    () => filterFinancialEntries(entries, searchTerm, statusFilter),
+    [entries, searchTerm, statusFilter]
+  );
+
+  const paymentStatusField: ListOptionsFilterField = useMemo(
+    () => ({
+      kind: 'options',
+      key: 'paymentStatus',
+      label: 'Payment status',
+      value: statusFilter,
+      onChange: setStatusFilter,
+      options: PAYMENT_STATUS_OPTIONS.map(option => ({
+        ...option,
+        count: filterFinancialEntries(entries, '', option.value).length,
+      })),
+    }),
+    [entries, statusFilter]
+  );
 
   // Summary calculations (single pass)
   const summary = useMemo(() => {
@@ -295,35 +296,20 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         </CardContent>
       </Card>
 
-      {/* Entry Table */}
+      {/* Entry Table.
+          No `ListResultLine` here: `UnresolvedMoneyRootNotice` above already
+          owns this card's one `role="status"` live region (MYK9-639), and the
+          kit's own rule is exactly one per list — the owner-approved scope for
+          this card is the payment-status filter alone. */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Entry Details</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search entries..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-8 w-[200px]"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="refunded">Refunded</SelectItem>
-                  <SelectItem value="comped">Comped</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <CardHeader className="flex flex-col gap-3 pb-3">
+          <CardTitle className="text-base">Entry Details</CardTitle>
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search entries..."
+            fields={[paymentStatusField]}
+          />
         </CardHeader>
         <CardContent>
           {filteredEntries.length === 0 ? (

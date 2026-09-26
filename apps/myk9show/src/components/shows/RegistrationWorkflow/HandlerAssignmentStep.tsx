@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useTrialStore } from '@/store/trialStore';
 import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-registration-types';
 import { getDogBreedLabel, getDogDisplayName } from '@/types/dog-types';
 import { compareLevels } from '@/utils/schedule-summary';
+import { buildTrialDayDisambiguator } from '@/features/_shared/classLabel';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 
@@ -30,10 +32,30 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
 }) => {
   const { dogs, isLoading } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
+  const { trials = [] } = useTrialStore();
   const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
 
   // Pre-build lookup maps for O(1) access
   const classMap = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes]);
+  const trialsById = useMemo(() => new Map(trials.map(t => [t.id, t])), [trials]);
+
+  // MYK9-832 #10: two trials on the same day can hold the identical class
+  // (e.g. "Vehicle Novice B"), which otherwise renders as the same row twice
+  // with nothing telling them apart. Gated on collision, same as the "Your
+  // entries" rail's own fix — the ordinary one-trial-per-day case gains no
+  // suffix.
+  const trialDayDisambiguate = useMemo(() => {
+    const trialIds = new Set(
+      classSelections.flatMap(s => s.selectedClasses.map(cls => classMap.get(cls.classId)?.trialId))
+    );
+    return buildTrialDayDisambiguator(
+      [...trialIds].flatMap(trialId => {
+        if (!trialId) return [];
+        const trial = trialsById.get(trialId);
+        return [{ trialId, trialDate: trial?.trialDate, trialName: trial?.name }];
+      })
+    );
+  }, [classSelections, classMap, trialsById]);
 
   // Build grouped data: entries grouped by dog
   const dogGroups = useMemo(() => {
@@ -49,10 +71,15 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
               const classData = classMap.get(cls.classId);
               const key = makeHandlerKey(dogId, cls.classId);
               const handler = handlerAssignments[key];
+              const baseClassName = classData?.className || classData?.element || 'Unknown Class';
+              // MYK9-832 #10: append the trial's own name only when another
+              // trial on the same day would otherwise render this row
+              // identically.
+              const trialSuffix = classData?.trialId ? trialDayDisambiguate(classData.trialId) : '';
               return {
                 key,
                 classId: cls.classId,
-                className: classData?.className || classData?.element || 'Unknown Class',
+                className: trialSuffix ? `${baseClassName} — ${trialSuffix}` : baseClassName,
                 element: classData?.element ?? '',
                 level: classData?.level ?? '',
                 section: classData?.section ?? '',
@@ -72,7 +99,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         return { dog, entries };
       })
       .filter((g): g is NonNullable<typeof g> => g !== null && g.entries.length > 0);
-  }, [selectedDogs, dogs, classSelections, classMap, handlerAssignments]);
+  }, [selectedDogs, dogs, classSelections, classMap, handlerAssignments, trialDayDisambiguate]);
 
   // Check if all entries are assigned
   const totalEntries = dogGroups.reduce((sum, g) => sum + g.entries.length, 0);

@@ -8,7 +8,13 @@ import { Separator } from '@/components/ui/separator';
 import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
-import { getDogBreedLabel, getDogDistinctRegisteredName, User, Dog } from '@/types/dog-types';
+import {
+  formatDogAge,
+  getDogBreedLabel,
+  getDogDistinctRegisteredName,
+  User,
+  Dog,
+} from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 
 interface QuickCreateFlowProps {
@@ -35,6 +41,23 @@ const INITIAL_FLOW_STATE: FlowState = {
   dogs: [],
   isComplete: false,
 };
+
+/**
+ * Whether the "Quick Registration Setup" shell dialog should be visible.
+ *
+ * MYK9-832 #4: Create Exhibitor and Add Dog are each their own dialog, opened
+ * ON TOP of this shell. While either is open the shell has no content of its
+ * own to show through it — it only added a second, dimmed dialog stacked
+ * behind the one the secretary is actually using. Hiding it for that span
+ * leaves exactly the dialog in use, never more than one at a time.
+ */
+export function shouldShowQuickCreateShell(
+  open: boolean,
+  showExhibitorDialog: boolean,
+  showDogDialog: boolean
+): boolean {
+  return open && !showExhibitorDialog && !showDogDialog;
+}
 
 export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   open,
@@ -121,9 +144,11 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     }
   }, [open, flowState.step, flowState.exhibitor]);
 
+  const shellOpen = shouldShowQuickCreateShell(open, showExhibitorDialog, showDogDialog);
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={shellOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -348,7 +373,10 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                               </p>
                             )}
                             <p className="text-sm text-muted-foreground">
-                              Born: {dog.dateOfBirth} (Age: {dog.age})
+                              Born: {dog.dateOfBirth}
+                              {formatDogAge({ dateOfBirth: dog.dateOfBirth })
+                                ? ` (${formatDogAge({ dateOfBirth: dog.dateOfBirth })})`
+                                : ''}
                             </p>
                             {dog.registrations && dog.registrations.length > 0 && (
                               <p className="text-sm text-muted-foreground">
@@ -366,9 +394,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Once you complete this setup, the exhibitor and{' '}
-                    {flowState.dogs.length === 1 ? 'dog' : 'dogs'} will be added to the system and
-                    available for registration.
+                    {/* MYK9-832 #6: the exhibitor and dog(s) are already saved by this
+                        point (CreateExhibitorDialog / AddDogPanel write on their own
+                        Save) — Complete Setup only carries them into this
+                        registration, and Cancel does NOT remove the saved rows. */}
+                    The exhibitor and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'}{' '}
+                    already been saved. Complete Setup to use them for this registration.
                   </AlertDescription>
                 </Alert>
               </div>

@@ -125,7 +125,11 @@ export function authoritativeEntryFeeCents(input: AuthoritativeFeeInput): number
   const junior = parseDollars(input.showJuniorHandlerFee);
 
   if (junior != null && junior > 0) {
-    const kind = deriveJuniorStatusKind(input.handlerDateOfBirth, input.trialDate, input.trialRegistryId);
+    const kind = deriveJuniorStatusKind(
+      input.handlerDateOfBirth,
+      input.trialDate,
+      input.trialRegistryId
+    );
     if (kind === 'junior') {
       return Math.round(junior * 100);
     }

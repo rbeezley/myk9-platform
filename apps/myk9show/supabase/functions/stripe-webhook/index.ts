@@ -1081,10 +1081,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // same class), so the trial info needed to derive it is per-class here but
   // the authoritative fee itself is keyed per CART ITEM, not per class.
   const trialInfoByClass = new Map<string, { date: string | null; registry_id: string | null }>(
-    classRows.map((c: { id: string; trial?: { date: string | null; registry_id: string | null } | null }) => [
-      c.id,
-      { date: c.trial?.date ?? null, registry_id: c.trial?.registry_id ?? null },
-    ])
+    classRows.map(
+      (c: { id: string; trial?: { date: string | null; registry_id: string | null } | null }) => [
+        c.id,
+        { date: c.trial?.date ?? null, registry_id: c.trial?.registry_id ?? null },
+      ]
+    )
   );
   const nowIso = new Date().toISOString();
   const cartItemsForFee = cart.items as {

@@ -95,15 +95,15 @@ describe('authoritativeEntryFeeCents — junior handler fee (MYK9-662)', () => {
   };
 
   it('prices a junior handler (AKC, under 18 on the trial date) at the junior fee', () => {
-    expect(
-      authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '2010-01-01' })
-    ).toBe(1500);
+    expect(authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '2010-01-01' })).toBe(
+      1500
+    );
   });
 
   it('prices an adult handler at the normal tier, not the junior fee', () => {
-    expect(
-      authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '1990-01-01' })
-    ).toBe(3000);
+    expect(authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '1990-01-01' })).toBe(
+      3000
+    );
   });
 
   it('prices a missing date of birth at the normal tier (unknown never buys the discount)', () => {

@@ -159,9 +159,9 @@ export const searchEntries = async (searchTerm: string) => {
     return await withReplicationFallback(
       async () => {
         const [allEntries, dogs, classes, shows] = await Promise.all([
-          replicatedEntriesTable.getAll(),
+          replicatedEntriesTable.getAllOrThrow(),
           replicatedDogsTable.getAllDogs(),
-          replicatedClassesTable.getAll(),
+          replicatedClassesTable.getAllOrThrow(),
           replicatedShowsTable.getAllShows(),
         ]);
         const dogsMap = buildMapFromArray(dogs, d => d.id);

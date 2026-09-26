@@ -351,7 +351,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     replicatedDogsTable.getAllDogs(),
-    replicatedClassesTable.getAll(),
+    replicatedClassesTable.getAllOrThrow(),
     replicatedArmbandsTable.getByShow(showId),
     replicatedTrialsTable.getTrialsByShow(showId),
   ]);

@@ -35,6 +35,7 @@ vi.mock('../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getAll: mocks.replicatedEntriesGetAll,
+    getAllOrThrow: mocks.replicatedEntriesGetAll,
   },
 }));
 
@@ -47,6 +48,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getAll: mocks.replicatedClassesGetAll,
+    getAllOrThrow: mocks.replicatedClassesGetAll,
   },
 }));
 
@@ -59,6 +61,7 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
     getAll: mocks.replicatedTrialsGetAll,
+    getAllOrThrow: mocks.replicatedTrialsGetAll,
   },
 }));
 

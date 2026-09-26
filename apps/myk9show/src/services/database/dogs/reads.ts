@@ -446,7 +446,7 @@ export const getDogById = async (id: string) => {
       if (!dog) return { data: null, error: null };
 
       // Load entries from replication store
-      const allEntries = await replicatedEntriesTable.getAll();
+      const allEntries = await replicatedEntriesTable.getAllOrThrow();
       const dogEntries = allEntries.filter(e => e.dogId === id);
 
       const [registrationsResult, supplementalResult] = await Promise.all([

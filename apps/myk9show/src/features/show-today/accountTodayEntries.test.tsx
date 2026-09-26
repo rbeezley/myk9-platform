@@ -6,6 +6,9 @@ import { describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const source = () => ({
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   });
   return {

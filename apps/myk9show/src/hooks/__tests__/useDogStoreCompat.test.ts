@@ -61,6 +61,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     get: vi.fn().mockResolvedValue(null),
     getDogById: mockGetReplicatedDogById,
     getAll: mockGetAllReplicatedDogs,
+    getAllOrThrow: mockGetAllReplicatedDogs,
   },
 }));
 

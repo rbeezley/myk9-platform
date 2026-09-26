@@ -348,11 +348,11 @@ async function readReplicaUserEntryRows(
 ): Promise<{ data: Record<string, unknown>[]; error: null } | null> {
   try {
     const [allEntries, dogs, classes, shows, trials] = await Promise.all([
-      replicatedEntriesTable.getAll(),
+      replicatedEntriesTable.getAllOrThrow(),
       replicatedDogsTable.getAllDogs(),
-      replicatedClassesTable.getAll(),
+      replicatedClassesTable.getAllOrThrow(),
       replicatedShowsTable.getAllShows(),
-      replicatedTrialsTable.getAll(),
+      replicatedTrialsTable.getAllOrThrow(),
     ]);
     const dogsMap = buildMapFromArray(dogs, d => d.id);
     const classesMap = buildMapFromArray(classes, c => c.id);

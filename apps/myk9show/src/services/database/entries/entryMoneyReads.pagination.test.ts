@@ -29,11 +29,17 @@ const { mockEntriesTable, mockClassesTable, server } = vi.hoisted(() => ({
     getEntriesByShow: vi.fn(),
     getEntriesByClass: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
   mockClassesTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getClassesByTrial: vi.fn(),
   },
   server: {
@@ -60,6 +66,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getTrialsByShow: vi.fn().mockResolvedValue([]),
   },
 }));

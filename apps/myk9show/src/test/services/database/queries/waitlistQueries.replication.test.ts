@@ -18,6 +18,9 @@ const { mockWaitlistTable, mockTrialsTable, mockClassesTable, mockDogsTable, moc
       getByDog: vi.fn(),
       getById: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockTrialsTable: {
       getTrialsByShow: vi.fn(),
@@ -26,14 +29,23 @@ const { mockWaitlistTable, mockTrialsTable, mockClassesTable, mockDogsTable, moc
       getClassesByTrial: vi.fn(),
       getClassById: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockDogsTable: {
       getDogById: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockEntriesTable: {
       getEntriesByClass: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
   }));
 

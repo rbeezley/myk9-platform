@@ -245,7 +245,7 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
           }
         }
 
-        const allEntries = await replicatedEntriesTable.getAll();
+        const allEntries = await replicatedEntriesTable.getAllOrThrow();
         const dogEntries = allEntries.filter(e => e.dogId === armband.dogId && e.showId === showId);
 
         const classIds = [...new Set(dogEntries.map(e => e.classId).filter(Boolean))] as string[];

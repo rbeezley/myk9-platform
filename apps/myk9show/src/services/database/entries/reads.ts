@@ -65,7 +65,7 @@ async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
   return loadLookupMap(
-    () => replicatedClassesTable.getAll(),
+    () => replicatedClassesTable.getAllOrThrow(),
     c => c.id
   );
 }
@@ -690,7 +690,7 @@ export const getAllEntries = async () => {
   return readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
         loadClassesMap(),
         loadShowsMap(),
@@ -944,7 +944,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       // Get classes for this trial, then filter entries by those class IDs
       const [trialClasses, allEntries, dogsMap] = await Promise.all([
         replicatedClassesTable.getClassesByTrial(trialId),
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
       ]);
       const trialClassIds = new Set(trialClasses.map(c => c.id));
@@ -1097,7 +1097,7 @@ export interface DogEntriesReadResult {
 //     copy for exactly this reason; merging follows that same rule.
 async function replicaGetEntriesByDog(dogId: string) {
   const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
-    replicatedEntriesTable.getAll(),
+    replicatedEntriesTable.getAllOrThrow(),
     loadDogsMap(),
     loadClassesMap(),
     loadShowsMap(),
@@ -1248,7 +1248,7 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({
     replication: async () => {
       const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
-        replicatedEntriesTable.getAll(),
+        replicatedEntriesTable.getAllOrThrow(),
         loadDogsMap(),
         loadClassesMap(),
         loadShowsMap(),

@@ -35,7 +35,12 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+  replicatedClassesTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialsByShow: vi.fn().mockResolvedValue([]) },

@@ -22,11 +22,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
   vi.hoisted(() => ({
-    mockEntriesTable: { getAll: vi.fn() },
+    mockEntriesTable: {
+      getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
     mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-    mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+    mockClassesTable: {
+      getAll: vi.fn().mockResolvedValue([]),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
     mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+    mockTrialsTable: {
+      getAll: vi.fn().mockResolvedValue([]),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
   }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({

@@ -36,12 +36,18 @@ const {
   mockEntriesTable: {
     getEntriesByClass: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
   mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
   mockClassesTable: {
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getClassesByTrial: vi.fn().mockResolvedValue([]),
   },
   mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },

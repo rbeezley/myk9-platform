@@ -13,6 +13,9 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = vi.hoisted(() => ({
   mockTrialsTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getTrialById: vi.fn(),
     getTrialsByShow: vi.fn(),
   },
@@ -25,6 +28,9 @@ const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = 
   },
   mockEntriesTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getEntriesByClass: vi.fn(),
     getEntriesByShow: vi.fn(),
     getSyncMetadata: vi.fn(),

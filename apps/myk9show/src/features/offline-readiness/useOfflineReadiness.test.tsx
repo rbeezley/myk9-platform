@@ -97,6 +97,9 @@ vi.mock('@/services/replication', () => ({
     sync: vi.fn(async () => ({ success: true })),
     getSyncMetadata: vi.fn(async () => tables.judgeAssignments.meta),
     getAll: vi.fn(async () => tables.judgeAssignments.rows),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 

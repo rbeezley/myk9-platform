@@ -927,8 +927,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         entry_fee_cents,
         jump_height,
         special_requests,
-        dog:dog_id(owner:people!owner_id(date_of_birth)),
-        handler:handler_id(date_of_birth)
+        dog:dog_id(owner_id)
       )
     `
     )
@@ -1092,9 +1091,40 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const cartItemsForFee = cart.items as {
     id: string;
     class_id: string;
-    handler?: { date_of_birth: string | null } | null;
-    dog?: { owner?: { date_of_birth: string | null } | null } | null;
+    handler_id: string | null;
+    dog?: { owner_id: string | null } | null;
   }[];
+  // MYK9-662: date of birth lives in people_private (MYK9-664), never on
+  // people — readable here because this function runs under service_role,
+  // which people_private grants SELECT to explicitly.
+  const personIdsForDob = [
+    ...new Set(
+      cartItemsForFee
+        .flatMap(item => [item.handler_id, item.dog?.owner_id])
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const dobByPersonId = new Map<string, string | null>();
+  if (personIdsForDob.length > 0) {
+    const { data: privateRows, error: privateRowsError } = await supabase
+      .from('people_private')
+      .select('person_id, date_of_birth')
+      .in('person_id', personIdsForDob);
+    if (privateRowsError) {
+      console.error(`people_private lookup failed for cart ${cartId}:`, privateRowsError);
+      await alertAdmin(
+        'Paid checkout could not be verified — entries NOT created',
+        `<p>Checkout session <code>${session.id}</code> was PAID, but people_private could not
+         be read to verify junior handler pricing, so no entries were created and Stripe will
+         not retry. The cart is untouched.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `people-private-read-failed-${session.id}` }
+      );
+      return;
+    }
+    for (const row of privateRows ?? []) {
+      dobByPersonId.set(row.person_id, row.date_of_birth);
+    }
+  }
   const authoritativeByItem = new Map<string, number>(
     cartItemsForFee.map(item => {
       const trialInfo = trialInfoByClass.get(item.class_id);
@@ -1107,7 +1137,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           classEntryFee: feeByClass.get(item.class_id) ?? null,
           nowIso,
           showJuniorHandlerFee: showFees.junior_handler_fee,
-          handlerDateOfBirth: item.handler?.date_of_birth ?? item.dog?.owner?.date_of_birth ?? null,
+          handlerDateOfBirth:
+            (item.handler_id && dobByPersonId.get(item.handler_id)) ??
+            (item.dog?.owner_id && dobByPersonId.get(item.dog.owner_id)) ??
+            null,
           trialRegistryId: trialInfo?.registry_id ?? null,
           trialDate: trialInfo?.date ?? null,
         }),

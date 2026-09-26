@@ -14,7 +14,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 
 const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
 const SRC_DIR = resolve(process.cwd(), 'src');
@@ -329,17 +329,47 @@ describe('MYK9-664: the values live only in people_private', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('only the people_private module touches the table', () => {
+  it('only the people_private module touches the table from the client app', () => {
+    // RLS-governed (self or site admin only) — this is the surface MYK9-664's
+    // access decision is actually about. Scoped to SRC_DIR, not every SCAN_ROOT:
+    // an edge function running as service_role is a different, already-broader
+    // trust boundary (see the next test), not a hole in this one.
     const readers: string[] = [];
-    for (const root of SCAN_ROOTS) {
-      for (const file of walk(root)) {
-        if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
-        if (jsWithoutComments(readFileSync(file, 'utf8')).includes("'people_private'")) {
-          readers.push(file.slice(file.indexOf(`${sep}src${sep}`) + 1));
-        }
+    for (const file of walk(SRC_DIR)) {
+      if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+      if (jsWithoutComments(readFileSync(file, 'utf8')).includes("'people_private'")) {
+        readers.push(file.slice(file.indexOf(`${sep}src${sep}`) + 1));
       }
     }
     expect(readers).toEqual([`src${sep}services${sep}database${sep}users${sep}personPrivate.ts`]);
+  });
+
+  it('MYK9-662: edge functions reading people_private are an explicit, reviewed list', () => {
+    // service_role bypasses RLS by design (it already holds an explicit GRANT
+    // SELECT on people_private, 20260924231700) — not a gap in the RLS
+    // boundary the test above pins, but still worth naming every reader
+    // explicitly rather than letting the list grow silently. Each of these is
+    // a Stripe pricing path with no caller-controlled "ask again with a
+    // different trial date" oracle (the threat people_private's RLS design
+    // guards against): the trial date comes from the entry/class being
+    // priced, never from payer input.
+    const functionRoots = SCAN_ROOTS.filter(root => root !== SRC_DIR);
+    const readers: string[] = [];
+    for (const root of functionRoots) {
+      for (const file of walk(root)) {
+        if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+        if (jsWithoutComments(readFileSync(file, 'utf8')).includes("'people_private'")) {
+          readers.push(relative(resolve(SRC_DIR, '..'), file));
+        }
+      }
+    }
+    expect(readers.sort()).toEqual(
+      [
+        'supabase/functions/stripe-checkout/index.ts',
+        'supabase/functions/stripe-payment-link/index.ts',
+        'supabase/functions/stripe-webhook/index.ts',
+      ].sort()
+    );
   });
 
   it('positive control: the column scan sees a people read that names a moved column', () => {

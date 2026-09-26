@@ -2,22 +2,46 @@
 -- MYK9-662: submit_show_entries prices a junior handler at the show's junior
 -- handler fee, when one is configured.
 --
--- Junior status is derived per entry, from the HANDLER's date of birth
--- (public.people.date_of_birth, slice 1) and the entry's own trial date and
--- registry, via public.derive_junior_status (20260926193700) — never a
--- hand-set flag, never re-derived with a second rule. When the show has set a
--- junior_handler_fee (> 0, mirroring day_of_show_fee's own "unset persists as
--- 0" convention) and the resolved handler is a junior at THIS trial, that fee
--- REPLACES the tier-selected fee entirely — one flat junior rate, not a
--- further discount off the day-of tier. Matches the product decision on
--- MYK9-570: "one junior handler fee beside the regular entry fee, set when
--- building the show."
+-- Junior status is NOT re-derived here. 20260924231700 (MYK9-664) already
+-- built the one sanctioned mechanism for this exact question —
+-- `private.entry_handler_is_junior(handler_id, class_id, trial_id)`, a thin
+-- wrapper over `private.handler_is_junior_at(date_of_birth, trial_date,
+-- registry_id)`, itself the SQL mirror of `deriveJuniorStatus()`
+-- (juniorHandlerPolicy.ts). That migration deliberately keeps every junior
+-- derivation out of the `public` schema (its own closing guard fails the push
+-- if a public function taking a `date` argument has "junior" in its name):
+-- a manager who could ask "is this handler a junior at date X?" on demand
+-- could edit a trial's date and bisect the handler's 18th birthday in about a
+-- dozen probes. This function reuses the existing, already-reviewed
+-- mechanism instead of adding a second one — the same one-time computation
+-- `trg_entries_handler_is_junior` already performs on every entries INSERT
+-- (regardless of this change), just also consulted here to price the entry
+-- BEFORE that trigger fires on the same row.
 --
--- 'unknown' (no date of birth on file, or a registry whose rulebook states no
--- upper age bound — ASCA) never buys the discount: the entry prices at the
--- normal tier, same as an adult. This is the safe default the issue's open
--- question asked for — never invent eligibility from missing data on a money
--- path.
+-- `private.entry_handler_is_junior` is SECURITY INVOKER, but reads
+-- `people_private` (RLS + FORCE ROW LEVEL SECURITY). That is not a gap here:
+-- `submit_show_entries` is SECURITY DEFINER, owned by the same role
+-- (`postgres`) that owns `entries_record_handler_is_junior` (also DEFINER,
+-- and already calls this same INVOKER helper to read `people_private` for
+-- the entries trigger). `postgres` in this project is NOT a superuser
+-- (verified in 20260725190000) but DOES carry BYPASSRLS (verified in
+-- 20260916181700, 20260918193300, 20260924104100) — a role attribute that
+-- bypasses row security independent of superuser status and regardless of
+-- FORCE, so the read succeeds the identical way it already does for every
+-- entries INSERT today, with no new grant needed.
+--
+-- When the show has set a junior_handler_fee (> 0, mirroring day_of_show_fee's
+-- own "unset persists as 0" convention) and the resolved handler is a junior
+-- at THIS trial, that fee REPLACES the tier-selected fee entirely — one flat
+-- junior rate, not a further discount off the day-of tier. Matches the
+-- product decision on MYK9-570: "one junior handler fee beside the regular
+-- entry fee, set when building the show."
+--
+-- NULL (unknown — no date of birth on file, or a registry whose rulebook
+-- states no upper age bound, ASCA) never buys the discount: the entry prices
+-- at the normal tier, same as an adult. This is the safe default the issue's
+-- open question asked for — never invent eligibility from missing data on a
+-- money path.
 --
 -- Refunds need no change: withdrawal/refund functions sum `entries.entry_fee`
 -- (the amount actually recorded at submission), never a re-derived price, so a
@@ -29,11 +53,9 @@
 -- LATEST migration defining this function (`grep -l "FUNCTION
 -- public.submit_show_entries" supabase/migrations/`), so no intervening change
 -- (MYK9-677's payment recording) is reverted. The only edits: the
--- v_show_junior_fee / v_trial_registry_id / v_trial_date / v_handler_dob /
--- v_junior_kind variables, the two added columns on the classes/trials SELECT,
--- the handler date-of-birth lookup, and the junior-fee override applied after
--- the existing tier CASE. The signature is unchanged (still six arguments), so
--- this is a plain CREATE OR REPLACE.
+-- v_show_junior_fee / v_is_junior variables and the junior-fee override
+-- applied after the existing tier CASE. The signature is unchanged (still six
+-- arguments), so this is a plain CREATE OR REPLACE.
 -- =============================================================================
 
 BEGIN;
@@ -76,13 +98,10 @@ DECLARE
   v_is_day_of_show boolean;
 
   v_trial_id      uuid;
-  -- MYK9-662: this entry's trial registry and date, and the handler's junior
-  -- status derived from them. `trials.date` is a plain DATE (migration
-  -- 002_shows_and_events.sql), so no timezone handling is needed here.
-  v_trial_registry_id text;
-  v_trial_date    date;
-  v_handler_dob   date;
-  v_junior_kind   text;
+  -- MYK9-662: whether this entry's resolved handler is a junior at this
+  -- trial, per the existing MYK9-664 mechanism. NULL (unknown) prices the
+  -- same as false (adult) below.
+  v_is_junior     boolean;
   v_class_status  text;
   v_class_name    text;
   v_trial_name    text;
@@ -313,15 +332,8 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
 
-    -- MYK9-662: the handler's date of birth, for the junior-status derivation
-    -- below. NULL (no handler resolved, or none on file) derives 'unknown',
-    -- never 'junior' — see derive_junior_status.
-    SELECT p.date_of_birth INTO v_handler_dob
-    FROM public.people p
-    WHERE p.id = v_handler_person_id;
-
-    SELECT c.entry_fee, t.id, t.registry_id, t.date, c.status, c.name, t.name
-    INTO   v_class_fee, v_trial_id, v_trial_registry_id, v_trial_date, v_class_status, v_class_name, v_trial_name
+    SELECT c.entry_fee, t.id, c.status, c.name, t.name
+    INTO   v_class_fee, v_trial_id, v_class_status, v_class_name, v_trial_name
     FROM   public.classes c
     JOIN   public.trials t ON t.id = c.trial_id
     WHERE  c.id = v_class_id
@@ -425,10 +437,11 @@ BEGIN
     -- entirely for a junior handler -- one flat rate, not a further discount off
     -- the day-of tier. Same "> 0" convention as the day-of-show fee above: a
     -- blank input persists as 0.00, and zero means "no junior tier", not "free".
-    -- 'adult' and 'unknown' both price at the normal tier above; only 'junior'
-    -- (a positively DERIVED status, never a hand-set flag) buys the discount.
-    v_junior_kind := public.derive_junior_status(v_handler_dob, v_trial_date, v_trial_registry_id);
-    IF v_junior_kind = 'junior' AND v_show_junior_fee IS NOT NULL AND v_show_junior_fee > 0 THEN
+    -- Reuses the existing MYK9-664 mechanism (see header) rather than deriving
+    -- junior status again here. IS TRUE excludes both false (adult) and NULL
+    -- (unknown) -- neither ever buys the discount.
+    v_is_junior := private.entry_handler_is_junior(v_handler_person_id, v_class_id, v_trial_id);
+    IF v_is_junior IS TRUE AND v_show_junior_fee IS NOT NULL AND v_show_junior_fee > 0 THEN
       v_server_fee := v_show_junior_fee;
     END IF;
 

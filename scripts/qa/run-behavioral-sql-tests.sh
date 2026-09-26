@@ -106,6 +106,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_710_people_identity_guard_test.sql"
   "$TEST_DIR/myk9_711_712_status_and_signup_grants_test.sql"
   "$TEST_DIR/myk9_660_667_manager_reads_catalog_writes_test.sql"
+  "$TEST_DIR/myk9_662_junior_handler_fee_test.sql"
   "$TEST_DIR/myk9_664_people_private_test.sql"
   "$TEST_DIR/myk9_705_656_class_entry_availability_test.sql"
   "$TEST_DIR/myk9_753_class_judge_day_availability_test.sql"

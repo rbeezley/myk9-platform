@@ -383,8 +383,7 @@ async function handleEntryCheckout(
         entry_fee_cents,
         jump_height,
         special_requests,
-        dog:dogs(call_name, owner:people!owner_id(date_of_birth)),
-        handler:handler_id(date_of_birth),
+        dog:dogs(call_name, owner_id),
         class:classes(
           name,
           entry_fee,
@@ -630,18 +629,50 @@ async function handleEntryCheckout(
   }
 
   const nowIso = new Date().toISOString();
-  const itemsWithAuthoritativeFee = (
-    cart.items as {
-      id: string;
-      entry_fee_cents: number;
-      class?: {
-        entry_fee?: number | string | null;
-        trial?: { date?: string | null; registry_id?: string | null } | null;
-      };
-      handler?: { date_of_birth?: string | null } | null;
-      dog?: { owner?: { date_of_birth?: string | null } | null };
-    }[]
-  ).map(item => ({
+  const cartItemsForFee = cart.items as {
+    id: string;
+    entry_fee_cents: number;
+    handler_id: string | null;
+    class?: {
+      entry_fee?: number | string | null;
+      trial?: { date?: string | null; registry_id?: string | null } | null;
+    };
+    dog?: { owner_id?: string | null } | null;
+  }[];
+  // MYK9-662: date of birth lives in people_private (MYK9-664), never on
+  // people — readable here because this function runs under service_role,
+  // which people_private grants SELECT to explicitly. Not a live-derivation
+  // surface reachable by a caller-controlled role: nothing here lets an
+  // exhibitor edit a trial's date and reprice, unlike the "ask again" oracle
+  // MYK9-664 closed off for managers. Batched once for every handler AND
+  // dog-owner id in the cart (the same fallback identity submit_show_entries
+  // uses when no handler is explicitly assigned).
+  const personIdsForDob = [
+    ...new Set(
+      cartItemsForFee
+        .flatMap(item => [item.handler_id, item.dog?.owner_id])
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const dobByPersonId = new Map<string, string | null>();
+  if (personIdsForDob.length > 0) {
+    const { data: privateRows, error: privateRowsError } = await supabase
+      .from('people_private')
+      .select('person_id, date_of_birth')
+      .in('person_id', personIdsForDob);
+    if (privateRowsError) {
+      console.error(`people_private lookup failed for cart ${cart_id}:`, privateRowsError);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Could not verify entry fees. Please try again.' },
+        500
+      );
+    }
+    for (const row of privateRows ?? []) {
+      dobByPersonId.set(row.person_id, row.date_of_birth);
+    }
+  }
+  const itemsWithAuthoritativeFee = cartItemsForFee.map(item => ({
     item,
     authoritativeCents: authoritativeEntryFeeCents({
       showPreEntryFee: showFees.pre_entry_fee,
@@ -649,11 +680,11 @@ async function handleEntryCheckout(
       showStartDate: showFees.start_date,
       classEntryFee: item.class?.entry_fee ?? null,
       nowIso,
-      // MYK9-662: junior handler fee, resolved for the assigned handler, else
-      // the dog's owner (the same fallback identity submit_show_entries uses
-      // when no handler is explicitly assigned).
       showJuniorHandlerFee: showFees.junior_handler_fee,
-      handlerDateOfBirth: item.handler?.date_of_birth ?? item.dog?.owner?.date_of_birth ?? null,
+      handlerDateOfBirth:
+        (item.handler_id && dobByPersonId.get(item.handler_id)) ??
+        (item.dog?.owner_id && dobByPersonId.get(item.dog.owner_id)) ??
+        null,
       trialRegistryId: item.class?.trial?.registry_id ?? null,
       trialDate: item.class?.trial?.date ?? null,
     }),

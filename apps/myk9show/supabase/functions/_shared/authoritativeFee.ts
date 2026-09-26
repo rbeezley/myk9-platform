@@ -87,9 +87,12 @@ type JuniorStatusKind = 'junior' | 'adult' | 'unknown';
  * apps/myk9show/src/features/registries/juniorHandlerPolicy.ts — kind only
  * (junior/adult/unknown), since pricing never needs the age or the rulebook
  * citation. Edge functions cannot import apps/myk9show/src (a separate deploy
- * tree), so this restates the three-registry rule, same as
- * derive_junior_status does in SQL for submit_show_entries. Change one,
- * change both of the others.
+ * tree) OR call `private.*` SQL functions the way submit_show_entries does
+ * (they run as service_role over PostgREST, not inside the database), so
+ * this restates the three-registry rule as its own mirror — the third
+ * restatement alongside `deriveJuniorStatus()` and
+ * `private.handler_is_junior_at()` (20260924231700, MYK9-664). Change one,
+ * change the other two.
  *
  *  - AKC:  under 18 on the day of the trial.
  *  - UKC:  under 18 as of January 1 of the competition year (a fixed date,

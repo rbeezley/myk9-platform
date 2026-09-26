@@ -1,5 +1,4 @@
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
-import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
 import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
@@ -115,8 +114,6 @@ interface PersonInput {
   city?: string | null;
   state?: string | null;
   zip_code?: string | null;
-  /** `people.date_of_birth` (MYK9-570 slice 1) — used to derive juniorHandlerAge. */
-  date_of_birth?: string | null;
 }
 
 // ─── Date formatting ──────────────────────────────────────────────────────────
@@ -293,27 +290,19 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
 
   // §III — owner/handler
   //
-  // MYK9-662: "Junior handler? (age)" prints an age only when the person who
-  // actually handles at THIS trial is derived as a junior — never a hand-set
-  // flag, reusing slice 1's `deriveJuniorStatus` (juniorHandlerPolicy.ts), the
-  // same derivation `submit_show_entries` prices from. The handler at this
-  // trial is `handler` when a designated handler differs from the owner, else
-  // the owner themself — the same fallback `handlerDisplayName` already uses
-  // in reverse (owner defaults to handler when only one person was supplied).
-  const handlerAtTrial = handler ?? owner;
-  const juniorStatus =
-    entryTrial && handlerAtTrial?.date_of_birth
-      ? deriveJuniorStatus({
-          dateOfBirth: handlerAtTrial.date_of_birth,
-          trialDate: entryTrial.date,
-          registryId: identityRegistry.id,
-        })
-      : null;
-  const juniorHandlerAge =
-    juniorStatus?.kind === 'junior' && juniorStatus.ageOnTrialDate != null
-      ? String(juniorStatus.ageOnTrialDate)
-      : null;
-
+  // juniorHandlerAge stays null. MYK9-664 (20260924231700) deliberately took
+  // date-of-birth-based junior derivation out of every surface an official
+  // can query on demand: a manager who could ask "is this handler a junior at
+  // date X?" could edit a trial's date and bisect the handler's 18th birthday
+  // in a dozen probes. `people.date_of_birth` no longer exists (moved to
+  // `people_private`, readable only by the person themself or a site admin),
+  // and this builder is fed from the same secretary-facing reads MYK9-664
+  // closed that surface on. The one thing an official may read is the
+  // boolean each entry already recorded at creation
+  // (`entries.handler_is_junior`, via `recorded_entry_handler_junior_flags()`)
+  // — not an age. Printing that boolean onto this specific AKC-form field
+  // (labelled "(age)" on the real paper form) is left as a deliberate
+  // follow-up rather than guessed at here.
   const ownerProps: EntryBlankOwner = {
     ownerName: ownerDisplayName,
     handlerName: handlerDisplayName,
@@ -323,7 +312,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     zip: ownerPerson?.zip_code ?? null,
     telephone: ownerPerson?.phone ?? null,
     email: ownerPerson?.email ?? null,
-    juniorHandlerAge,
+    juniorHandlerAge: null,
   };
 
   // §IV — fees

@@ -1,11 +1,17 @@
 -- Behavioral test for 20260926193700/20260926193900 (MYK9-662, MYK9-570 slice 2):
 -- submit_show_entries prices a junior handler at the show's junior handler fee.
 --
--- Junior status is derived per entry from the HANDLER's date of birth and the
--- entry's own trial (public.derive_junior_status), never a hand-set flag. Every
--- case below submits through the real RPC as a secretary (payment_method
--- 'secretary_paid'), so it exercises the whole path: derivation, the fee
--- override, and the stored entry_fee — not just the pure SQL function.
+-- Junior status is NOT re-derived by this change. It reuses the existing
+-- MYK9-664 mechanism (20260924231700) — private.entry_handler_is_junior(),
+-- backed by people_private.date_of_birth (RLS: readable only by the person
+-- themself or a site admin; date of birth left public.people entirely in that
+-- migration). The AKC/UKC/ASCA registry divergence and the derivation itself
+-- are already thoroughly covered by supabase/tests/myk9_664_people_private_test.sql
+-- and by the TS mirror (authoritativeFee.test.ts, for the edge-function
+-- pricing paths) — this file does not repeat that coverage. It proves only
+-- the NEW behavior: that submit_show_entries consults the existing mechanism
+-- and applies shows.junior_handler_fee correctly. Every case below submits
+-- through the real RPC as a secretary (payment_method 'secretary_paid').
 --
 -- `now()` cannot be moved inside a transaction, so every show/trial is placed
 -- 30 days out (entries open, pre-entry tier) so the day-of-show tier never
@@ -20,20 +26,16 @@
 --      paid the same fee regardless of age.
 --   2. An adult handler (40), same show: entry_fee = 30.00 — the junior fee
 --      must never apply to someone who is not derived as a junior.
---   3. A handler with NO date of birth on file, same show: entry_fee = 30.00.
---      'unknown' never buys the discount — the issue's own open question
---      ("what does unknown cost?") answered as "the normal price", not free
---      eligibility assumed from missing data.
+--   3. A handler with NO people_private row (no date of birth on file), same
+--      show: entry_fee = 30.00. 'unknown'/NULL never buys the discount — the
+--      issue's own open question ("what does unknown cost?") answered as "the
+--      normal price", not free eligibility assumed from missing data.
 --   4. A junior-age handler on a show that has NOT configured a junior fee
 --      (junior_handler_fee IS NULL): entry_fee = 30.00. The column being unset
 --      must never be read as "always free for juniors".
 --   5. A junior-age handler on a show whose junior_handler_fee is exactly 0:
 --      entry_fee = 30.00, same "> 0 means configured" convention as
 --      day_of_show_fee (a blank fee-section input persists as 0.00).
---   6. derive_junior_status itself, directly, for all three registries —
---      cheaper than building full entry fixtures for the AKC/UKC/ASCA
---      divergence the TS mirror (authoritativeFee.test.ts) already covers in
---      detail; this just proves the SQL side agrees on the same three points.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -82,21 +84,28 @@ SELECT
   'Interior Novice A', 'Interior', 'Novice', 'upcoming', 'manual', 30
 FROM (VALUES ('01'), ('02'), ('03')) AS c(suffix);
 
--- Dates of birth built relative to the trial date (today + 30), with a
--- one-month buffer past the exact 15/40-year mark so the case is unambiguous
--- regardless of leap years or which day CI runs on.
-INSERT INTO public.people (id, first_name, last_name, email, date_of_birth)
-SELECT '00000000-0000-0000-0000-000000662001', 'MYK9-662', 'Junior', 'myk9-662-junior@example.test',
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES
+  ('00000000-0000-0000-0000-000000662001', 'MYK9-662', 'Junior', 'myk9-662-junior@example.test'),
+  ('00000000-0000-0000-0000-000000662002', 'MYK9-662', 'Adult', 'myk9-662-adult@example.test'),
+  ('00000000-0000-0000-0000-000000662003', 'MYK9-662', 'NoDob', 'myk9-662-nodob@example.test'),
+  ('00000000-0000-0000-0000-000000662004', 'MYK9-662', 'Secretary', 'myk9-662-secretary@example.test');
+
+-- MYK9-664: date of birth lives in people_private, not people (RLS: the
+-- person themself or a site admin only — this INSERT runs as the connecting
+-- superuser role, before SET LOCAL ROLE authenticated below, so it is not
+-- subject to that policy). Dates of birth are built relative to the trial
+-- date (today + 30) with a one-month buffer past the exact 15/40-year mark,
+-- so the case is unambiguous regardless of leap years or which day CI runs
+-- on. The "no date of birth on file" case (662003) gets no row at all —
+-- private.entry_handler_is_junior LEFT JOINs people_private, so an absent
+-- row reads as NULL, exactly like a person who has one but left it blank.
+INSERT INTO public.people_private (person_id, date_of_birth)
+SELECT '00000000-0000-0000-0000-000000662001',
        (((now() AT TIME ZONE 'UTC')::date + 30) - interval '15 years' - interval '1 month')::date
 UNION ALL
-SELECT '00000000-0000-0000-0000-000000662002', 'MYK9-662', 'Adult', 'myk9-662-adult@example.test',
-       (((now() AT TIME ZONE 'UTC')::date + 30) - interval '40 years')::date
-UNION ALL
-SELECT '00000000-0000-0000-0000-000000662003', 'MYK9-662', 'NoDob', 'myk9-662-nodob@example.test',
-       NULL;
-
-INSERT INTO public.people (id, first_name, last_name, email)
-VALUES ('00000000-0000-0000-0000-000000662004', 'MYK9-662', 'Secretary', 'myk9-662-secretary@example.test');
+SELECT '00000000-0000-0000-0000-000000662002',
+       (((now() AT TIME ZONE 'UTC')::date + 30) - interval '40 years')::date;
 
 -- `handle_new_user` adopts each pre-seeded people row BY EMAIL (migration 131)
 -- and creates its exhibitor_profiles row, needed so evaluate_entry_capacity
@@ -291,52 +300,7 @@ BEGIN
       got_fee;
   END IF;
 
-  RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test (submit_show_entries cases 1-5)';
-END;
-$$;
-
-----------------------------------------------------------------------------
--- Case 6: derive_junior_status directly, for all three registries. Cheaper
--- than building full entry fixtures for the divergence the TS mirror
--- (authoritativeFee.test.ts) already covers; this proves the SQL side agrees
--- on the same three points, not the whole rulebook.
-----------------------------------------------------------------------------
-DO $$
-DECLARE
-  akc_junior  text;
-  akc_adult   text;
-  ukc_junior  text; -- turns 18 in Feb; still a UKC junior in November (Jan-1 anchor)
-  ukc_adult   text; -- same handler, AKC's own-day-of-trial rule: already adult
-  asca_kind   text; -- ASCA has no ceiling: never derivable
-  missing_dob text;
-BEGIN
-  akc_junior  := public.derive_junior_status('2010-01-01'::date, '2026-06-20'::date, 'AKC');
-  akc_adult   := public.derive_junior_status('1990-01-01'::date, '2026-06-20'::date, 'AKC');
-  ukc_junior  := public.derive_junior_status('2008-02-01'::date, '2026-11-01'::date, 'UKC');
-  ukc_adult   := public.derive_junior_status('2008-02-01'::date, '2026-11-01'::date, 'AKC');
-  asca_kind   := public.derive_junior_status('2015-01-01'::date, '2026-06-20'::date, 'ASCA');
-  missing_dob := public.derive_junior_status(NULL::date, '2026-06-20'::date, 'AKC');
-
-  IF akc_junior IS DISTINCT FROM 'junior' THEN
-    RAISE EXCEPTION 'FAIL case 6 AKC junior: got % (expected junior)', akc_junior;
-  END IF;
-  IF akc_adult IS DISTINCT FROM 'adult' THEN
-    RAISE EXCEPTION 'FAIL case 6 AKC adult: got % (expected adult)', akc_adult;
-  END IF;
-  IF ukc_junior IS DISTINCT FROM 'junior' THEN
-    RAISE EXCEPTION 'FAIL case 6 UKC January-1 anchor: got % (expected junior)', ukc_junior;
-  END IF;
-  IF ukc_adult IS DISTINCT FROM 'adult' THEN
-    RAISE EXCEPTION 'FAIL case 6 AKC same handler/date: got % (expected adult, proving the two registries diverge)', ukc_adult;
-  END IF;
-  IF asca_kind IS DISTINCT FROM 'unknown' THEN
-    RAISE EXCEPTION 'FAIL case 6 ASCA (no derivable ceiling): got % (expected unknown)', asca_kind;
-  END IF;
-  IF missing_dob IS DISTINCT FROM 'unknown' THEN
-    RAISE EXCEPTION 'FAIL case 6 missing date of birth: got % (expected unknown)', missing_dob;
-  END IF;
-
-  RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test (derive_junior_status case 6)';
+  RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test';
 END;
 $$;
 

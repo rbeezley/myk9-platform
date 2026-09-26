@@ -105,10 +105,10 @@ interface EntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
-  dog: { call_name: string | null; owner: { date_of_birth: string | null } | null } | null;
+  handler_id: string | null;
+  dog: { call_name: string | null; owner_id: string | null } | null;
   class: { name: string | null; entry_fee: number | string | null } | null;
   trial: { date: string | null; registry_id: string | null } | null;
-  handler: { date_of_birth: string | null } | null;
   show: {
     id: string;
     club_id: string | null;
@@ -179,10 +179,10 @@ Deno.serve(async req => {
         id,
         payment_status,
         entry_status,
-        dog:dog_id(call_name, owner:people!owner_id(date_of_birth)),
+        handler_id,
+        dog:dog_id(call_name, owner_id),
         class:class_id(name, entry_fee),
         trial:trial_id(date, registry_id),
-        handler:handler_id(date_of_birth),
         show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
       `
       )
@@ -344,6 +344,32 @@ Deno.serve(async req => {
       percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
     });
 
+    // MYK9-662: date of birth lives in people_private (MYK9-664), never on
+    // people — readable here because this function runs under service_role,
+    // which people_private grants SELECT to explicitly. Batched once for
+    // every handler AND dog-owner id across the requested entries.
+    const personIdsForDob = [
+      ...new Set(
+        entries
+          .flatMap(e => [e.handler_id, e.dog?.owner_id])
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const dobByPersonId = new Map<string, string | null>();
+    if (personIdsForDob.length > 0) {
+      const { data: privateRows, error: privateRowsError } = await supabase
+        .from('people_private')
+        .select('person_id, date_of_birth')
+        .in('person_id', personIdsForDob);
+      if (privateRowsError) {
+        console.error('people_private lookup failed for payment link:', privateRowsError);
+        return corsResponse(corsHeaders, { error: 'Could not verify entry fees' }, 500);
+      }
+      for (const row of privateRows ?? []) {
+        dobByPersonId.set(row.person_id, row.date_of_birth);
+      }
+    }
+
     // Recompute each fee from the authority chain — never trust a client value.
     const nowIso = new Date().toISOString();
     const linkEntries = entries.map(e => ({
@@ -354,11 +380,11 @@ Deno.serve(async req => {
         showStartDate: show.start_date,
         classEntryFee: e.class?.entry_fee ?? null,
         nowIso,
-        // MYK9-662: junior handler fee, resolved for the entry's own handler,
-        // else the dog's owner (the same fallback identity submit_show_entries
-        // uses when no handler was explicitly assigned).
         showJuniorHandlerFee: show.junior_handler_fee,
-        handlerDateOfBirth: e.handler?.date_of_birth ?? e.dog?.owner?.date_of_birth ?? null,
+        handlerDateOfBirth:
+          (e.handler_id && dobByPersonId.get(e.handler_id)) ??
+          (e.dog?.owner_id && dobByPersonId.get(e.dog.owner_id)) ??
+          null,
         trialRegistryId: e.trial?.registry_id ?? null,
         trialDate: e.trial?.date ?? null,
       }),

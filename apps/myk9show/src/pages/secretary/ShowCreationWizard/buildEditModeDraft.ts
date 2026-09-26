@@ -13,8 +13,8 @@ import type { Show } from '@/types/show-types';
 import type { User } from '@/types/user-types';
 import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
-import { resolveDraftTimezone } from '@/features/registries';
 import type { EditMode } from './show-creation-wizard-types';
+import { getTrialTimezone } from '@/features/registries';
 
 interface BuildEditModeDraftArgs {
   editMode: EditMode;
@@ -117,13 +117,14 @@ export function buildEditModeDraft({
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,
-      // MYK9-830/831: the show's existing trials are the source of truth for
-      // its timezone. Without this, loadDraft's wholesale `show` replacement
-      // wiped out the wizard store's timezone on every edit-mode open --
-      // worst in add-trials mode, which starts past the Basics step where the
-      // timezone picker lives, so a new trial silently saved in the
-      // secretary's browser zone instead of the show's.
-      timezone: resolveDraftTimezone(showTrials),
+      // MYK9-831: `loadDraft` REPLACES the whole `show` object (shallow merge at
+      // the top level), so a wizard opened over an existing show that omits
+      // this field wipes out whatever the wizard already held and every trial
+      // added afterward — even in add-trials mode, which starts with
+      // `wizardTrials: []` above — took the *editor's* browser zone instead of
+      // the show's own established one. Carry it from the show's own trials,
+      // the same source `getTrialTimezone` reads server-side.
+      timezone: getTrialTimezone(showTrials[0]),
       officials: {
         secretary: [] as string[],
         chairman: [] as string[],

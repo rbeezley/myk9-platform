@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
-import type { Trial } from '@/store/trialStore';
 import { buildEditModeDraft } from './buildEditModeDraft';
 
 const show = (assignedJudges: Array<{ judgeId: string; judgeName: string }>) =>
@@ -51,47 +50,44 @@ describe('buildEditModeDraft judge baseline', () => {
   });
 });
 
-// MYK9-830/831 second review round: the edit draft dropped timezone entirely,
-// so loadDraft's wholesale `show` replacement wiped out the wizard store's
-// timezone and every downstream save fell back to the SECRETARY'S browser
-// zone instead of the show's real one -- most visibly in add-trials mode,
-// which starts past the Basics step where the timezone picker lives, so
-// nothing in the UI ever gives the secretary a chance to notice or fix it.
+/**
+ * MYK9-831 (Codex review, PR #2543): `loadDraft` replaces the whole `show`
+ * object rather than merging it, so an edit-mode draft that omitted timezone
+ * wiped out whatever the wizard already held. In add-trials mode especially —
+ * which starts from an empty trial list — a new trial then took the editing
+ * secretary's browser zone instead of the show's own established one.
+ */
 describe('buildEditModeDraft timezone', () => {
-  const trial = (timezone: string | undefined): Trial =>
-    ({
-      id: 'trial-1',
-      showId: 'show-1',
-      timezone,
-    }) as unknown as Trial;
-
-  it("edit-show mode initializes the draft from the show's existing trial timezone", () => {
+  it('carries the existing show timezone into the draft (edit-show mode)', () => {
     const draft = buildEditModeDraft({
       editMode: { showId: 'show-1', mode: 'edit-show' } as never,
       existingShow: show([]),
-      showTrials: [trial('America/Chicago')],
+      showTrials: [{ id: 'trial-1', timezone: 'America/Chicago' } as never],
       existingClasses: [],
       people: [],
     });
     expect(draft.show.timezone).toBe('America/Chicago');
   });
 
-  it("add-trials mode ALSO initializes from the show's existing trial timezone, even though it starts past Basics", () => {
+  it('carries the existing show timezone into the draft even in add-trials mode', () => {
+    // add-trials mode loads wizardTrials: [] — the show's OWN trials must
+    // still be consulted for the zone new trials should inherit.
     const draft = buildEditModeDraft({
       editMode: { showId: 'show-1', mode: 'add-trials' } as never,
       existingShow: show([]),
-      showTrials: [trial('America/Denver')],
+      showTrials: [{ id: 'trial-1', timezone: 'America/Denver' } as never],
       existingClasses: [],
       people: [],
     });
+    expect(draft.trials).toEqual([]);
     expect(draft.show.timezone).toBe('America/Denver');
   });
 
-  it('falls back to America/New_York when the existing trial predates the timezone column', () => {
+  it('falls back to America/New_York when the show has no trials yet', () => {
     const draft = buildEditModeDraft({
-      editMode: { showId: 'show-1', mode: 'add-classes' } as never,
+      editMode: { showId: 'show-1', mode: 'add-trials' } as never,
       existingShow: show([]),
-      showTrials: [trial(undefined)],
+      showTrials: [],
       existingClasses: [],
       people: [],
     });

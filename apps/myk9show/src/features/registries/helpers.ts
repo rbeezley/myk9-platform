@@ -174,19 +174,3 @@ export function resolveBrowserTrialTimezone(): string {
     return getTrialTimezone(undefined);
   }
 }
-
-/**
- * The single decision of what timezone a wizard draft should start with,
- * shared by every path that builds or restores one (MYK9-830/831 second
- * review round): a brand-new show has no trials yet, so it asks the browser;
- * every other path (edit, add-trials, add-classes, clone) is re-deriving a
- * draft FROM a show that already has trials, and those trials' own timezone
- * is the source of truth — reusing the browser's current zone there would
- * silently move the show if the secretary is opening it from somewhere else.
- */
-export function resolveDraftTimezone(
-  sourceTrials: readonly TrialLike[] | null | undefined
-): string {
-  const firstTrial = sourceTrials?.[0];
-  return firstTrial ? getTrialTimezone(firstTrial) : resolveBrowserTrialTimezone();
-}

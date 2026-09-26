@@ -105,14 +105,17 @@ interface EntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
-  dog: { call_name: string | null } | null;
+  dog: { call_name: string | null; owner: { date_of_birth: string | null } | null } | null;
   class: { name: string | null; entry_fee: number | string | null } | null;
+  trial: { date: string | null; registry_id: string | null } | null;
+  handler: { date_of_birth: string | null } | null;
   show: {
     id: string;
     club_id: string | null;
     name: string | null;
     pre_entry_fee: number | string | null;
     day_of_show_fee: number | string | null;
+    junior_handler_fee: number | string | null;
     start_date: string | null;
   } | null;
 }
@@ -176,9 +179,11 @@ Deno.serve(async req => {
         id,
         payment_status,
         entry_status,
-        dog:dog_id(call_name),
+        dog:dog_id(call_name, owner:people!owner_id(date_of_birth)),
         class:class_id(name, entry_fee),
-        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, start_date)
+        trial:trial_id(date, registry_id),
+        handler:handler_id(date_of_birth),
+        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
       `
       )
       .in('id', entry_ids);
@@ -349,6 +354,13 @@ Deno.serve(async req => {
         showStartDate: show.start_date,
         classEntryFee: e.class?.entry_fee ?? null,
         nowIso,
+        // MYK9-662: junior handler fee, resolved for the entry's own handler,
+        // else the dog's owner (the same fallback identity submit_show_entries
+        // uses when no handler was explicitly assigned).
+        showJuniorHandlerFee: show.junior_handler_fee,
+        handlerDateOfBirth: e.handler?.date_of_birth ?? e.dog?.owner?.date_of_birth ?? null,
+        trialRegistryId: e.trial?.registry_id ?? null,
+        trialDate: e.trial?.date ?? null,
       }),
       dogName: e.dog?.call_name || 'Dog',
       className: e.class?.name || 'Class',

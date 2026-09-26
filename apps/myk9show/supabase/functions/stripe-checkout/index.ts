@@ -383,11 +383,14 @@ async function handleEntryCheckout(
         entry_fee_cents,
         jump_height,
         special_requests,
-        dog:dogs(call_name),
+        dog:dogs(call_name, owner:people!owner_id(date_of_birth)),
+        handler:handler_id(date_of_birth),
         class:classes(
           name,
           entry_fee,
           trial:trials(
+            date,
+            registry_id,
             show:shows(name)
           )
         )
@@ -488,7 +491,7 @@ async function handleEntryCheckout(
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
     .select(
-      `name, pre_entry_fee, day_of_show_fee, start_date, status,
+      `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date, status,
         entry_open_date, entry_close_date, club_id`
     )
     .eq('id', cart.show_id)
@@ -631,7 +634,12 @@ async function handleEntryCheckout(
     cart.items as {
       id: string;
       entry_fee_cents: number;
-      class?: { entry_fee?: number | string | null };
+      class?: {
+        entry_fee?: number | string | null;
+        trial?: { date?: string | null; registry_id?: string | null } | null;
+      };
+      handler?: { date_of_birth?: string | null } | null;
+      dog?: { owner?: { date_of_birth?: string | null } | null };
     }[]
   ).map(item => ({
     item,
@@ -641,6 +649,13 @@ async function handleEntryCheckout(
       showStartDate: showFees.start_date,
       classEntryFee: item.class?.entry_fee ?? null,
       nowIso,
+      // MYK9-662: junior handler fee, resolved for the assigned handler, else
+      // the dog's owner (the same fallback identity submit_show_entries uses
+      // when no handler is explicitly assigned).
+      showJuniorHandlerFee: showFees.junior_handler_fee,
+      handlerDateOfBirth: item.handler?.date_of_birth ?? item.dog?.owner?.date_of_birth ?? null,
+      trialRegistryId: item.class?.trial?.registry_id ?? null,
+      trialDate: item.class?.trial?.date ?? null,
     }),
   }));
   const driftedItems = itemsWithAuthoritativeFee.filter(

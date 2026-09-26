@@ -81,3 +81,92 @@ describe('authoritativeEntryFeeCents', () => {
     ).toBe(2500);
   });
 });
+
+// MYK9-662: the junior handler fee, when the show configures one, replaces
+// the tier-selected fee entirely for a junior handler. Trial date fixed
+// before the show's day-of-show boundary so these cases isolate the junior
+// override from the pre/day-of tier already covered above.
+describe('authoritativeEntryFeeCents — junior handler fee (MYK9-662)', () => {
+  const juniorBase = {
+    ...base,
+    showJuniorHandlerFee: 15,
+    trialDate: '2026-06-20',
+    trialRegistryId: 'AKC',
+  };
+
+  it('prices a junior handler (AKC, under 18 on the trial date) at the junior fee', () => {
+    expect(
+      authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '2010-01-01' })
+    ).toBe(1500);
+  });
+
+  it('prices an adult handler at the normal tier, not the junior fee', () => {
+    expect(
+      authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: '1990-01-01' })
+    ).toBe(3000);
+  });
+
+  it('prices a missing date of birth at the normal tier (unknown never buys the discount)', () => {
+    expect(authoritativeEntryFeeCents({ ...juniorBase, handlerDateOfBirth: null })).toBe(3000);
+  });
+
+  it('prices ASCA (no derivable ceiling) at the normal tier even for a young handler', () => {
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        trialRegistryId: 'ASCA',
+        handlerDateOfBirth: '2015-01-01',
+      })
+    ).toBe(3000);
+  });
+
+  it('ignores the junior fee entirely when the show has not configured one', () => {
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        showJuniorHandlerFee: null,
+        handlerDateOfBirth: '2010-01-01',
+      })
+    ).toBe(3000);
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        showJuniorHandlerFee: 0,
+        handlerDateOfBirth: '2010-01-01',
+      })
+    ).toBe(3000);
+  });
+
+  it('applies the UKC fixed measuring date (January 1 of the trial year), not the trial date', () => {
+    // Turns 18 on 2026-02-01: still a UKC junior at a trial in November 2026
+    // (measured as of January 1, before the birthday), but already an adult
+    // under AKC's own-day-of-trial rule for the same trial date.
+    const turnsEighteenInFebruary = '2008-02-01';
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        trialRegistryId: 'UKC',
+        trialDate: '2026-11-01',
+        handlerDateOfBirth: turnsEighteenInFebruary,
+      })
+    ).toBe(1500);
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        trialRegistryId: 'AKC',
+        trialDate: '2026-11-01',
+        handlerDateOfBirth: turnsEighteenInFebruary,
+      })
+    ).toBe(3000);
+  });
+
+  it('treats a date of birth after the measuring date as bad data, not a very young handler', () => {
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        trialDate: '2026-06-20',
+        handlerDateOfBirth: '2026-07-01',
+      })
+    ).toBe(3000);
+  });
+});

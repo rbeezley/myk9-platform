@@ -423,3 +423,122 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
     expect(propsNullClose.closeDate).toBeNull();
   });
 });
+
+// ─── MYK9-662: junior handler fee / age ────────────────────────────────────────
+//
+// Reuses slice 1's deriveJuniorStatus (juniorHandlerPolicy.ts) — the same
+// derivation submit_show_entries prices from — so this must never re-derive
+// junior status with a second rule.
+
+describe('buildEntryBlankProps — junior handler fee (MYK9-662)', () => {
+  it('juniorHandlerFee is N/A when the show has not configured one', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW, // no junior_handler_fee on the fixture
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('N/A');
+  });
+
+  it('juniorHandlerFee is N/A when the show sets it to exactly 0', () => {
+    const props = buildEntryBlankProps({
+      show: { ...SHOW, junior_handler_fee: 0 },
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('N/A');
+  });
+
+  it('juniorHandlerFee prints the show-configured amount', () => {
+    const props = buildEntryBlankProps({
+      show: { ...SHOW, junior_handler_fee: 15 },
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('$15.00');
+  });
+
+  it('prints the junior handler age when the handler is derived as a junior at the trial', () => {
+    // trial-1's date is 2026-06-12 (AKC); this handler is 14 that day.
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      handler: { ...HANDLER, date_of_birth: '2012-01-01' },
+    });
+    expect(props.owner.juniorHandlerAge).toBe('14');
+  });
+
+  it('leaves the junior handler age blank for an adult handler', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      handler: { ...HANDLER, date_of_birth: '1990-01-01' },
+    });
+    expect(props.owner.juniorHandlerAge).toBeNull();
+  });
+
+  it('leaves the junior handler age blank when no date of birth is on file', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      handler: HANDLER, // no date_of_birth on this fixture
+    });
+    expect(props.owner.juniorHandlerAge).toBeNull();
+  });
+
+  it('leaves the junior handler age blank in blank mode (no entry, no trial to measure against)', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.owner.juniorHandlerAge).toBeNull();
+  });
+
+  it('derives the junior handler from a distinct designated handler, not the owner', () => {
+    // Owner is an adult; the designated handler at this trial is a junior.
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      owner: { ...HANDLER, date_of_birth: '1990-01-01' },
+      handler: { ...DESIGNATED_HANDLER, date_of_birth: '2012-01-01' },
+    });
+    expect(props.owner.juniorHandlerAge).toBe('14');
+  });
+});

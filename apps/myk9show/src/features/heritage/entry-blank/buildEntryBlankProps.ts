@@ -1,4 +1,5 @@
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
+import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
 import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
@@ -33,6 +34,8 @@ interface ShowInput {
   entry_close_date?: string | null;
   pre_entry_fee?: number | null;
   organization?: string | null;
+  // MYK9-662 column (may be absent until type-regen).
+  junior_handler_fee?: number | null;
 }
 
 interface TrialInput {
@@ -112,6 +115,8 @@ interface PersonInput {
   city?: string | null;
   state?: string | null;
   zip_code?: string | null;
+  /** `people.date_of_birth` (MYK9-570 slice 1) — used to derive juniorHandlerAge. */
+  date_of_birth?: string | null;
 }
 
 // ─── Date formatting ──────────────────────────────────────────────────────────
@@ -287,6 +292,28 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   };
 
   // §III — owner/handler
+  //
+  // MYK9-662: "Junior handler? (age)" prints an age only when the person who
+  // actually handles at THIS trial is derived as a junior — never a hand-set
+  // flag, reusing slice 1's `deriveJuniorStatus` (juniorHandlerPolicy.ts), the
+  // same derivation `submit_show_entries` prices from. The handler at this
+  // trial is `handler` when a designated handler differs from the owner, else
+  // the owner themself — the same fallback `handlerDisplayName` already uses
+  // in reverse (owner defaults to handler when only one person was supplied).
+  const handlerAtTrial = handler ?? owner;
+  const juniorStatus =
+    entryTrial && handlerAtTrial?.date_of_birth
+      ? deriveJuniorStatus({
+          dateOfBirth: handlerAtTrial.date_of_birth,
+          trialDate: entryTrial.date,
+          registryId: identityRegistry.id,
+        })
+      : null;
+  const juniorHandlerAge =
+    juniorStatus?.kind === 'junior' && juniorStatus.ageOnTrialDate != null
+      ? String(juniorStatus.ageOnTrialDate)
+      : null;
+
   const ownerProps: EntryBlankOwner = {
     ownerName: ownerDisplayName,
     handlerName: handlerDisplayName,
@@ -296,7 +323,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     zip: ownerPerson?.zip_code ?? null,
     telephone: ownerPerson?.phone ?? null,
     email: ownerPerson?.email ?? null,
-    juniorHandlerAge: null,
+    juniorHandlerAge,
   };
 
   // §IV — fees
@@ -309,10 +336,18 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   // 'paid' and other system statuses map to null (blank checkbox row on the form).
   const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
+  // MYK9-662: the show's own configured junior handler fee (submit_show_entries
+  // prices from the same column). 'N/A' rather than $0.00 when unset — this
+  // club has no junior discount, not a free junior entry. Same "> 0 means
+  // configured" convention as the day-of-show fee elsewhere in this codebase.
+  const juniorHandlerFee =
+    show.junior_handler_fee != null && show.junior_handler_fee > 0
+      ? formatFee(show.junior_handler_fee)
+      : 'N/A';
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),
     additionalEntryFee: formatFee(additional),
-    juniorHandlerFee: '$18.00',
+    juniorHandlerFee,
     mailProcessingFee: '$3.00',
     totalAmount: total,
     paymentMethod: MAIL_PAYMENT_METHODS.has(paymentMethod ?? '')

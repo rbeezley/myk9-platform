@@ -926,7 +926,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         handler_id,
         entry_fee_cents,
         jump_height,
-        special_requests
+        special_requests,
+        dog:dog_id(owner:people!owner_id(date_of_birth)),
+        handler:handler_id(date_of_birth)
       )
     `
     )
@@ -1015,7 +1017,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .select('pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date')
     .eq('id', cart.show_id)
     .single();
 
@@ -1026,7 +1028,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // with a trial_id from the wrong show.
   const { data: classRows, error: classesError } = await supabase
     .from('classes')
-    .select('id, trial_id, entry_fee, trial:trials!inner(show_id)')
+    .select('id, trial_id, entry_fee, trial:trials!inner(show_id, date, registry_id)')
     .in('id', classIds)
     .eq('trial.show_id', cart.show_id);
 
@@ -1074,21 +1076,44 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const feeByClass = new Map<string, number | string | null>(
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
-  const nowIso = new Date().toISOString();
-  const authoritativeByClass = new Map<string, number>(
-    classIds.map((classId: string) => [
-      classId,
-      authoritativeEntryFeeCents({
-        showPreEntryFee: showFees.pre_entry_fee,
-        showDayOfShowFee: showFees.day_of_show_fee,
-        showStartDate: showFees.start_date,
-        classEntryFee: feeByClass.get(classId) ?? null,
-        nowIso,
-      }),
+  // MYK9-662: a junior handler fee, when configured, can make two cart lines
+  // in the SAME class price differently (a junior and an adult entered in the
+  // same class), so the trial info needed to derive it is per-class here but
+  // the authoritative fee itself is keyed per CART ITEM, not per class.
+  const trialInfoByClass = new Map<string, { date: string | null; registry_id: string | null }>(
+    classRows.map((c: { id: string; trial?: { date: string | null; registry_id: string | null } | null }) => [
+      c.id,
+      { date: c.trial?.date ?? null, registry_id: c.trial?.registry_id ?? null },
     ])
   );
-  const authoritativeSubtotal = (cart.items as { class_id: string }[]).reduce(
-    (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
+  const nowIso = new Date().toISOString();
+  const cartItemsForFee = cart.items as {
+    id: string;
+    class_id: string;
+    handler?: { date_of_birth: string | null } | null;
+    dog?: { owner?: { date_of_birth: string | null } | null } | null;
+  }[];
+  const authoritativeByItem = new Map<string, number>(
+    cartItemsForFee.map(item => {
+      const trialInfo = trialInfoByClass.get(item.class_id);
+      return [
+        item.id,
+        authoritativeEntryFeeCents({
+          showPreEntryFee: showFees.pre_entry_fee,
+          showDayOfShowFee: showFees.day_of_show_fee,
+          showStartDate: showFees.start_date,
+          classEntryFee: feeByClass.get(item.class_id) ?? null,
+          nowIso,
+          showJuniorHandlerFee: showFees.junior_handler_fee,
+          handlerDateOfBirth: item.handler?.date_of_birth ?? item.dog?.owner?.date_of_birth ?? null,
+          trialRegistryId: trialInfo?.registry_id ?? null,
+          trialDate: trialInfo?.date ?? null,
+        }),
+      ];
+    })
+  );
+  const authoritativeSubtotal = (cart.items as { id: string }[]).reduce(
+    (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
     0
   );
   // Validate the platform fee against the rate STAMPED on the session at
@@ -1238,7 +1263,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const deniedLines: CartOverflowLine[] = [];
   const failedLines: CartOverflowLine[] = [];
   for (const item of cart.items) {
-    const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
+    const lineAmountCents = authoritativeByItem.get(item.id) ?? item.entry_fee_cents;
 
     // Finish Payment recovery lines point at entries that already exist. Mark
     // those rows paid in place; calling create_online_paid_entry here would

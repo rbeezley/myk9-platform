@@ -423,6 +423,24 @@ describe('syncReplicatedTable', () => {
     });
   });
 
+  // MYK9-774: the local rows feed full-vs-incremental, stale cleanup and the
+  // scope's recorded totalRows. A failed device read (getAll answers [],
+  // getAllWithStatus reports it) must fail the sync, not record an empty scope.
+  it('fails the sync when the device cannot read its local rows', async () => {
+    await table.set('1', { id: '1', name: 'Local' });
+    vi.spyOn(table, 'getAll').mockResolvedValue([]);
+    vi.spyOn(table, 'getAllWithStatus').mockResolvedValue({
+      ok: false,
+      rows: [],
+      error: new Error('IDB timeout'),
+    });
+
+    const result = await syncReplicatedTable(table, makeAdapter([{ id: 1, name: 'Local' }]));
+
+    expect(result.success).toBe(false);
+    await expect(table.getSyncMetadata()).resolves.toMatchObject({ syncStatus: 'error' });
+  });
+
   it('records sync errors in metadata', async () => {
     const adapter = makeAdapter([]);
     vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('network down'));

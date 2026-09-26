@@ -41,15 +41,6 @@ export function useMyShowGroups(
 export interface MyShowsListProps {
   filteredEntries: MyEntry[];
   /**
-   * EVERY order the exhibitor has, regardless of the page's own When/Status
-   * filters. Grouped by show here (same `groupEntriesByShow` key resolution
-   * as `filteredEntries`) so each card's paid strip can state a show's real
-   * paid total instead of one that shifts with the filter (MYK9-804).
-   * Optional so existing callers/tests that only care about the filtered
-   * list keep working; the paid strip falls back to the filtered orders.
-   */
-  allEntries?: MyEntry[] | undefined;
-  /**
    * Where the rows came from. Passed straight through to each show group, which
    * hands it to the one money derivation. This list reads it for nothing.
    */
@@ -75,7 +66,6 @@ export interface MyShowsListProps {
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
   filteredEntries,
-  allEntries,
   source,
   selectedStatus = 'any',
   selfCheckinByClassId,
@@ -89,17 +79,6 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   now: nowProp,
 }) => {
   const groups = useMyShowGroups(filteredEntries, selectedStatus);
-  // Same show-key resolution as `groups`, run over the UNFILTERED orders, so
-  // the paid strip can state a show's real total independent of the When and
-  // Status filters (MYK9-804).
-  const allOrdersByShowKey = React.useMemo(() => {
-    if (!allEntries) return null;
-    const map = new Map<string, MyEntry[]>();
-    for (const showGroup of groupEntriesByShow(allEntries)) {
-      map.set(showGroup.key, showGroup.orders);
-    }
-    return map;
-  }, [allEntries]);
   // One instant for the whole render pass, so the day gate, the money state
   // and the paid-strip window cannot disagree mid-list. Captured in state
   // rather than a `useMemo` — a `new Date()` inside a memo is a dependency
@@ -114,7 +93,6 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
           <MyShowGroupCard
             group={group}
             source={source}
-            allOrders={allOrdersByShowKey?.get(group.key)}
             now={now}
             selfCheckinByClassId={selfCheckinByClassId}
             seenResultReleaseKeys={seenResultReleaseKeys}

@@ -463,7 +463,6 @@ const MyEntriesPage: React.FC = () => {
                       // 500-line cap (MYK9-482, design D10).
                       <MyShowsList
                         filteredEntries={filteredEntries}
-                        allEntries={entries}
                         source={entriesSource}
                         selectedStatus={selectedStatus}
                         selfCheckinByClassId={selfCheckinByClassId}

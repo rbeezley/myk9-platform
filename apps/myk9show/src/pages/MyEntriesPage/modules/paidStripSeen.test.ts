@@ -123,7 +123,7 @@ describe('derivePaidStrip', () => {
     const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen);
 
     expect(strip).toEqual({
-      paidRowIds: ['c1'],
+      orderIds: ['e1'],
       dogNames: ['Rex'],
       amountCents: 4500,
       date: PAID_AT,
@@ -183,17 +183,14 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
-      paidRowIds: ['c1', 'c2', 'c3'],
+      orderIds: ['e1', 'e2', 'e3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
       date: later,
     });
   });
 
-  // Dismissal keys on the ROW that was paid, not the order (Codex review on
-  // PR #2548): the order id would stay "seen" forever, hiding a later payment
-  // for a DIFFERENT row on that same order.
-  it('drops a dismissed row out of the fold and retires the strip when none remain', () => {
+  it('drops a dismissed order out of the fold and retires the strip when none remain', () => {
     const orders = groupEntriesByOrder(
       [
         makeRow({ id: 'e1', registrationId: 'r1', dogId: 'd1', dogName: 'Rex' }),
@@ -207,36 +204,15 @@ describe('derivePaidStrip', () => {
       ],
       NOW
     );
-    markPaidStripSeen('c1');
+    markPaidStripSeen('e1');
 
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
-      paidRowIds: ['c2'],
+      orderIds: ['e2'],
       dogNames: ['Scout'],
     });
 
-    markPaidStripSeen('c2');
+    markPaidStripSeen('e2');
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toBeNull();
-  });
-
-  // MYK9-804 / Codex review: a SECOND paid row on the same order must still
-  // surface once the first is dismissed — the whole point of keying
-  // dismissal on the row rather than the order. Keying on `order.id` would
-  // read this order as "seen" forever the moment either row was dismissed.
-  it('still surfaces a second row on an order whose first row was already dismissed', () => {
-    const orders = groupEntriesByOrder(
-      [
-        makeRow({ id: 'e1', registrationId: 'r1', classes: [makeClass({ id: 'c1' })] }),
-        makeRow({ id: 'e1b', registrationId: 'r1', classes: [makeClass({ id: 'c1b', fee: 20 })] }),
-      ],
-      NOW
-    );
-    expect(orders).toHaveLength(1);
-    markPaidStripSeen('c1');
-
-    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
-      paidRowIds: ['c1b'],
-      amountCents: 2000,
-    });
   });
 
   it("hides the strip once the show's last date has passed", () => {
@@ -256,8 +232,8 @@ describe('derivePaidStrip', () => {
 
     // The component's in-memory dismissal set still hides it for this load.
     const dismissed = new Set<string>();
-    markPaidStripSeen('c1');
-    dismissed.add('c1');
+    markPaidStripSeen('e1');
+    dismissed.add('e1');
     expect(
       derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))
     ).toBeNull();
@@ -350,71 +326,5 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)?.dogNames).toEqual(['Rex', 'Scout']);
-  });
-
-  // MYK9-804: a registration can hold one dog's paid class beside another
-  // dog's still-pending one. `reconcileOrderPaymentStatus` (myEntryOrderBalance.ts)
-  // reconciles that ORDER to PENDING — correctly, for the due side — but the
-  // paid strip must still confirm the row that actually settled, not gate the
-  // whole order out because a sibling row still owes money.
-  it("confirms the dog whose OWN row is paid, even when a sibling dog's row on the same order is still pending", () => {
-    const orders = groupEntriesByOrder(
-      [
-        makeRow({
-          id: 'e-ranger',
-          registrationId: 'reg-mixed',
-          dogId: 'd-ranger',
-          dogName: 'Ranger',
-          classes: [
-            makeClass({ id: 'c-ranger', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
-          ],
-        }),
-        makeRow({
-          id: 'e-juni',
-          registrationId: 'reg-mixed',
-          dogId: 'd-juni',
-          dogName: 'Juni',
-          classes: [makeClass({ id: 'c-juni', fee: 30, paymentStatus: PaymentStatus.PENDING })],
-        }),
-      ],
-      NOW
-    );
-    // One order for the registration: the due side reconciles it to PENDING.
-    expect(orders).toHaveLength(1);
-    expect(orders[0].paymentStatus).toBe(PaymentStatus.PENDING);
-
-    const strip = derivePaidStrip(orders, NOW, neverSeen);
-
-    expect(strip).toEqual({
-      paidRowIds: ['c-ranger'],
-      dogNames: ['Ranger'],
-      amountCents: 3000,
-      date: PAID_AT,
-    });
-  });
-
-  it('sums only the paid rows on a mixed order, never the pending sibling’s fee', () => {
-    const orders = groupEntriesByOrder(
-      [
-        makeRow({
-          id: 'e-mixed',
-          registrationId: 'reg-mixed-2',
-          dogId: 'd-mixed',
-          dogName: 'Atlas',
-          classes: [
-            makeClass({ id: 'c-mixed-1', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
-            makeClass({ id: 'c-mixed-2', fee: 40, paymentStatus: PaymentStatus.PENDING }),
-          ],
-        }),
-      ],
-      NOW
-    );
-
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
-      paidRowIds: ['c-mixed-1'],
-      dogNames: ['Atlas'],
-      amountCents: 3000,
-      date: PAID_AT,
-    });
   });
 });

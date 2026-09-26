@@ -417,4 +417,33 @@ describe('peopleRoster', () => {
       })
     );
   });
+
+  // MYK9-824 round 2: the exact row shape the mapper emits for a mail-in
+  // entry whose typed handler had no directory match -- handler_id (and so
+  // handlerAuthUserId) falls back to the dog's OWNER, while handlerName
+  // stays the printed text. contactName must name the owner, distinctly
+  // from the displayed name, since that is who authUserId actually reaches.
+  it('names the owner as contactName when handler_id falls back to them for an unmatched typed handler', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          handlerName: 'ZZ Rehearsal Handler Hana',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        name: 'ZZ Rehearsal Handler Hana',
+        contactName: 'Owner One',
+        authUserId: 'auth-owner',
+      })
+    );
+  });
 });

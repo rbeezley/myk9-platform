@@ -416,15 +416,15 @@ describe('ShowDeskPeopleRoster', () => {
       }),
     ]);
 
-    expect(await screen.findByRole('button', { name: /zz rehearsal handler hana/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /zz rehearsal handler hana/i })
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /zz rehearsal handler fred/i })).toBeInTheDocument();
   });
 
   it('labels a failed message with the person it actually reaches, not the printed handler text', async () => {
     h.getOrCreateThread.mockResolvedValueOnce(null);
-    const { user } = renderRoster([
-      fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' }),
-    ]);
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
 
     await user.click(await screen.findByRole('button', { name: /zz rehearsal handler hana/i }));
     await user.click(screen.getByRole('button', { name: /message/i }));
@@ -433,6 +433,38 @@ describe('ShowDeskPeopleRoster', () => {
       await screen.findByText(/couldn't open a message thread for zz rehearsal owner one/i)
     ).toBeInTheDocument();
     expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+  });
+
+  // The button's own visible label, not just its error strings, must say who
+  // it reaches -- the owner decision says "labelled with ... the person it
+  // actually reaches", and a secretary reading a plain "Message" under a row
+  // titled "ZZ Rehearsal Handler Hana" has no way to know it opens a thread
+  // with the owner instead.
+  it('labels the enabled Message button with the owner, not the typed handler, on a fallback row', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce({
+      id: 'thread-owner-fallback',
+      show_id: 'show-1',
+      participant_id: 'auth-owner',
+      created_at: '2026-07-08T09:00:00.000Z',
+      last_message_at: '2026-07-08T09:00:00.000Z',
+    });
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
+
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal handler hana/i }));
+
+    const messageButton = screen.getByRole('button', {
+      name: /message owner zz rehearsal owner one/i,
+    });
+    expect(messageButton).toBeEnabled();
+
+    await user.click(messageButton);
+
+    await waitFor(() => {
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/secretary/messages?showId=show-1&threadId=thread-owner-fallback'
+      );
+    });
   });
 
   it('keeps a failed check-in actionable and shows retry feedback', async () => {

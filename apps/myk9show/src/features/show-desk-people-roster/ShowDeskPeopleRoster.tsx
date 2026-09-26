@@ -250,6 +250,14 @@ export function ShowDeskPeopleRoster({
               .filter(row => row.eligibleForCheckIn)
               .map(row => row.entryId);
             const anyBusy = person.classRows.some(row => busyEntryIds.has(row.entryId));
+            // MYK9-824 round 2: `contactName` differs from `name` only when
+            // `handler_id` fell back to the dog's owner for an unmatched
+            // typed handler, so the Message action reaches a different
+            // person than the row is labeled with. The button itself must
+            // say so -- not just the error strings -- or a secretary reads
+            // "Message" and reasonably expects it to reach the handler named
+            // above it.
+            const messageReachesOwner = person.contactName !== person.name;
 
             return (
               <div key={person.id} className="border-b last:border-b-0">
@@ -291,7 +299,7 @@ export function ShowDeskPeopleRoster({
                         title={!person.authUserId ? 'No message-capable account' : undefined}
                       >
                         <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                        Message
+                        {messageReachesOwner ? `Message owner ${person.contactName}` : 'Message'}
                       </Button>
                       <Button
                         type="button"

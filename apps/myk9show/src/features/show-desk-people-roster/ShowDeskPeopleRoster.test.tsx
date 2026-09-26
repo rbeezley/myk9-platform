@@ -439,6 +439,39 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
   });
 
+  // A concurrent session's commit (48d6c1c71) added a Message-button-label
+  // variant of this fix on top of round 2's contactName design; round 3
+  // (this design) removes contactName entirely and relabels the ROW itself
+  // by the handler_id person, so the row title already names the exact
+  // account Message opens -- no separate button-text switch is needed.
+  // Keeping the happy-path coverage that commit added: an enabled Message
+  // button on a fallback row still successfully opens a thread with the
+  // owner and navigates there.
+  it('opens a message thread with the owner from a fallback row', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce({
+      id: 'thread-owner-fallback',
+      show_id: 'show-1',
+      participant_id: 'auth-owner',
+      created_at: '2026-07-08T09:00:00.000Z',
+      last_message_at: '2026-07-08T09:00:00.000Z',
+    });
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
+
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
+
+    const messageButton = screen.getByRole('button', { name: /^message$/i });
+    expect(messageButton).toBeEnabled();
+
+    await user.click(messageButton);
+
+    await waitFor(() => {
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/secretary/messages?showId=show-1&threadId=thread-owner-fallback'
+      );
+    });
+  });
+
   it('keeps a failed check-in actionable and shows retry feedback', async () => {
     h.updateReplicatedCheckInStatus.mockRejectedValueOnce(new Error('offline'));
     const { user } = renderRoster();

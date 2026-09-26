@@ -883,7 +883,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByText('A Trial');
       // A secretary recording payment on the order cascades `paid` down onto
-      // its entry rows (`updateEnrollmentPaymentStatus`), so an entry left at
+      // its entry rows (the server's entries cascade), so an entry left at
       // `pending` under a `paid` enrollment is unreconciled debt — and
       // `enrollments` is one row per (show, handler) reused by every later
       // submission, so the order's status cannot vouch for it.

@@ -9,10 +9,11 @@ import {
   useEnrollmentLedgerActions,
 } from '../useEnrollmentLedgerActions';
 
-const mocks = vi.hoisted(() => ({ record: vi.fn(), toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ record: vi.fn(), markOnline: vi.fn(), toastError: vi.fn() }));
 
 vi.mock('@/services/database/show-payments', () => ({
   recordEnrollmentPayment: mocks.record,
+  markEnrollmentPaidOnline: mocks.markOnline,
 }));
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }));
 
@@ -178,6 +179,68 @@ describe('useEnrollmentLedgerActions', () => {
       ['entry-1', PaymentStatus.PENDING, PaymentStatus.PENDING],
       ['own-refund', PaymentStatus.REFUNDED, PaymentStatus.PENDING],
     ]);
+  });
+
+  // MYK9-773: "Paid in Full: Online" goes through the server too, so an entry
+  // the ENROLLMENT refunded follows it to paid and an entry's own refund stays.
+  it("Paid in Full: Online asks the server and applies each entry's returned status", async () => {
+    mocks.markOnline.mockResolvedValue({
+      ...PAID_IN_FULL,
+      payment_status: 'paid_online',
+      entries: [
+        { id: 'entry-1', payment_status: 'paid' },
+        { id: 'own-refund', payment_status: 'refunded' },
+      ],
+    });
+    const refunded = {
+      paymentStatus: PaymentStatus.REFUNDED,
+      enrollmentPaymentStatus: PaymentStatus.REFUNDED,
+    };
+    let entries = [
+      entry(refunded),
+      entry({ id: 'own-refund', ...refunded, refundAmount: 50 }),
+      entry({ id: 'other', registrationId: 'enr-2' }),
+    ];
+    const setEntries = vi.fn(update => {
+      entries = typeof update === 'function' ? update(entries) : update;
+    });
+    const { result } = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.markPaidOnline('enr-1');
+    });
+
+    expect(ok).toBe(true);
+    expect(mocks.markOnline).toHaveBeenCalledTimes(1);
+    expect(mocks.markOnline).toHaveBeenCalledWith('enr-1');
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(entries.map(e => [e.id, e.paymentStatus, e.enrollmentPaymentStatus])).toEqual([
+      ['entry-1', PaymentStatus.PAID_ONLINE, PaymentStatus.PAID_ONLINE],
+      ['own-refund', PaymentStatus.REFUNDED, PaymentStatus.PAID_ONLINE],
+      ['other', PaymentStatus.PENDING, PaymentStatus.PENDING],
+    ]);
+  });
+
+  it('leaves the entries alone when the server refuses Paid in Full: Online', async () => {
+    mocks.markOnline.mockRejectedValue(new Error('not authorized'));
+    const setEntries = vi.fn();
+    const { result } = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.markPaidOnline('enr-1');
+    });
+
+    expect(ok).toBe(false);
+    expect(setEntries).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith('Payment not recorded: not authorized');
   });
 
   it('leaves the entries alone and says why when the server refuses', async () => {

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { listShowPayments, recordEnrollmentPayment } from '../show-payments';
+import {
+  listShowPayments,
+  markEnrollmentPaidOnline,
+  recordEnrollmentPayment,
+} from '../show-payments';
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 
@@ -93,6 +97,37 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
     await expect(recordEnrollmentPayment('enr-1', { kind: 'reversal' })).rejects.toThrow(
       'not authorized'
     );
+  });
+});
+
+describe('mark_enrollment_paid_online (MYK9-773)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('asks the server to mark the enrollment paid online and returns its answer', async () => {
+    const answer = {
+      id: 'enr-1',
+      payment_status: 'paid_online',
+      entries: [{ id: 'entry-1', payment_status: 'paid' }],
+    };
+    mocks.rpc.mockResolvedValue({ data: answer, error: null });
+
+    const recorded = await markEnrollmentPaidOnline('enr-1');
+
+    expect(mocks.rpc).toHaveBeenCalledWith('mark_enrollment_paid_online', {
+      p_enrollment_id: 'enr-1',
+    });
+    expect(recorded).toEqual(answer);
+  });
+
+  it("throws the server's refusal instead of reporting the enrollment paid", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'not authorized to record payments for enrollment enr-1' },
+    });
+
+    await expect(markEnrollmentPaidOnline('enr-1')).rejects.toThrow('not authorized');
   });
 });
 

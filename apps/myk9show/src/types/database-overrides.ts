@@ -154,6 +154,16 @@ type UpdateShowStyle = {
 };
 
 /**
+ * `20260926124700` (MYK9-773) adds Entry Management's "Paid in Full: Online"
+ * command. Hand-declared until the next `supabase gen types` picks it up. It
+ * returns the same jsonb answer as `record_enrollment_payment`.
+ */
+type MarkEnrollmentPaidOnline = {
+  Args: { p_enrollment_id: string };
+  Returns: GeneratedFunctions['record_enrollment_payment']['Returns'];
+};
+
+/**
  * Club membership requests (MYK9-685) —
  * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
@@ -251,6 +261,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
+      mark_enrollment_paid_online: MarkEnrollmentPaidOnline;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

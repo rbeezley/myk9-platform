@@ -86,6 +86,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_677_show_payments_ledger_test.sql"
   "$TEST_DIR/myk9_677_submit_entries_payment_test.sql"
   "$TEST_DIR/myk9_773_inherited_refund_follows_payment_test.sql"
+  "$TEST_DIR/myk9_773_online_paid_server_cascade_test.sql"
   "$TEST_DIR/notification_preferences_sms_rls_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"

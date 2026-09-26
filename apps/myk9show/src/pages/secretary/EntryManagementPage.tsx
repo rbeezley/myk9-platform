@@ -166,7 +166,6 @@ const EntryManagementPage: React.FC = () => {
     handleAssignArmband,
     handleNextArmband,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentPaymentChange,
     handleCheckInStatusChange,
     handleExportCSV,
     handleCompEntry,
@@ -471,7 +470,6 @@ const EntryManagementPage: React.FC = () => {
                   onUncompEntry={handleUncompEntry}
                   onRemoveEntry={handleRemoveEntry}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                  onPaymentStatusChange={handleEnrollmentPaymentChange}
                   paymentLedger={paymentLedger}
                   onSendDecisionEmail={async (registrationId, message, amountDue) => {
                     await handleSendDecisionEmail(registrationId, message, amountDue);

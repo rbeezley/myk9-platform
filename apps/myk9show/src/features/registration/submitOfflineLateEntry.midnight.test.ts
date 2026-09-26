@@ -13,6 +13,18 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   },
 }));
 
+// Structure coverage has its own tests (offlineCapacityOverride.structure.test.ts);
+// here the show's structure is whole on the device.
+vi.mock('@/features/offline-readiness/showStructureScopes', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/offline-readiness/showStructureScopes')>()),
+  showStructureCoverage: async () => ({
+    show: true,
+    trials: true,
+    classes: true,
+    assignments: true,
+  }),
+}));
+
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: mocks.createEntry,
@@ -35,7 +47,13 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    // The selected class's trial is on the device: a cold trials replica now
+    // refuses the capacity check (MYK9-788).
+    getAllWithStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      rows: [{ id: 'trial-1', date: '2026-10-10', showId: 'show-1' }],
+      error: null,
+    }),
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn().mockResolvedValue([]),

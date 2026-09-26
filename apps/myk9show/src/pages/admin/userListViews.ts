@@ -21,12 +21,6 @@ interface UserViewDefinition {
   filters: (now: number) => UserFilter;
 }
 
-function startOfDayDaysAgo(now: number, days: number): Date {
-  const date = new Date(now - days * DAY_MS);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
 const preset = (patch: Partial<UserFilter>) => (): UserFilter => ({
   ...DEFAULT_USER_FILTER,
   ...patch,
@@ -38,9 +32,11 @@ export const USER_VIEWS: readonly UserViewDefinition[] = [
   {
     id: 'new',
     label: 'New, last 7 days',
+    // A true rolling cutoff, not calendar-midnight 7 days back — late in the
+    // day, midnight would stretch the window to almost 8 days (MYK9-837).
     filters: now => ({
       ...DEFAULT_USER_FILTER,
-      dateRange: { start: startOfDayDaysAgo(now, 7), end: null },
+      dateRange: { start: new Date(now - 7 * DAY_MS), end: null },
     }),
   },
   { id: 'dormant', label: 'Dormant 90+ days', filters: preset({ login: 'dormant90' }) },

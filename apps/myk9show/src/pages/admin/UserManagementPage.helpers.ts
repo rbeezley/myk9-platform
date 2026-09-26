@@ -14,13 +14,6 @@ import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
 import { getLeadRole } from '@/components/admin/users/UserTable/utils';
 
-/** Start of the day, so "created after Jul 3" includes everything on Jul 3. */
-function startOfDay(date: Date): number {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
 /** End of the day, so "created before Jul 3" includes everything on Jul 3. */
 function endOfDay(date: Date): number {
   const d = new Date(date);
@@ -112,10 +105,12 @@ export function filterUsers<T extends User>(
     );
   }
 
-  // Apply created-date range
+  // Apply created-date range. `start` is an exact timestamp, not floored to
+  // midnight: the date picker already hands back local midnight, and the
+  // "New, last 7 days" view needs a true rolling cutoff instead.
   const { start, end } = filters.dateRange;
   if (start) {
-    const from = startOfDay(start);
+    const from = start.getTime();
     filtered = filtered.filter(user => !!user.createdAt && user.createdAt.getTime() >= from);
   }
   if (end) {

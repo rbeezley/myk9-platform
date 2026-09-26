@@ -124,7 +124,30 @@ describe('user views', () => {
 
     const { dateRange } = view!.filters(NOW);
     expect(dateRange.end).toBeNull();
-    expect(dateRange.start?.getTime()).toBe(new Date(NOW - 7 * 86_400_000).setHours(0, 0, 0, 0));
+    // A true rolling cutoff, not calendar midnight 7 days back.
+    expect(dateRange.start?.getTime()).toBe(NOW - 7 * 86_400_000);
+  });
+
+  // MYK9-837: flooring the cutoff to calendar midnight stretched the window to
+  // almost 8 days late in the day. A user created 7 days 12 hours before a
+  // 23:00 "now" is outside a true 7-day rolling window and must be excluded
+  // from both the tab's count and its filtered rows.
+  it('excludes a user just past the true 7-day rolling cutoff, even late in the day', () => {
+    const lateNow = new Date(2026, 8, 26, 23, 0, 0).getTime();
+    const borderline = user('borderline', {
+      createdAt: new Date(lateNow - (7 * 24 + 12) * 60 * 60 * 1000),
+    });
+    const rosterWithBorderline = [...roster, borderline];
+
+    const filters = userViewFilters('new', lateNow);
+    expect(filterUsers(rosterWithBorderline, '', filters, lateNow).map(u => u.id)).not.toContain(
+      'borderline'
+    );
+
+    const counts = Object.fromEntries(
+      buildUserViews(rosterWithBorderline, lateNow).map(v => [v.id, v.count])
+    );
+    expect(counts.new).toBe(1); // only "fresh" (2 days ago); "borderline" stays excluded
   });
 
   it('writes the login bucket as ?login= and ignores an unknown value', () => {

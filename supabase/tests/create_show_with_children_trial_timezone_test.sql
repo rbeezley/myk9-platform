@@ -1,4 +1,4 @@
--- Behavioral test for 20260926174500_create_show_with_children_trial_timezone.sql
+-- Behavioral test for 20260926214500_create_show_with_children_trial_timezone.sql
 -- (MYK9-831).
 --
 -- Run against a database where all migrations are applied:

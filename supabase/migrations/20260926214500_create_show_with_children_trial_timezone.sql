@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 20260926174500: create_show_with_children writes trials.timezone
+-- Migration 20260926214500: create_show_with_children writes trials.timezone
 --
 -- MYK9-831: the wizard never sent a timezone for the trials it creates, so
 -- every trial silently took the column's NOT NULL DEFAULT 'America/New_York'

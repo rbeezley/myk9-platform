@@ -57,7 +57,9 @@ function buildChain(result: { count: number | null; error: unknown }) {
 }
 
 describe('countBlockingEntriesByDog', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('counts live entries matching the delete-blocking predicate', async () => {
     const { chain, calls } = buildChain({ count: 2, error: null });

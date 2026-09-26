@@ -20,7 +20,9 @@ interface StatusReader {
  * stops a write.
  */
 describe('scoped show-day readers throw on a failed device read', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it.each([
     {

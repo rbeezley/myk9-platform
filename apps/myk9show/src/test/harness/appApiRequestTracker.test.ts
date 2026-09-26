@@ -32,7 +32,9 @@ function createPageHarness() {
 }
 
 describe('app API request tracker', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('waits for an app API request to finish and remain idle', async () => {
     vi.useFakeTimers();

@@ -48,7 +48,9 @@ async function saveCustomTimings() {
 }
 
 describe('PresetSelector — honest custom-preset persistence', () => {
-  beforeEach(() => mutate.mockClear());
+  beforeEach(() => {
+    mutate.mockClear();
+  });
 
   it('persists preset: null when timings match no named preset (no coercion to standard)', async () => {
     render(<PresetSelector showId="show-1" settings={makeSettings(CUSTOM)} />);

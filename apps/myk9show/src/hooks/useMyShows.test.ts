@@ -17,8 +17,12 @@ const YESTERDAY = toDateOnly(subDays(new Date(), 1));
 const TOMORROW = toDateOnly(addDays(new Date(), 1));
 
 describe('useMyShows', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('re-buckets a mounted view after local midnight without a show update', () => {
     vi.setSystemTime(new Date(2026, 8, 2, 23, 59, 59, 900));

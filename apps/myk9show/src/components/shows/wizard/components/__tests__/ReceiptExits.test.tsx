@@ -10,7 +10,9 @@ vi.mock('react-router-dom', async importOriginal => {
 });
 
 describe('ReceiptExits (4.A honest exits)', () => {
-  beforeEach(() => navigateMock.mockClear());
+  beforeEach(() => {
+    navigateMock.mockClear();
+  });
 
   it('gives an exhibitor two forward exits and NO undo "Back"', async () => {
     const user = userEvent.setup();

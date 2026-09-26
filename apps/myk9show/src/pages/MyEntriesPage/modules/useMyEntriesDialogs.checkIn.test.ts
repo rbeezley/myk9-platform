@@ -49,7 +49,9 @@ function setup(updateEntryCheckIn: (...args: never[]) => Promise<void>) {
 }
 
 describe('checkInClassesForDay — one write per class, sequentially', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("writes 'checked-in' once per class, in class order", async () => {
     const { dog } = heartlandGroup();

@@ -97,7 +97,9 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
 });
 
 describe('listShowPayments', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("reads every page of a show's ledger, never a truncated first page", async () => {
     const fullPage = Array.from({ length: 1000 }, (_, i) => ({ id: `r${i}` }));

@@ -206,6 +206,14 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     // Blocked on every registration route until MYK9-545 round 3; the wizard's
     // judge query failed silently because no spec asserts on judges.
     'get_show_judges',
+    // Prices every class line on the wizard's payment step
+    // (`useClassAvailability`, MYK9-705). Blocked, the entries panel read
+    // "Entry fees Not confirmed" and the self-registration walk never reached
+    // /cart (MYK9-757).
+    'get_show_class_availability',
+    // The /cart pay/wait-list split (`useCartCapacity`, MYK9-753). Blocked, the
+    // cart read "Total (pending)" and disabled Pay.
+    'get_show_class_judge_day_availability',
     'get_user_roles',
     'get_effective_permissions',
   ])('names %s explicitly so removing it from the allowlist fails here', rpc => {

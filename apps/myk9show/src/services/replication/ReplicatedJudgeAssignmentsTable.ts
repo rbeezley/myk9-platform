@@ -239,9 +239,9 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     return remote;
   }
 
+  /** One show's assignments, through the show index (MYK9-792); redacted by presentRows. */
   async getByShowId(showId: string): Promise<ReplicatedJudgeAssignment[]> {
-    const all = await this.getAllOrThrow();
-    return all.filter(a => a.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   async getByPersonId(personId: string): Promise<ReplicatedJudgeAssignment[]> {

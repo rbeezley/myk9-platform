@@ -192,11 +192,10 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
   }
 
   /**
-   * Get all armbands for a specific show
+   * Get all armbands for a specific show, through the show index (MYK9-792)
    */
   async getByShow(showId: string): Promise<ReplicatedArmband[]> {
-    const all = await this.getAllOrThrow();
-    return all.filter(a => a.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   /**

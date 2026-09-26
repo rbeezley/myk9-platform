@@ -466,11 +466,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Get entries by show ID
+   * Get entries by show ID, through the show index (MYK9-792)
    */
   async getEntriesByShow(showId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAllOrThrow();
-    return all.filter(e => e.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   /**

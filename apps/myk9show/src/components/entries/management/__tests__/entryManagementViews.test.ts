@@ -38,6 +38,15 @@ describe('buildEntryManagementViews', () => {
     expect('count' in (waitlistView ?? {})).toBe(false);
   });
 
+  // Codex finding on MYK9-795: a failed move-up read must not present as a
+  // confident zero. Same "omit the badge" convention as Waitlist above.
+  it('omits the Move-ups count field when the count is unknown, rather than showing a fake 0', () => {
+    const views = buildEntryManagementViews({ ...counts, moveUps: undefined });
+    const moveUpsView = views.find(view => view.id === 'move-ups');
+    expect(moveUpsView).toBeDefined();
+    expect('count' in (moveUpsView ?? {})).toBe(false);
+  });
+
   it('gives every view a non-empty href-free (in-page) entry, in the approved order', () => {
     const views = buildEntryManagementViews(counts);
     expect(views.map(view => view.id)).toEqual([

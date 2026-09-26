@@ -3,6 +3,7 @@ import type { PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   classifyEntryAttention,
+  getEffectivePaymentStatus,
   type EntryAttentionReason,
 } from '@/features/entry-operations/attentionClassification';
 
@@ -270,6 +271,12 @@ function scopeShowRegistrationGroupsByClassOrTrial(
  * Keeps whole registrations that hold at least one entry at `paymentStatus`.
  * A `null`/`undefined` status is unfiltered — same "omit the key, don't scope"
  * convention as `trialClassIds` elsewhere in this module.
+ *
+ * Filters against the EFFECTIVE status (`getEffectivePaymentStatus`) — the same
+ * one the registration row displays — not the raw entry status. An enrollment
+ * paid by check can sit under an entry row still carrying the generic `paid`
+ * mapping; filtering the raw value would exclude a registration that reads
+ * "Paid by check" from a "Paid by check" filter (Codex finding on MYK9-795).
  */
 export function scopeShowRegistrationGroupsByPayment(
   groups: ShowRegistrationGroup[],
@@ -277,7 +284,7 @@ export function scopeShowRegistrationGroupsByPayment(
 ): ShowRegistrationGroup[] {
   if (!paymentStatus) return groups;
   return groups.filter(group =>
-    group.entries.some(entry => entry.paymentStatus === paymentStatus)
+    group.entries.some(entry => getEffectivePaymentStatus(entry) === paymentStatus)
   );
 }
 

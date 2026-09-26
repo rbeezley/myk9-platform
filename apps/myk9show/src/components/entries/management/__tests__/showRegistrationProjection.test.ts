@@ -402,6 +402,29 @@ describe('payment status scoping', () => {
     ).toBe(1);
   });
 
+  it('filters by the effective status the row displays, not the raw entry status (MYK9-795 Codex finding)', () => {
+    // The entry row carries the generic PAID_ONLINE mapping, but the enrollment
+    // (order) it hangs off was actually paid by check — the row's displayed
+    // status is the effective one (PAID_BY_CHECK, see effectivePaymentStatus.ts
+    // branch 5). Selecting "Paid by check" must find it.
+    const checkGroups = groupEntriesByShowRegistration([
+      entry({
+        id: 'e4',
+        registrationId: 'registration-4',
+        dogId: 'dog-4',
+        dogName: 'Max',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+    ]);
+
+    expect(
+      scopeShowRegistrationGroupsByPayment(checkGroups, PaymentStatus.PAID_BY_CHECK).map(
+        group => group.groupKey
+      )
+    ).toEqual(['registration-4']);
+  });
+
   it('narrows buildShowRegistrationPage, but is bypassed under search like class/trial scope', () => {
     const scoped = buildShowRegistrationPage(groups, {
       queue: 'all',

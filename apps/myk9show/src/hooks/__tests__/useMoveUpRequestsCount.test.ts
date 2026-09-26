@@ -35,4 +35,40 @@ describe('useMoveUpRequestsCount', () => {
     expect(result.current.count).toBe(0);
     expect(getPendingMoveUpRequests).not.toHaveBeenCalled();
   });
+
+  // Codex finding on MYK9-795: `getPendingMoveUpRequests` returns `{ data: [],
+  // error }` (not a throw, not `data: null`) on a failed read — see
+  // move-up.ts's catch branch. Reporting `0` in that case asserts "nothing
+  // needs attention" when the count is actually unknown (see
+  // blockingEntryCount.ts / MYK9-600: unknown is not zero).
+  it('reports an unknown count, not 0, when the move-up read fails', async () => {
+    vi.mocked(getPendingMoveUpRequests).mockResolvedValue({
+      data: [],
+      error: new Error('read failed'),
+    } as never);
+
+    const { result } = renderHook(() => useMoveUpRequestsCount('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.count).toBeUndefined();
+  });
+
+  it('exposes a refetch so a caller can refresh the count after a move-up mutation', async () => {
+    vi.mocked(getPendingMoveUpRequests).mockResolvedValue({
+      data: [{ id: 'r1' }],
+      error: null,
+    } as never);
+
+    const { result } = renderHook(() => useMoveUpRequestsCount('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.count).toBe(1));
+
+    vi.mocked(getPendingMoveUpRequests).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    await result.current.refetch();
+
+    await waitFor(() => expect(result.current.count).toBe(0));
+  });
 });

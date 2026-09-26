@@ -11,14 +11,23 @@ import { useQuery } from '@tanstack/react-query';
 import { getPendingMoveUpRequests } from '@/services/database/day-of-operations';
 
 export function useMoveUpRequestsCount(showId: string | null) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['move-up-requests-count', showId],
     queryFn: async () => {
-      const { data: requests } = await getPendingMoveUpRequests(showId as string);
+      // `getPendingMoveUpRequests` never throws — it returns `{ data: [], error
+      // }` on a failed read (move-up.ts's catch branch). Raising here turns
+      // that into a query error instead of a silent, confident 0.
+      const { data: requests, error } = await getPendingMoveUpRequests(showId as string);
+      if (error) throw error;
       return requests.length;
     },
     enabled: Boolean(showId),
   });
 
-  return { count: data ?? 0, isLoading };
+  // No show selected: there is nothing to count, which is a real 0, not an
+  // unknown. Otherwise an unknown count (still loading, or the read failed)
+  // is `undefined` — not a 0 — matching `blockingEntryCount.ts` / MYK9-600.
+  const count = !showId ? 0 : isError ? undefined : data;
+
+  return { count, isLoading, refetch };
 }

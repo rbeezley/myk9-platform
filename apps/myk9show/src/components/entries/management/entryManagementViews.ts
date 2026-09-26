@@ -16,7 +16,8 @@ import type { ShowRegistrationQueueCounts } from './showRegistrationProjection';
 export interface EntryManagementViewCounts {
   queueCounts: ShowRegistrationQueueCounts;
   pulls: number;
-  moveUps: number;
+  /** Omitted (no numeric badge) when unknown — still loading, or the read failed. */
+  moveUps: number | undefined;
   /** Omitted (no numeric badge) when not cheaply available — see module doc. */
   waitlist?: number;
 }
@@ -37,6 +38,10 @@ export function buildEntryManagementViews(counts: EntryManagementViewCounts): Li
       ...(counts.waitlist !== undefined ? { count: counts.waitlist } : {}),
     },
     { id: 'pulls', label: 'Pulls', count: counts.pulls },
-    { id: 'move-ups', label: 'Move-ups', count: counts.moveUps },
+    {
+      id: 'move-ups',
+      label: 'Move-ups',
+      ...(counts.moveUps !== undefined ? { count: counts.moveUps } : {}),
+    },
   ];
 }

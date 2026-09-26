@@ -158,7 +158,8 @@ const EntryManagementPage: React.FC = () => {
   // scoping to it would render every registration in the show while
   // appearing scoped (see `EntryManagementCockpit`'s trialScopePending doc).
   const trialScopePending = Boolean(cockpitUrl.state.trialId) && isLoadingClasses;
-  const { count: moveUpRequestsCount } = useMoveUpRequestsCount(selectedShowId || null);
+  const { count: moveUpRequestsCount, refetch: refetchMoveUpRequestsCount } =
+    useMoveUpRequestsCount(selectedShowId || null);
 
   const handleSelectView = (viewId: EntryManagementViewId) => cockpit.setView(viewId);
   const handleScopeChange = (trialId: string | null, classId: string | null = null) =>
@@ -402,10 +403,12 @@ const EntryManagementPage: React.FC = () => {
           }}
           trials={trials}
           trialClasses={trialClasses}
+          density={cockpit.state.density}
           onSelectView={handleSelectView}
           onScopeChange={handleScopeChange}
           onPaymentStatusChange={cockpit.setPaymentStatus}
           onSearchChange={cockpit.setSearch}
+          onDensityChange={cockpit.setDensity}
           onClearAll={handleClearEntryFilters}
         />
       )}
@@ -522,7 +525,10 @@ const EntryManagementPage: React.FC = () => {
               <CardContent className="pt-6">
                 <MoveUpRequestsTab
                   showId={selectedShowId}
-                  onRefresh={() => loadEntries(selectedShowId)}
+                  onRefresh={() => {
+                    loadEntries(selectedShowId);
+                    refetchMoveUpRequestsCount();
+                  }}
                 />
               </CardContent>
             </Card>

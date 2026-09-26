@@ -16,7 +16,7 @@ const commonProps = {
 
 describe('styled landing table overflow', () => {
   it('makes the Banner particulars table keyboard reachable', () => {
-    render(<BannerParticulars {...commonProps} fees={[]} flag="#0d4d4f" />);
+    render(<BannerParticulars {...commonProps} fees={[]} flag="#0d4d4f" flagText="#0d4d4f" />);
 
     expect(screen.getByRole('region', { name: 'Show particulars table' })).toHaveAttribute(
       'tabindex',

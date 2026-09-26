@@ -9,8 +9,10 @@ export interface BannerSectionHeadProps {
   label: string;
   /** Section heading. Wrap the colored fragment in `<span className="colored">…</span>`. */
   children: ReactNode;
-  /** Per-club flag color for the colored fragment. */
-  flag: string;
+  /** Per-club flag as TEXT on paper (`BannerBrandColors.flagText`) for the
+   *  folio and the colored fragment — never the raw flag, which a light club
+   *  colour makes unreadable (MYK9-765). */
+  flagText: string;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface BannerSectionHeadProps {
  * Inter Tight 900 title on the right.
  *
  * The colored portion of the title (the "important" word — "the chair.",
- * "the facts.", "quickly.", "ringside.") uses the per-club flag color.
+ * "the facts.", "quickly.", "ringside.") uses the per-club text-safe flag.
  * Wrap the fragment you want colored in `<span className="colored">…</span>`
  * and the CSS scope picks up the color via inline style on this primitive.
  */
@@ -28,7 +30,7 @@ export function BannerSectionHead({
   number,
   label,
   children,
-  flag,
+  flagText,
 }: BannerSectionHeadProps): JSX.Element {
   return (
     <header
@@ -43,7 +45,7 @@ export function BannerSectionHead({
         borderBottom: `1px solid ${bannerColors.ink}`,
         // The colored fragment looks up flag via a CSS var so nested spans
         // pick it up without prop-drilling.
-        ['--bn-section-flag' as string]: flag,
+        ['--bn-section-flag' as string]: flagText,
       }}
     >
       <div
@@ -52,7 +54,7 @@ export function BannerSectionHead({
           fontWeight: 800,
           fontSize: 12,
           letterSpacing: '0.2em',
-          color: flag,
+          color: flagText,
           lineHeight: 1.4,
         }}
       >

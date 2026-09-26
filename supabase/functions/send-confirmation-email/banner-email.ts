@@ -1,4 +1,9 @@
 import { renderVenueMapBlock } from './static-map.ts';
+import {
+  BANNER_BAND_MUTED_OPACITY,
+  BANNER_PAPER,
+  deriveBannerBrandColors,
+} from '../_shared/bannerBrandColors.ts';
 
 // supabase/functions/send-confirmation-email/banner-email.ts
 //
@@ -8,17 +13,17 @@ import { renderVenueMapBlock } from './static-map.ts';
 // @myk9/email supplies data types only; there is no parallel React renderer.
 //
 // Per-club color: this module accepts `brandColor` on `BannerEmailData` and
-// derives the deep / bright siblings + WCAG-luminance text color inline.
-// The same algorithm lives in
-// apps/myk9show/src/features/banner/hooks/useBannerBrandColor.ts —
-// keep them in sync.
+// derives every flag colour through `_shared/bannerBrandColors.ts` — the same
+// module the web page uses, so the two cannot drift. Flag-coloured TEXT on
+// paper uses `flagText` (never `flag`), and the final band's accent uses
+// `flagBrightOnDeep`: both are guaranteed 4.5:1 for any club hex (MYK9-765).
 //
 // Important: Outlook strips background-clip:text, color-mix(), and OKLCH —
 // we never reach for any of those. The flag bar is a plain `bgcolor`
 // attribute on a `<td>`, which renders correctly in every email client we
 // care about.
 
-const BN_PAPER = '#fafaf8';
+const BN_PAPER = BANNER_PAPER;
 const BN_INK = '#111111';
 const BN_SOFT = '#2a2a2a';
 const BN_MUTE = '#6b6b6b';
@@ -66,58 +71,6 @@ export interface BannerEmailData {
   memberClubLanguage: string;
 }
 
-// ─── Color derivation (mirrors useBannerBrandColor in the web app) ──────────
-const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-const DEFAULT_FLAG = '#0d4d4f';
-
-interface BrandColors {
-  flag: string;
-  flagDeep: string;
-  flagBright: string;
-  textOnFlag: '#ffffff' | '#111111';
-}
-
-function deriveBrandColors(input: string): BrandColors {
-  const flag = HEX_RE.test(input) ? input : DEFAULT_FLAG;
-  const { r, g, b } = hexToRgb(flag);
-  return {
-    flag,
-    flagDeep: shiftLightness(flag, -0.45),
-    flagBright: shiftLightness(flag, 0.35),
-    textOnFlag: relativeLuminance(r, g, b) > 0.5 ? '#111111' : '#ffffff',
-  };
-}
-
-function shiftLightness(hex: string, delta: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  const target = delta >= 0 ? 255 : 0;
-  const amount = Math.min(1, Math.abs(delta));
-  const mix = (c: number) => Math.round(c + (target - c) * amount);
-  return rgbToHex(mix(r), mix(g), mix(b));
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  };
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toHex = (c: number) => c.toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function relativeLuminance(r: number, g: number, b: number): number {
-  const lin = (c: number) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
 // ─── HTML escape helpers ────────────────────────────────────────────────────
 function esc(s: string | null | undefined): string {
   if (!s) return '';
@@ -133,7 +86,7 @@ function escMultiline(s: string | null | undefined): string {
 }
 
 // ─── Runs table ─────────────────────────────────────────────────────────────
-function runsTable(runs: RunRow[], flag: string): string {
+function runsTable(runs: RunRow[], flag: string, flagText: string): string {
   const headerCells = ['Trial', 'Day', 'Class', 'Judge', 'Armband']
     .map(
       (h, i) =>
@@ -146,7 +99,7 @@ function runsTable(runs: RunRow[], flag: string): string {
       const last = i === runs.length - 1;
       const border = last ? '' : `border-bottom:1px solid ${BN_HAIR};`;
       return `<tr>
-  <td style="padding:10px 0;${border}font-family:${BN_DISPLAY};font-weight:800;font-size:14px;letter-spacing:0.1em;color:${flag};">${esc(r.numeral)}</td>
+  <td style="padding:10px 0;${border}font-family:${BN_DISPLAY};font-weight:800;font-size:14px;letter-spacing:0.1em;color:${flagText};">${esc(r.numeral)}</td>
   <td style="padding:10px 0;${border}font-family:${BN_BODY};font-size:13px;color:${BN_INK};">${esc(r.dayLabel)}</td>
   <td style="padding:10px 0;${border}font-family:${BN_BODY};font-size:13px;color:${BN_INK};">${esc(r.classLabel)}</td>
   <td style="padding:10px 0;${border}font-family:${BN_BODY};font-size:13px;color:${BN_INK};">${esc(r.judgeName)}</td>
@@ -172,7 +125,9 @@ function infoCell(label: string, value: string | null): string {
 }
 
 export function buildBannerHtml(data: BannerEmailData): string {
-  const { flag, flagDeep, flagBright, textOnFlag } = deriveBrandColors(data.brandColor);
+  const { flag, flagText, flagDeep, flagBrightOnDeep, textOnFlag } = deriveBannerBrandColors(
+    data.brandColor
+  );
 
   const dogLine = [data.dogCallName ? `"${data.dogCallName}"` : null, data.dogBreed, data.dogSex]
     .filter(Boolean)
@@ -192,7 +147,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
   ];
   if (data.secretaryEmail) {
     contactPieces.push(
-      ` at <a href="mailto:${esc(data.secretaryEmail)}" style="color:${flag};text-decoration:none;">${esc(data.secretaryEmail)}</a>`
+      ` at <a href="mailto:${esc(data.secretaryEmail)}" style="color:${flagText};text-decoration:none;">${esc(data.secretaryEmail)}</a>`
     );
   }
   if (data.secretaryPhone) contactPieces.push(` · ${esc(data.secretaryPhone)}`);
@@ -259,20 +214,20 @@ export function buildBannerHtml(data: BannerEmailData): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${flag};border-bottom:2px solid ${flag};">
         <tr>
           <td style="padding:16px 0 8px;">
-            <p style="margin:0;font-family:${BN_DISPLAY};font-weight:900;font-size:11px;letter-spacing:0.2em;color:${flag};">01 / THE DOG</p>
+            <p style="margin:0;font-family:${BN_DISPLAY};font-weight:900;font-size:11px;letter-spacing:0.2em;color:${flagText};">01 / THE DOG</p>
             <p style="margin:6px 0 0;font-family:${BN_DISPLAY};font-weight:800;font-size:24px;letter-spacing:-0.025em;line-height:1.1;color:${BN_INK};">${esc(data.dogName)}</p>
             ${dogLine ? `<p style="margin:6px 0 0;font-family:${BN_BODY};font-weight:500;font-size:12px;letter-spacing:0.08em;color:${BN_MUTE};">${esc(dogLine)}</p>` : ''}
           </td>
         </tr>
         <tr>
-          <td style="padding:8px 0 16px;">${runsTable(data.runs, flag)}</td>
+          <td style="padding:8px 0 16px;">${runsTable(data.runs, flag, flagText)}</td>
         </tr>
         <tr>
           <td style="padding-bottom:16px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BN_HAIR};">
               <tr>
                 <td style="padding-top:12px;font-family:${BN_BODY};font-weight:500;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${BN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Fees received</td>
-                <td style="padding-top:12px;font-family:${BN_DISPLAY};font-weight:900;font-size:28px;letter-spacing:-0.035em;color:${flag};text-align:right;">${esc(data.totalFeesFormatted)}</td>
+                <td style="padding-top:12px;font-family:${BN_DISPLAY};font-weight:900;font-size:28px;letter-spacing:-0.035em;color:${flagText};text-align:right;">${esc(data.totalFeesFormatted)}</td>
               </tr>
             </table>
           </td>
@@ -284,7 +239,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
   <!-- ON THE DAY -->
   <tr>
     <td style="padding:0 36px 8px;">
-      <h2 style="margin:8px 0 16px;font-family:${BN_DISPLAY};font-weight:800;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${flag};">02 / ON THE DAY</h2>
+      <h2 style="margin:8px 0 16px;font-family:${BN_DISPLAY};font-weight:800;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${flagText};">02 / ON THE DAY</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
       ${renderVenueMapBlock(data.venueMap, data.venue)}
     </td>
@@ -303,8 +258,8 @@ export function buildBannerHtml(data: BannerEmailData): string {
   <!-- FINAL FLAG BAND -->
   <tr>
     <td bgcolor="${flagDeep}" style="padding:32px 36px;background:${flagDeep};color:${BN_PAPER};">
-      <p style="margin:0;font-family:${BN_DISPLAY};font-weight:900;font-size:22px;letter-spacing:-0.025em;line-height:1.15;color:${BN_PAPER};">See you <span style="color:${flagBright};">ringside</span>.</p>
-      <p style="margin:10px 0 0;font-family:${BN_BODY};font-size:12px;line-height:1.5;color:${BN_PAPER};opacity:0.7;">${esc(data.memberClubLanguage)}</p>
+      <p style="margin:0;font-family:${BN_DISPLAY};font-weight:900;font-size:22px;letter-spacing:-0.025em;line-height:1.15;color:${BN_PAPER};">See you <span style="color:${flagBrightOnDeep};">ringside</span>.</p>
+      <p style="margin:10px 0 0;font-family:${BN_BODY};font-size:12px;line-height:1.5;color:${BN_PAPER};opacity:${BANNER_BAND_MUTED_OPACITY};">${esc(data.memberClubLanguage)}</p>
     </td>
   </tr>
 

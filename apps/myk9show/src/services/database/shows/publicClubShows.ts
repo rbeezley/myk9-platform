@@ -1,5 +1,5 @@
 import { supabase, createDatabaseError } from '../supabaseClient';
-import { PUBLIC_SHOW_STATUSES } from './reads.postgrest';
+import { onlyPublicShows } from './reads.postgrest';
 
 /**
  * The columns the club page's Upcoming/Past Shows tabs and stats render.
@@ -50,21 +50,15 @@ function rowToClubShow(row: PublicClubShowRow): ClubShowListItem {
 
 /**
  * MYK9-768: one club's shows as the server lists them for the CURRENT
- * (signed-out or anonymous) session. For anon, shows_select (latest:
- * 20260823190000_admin_soft_deleted_show_visibility.sql) returns exactly
- * `deleted_at IS NULL AND status IN PUBLIC_SHOW_STATUSES`; the same two
- * filters are stated here so the read means the same thing whoever runs it.
+ * (signed-out or anonymous) session, filtered by anon's visibility rule
+ * (onlyPublicShows) so the read means the same thing whoever runs it.
  * Online-only by design: it throws on failure so React Query reports an
  * error instead of an empty list.
  */
 export async function getPublicClubShows(clubId: string): Promise<ClubShowListItem[]> {
-  const { data, error } = await supabase
-    .from('shows')
-    .select(PUBLIC_CLUB_SHOW_COLUMNS)
-    .eq('club_id', clubId)
-    .in('status', PUBLIC_SHOW_STATUSES)
-    .is('deleted_at', null)
-    .order('start_date', { ascending: true });
+  const { data, error } = await onlyPublicShows(
+    supabase.from('shows').select(PUBLIC_CLUB_SHOW_COLUMNS).eq('club_id', clubId)
+  ).order('start_date', { ascending: true });
 
   if (error) {
     throw createDatabaseError(error, 'show', 'select_public_club_shows');

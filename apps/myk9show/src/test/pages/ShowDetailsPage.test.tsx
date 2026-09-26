@@ -103,10 +103,14 @@ let mockShow: Record<string, unknown> | null = {
   status: 'Upcoming',
 };
 let mockLoading = false;
+// What `useShowsQuery` (the replica-backed show list) holds; null = [mockShow].
+let mockReplicaShows: Array<Record<string, unknown>> | null = null;
+let mockOffline = false;
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
     show: mockLoading ? null : mockShow,
     isLoading: mockLoading,
+    isOffline: mockOffline,
     hasData: !mockLoading && !!mockShow,
     showId: mockShow?.id,
     isFromCache: false,
@@ -161,7 +165,7 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
+  useShowsQuery: () => ({ data: mockReplicaShows ?? (mockShow ? [mockShow] : []) }),
   useShowQuery: () => ({
     data: undefined,
     isLoading: false,
@@ -439,6 +443,8 @@ describe('ShowDetailsPage', () => {
       entryCloseDate: '2027-12-31',
     };
     mockLoading = false;
+    mockReplicaShows = null;
+    mockOffline = false;
     mockShowEntries = [];
     mockShowEntriesLoading = false;
     mockShowEntriesError = false;
@@ -660,6 +666,38 @@ describe('ShowDetailsPage', () => {
     mockShow = null;
     renderPage('nonexistent');
     expect(screen.getByText(/Not Found/)).toBeInTheDocument();
+  });
+
+  // MYK9-779: the page fell back to the replica-backed show list whenever the
+  // detail read had no row, so a guest saw a draft (or a show deleted on the
+  // server since it was cached) that anon RLS never returns.
+  it("a guest gets Not Found, not the replica's copy, when the server has no such show", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow, status: 'draft' }];
+    mockShow = null;
+    renderPage();
+    expect(screen.getByTestId('not-found')).toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  it("offline, a guest is told the show needs a connection, not shown the replica's copy", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow }];
+    mockShow = null;
+    mockOffline = true;
+    renderPage();
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  it('a signed-in viewer still falls back to the replica-backed show list', () => {
+    mockReplicaShows = [{ ...mockShow }];
+    mockShow = null;
+    renderPage();
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
   });
 
   it('renders loading skeleton while loading', () => {

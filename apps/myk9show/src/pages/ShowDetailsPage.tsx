@@ -55,6 +55,8 @@ import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
 import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
+const SHOW_OFFLINE_MESSAGE = "You're offline. Connect to the internet to see this show.";
+
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,6 +85,7 @@ const ShowDetailsPage: React.FC = () => {
     show: currentShow,
     isLoading: fastLoading,
     isError: fastError,
+    isOffline: fastOffline,
     refetch: refetchShow,
     isFromCache,
     refreshFailed,
@@ -95,16 +98,17 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  const { data: shows = [] } = useShowsQuery();
-
-  // Fallback: Find current show from database
+  // Fallback: the replica-backed show list. Never for a signed-out guest, whose
+  // show is only what the server returns to anon (MYK9-779).
+  const readsReplica = Boolean(user);
+  const { data: shows = [] } = useShowsQuery({ enabled: readsReplica });
   const actualCurrentShow = useMemo(() => {
     if (currentShow) return currentShow;
-    if (id && shows.length > 0) {
+    if (readsReplica && id && shows.length > 0) {
       return shows.find(show => show.id === id) || null;
     }
     return null;
-  }, [currentShow, id, shows]);
+  }, [currentShow, readsReplica, id, shows]);
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = useShowManageGate(actualCurrentShow?.clubId);
@@ -461,12 +465,14 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  // Error state — fetch failed
-  if (fastError) {
+  // Error state — fetch failed, or a guest's online-only read is offline
+  if (fastError || fastOffline) {
     return (
       <PageShell>
         <ErrorState
-          message="We couldn't load this show. Please try again."
+          message={
+            fastOffline ? SHOW_OFFLINE_MESSAGE : "We couldn't load this show. Please try again."
+          }
           onRetry={refetchShow}
           headingLevel={1}
         />

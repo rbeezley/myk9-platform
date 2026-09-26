@@ -233,6 +233,7 @@ function setupMocks(options: {
   isLoading?: boolean;
   hasError?: boolean;
   showsError?: Error | null;
+  showsOffline?: boolean;
   enhancedShows?: EnhancedShow[];
 }) {
   const {
@@ -241,6 +242,7 @@ function setupMocks(options: {
     isLoading = false,
     hasError = false,
     showsError = null,
+    showsOffline = false,
     enhancedShows,
   } = options;
 
@@ -265,6 +267,7 @@ function setupMocks(options: {
     isLoading,
     hasError,
     showsError,
+    showsOffline,
     entriesError: null,
     shows,
     entries: [],
@@ -802,6 +805,17 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByTestId('error-state')).toBeInTheDocument();
       });
+    });
+
+    // MYK9-780: a guest's list is online-only, so offline says so rather than
+    // "couldn't load" (or, before the fix, the device's cached shows).
+    it('says the shows need a connection when the guest read is offline', () => {
+      setupMocks({ user: null, shows: [], hasError: true, showsOffline: true });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      expect(screen.getByTestId('error-state')).toHaveTextContent(/offline/i);
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
     });
   });
 });

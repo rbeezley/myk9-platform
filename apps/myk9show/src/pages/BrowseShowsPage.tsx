@@ -52,7 +52,12 @@ import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
-import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers';
+import {
+  buildChipFilters,
+  getDefaultViewMode,
+  SHOWS_OFFLINE,
+  SHOWS_UNAVAILABLE,
+} from './browseShowsPage.helpers';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,6 +100,7 @@ const BrowseShowsPage: React.FC = () => {
     user,
     isLoading,
     hasError,
+    showsOffline,
     shows,
     entries,
     enhancedShows: allEnhancedShows,
@@ -418,7 +424,10 @@ const BrowseShowsPage: React.FC = () => {
 
       {/* Error state */}
       {hasError && !isLoading && (
-        <ErrorState message="We couldn't load the shows." onRetry={handleRetry} />
+        <ErrorState
+          message={showsOffline ? SHOWS_OFFLINE : SHOWS_UNAVAILABLE}
+          onRetry={handleRetry}
+        />
       )}
 
       {/* Normal content */}

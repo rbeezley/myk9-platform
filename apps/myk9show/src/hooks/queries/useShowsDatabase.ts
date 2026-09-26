@@ -68,7 +68,7 @@ const cacheStrategies = {
 /**
  * Get all shows with caching
  */
-export const useShowsQuery = () => {
+export const useShowsQuery = ({ enabled = true }: { enabled?: boolean } = {}) => {
   return useQuery({
     queryKey: showQueryKeys.lists(),
     queryFn: async () => {
@@ -76,6 +76,7 @@ export const useShowsQuery = () => {
       if (error) throw error;
       return mapDatabaseShowsArray(data as Parameters<typeof mapDatabaseShowsArray>[0]);
     },
+    enabled,
     ...cacheStrategies.moderate,
   });
 };

@@ -8,7 +8,7 @@ vi.mock('@/utils/entryStatusUtils', () => ({
   getEntryStatus: () => ({ canEnter: canEnter() }),
 }));
 
-const show = (id: string): Show => ({ id }) as Show;
+const show = (id: string, dates: Partial<Show> = {}): Show => ({ id, ...dates }) as Show;
 
 describe('EntryClosedNotice', () => {
   beforeEach(() => {
@@ -38,5 +38,22 @@ describe('EntryClosedNotice', () => {
     canEnter.mockReturnValue(false);
     render(<EntryClosedNotice shows={[show('a'), show('b')]} selectedTab="all" />);
     expect(screen.getByText('No shows are open for entries right now')).toBeInTheDocument();
+    expect(screen.getByText(/aren’t accepting online entries yet/)).toBeInTheDocument();
+  });
+
+  // MYK9-808: a past-month tile keeps its shows visible on purpose (MYK9-427),
+  // but "aren't accepting online entries yet ... when its entry window opens"
+  // is future-tense wording for a window that has already closed forever
+  // (2026-09-26 exhibitor walk, E52).
+  it('says entries are closed, not "not yet open", when every show is in the past', () => {
+    canEnter.mockReturnValue(false);
+    render(
+      <EntryClosedNotice
+        shows={[show('past', { startDate: '2026-07-25', endDate: '2026-07-27' })]}
+        selectedTab="all"
+      />
+    );
+    expect(screen.getByText(/already taken place/)).toBeInTheDocument();
+    expect(screen.queryByText(/aren’t accepting online entries yet/)).not.toBeInTheDocument();
   });
 });

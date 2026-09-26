@@ -393,7 +393,26 @@ describe('DogSelectionStep', () => {
     expect(screen.getByRole('status', { name: /loading your dogs/i })).toBeInTheDocument();
   });
 
-  it('shows empty state when no eligible dogs exist', () => {
+  it('shows empty state when dogs exist but none are eligible', () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({
+        dogs: [mockDog({ status: 'retired' })],
+        isLoading: false,
+      })
+    );
+
+    render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+
+    expect(screen.getByText(/no eligible dogs found/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /add a dog/i })).not.toBeInTheDocument();
+  });
+
+  // MYK9-803: a first-time exhibitor with zero dogs used to land on the same
+  // "No eligible dogs found" dead end as an exhibitor whose dogs are simply
+  // too young/inactive, with no way out of the wizard (2026-09-26 exhibitor
+  // walk, E47). She gets her own message and a link to the existing add-dog
+  // surface instead of a second add-dog form.
+  it('offers a link to add a dog when the exhibitor has no dogs at all', () => {
     vi.mocked(useDogStoreCompat).mockReturnValue(
       fromPartial({
         dogs: [],
@@ -403,6 +422,9 @@ describe('DogSelectionStep', () => {
 
     render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 
-    expect(screen.getByText(/no eligible dogs found/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no eligible dogs found/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/don't have any dogs yet/i)).toBeInTheDocument();
+    const addDogLink = screen.getByRole('link', { name: /add a dog/i });
+    expect(addDogLink).toHaveAttribute('href', '/dogs?add=true');
   });
 });

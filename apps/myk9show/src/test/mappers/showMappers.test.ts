@@ -370,4 +370,23 @@ describe('mapDatabaseToShow — show.events discipline source', () => {
 
     expect(result.events).toEqual(['AKC']);
   });
+
+  // MYK9-807: some rows store the raw trial-type key rather than its display
+  // label — signed-out /shows cards render `show.events` directly, so a raw
+  // key surfaced verbatim as e.g. "SCENT_WORK" (2026-09-26 exhibitor walk,
+  // E51). The mapper must resolve every event through the existing
+  // `formatTrialTypeLabel` helper before it reaches a card.
+  it('formats a raw trial-type key into its display label', () => {
+    const result = mapDatabaseToShow(
+      fromAny<DbShow, unknown>({
+        ...baseDbShow,
+        trials: [
+          { id: 't1', trialType: 'SCENT_WORK' },
+          { id: 't2', trial_type: 'NOSEWORK' },
+        ],
+      })
+    );
+
+    expect(result.events).toEqual(['Scent Work', 'Nosework']);
+  });
 });

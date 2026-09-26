@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -128,6 +129,30 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         <p>We couldn't load your dogs. Please try again.</p>
         <Button type="button" variant="outline" size="touch" onClick={refetch}>
           Try again
+        </Button>
+      </div>
+    );
+  }
+
+  // MYK9-803: "no dogs at all" and "dogs exist but none are eligible" used to
+  // share one dead-end branch. A first-time exhibitor with zero dogs had no way
+  // out of the wizard — she had to already know "My Dogs" lived elsewhere in
+  // the nav, leave the show she was entering, add the dog, and find her way
+  // back (2026-09-26 exhibitor walk, E47). This is a POINTER to the existing
+  // add-dog surface (`/dogs?add=true`, same query param `BrowseDogsPage`
+  // already reads to auto-open its create panel), not a second add-dog form.
+  if (dogs.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">You don't have any dogs yet.</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Add a dog to enter this show.
+        </p>
+        <Button asChild variant="outline" size="touch" className="mt-4">
+          <Link to="/dogs?add=true">
+            <Plus className="mr-2 h-4 w-4" />
+            Add a dog
+          </Link>
         </Button>
       </div>
     );

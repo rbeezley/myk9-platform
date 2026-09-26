@@ -46,6 +46,18 @@ const PHYSICAL = { width: 1440, height: 900 } as const;
 const ZOOM_LEVELS = [1.25, 1.5, 2] as const;
 
 /**
+ * MYK9-809: the desktop-anchored matrix above never gets narrow enough to
+ * reproduce a phone. 150% zoom on a 1440px window still leaves 960 CSS px —
+ * plenty of room for `.myk9-entries-dog-card-actions` to wrap. 150% zoom on an
+ * actual 390px phone leaves only 260 CSS px, where the day-check-in button's
+ * label ("Check in for Saturday") was wider than the card itself and forced
+ * the whole row to scroll sideways instead of wrapping (2026-09-26 exhibitor
+ * walk, E53: `scrollWidth 291` in a 260px viewport).
+ */
+const PHONE_PHYSICAL = { width: 390, height: 844 } as const;
+const PHONE_ZOOM_LEVELS = [1.5] as const;
+
+/**
  * The two rows that carry wrapping controls on the dog-first list. Both are
  * asserted together: a wrap contract that holds for one and not the other is
  * exactly the drift this guard exists to catch.
@@ -54,166 +66,182 @@ const ACTION_ROWS = '.myk9-entries-show-actions, .myk9-entries-dog-card-actions'
 /** The same two rows, addressing their direct children. */
 const ACTION_ROW_CHILDREN = '.myk9-entries-show-actions > *, .myk9-entries-dog-card-actions > *';
 
-const cssViewportFor = (zoom: number) => ({
-  width: Math.round(PHYSICAL.width / zoom),
-  height: Math.round(PHYSICAL.height / zoom),
+const cssViewportFor = (physical: { width: number; height: number }, zoom: number) => ({
+  width: Math.round(physical.width / zoom),
+  height: Math.round(physical.height / zoom),
 });
 
-test.describe('My Shows reflows under browser zoom', () => {
-  test.setTimeout(120_000);
+function registerZoomReflowChecks(
+  describeName: string,
+  physical: { width: number; height: number },
+  zoomLevels: readonly number[]
+) {
+  test.describe(describeName, () => {
+    test.setTimeout(120_000);
 
-  for (const zoom of ZOOM_LEVELS) {
-    const viewport = cssViewportFor(zoom);
+    for (const zoom of zoomLevels) {
+      const viewport = cssViewportFor(physical, zoom);
 
-    test(`${zoom * 100}% zoom (${viewport.width}x${viewport.height} CSS px)`, async ({
-      page,
-    }, testInfo) => {
-      await page.setViewportSize(viewport);
+      test(`${zoom * 100}% zoom (${viewport.width}x${viewport.height} CSS px)`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize(viewport);
 
-      await signInAsExhibitor(page, '/exhibitor/entries');
-      await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
-      await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
-        timeout: 15_000,
-      });
+        await signInAsExhibitor(page, '/exhibitor/entries');
+        await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+          timeout: 15_000,
+        });
 
-      // Every control is in the open on the dog-first card, so there is
-      // nothing to expand — but the spec must still prove it found some.
-      await expect(page.locator(ACTION_ROWS).first()).toBeVisible();
+        // Every control is in the open on the dog-first card, so there is
+        // nothing to expand — but the spec must still prove it found some.
+        await expect(page.locator(ACTION_ROWS).first()).toBeVisible();
 
-      const cards = page.locator('.myk9-entries-dog-card');
-      expect(
-        await cards.count(),
-        'seeded exhibitor must have at least one dog card, or this spec proves nothing'
-      ).toBeGreaterThan(0);
+        const cards = page.locator('.myk9-entries-dog-card');
+        expect(
+          await cards.count(),
+          'seeded exhibitor must have at least one dog card, or this spec proves nothing'
+        ).toBeGreaterThan(0);
 
-      // 1. No two-dimensional hunting: the document must not scroll sideways.
-      //    The dog strip is deliberately an `overflow-x-auto` scroller, so it is
-      //    excluded by construction — this asserts the PAGE stays one-
-      //    dimensional, not that no element anywhere scrolls.
-      const documentOverflow = await page.evaluate(() =>
-        Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
-      );
-      expect(documentOverflow, `${zoom * 100}%: document scrolls horizontally`).toBe(0);
+        // 1. No two-dimensional hunting: the document must not scroll sideways.
+        //    The dog strip is deliberately an `overflow-x-auto` scroller, so it is
+        //    excluded by construction — this asserts the PAGE stays one-
+        //    dimensional, not that no element anywhere scrolls.
+        const documentOverflow = await page.evaluate(() =>
+          Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
+        );
+        expect(documentOverflow, `${zoom * 100}%: document scrolls horizontally`).toBe(0);
 
-      // 2. A control whose box escapes its dog card is laid out but reads as
-      //    broken (and is clipped outright by any ancestor that hides
-      //    overflow), so compare geometry rather than trusting visibility —
-      //    `toBeVisible()` would not catch this.
-      const clipped = await page.evaluate(() => {
-        const escapes: string[] = [];
-        for (const card of document.querySelectorAll('.myk9-entries-dog-card')) {
-          const cardBox = card.getBoundingClientRect();
-          for (const row of card.querySelectorAll('.myk9-entries-dog-card-actions')) {
-            for (const button of row.children) {
-              const box = button.getBoundingClientRect();
-              // 1px tolerance absorbs sub-pixel layout rounding.
-              if (box.right > cardBox.right + 1 || box.left < cardBox.left - 1) {
-                escapes.push(
-                  `${(button.textContent || '').trim().slice(0, 40)} ` +
-                    `(button ${Math.round(box.left)}–${Math.round(box.right)} vs ` +
-                    `card ${Math.round(cardBox.left)}–${Math.round(cardBox.right)})`
-                );
+        // 2. A control whose box escapes its dog card is laid out but reads as
+        //    broken (and is clipped outright by any ancestor that hides
+        //    overflow), so compare geometry rather than trusting visibility —
+        //    `toBeVisible()` would not catch this.
+        const clipped = await page.evaluate(() => {
+          const escapes: string[] = [];
+          for (const card of document.querySelectorAll('.myk9-entries-dog-card')) {
+            const cardBox = card.getBoundingClientRect();
+            for (const row of card.querySelectorAll('.myk9-entries-dog-card-actions')) {
+              for (const button of row.children) {
+                const box = button.getBoundingClientRect();
+                // 1px tolerance absorbs sub-pixel layout rounding.
+                if (box.right > cardBox.right + 1 || box.left < cardBox.left - 1) {
+                  escapes.push(
+                    `${(button.textContent || '').trim().slice(0, 40)} ` +
+                      `(button ${Math.round(box.left)}–${Math.round(box.right)} vs ` +
+                      `card ${Math.round(cardBox.left)}–${Math.round(cardBox.right)})`
+                  );
+                }
               }
             }
           }
-        }
-        return escapes;
-      });
-      expect(clipped, `${zoom * 100}%: action buttons clipped by their card`).toEqual([]);
-
-      // 3. Action rows wrap rather than overflow their own box.
-      const rowOverflow = await page.evaluate(
-        selector =>
-          Array.from(document.querySelectorAll(selector))
-            .map(row => Math.max(0, row.scrollWidth - row.clientWidth))
-            .filter(overflow => overflow > 1),
-        ACTION_ROWS
-      );
-      expect(rowOverflow, `${zoom * 100}%: action row overflows its own box`).toEqual([]);
-
-      // 4. The rows must actually be wrapping. This is the one assertion that
-      //    fails on the unfixed tree regardless of how many buttons the seed
-      //    data happens to render, so it is what makes this spec a real guard
-      //    rather than a description of the current seed.
-      const wrapModes = await page.evaluate(
-        selector => [
-          ...new Set(
-            Array.from(document.querySelectorAll(selector)).map(
-              row => getComputedStyle(row).flexWrap
-            )
-          ),
-        ],
-        ACTION_ROWS
-      );
-      expect(wrapModes, `${zoom * 100}%: action rows are not set to wrap`).toEqual(['wrap']);
-
-      // 5. Money stays readable — the report claimed "Current Fees clipped".
-      //    Below 721px `CompactStatsRow` collapses the stat grid behind a
-      //    summary toggle, and a `display:none` element reports zero width, so
-      //    a truncation check alone would pass vacuously at 200%. Expand first,
-      //    then require a real painted box before judging truncation.
-      const statsToggle = page.locator('button[aria-controls="exhibitor-stat-cards"]');
-      if ((await statsToggle.count()) > 0 && (await statsToggle.first().isVisible())) {
-        if ((await statsToggle.first().getAttribute('aria-expanded')) !== 'true') {
-          await statsToggle.first().click();
-        }
-      }
-      // "Entry fees" since the four-card stat grid became a single fee strip
-      // (#1862). This spec is not in the PR-gating set, so the rename broke it
-      // silently — hence the assertion below reads the shipped label.
-      await expect(page.getByText('Entry fees', { exact: true }).first()).toBeVisible();
-
-      const fees = await page.evaluate(() => {
-        const label = Array.from(document.querySelectorAll('*')).find(
-          el => el.children.length === 0 && el.textContent?.trim() === 'Entry fees'
-        );
-        if (!label) return { found: false, painted: false, truncated: true };
-        // Judge the whole stat card, not just the label: the amount lives in a
-        // sibling node and is the part that actually matters.
-        const card = label.closest('button') ?? label.parentElement!;
-        const box = card.getBoundingClientRect();
-        const truncated = Array.from(card.querySelectorAll('*')).some(
-          el => el.children.length === 0 && el.scrollWidth > el.clientWidth + 1
-        );
-        return { found: true, painted: box.width > 0 && box.height > 0, truncated };
-      });
-      expect(fees.found, `${zoom * 100}%: "Entry fees" not rendered`).toBe(true);
-      expect(fees.painted, `${zoom * 100}%: "Entry fees" has no painted box`).toBe(true);
-      expect(fees.truncated, `${zoom * 100}%: "Entry fees" card truncates its text`).toBe(false);
-
-      // 6. "Add Dog" must be on screen without scrolling the dog rail
-      //    (MYK9-124). It used to be the rail's last child, so with 3+ dogs at
-      //    this zoom it sat past the right edge behind a `hide-scrollbar`
-      //    container — reachable only by a scroll gesture with no scrollbar to
-      //    suggest it. `toBeVisible()` does NOT catch that: an element scrolled
-      //    outside an overflow container is still "visible" to Playwright.
-      //    Compare geometry against the viewport instead.
-      const addDog = page.getByRole('button', { name: /add dog/i });
-      if ((await addDog.count()) > 0) {
-        const onScreen = await addDog.first().evaluate(element => {
-          const box = element.getBoundingClientRect();
-          return (
-            box.width > 0 && box.height > 0 && box.left >= -1 && box.right <= window.innerWidth + 1
-          );
+          return escapes;
         });
-        expect(onScreen, `${zoom * 100}%: "Add Dog" is not on screen`).toBe(true);
-      }
+        expect(clipped, `${zoom * 100}%: action buttons clipped by their card`).toEqual([]);
 
-      // 7. Keyboard focus stays visible — a wrapped control that lands outside
-      //    the viewport would still be reachable but not findable.
-      const firstButton = page.locator(ACTION_ROW_CHILDREN).first();
-      await firstButton.focus();
-      await expect(firstButton).toBeFocused();
-      const focusInView = await firstButton.evaluate(element => {
-        const box = element.getBoundingClientRect();
-        return box.right <= window.innerWidth + 1 && box.left >= -1;
-      });
-      expect(focusInView, `${zoom * 100}%: focused action sits outside the viewport`).toBe(true);
+        // 3. Action rows wrap rather than overflow their own box.
+        const rowOverflow = await page.evaluate(
+          selector =>
+            Array.from(document.querySelectorAll(selector))
+              .map(row => Math.max(0, row.scrollWidth - row.clientWidth))
+              .filter(overflow => overflow > 1),
+          ACTION_ROWS
+        );
+        expect(rowOverflow, `${zoom * 100}%: action row overflows its own box`).toEqual([]);
 
-      await page.screenshot({
-        path: testInfo.outputPath(`my-entries-zoom-${zoom * 100}.png`),
-        fullPage: true,
+        // 4. The rows must actually be wrapping. This is the one assertion that
+        //    fails on the unfixed tree regardless of how many buttons the seed
+        //    data happens to render, so it is what makes this spec a real guard
+        //    rather than a description of the current seed.
+        const wrapModes = await page.evaluate(
+          selector => [
+            ...new Set(
+              Array.from(document.querySelectorAll(selector)).map(
+                row => getComputedStyle(row).flexWrap
+              )
+            ),
+          ],
+          ACTION_ROWS
+        );
+        expect(wrapModes, `${zoom * 100}%: action rows are not set to wrap`).toEqual(['wrap']);
+
+        // 5. Money stays readable — the report claimed "Current Fees clipped".
+        //    Below 721px `CompactStatsRow` collapses the stat grid behind a
+        //    summary toggle, and a `display:none` element reports zero width, so
+        //    a truncation check alone would pass vacuously at 200%. Expand first,
+        //    then require a real painted box before judging truncation.
+        const statsToggle = page.locator('button[aria-controls="exhibitor-stat-cards"]');
+        if ((await statsToggle.count()) > 0 && (await statsToggle.first().isVisible())) {
+          if ((await statsToggle.first().getAttribute('aria-expanded')) !== 'true') {
+            await statsToggle.first().click();
+          }
+        }
+        // "Entry fees" since the four-card stat grid became a single fee strip
+        // (#1862). This spec is not in the PR-gating set, so the rename broke it
+        // silently — hence the assertion below reads the shipped label.
+        await expect(page.getByText('Entry fees', { exact: true }).first()).toBeVisible();
+
+        const fees = await page.evaluate(() => {
+          const label = Array.from(document.querySelectorAll('*')).find(
+            el => el.children.length === 0 && el.textContent?.trim() === 'Entry fees'
+          );
+          if (!label) return { found: false, painted: false, truncated: true };
+          // Judge the whole stat card, not just the label: the amount lives in a
+          // sibling node and is the part that actually matters.
+          const card = label.closest('button') ?? label.parentElement!;
+          const box = card.getBoundingClientRect();
+          const truncated = Array.from(card.querySelectorAll('*')).some(
+            el => el.children.length === 0 && el.scrollWidth > el.clientWidth + 1
+          );
+          return { found: true, painted: box.width > 0 && box.height > 0, truncated };
+        });
+        expect(fees.found, `${zoom * 100}%: "Entry fees" not rendered`).toBe(true);
+        expect(fees.painted, `${zoom * 100}%: "Entry fees" has no painted box`).toBe(true);
+        expect(fees.truncated, `${zoom * 100}%: "Entry fees" card truncates its text`).toBe(false);
+
+        // 6. "Add Dog" must be on screen without scrolling the dog rail
+        //    (MYK9-124). It used to be the rail's last child, so with 3+ dogs at
+        //    this zoom it sat past the right edge behind a `hide-scrollbar`
+        //    container — reachable only by a scroll gesture with no scrollbar to
+        //    suggest it. `toBeVisible()` does NOT catch that: an element scrolled
+        //    outside an overflow container is still "visible" to Playwright.
+        //    Compare geometry against the viewport instead.
+        const addDog = page.getByRole('button', { name: /add dog/i });
+        if ((await addDog.count()) > 0) {
+          const onScreen = await addDog.first().evaluate(element => {
+            const box = element.getBoundingClientRect();
+            return (
+              box.width > 0 &&
+              box.height > 0 &&
+              box.left >= -1 &&
+              box.right <= window.innerWidth + 1
+            );
+          });
+          expect(onScreen, `${zoom * 100}%: "Add Dog" is not on screen`).toBe(true);
+        }
+
+        // 7. Keyboard focus stays visible — a wrapped control that lands outside
+        //    the viewport would still be reachable but not findable.
+        const firstButton = page.locator(ACTION_ROW_CHILDREN).first();
+        await firstButton.focus();
+        await expect(firstButton).toBeFocused();
+        const focusInView = await firstButton.evaluate(element => {
+          const box = element.getBoundingClientRect();
+          return box.right <= window.innerWidth + 1 && box.left >= -1;
+        });
+        expect(focusInView, `${zoom * 100}%: focused action sits outside the viewport`).toBe(true);
+
+        await page.screenshot({
+          path: testInfo.outputPath(`my-entries-zoom-${zoom * 100}.png`),
+          fullPage: true,
+        });
       });
-    });
-  }
-});
+    }
+  });
+}
+
+registerZoomReflowChecks('My Shows reflows under browser zoom', PHYSICAL, ZOOM_LEVELS);
+registerZoomReflowChecks(
+  'My Shows reflows under browser zoom on a phone',
+  PHONE_PHYSICAL,
+  PHONE_ZOOM_LEVELS
+);

@@ -1231,46 +1231,32 @@ export const countActiveEntriesByDog = async (dogId: string): Promise<number> =>
   return count ?? 0;
 };
 
-// Count a dog's live entries that BLOCK a delete — a NARROWED copy of the
-// predicate soft_delete_dog refuses on (MK002, migration 20260830140000).
-// Kept in step with the arms it still shares with the server by
-// `entryBlocksDogDelete.contract.test.ts`, which reads both.
+// Count a dog's live entries that BLOCK a delete (MK002).
 //
-// Deliberately excludes result_status (MYK9-799): migration
+// MYK9-822: an RPC, not a PostgREST filter. It calls
+// private.count_dog_blocking_entries — the SAME SECURITY DEFINER predicate
+// soft_delete_dog's guard calls — so this can never drift from the server the
+// way the old client-side `.or()` filter did. That filter had to omit
+// result_status (MYK9-799: migration
 // 20260620001929_restrict_authenticated_entry_results.sql revoked
-// `authenticated`'s column-SELECT grant on entries.result_status, so naming
-// it in a PostgREST filter — even inside an `or()` — makes PostgREST refuse
-// the WHOLE request with 403, which permanently disabled Delete for every
-// dog.
-//
-// This predicate is deliberately NARROWER than soft_delete_dog's guard, not
-// merely a readable rephrasing of it: an entry can carry a settled
-// result_status ('absent' or 'excused') without is_scored or
-// scoring_completed_at ever being set — migrations 20260712180000 and
-// 20260904160000 define "accounted for" as exactly
-// `is_scored OR result_status IN ('absent', 'excused')` because the two
-// diverge, and `replicatedRunQueue.ts` documents a real staging row in that
-// state. Such an entry reads here as not blocking, so Delete proceeds; the
-// server's soft_delete_dog still evaluates the full predicate including
-// result_status and refuses with MK002, translateDogDbError turns that into
-// "This dog has paid or scored entries. Pull or refund them before
-// deleting.", and the delete dialog stays open — so the gap costs a wrong
-// pre-click warning, never a lost delete. See MYK9-822 for a server-side
-// count (e.g. an RPC) that can share soft_delete_dog's own predicate instead
-// of a client-side approximation of it.
+// `authenticated`'s column-SELECT grant on it, and naming an ungranted column
+// inside a PostgREST `or()` makes PostgREST refuse the WHOLE request with
+// 403), which made it a NARROWER predicate than the guard: an entry can carry
+// a settled result_status ('absent' or 'excused') without is_scored or
+// scoring_completed_at ever being set (20260712180000, 20260904160000;
+// replicatedRunQueue.ts documents a real staging row in that state). The RPC
+// runs SECURITY DEFINER, so it reads result_status directly and closes that
+// gap without widening the column grant.
 //
 // 'refunded' and 'waived' do not block: no money is being kept. A direct
-// head-count for the same reason as countActiveEntriesByDog above — a
-// per-show-replicated local store cannot answer this honestly.
+// RPC call for the same reason countActiveEntriesByDog above is a direct
+// head-count — a per-show-replicated local store cannot answer this honestly.
 export const countBlockingEntriesByDog = async (dogId: string): Promise<number> => {
-  const { count, error } = await supabase
-    .from('entries')
-    .select('id', { count: 'exact', head: true })
-    .eq('dog_id', dogId)
-    .is('deleted_at', null)
-    .or('payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null');
+  const { data, error } = await supabase.rpc('count_blocking_entries_by_dog', {
+    p_dog_id: dogId,
+  });
   if (error) throw error;
-  return count ?? 0;
+  return data ?? 0;
 };
 
 // Get entries by status

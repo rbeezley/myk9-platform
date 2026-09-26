@@ -14,7 +14,11 @@ import {
   formatCartCurrency,
   type PlatformFeeRates,
 } from '@/store/cartStore.helpers';
-import { buildClassDisambiguator, type ClassIdentity } from '@/features/_shared/classLabel';
+import {
+  buildClassDisambiguator,
+  buildTrialDayDisambiguator,
+  type ClassIdentity,
+} from '@/features/_shared/classLabel';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { availabilityPlaceholder } from '../PaymentStep/types';
 import type { FeeBreakdownItem, FeeCalculationResult } from '../PaymentStep/types';
@@ -54,7 +58,13 @@ export interface PanelClassLine {
    */
   lineKey: string;
   classId: string;
-  /** Abbreviated trial day ("Sat"), or '' when the trial's date is unknown. */
+  /**
+   * Abbreviated trial day ("Sat"), or '' when the trial's date is unknown.
+   * Carries the trial's own name too ("Sat · Saturday Trial 2") when another
+   * trial in the group shares its date — otherwise two same-day trials'
+   * identical classes ("Vehicle Novice B") would read as one line twice
+   * (MYK9-832 #10).
+   */
   dayLabel: string;
   label: string;
   feeCents: number;
@@ -151,16 +161,34 @@ export function groupCartByDogAndDay(
   const disambiguate = (item: CartItemWithDetails, klass: PanelClass | undefined) =>
     disambiguatorsByTrial.get(resolveTrialId(item, klass)) ?? (() => '');
 
+  // Same-day trial names, gated on collision exactly like the class-name
+  // disambiguator above — MYK9-832 #10. Scoped to the trials actually
+  // represented in this cart, matching `identitiesByTrial`'s own scope: a
+  // same-day trial with nothing in the cart creates no visible duplicate to
+  // disambiguate.
+  const cartTrialIds = new Set(
+    [...identitiesByTrial.keys()].filter(trialId => trialsById.has(trialId))
+  );
+  const trialDayDisambiguate = buildTrialDayDisambiguator(
+    [...cartTrialIds].map(trialId => {
+      const trial = trialsById.get(trialId);
+      return { trialId, trialDate: trial?.trialDate, trialName: trial?.name };
+    })
+  );
+
   for (const item of cartItems) {
     if (!item.dog_id || !item.class_id) continue;
     if (!order.includes(item.dog_id)) order.push(item.dog_id);
     const klass = classesById.get(item.class_id);
-    const trial = trialsById.get(resolveTrialId(item, klass));
+    const trialId = resolveTrialId(item, klass);
+    const trial = trialsById.get(trialId);
     const label = classLabel(item, klass, disambiguate(item, klass));
+    const trialSuffix = trialDayDisambiguate(trialId);
+    const dayLabel = formatWeekdayShort(trial?.trialDate);
     const line = {
       lineKey: `${item.dog_id}:${item.class_id}`,
       classId: item.class_id,
-      dayLabel: formatWeekdayShort(trial?.trialDate),
+      dayLabel: trialSuffix ? `${dayLabel} · ${trialSuffix}` : dayLabel,
       label,
       feeCents: item.entry_fee_cents,
       sortKey: `${trial?.trialDate ?? '9999-99-99'}|${label}`,
@@ -244,6 +272,13 @@ export interface PaymentTotalsInput {
 /** The payment-step money block. */
 export interface PaymentTotals {
   isWaived: boolean;
+  /**
+   * MYK9-832 #11: `secretary_paid` means the money is already in hand (a
+   * mail-in check, cash from a walk-up) — it is the one method where the fee
+   * is settled, not owed, so "Total due" must not keep quoting it as
+   * outstanding the way it does for check/cash "pay at show".
+   */
+  isSecretaryReceived: boolean;
   /** True when the service fee applies: card, payable, and availability known. */
   isPayableCard: boolean;
   entryFeeCents: number;
@@ -271,6 +306,7 @@ export function computePaymentTotals({
   rates,
 }: PaymentTotalsInput): PaymentTotals {
   const isWaived = paymentMethod === 'waived' || waiveFees;
+  const isSecretaryReceived = paymentMethod === 'secretary_paid';
   const entryFeeCents = Math.round((feeOverride ?? feeCalculation.total) * 100);
   const isPayableCard =
     capacityReady && !isWaived && paymentMethod === 'credit_card' && entryFeeCents > 0;
@@ -278,6 +314,7 @@ export function computePaymentTotals({
   const amountDueCents = entryFeeCents + serviceFeeCents;
   return {
     isWaived,
+    isSecretaryReceived,
     isPayableCard,
     entryFeeCents,
     serviceFeeCents,
@@ -323,5 +360,9 @@ export function formatAmountDue({
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return '$0.00 (Waived)';
-  return formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
+  const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
+  // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
+  // still owed once the secretary marked it Already Received.
+  if (totals?.isSecretaryReceived) return `${amount} (Received)`;
+  return amount;
 }

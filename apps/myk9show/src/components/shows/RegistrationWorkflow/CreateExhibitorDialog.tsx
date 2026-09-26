@@ -38,8 +38,12 @@ interface CreateExhibitorDialogProps {
 const exhibitorFormSchema = z.object({
   firstName: z.string().min(1, 'Please enter a first name'),
   lastName: z.string().min(1, 'Please enter a last name'),
-  email: commonValidations.emailRequired,
-  phone: z.string().min(1, 'Please enter a phone number'),
+  // MYK9-832: a mail-in paper form often carries only a postal address — the
+  // backend (createUser / replicatedShowDeskPeopleTable.createPerson) already
+  // writes null for either field, so requiring both here only forced a
+  // secretary keying that form to invent an email or phone number.
+  email: commonValidations.email.optional().or(z.literal('')),
+  phone: commonValidations.phone,
   streetAddress: z.string(),
   city: z.string(),
   state: z.string(),
@@ -124,9 +128,9 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     if (!open) return;
 
     const hasSearchableIdentity =
-      form.data.email.includes('@') ||
+      (form.data.email ?? '').includes('@') ||
       (form.data.firstName.trim().length >= 2 && form.data.lastName.trim().length >= 2) ||
-      form.data.phone.trim().length >= 7;
+      (form.data.phone ?? '').trim().length >= 7;
 
     if (!hasSearchableIdentity) return;
 
@@ -309,23 +313,23 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Email Address" fieldId="email" required error={emailError}>
+              <FormField label="Email Address" fieldId="email" error={emailError}>
                 <Input
                   id="email"
                   type="email"
                   value={form.data.email}
                   onChange={e => handleFieldChange('email', e.target.value)}
-                  placeholder="Enter email address"
+                  placeholder="Enter email address (optional)"
                   {...form.getFieldProps('email')}
                 />
               </FormField>
 
-              <FormField label="Phone Number" fieldId="phone" required error={phoneError}>
+              <FormField label="Phone Number" fieldId="phone" error={phoneError}>
                 <Input
                   id="phone"
                   value={form.data.phone}
                   onChange={e => handleFieldChange('phone', e.target.value)}
-                  placeholder="Enter phone number"
+                  placeholder="Enter phone number (optional)"
                   {...form.getFieldProps('phone')}
                 />
               </FormField>

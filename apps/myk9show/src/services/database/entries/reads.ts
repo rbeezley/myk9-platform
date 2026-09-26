@@ -46,6 +46,7 @@ import {
   mapReplicatedEntriesWithHandlerIdentity,
   projectPostgrestEntryHandlerIdentity,
 } from './entryHandlerReadBoundary';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -65,7 +66,8 @@ async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
   return loadLookupMap(
-    () => replicatedClassesTable.getAllOrThrow(),
+    // A join: class labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
     c => c.id
   );
 }

@@ -16,6 +16,7 @@ import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -161,7 +162,7 @@ export const searchEntries = async (searchTerm: string) => {
         const [allEntries, dogs, classes, shows] = await Promise.all([
           replicatedEntriesTable.getAllOrThrow(),
           replicatedDogsTable.getAllDogs(),
-          replicatedClassesTable.getAllOrThrow(),
+          joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
           replicatedShowsTable.getAllShows(),
         ]);
         const dogsMap = buildMapFromArray(dogs, d => d.id);

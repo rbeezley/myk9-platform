@@ -28,6 +28,7 @@ import {
   isMoveUpLinkSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 /**
  * Where an account-level entry read's rows came from.
@@ -350,9 +351,9 @@ async function readReplicaUserEntryRows(
     const [allEntries, dogs, classes, shows, trials] = await Promise.all([
       replicatedEntriesTable.getAllOrThrow(),
       replicatedDogsTable.getAllDogs(),
-      replicatedClassesTable.getAllOrThrow(),
+      joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
       replicatedShowsTable.getAllShows(),
-      replicatedTrialsTable.getAllOrThrow(),
+      joinRowsOrEmpty(replicatedTrialsTable.getAllOrThrow(), 'trial dates'),
     ]);
     const dogsMap = buildMapFromArray(dogs, d => d.id);
     const classesMap = buildMapFromArray(classes, c => c.id);

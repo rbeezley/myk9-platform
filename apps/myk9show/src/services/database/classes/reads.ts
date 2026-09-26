@@ -23,6 +23,7 @@ import {
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -30,13 +31,15 @@ import { buildMapFromArray } from '../_shared/maps';
 
 async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
   return loadLookupMap(
-    () => replicatedTrialsTable.getAllOrThrow(),
+    // A join: trial details on classes (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedTrialsTable.getAllOrThrow(), 'trial details'),
     t => t.id
   );
 }
 
 async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
-  const entries = await replicatedEntriesTable.getAllOrThrow();
+  // A join: entry counts on classes (see joinRowsOrEmpty).
+  const entries = await joinRowsOrEmpty(replicatedEntriesTable.getAllOrThrow(), 'entry counts');
   const map = new Map<string, number>();
   for (const e of entries) {
     if (e.classId) {
@@ -422,7 +425,7 @@ export const getClassById = async (id: string) => {
       const [trial, classEntries, allDogs] = await Promise.all([
         cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
         replicatedEntriesTable.getEntriesByClass(id),
-        replicatedDogsTable.getAllOrThrow(),
+        joinRowsOrEmpty(replicatedDogsTable.getAllOrThrow(), 'dog names'),
       ]);
 
       const dogsMap = buildMapFromArray(allDogs, d => d.id);

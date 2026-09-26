@@ -197,6 +197,15 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
   saveShowJudgeChanges: vi.fn(async () => undefined),
+  // The server's judges once this save's edits have uploaded.
+  fetchShowJudgesForPublish: vi.fn(async () => [
+    {
+      judgeId: 'judge-1',
+      judgeName: 'Fresh Judge',
+      assignedDate: '2026-01-01',
+      assignedClasses: ['Container', 'Interior'],
+    },
+  ]),
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({

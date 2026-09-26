@@ -27,6 +27,10 @@ vi.mock('@/hooks/queries/useClassEntriesRaw', () => ({
 vi.mock('@/hooks/queries/usePublicClassById', () => ({
   usePublicClassById: mocks.usePublicClassById,
 }));
+// A signed-in viewer never reads the guest class context (MYK9-785).
+vi.mock('@/hooks/queries/publicClassContextQuery', () => ({
+  usePublicClassContextQuery: () => ({ read: { kind: 'loading' }, refetch: vi.fn() }),
+}));
 vi.mock('@/store/trialStore', () => ({ useTrialStore: mocks.useTrialStore }));
 vi.mock('@/store/showStore', () => ({ useShowStore: mocks.useShowStore }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({ useDogStoreCompat: mocks.useDogStoreCompat }));
@@ -66,8 +70,11 @@ describe('useClassDetailsData staff entry source', () => {
     // `isSecretary`/`isAdmin` as exactly these calls, so a fixture with
     // `isSecretary: true` and `hasRole: () => false` describes a user that
     // cannot exist. Keep the two consistent or the gate under test is
-    // exercised against an impossible state.
+    // exercised against an impossible state. A secretary also has a session:
+    // without `user` the hook sees a signed-out guest (MYK9-785).
     mocks.useAuthContext.mockReturnValue({
+      user: { id: 'secretary-1' },
+      loading: false,
       isSecretary: true,
       isAdmin: false,
       hasRole: (role: string) => role === 'secretary',

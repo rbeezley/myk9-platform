@@ -25,6 +25,20 @@ vi.mock('@/hooks/queries/useClassEntriesRaw', () => ({
 vi.mock('@/hooks/queries/usePublicClassById', () => ({
   usePublicClassById: () => ({ data: { id: 'class-1', trialId: 'trial-1' } }),
 }));
+// The guest's class and trial are the server's (MYK9-785, its own test file).
+vi.mock('@/hooks/queries/publicClassContextQuery', () => ({
+  usePublicClassContextQuery: () => ({
+    read: {
+      kind: 'ready',
+      data: {
+        currentClass: { id: 'class-1', trialId: 'trial-1' },
+        parentTrial: { id: 'trial-1', showId: 'show-1' },
+        trialClasses: [{ id: 'class-1', trialId: 'trial-1' }],
+      },
+    },
+    refetch: vi.fn(),
+  }),
+}));
 vi.mock('@/store/trialStore', () => ({ useTrialStore: () => ({ trials: [], trialClasses: {} }) }));
 vi.mock('@/store/showStore', () => ({ useShowStore: mocks.useShowStore }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({ useDogStoreCompat: () => ({ dogs: [] }) }));

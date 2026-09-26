@@ -13,6 +13,7 @@ import type { Show } from '@/types/show-types';
 import type { User } from '@/types/user-types';
 import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
+import { resolveDraftTimezone } from '@/features/registries';
 import type { EditMode } from './show-creation-wizard-types';
 
 interface BuildEditModeDraftArgs {
@@ -116,6 +117,13 @@ export function buildEditModeDraft({
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,
+      // MYK9-830/831: the show's existing trials are the source of truth for
+      // its timezone. Without this, loadDraft's wholesale `show` replacement
+      // wiped out the wizard store's timezone on every edit-mode open --
+      // worst in add-trials mode, which starts past the Basics step where the
+      // timezone picker lives, so a new trial silently saved in the
+      // secretary's browser zone instead of the show's.
+      timezone: resolveDraftTimezone(showTrials),
       officials: {
         secretary: [] as string[],
         chairman: [] as string[],

@@ -13,6 +13,7 @@ import {
   getTrialRegistry,
   getTrialTimezone,
   resolveBrowserTrialTimezone,
+  resolveDraftTimezone,
   deriveRegistryId,
   resolveConfiguredRegistryId,
 } from '../helpers';
@@ -272,6 +273,33 @@ describe('resolveBrowserTrialTimezone', () => {
       });
     try {
       expect(resolveBrowserTrialTimezone()).toBe('America/New_York');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('resolveDraftTimezone', () => {
+  // The one decision every wizard-draft-building path (new show, edit,
+  // add-trials, add-classes, clone) shares: MYK9-830/831 second review round.
+  it("prefers the first existing trial's own timezone", () => {
+    expect(
+      resolveDraftTimezone([{ timezone: 'America/Chicago' }, { timezone: 'America/Denver' }])
+    ).toBe('America/Chicago');
+  });
+
+  it('falls back to America/New_York when the first trial has no valid zone', () => {
+    expect(resolveDraftTimezone([{ timezone: null }])).toBe('America/New_York');
+  });
+
+  it("falls back to the browser's zone when there are no existing trials (brand-new show)", () => {
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({ timeZone: 'America/Los_Angeles' } as Intl.ResolvedDateTimeFormatOptions);
+    try {
+      expect(resolveDraftTimezone([])).toBe('America/Los_Angeles');
+      expect(resolveDraftTimezone(null)).toBe('America/Los_Angeles');
+      expect(resolveDraftTimezone(undefined)).toBe('America/Los_Angeles');
     } finally {
       spy.mockRestore();
     }

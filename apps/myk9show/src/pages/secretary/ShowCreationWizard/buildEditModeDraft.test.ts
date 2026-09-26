@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
+import type { Trial } from '@/store/trialStore';
 import { buildEditModeDraft } from './buildEditModeDraft';
 
 const show = (assignedJudges: Array<{ judgeId: string; judgeName: string }>) =>
@@ -47,5 +48,53 @@ describe('buildEditModeDraft judge baseline', () => {
       people: [],
     });
     expect(draft.editBaselineJudgeIds).toEqual([]);
+  });
+});
+
+// MYK9-830/831 second review round: the edit draft dropped timezone entirely,
+// so loadDraft's wholesale `show` replacement wiped out the wizard store's
+// timezone and every downstream save fell back to the SECRETARY'S browser
+// zone instead of the show's real one -- most visibly in add-trials mode,
+// which starts past the Basics step where the timezone picker lives, so
+// nothing in the UI ever gives the secretary a chance to notice or fix it.
+describe('buildEditModeDraft timezone', () => {
+  const trial = (timezone: string | undefined): Trial =>
+    ({
+      id: 'trial-1',
+      showId: 'show-1',
+      timezone,
+    }) as unknown as Trial;
+
+  it("edit-show mode initializes the draft from the show's existing trial timezone", () => {
+    const draft = buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'edit-show' } as never,
+      existingShow: show([]),
+      showTrials: [trial('America/Chicago')],
+      existingClasses: [],
+      people: [],
+    });
+    expect(draft.show.timezone).toBe('America/Chicago');
+  });
+
+  it("add-trials mode ALSO initializes from the show's existing trial timezone, even though it starts past Basics", () => {
+    const draft = buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-trials' } as never,
+      existingShow: show([]),
+      showTrials: [trial('America/Denver')],
+      existingClasses: [],
+      people: [],
+    });
+    expect(draft.show.timezone).toBe('America/Denver');
+  });
+
+  it('falls back to America/New_York when the existing trial predates the timezone column', () => {
+    const draft = buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-classes' } as never,
+      existingShow: show([]),
+      showTrials: [trial(undefined)],
+      existingClasses: [],
+      people: [],
+    });
+    expect(draft.show.timezone).toBe('America/New_York');
   });
 });

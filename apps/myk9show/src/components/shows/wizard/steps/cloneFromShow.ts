@@ -3,6 +3,7 @@
  * (start a clone) and the clone status banner (retry a failed one) through useCloneFromShow.
  */
 import { getClassesByTrialId } from '@/services/database/classes';
+import { resolveDraftTimezone } from '@/features/registries';
 import type { CloneHydrationSnapshot } from '@/store/wizardStore';
 import type { Class, Show, ShowTrial } from '@/types/show-types';
 import type { ClassTemplate } from '@/types/template.types';
@@ -117,6 +118,10 @@ export function buildCloneSnapshot(args: {
       acceptCheckPayments: show.acceptCheckPayments ?? false,
       acceptCashPayments: show.acceptCashPayments ?? false,
       judgeIds: judges.map(judge => judge.judgeId),
+      // The source show's trials are the source of truth for timezone --
+      // reusing whatever zone the secretary happens to be cloning FROM would
+      // silently move the show (MYK9-830/831 second review round).
+      timezone: resolveDraftTimezone(sourceTrials),
       // Dates are intentionally left blank so the secretary fills them in.
       startDate: '',
       endDate: '',

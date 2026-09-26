@@ -52,7 +52,8 @@ export class MutationUploadRunner {
     private readonly maxOccAttempts: number,
     private readonly queueStore: MutationQueueStore,
     private readonly writeBackup: () => Promise<void>,
-    private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>
+    private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
+    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown
   ) {}
 
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
@@ -367,12 +368,10 @@ export class MutationUploadRunner {
             continue;
           }
           if (error instanceof OccRejectionError) {
-            // OCC conflict handling (token advance, backoff re-queue, lifetime-cap
-            // parking) lives in a sibling module to keep this file within the
-            // source-size budget; behavior is unchanged. It mutates results /
-            // failedMutations / the dependency sets by reference and returns the
-            // re-queued mutation's nextRetryAt (or null when parked/gone) so we
-            // can advance the earliest-backoff self-schedule.
+            // OCC handling (token advance, backoff, cap parking, row re-fetch) is
+            // in a sibling module. It mutates results / failedMutations / the
+            // dependency sets by reference and returns the re-queued mutation's
+            // nextRetryAt (null when parked/gone) for the backoff self-schedule.
             const backoffCandidate = await handleOccRejection({
               db,
               logger: this.logger,
@@ -385,6 +384,7 @@ export class MutationUploadRunner {
               failedMutations,
               blockedDependencyIds,
               failedDependencyIds,
+              requestRowRefetch: this.requestRowRefetch,
             });
             if (
               backoffCandidate !== null &&

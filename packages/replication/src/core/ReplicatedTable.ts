@@ -26,6 +26,7 @@ import type {
 import type { Logger, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
+import { refetchDirtyRowsById, type RowRefetchAdapter } from '../refetchDirtyRowsById';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
@@ -142,7 +143,26 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   setMutationManager(manager: MutationManager): void {
     this.mutationManager = manager;
+    this.unregisterRowRefetcher?.();
+    const getAdapter = this.getRowRefetchAdapter?.bind(this);
+    this.unregisterRowRefetcher = getAdapter
+      ? manager.rowRefetchers.register(this.tableName, rowIds =>
+          refetchDirtyRowsById(this, getAdapter(), rowIds)
+        )
+      : undefined;
   }
+
+  private unregisterRowRefetcher: (() => void) | undefined;
+
+  /**
+   * The download-adapter slice that re-reads rows by id, used after a full-row
+   * UPDATE is rejected for a stale OCC token (MYK9-771): the row is fetched
+   * and reconciled, which rebases the write or surfaces a same-field conflict.
+   * Tables that queue full-row UPDATEs implement it with a `fetchRowsById` that
+   * reads the way their sync does. Tables without it keep the write backing
+   * off, unchanged.
+   */
+  protected getRowRefetchAdapter?(): RowRefetchAdapter<unknown, T>;
 
   /**
    * Get the number of pending mutations in the queue.
@@ -613,26 +633,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     await tx.store.put(nextRow);
     await tx.done;
 
-    if (newServerVersion !== undefined && this.mutationManager) {
+    if (newServerVersion !== undefined) {
       const rebuiltData =
         options?.rebuildUpdatePayload?.(nextRow.data) ?? this.rebuildUpdatePayload(nextRow.data);
-      const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
-      if (legacyOmittedKeysServerWins) {
-        await this.mutationManager.reconcilePendingMutationsForRow(
-          this.tableName,
-          normalizedId,
-          newServerVersion,
-          rebuiltData,
-          legacyOmittedKeysServerWins
-        );
-      } else {
-        await this.mutationManager.reconcilePendingMutationsForRow(
-          this.tableName,
-          normalizedId,
-          newServerVersion,
-          rebuiltData
-        );
-      }
+      await this.reconcileQueuedMutations(normalizedId, newServerVersion, rebuiltData);
     }
 
     this.notifyListeners();
@@ -703,6 +707,47 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * True when the row already holds `version` as its token while a queued UPDATE
+   * is still behind it. Checked only then, so an ordinary sync reads no queue.
+   */
+  private async hasQueuedUpdateBehind(rowId: string, version: number | undefined) {
+    if (version === undefined || !this.mutationManager) return false;
+    const row = await this.getReplicatedRow(rowId);
+    if (!row?.isDirty || row.serverVersion !== version) return false;
+    // No signed-in owner to read the queue for: nothing of ours to rebase.
+    const queued = await this.mutationManager
+      .getPendingMutationsForRow(this.tableName, rowId)
+      .catch(() => []);
+    return queued.some(
+      m => m.operation === 'UPDATE' && m.serverVersion !== undefined && m.serverVersion < version
+    );
+  }
+
+  private async reconcileQueuedMutations(
+    rowId: string,
+    serverVersion: number,
+    rebuiltData: Record<string, unknown> | undefined
+  ): Promise<void> {
+    if (!this.mutationManager) return;
+    const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
+    // Only pass the fifth argument when the adapter names keys (call-shape pins).
+    await (legacyOmittedKeysServerWins
+      ? this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          rowId,
+          serverVersion,
+          rebuiltData,
+          legacyOmittedKeysServerWins
+        )
+      : this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          rowId,
+          serverVersion,
+          rebuiltData
+        ));
+  }
+
+  /**
    * Reconcile a locally-dirty row against a freshly-synced server snapshot WITHOUT
    * discarding the pending local edit. Used by syncReplicatedTable's dirty branch
    * when there is NO same-field conflict, to fix the root cause of the ringside OCC
@@ -739,6 +784,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   ): Promise<boolean> {
     const db = await this.init();
     const normalizedId = String(id);
+    // Read the queue before the tx opens: awaiting it inside would commit the tx.
+    const queueBehind = await this.hasQueuedUpdateBehind(normalizedId, params.remoteServerVersion);
 
     // Single readwrite tx: a concurrent set(..., true) must not slip a fresh dirty
     // mutation between our read and write (same race markAsSynced guards against).
@@ -768,9 +815,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       params.remoteServerVersion > (existingRow.serverVersion ?? -Infinity);
     const nextServerVersion = advanceToken ? params.remoteServerVersion : existingRow.serverVersion;
 
+    // The row may already hold the server's token while a queued write is still
+    // behind it: an OCC rejection advances the row only (MYK9-771). The caller
+    // found no same-field conflict against this remote, so rebase that write too.
+    const rebaseQueue =
+      advanceToken || (queueBehind && params.remoteServerVersion === existingRow.serverVersion);
+
     // Churn guard: skip the IDB write when neither the data nor the token changed.
     const dataChanged = JSON.stringify(normalizedMerged) !== JSON.stringify(existingRow.data);
-    if (!advanceToken && !dataChanged) {
+    if (!rebaseQueue && !dataChanged) {
       await tx.done;
       return false;
     }
@@ -789,25 +842,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // The upload reads serverVersion/data from the QUEUED mutation, not this row —
     // so reconcile the queue too, or the stuck mutation keeps uploading the stale
     // token forever (storm) and, for full-row UPDATEs, the stale payload (clobber).
-    if (advanceToken && this.mutationManager && params.remoteServerVersion !== undefined) {
+    if (rebaseQueue && params.remoteServerVersion !== undefined) {
       const rebuiltData = params.rebuildPayload?.(normalizedMerged);
-      const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
-      if (legacyOmittedKeysServerWins) {
-        await this.mutationManager.reconcilePendingMutationsForRow(
-          this.tableName,
-          normalizedId,
-          params.remoteServerVersion,
-          rebuiltData,
-          legacyOmittedKeysServerWins
-        );
-      } else {
-        await this.mutationManager.reconcilePendingMutationsForRow(
-          this.tableName,
-          normalizedId,
-          params.remoteServerVersion,
-          rebuiltData
-        );
-      }
+      await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
     }
 
     this.logger.log(

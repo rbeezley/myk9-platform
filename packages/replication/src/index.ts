@@ -142,6 +142,8 @@ export {
   countServerBackedRows,
 } from './syncReplicatedTable';
 export { countCoveredRows } from './replicaCoverage';
+export { refetchDirtyRowsById } from './refetchDirtyRowsById';
+export type { RowRefetchAdapter } from './refetchDirtyRowsById';
 export type {
   RemoteFetchContext,
   RemoteRowCountContext,

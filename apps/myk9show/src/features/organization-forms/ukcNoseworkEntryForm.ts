@@ -69,13 +69,19 @@ export function buildUKCNoseworkEntryFormPacketFilename(
  * for at all: which trial/section/element/level the dog is entered in, and
  * the date-of-birth/phone segments that fall outside the (too narrow) fields
  * (MYK9-828). `flatten` should match the caller's other official-PDF downloads
- * — the packet flattens so pages can be copied into one document; a single
- * dog's download leaves fields editable like every other official PDF.
+ * — the packet flattens so pages can be copied into one document.
  *
+ * A single dog's download is editable ONLY when it fits on one page: the
+ * filled document is then returned as-is, with its AcroForm fields intact.
  * The template's grid only offers `MAX_GRID_ROWS` rows, so a dog entered in
  * more entries than that gets one page per `MAX_GRID_ROWS`-sized batch —
  * repeating the dog's own header fields on each page — rather than silently
- * dropping the overflow entries off the printed form.
+ * dropping the overflow entries off the printed form. Assembling those pages
+ * into one document (`copyPages`, below) drops the AcroForm catalog no
+ * matter what `flatten` says, so every page is flattened first whenever
+ * there's more than one — an "editable" multi-page PDF would silently have
+ * no working fields at all (MYK9-828 Codex round 3). The result is an honest
+ * flattened PDF instead.
  */
 export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   dog: EntryFormDog;
@@ -85,11 +91,12 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
 }): Promise<Uint8Array> {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
+  const flatten = input.flatten || entryBatches.length > 1;
   const pagePdfs: PDFDocument[] = [];
 
   for (const entries of entryBatches) {
     const filledBytes = await fillPdfForm(input.templateBytes, values, {
-      flatten: input.flatten,
+      flatten,
     });
     const pagePdf = await PDFDocument.load(filledBytes);
     const page = pagePdf.getPages()[0];
@@ -109,8 +116,9 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   // can return the filled document as-is. Assembling it into a fresh
   // PDFDocument via copyPages below drops the AcroForm catalog pdf-lib needs
   // for getForm()/interactive fields (MYK9-828 Codex round 2) — only the
-  // multi-page and flattened-packet cases actually need that assembly.
-  if (pagePdfs.length === 1 && !input.flatten) {
+  // multi-page and flattened-packet cases actually need that assembly, and
+  // `flatten` is already forced true above whenever there's more than one page.
+  if (pagePdfs.length === 1 && !flatten) {
     return pagePdfs[0].save();
   }
 

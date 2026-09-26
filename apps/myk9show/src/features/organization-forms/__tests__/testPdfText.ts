@@ -1,4 +1,4 @@
-import { PDFArray, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 
 /**
  * Reads the literal strings a page's content stream actually draws with `Tj`
@@ -43,4 +43,32 @@ export async function extractDrawnPdfText(pdfBytes: Uint8Array, pageIndex = 0): 
   }
 
   return results;
+}
+
+/**
+ * Counts a page's `/Widget` annotations directly, rather than trusting
+ * `pdf.getForm().getFields()` — a page assembled by `copyPages` from an
+ * unflattened source can carry over orphaned Widget annotations (still
+ * visually rendered, but disconnected from any `/AcroForm` field) while
+ * `getFields()` already reports `[]` for both that broken case and a
+ * properly flattened one (MYK9-828 Codex round 3). This is what tells them
+ * apart.
+ */
+export async function countWidgetAnnotations(pdfBytes: Uint8Array, pageIndex = 0): Promise<number> {
+  const pdf = await PDFDocument.load(pdfBytes);
+  const page = pdf.getPages()[pageIndex];
+  if (!page) return 0;
+
+  const annotsRef = page.node.get(PDFName.of('Annots'));
+  const annots = annotsRef ? pdf.context.lookup(annotsRef) : undefined;
+  if (!(annots instanceof PDFArray)) return 0;
+
+  let widgetCount = 0;
+  for (let i = 0; i < annots.size(); i++) {
+    const annot = pdf.context.lookup(annots.get(i));
+    if (annot instanceof PDFDict && annot.get(PDFName.of('Subtype'))?.toString() === '/Widget') {
+      widgetCount++;
+    }
+  }
+  return widgetCount;
 }

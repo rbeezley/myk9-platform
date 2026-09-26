@@ -7,7 +7,7 @@
  * every filter is a removable chip beside the search.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ListFilterBar,
   ListResultLine,
@@ -32,6 +32,11 @@ const LOGIN_LABELS: Record<Exclude<UserFilter['login'], 'all'>, string> = {
 interface UserListToolbarProps<T extends User> {
   /** The whole roster, for view and option counts. */
   users: T[];
+  /**
+   * The single clock the page uses for its own filtering — shared here so a
+   * view's count and the rows it actually shows can never disagree.
+   */
+  now: number;
   /** How many rows the current search + filters leave. */
   matchCount: number;
   searchTerm: string;
@@ -50,6 +55,7 @@ function countWith<T extends User>(users: T[], filters: UserFilter, now: number)
 
 export function UserListToolbar<T extends User>({
   users,
+  now,
   matchCount,
   searchTerm,
   onSearchChange,
@@ -60,8 +66,6 @@ export function UserListToolbar<T extends User>({
   onSelectAllMatching,
   hasActiveFilters,
 }: UserListToolbarProps<T>) {
-  // One clock for the page's life, so every count and the active-view match agree.
-  const [now] = useState(() => Date.now());
   const views = useMemo(() => buildUserViews(users, now), [users, now]);
   // Option counts answer "how many would picking this show", so they follow the
   // removed-users setting (picking an option keeps it) and nothing else.

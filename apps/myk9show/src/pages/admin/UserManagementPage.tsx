@@ -39,6 +39,7 @@ import {
 } from './userListParams';
 import { filterUsers, sortUsers, exportUsersCSV } from './UserManagementPage.helpers';
 import { UserListToolbar } from './UserListToolbar';
+import { useRefreshingNow } from './useRefreshingNow';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -143,11 +144,18 @@ const UserManagementPage: React.FC = () => {
   const isRosterOffline = hasNoRoster && (fetchStatus === 'paused' || (!!error && isDeviceOffline));
   const updateUserMutation = useUpdateUserMutation();
 
+  // One clock for the roster's whole time-based UI — the view counts in
+  // UserListToolbar and the filtering below — so a view's badge and the rows
+  // it shows can never disagree (Codex P2). Refreshes on roster/filter
+  // change and on a coarse timer, so a day boundary crossed while the page
+  // sits open still gets picked up.
+  const now = useRefreshingNow([users, filters]);
+
   // Filter, sort, then paginate — in that order, so a sort covers every match
   // rather than reordering the 25 rows that happen to be on screen.
   const filteredUsers = useMemo(
-    () => filterUsers(users, searchTerm, filters),
-    [users, searchTerm, filters]
+    () => filterUsers(users, searchTerm, filters, now),
+    [users, searchTerm, filters, now]
   );
   const sortedUsers = useMemo(() => sortUsers(filteredUsers, sort), [filteredUsers, sort]);
   const totalPages = Math.ceil(sortedUsers.length / pageSize);
@@ -364,6 +372,7 @@ const UserManagementPage: React.FC = () => {
 
           <UserListToolbar
             users={users}
+            now={now}
             matchCount={sortedUsers.length}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}

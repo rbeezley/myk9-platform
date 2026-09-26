@@ -33,6 +33,7 @@ import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCa
 import { useClearQueryCacheOnAccountChange } from '@/hooks/useClearQueryCacheOnAccountChange';
 import { useNotifyAccountBoundary } from '@/hooks/useNotifyAccountBoundary';
 import { usePersonIdentity } from './usePersonIdentity';
+import { isAccountSession } from '@/hooks/guestServerRead';
 
 export type { AuthContextType, PersonIdentityState, UserRoleWithDetails } from './authContextTypes';
 
@@ -403,6 +404,7 @@ export function ProtectedRoute({
   // (REV-2341 R-1, second finding on one path -> restructure, not a fourth
   // control-level patch). No caller overrides this today.
   fallback,
+  accountOnly = false,
 }: ProtectedRouteProps) {
   const context = React.useContext(AuthContext);
   const location = useLocation();
@@ -437,7 +439,7 @@ export function ProtectedRoute({
     );
   }
 
-  if (!user) {
+  if (!user || (accountOnly && !isAccountSession(user))) {
     const target =
       redirectTo === '/sign-in'
         ? buildSignInPathForRedirect(`${location.pathname}${location.search}${location.hash}`)

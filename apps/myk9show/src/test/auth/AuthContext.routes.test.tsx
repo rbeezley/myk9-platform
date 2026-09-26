@@ -100,6 +100,42 @@ describe('AuthContext routes and auth methods', () => {
       );
     });
 
+    it('sends a ringside passcode session on an accountOnly route to sign-in (MYK9-789)', async () => {
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: { ...mockAuthReturn.user, is_anonymous: true },
+      });
+
+      renderWithAuthProvider(
+        <ProtectedRoute accountOnly>
+          <TestPage />
+        </ProtectedRoute>,
+        '/trials/trial-1'
+      );
+
+      expect(await screen.findByTestId('navigate')).toHaveTextContent(
+        'Redirecting to /sign-in?redirectTo=%2Ftrials%2Ftrial-1'
+      );
+      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+    });
+
+    it('still admits a ringside passcode session on a route that is not accountOnly', async () => {
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: { ...mockAuthReturn.user, is_anonymous: true },
+      });
+
+      renderWithAuthProvider(
+        <ProtectedRoute>
+          <TestPage />
+        </ProtectedRoute>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
+    });
+
     it('supports a custom unauthenticated redirect', () => {
       mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
 

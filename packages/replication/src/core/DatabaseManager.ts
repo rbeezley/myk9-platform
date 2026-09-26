@@ -110,100 +110,127 @@ export const RETIRED_REPLICATED_TABLE_INDEXES = [
  */
 export const SHOW_ID_INDEX = 'tableName_showId';
 
+const SHOW_ID_INDEX_KEY_PATH: string[] = ['tableName', 'data.showId'];
+
 function createShowIdIndex(store: {
   createIndex(name: string, keyPath: string[], options: IDBIndexParameters): unknown;
 }): void {
-  store.createIndex(SHOW_ID_INDEX, ['tableName', 'data.showId'], { unique: false });
+  store.createIndex(SHOW_ID_INDEX, SHOW_ID_INDEX_KEY_PATH, { unique: false });
+}
+
+/**
+ * One IndexedDB index, as `createObjectStores` builds it on a fresh database.
+ */
+export interface ReplicationIndexDefinition {
+  readonly name: string;
+  readonly keyPath: string | string[];
+  readonly unique: boolean;
+}
+
+/**
+ * One IndexedDB object store, as `createObjectStores` builds it on a fresh
+ * database. A seed that opens `myK9_Replication` outside the app (e2e tests)
+ * must reuse this instead of hand-copying store/index names, so a DB version
+ * bump here can't silently diverge from what the seed creates (MYK9-793).
+ */
+export interface ReplicationStoreDefinition {
+  readonly name: string;
+  readonly keyPath: string | string[];
+  readonly indexes: readonly ReplicationIndexDefinition[];
+}
+
+export const REPLICATION_SCHEMA: readonly ReplicationStoreDefinition[] = [
+  {
+    name: REPLICATION_STORES.REPLICATED_TABLES,
+    keyPath: ['tableName', 'id'],
+    indexes: [
+      { name: 'tableName', keyPath: 'tableName', unique: false },
+      { name: 'tableName_lastSyncedAt', keyPath: ['tableName', 'lastSyncedAt'], unique: false },
+      { name: 'isDirty', keyPath: 'isDirty', unique: false },
+      { name: SHOW_ID_INDEX, keyPath: SHOW_ID_INDEX_KEY_PATH, unique: false },
+    ],
+  },
+  {
+    name: REPLICATION_STORES.SYNC_METADATA,
+    keyPath: 'tableName',
+    indexes: [],
+  },
+  {
+    name: REPLICATION_STORES.PENDING_MUTATIONS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'status', keyPath: 'status', unique: false },
+      { name: 'tableName', keyPath: 'tableName', unique: false },
+      { name: 'tableName_rowId', keyPath: ['tableName', 'rowId'], unique: false },
+    ],
+  },
+  {
+    name: REPLICATION_STORES.PREFETCH_CACHE,
+    keyPath: 'key',
+    indexes: [
+      { name: 'timestamp', keyPath: 'timestamp', unique: false },
+      { name: 'ttl', keyPath: 'ttl', unique: false },
+    ],
+  },
+  {
+    name: REPLICATION_STORES.FAILED_MUTATIONS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'tableName', keyPath: 'tableName', unique: false },
+      { name: 'failedAt', keyPath: 'failedAt', unique: false },
+    ],
+  },
+  {
+    name: REPLICATION_STORES.OFFLINE_QUEUE,
+    keyPath: 'id',
+    indexes: [
+      { name: 'status', keyPath: 'status', unique: false },
+      { name: 'timestamp', keyPath: 'timestamp', unique: false },
+      { name: 'type', keyPath: 'type', unique: false },
+    ],
+  },
+];
+
+function createStoreFromDefinition(db: IDBPDatabase, definition: ReplicationStoreDefinition): void {
+  const store = db.createObjectStore(definition.name, { keyPath: definition.keyPath });
+  for (const index of definition.indexes) {
+    store.createIndex(index.name, index.keyPath, { unique: index.unique });
+  }
 }
 
 /**
  * Create the IndexedDB object stores during upgrade
  */
 function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logger: Logger): void {
-  // Create replicated_tables store if it doesn't exist
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)) {
-    logger.log(`[DatabaseManager] Creating REPLICATED_TABLES store...`);
+  for (const definition of REPLICATION_SCHEMA) {
+    if (!db.objectStoreNames.contains(definition.name)) {
+      logger.log(`[DatabaseManager] Creating ${definition.name} store...`);
+      createStoreFromDefinition(db, definition);
+      continue;
+    }
 
-    const store = db.createObjectStore(REPLICATION_STORES.REPLICATED_TABLES, {
-      keyPath: ['tableName', 'id'],
-    });
-    store.createIndex('tableName', 'tableName', { unique: false });
-    store.createIndex('tableName_lastSyncedAt', ['tableName', 'lastSyncedAt'], { unique: false });
-    store.createIndex('isDirty', 'isDirty', { unique: false });
-    createShowIdIndex(store);
-  } else {
-    // v8 (MYK9-616): drop the compound `data.*` indexes. Their only reader,
-    // `ReplicatedTableQueryManager.queryIndex`, was deleted by MYK9-551, so
-    // each one cost a write on every row `put` and served no read. Deleting an
-    // index leaves the store's records untouched, so dirty rows survive.
-    const store = transaction.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
-    for (const indexName of RETIRED_REPLICATED_TABLE_INDEXES) {
-      if (store.indexNames.contains(indexName)) {
-        store.deleteIndex(indexName);
+    if (definition.name === REPLICATION_STORES.REPLICATED_TABLES) {
+      // v8 (MYK9-616): drop the compound `data.*` indexes. Their only reader,
+      // `ReplicatedTableQueryManager.queryIndex`, was deleted by MYK9-551, so
+      // each one cost a write on every row `put` and served no read. Deleting an
+      // index leaves the store's records untouched, so dirty rows survive.
+      const store = transaction.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
+      for (const indexName of RETIRED_REPLICATED_TABLE_INDEXES) {
+        if (store.indexNames.contains(indexName)) {
+          store.deleteIndex(indexName);
+        }
+      }
+      // v9 (MYK9-788): read by `getByShowWithStatus`. Building it indexes the
+      // records already on the device; none is rewritten.
+      if (!store.indexNames.contains(SHOW_ID_INDEX)) {
+        createShowIdIndex(store);
+      }
+    } else if (definition.name === REPLICATION_STORES.PENDING_MUTATIONS) {
+      const mutationStore = transaction.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);
+      if (!mutationStore.indexNames.contains('tableName_rowId')) {
+        mutationStore.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
       }
     }
-    // v9 (MYK9-788): read by `getByShowWithStatus`. Building it indexes the
-    // records already on the device; none is rewritten.
-    if (!store.indexNames.contains(SHOW_ID_INDEX)) {
-      createShowIdIndex(store);
-    }
-  }
-
-  // Create sync_metadata store
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.SYNC_METADATA)) {
-    logger.log(`[DatabaseManager] Creating SYNC_METADATA store...`);
-    db.createObjectStore(REPLICATION_STORES.SYNC_METADATA, {
-      keyPath: 'tableName',
-    });
-  }
-
-  // Create pending_mutations store
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.PENDING_MUTATIONS)) {
-    logger.log(`[DatabaseManager] Creating PENDING_MUTATIONS store...`);
-    const mutationStore = db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, {
-      keyPath: 'id',
-    });
-    mutationStore.createIndex('status', 'status', { unique: false });
-    mutationStore.createIndex('tableName', 'tableName', { unique: false });
-    mutationStore.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
-  } else {
-    const mutationStore = transaction.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);
-    if (!mutationStore.indexNames.contains('tableName_rowId')) {
-      mutationStore.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
-    }
-  }
-
-  // Create prefetch_cache store
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.PREFETCH_CACHE)) {
-    logger.log(`[DatabaseManager] Creating PREFETCH_CACHE store...`);
-    const prefetchStore = db.createObjectStore(REPLICATION_STORES.PREFETCH_CACHE, {
-      keyPath: 'key',
-    });
-    prefetchStore.createIndex('timestamp', 'timestamp', { unique: false });
-    prefetchStore.createIndex('ttl', 'ttl', { unique: false });
-  }
-
-  // Create failed_mutations store (v6) — permanently failed mutations are moved
-  // here instead of being deleted, so offline work (e.g. ringside scores) that
-  // hits an RLS/constraint/auth failure stays reviewable and retryable.
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.FAILED_MUTATIONS)) {
-    logger.log(`[DatabaseManager] Creating FAILED_MUTATIONS store...`);
-    const failedStore = db.createObjectStore(REPLICATION_STORES.FAILED_MUTATIONS, {
-      keyPath: 'id',
-    });
-    failedStore.createIndex('tableName', 'tableName', { unique: false });
-    failedStore.createIndex('failedAt', 'failedAt', { unique: false });
-  }
-
-  // Create offline_queue store
-  if (!db.objectStoreNames.contains(REPLICATION_STORES.OFFLINE_QUEUE)) {
-    logger.log(`[DatabaseManager] Creating OFFLINE_QUEUE store...`);
-    const offlineQueueStore = db.createObjectStore(REPLICATION_STORES.OFFLINE_QUEUE, {
-      keyPath: 'id',
-    });
-    offlineQueueStore.createIndex('status', 'status', { unique: false });
-    offlineQueueStore.createIndex('timestamp', 'timestamp', { unique: false });
-    offlineQueueStore.createIndex('type', 'type', { unique: false });
   }
 
   logger.log(`[DatabaseManager] Upgrade callback complete`);

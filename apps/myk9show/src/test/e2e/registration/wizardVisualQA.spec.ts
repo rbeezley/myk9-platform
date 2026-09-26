@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import {
@@ -7,6 +7,15 @@ import {
   submitSaveDraftDialog,
 } from './wizardDraftDialog';
 import { assertContrastHarness, CONTRAST_OF } from './compositedContrast';
+import {
+  addAnotherClass,
+  chipById,
+  chipClassId,
+  clickClearOfStickyChrome,
+  enabledClassChips,
+  releaseSelectedClass,
+  waitForChipsToSettle,
+} from './wizardChips';
 
 // In order, one worker, but NOT serial (MYK9-627). No scenario reads state an
 // earlier one left: drafts live in each test's own localStorage, and every
@@ -83,103 +92,112 @@ async function selectFirstDog(page: Page) {
   await page.getByRole('button', { name: /^Next$/ }).click();
 }
 
-// `.first()` is a coin flip on shared staging: the first chip in the fixture
-// may be already entered, registration-blocked, or full-without-waitlist, all
-// of which render the checkbox disabled and swallow the click — and the failure
-// then reads as "Next never enabled" rather than "that chip was never
-// clickable". Intersect the role query with the not-disabled selector so the
-// walk always picks a chip that can actually be toggled.
-function enabledClassChips(page: Page) {
-  return page.getByRole('checkbox', { name: /^Select / }).and(
-    page.locator(
-      // Base UI renders the chip as a <span role="checkbox">, so a disabled
-      // one carries `data-disabled` rather than the `disabled` attribute —
-      // filtering on `disabled` alone still selects chips that swallow the
-      // click.
-      ':not([disabled]):not([aria-disabled="true"]):not([data-disabled]):not([data-checked])'
-    )
-  );
-}
-
-/** Chips already in this exhibitor's cart on the shared staging show. */
-function selectedClassChips(page: Page) {
-  return page.getByRole('checkbox', { name: /^Select / }).and(page.locator('[data-checked]'));
+/** Undo `addAnotherClass`: un-select exactly that chip and prove it is unchecked. */
+async function removeAddedClass(page: Page, added: { id: string } | null) {
+  if (added) await releaseSelectedClass(page, { id: added.id, added: true });
 }
 
 /**
- * Availability arrives after the chips render, so a chip that is enabled on the
- * first frame can become disabled once its class comes back full — clicking it
- * then times out and reads as "Next never enabled". Wait until the enabled,
- * not-yet-selected set has held still across two polls before picking one.
- *
- * Returns false when this dog has nothing left to add, which the shared
- * staging cart reaches after enough walks; the caller then proceeds on what is
- * already in the cart rather than un-selecting it.
+ * The class a walk put into exhibitor@'s server-side cart on the shared staging
+ * show (MYK9-763). Recorded BEFORE the click, so a failure between the click
+ * and its confirmation is still undone; `confirmed` says the chip was seen
+ * checked, which is what lets the cleanup insist on finding it checked again.
+ * Released by the `afterEach` below, which runs on failure and on timeout.
  */
-async function waitForSelectableClass(page: Page): Promise<boolean> {
-  let previous = -1;
-  let settled = 0;
-  await expect
-    .poll(
-      async () => {
-        settled = await enabledClassChips(page).count();
-        const stable = settled === previous;
-        previous = settled;
-        return stable && (settled > 0 || (await selectedClassChips(page).count()) > 0);
-      },
-      { timeout: 30000, intervals: [500] }
-    )
-    .toBe(true);
-  return settled > 0;
-}
-
-/**
- * Add ONE class for the walk and hand back a locator to THAT chip, so the
- * cleanup removes the class this test added and nothing else. On the shared
- * staging cart `selectedClassChips(page).last()` is a coin flip: it un-selects
- * whichever checked chip renders last, which may be a pre-existing entry, and
- * leaves the added one behind for the next walk (LESSONS
- * `confirm-click-destructive`; Codex #2210 P2). Returns null when nothing was
- * selectable, in which case there is nothing to undo.
- */
-async function addOneClass(page: Page): Promise<Locator | null> {
-  if (!(await waitForSelectableClass(page))) return null;
-  const candidate = enabledClassChips(page).first();
-  // The accessible name is NOT unique ("Select Novice" exists under every
-  // element), so anchor on the chip's DOM id, `chip-<classId>` /
-  // `single-<classId>`, which is. The primitive may put that id on the role
-  // element itself or on the hidden input inside the same <label>; the
-  // selector accepts either placement.
-  const id = await candidate.evaluate(
-    el => el.id || el.closest('label')?.querySelector('[id]')?.id || ''
-  );
-  expect(id, 'the chip must carry a DOM id to anchor the cleanup to').not.toBe('');
-  const chip = page
-    .getByRole('checkbox', { name: /^Select / })
-    .and(page.locator(`[id="${id}"], label:has([id="${id}"]) [role="checkbox"]`));
-  await expect(chip).toHaveCount(1);
-  await chip.click();
-  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1);
-  return chip;
-}
-
-/** Undo `addOneClass`: un-select exactly that chip and prove it is unchecked. */
-async function removeAddedClass(page: Page, chip: Locator | null) {
-  if (!chip) return;
-  await chip.click();
-  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(0);
-}
+let walkClass: { id: string; confirmed: boolean } | null = null;
 
 async function selectFirstClass(page: Page) {
   await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
   });
-  if (await waitForSelectableClass(page)) {
-    await enabledClassChips(page).first().click();
+  // Nothing addable is a legitimate state on shared staging: the walk then
+  // proceeds on what is already in the cart, and adds nothing to undo.
+  if ((await waitForChipsToSettle(page)) > 0) {
+    const id = await chipClassId(enabledClassChips(page).first());
+    expect(id, 'the chip must carry a chip-<classId> id to anchor the cleanup to').not.toBe('');
+    walkClass = { id, confirmed: false };
+    const chip = chipById(page, id);
+    await expect(chip).toHaveCount(1);
+    await clickClearOfStickyChrome(page, chip);
+    // A cart write, not a render (see `aSelectedClass`).
+    await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1, { timeout: 20000 });
+    walkClass.confirmed = true;
+    console.log(`WALK_CLASS added ${id}`);
+  } else {
+    console.log('WALK_CLASS none addable; walking on the existing cart');
   }
-  await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
-  await page.getByRole('button', { name: /^Next$/ }).click();
+  const next = page.getByRole('button', { name: /^Next$/ });
+  await expect(next).toBeEnabled();
+  await clickClearOfStickyChrome(page, next);
 }
+
+/**
+ * Walk back to the class step from wherever the test stopped, and un-select
+ * the walk's own chip, anchored to its `chip-<classId>` id. Every Back/Next
+ * goes through `clickClearOfStickyChrome`: below `lg` both live in the sticky
+ * entries bar, where a toast or the bar's own reflow can take the click.
+ */
+async function releaseWalkClass(page: Page) {
+  const held = walkClass;
+  walkClass = null;
+  if (!held) return;
+
+  const dialog = page.getByRole('dialog');
+  if (await dialog.isVisible()) {
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+  const classes = page.getByRole('heading', { name: 'Select Classes', exact: true });
+  const dogs = page.getByRole('heading', { name: 'Select Dogs to Register' });
+  const dogOptions = page.locator('[role="checkbox"][aria-label^="Select "]');
+  for (let hop = 0; hop < 3 && !(await classes.isVisible()); hop += 1) {
+    if (await dogs.isVisible()) {
+      // The class step shows only selected dogs, so the walk's dog must be.
+      if ((await dogOptions.and(page.locator('[aria-checked="true"]')).count()) === 0) {
+        await clickClearOfStickyChrome(page, dogOptions.first());
+      }
+      await clickClearOfStickyChrome(page, page.getByRole('button', { name: /^Next$/ }));
+      await expect(dogs).toBeHidden({ timeout: 15000 });
+    } else {
+      // Payment is the step these walks stop on; anything later steps back
+      // until one of the three known steps shows.
+      const payment = page.getByRole('heading', { name: 'Payment Information' });
+      const leaving = (await payment.isVisible()) ? payment : null;
+      await clickClearOfStickyChrome(page, page.getByRole('button', { name: /^Back$/ }));
+      if (leaving) await expect(leaving).toBeHidden({ timeout: 15000 });
+      else await expect(classes.or(dogs).or(payment).first()).toBeVisible({ timeout: 15000 });
+    }
+  }
+  await expect(classes).toBeVisible({ timeout: 15000 });
+
+  const chip = chipById(page, held.id);
+  await expect(chip, `the walk's chip ${held.id} must render to be released`).toHaveCount(1, {
+    timeout: 20000,
+  });
+  const checked = chip.and(page.locator('[data-checked]'));
+  if (held.confirmed) {
+    await expect(checked, `the walk's chip ${held.id} must still be in the cart`).toHaveCount(1, {
+      timeout: 20000,
+    });
+  } else {
+    await waitForChipsToSettle(page);
+  }
+  if ((await checked.count()) === 0) return;
+  await releaseSelectedClass(page, { id: held.id, added: true });
+  console.log(`WALK_CLASS released ${held.id}`);
+}
+
+/** One Back on the sticky bar, then proof the wizard reached `heading`. */
+async function backToStep(page: Page, heading: string) {
+  await clickClearOfStickyChrome(page, page.getByRole('button', { name: /^Back$/ }));
+  await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+test.afterEach(async ({ page }) => {
+  await releaseWalkClass(page);
+});
 
 for (const scenario of VISUAL_MATRIX) {
   test(`registration wizard ${scenario.name} has no shell regressions`, async ({
@@ -242,13 +260,14 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await saveDraftThroughDialog(page, 'Visual QA Draft');
 
   // No wait for the toast to clear: MYK9-517 lifted the sonner stack above the
-  // entries bar, so Back is clickable WHILE "Draft saved" is on screen. The
-  // toast is still asserted visible — the click below is what proves it no
-  // longer intercepts.
+  // entries bar, so Back is clickable WHILE "Draft saved" is on screen. That
+  // no-overlap claim is pinned by 'the draft toast never overlaps the phone
+  // entries bar' below; here Back only has to be reached, so it goes through
+  // the hit-test helper like every other click on the sticky bar (MYK9-763).
   await expect(page.getByText('Draft saved')).toBeVisible();
 
-  await page.getByRole('button', { name: /^Back$/ }).click();
-  await page.getByRole('button', { name: /^Back$/ }).click();
+  await backToStep(page, 'Select Classes');
+  await backToStep(page, 'Select Dogs to Register');
   const selectedDog = page.locator('[role="checkbox"][aria-checked="true"]').first();
   await expect(selectedDog).toBeVisible();
   await selectedDog.click();
@@ -261,8 +280,10 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await loadDialog.getByText('Visual QA Draft').click();
   await loadDialog.getByRole('button', { name: 'Load Selected Draft' }).click();
   await expect(page.getByText('Draft loaded successfully')).toBeVisible();
-  await page.getByRole('button', { name: /^Back$/ }).click();
-  await page.getByRole('button', { name: /^Back$/ }).click();
+  // The draft was saved on Payment, so it reopens there.
+  await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
+  await backToStep(page, 'Select Classes');
+  await backToStep(page, 'Select Dogs to Register');
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
 
   await page.screenshot({
@@ -354,7 +375,46 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
   // animation, not the design: refuse it rather than report it.
   expect(muted!.unsettledAnimations, 'animations still running at measurement').toBe(0);
   expect(muted!.worst, 'worst muted caption: ' + muted!.worstText).toBeGreaterThanOrEqual(4.5);
+
+  // The "Used for this show" marker is measured by its place in the chip, not
+  // by its colour class: once it stopped being muted-foreground (MYK9-782) the
+  // muted sweep above no longer sees it, and would pass whatever it became.
+  const unselected = await measureCaptions(page, 'unselected', '');
+
+  // Selected: the card's primary tint sits under the chip's own tint, the
+  // darkest stack the marker is read on. 4.45:1 here while the plain card read
+  // 4.78, so the unselected sweep alone passed on the defect (MYK9-784).
+  const card = page
+    .locator('.myk9-dog-card')
+    .filter({ has: page.locator('[data-registration-role="used"]') })
+    .first();
+  await clickClearOfStickyChrome(page, card.getByRole('checkbox', { name: /^Select / }));
+  await expect(card).toHaveClass(/\bselected\b/);
+  const selected = await measureCaptions(page, 'selected', '.myk9-dog-card.selected ');
+  expect(selected.count, 'the selected card must carry the marker').toBeGreaterThanOrEqual(1);
+  expect(unselected.count).toBeGreaterThanOrEqual(1);
 });
+
+/**
+ * Worst composited ratio over the muted captions and the registration marker
+ * under `scope` (empty for the whole page), printed and asserted at AA.
+ */
+async function measureCaptions(page: Page, label: string, scope: string) {
+  const marker = scope + '[data-registration-role="used"] > span:not(.sr-only)';
+  const reading = await page.evaluate(CONTRAST_OF, `${scope}.text-muted-foreground, ${marker}`);
+  const markerOnly = await page.evaluate(CONTRAST_OF, marker);
+  expect(reading, `${label}: captions must be measurable`).not.toBeNull();
+  expect(markerOnly, `${label}: the marker must be on the page`).not.toBeNull();
+  console.log(
+    `WORST_CAPTION_${label.toUpperCase()} ${reading!.worst.toFixed(2)} :: ${reading!.worstText}` +
+      ` | MARKER ${markerOnly!.worst.toFixed(2)} x${markerOnly!.count}`
+  );
+  expect(reading!.unsettledAnimations, `${label}: animations still running`).toBe(0);
+  expect(reading!.worst, `${label} worst caption: ${reading!.worstText}`).toBeGreaterThanOrEqual(
+    4.5
+  );
+  return { count: markerOnly!.count };
+}
 
 // ---------------------------------------------------------------------------
 // Step-title geometry (MYK9-483, spec wizard-progress-indicator)
@@ -594,7 +654,7 @@ test('the phone entries bar totals the cart without covering the class list', as
     timeout: 15000,
   });
 
-  const added = await addOneClass(page);
+  const added = await addAnotherClass(page);
   try {
     const bar = page.getByTestId('entries-panel-bar');
     await expect(bar).toBeVisible();
@@ -748,7 +808,7 @@ test('the desktop entries panel is the only place the total appears', async ({ p
     timeout: 15000,
   });
 
-  const added = await addOneClass(page);
+  const added = await addAnotherClass(page);
   try {
     const panel = page.getByTestId('entries-panel');
     await expect(panel).toBeVisible();
@@ -987,7 +1047,7 @@ for (const viewport of [
     // badge on the page" — a page with an unrelated full chip but not this
     // one would otherwise pass vacuously. The chip's DOM id
     // (`chip-<classId>`) may land on the underlying native input rather than
-    // the accessible `role=checkbox` node (see `addOneClass` above), so match
+    // the accessible `role=checkbox` node (see `chipById` in `wizardChips.ts`), so match
     // either placement the same way it does.
     const idSelector = `chip-${FULL_CLASS_ID}`;
     const checkbox = page

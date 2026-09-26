@@ -226,13 +226,16 @@ export function useEntryManagementActions({
     if (!armbandDialog.entry) return;
     try {
       const next = await getNextArmbandForShow(armbandDialog.entry.showId);
-      setArmbandDialog(prev => ({ ...prev, value: String(next), error: null }));
+      setArmbandDialog(prev => ({ ...prev, value: String(next), error: null, autoFilled: true }));
     } catch (err) {
       // A failed device read must not suggest the show's starting number, which
-      // another dog may already wear (MYK9-774). Say so, and let them type one.
+      // another dog may already wear (MYK9-774). Say so, and drop an earlier
+      // suggestion that may now be stale; keep a number the secretary typed.
       logger.error('Error fetching next armband:', 'secretary', {}, err as Error);
       setArmbandDialog(prev => ({
         ...prev,
+        value: prev.autoFilled ? '' : prev.value,
+        autoFilled: false,
         error: "Couldn't work out the next armband on this device. Enter one, or try again.",
       }));
     }

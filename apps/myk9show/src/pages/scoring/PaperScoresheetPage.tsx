@@ -67,27 +67,35 @@ export function PaperScoresheetPage() {
   const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
 
   useEffect(() => {
+    // A retry can overlap an earlier load; only the latest may write (MYK9-774).
+    let cancelled = false;
     async function load() {
       if (!classId) return;
       setIsLoading(true);
       setError(null);
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
+        if (cancelled) return;
         if (!cls) {
           setError('Class not found');
           return;
         }
         const scoringEntries = await loadEntriesWithDogs(classId);
+        if (cancelled) return;
         setEntries(calculatePlacements(scoringEntries));
         setFreshLoads(count => count + 1);
         setClassName(cls.name);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [classId, loadAttempt]);
 
   const userId = user?.id ?? 'anonymous';

@@ -594,4 +594,42 @@ describe('useEntryManagementActions', () => {
     expect(result.current.armbandDialog.value).toBe('');
     expect(result.current.armbandDialog.error).toMatch(/Couldn't work out the next armband/);
   });
+
+  it.each([
+    { label: 'drops an earlier suggestion', filledBy: 'next', expected: '' },
+    { label: 'keeps a number the secretary typed', filledBy: 'typing', expected: '205' },
+  ])('when the next armband cannot be worked out, it $label', async ({ filledBy, expected }) => {
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [makeEntry()],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+    act(() => {
+      result.current.setArmbandDialog({ open: true, entry: makeEntry(), value: '' });
+    });
+    if (filledBy === 'next') {
+      mocks.getNextArmbandForShow.mockResolvedValueOnce(105);
+      await act(async () => {
+        await result.current.handleNextArmband();
+      });
+      expect(result.current.armbandDialog.value).toBe('105');
+    } else {
+      act(() => {
+        result.current.setArmbandDialog(prev => ({ ...prev, value: '205', autoFilled: false }));
+      });
+    }
+
+    mocks.getNextArmbandForShow.mockRejectedValueOnce(new Error('device read failed'));
+    await act(async () => {
+      await result.current.handleNextArmband();
+    });
+
+    expect(result.current.armbandDialog.value).toBe(expected);
+    expect(result.current.armbandDialog.error).toMatch(/Couldn't work out the next armband/);
+  });
 });

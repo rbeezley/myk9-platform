@@ -262,6 +262,37 @@ describe('submitOfflineLateEntry', () => {
     );
   });
 
+  // MYK9-774: a dog's pending registration writes now read through
+  // getAllOrThrow. The reads for every dog run before anything is queued, so a
+  // failed read for the second dog cannot leave the first dog's armband and
+  // entries queued behind an error the desk would retry into duplicates.
+  it("queues nothing when a later dog's pending-write read fails", async () => {
+    getAllClassesMock.mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }]);
+    getPendingRegistrationMutationIdsForDogMock.mockImplementation(async (dogId: string) => {
+      if (dogId === 'dog-2') {
+        throw new Error("This device couldn't read its saved show data. Try again.");
+      }
+      return [];
+    });
+
+    await expect(
+      submitOfflineLateEntry({
+        showId: 'show-1',
+        paymentMethod: 'cash',
+        showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
+        classes: [{ id: 'class-1', entryFee: 30 }],
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+          { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+        handlerAssignments: {},
+      })
+    ).rejects.toThrow(/couldn't read its saved show data/);
+
+    expect(upsertAssignedArmbandMock).not.toHaveBeenCalled();
+    expect(createEntryMock).not.toHaveBeenCalled();
+  });
+
   it('records an override only after an earlier dog in the batch consumes the final spot', async () => {
     getAllClassesMock.mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 1 }]);
 

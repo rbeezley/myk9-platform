@@ -234,6 +234,23 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
       ]);
     });
 
+    it('keeps a pending local entry when the dog lookup cannot be read', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
+      ]);
+      mockDogsTable.getAllDogs.mockRejectedValueOnce(
+        new Error("This device couldn't read its saved show data. Try again.")
+      );
+      onlineRows = [defaultOnlineRow];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data.map(r => (r as Record<string, unknown>).id)).toEqual([
+        'entry-online-1',
+        'entry-created-offline',
+      ]);
+    });
+
     it('keeps a pending local entry even when the server returns nothing', async () => {
       mockEntriesTable.getAll.mockResolvedValue([
         localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),

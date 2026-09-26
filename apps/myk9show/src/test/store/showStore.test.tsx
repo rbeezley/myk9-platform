@@ -69,6 +69,9 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
   replicatedJudgeAssignmentsTable: {
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn().mockReturnValue(() => {}),
   },
 }));

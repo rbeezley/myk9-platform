@@ -110,7 +110,7 @@ export const getAllTrials = async () => {
   return readWithReplicationFallback({
     replication: async () => {
       const [trials, showsMap] = await Promise.all([
-        replicatedTrialsTable.getAll(),
+        replicatedTrialsTable.getAllOrThrow(),
         loadShowsMap(),
       ]);
       const sortedTrials = sortedCopy(

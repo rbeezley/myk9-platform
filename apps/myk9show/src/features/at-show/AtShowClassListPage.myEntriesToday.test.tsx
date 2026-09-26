@@ -14,21 +14,33 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
     getShowById: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   },
   replicatedClassesTable: {
     getClassesByTrial: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   },
   replicatedEntriesTable: {
     getEntriesByShow: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     subscribe: vi.fn(() => vi.fn()),
   },
 }));

@@ -61,6 +61,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedClassesTable: {
     getAll: getAllClassesMock,
+    getAllOrThrow: getAllClassesMock,
     getAllWithStatus: async () => ({
       ok: true,
       rows: (await getAllClassesMock()) ?? [],

@@ -49,7 +49,12 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getAll: vi.fn(), getTrialById: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
-  replicatedDogsTable: { getAll: vi.fn() },
+  replicatedDogsTable: {
+    getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
 }));
 
 vi.mock('@/services/LoggingService', () => ({

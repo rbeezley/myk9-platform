@@ -260,7 +260,7 @@ export async function fetchReplicatedShowDayCheck(
   userId: string,
   today: string
 ): Promise<ShowDayCheckRow[]> {
-  const entries = (await replicatedEntriesTable.getAll()).filter(
+  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(
     entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
   );
   const contexts = await buildContexts(entries);
@@ -271,7 +271,7 @@ export async function fetchReplicatedShowDayDetails(
   userId: string,
   today: string
 ): Promise<ShowDayDetailRow[]> {
-  const entries = (await replicatedEntriesTable.getAll()).filter(
+  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(
     entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
   );
   const contexts = await buildContexts(entries);
@@ -287,7 +287,7 @@ export async function fetchReplicatedRingProgress(classIds: string[]): Promise<R
   if (classIds.length === 0) return [];
 
   const classIdSet = new Set(classIds);
-  const entries = (await replicatedEntriesTable.getAll()).filter(entry => {
+  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(entry => {
     const classId = getEntryClassId(entry);
     return isNotDeleted(entry) && classId !== null && classIdSet.has(classId);
   });

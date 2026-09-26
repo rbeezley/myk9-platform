@@ -29,8 +29,18 @@ const mockEntriesSync = vi.fn();
 const mockEntriesGetByShow = vi.fn();
 const mockEntriesGetSyncMetadata = vi.fn();
 vi.mock('@/services/replication', () => ({
-  replicatedJudgeAssignmentsTable: { getAll: () => mockGetAll() },
-  replicatedClassesTable: { getAll: () => mockClassesGetAll() },
+  replicatedJudgeAssignmentsTable: {
+    getAll: () => mockGetAll(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
+  replicatedClassesTable: {
+    getAll: () => mockClassesGetAll(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
   replicatedEntriesTable: {
     sync: (...args: unknown[]) => mockEntriesSync(...args),
     getEntriesByShow: (...args: unknown[]) => mockEntriesGetByShow(...args),
@@ -347,6 +357,24 @@ describe('useJudgeAssignments', () => {
 
     expect(result.current.assignments[0]).toMatchObject({ entryCountsAvailable: false });
     expect(result.current.assignments[0].totalEntries).not.toBe(1);
+  });
+
+  // MYK9-774: the classes read now throws on a failed device read. Here that
+  // loses only the live overlay; each assignment carries its own class snapshot,
+  // so the judge still sees their classes from the device instead of an error.
+  it('keeps the snapshot classes when the live classes read fails', async () => {
+    mockGetAll.mockResolvedValueOnce([makeReplicated({ id: 'a-mine' })]);
+    mockClassesGetAll.mockRejectedValueOnce(
+      new Error("This device couldn't read its saved show data.")
+    );
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments.map(a => a.id)).toEqual(['a-mine']);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(result.current.isError).toBe(false);
   });
 
   it('overlays live class status/progress from the classes store over the snapshot', async () => {

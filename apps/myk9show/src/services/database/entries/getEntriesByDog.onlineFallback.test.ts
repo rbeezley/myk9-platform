@@ -22,11 +22,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
   vi.hoisted(() => ({
-    mockEntriesTable: { getAll: vi.fn() },
+    mockEntriesTable: {
+      getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
     mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-    mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+    mockClassesTable: {
+      getAll: vi.fn().mockResolvedValue([]),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
     mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+    mockTrialsTable: {
+      getAll: vi.fn().mockResolvedValue([]),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
   }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
@@ -189,6 +204,26 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
       mockEntriesTable.getAll.mockResolvedValue([
         localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
       ]);
+      onlineRows = [defaultOnlineRow];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data.map(r => (r as Record<string, unknown>).id)).toEqual([
+        'entry-online-1',
+        'entry-created-offline',
+      ]);
+    });
+
+    // MYK9-774: the class lookup is only a label. When the device cannot read
+    // it, the readable entries (and the pending one among them) must not be
+    // thrown away for the server list, which has never seen the offline entry.
+    it('keeps a pending local entry when the class lookup cannot be read', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
+      ]);
+      mockClassesTable.getAll.mockRejectedValueOnce(
+        new Error("This device couldn't read its saved show data. Try again.")
+      );
       onlineRows = [defaultOnlineRow];
 
       const result = await getEntriesByDog('dog-1');

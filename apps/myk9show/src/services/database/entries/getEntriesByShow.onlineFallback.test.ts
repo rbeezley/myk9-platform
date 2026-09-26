@@ -25,13 +25,26 @@ const {
     sync: vi.fn(),
     getEntriesByShow: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
   mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-  mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockClassesTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
   mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-  mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockTrialsTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
   mockLoadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
 }));
 

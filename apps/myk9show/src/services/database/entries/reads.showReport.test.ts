@@ -20,7 +20,12 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { getAllDogs: mocks.dogs },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getAll: mocks.classes },
+  replicatedClassesTable: {
+    getAll: mocks.classes,
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { getAllShows: mocks.shows },

@@ -70,6 +70,9 @@ vi.mock('@/services/replication', () => ({
     ]),
     getClassById: vi.fn(async () => ({ id: 'class-1', name: 'Novice A', trialId: 'trial-1' })),
     getAll: vi.fn(async () => [{ id: 'class-1', trialId: 'trial-1', maxEntries: 2 }]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getAllWithStatus: vi.fn(async () => ({
       ok: true,
       rows: [{ id: 'class-1', trialId: 'trial-1', maxEntries: 2 }],

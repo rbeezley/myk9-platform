@@ -34,6 +34,7 @@ import {
   type SecretaryPullMetadata,
 } from './secretaryPostgrest';
 import type { SecretaryEntry } from './secretaryTypes';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 interface SecretaryPerson {
   id: string;
@@ -351,9 +352,11 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     replicatedDogsTable.getAllDogs(),
-    replicatedClassesTable.getAll(),
-    replicatedArmbandsTable.getByShow(showId),
-    replicatedTrialsTable.getTrialsByShow(showId),
+    // Joins that label the entries (see joinRowsOrEmpty): throwing would drop
+    // readable entries and their unsynced writes for a server list (MYK9-774).
+    joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
+    joinRowsOrEmpty(replicatedArmbandsTable.getByShow(showId), 'armbands'),
+    joinRowsOrEmpty(replicatedTrialsTable.getTrialsByShow(showId), 'trials'),
   ]);
   const dogsMap = buildMapFromArray(dogs.filter(isNotDeleted), d => d.id);
   const entriesWithOwners = entries.map(entry => withReplicatedDogOwner(entry, dogsMap));

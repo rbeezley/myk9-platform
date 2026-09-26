@@ -24,6 +24,9 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn().mockResolvedValue({ id: 'show-1' }) },
   replicatedClassesTable: {
     getAll: vi.fn().mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getAllWithStatus: vi.fn().mockResolvedValue({
       ok: true,
       rows: [{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }],

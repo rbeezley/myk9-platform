@@ -29,6 +29,7 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => {
       getUpcomingShows: t(),
       getShowsByClub: t(),
       getAll: t(),
+      getAllOrThrow: t(),
     },
   };
 });
@@ -36,21 +37,40 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => {
 vi.mock('@/services/replication/ReplicatedClubsTable', () => {
   const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
   return {
-    replicatedClubsTable: { getAllClubs: t(), getClubById: t(), getAll: t() },
+    replicatedClubsTable: {
+      getAllClubs: t(),
+      getClubById: t(),
+      getAll: t(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
   };
 });
 
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => {
   const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
   return {
-    replicatedTrialsTable: { getTrialsByShow: t(), getAll: t() },
+    replicatedTrialsTable: {
+      getTrialsByShow: t(),
+      getAll: t(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
   };
 });
 
 vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => {
   const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
   return {
-    replicatedJudgeAssignmentsTable: { getByShowId: t(), getAll: t() },
+    replicatedJudgeAssignmentsTable: {
+      getByShowId: t(),
+      getAll: t(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
+    },
   };
 });
 

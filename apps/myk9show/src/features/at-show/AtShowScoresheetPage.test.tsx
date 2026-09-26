@@ -84,6 +84,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getAll: judgeAssignmentsGetAll,
+    getAllOrThrow: judgeAssignmentsGetAll,
     sync: judgeAssignmentsSync,
   },
 }));

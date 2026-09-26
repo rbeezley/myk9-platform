@@ -16,21 +16,33 @@ const { mockArmbandsTable, mockDogsTable, mockEntriesTable, mockClassesTable } =
     getByDog: vi.fn(),
     lookupByArmbandNumber: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     upsertAssignedArmband: vi.fn(),
   },
   mockDogsTable: {
     getDogById: vi.fn(),
     getAllDogs: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
   mockEntriesTable: {
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getEntryById: vi.fn(),
     updateArmbandForDogInShow: vi.fn(),
   },
   mockClassesTable: {
     getClassById: vi.fn(),
     getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 

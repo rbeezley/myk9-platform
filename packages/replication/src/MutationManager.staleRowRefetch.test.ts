@@ -406,4 +406,41 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
       { serverVersion: 8, data: { id: '1', status: 'done', final_placement: 2 } },
     ]);
   });
+
+  it('discards a by-id response older than a sync that landed while it was in flight', async () => {
+    // The rejection advanced the row to 8. While the re-fetch of version 8 is in
+    // flight, a normal sync downloads version 9 (another writer set
+    // final_placement to 3) and rebases the write onto it. The late version-8
+    // response must not roll the row, its base or the write back.
+    const v8: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
+    const v9: ServerRow = { status: 'scored', final_placement: 3, version: 9 };
+    const syncAdapter = adapterFor(v9);
+    let table!: RefetchingEntriesTable;
+    const adapter = adapterFor(v8, async () => {
+      await syncReplicatedTable(
+        table,
+        { ...syncAdapter, fetchRemoteRows: async () => [{ id: '1', ...v9 }] },
+        {},
+        { conflictSurfacingEnabled: true }
+      );
+      return [{ id: '1', ...v8 }];
+    });
+    table = new RefetchingEntriesTable(tableName, adapter);
+    startManager(table, makeServer(v9).supabase);
+    await seedStaleWrite(table);
+    const db = await databaseManager.getDatabase('test');
+    const { advanceReplicatedRowServerVersion } = await import('./mutation-row-sync');
+    await advanceReplicatedRowServerVersion(db, tableName, '1', 8);
+
+    await manager.rowRefetchers.request(tableName, '1');
+
+    const row = await table.getReplicatedRow('1');
+    expect(row?.syncStatus).not.toBe('conflict');
+    expect(row?.serverVersion).toBe(9);
+    expect(row?.data).toEqual({ id: '1', status: 'done', finalPlacement: 3 });
+    expect(row?.baseData).toEqual({ id: '1', status: 'scored', finalPlacement: 3 });
+    expect(await pending()).toMatchObject([
+      { serverVersion: 9, data: { id: '1', status: 'done', final_placement: 3 } },
+    ]);
+  });
 });

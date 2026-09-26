@@ -43,11 +43,24 @@
 -- only (`submitPaymentStep.ts` refuses on-behalf-of card checkout before it is
 -- ever called) and never had this COALESCE-to-caller fallback.
 --
--- Rebuilt from 20260918211700_myk9_642_day_of_show_entry_flag.sql, the LATEST
--- migration defining this function, so no intervening change is reverted. The
--- only edit is the `v_handler_person_id` fallback just below the existing
--- "caller cannot assign handler" guard; everything else, including the
--- MYK9-642 day-of-show flag it was rebuilt to add, is unchanged.
+-- Rebuilt from 20260925181939_myk9_677_submit_entries_records_payment.sql, the
+-- LATEST migration defining this function (`grep -rl
+-- "FUNCTION public.submit_show_entries" supabase/migrations/` -- NOT the
+-- narrower "CREATE OR REPLACE FUNCTION" grep, which misses this one because it
+-- is a DROP + CREATE for the new sixth argument, not a REPLACE; see
+-- docs/lessons/README.md#replace-function-latest, the exact trap this is). The
+-- six-argument signature (with `p_payment`) is what the wizard actually calls
+-- for a secretary-received cash/check submission, so fixing only a
+-- re-created five-argument overload -- as an earlier version of this migration
+-- did -- would have left every payment-bearing mail-in entry going through the
+-- STILL-BROKEN six-argument function, and risked an ambiguous-overload error
+-- from PostgREST for a 5-argument call besides (the existing sixth argument
+-- already defaults to NULL). CREATE OR REPLACE (not DROP + CREATE) because the
+-- signature is unchanged from 20260925181939. The only edit versus that
+-- migration is the `v_handler_person_id` fallback just below the existing
+-- "caller cannot assign handler" guard; everything else -- the MYK9-677
+-- payment recording it was rebuilt to add, and the MYK9-642 day-of-show flag
+-- before that -- is unchanged.
 --
 -- Behavioral coverage: supabase/tests/myk9_824_submit_entries_handler_owner_fallback_test.sql
 -- (behavioral SQL tests run only in CI -- no container runtime locally).
@@ -55,7 +68,7 @@
 
 BEGIN;
 
-CREATE OR REPLACE FUNCTION public.submit_show_entries(p_show_id uuid, p_registration_id uuid, p_entries jsonb, p_submission_id uuid, p_payment_method text)
+CREATE OR REPLACE FUNCTION public.submit_show_entries(p_show_id uuid, p_registration_id uuid, p_entries jsonb, p_submission_id uuid, p_payment_method text, p_payment jsonb DEFAULT NULL)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -103,6 +116,11 @@ DECLARE
   v_outcomes      jsonb[] := '{}';
 
   v_result        jsonb;
+
+  -- MYK9-677: the money received with this submission.
+  v_created_cents   int := 0;
+  v_pay_method      text;
+  v_pay_received_on date;
 BEGIN
   SELECT s.pre_entry_fee, s.day_of_show_fee, s.start_date, s.club_id,
          s.entry_open_date, s.entry_close_date,
@@ -172,6 +190,21 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  -- MYK9-677 (Codex round 10). The check above ties the enrollment to this show
+  -- only for an exhibitor; an official of show A could pass an enrollment of
+  -- show B and have A's entries (and, with p_payment, money) written onto it.
+  -- Every write below touches this enrollment, so it must be THIS show's, for
+  -- everyone. Locked here, before any write, so it cannot move under us.
+  IF p_registration_id IS NOT NULL THEN
+    PERFORM 1 FROM public.enrollments en
+     WHERE en.id = p_registration_id AND en.show_id = p_show_id
+       FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'registration % is not an enrollment on show %', p_registration_id, p_show_id
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
   PERFORM pg_advisory_xact_lock(hashtext('entrysubmission:' || p_submission_id::text));
 
   SELECT es.result INTO v_result
@@ -203,6 +236,27 @@ BEGIN
   IF p_payment_method IN ('waived', 'secretary_paid', 'group_payment') AND NOT v_is_official THEN
     RAISE EXCEPTION 'unauthorized payment method: % requires secretary or admin role', p_payment_method
       USING ERRCODE = '42501';
+  END IF;
+
+  -- MYK9-677: money already received, recorded in the payments ledger in THIS
+  -- transaction, so entries and payment commit or fail together. The record
+  -- predicate is the ledger's own (restated: SECURITY DEFINER drops RLS), and
+  -- the method must be the one the entries are written with.
+  IF p_payment IS NOT NULL THEN
+    IF NOT private.can_record_show_payment(p_show_id) THEN
+      RAISE EXCEPTION 'not authorized to record payments for show %', p_show_id
+        USING ERRCODE = '42501';
+    END IF;
+    v_pay_method := p_payment->>'method';
+    IF v_pay_method IS NULL OR v_pay_method NOT IN ('cash', 'check')
+       OR v_pay_method IS DISTINCT FROM p_payment_method THEN
+      RAISE EXCEPTION 'a received payment is cash or check, matching the entries (got %, entries %)',
+        v_pay_method, p_payment_method USING ERRCODE = '22023';
+    END IF;
+    IF p_registration_id IS NULL THEN
+      RAISE EXCEPTION 'a received payment needs an enrollment' USING ERRCODE = '22023';
+    END IF;
+    v_pay_received_on := NULLIF(p_payment->>'received_on', '')::date;
   END IF;
 
   -- MYK9-642. ONE rule, evaluated once per submission so every entry in the
@@ -488,6 +542,7 @@ BEGIN
       v_is_day_of_show
     )
     RETURNING id INTO v_entry_id;
+    v_created_cents := v_created_cents + v_server_cents;
 
     v_entry_pairs := array_append(v_entry_pairs,
       jsonb_build_object('entry_id', v_entry_id, 'dog_id', v_dog_id));
@@ -504,6 +559,25 @@ BEGIN
     ));
   END LOOP;
 
+  -- MYK9-677: the created entries' server fees are the amount received. The
+  -- enrollment total grows by them here (the client no longer writes it on
+  -- this path), then the ledger core records the payment and moves paid_amount
+  -- and payment_status once. Keyed on the submission id, so the replay branch
+  -- above (which returns the stored result before reaching this) and a direct
+  -- retry of the key can never record it twice.
+  IF p_payment IS NOT NULL AND v_created_cents > 0 THEN
+    UPDATE public.enrollments
+       SET total_amount = COALESCE(total_amount, 0) + v_created_cents,
+           payment_method = v_pay_method,
+           updated_at = now()
+     WHERE id = p_registration_id;
+
+    PERFORM private.record_enrollment_payment_core(
+      p_registration_id, 'payment', v_created_cents / 100.0, v_pay_method, v_pay_received_on,
+      NULLIF(btrim(p_payment->>'reference'), ''), NULL, p_submission_id
+    );
+  END IF;
+
   v_result := jsonb_build_object(
     'entries', to_jsonb(v_entry_pairs),
     'outcomes', to_jsonb(v_outcomes),
@@ -519,11 +593,13 @@ END;
 $function$;
 
 -- Explicit role decisions, restating the LIVE grants rather than inventing them
--- (verified: anon false, authenticated true, service_role true). CREATE OR REPLACE
--- preserves privileges, so these are a no-op against the current database and exist
--- so the grant decision is recorded with the definition.
-REVOKE EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text) FROM anon;
-GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text) TO service_role;
+-- (matches 20260925181939_myk9_677_submit_entries_records_payment.sql, which
+-- last set them for this signature). CREATE OR REPLACE preserves privileges,
+-- so these are a no-op against the current database and exist so the grant
+-- decision is recorded with the definition.
+REVOKE ALL ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) FROM anon;
+GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) TO service_role;
 
 COMMIT;

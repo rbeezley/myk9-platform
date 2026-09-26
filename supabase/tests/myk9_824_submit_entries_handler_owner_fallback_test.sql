@@ -14,13 +14,21 @@
 --      (the dog's co-owner): that value must be preserved untouched. Case 1
 --      alone would pass a fix that ignores the client-sent id entirely and
 --      always substitutes the owner.
---   3. An exhibitor submitting their OWN entry with no explicit handler: the
+--   3. THE SAME regression as case 1, but through the SIX-argument, PAYMENT-
+--      BEARING call the wizard actually makes when a secretary records a
+--      received cash/check payment (`p_payment` non-NULL). A fix rebuilt from
+--      a stale five-argument copy of this function would pass cases 1-2 while
+--      leaving every payment-bearing mail-in submission going through a
+--      still-broken six-argument overload -- this is what stops that.
+--   4. An exhibitor submitting their OWN entry with no explicit handler: the
 --      fallback must still land on the caller (== the owner, enforced by the
---      existing ownership guard). This the non-official branch, deliberately
---      UNCHANGED by the fix, and case 3 is what proves it did not regress.
---   4. The printed `entries.handler` text is asserted unchanged in every case
---      -- this bug was already writing it correctly; only the FK was wrong,
---      and a fix that also touched the text would be over-reaching.
+--      existing ownership guard). This is the non-official branch,
+--      deliberately UNCHANGED by the fix, and case 4 is what proves it did
+--      not regress.
+--
+-- The printed `entries.handler` text is asserted unchanged in every case --
+-- this bug was already writing it correctly; only the FK was wrong, and a fix
+-- that also touched the text would be over-reaching.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -53,7 +61,9 @@ VALUES
   ('00000000-0000-0000-0000-000000824301', '00000000-0000-0000-0000-000000824200',
    'Novice B Container', 'Container', 'Novice B', 'upcoming', 'manual', 30),
   ('00000000-0000-0000-0000-000000824302', '00000000-0000-0000-0000-000000824200',
-   'Novice B Interior', 'Interior', 'Novice B', 'upcoming', 'manual', 30);
+   'Novice B Interior', 'Interior', 'Novice B', 'upcoming', 'manual', 30),
+  ('00000000-0000-0000-0000-000000824303', '00000000-0000-0000-0000-000000824200',
+   'Novice B Exterior', 'Exterior', 'Novice B', 'upcoming', 'manual', 30);
 
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
@@ -132,10 +142,12 @@ DECLARE
   own_dog         CONSTANT uuid := '00000000-0000-0000-0000-000000824402';
   class_a         CONSTANT uuid := '00000000-0000-0000-0000-000000824301';
   class_b         CONSTANT uuid := '00000000-0000-0000-0000-000000824302';
+  class_c         CONSTANT uuid := '00000000-0000-0000-0000-000000824303';
   result          jsonb;
   written_entry_id uuid;
   written_handler_id uuid;
   written_handler_text text;
+  enrollment_total numeric;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', secretary_auth::text, true);
   PERFORM set_config('request.jwt.claims',
@@ -199,7 +211,53 @@ BEGIN
   END IF;
 
   ----------------------------------------------------------------------------
-  -- 3. Non-official branch, deliberately UNCHANGED: an exhibitor submitting
+  -- 3. THE SAME regression as case 1, through the SIX-argument, payment-
+  --    bearing call (`p_payment` non-NULL) -- the exact call shape
+  --    `submitShowRegistration.ts` makes when a secretary records cash/check
+  --    received with a mail-in entry. Still logged in as the secretary.
+  ----------------------------------------------------------------------------
+  result := public.submit_show_entries(
+    show_id, mailin_reg_id,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', zzrover, 'class_id', class_c,
+      'handler_name', 'ZZ Rehearsal Handler Hana', 'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000824904'::uuid, 'check',
+    jsonb_build_object('method', 'check', 'reference', 'CHK-824'));
+
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL payment-bearing mail-in entry was not created: %', result;
+  END IF;
+
+  written_entry_id := (result->'entries'->0->>'entry_id')::uuid;
+  SELECT handler_id, handler INTO written_handler_id, written_handler_text
+  FROM public.entries WHERE id = written_entry_id;
+
+  IF written_handler_id = secretary_person THEN
+    RAISE EXCEPTION
+      'FAIL the SIX-argument payment-bearing overload still defaults an unmatched typed handler to the SUBMITTING SECRETARY (MYK9-824 regression, payment path)';
+  END IF;
+  IF written_handler_id IS DISTINCT FROM owner_person THEN
+    RAISE EXCEPTION
+      'FAIL payment-bearing path: unmatched typed handler did not default to the dog owner: got %, expected %',
+      written_handler_id, owner_person;
+  END IF;
+  IF written_handler_text <> 'ZZ Rehearsal Handler Hana' THEN
+    RAISE EXCEPTION 'FAIL payment-bearing path altered the printed handler text: %', written_handler_text;
+  END IF;
+
+  -- The payment itself still recorded (this call also exercises that the
+  -- rebuild kept the MYK9-677 payment block intact, not just the fallback).
+  -- Cases 1 and 2 passed no `p_payment`, so that block never ran for them;
+  -- this is the only call in this test that grows `total_amount`.
+  SELECT total_amount INTO enrollment_total FROM public.enrollments WHERE id = mailin_reg_id;
+  IF enrollment_total IS DISTINCT FROM 3000 THEN
+    RAISE EXCEPTION
+      'FAIL enrollment total after the $30 payment-bearing entry is % (expected 3000)',
+      enrollment_total;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- 4. Non-official branch, deliberately UNCHANGED: an exhibitor submitting
   --    their own entry with no explicit handler still defaults to themself
   --    (== the dog's owner, enforced by the existing ownership guard).
   ----------------------------------------------------------------------------

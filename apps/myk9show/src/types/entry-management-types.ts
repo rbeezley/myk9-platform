@@ -42,6 +42,15 @@ export interface EntryManagementEntry {
   ownerName: string;
   ownerEmail: string;
   handlerName: string;
+  /**
+   * MYK9-824 round 3. The name of the PERSON `handler_id` names, straight
+   * from the join -- distinct from `handlerName`, which is the printed text
+   * the paperwork shows. When a mail-in typed handler had no person match,
+   * `handler_id` falls back to the dog's owner (MYK9-824), so this is then
+   * the owner's own name. The Show Desk roster keys and labels a person by
+   * THIS field; `handlerName` stays what is shown per entry.
+   */
+  handlerPersonName?: string | null;
   handlerId?: string | null;
   handlerAuthUserId?: string | null;
   ownerId?: string | null;

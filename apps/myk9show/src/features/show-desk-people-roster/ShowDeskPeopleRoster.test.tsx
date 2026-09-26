@@ -344,11 +344,12 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).not.toHaveBeenCalled();
   });
 
-  // MYK9-824 round 2 (Codex): `handler_id` is allowed to fall back to the
-  // dog's owner when a mail-in typed handler matches no person. Two DIFFERENT
-  // typed handlers who happen to share that fallback owner must not merge
-  // into one roster row, and the Message action must be labelled with the
-  // account it actually opens (the owner's), never the printed handler text.
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` is allowed to fall
+  // back to the dog's owner when a mail-in typed handler matches no person.
+  // The roster keys and labels the row by the PERSON `handler_id` names (the
+  // owner, in the fallback case) rather than the printed handler text, so two
+  // different typed handlers who share that fallback owner land in ONE row
+  // under the owner's own name, with both printed names kept visible.
   function fallbackOwnerEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     const owner = {
       id: 'owner-1',
@@ -376,7 +377,7 @@ describe('ShowDeskPeopleRoster', () => {
     });
   }
 
-  it('keeps two typed handlers as separate rows even though the owner-fallback handler_id is shared', async () => {
+  it('merges two typed handlers sharing a fallback owner into one row, listing both printed names', async () => {
     renderRoster([
       fallbackOwnerEntry({
         id: 'entry-hana',
@@ -416,17 +417,20 @@ describe('ShowDeskPeopleRoster', () => {
       }),
     ]);
 
-    expect(await screen.findByRole('button', { name: /zz rehearsal handler hana/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /zz rehearsal handler fred/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /zz rehearsal owner one/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText('2 dogs - 2 classes')).toBeInTheDocument();
+    expect(screen.getByText(/also entered as/i)).toHaveTextContent(
+      'ZZ Rehearsal Handler Hana, ZZ Rehearsal Handler Fred'
+    );
   });
 
-  it('labels a failed message with the person it actually reaches, not the printed handler text', async () => {
+  it('labels the Message action, and a failed attempt, with the resolved contact, not the printed handler text', async () => {
     h.getOrCreateThread.mockResolvedValueOnce(null);
-    const { user } = renderRoster([
-      fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' }),
-    ]);
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
 
-    await user.click(await screen.findByRole('button', { name: /zz rehearsal handler hana/i }));
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
     await user.click(screen.getByRole('button', { name: /message/i }));
 
     expect(

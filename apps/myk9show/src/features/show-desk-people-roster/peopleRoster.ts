@@ -37,15 +37,14 @@ export interface PeopleRosterPerson {
   id: string;
   name: string;
   /**
-   * MYK9-824 round 2. The person a Message actually reaches. Usually the same
-   * as `name`, but NOT when `handler_id` names the dog's owner only because a
-   * mail-in typed handler had no person match (MYK9-824's fallback) — there
-   * `name` stays the printed handler text (what the paperwork says) while
-   * `authUserId` resolves to the owner's account. Labelling the Message
-   * action with `name` in that case would tell the secretary they are
-   * messaging the handler when the thread actually opens with the owner.
+   * MYK9-824 round 3. Distinct printed handler texts within this row that
+   * differ from `name` -- e.g. two mail-in entries typed for different
+   * handlers who share this same person as their `handler_id` fallback (an
+   * unmatched typed handler defaults to the dog's owner). The row is keyed
+   * and labelled by the PERSON on `handler_id`, so both stay in one row; this
+   * is how their own, different printed names are not simply dropped.
    */
-  contactName: string;
+  alternateNames: string[];
   searchText: string;
   authUserId: string | null;
   presence: ShowPresence | null;
@@ -95,29 +94,24 @@ function hasHandlerIdentity(entry: EntryManagementEntry): boolean {
   return Boolean(entry.handlerId || entry.handlerAuthUserId || personName(entry.handlerName));
 }
 
+/**
+ * MYK9-824 round 3 (Codex, owner-approved). The roster keys and labels a row
+ * by the PERSON `handler_id` names -- `handlerPersonName`, straight from the
+ * join -- not by the printed `handler` text. Round 2 tried to infer from the
+ * printed text whether `handler_id` was a real handler or the owner fallback
+ * and kept splitting or mislabelling one of the two; this stops guessing.
+ * `handlerPersonName` already IS the owner's own name when the fallback
+ * fired (handler_id = owner_id), so no owner/fallback comparison is needed
+ * here at all.
+ */
 function displayName(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
-  }
-
-  return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
-}
-
-/**
- * MYK9-824 round 2. The printed handler text (`displayName`) and the person a
- * Message reaches (`authUserId`) can name different people once `handler_id`
- * is allowed to fall back to the dog's owner for an unmatched typed handler.
- * When that fallback fired -- `handlerAuthUserId` and `ownerAuthUserId` are
- * the SAME account -- the honest contact name is the owner's, not the typed
- * text. Every other case (the handler IS a resolvable, distinct person, or
- * there is no handler identity at all) already agrees with `displayName`.
- */
-function contactName(entry: EntryManagementEntry): string {
-  if (hasHandlerIdentity(entry)) {
-    if (entry.handlerAuthUserId && entry.handlerAuthUserId === entry.ownerAuthUserId) {
-      return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
-    }
-    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
+    return (
+      personName(entry.handlerPersonName) ||
+      personName(entry.handlerName) ||
+      personName(entry.ownerName) ||
+      'Unknown exhibitor'
+    );
   }
 
   return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
@@ -125,17 +119,12 @@ function contactName(entry: EntryManagementEntry): string {
 
 function groupKey(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    // MYK9-824 round 2. `handlerId` alone is not a safe row key once it can
-    // point at the dog's owner as a fallback: two DIFFERENT typed handlers
-    // who share that same owner (fallback `handler_id`) would merge into one
-    // roster row and silently lose one handler's name. Composing the printed
-    // name in keeps same-handler entries (identical id AND name) grouped
-    // exactly as before, while splitting entries whose id matches but whose
-    // printed name does not.
-    const identity = entry.handlerId || entry.handlerAuthUserId || '';
-    const nameKey = normalize(personName(entry.handlerName)) || '';
-    if (identity && nameKey) return `${identity}::${nameKey}`;
-    return identity || nameKey || entry.id;
+    return (
+      entry.handlerId ||
+      entry.handlerAuthUserId ||
+      normalize(personName(entry.handlerName)) ||
+      entry.id
+    );
   }
 
   return (
@@ -148,20 +137,22 @@ function groupKey(entry: EntryManagementEntry): string {
   );
 }
 
+/** Printed handler texts in this group that are not just the row's own label, for the "also entered as" line. */
+function alternateHandlerNames(entries: EntryManagementEntry[], label: string): string[] {
+  const labelNorm = normalize(label);
+  return unique(
+    entries
+      .map(entry => personName(entry.handlerName) ?? '')
+      .filter(name => name && normalize(name) !== labelNorm)
+  );
+}
+
 function groupAuthUserId(entries: EntryManagementEntry[]): string | null {
   if (entries.some(hasHandlerIdentity)) {
     return entries.find(entry => entry.handlerAuthUserId)?.handlerAuthUserId ?? null;
   }
 
   return entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ?? null;
-}
-
-/** Same entry-selection rule as {@link groupAuthUserId}, so the contact name always names the account that id opens a thread with. */
-function groupContactName(entries: EntryManagementEntry[]): string {
-  const source = entries.some(hasHandlerIdentity)
-    ? entries.find(entry => entry.handlerAuthUserId)
-    : entries.find(entry => entry.ownerAuthUserId);
-  return contactName(source ?? entries[0]!);
 }
 
 function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
@@ -306,7 +297,7 @@ export function buildPeopleRoster({
   return [...grouped.entries()]
     .map(([id, groupEntries]) => {
       const name = displayName(groupEntries[0]!);
-      const contact = groupContactName(groupEntries);
+      const alternateNames = alternateHandlerNames(groupEntries, name);
       const authUserId = groupAuthUserId(groupEntries);
       const personPresence = authUserId ? (presenceByUserId.get(authUserId) ?? null) : null;
       const classRows = buildClassRows(groupEntries, classesById, currentDate);
@@ -315,6 +306,7 @@ export function buildPeopleRoster({
       const searchText = normalize(
         [
           name,
+          ...alternateNames,
           ...groupEntries.map(entry => personName(entry.ownerName) ?? ''),
           ...groupEntries.map(entry => personName(entry.handlerName) ?? ''),
           ...dogNames,
@@ -326,7 +318,7 @@ export function buildPeopleRoster({
       return {
         id,
         name,
-        contactName: contact,
+        alternateNames,
         searchText,
         authUserId,
         presence: personPresence,

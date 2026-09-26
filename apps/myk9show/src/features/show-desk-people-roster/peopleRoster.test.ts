@@ -356,13 +356,8 @@ describe('peopleRoster', () => {
 
     expect(roster[0]).toEqual(
       expect.objectContaining({
-        // MYK9-824 round 2: the row key composes identity + printed name so
-        // two different typed handlers sharing a fallback handler_id never
-        // silently merge (see the id below and the round-2 tests further
-        // down this file).
-        id: 'handler-1::casey handler',
+        id: 'handler-1',
         name: 'Casey Handler',
-        contactName: 'Casey Handler',
         authUserId: 'auth-handler',
       })
     );
@@ -387,11 +382,62 @@ describe('peopleRoster', () => {
 
     expect(roster[0]).toEqual(
       expect.objectContaining({
-        id: 'handler-1::casey handler',
+        id: 'handler-1',
         name: 'Casey Handler',
         authUserId: null,
       })
     );
+  });
+
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` can fall back to
+  // the dog's owner for an unmatched mail-in typed handler. The roster keys
+  // and labels every handler row by the PERSON on `handler_id`
+  // (`handlerPersonName`) rather than the printed `handlerName`, so it never
+  // has to guess whether that id is a real handler or the fallback. Two
+  // typed handlers who share that fallback owner land in ONE row, under the
+  // owner's own name, with both printed names kept as `alternateNames`.
+  it('groups by the handler_id person, not the printed text, and keeps both printed names', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          id: 'entry-hana',
+          dogId: 'dog-a',
+          dogName: 'ZZRover',
+          handlerName: 'ZZ Rehearsal Handler Hana',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+        entry({
+          id: 'entry-fred',
+          dogId: 'dog-b',
+          dogName: 'ZZFido',
+          handlerName: 'ZZ Rehearsal Handler Fred',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster).toHaveLength(1);
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'owner-1',
+        name: 'ZZ Rehearsal Owner One',
+        authUserId: 'auth-owner',
+        alternateNames: ['ZZ Rehearsal Handler Hana', 'ZZ Rehearsal Handler Fred'],
+      })
+    );
+    expect(filterPeopleRoster(roster, 'hana', 'all')).toHaveLength(1);
+    expect(filterPeopleRoster(roster, 'fred', 'all')).toHaveLength(1);
   });
 
   it('ignores placeholder handler names for owner-only rows', () => {

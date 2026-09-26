@@ -113,7 +113,7 @@ describe('useShowQuery for a signed-out guest (MYK9-783)', () => {
   });
 });
 
-describe('useShowQuery for a session (unchanged)', () => {
+describe('useShowQuery for a signed-in account (unchanged)', () => {
   it('a signed-in member reads the replica-backed show', async () => {
     auth.value = { user: { id: 'user-1' }, loading: false };
     const { result } = renderShow(DRAFT_ID);
@@ -121,12 +121,32 @@ describe('useShowQuery for a session (unchanged)', () => {
     await waitFor(() => expect(result.current.data?.name).toBe('Secret Draft Trial'));
     expect(getPublicShowById).not.toHaveBeenCalled();
   });
+});
 
-  it('a ringside passcode session keeps the replica path', async () => {
+// Owner decision: on a public page a ringside passcode session reads like a
+// signed-out guest. It used to keep the replica path, so on a shared device it
+// saw a previous secretary's draft. No /at-show page calls useShowQuery.
+describe('useShowQuery for a ringside passcode session', () => {
+  beforeEach(() => {
     auth.value = { user: { id: 'anon-1', is_anonymous: true }, loading: false };
-    const { result } = renderShow(DRAFT_ID);
+  });
 
-    await waitFor(() => expect(result.current.data?.name).toBe('Secret Draft Trial'));
-    expect(getPublicShowById).not.toHaveBeenCalled();
+  it.each([
+    ['a draft', DRAFT_ID],
+    ['a show deleted on the server', DELETED_ID],
+  ])('has no show for %s, and never reads the replica', async (_label, id) => {
+    const { result } = renderShow(id);
+
+    await waitFor(() => expect(getPublicShowById).toHaveBeenCalledWith(id));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.data).toBeUndefined();
+    expect(getShowById).not.toHaveBeenCalled();
+  });
+
+  it('gets the published show from the server read', async () => {
+    const { result } = renderShow(PUBLISHED_ID);
+
+    await waitFor(() => expect(result.current.data?.name).toBe('Spring Scent Trial'));
+    expect(getShowById).not.toHaveBeenCalled();
   });
 });

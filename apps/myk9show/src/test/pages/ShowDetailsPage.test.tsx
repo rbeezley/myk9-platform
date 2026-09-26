@@ -719,6 +719,31 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
   });
 
+  // Owner decision: a ringside passcode session (an anonymous auth user) is a
+  // guest on this public page. It used to keep the replica path, so on a
+  // shared device it saw a previous secretary's draft.
+  it("a passcode session gets Not Found, not the replica's copy, when the server has no such show", () => {
+    mockAuthContext.user = { id: 'anon-1', is_anonymous: true };
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow, status: 'draft' }];
+    mockShow = null;
+    renderPage();
+    expect(screen.getByTestId('not-found')).toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  it("a passcode session's trials and classes are the server's, never the device trial store", () => {
+    mockAuthContext.user = { id: 'anon-1', is_anonymous: true };
+    mockAuthContext.userWithRoles = null;
+    mockTrials = [{ id: 'trial-stale', showId: 'show-1', trialDate: '2026-03-22', name: 'T' }];
+    mockTrialClasses = {
+      'trial-stale': [{ id: 'class-stale', element: 'Container', level: 'Novice' }],
+    };
+    renderPage('show-1', '/entries');
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
+  });
+
   it('a signed-in viewer still falls back to the replica-backed show list', () => {
     mockReplicaShows = [{ ...mockShow }];
     mockShow = null;

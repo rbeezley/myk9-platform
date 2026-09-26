@@ -197,15 +197,37 @@ describe('useClassDetailsData class and trial for a signed-out guest (MYK9-785)'
     expect(result.current.guestClassState).toBe('loading');
   });
 
-  it.each([
-    ['a signed-in viewer', { id: 'user-1' }],
-    ['a ringside passcode session', { id: 'anon-1', is_anonymous: true }],
-  ])('%s still reads the class and trial from the stores', (_label, user) => {
+  // Owner decision: a ringside passcode session is a guest on this public
+  // page. It used to read the stores, so on a shared device it saw a previous
+  // secretary's stale or unpublished class.
+  it("a ringside passcode session shows only the server's class, never the stores", async () => {
     mocks.useAuthContext.mockReturnValue({
-      user,
+      user: { id: 'anon-1', is_anonymous: true },
       loading: false,
       hasRole: () => false,
       userWithRoles: { scopes: [] },
+    });
+
+    const { result, renders } = renderPage();
+
+    await waitFor(() => expect(result.current.currentClass?.className).toBe('Interior Novice A'));
+    expectNoReplicaContent(renders);
+    expect(result.current.guestClassState).toBe('ready');
+    expect(result.current.parentTrial?.name).toBe('Saturday Trial 1');
+    expect(mocks.getPublicClassById).toHaveBeenCalledWith('class-1');
+    expect(mocks.getPublicTrialsByShow).toHaveBeenCalledWith('show-1');
+  });
+
+  it.each([
+    ['a signed-in viewer', { scopes: [] }],
+    // Raw session user present, roles not resolved: still not a guest.
+    ['a signed-in viewer whose roles have not resolved', null],
+  ])('%s still reads the class and trial from the stores', (_label, userWithRoles) => {
+    mocks.useAuthContext.mockReturnValue({
+      user: { id: 'user-1' },
+      loading: false,
+      hasRole: () => false,
+      userWithRoles,
     });
 
     const { result } = renderPage();

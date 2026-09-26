@@ -207,3 +207,39 @@ describe('useFastShowDetails for a signed-in secretary (MYK9-779)', () => {
     expect(getPublicShowById).not.toHaveBeenCalled();
   });
 });
+
+// Owner decision: on /shows/:id a ringside passcode session reads the server
+// like a signed-out guest. On a shared device the replica still holds a
+// previous secretary's drafts and shows deleted since.
+describe('useFastShowDetails for a ringside passcode session', () => {
+  beforeEach(() => {
+    auth.value = { user: { id: 'anon-1', is_anonymous: true }, loading: false };
+  });
+
+  it.each([
+    ['a draft', DRAFT_ID],
+    ['a show deleted on the server since it was cached', DELETED_ID],
+  ])('%s the server does not return is not found, never the replica row', async (_label, id) => {
+    getPublicShowById.mockResolvedValue(null);
+
+    const { result } = renderDetail(id);
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.show).toBeNull();
+    expect(result.current.isFromCache).toBe(false);
+    expect(getPublicShowById).toHaveBeenCalledWith(id);
+    expect(getShowById).not.toHaveBeenCalled();
+    expect(replica.reads).toBe(0);
+  });
+
+  it('offline, is offline with no cached row', async () => {
+    onlineManager.setOnline(false);
+
+    const { result } = renderDetail(DRAFT_ID);
+
+    await waitFor(() => expect(result.current.isOffline).toBe(true));
+    expect(result.current.show).toBeNull();
+    expect(getShowById).not.toHaveBeenCalled();
+    expect(replica.reads).toBe(0);
+  });
+});

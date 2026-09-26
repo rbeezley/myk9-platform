@@ -15,7 +15,7 @@ import { useBrowseShowsData } from '../useBrowseShowsData';
 
 const auth = vi.hoisted(() => ({
   value: { user: null, userWithRoles: null, loading: false } as {
-    user: { id: string } | null;
+    user: { id: string; is_anonymous?: boolean } | null;
     userWithRoles: { id: string; roles: string[]; databaseUserId?: string } | null;
     loading: boolean;
   },
@@ -23,6 +23,7 @@ const auth = vi.hoisted(() => ({
 
 const replica = vi.hoisted(() => ({ shows: [] as Show[], reads: 0 }));
 const getPublicShows = vi.hoisted(() => vi.fn());
+const sync = vi.hoisted(() => ({ shows: 'synced' }));
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth.value }));
 
@@ -54,7 +55,7 @@ vi.mock('@/store/entryStore', () => {
 });
 
 vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ status: { tablesStatus: { shows: 'synced' } } }),
+  useReplicationSync: () => ({ status: { tablesStatus: { shows: sync.shows } } }),
 }));
 
 vi.mock('@/hooks/useEntriesPersonId', () => ({ useEntriesPersonId: () => null }));
@@ -122,6 +123,7 @@ beforeEach(() => {
   auth.value = { user: null, userWithRoles: null, loading: false };
   replica.shows = [DRAFT, DELETED];
   replica.reads = 0;
+  sync.shows = 'synced';
   getPublicShows.mockReset();
 });
 
@@ -228,5 +230,55 @@ describe('useBrowseShowsData for a signed-in viewer (MYK9-780)', () => {
     expect(result.current.hasError).toBe(false);
     expect(result.current.showsOffline).toBeFalsy();
     expect(getPublicShows).not.toHaveBeenCalled();
+  });
+});
+
+// Owner decision: a ringside passcode session (an anonymous auth user scoped
+// to one show) is a guest on Find Shows. On a shared device the replica still
+// holds a previous secretary's drafts and shows deleted since.
+describe('useBrowseShowsData for a ringside passcode session', () => {
+  beforeEach(() => {
+    auth.value = {
+      user: { id: 'anon-1', is_anonymous: true },
+      userWithRoles: { id: 'anon-1', roles: [] },
+      loading: false,
+    };
+  });
+
+  it("lists only the server's shows and never reads the replica", async () => {
+    getPublicShows.mockResolvedValue({ data: [serverPublishedRow], error: null });
+
+    const { result } = renderBrowse();
+
+    await waitFor(() => expect(ids(result.current.shows)).toEqual(['show-pub']));
+    expect(getPublicShows).toHaveBeenCalledTimes(1);
+    expect(result.current.quickStats.upcoming).toBe(1);
+    expect(replica.reads).toBe(0);
+  });
+
+  it('offline, reports offline instead of listing the replica', async () => {
+    onlineManager.setOnline(false);
+    getPublicShows.mockResolvedValue({ data: [serverPublishedRow], error: null });
+
+    const { result } = renderBrowse();
+
+    await waitFor(() => expect(result.current.showsOffline).toBe(true));
+    expect(ids(result.current.shows)).toEqual([]);
+    expect(replica.reads).toBe(0);
+  });
+
+  // Replication never syncs for a passcode session, so an idle shows sync is
+  // not "still downloading": an empty server list must settle, not spin.
+  it('an empty server list settles even though the shows sync never ran', async () => {
+    sync.shows = 'idle';
+    getPublicShows.mockResolvedValue({ data: [], error: null });
+
+    const { result } = renderBrowse();
+
+    await waitFor(() => expect(getPublicShows).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasError).toBe(false);
+    expect(ids(result.current.shows)).toEqual([]);
+    expect(replica.reads).toBe(0);
   });
 });

@@ -755,7 +755,12 @@ describe('ReplicatedTable', () => {
         .spyOn(databaseManager, 'getDatabase')
         .mockRejectedValueOnce(new Error('IndexedDB unavailable'));
 
-      await expect(table.getAllOrThrow()).rejects.toThrow(/Could not read .* on this device/);
+      const error = await table.getAllOrThrow().catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(
+        "This device couldn't read its saved show data. Try again."
+      );
+      expect((error as { cause?: unknown }).cause).toMatchObject({ error: expect.any(Error) });
       getDatabase.mockRestore();
     });
 

@@ -910,7 +910,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async getAllOrThrow(licenseKey?: string): Promise<T[]> {
     const result = await this.getAllWithStatus(licenseKey);
     if (!result.ok) {
-      throw new Error(`Could not read ${this.tableName} on this device: ${String(result.error)}`);
+      // Plain words for any screen that shows it; the table and the storage
+      // error ride along as the cause for logging.
+      throw Object.assign(new Error("This device couldn't read its saved show data. Try again."), {
+        cause: { table: this.tableName, error: result.error },
+      });
     }
     return result.rows;
   }

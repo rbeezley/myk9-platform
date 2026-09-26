@@ -81,6 +81,6 @@ describe('scoped show-day readers throw on a failed device read', () => {
   ])('$label', async ({ table, read }) => {
     vi.spyOn(table as unknown as StatusReader, 'getAllWithStatus').mockResolvedValue(failed);
 
-    await expect(read()).rejects.toThrow(/on this device/);
+    await expect(read()).rejects.toThrow(/couldn't read its saved show data/);
   });
 });

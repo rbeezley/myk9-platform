@@ -238,7 +238,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           <p className="text-sm text-muted-foreground">
             We couldn't read your entries on this device.
           </p>
-          <Button variant="outline" size="sm" onClick={onRetry}>
+          <Button variant="outline" onClick={onRetry}>
             Try again
           </Button>
         </div>

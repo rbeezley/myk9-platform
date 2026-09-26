@@ -74,11 +74,11 @@ describe('PaperScoresheetPage — the list cannot refresh after a save', () => {
     harness.saveEntry.mockResolvedValue(undefined);
   });
 
-  it('pauses scoring with a retry instead of advancing on the stale list', async () => {
+  it('pauses scoring with a retry, then moves on to the next dog once the list reads', async () => {
     harness.load
       .mockResolvedValueOnce([dog('e1', 1), dog('e2', 2)])
       .mockRejectedValueOnce(new Error('Could not read entries on this device'))
-      .mockResolvedValueOnce([dog('e1', 1), dog('e2', 2)]);
+      .mockResolvedValueOnce([{ ...dog('e1', 1), isScored: true, status: 'scored' }, dog('e2', 2)]);
 
     render(
       <Routes>
@@ -97,5 +97,7 @@ describe('PaperScoresheetPage — the list cannot refresh after a save', () => {
 
     expect(await screen.findByRole('button', { name: 'save and next' })).toBeInTheDocument();
     await waitFor(() => expect(harness.load).toHaveBeenCalledTimes(3));
+    // The retry finishes the interrupted advance: the next unscored dog.
+    await waitFor(() => expect(harness.selectEntry).toHaveBeenLastCalledWith('e2'));
   });
 });

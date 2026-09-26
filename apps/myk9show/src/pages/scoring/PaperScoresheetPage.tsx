@@ -51,6 +51,7 @@ export function PaperScoresheetPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
 
   useEffect(() => {
     async function load() {
@@ -64,6 +65,9 @@ export function PaperScoresheetPage() {
           return;
         }
         const scoringEntries = await loadEntriesWithDogs(classId);
+        // A fresh list re-arms the auto-select, so a retry after a failed
+        // post-save refresh lands on the next unscored dog (MYK9-774).
+        autoSelectedClassRef.current = null;
         setEntries(calculatePlacements(scoringEntries));
         setClassName(cls.name);
       } catch (err) {
@@ -168,7 +172,7 @@ export function PaperScoresheetPage() {
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-destructive">{error}</p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setLoadAttempt(attempt => attempt + 1)}>
+          <Button variant="outline" onClick={retryLoad}>
             Try again
           </Button>
           <Button variant="outline" onClick={() => navigate(-1)}>

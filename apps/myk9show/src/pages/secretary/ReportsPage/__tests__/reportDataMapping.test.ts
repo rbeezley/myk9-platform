@@ -245,6 +245,66 @@ describe('buildTrialReportProps', () => {
     expect(props.trial?.judgeName).toBe('Multiple judges');
     expect(props.allClasses?.map(c => c.judgeName)).toEqual(['Pat Judge', 'Second Judge']);
   });
+
+  describe('trial.dayTrialNumber (MYK9-827)', () => {
+    it('is undefined on a single-trial day', () => {
+      const [props] = buildTrialReportProps({
+        show,
+        trials: [trial],
+        classes: [classData],
+        entries: [entry],
+        scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
+        sortOrder: '',
+      });
+
+      expect(props.trial?.dayTrialNumber).toBeUndefined();
+    });
+
+    it("numbers same-day trials by display_order, not by the show's trial order", () => {
+      const trialOne = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'trial-1',
+        date: '2026-04-12',
+        display_order: 2,
+      });
+      const trialTwo = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'trial-2',
+        date: '2026-04-12',
+        display_order: 1,
+      });
+
+      const [propsForTrialOrderedSecond, propsForTrialOrderedFirst] = buildTrialReportProps({
+        show,
+        // Listed with the later display_order first, to prove sorting isn't by array position.
+        trials: [trialOne, trialTwo],
+        classes: [classData],
+        entries: [entry],
+        scope: { kind: 'show', showId: 'show-1' },
+        sortOrder: '',
+      });
+
+      expect(propsForTrialOrderedSecond?.trial?.dayTrialNumber).toBe(2);
+      expect(propsForTrialOrderedFirst?.trial?.dayTrialNumber).toBe(1);
+    });
+
+    it('is undefined for trials on different days even when both exist in the show', () => {
+      const dayOneTrial = fromAny<DbTrial, unknown>({ ...trial, id: 'trial-1', date: '2026-04-12' });
+      const dayTwoTrial = fromAny<DbTrial, unknown>({ ...trial, id: 'trial-2', date: '2026-04-13' });
+
+      const [propsDayOne, propsDayTwo] = buildTrialReportProps({
+        show,
+        trials: [dayOneTrial, dayTwoTrial],
+        classes: [classData],
+        entries: [entry],
+        scope: { kind: 'show', showId: 'show-1' },
+        sortOrder: '',
+      });
+
+      expect(propsDayOne?.trial?.dayTrialNumber).toBeUndefined();
+      expect(propsDayTwo?.trial?.dayTrialNumber).toBeUndefined();
+    });
+  });
 });
 
 describe('buildClassReportProps', () => {

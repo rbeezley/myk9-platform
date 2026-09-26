@@ -36,10 +36,12 @@ async function gatherReadiness(
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
 
-  const [structure, entriesMeta, entryRows] = await Promise.all([
-    gatherShowStructureScopes(showId),
+  // The async helper goes last: if an earlier read throws while this array is
+  // built, it never starts, so no rejection is left unhandled.
+  const [entriesMeta, entryRows, structure] = await Promise.all([
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
     replicatedEntriesTable.getEntriesByShow(showId),
+    gatherShowStructureScopes(showId),
   ]);
   // Read after the rows, so a delete landing in between is still counted once.
   const entryDeletes = await replicatedEntriesTable.pendingDeletes.coveredIds(showId);

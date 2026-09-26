@@ -115,10 +115,12 @@ export interface ShowStructureCoverage {
  * the judge-assignments table. A failed device read throws.
  */
 export async function showStructureCoverage(showId: string): Promise<ShowStructureCoverage> {
-  const [structure, assignmentsMeta, assignmentRows] = await Promise.all([
-    gatherShowStructureScopes(showId),
+  // The async helper goes last: if the metadata read throws while this array
+  // is built, it never starts, so no rejection is left unhandled.
+  const [assignmentsMeta, assignmentRows, structure] = await Promise.all([
     replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
     readJudgeAssignmentsOrThrow(),
+    gatherShowStructureScopes(showId),
   ]);
   return {
     show: structure.show.hydrated,

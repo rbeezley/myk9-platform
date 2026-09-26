@@ -29,7 +29,7 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: mocks.createEntry,
     getEntriesByShow: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    getByShowWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
   },
   replicatedDogsTable: { getPendingMutationIdsForRow: mocks.dogPending },
   replicatedDogRegistrationsTable: { getPendingMutationIdsForDog: vi.fn().mockResolvedValue([]) },
@@ -49,7 +49,7 @@ vi.mock('@/services/replication', () => ({
     getTrialsByShow: vi.fn().mockResolvedValue([]),
     // The selected class's trial is on the device: a cold trials replica now
     // refuses the capacity check (MYK9-788).
-    getAllWithStatus: vi.fn().mockResolvedValue({
+    getByShowWithStatus: vi.fn().mockResolvedValue({
       ok: true,
       rows: [{ id: 'trial-1', date: '2026-10-10', showId: 'show-1' }],
       error: null,
@@ -57,7 +57,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    getByShowWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
   },
   replicatedArmbandsTable: {
     getByShow: vi.fn().mockResolvedValue([]),

@@ -103,6 +103,20 @@ export const RETIRED_REPLICATED_TABLE_INDEXES = [
 ] as const;
 
 /**
+ * One show's rows of one table (MYK9-788). Keyed on the mapped row's camelCase
+ * `showId`; a row without one is simply not in the index. Unlike the retired
+ * `data.*` indexes above, this one has a reader: a show-scoped read no longer
+ * scans every show's rows on the device.
+ */
+export const SHOW_ID_INDEX = 'tableName_showId';
+
+function createShowIdIndex(store: {
+  createIndex(name: string, keyPath: string[], options: IDBIndexParameters): unknown;
+}): void {
+  store.createIndex(SHOW_ID_INDEX, ['tableName', 'data.showId'], { unique: false });
+}
+
+/**
  * Create the IndexedDB object stores during upgrade
  */
 function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logger: Logger): void {
@@ -116,6 +130,7 @@ function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logge
     store.createIndex('tableName', 'tableName', { unique: false });
     store.createIndex('tableName_lastSyncedAt', ['tableName', 'lastSyncedAt'], { unique: false });
     store.createIndex('isDirty', 'isDirty', { unique: false });
+    createShowIdIndex(store);
   } else {
     // v8 (MYK9-616): drop the compound `data.*` indexes. Their only reader,
     // `ReplicatedTableQueryManager.queryIndex`, was deleted by MYK9-551, so
@@ -126,6 +141,11 @@ function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logge
       if (store.indexNames.contains(indexName)) {
         store.deleteIndex(indexName);
       }
+    }
+    // v9 (MYK9-788): read by `getByShowWithStatus`. Building it indexes the
+    // records already on the device; none is rewritten.
+    if (!store.indexNames.contains(SHOW_ID_INDEX)) {
+      createShowIdIndex(store);
     }
   }
 

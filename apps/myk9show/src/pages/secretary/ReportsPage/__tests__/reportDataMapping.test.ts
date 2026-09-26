@@ -289,8 +289,16 @@ describe('buildTrialReportProps', () => {
     });
 
     it('is undefined for trials on different days even when both exist in the show', () => {
-      const dayOneTrial = fromAny<DbTrial, unknown>({ ...trial, id: 'trial-1', date: '2026-04-12' });
-      const dayTwoTrial = fromAny<DbTrial, unknown>({ ...trial, id: 'trial-2', date: '2026-04-13' });
+      const dayOneTrial = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'trial-1',
+        date: '2026-04-12',
+      });
+      const dayTwoTrial = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'trial-2',
+        date: '2026-04-13',
+      });
 
       const [propsDayOne, propsDayTwo] = buildTrialReportProps({
         show,

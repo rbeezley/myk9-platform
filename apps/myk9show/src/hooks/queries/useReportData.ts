@@ -213,7 +213,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   const reportTrials = hasCurrentReportTrials
     ? trialsQuery.data
     : show?.trials?.length
-      ? show.trials.map(trial => ({
+      ? show.trials.map((trial, index) => ({
           id: trial.id,
           show_id: showId,
           name: trial.name,
@@ -221,6 +221,14 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           trial_number: Number(trial.trialNumber) || 0,
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
+          // `ShowTrial` doesn't carry `display_order` (dropped in
+          // mapDatabaseToShow), so the UKC Nosework Trial Report's same-day
+          // trial-number ordinal (reportDataMapping.ts computeDayTrialNumber)
+          // would otherwise tie-break on trial id and can tick the wrong box
+          // when printing from this cached-show fallback (MYK9-827 review).
+          // `show.trials` is already date-sorted (loadTrialsByShowMap), so
+          // its array position is the next best ordering signal.
+          display_order: index + 1,
         }))
       : undefined;
   const selectedTrialIsInShow =

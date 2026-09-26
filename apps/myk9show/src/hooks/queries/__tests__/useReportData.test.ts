@@ -277,6 +277,32 @@ describe('useReportData', () => {
     ]);
   });
 
+  it('numbers cached show trials by array position, not trial id, so a same-day fallback print ticks the right UKC trial-number box (MYK9-827)', async () => {
+    mockGetTrialsByShow.mockImplementation(() => new Promise(() => {}) as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+    const cachedShow = {
+      ...mockShow,
+      trials: [
+        // A UUID for trial-2 that sorts BEFORE trial-1's, so a fallback that
+        // tie-broke on id (instead of preserving this array's date order)
+        // would report trial-2 first.
+        { id: 'aaaa-trial-2', name: 'Trial 2', trialNumber: 2, date: '2026-04-12' },
+        { id: 'zzzz-trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' },
+      ],
+    } as never;
+    const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.trials).toEqual([
+      expect.objectContaining({ id: 'aaaa-trial-2', display_order: 1 }),
+      expect.objectContaining({ id: 'zzzz-trial-1', display_order: 2 }),
+    ]);
+  });
+
   it('does not read or print a trial outside the current show', async () => {
     mockGetTrialsByShow.mockResolvedValue({ data: [], error: null } as never);
     const cachedShow = {

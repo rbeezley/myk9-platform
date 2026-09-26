@@ -212,16 +212,12 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate).getText()).toBe(
         '6/12/2026'
       );
-      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries).getText()).toBe(
-        '1'
-      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries).getText()).toBe('1');
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('2');
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries).getText()).toBe(
         '2'
       );
-      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe(
-        '5'
-      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
         '16.00'
       );

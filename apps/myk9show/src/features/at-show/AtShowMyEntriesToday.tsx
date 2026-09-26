@@ -27,6 +27,9 @@ export interface AtShowMyEntriesTodayProps {
   isLoading: boolean;
   /** From `useMyAtShowEntryDetails` — changes only when a fresh fetch lands. */
   dataUpdatedAt: number;
+  /** The device could not read this show's entries (MYK9-774). */
+  loadFailed: boolean;
+  onRetry: () => void;
   onSeeAllClasses: () => void;
 }
 
@@ -140,6 +143,8 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   entries,
   isLoading,
   dataUpdatedAt,
+  loadFailed,
+  onRetry,
   onSeeAllClasses,
 }) => {
   const navigate = useNavigate();
@@ -225,6 +230,18 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
 
       {isLoading ? (
         <AtShowMyEntriesTodaySkeleton />
+      ) : loadFailed && displayEntries.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center"
+          role="alert"
+        >
+          <p className="text-sm text-muted-foreground">
+            We couldn't read your entries on this device.
+          </p>
+          <Button variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
       ) : displayEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
           <p className="text-sm text-muted-foreground">
@@ -232,17 +249,34 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           </p>
         </div>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {displayEntries.map(detail => (
-            <EntryRow
-              key={detail.entryId}
-              detail={detail}
-              onOpenClass={handleOpenClass}
-              onCheckIn={handleCheckIn}
-              checkInPending={pendingEntryId === detail.entryId}
-            />
-          ))}
-        </ul>
+        <>
+          {loadFailed && (
+            // The last list read is still shown, since stale is better than
+            // nothing at the ring, but it is marked as not current (MYK9-774).
+            <div
+              className="mt-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+              role="status"
+            >
+              <p className="text-sm text-muted-foreground">
+                Couldn't refresh your entries on this device. This may be out of date.
+              </p>
+              <Button variant="outline" onClick={onRetry}>
+                Try again
+              </Button>
+            </div>
+          )}
+          <ul className="mt-3 space-y-2">
+            {displayEntries.map(detail => (
+              <EntryRow
+                key={detail.entryId}
+                detail={detail}
+                onOpenClass={handleOpenClass}
+                onCheckIn={handleCheckIn}
+                checkInPending={pendingEntryId === detail.entryId}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       <Button

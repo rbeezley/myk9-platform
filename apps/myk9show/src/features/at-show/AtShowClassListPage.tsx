@@ -190,11 +190,12 @@ export const AtShowClassListPage: React.FC = () => {
     }
     return map;
   }, [groups]);
-  const {
-    entries: myEntries,
-    isLoading: myEntriesLoading,
-    dataUpdatedAt: myEntriesUpdatedAt,
-  } = useMyAtShowEntryDetails(showId, ownEntryIds, ownershipLoading, classesById);
+  const myEntryDetails = useMyAtShowEntryDetails(
+    showId,
+    ownEntryIds,
+    ownershipLoading,
+    classesById
+  );
 
   // `null` = no manual override yet, so the view tracks ownership as it
   // resolves (starts 'all' while ownEntryIds is still loading, flips to
@@ -340,9 +341,7 @@ export const AtShowClassListPage: React.FC = () => {
     return (
       <AtShowMyEntriesToday
         showId={showId as string}
-        entries={myEntries}
-        isLoading={myEntriesLoading}
-        dataUpdatedAt={myEntriesUpdatedAt}
+        {...myEntryDetails}
         onSeeAllClasses={() => setManualView('all')}
       />
     );

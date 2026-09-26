@@ -749,6 +749,27 @@ describe('ReplicatedTable', () => {
       getDatabase.mockRestore();
     });
 
+    it('getAllOrThrow throws on a failed read instead of answering []', async () => {
+      const { databaseManager } = await import('./DatabaseManager');
+      const getDatabase = vi
+        .spyOn(databaseManager, 'getDatabase')
+        .mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+
+      const error = await table.getAllOrThrow().catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(
+        "This device couldn't read its saved show data. Try again."
+      );
+      expect((error as { cause?: unknown }).cause).toMatchObject({ error: expect.any(Error) });
+      getDatabase.mockRestore();
+    });
+
+    it('getAllOrThrow returns the rows of a successful read, empty included', async () => {
+      await expect(table.getAllOrThrow()).resolves.toEqual([]);
+      await table.set('1', { id: '1', name: 'Rex' });
+      await expect(table.getAllOrThrow()).resolves.toEqual([{ id: '1', name: 'Rex' }]);
+    });
+
     it('reports a timeout as a failed status-bearing read', async () => {
       const { databaseManager } = await import('./DatabaseManager');
       const { GET_ALL_TIMEOUT_MS } = await import('../constants');

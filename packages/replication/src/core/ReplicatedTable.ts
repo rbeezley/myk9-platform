@@ -902,6 +902,24 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Get all rows, or throw when the device could not read them. getAll() hands
+   * back [] for a failed read, which a caller then reports or acts on as "there
+   * are none". Scoped readers built on this throw instead, so a failed read
+   * reaches the caller's error state, fallback or aborted write.
+   */
+  async getAllOrThrow(licenseKey?: string): Promise<T[]> {
+    const result = await this.getAllWithStatus(licenseKey);
+    if (!result.ok) {
+      // Plain words for any screen that shows it; the table and the storage
+      // error ride along as the cause for logging.
+      throw Object.assign(new Error("This device couldn't read its saved show data. Try again."), {
+        cause: { table: this.tableName, error: result.error },
+      });
+    }
+    return result.rows;
+  }
+
+  /**
    * Optimistic update with automatic retry on version conflicts
    *
    * Note: this has no production callers today, so its `written: false` branch

@@ -17,6 +17,7 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 import { useShowMapReorderMode } from '../useShowMapReorderMode';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { DragEndEvent } from '@dnd-kit/core';
+import { toast } from 'sonner';
 
 const { getEntriesByClassMock, updateEntryMock } = vi.hoisted(() => ({
   getEntriesByClassMock: vi.fn<(classId: string) => Promise<ReplicatedEntry[]>>(),
@@ -270,5 +271,32 @@ describe('useShowMapReorderMode — Alt+Arrow keyboard reorder skips pinned neig
     // No persist writes should happen — A was already at the top of the
     // unpinned list.
     expect(updateEntryMock).not.toHaveBeenCalled();
+  });
+});
+
+// MYK9-774: the class read now throws on a failed device read. The Alt+Arrow
+// key handler does not await the reorder, so the throw used to go nowhere and
+// the key silently did nothing. It says why now, and writes nothing.
+describe('useShowMapReorderMode — Alt+Arrow when the class cannot be read', () => {
+  beforeEach(() => {
+    getEntriesByClassMock.mockReset();
+    updateEntryMock.mockReset();
+    vi.mocked(toast.error).mockClear();
+  });
+
+  it('shows an error and moves nothing', async () => {
+    getEntriesByClassMock.mockRejectedValue(new Error('Could not read entries on this device'));
+    const { result } = renderHook(() => useShowMapReorderMode({ showId: 'show-1' }), {
+      wrapper: makeWrapper(),
+    });
+    act(() => result.current.enter({ classId: 'class-1', classLabel: 'Container Novice' }));
+
+    await act(async () => {
+      await result.current.onKeyboardReorder('entry:a', 'down');
+    });
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(updateEntryMock).not.toHaveBeenCalled();
+    expect(result.current.getOptimisticOrder('class-1')).toBeUndefined();
   });
 });

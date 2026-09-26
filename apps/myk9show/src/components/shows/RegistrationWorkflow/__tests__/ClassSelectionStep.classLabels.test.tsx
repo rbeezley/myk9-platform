@@ -114,10 +114,7 @@ const SPLIT_LEVEL: SeedClass[] = [
   },
 ];
 
-function setupMocks(
-  classes: SeedClass[],
-  opts: { isStaff?: boolean; registryId?: string } = {}
-) {
+function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean; registryId?: string } = {}) {
   const { isStaff = false, registryId = 'AKC' } = opts;
 
   mockUseDogStoreCompat.mockReturnValue({

@@ -425,13 +425,27 @@ describe('peopleRoster', () => {
         entry({
           id: 'entry-trial-1',
           classes: [
-            { id: 'class-t1', name: 'Vehicle Novice', number: '1', fee: 30, status: 'entered', checkInStatus: 'no-status' },
+            {
+              id: 'class-t1',
+              name: 'Vehicle Novice',
+              number: '1',
+              fee: 30,
+              status: 'entered',
+              checkInStatus: 'no-status',
+            },
           ],
         }),
         entry({
           id: 'entry-trial-2',
           classes: [
-            { id: 'class-t2', name: 'Vehicle Novice', number: '1', fee: 30, status: 'entered', checkInStatus: 'no-status' },
+            {
+              id: 'class-t2',
+              name: 'Vehicle Novice',
+              number: '1',
+              fee: 30,
+              status: 'entered',
+              checkInStatus: 'no-status',
+            },
           ],
         }),
       ],

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildCockpitClassLabelResolver, compareCockpitClasses } from './secretaryCockpitClassLabel';
+import {
+  buildCockpitClassLabelResolver,
+  compareCockpitClasses,
+} from './secretaryCockpitClassLabel';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
 
 /**
@@ -27,16 +30,86 @@ function makeClass(input: Partial<SecretaryCockpitClass> & { id: string }): Secr
 
 const UKC_VEHICLE_CLASSES: SecretaryCockpitClass[] = [
   // Insertion order mirrors the dress rehearsal's scramble, not level order.
-  makeClass({ id: 'n-a', name: 'Vehicle Novice', element: 'Vehicle', level: 'Novice', section: 'A', classOrder: 0 }),
-  makeClass({ id: 's-a', name: 'Vehicle Superior', element: 'Vehicle', level: 'Superior', section: 'A', classOrder: 1 }),
-  makeClass({ id: 's-b', name: 'Vehicle Superior', element: 'Vehicle', level: 'Superior', section: 'B', classOrder: 2 }),
-  makeClass({ id: 'e-a', name: 'Vehicle Elite', element: 'Vehicle', level: 'Elite', section: 'A', classOrder: 3 }),
-  makeClass({ id: 'n-b', name: 'Vehicle Novice', element: 'Vehicle', level: 'Novice', section: 'B', classOrder: 4 }),
-  makeClass({ id: 'adv-a', name: 'Vehicle Advanced', element: 'Vehicle', level: 'Advanced', section: 'A', classOrder: 5 }),
-  makeClass({ id: 'm-a', name: 'Vehicle Master', element: 'Vehicle', level: 'Master', section: 'A', classOrder: 6 }),
-  makeClass({ id: 'e-b', name: 'Vehicle Elite', element: 'Vehicle', level: 'Elite', section: 'B', classOrder: 7 }),
-  makeClass({ id: 'm-b', name: 'Vehicle Master', element: 'Vehicle', level: 'Master', section: 'B', classOrder: 8 }),
-  makeClass({ id: 'adv-b', name: 'Vehicle Advanced', element: 'Vehicle', level: 'Advanced', section: 'B', classOrder: 9 }),
+  makeClass({
+    id: 'n-a',
+    name: 'Vehicle Novice',
+    element: 'Vehicle',
+    level: 'Novice',
+    section: 'A',
+    classOrder: 0,
+  }),
+  makeClass({
+    id: 's-a',
+    name: 'Vehicle Superior',
+    element: 'Vehicle',
+    level: 'Superior',
+    section: 'A',
+    classOrder: 1,
+  }),
+  makeClass({
+    id: 's-b',
+    name: 'Vehicle Superior',
+    element: 'Vehicle',
+    level: 'Superior',
+    section: 'B',
+    classOrder: 2,
+  }),
+  makeClass({
+    id: 'e-a',
+    name: 'Vehicle Elite',
+    element: 'Vehicle',
+    level: 'Elite',
+    section: 'A',
+    classOrder: 3,
+  }),
+  makeClass({
+    id: 'n-b',
+    name: 'Vehicle Novice',
+    element: 'Vehicle',
+    level: 'Novice',
+    section: 'B',
+    classOrder: 4,
+  }),
+  makeClass({
+    id: 'adv-a',
+    name: 'Vehicle Advanced',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'A',
+    classOrder: 5,
+  }),
+  makeClass({
+    id: 'm-a',
+    name: 'Vehicle Master',
+    element: 'Vehicle',
+    level: 'Master',
+    section: 'A',
+    classOrder: 6,
+  }),
+  makeClass({
+    id: 'e-b',
+    name: 'Vehicle Elite',
+    element: 'Vehicle',
+    level: 'Elite',
+    section: 'B',
+    classOrder: 7,
+  }),
+  makeClass({
+    id: 'm-b',
+    name: 'Vehicle Master',
+    element: 'Vehicle',
+    level: 'Master',
+    section: 'B',
+    classOrder: 8,
+  }),
+  makeClass({
+    id: 'adv-b',
+    name: 'Vehicle Advanced',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'B',
+    classOrder: 9,
+  }),
 ];
 
 describe('buildCockpitClassLabelResolver', () => {

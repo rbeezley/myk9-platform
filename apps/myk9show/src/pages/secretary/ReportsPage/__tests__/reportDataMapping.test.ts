@@ -312,6 +312,35 @@ describe('buildTrialReportProps', () => {
       expect(propsDayOne?.trial?.dayTrialNumber).toBeUndefined();
       expect(propsDayTwo?.trial?.dayTrialNumber).toBeUndefined();
     });
+
+    it('abstains (ticks neither box) when same-day trials tie at the same display_order, instead of guessing by id (Codex review on #2541)', () => {
+      // `display_order` defaults to 0 on insert; two same-day trials created
+      // without an explicit order both land here for real, not just in a test.
+      const tiedTrialA = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'zzzz-trial',
+        date: '2026-04-12',
+        display_order: 0,
+      });
+      const tiedTrialB = fromAny<DbTrial, unknown>({
+        ...trial,
+        id: 'aaaa-trial',
+        date: '2026-04-12',
+        display_order: 0,
+      });
+
+      const [propsA, propsB] = buildTrialReportProps({
+        show,
+        trials: [tiedTrialA, tiedTrialB],
+        classes: [classData],
+        entries: [entry],
+        scope: { kind: 'show', showId: 'show-1' },
+        sortOrder: '',
+      });
+
+      expect(propsA?.trial?.dayTrialNumber).toBeUndefined();
+      expect(propsB?.trial?.dayTrialNumber).toBeUndefined();
+    });
   });
 });
 

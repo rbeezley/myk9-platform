@@ -26,6 +26,7 @@ import { withEntryManagementMoneyRoots } from '@/features/financial/entryManagem
 import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
 import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
 import { getTrialTimezone } from '@/features/registries';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -118,6 +119,20 @@ export function mapSecretaryEntryToEntryManagementEntry(
   entry: SecretaryEntry,
   entryCloseDate?: string | null
 ): EntryManagementEntry {
+  // MYK9-824: `entries.handler_id` can point to a person whose name does not
+  // match the printed `handler` text (a mail-in typed handler the RPC could
+  // not resolve, or a rename that left the FK stale — MYK9-665). Preferring
+  // the joined `handler_person` over the text, as this used to, shows THAT
+  // person's name here instead of the one the paperwork prints. Route through
+  // the same name-matched resolver the catalog/scoresheet use so this page
+  // never disagrees with what was actually typed.
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: entry.handler,
+    assignedHandlerId: entry.handler_id,
+    assignedHandlerPerson: entry.handler_person,
+    ownerPerson: entry.dog?.owner ?? null,
+  });
+
   return {
     id: entry.id,
     registrationId: entry.registration?.id ?? entry.registration_id ?? '',
@@ -129,7 +144,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // never the legacy `handler` text; mail-in entries set the text only.
     ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
     ownerEmail: entry.dog?.owner?.email ?? '',
-    handlerName: personName(entry.handler_person) || entry.handler || 'Not specified',
+    handlerName: handlerIdentity.name || 'Not specified',
     handlerId: entry.handler_id,
     handlerAuthUserId: entry.handler_person?.auth_user_id ?? null,
     ownerId: entry.dog?.owner?.id ?? null,

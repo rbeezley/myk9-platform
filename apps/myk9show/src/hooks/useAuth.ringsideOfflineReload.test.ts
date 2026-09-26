@@ -116,7 +116,10 @@ function onlineRefreshFetch() {
 }
 
 /** Builds the same kind of client `services/database/supabaseClient.ts` builds in prod. */
-function buildClient(storage: ReturnType<typeof createFakeStorage>, fetchImpl: ReturnType<typeof vi.fn>) {
+function buildClient(
+  storage: ReturnType<typeof createFakeStorage>,
+  fetchImpl: ReturnType<typeof vi.fn>
+) {
   return createClient('https://test-project.supabase.co', 'test-anon-key', {
     auth: {
       storage,

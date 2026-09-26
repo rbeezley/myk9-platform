@@ -32,7 +32,11 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/features/show-today/accountTodayEntries', () => ({
-  useAccountTodayAutoFavorites: () => ({ hasAccountEntryForShow: false, isLoading: false, error: null }),
+  useAccountTodayAutoFavorites: () => ({
+    hasAccountEntryForShow: false,
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 vi.mock('./useHasAnyEntryForShow', () => ({

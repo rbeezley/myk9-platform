@@ -59,7 +59,9 @@ import {
 } from '@/store/ringsideGrantStore';
 import { persistRingsideClaim, readPersistedRingsideClaim } from './ringsideClaimCache';
 
-export function useRehydrateRingsideGrant(showId: string | undefined): RingsideGrant['role'] | null {
+export function useRehydrateRingsideGrant(
+  showId: string | undefined
+): RingsideGrant['role'] | null {
   const { user, loading } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const setGrant = useRingsideGrantStore(state => state.setGrant);
@@ -78,7 +80,12 @@ export function useRehydrateRingsideGrant(showId: string | undefined): RingsideG
     if (!resolvable || storeRole) return;
     if (claimRole) {
       persistRingsideClaim({ showId: showId!, role: claimRole });
-      setGrant({ showId: showId!, role: claimRole, sessionId: crypto.randomUUID(), source: 'passcode' });
+      setGrant({
+        showId: showId!,
+        role: claimRole,
+        sessionId: crypto.randomUUID(),
+        source: 'passcode',
+      });
       return;
     }
     if (offlineFallbackRole) {

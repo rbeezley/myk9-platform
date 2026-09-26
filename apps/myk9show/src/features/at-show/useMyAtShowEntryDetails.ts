@@ -9,7 +9,7 @@ import {
 
 export interface UseMyAtShowEntryDetailsResult {
   entries: AtShowEntryDetail[];
-  /** The device could not read this show's entries: say so, never "none" (MYK9-774). */
+  /** The latest read of this show's entries failed; any list shown is the last good one (MYK9-774). */
   loadFailed: boolean;
   onRetry: () => void;
   /** True while the ownership set or the entry rows are still resolving. */
@@ -75,7 +75,7 @@ export function useMyAtShowEntryDetails(
     entries,
     isLoading: ownershipLoading || (ownEntryIds.size > 0 && entriesQuery.isLoading),
     dataUpdatedAt: entriesQuery.dataUpdatedAt,
-    loadFailed: entriesQuery.isError && !entriesQuery.data,
+    loadFailed: entriesQuery.isError,
     onRetry: () => void entriesQuery.refetch(),
   };
 }

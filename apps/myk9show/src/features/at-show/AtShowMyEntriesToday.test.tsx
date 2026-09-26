@@ -218,4 +218,27 @@ describe('AtShowMyEntriesToday — a failed device read', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the last list but marks it out of date when a later read fails', async () => {
+    const onRetry = vi.fn();
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({})]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed
+        onRetry={onRetry}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText(/This may be out of date/)).toBeInTheDocument();
+    expect(screen.getByRole('list')).toBeInTheDocument();
+    expect(
+      screen.queryByText("We couldn't read your entries on this device.")
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
 });

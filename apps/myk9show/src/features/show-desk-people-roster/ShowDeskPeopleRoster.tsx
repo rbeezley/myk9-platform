@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, MessageSquare, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import {
   buildPeopleRoster,
   filterPeopleRoster,
+  formatTrialIdentity,
   type PeopleRosterFilter,
   type PeopleRosterPerson,
 } from './peopleRoster';
@@ -35,6 +36,11 @@ const FILTERS: Array<{ id: PeopleRosterFilter; label: string }> = [
   { id: 'needs-check-in', label: 'Needs check-in' },
   { id: 'online', label: 'Online' },
 ];
+const FILTER_IDS: ReadonlySet<string> = new Set(FILTERS.map(option => option.id));
+
+function isPeopleRosterFilter(value: string | null): value is PeopleRosterFilter {
+  return value != null && FILTER_IDS.has(value);
+}
 
 export function ShowDeskPeopleRoster({
   showId,
@@ -52,7 +58,17 @@ export function ShowDeskPeopleRoster({
   const [checkedInEntryIds, setCheckedInEntryIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<PeopleRosterFilter>('all');
+  const [searchParams] = useSearchParams();
+  // MYK9-826: the Show Desk "Check in N entries" card deep-links here with
+  // `?rosterFilter=needs-check-in` so it lands pre-filtered, not just
+  // pre-opened. This rides in its own param, distinct from the cockpit's
+  // `filter` (see cockpitRoutes.ts) — sharing that key meant
+  // `writeCockpitUrlState` treated `needs-check-in` as an invalid cockpit
+  // filter and stripped it on the next cockpit URL rewrite (MYK9-825/826).
+  const [filter, setFilter] = useState<PeopleRosterFilter>(() => {
+    const requested = searchParams.get('rosterFilter');
+    return isPeopleRosterFilter(requested) ? requested : 'all';
+  });
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -87,14 +103,21 @@ export function ShowDeskPeopleRoster({
       buildPeopleRoster({
         entries,
         presence: present,
-        classes: classes.map(cls => ({
-          id: cls.id,
-          name: cls.name,
-          time: cls.time,
-          ring: cls.trialName || cls.trialNumber,
-          trialDate: cls.trialDate,
-          timezone: cls.timezone ?? null,
-        })),
+        classes: classes.map(cls => {
+          const ring = formatTrialIdentity(cls.trialName, cls.trialNumber);
+          return {
+            id: cls.id,
+            name: cls.name,
+            time: cls.time,
+            ...(ring ? { ring } : {}),
+            trialId: cls.trialId,
+            element: cls.element,
+            level: cls.level,
+            section: cls.section,
+            trialDate: cls.trialDate,
+            timezone: cls.timezone ?? null,
+          };
+        }),
         currentDate: currentDate ?? now,
       }),
     [classes, currentDate, entries, now, present]
@@ -345,6 +368,7 @@ export function ShowDeskPeopleRoster({
                               <p className="truncate font-medium">{row.dogName}</p>
                               <p className="text-sm text-muted-foreground">
                                 {row.className}
+                                {row.ring ? ` · ${row.ring}` : ''}
                                 {row.time ? ` - ${row.time}` : ''}
                               </p>
                               <StatusBadge

@@ -48,6 +48,21 @@ describe('Show Desk context routes', () => {
     );
   });
 
+  it('MYK9-825/826: preserves the People-at-show roster filter through a cockpit URL rewrite', () => {
+    // The roster's own `rosterFilter=needs-check-in` rides in a param
+    // distinct from this cockpit's own `filter`. A day/focus/anchor change
+    // elsewhere on the cockpit calls writeCockpitUrlState again with a
+    // CockpitUrlState that has no concept of `rosterFilter` — it must
+    // survive that rewrite untouched, not just the initial navigation.
+    const previous = new URLSearchParams('tool=people-at-show&rosterFilter=needs-check-in');
+
+    expect(
+      writeCockpitUrlState(previous, { ...context, selectedDay: '2026-07-21' }).toString()
+    ).toBe(
+      'day=2026-07-21&filter=needs-attention&focus=class%2F1&anchor=trial-1&tool=people-at-show&rosterFilter=needs-check-in'
+    );
+  });
+
   it('builds typed owner links with the exact scope and encoded return context', () => {
     const returnTo = getShowDeskHref({ showId: 'show-1', state: context });
 

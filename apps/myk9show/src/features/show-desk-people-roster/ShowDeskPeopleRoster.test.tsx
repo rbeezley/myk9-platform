@@ -109,6 +109,7 @@ function renderRoster(
     trialDate?: string;
     loadError?: unknown;
     onRetry?: () => void;
+    initialRoute?: string;
   } = {}
 ) {
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
@@ -154,7 +155,7 @@ function renderRoster(
       />
       <LocationProbe />
     </>,
-    { initialRoute: '/shows/show-1/show-day' }
+    { initialRoute: options.initialRoute ?? '/shows/show-1/show-day' }
   );
 }
 
@@ -172,7 +173,10 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.getByText('Poppy')).toBeInTheDocument();
-    expect(screen.getByText(/Container Novice A - 9:00 AM/i)).toBeInTheDocument();
+    // MYK9-825: the trial label now renders alongside the class (previously
+    // computed but silently dropped), so a dog entered in the same class
+    // shape across two trials is distinguishable.
+    expect(screen.getByText(/Container Novice A · Trial 1 - 9:00 AM/i)).toBeInTheDocument();
     expect(screen.getByText('114')).toBeInTheDocument();
     expect(
       container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')
@@ -180,6 +184,112 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-825: `ring` was built from `trialName || trialNumber`, so two
+   * same-day trials sharing a trial NAME (a real, common case: the wizard's
+   * own default names trials "Trial 1", "Trial 2" — but a secretary who
+   * renames both to something like "Saturday A" hits this) rendered
+   * identical rows for the same dog entered in the same class shape in both.
+   */
+  it('MYK9-825: distinguishes two same-day trials sharing a trial name', async () => {
+    const entryTrial1 = entry({
+      id: 'entry-t1',
+      class_id: 'class-t1',
+      trial_id: 'trial-1',
+      class: { id: 'class-t1', name: 'Vehicle Novice', class_number: '1', max_entries: 50 },
+    });
+    const entryTrial2 = entry({
+      id: 'entry-t2',
+      class_id: 'class-t2',
+      trial_id: 'trial-2',
+      class: { id: 'class-t2', name: 'Vehicle Novice', class_number: '1', max_entries: 50 },
+    });
+
+    const { user } = render(
+      <ShowDeskPeopleRoster
+        showId="show-1"
+        entries={[entryTrial1, entryTrial2]}
+        currentDate={new Date('2026-07-08T15:00:00.000Z')}
+        classes={[
+          {
+            id: 'class-t1',
+            name: 'Vehicle Novice',
+            element: 'Vehicle',
+            level: 'Novice',
+            section: '',
+            judgeName: '',
+            trialId: 'trial-1',
+            time: '9:00 AM',
+            status: 'scheduled',
+            entryCount: 1,
+            scoredCount: 0,
+            trialDate: '2026-07-08',
+            timezone: 'America/Chicago',
+            trialNumber: '1',
+            trialName: 'Saturday A',
+          },
+          {
+            id: 'class-t2',
+            name: 'Vehicle Novice',
+            element: 'Vehicle',
+            level: 'Novice',
+            section: '',
+            judgeName: '',
+            trialId: 'trial-2',
+            time: '9:00 AM',
+            status: 'scheduled',
+            entryCount: 1,
+            scoredCount: 0,
+            trialDate: '2026-07-08',
+            timezone: 'America/Chicago',
+            trialNumber: '2',
+            trialName: 'Saturday A',
+          },
+        ]}
+      />,
+      { initialRoute: '/shows/show-1/show-day' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(2\)/i)).toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-826: the Show Desk "Check in N entries" card links here via
+   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&rosterFilter=needs-check-in`).
+   * Landing pre-filtered must still surface a working Check in control for an
+   * accepted, not-yet-checked-in entry — not just open the roster.
+   */
+  it('MYK9-826: a rosterFilter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
+    const alreadyCheckedIn = entry({
+      id: 'entry-2',
+      handler_identity: {
+        name: 'Bea Handler',
+        person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },
+        source: 'assigned-person',
+      },
+      handler_person: {
+        id: 'person-2',
+        first_name: 'Bea',
+        last_name: 'Handler',
+        auth_user_id: 'auth-2',
+      },
+      check_in_status: 'checked-in',
+    });
+    const { user } = renderRoster([entry(), alreadyCheckedIn], {
+      initialRoute: '/shows/show-1/show-day?tool=people-at-show&rosterFilter=needs-check-in',
+    });
+
+    // Pre-filtered to "Needs check-in": the already-checked-in exhibitor is
+    // excluded, proving the filter (not just the tool sheet) applied on arrival.
+    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /alice martin/i }));
+    expect(screen.getByRole('button', { name: /^check in$/i })).toBeInTheDocument();
   });
 
   it('shows a retryable error instead of a false empty roster when entries fail to load', async () => {

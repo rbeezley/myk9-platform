@@ -5,11 +5,11 @@ import { BODY, DISPLAY, INK, MUTE } from './pdfPrimitives';
 function PanelColumn({
   heading,
   children,
-  flag,
+  flagText,
 }: {
   heading: string;
   children: React.ReactNode;
-  flag: string;
+  flagText: string;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -19,7 +19,7 @@ function PanelColumn({
           fontWeight: 800,
           fontSize: 9,
           letterSpacing: 1.4,
-          color: flag,
+          color: flagText,
           marginBottom: 3,
         }}
       >
@@ -30,7 +30,15 @@ function PanelColumn({
   );
 }
 
-export function MailToPanel({ mailTo, flag }: { mailTo: EntryBlankMailTo; flag: string }) {
+export function MailToPanel({
+  mailTo,
+  flag,
+  flagText,
+}: {
+  mailTo: EntryBlankMailTo;
+  flag: string;
+  flagText: string;
+}) {
   return (
     <View
       style={{
@@ -42,7 +50,7 @@ export function MailToPanel({ mailTo, flag }: { mailTo: EntryBlankMailTo; flag: 
       }}
     >
       <View style={{ flexDirection: 'row', gap: 20 }}>
-        <PanelColumn heading="Return this blank, with payment, to:" flag={flag}>
+        <PanelColumn heading="Return this blank, with payment, to:" flagText={flagText}>
           {mailTo.secretaryName && (
             <Text
               style={{
@@ -64,7 +72,7 @@ export function MailToPanel({ mailTo, flag }: { mailTo: EntryBlankMailTo; flag: 
           )}
         </PanelColumn>
 
-        <PanelColumn heading="Or scan and email to:" flag={flag}>
+        <PanelColumn heading="Or scan and email to:" flagText={flagText}>
           {mailTo.email && (
             <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{mailTo.email}</Text>
           )}

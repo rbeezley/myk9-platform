@@ -19,16 +19,22 @@ export function ClassesEnteredSection({
   trials,
   levelCells,
   flag,
+  flagText,
 }: {
   trials: EntryBlankTrialRow[];
   levelCells: EntryBlankLevelCell[];
   flag: string;
+  flagText: string;
 }) {
   const grouped = groupByLevel(levelCells);
 
   return (
     <View>
-      <SectionHeader number="02" title="Classes entered · mark all that apply" flag={flag} />
+      <SectionHeader
+        number="02"
+        title="Classes entered · mark all that apply"
+        flagText={flagText}
+      />
 
       <View>
         <View
@@ -75,7 +81,7 @@ export function ClassesEnteredSection({
                 fontWeight: 800,
                 fontSize: 10,
                 letterSpacing: 0.5,
-                color: flag,
+                color: flagText,
                 width: '10%',
               }}
             >
@@ -91,7 +97,7 @@ export function ClassesEnteredSection({
               {row.judgeName}
             </Text>
             <View style={{ width: '12%', alignItems: 'center' }}>
-              <Checkbox checked={row.checked} flag={flag} />
+              <Checkbox checked={row.checked} flagText={flagText} />
             </View>
           </View>
         ))}
@@ -119,7 +125,7 @@ export function ClassesEnteredSection({
               fontWeight: 800,
               fontSize: 9,
               letterSpacing: 0.5,
-              color: flag,
+              color: flagText,
               width: '18%',
             }}
           >
@@ -130,7 +136,7 @@ export function ClassesEnteredSection({
               key={cell.element}
               style={{ flexDirection: 'row', alignItems: 'center', width: '20%', gap: 3 }}
             >
-              <Checkbox checked={cell.checked} flag={flag} />
+              <Checkbox checked={cell.checked} flagText={flagText} />
               <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{cell.element}</Text>
             </View>
           ))}

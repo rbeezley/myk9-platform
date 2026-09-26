@@ -69,18 +69,29 @@ export function useBulkAccountActions({
     },
   };
 
+  // Invalidating lives INSIDE the per-item worker, not after `dispatch.run`
+  // resolves below: "Retry failed" re-invokes this SAME wrapped worker from
+  // inside useBulkDispatch, on the toast action's click, well past this
+  // function's return. An invalidate placed only after `dispatch.run` would
+  // never fire for that retry, so a person restored on retry kept reading as
+  // removed until some unrelated later refetch (Codex P2).
+  const withInvalidate =
+    (worker: (item: SelectedUser) => Promise<void>) => async (item: SelectedUser) => {
+      await worker(item);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    };
+
   // Whatever the outcome — full success, partial, or every person failed — a
-  // mutating action ends by refreshing the list and CLEARING the selection. A
-  // kept selection holds the pre-action user objects, so after a partial
-  // Suspend the people who were suspended would still read as active and be
-  // offered Suspend again (Codex P2, round 3). The dispatch's own toast keeps
-  // "Retry failed" for the ones that did not go through.
+  // mutating action ends by CLEARING the selection. A kept selection holds
+  // the pre-action user objects, so after a partial Suspend the people who
+  // were suspended would still read as active and be offered Suspend again
+  // (Codex P2, round 3). The dispatch's own toast keeps "Retry failed" for
+  // the ones that did not go through.
   const run = async (action: BulkAccountAction) => {
-    const outcome = await dispatch.run(targets[action], workers[action]);
+    const outcome = await dispatch.run(targets[action], withInvalidate(workers[action]));
     // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;
     setConfirming(null);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     onClearSelection();
   };
 

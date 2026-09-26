@@ -1,5 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, userEvent, waitFor } from '@/test/utils/testUtils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Toaster, toast } from 'sonner';
+import {
+  render,
+  screen,
+  within,
+  userEvent,
+  waitFor,
+  createTestQueryClient,
+} from '@/test/utils/testUtils';
+import { queryKeys } from '@/lib/queryClient';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 
 const mutateAsync = vi.hoisted(() => vi.fn());
@@ -54,6 +63,10 @@ describe('BulkAccountActions', () => {
     mutateAsync.mockResolvedValue({});
     invokeAdminInvite.mockResolvedValue({ data: null });
     restoreUser.mockResolvedValue({ error: null });
+  });
+
+  afterEach(() => {
+    toast.dismiss();
   });
 
   it('shows only the actions that apply, with a count when they reach fewer than all', () => {
@@ -139,6 +152,51 @@ describe('BulkAccountActions', () => {
     renderActions([person('gone', { deletedAt: new Date() })]);
     await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
     await waitFor(() => expect(restoreUser).toHaveBeenCalledWith('gone'));
+  });
+
+  // Codex P2: the initial run invalidates the roster query, but "Retry failed"
+  // runs inside useBulkDispatch and never reached that invalidation — a person
+  // restored only on retry kept reading as removed until some unrelated later
+  // refetch.
+  it('invalidates the roster query after a retry succeeds, not just the initial run', async () => {
+    let secondAttempts = 0;
+    restoreUser.mockImplementation(async (id: string) => {
+      if (id !== 'second') return { error: null };
+      secondAttempts += 1;
+      return secondAttempts === 1 ? { error: new Error('boom') } : { error: null };
+    });
+
+    toast.dismiss();
+    const queryClient = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    render(
+      <>
+        <BulkAccountActions
+          selectedUsers={[
+            person('first', { deletedAt: new Date() }),
+            person('second', { deletedAt: new Date() }),
+          ]}
+          onClearSelection={vi.fn()}
+        />
+        <Toaster />
+      </>,
+      { queryClient }
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
+
+    // Partial failure: 'first' succeeds and invalidates once; 'second' fails
+    // and does not.
+    await waitFor(() => expect(restoreUser).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(1));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.users.all });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry failed' }));
+
+    // The retry re-runs only 'second', which now succeeds — the roster query
+    // must be invalidated again so the restored person stops reading as removed.
+    await waitFor(() => expect(restoreUser).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
   });
 
   it('copies the selected emails from the More menu', async () => {

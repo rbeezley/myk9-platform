@@ -50,7 +50,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   showCheckInStatus = true,
   matchingEntryIds,
   onBulkStatusChange,
-  onPaymentStatusChange,
   paymentLedger,
   emailStatusMap,
   onResendEmail,
@@ -83,13 +82,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // (MYK9-495 round 2).
   const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars;
 
-  // Online money is not the desk's: it keeps the plain status write.
+  // Online money is not the desk's (no ledger row), but the server runs the
+  // same entries cascade as a desk payment (MYK9-773).
   const markPaidOnline = () => {
-    if (enrollmentId) onPaymentStatusChange(enrollmentId, PaymentStatus.PAID_ONLINE);
+    if (enrollmentId) void paymentLedger.markPaidOnline(enrollmentId);
   };
 
   // MYK9-677: cash and check money goes through the payments ledger, one row
-  // per payment with the day it was received. Online stays on markPaidOnline.
+  // per payment with the day it was received.
   const today = paymentLedger.todayInShowZone;
   const openFullPayment = (method: FullPaymentDialog['method']) =>
     setFullDialog({ open: true, method, checkNumber: '', receivedOn: today });

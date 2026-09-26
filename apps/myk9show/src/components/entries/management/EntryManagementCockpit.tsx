@@ -33,7 +33,7 @@ import type {
   EntryManagementEntry,
 } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 
 const QUEUES = [
@@ -89,15 +89,6 @@ interface EntryManagementCockpitProps {
     status: EntryStatus,
     onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  onPaymentStatusChange: (
-    enrollmentId: string,
-    status: PaymentStatus,
-    reference?: string | null,
-    paidAmount?: number | null,
-    refundAmount?: number | null,
-    refundNotes?: string | null,
-    checkNumber?: string | null
-  ) => void;
   onSendDecisionEmail: (
     registrationId: string,
     message?: string,
@@ -131,7 +122,6 @@ export function EntryManagementCockpit({
   onUncompEntry,
   onRemoveEntry,
   onBulkStatusChange,
-  onPaymentStatusChange,
   onSendDecisionEmail,
   onRefresh,
   paymentLedger,
@@ -430,7 +420,6 @@ export function EntryManagementCockpit({
                 new Set(cockpit.matchingEntryIdsByGroup.get(cockpit.focusedGroup.groupKey) ?? [])
               }
               onBulkStatusChange={onBulkStatusChange}
-              onPaymentStatusChange={onPaymentStatusChange}
               paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
               onResendEmail={handleResendEmail}

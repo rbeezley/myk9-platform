@@ -127,8 +127,7 @@ function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockp
       onUncompEntry={vi.fn()}
       onRemoveEntry={vi.fn()}
       onBulkStatusChange={vi.fn()}
-      onPaymentStatusChange={vi.fn()}
-      paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
+      paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       onSendDecisionEmail={vi.fn().mockResolvedValue(undefined)}
       onRefresh={vi.fn()}
     />

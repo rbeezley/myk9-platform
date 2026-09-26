@@ -6,7 +6,6 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
-import type { TablesUpdate } from '@/types/supabase';
 import { buildSelfServiceEnrollmentPaymentFields } from './selfServiceEnrollmentFields';
 import {
   buildEnrollmentPaymentFields,
@@ -76,28 +75,6 @@ async function updateExistingEnrollmentPayment({
   }
 
   return { data: mapDbToRegistration(data as DbRegistration), error: null };
-}
-
-function mapEnrollmentPaymentStatusToEntryStatus(
-  paymentStatus: string
-): 'pending' | 'paid' | 'refunded' | 'waived' {
-  // Keep this collapse aligned with mapEnrollmentStatusToEntryPaymentStatus in
-  // hooks/useEntryManagementActions.ts. Entries can only persist coarse values.
-  switch (paymentStatus) {
-    case 'paid':
-    case 'paid_online':
-    case 'paid_by_cash':
-    case 'paid_by_check':
-      return 'paid';
-    case 'refunded':
-    case 'partial_refund':
-      return 'refunded';
-    case 'waived':
-      return 'waived';
-    case 'pending':
-    default:
-      return 'pending';
-  }
 }
 
 /**
@@ -300,88 +277,6 @@ export const updateRegistrationPayment = async (
       'enrollments',
       'update_payment'
     );
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Update the payment status (and optionally payment_reference) for an enrollment.
- * Used by secretaries to record cash/check payments received on show day.
- */
-export const updateEnrollmentPaymentStatus = async (
-  enrollmentId: string,
-  paymentStatus: string,
-  paymentReference?: string | null,
-  paidAmount?: number | null,
-  refundAmount?: number | null,
-  refundNotes?: string | null,
-  checkNumber?: string | null
-) => {
-  const startTime = Date.now();
-  try {
-    const updateData: TablesUpdate<'enrollments'> = {
-      payment_status: paymentStatus,
-      updated_at: new Date().toISOString(),
-    };
-    if (paymentReference !== undefined) {
-      updateData.payment_reference = paymentReference;
-    }
-    if (checkNumber !== undefined) {
-      updateData.check_number = checkNumber;
-    }
-    if (paidAmount != null) {
-      updateData.paid_amount = paidAmount;
-    }
-    if (refundAmount != null) {
-      updateData.refund_amount = refundAmount;
-      updateData.refunded_at = new Date().toISOString();
-    }
-    if (refundNotes != null) {
-      updateData.refund_notes = refundNotes;
-    }
-
-    const { data, error } = await supabase
-      .from('enrollments')
-      .update(updateData)
-      .eq('id', enrollmentId)
-      .select('id, payment_status, payment_reference, paid_amount')
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'update_payment_status', duration, error?.message);
-
-    if (error) throw createDatabaseError(error, 'enrollments', 'update_payment_status');
-
-    const entryPaymentStatus = mapEnrollmentPaymentStatusToEntryStatus(paymentStatus);
-    const entryUpdateData: TablesUpdate<'entries'> = {
-      payment_status: entryPaymentStatus,
-      updated_at: new Date().toISOString(),
-    };
-    const { error: entriesError } = await supabase
-      .from('entries')
-      .update(entryUpdateData)
-      .eq('registration_id', enrollmentId)
-      .neq('payment_status', 'refunded')
-      .neq('payment_status', 'waived');
-
-    logQuery(
-      'entries',
-      'cascade_enrollment_payment_status',
-      Date.now() - startTime,
-      entriesError?.message
-    );
-
-    if (entriesError)
-      return {
-        data,
-        error: createDatabaseError(entriesError, 'entries', 'cascade_enrollment_payment_status'),
-      };
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'enrollments', 'update_payment_status');
-    logQuery('enrollments', 'update_payment_status', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

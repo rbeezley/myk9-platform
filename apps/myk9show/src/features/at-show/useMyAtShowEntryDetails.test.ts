@@ -38,7 +38,8 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
     vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([]);
 
     renderHook(
-      () => useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses, emptyTrials),
+      () =>
+        useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses, emptyTrials),
       { wrapper }
     );
 

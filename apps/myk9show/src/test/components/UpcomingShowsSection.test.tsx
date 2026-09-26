@@ -456,7 +456,9 @@ describe('UpcomingShowsSection', () => {
 
       render(<UpcomingShowsSection {...defaultProps} />);
 
-      expect(screen.getByText('1 entry upcoming on myK9Show · 1 external show')).toBeInTheDocument();
+      expect(
+        screen.getByText('1 entry upcoming on myK9Show · 1 external show')
+      ).toBeInTheDocument();
     });
 
     it('pluralizes the entry unit', () => {

@@ -74,7 +74,9 @@ function isTodayOrFuture(entry: DogActivityEntry, today: Date): boolean {
   const trialDate = parseShowDate(entry.trial?.date);
   if (trialDate) {
     const timezone = entry.trial?.timezone ?? undefined;
-    return isTrialDayToday(trialDate, timezone, today) || isTrialDayAhead(trialDate, timezone, today);
+    return (
+      isTrialDayToday(trialDate, timezone, today) || isTrialDayAhead(trialDate, timezone, today)
+    );
   }
   // An unscored class is still ahead during a multi-day show, even after its
   // first day. The dog read supplies end_date online and from the replica.

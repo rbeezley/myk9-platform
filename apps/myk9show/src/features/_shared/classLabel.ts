@@ -155,3 +155,51 @@ export function buildClassDisambiguator(
     return classNameExtra(cls.name, cls.element, cls.level, cls.section);
   };
 }
+
+/** A trial as far as same-day disambiguation is concerned. */
+export interface TrialDayIdentity {
+  trialId: string;
+  /** Bare `YYYY-MM-DD` date; a trial with no date never collides. */
+  trialDate?: string | null | undefined;
+  trialName?: string | null | undefined;
+}
+
+/**
+ * Build a disambiguator for trials that share a calendar day.
+ *
+ * `buildClassDisambiguator` is deliberately a single-trial contract (see
+ * above) — a Saturday and a Sunday trial are already told apart by their day
+ * label alone, so a class-name collision test only ever runs within one
+ * trial's own classes. It says nothing about TWO trials landing on the SAME
+ * day (MYK9-832 #10: a two-trial Saturday show entering a dog in both trials'
+ * "Vehicle Novice B" showed the identical row twice, disambiguated only by a
+ * day label ("Sat ·") that was the same for both).
+ *
+ * Gated on collision, the same way: a trial's own name is returned only when
+ * another trial in the given set shares its date, so the common one-trial-
+ * per-day case never gains a redundant suffix.
+ */
+export function buildTrialDayDisambiguator(
+  trials: readonly TrialDayIdentity[]
+): (trialId: string) => string {
+  const trialIdsByDate = new Map<string, Set<string>>();
+  const trialsById = new Map<string, TrialDayIdentity>();
+
+  for (const trial of trials) {
+    trialsById.set(trial.trialId, trial);
+    const date = clean(trial.trialDate);
+    if (!date) continue;
+    const ids = trialIdsByDate.get(date) ?? new Set<string>();
+    ids.add(trial.trialId);
+    trialIdsByDate.set(date, ids);
+  }
+
+  return trialId => {
+    const trial = trialsById.get(trialId);
+    const date = clean(trial?.trialDate);
+    if (!date) return '';
+    const collidingIds = trialIdsByDate.get(date);
+    if (!collidingIds || collidingIds.size < 2) return '';
+    return clean(trial?.trialName);
+  };
+}

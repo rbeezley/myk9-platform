@@ -4,6 +4,7 @@ import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-
 import type { ShowPresence } from '@/features/show-presence/types';
 import { getStatusDescriptor } from '@/components/status';
 import { buildClassDisambiguatorsByGroup, buildFullClassLabel } from '@/features/_shared/classLabel';
+import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 
 export type PeopleRosterFilter = 'all' | 'needs-check-in' | 'online';
 
@@ -82,6 +83,25 @@ function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
 
+/**
+ * Trial identity shown alongside a class row (feeds `PeopleRosterClassInfo.ring`).
+ * `trialName` alone collides when two same-day trials share a name (MYK9-825)
+ * — a real, common case, since the show-creation wizard's own default names
+ * trials "Trial 1", "Trial 2", etc. So both name and number are shown UNLESS
+ * the name already reads as that number (e.g. name "Trial 1", number "1"),
+ * where appending it would only repeat it.
+ */
+export function formatTrialIdentity(
+  trialName: string | null | undefined,
+  trialNumber: string | null | undefined
+): string | null {
+  const name = (trialName ?? '').trim();
+  const number = (trialNumber ?? '').trim();
+  if (!name) return number ? `Trial ${number}` : null;
+  if (!number || name.includes(number)) return name;
+  return `${name} (Trial ${number})`;
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values.filter(value => value.trim()))];
 }
@@ -137,27 +157,6 @@ function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
   return new Map(classes.map(cls => [cls.id, cls]));
 }
 
-function formatDateInTimezone(timezone: string | null | undefined, date: Date): string {
-  const options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    ...(timezone ? { timeZone: timezone } : {}),
-  };
-
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
-    const year = parts.find(part => part.type === 'year')?.value;
-    const month = parts.find(part => part.type === 'month')?.value;
-    const day = parts.find(part => part.type === 'day')?.value;
-    if (year && month && day) return `${year}-${month}-${day}`;
-  } catch {
-    return formatDateInTimezone(null, date);
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
 function checkInEligibility(
   entry: EntryManagementEntry,
   cls: EntryClass,
@@ -185,7 +184,7 @@ function checkInEligibility(
       return { eligible: false, reason: 'Date unavailable' };
     }
 
-    if (info.trialDate !== formatDateInTimezone(info.timezone, currentDate)) {
+    if (!isTrialDateToday(info.trialDate, info.timezone, currentDate)) {
       return { eligible: false, reason: 'Not today' };
     }
   }

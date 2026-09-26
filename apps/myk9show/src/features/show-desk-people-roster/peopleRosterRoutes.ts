@@ -22,6 +22,12 @@ export function getShowDeskPeopleAtShowHref(input: {
 }): string {
   const params = new URLSearchParams();
   params.set('tool', SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID);
-  if (input.filter) params.set('filter', input.filter);
+  // A dedicated `rosterFilter` param, distinct from the cockpit's own `filter`
+  // (day/in-progress/needs-attention/needs-closeout, see cockpitRoutes.ts):
+  // sharing the `filter` key meant `writeCockpitUrlState` treated
+  // `needs-check-in` as an invalid cockpit filter and dropped it on the next
+  // cockpit URL rewrite, resetting the roster to "All exhibitors" on
+  // reopen/refresh (MYK9-825/826).
+  if (input.filter) params.set('rosterFilter', input.filter);
   return `/shows/${encodeURIComponent(input.showId)}/show-day?${params.toString()}`;
 }

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import {
   buildPeopleRoster,
   filterPeopleRoster,
+  formatTrialIdentity,
   type PeopleRosterFilter,
   type PeopleRosterPerson,
 } from './peopleRoster';
@@ -59,9 +60,13 @@ export function ShowDeskPeopleRoster({
   const [search, setSearch] = useState('');
   const [searchParams] = useSearchParams();
   // MYK9-826: the Show Desk "Check in N entries" card deep-links here with
-  // `?filter=needs-check-in` so it lands pre-filtered, not just pre-opened.
+  // `?rosterFilter=needs-check-in` so it lands pre-filtered, not just
+  // pre-opened. This rides in its own param, distinct from the cockpit's
+  // `filter` (see cockpitRoutes.ts) — sharing that key meant
+  // `writeCockpitUrlState` treated `needs-check-in` as an invalid cockpit
+  // filter and stripped it on the next cockpit URL rewrite (MYK9-825/826).
   const [filter, setFilter] = useState<PeopleRosterFilter>(() => {
-    const requested = searchParams.get('filter');
+    const requested = searchParams.get('rosterFilter');
     return isPeopleRosterFilter(requested) ? requested : 'all';
   });
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
@@ -98,18 +103,21 @@ export function ShowDeskPeopleRoster({
       buildPeopleRoster({
         entries,
         presence: present,
-        classes: classes.map(cls => ({
-          id: cls.id,
-          name: cls.name,
-          time: cls.time,
-          ring: cls.trialName || cls.trialNumber,
-          trialId: cls.trialId,
-          element: cls.element,
-          level: cls.level,
-          section: cls.section,
-          trialDate: cls.trialDate,
-          timezone: cls.timezone ?? null,
-        })),
+        classes: classes.map(cls => {
+          const ring = formatTrialIdentity(cls.trialName, cls.trialNumber);
+          return {
+            id: cls.id,
+            name: cls.name,
+            time: cls.time,
+            ...(ring ? { ring } : {}),
+            trialId: cls.trialId,
+            element: cls.element,
+            level: cls.level,
+            section: cls.section,
+            trialDate: cls.trialDate,
+            timezone: cls.timezone ?? null,
+          };
+        }),
         currentDate: currentDate ?? now,
       }),
     [classes, currentDate, entries, now, present]

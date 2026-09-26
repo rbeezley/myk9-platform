@@ -8,9 +8,9 @@ describe('getShowDeskPeopleAtShowHref', () => {
     );
   });
 
-  it('carries the needs-check-in filter so the roster lands pre-filtered', () => {
+  it('carries the needs-check-in filter under its own rosterFilter param so the roster lands pre-filtered', () => {
     expect(getShowDeskPeopleAtShowHref({ showId: 'show-1', filter: 'needs-check-in' })).toBe(
-      `/shows/show-1/show-day?tool=${SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID}&filter=needs-check-in`
+      `/shows/show-1/show-day?tool=${SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID}&rosterFilter=needs-check-in`
     );
   });
 

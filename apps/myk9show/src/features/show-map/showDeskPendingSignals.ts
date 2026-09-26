@@ -1,6 +1,7 @@
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapTree } from './showMapTypes';
 import type { EntryLike } from './attention';
+import { getShowMapNodeId } from './showMapTree';
 import { countRawEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import {
   classifyRawEntryAttention,
@@ -8,6 +9,16 @@ import {
 } from '@/features/entry-operations/attentionClassification';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getShowDeskPeopleAtShowHref } from '@/features/show-desk-people-roster/peopleRosterRoutes';
+import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
+
+/**
+ * The subset of a raw entry row `countEntriesWaitingCheckIn` needs to look up
+ * its class's trial date. `EntryLike` stays narrow (it's shared with the
+ * legacy attention classifier); `class_id` is additive here.
+ */
+interface CheckInEntryLike extends EntryLike {
+  class_id?: string | null;
+}
 
 export type ShowDeskPendingSignalId =
   | 'entries-waiting-review'
@@ -47,7 +58,10 @@ export interface ShowDeskPendingSignal {
 export interface ComputeShowDeskPendingSignalsInput {
   showId: string;
   tree: ShowMapTree;
-  entries: readonly EntryLike[];
+  entries: readonly CheckInEntryLike[];
+  /** "Today" reference for the check-in signal. `null`/omitted skips the
+   *  date gate (matches `checkInEligibility`'s own no-currentDate behavior). */
+  currentDate?: Date | null | undefined;
 }
 
 const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
@@ -86,7 +100,11 @@ function countEntriesWaitingReview(entries: readonly EntryLike[]): number {
 // double-count against waiting-for-review or shouldn't show at the gate at all.
 const RUN_ORDER_ELIGIBLE_ENTRY_STATUSES: ReadonlySet<string> = new Set(['accepted', 'confirmed']);
 
-function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
+function countEntriesWaitingCheckIn(
+  entries: readonly CheckInEntryLike[],
+  tree: ShowMapTree,
+  currentDate: Date | null | undefined
+): number {
   // INTENT: Treat missing / null / empty / 'no-status' all as "not yet checked in".
   // Real DB rows often arrive with null check_in_status before the gate steward has
   // touched the entry; mappers preserve that null. Narrowing to literal 'no-status'
@@ -99,7 +117,16 @@ function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
     const entryStatus = lower(entry.entry_status);
     if (!RUN_ORDER_ELIGIBLE_ENTRY_STATUSES.has(entryStatus)) return false;
     const checkInStatus = lower(entry.check_in_status);
-    return checkInStatus === '' || checkInStatus === 'no-status';
+    if (checkInStatus !== '' && checkInStatus !== 'no-status') return false;
+
+    // MYK9-825/826: the roster's own eligibility check (checkInEligibility)
+    // already excludes a class whose trial isn't today, so this signal must
+    // count exactly the same entries — otherwise the chip can read positive
+    // while its linked Needs check-in filter comes up empty.
+    const classNode = entry.class_id
+      ? tree.nodesById[getShowMapNodeId('class', entry.class_id)]
+      : undefined;
+    return isTrialDateToday(classNode?.trialDate, classNode?.timezone, currentDate);
   }).length;
 }
 
@@ -127,6 +154,7 @@ export function computeShowDeskPendingSignals({
   showId,
   tree,
   entries,
+  currentDate,
 }: ComputeShowDeskPendingSignalsInput): ShowDeskPendingSignal[] {
   const signals: ShowDeskPendingSignal[] = [];
   const scope: ShowDeskPendingSignalScope = { kind: 'show', showId };
@@ -145,7 +173,7 @@ export function computeShowDeskPendingSignals({
     });
   }
 
-  const waitingCheckIn = countEntriesWaitingCheckIn(entries);
+  const waitingCheckIn = countEntriesWaitingCheckIn(entries, tree, currentDate);
   if (waitingCheckIn > 0) {
     signals.push({
       id: 'entries-waiting-checkin',

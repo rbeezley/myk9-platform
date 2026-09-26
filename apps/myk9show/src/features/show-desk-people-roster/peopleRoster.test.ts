@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { buildPeopleRoster, filterPeopleRoster } from './peopleRoster';
+import { buildPeopleRoster, filterPeopleRoster, formatTrialIdentity } from './peopleRoster';
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -465,5 +465,33 @@ describe('peopleRoster', () => {
     expect(row1?.ring).toBe('Trial 1');
     expect(row2?.className).toBe('Vehicle Novice B');
     expect(row2?.ring).toBe('Trial 2');
+  });
+});
+
+describe('formatTrialIdentity', () => {
+  /**
+   * MYK9-825: ShowDeskPeopleRoster built `ring` from `trialName || trialNumber`
+   * — whichever came first — so two same-day trials sharing a trial NAME
+   * (a real, common case: the show wizard's own default names trials
+   * "Trial 1", "Trial 2") produced identical, indistinguishable rows.
+   */
+  it('combines name and number when they differ, so same-named same-day trials stay distinguishable', () => {
+    expect(formatTrialIdentity('Saturday A', '1')).toBe('Saturday A (Trial 1)');
+    expect(formatTrialIdentity('Saturday A', '2')).toBe('Saturday A (Trial 2)');
+  });
+
+  it('does not repeat the number when the name already reads as that trial', () => {
+    // The common case: the wizard's own default trial name IS "Trial N".
+    expect(formatTrialIdentity('Trial 1', '1')).toBe('Trial 1');
+  });
+
+  it('falls back to name-only or number-only when the other is missing', () => {
+    expect(formatTrialIdentity('Saturday A', '')).toBe('Saturday A');
+    expect(formatTrialIdentity('', '2')).toBe('Trial 2');
+  });
+
+  it('returns null when both are missing', () => {
+    expect(formatTrialIdentity('', '')).toBeNull();
+    expect(formatTrialIdentity(null, undefined)).toBeNull();
   });
 });

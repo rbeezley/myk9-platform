@@ -85,6 +85,12 @@ export const HEALTH_COVERAGE_SURFACES: readonly HealthCoverageSurface[] = [
     checkKey: 'class_results_push',
   },
   {
+    label: 'Platform settings row',
+    verificationLevel: 'full',
+    detail: 'the platform fee and Stripe mode row is checked every five minutes',
+    checkKey: 'platform_settings_singleton',
+  },
+  {
     label: 'Sign-in email failures',
     verificationLevel: 'full',
     detail: 'delivery failures raise alerts',

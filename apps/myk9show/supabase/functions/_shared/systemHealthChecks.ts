@@ -27,6 +27,7 @@ import {
   shouldRunHealthCheck,
   type HealthCheckRunMode,
 } from './healthCheckCadence.ts';
+import { platformSettingsSingletonCheck } from './platformSettingsChecks.ts';
 import { publicSchemaCreateAclCheck } from './publicSchemaAclChecks.ts';
 import { strayPublishedShowsCheck } from './strayShowChecks.ts';
 
@@ -110,6 +111,9 @@ export interface RawProbeFacts {
   /** `public.class_results_push_health()` as the runner read it (MYK9-737):
    * `{ stuck, failed, pending, sample[] }` or `{ error }`. Every run. */
   class_results_push?: unknown;
+  /** Row count of public.platform_settings as the runner read it (MYK9-781):
+   * `{ count }` or `{ error }`. Every run. */
+  platform_settings_singleton?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -732,6 +736,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     publicSchemaCreateAclCheck(f.public_schema_create_acl, probedAt),
     strayPublishedShowsCheck(f.stray_published_shows, probedAt),
     classResultsPushCheck(f.class_results_push, probedAt),
+    platformSettingsSingletonCheck(f.platform_settings_singleton, probedAt),
   ];
 
   const previousByKey = new Map((opts.previousChecks ?? []).map(check => [check.key, check]));

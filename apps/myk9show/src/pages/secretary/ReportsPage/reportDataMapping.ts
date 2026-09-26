@@ -256,7 +256,9 @@ export function buildTrialReportProps(input: {
   const { show, trials, classes, entries, scope, sortOrder } = input;
   const allShowTrials = trials ?? [];
   const targetTrials =
-    scope.kind === 'show' ? allShowTrials : allShowTrials.filter(trial => trial.id === scope.trialId);
+    scope.kind === 'show'
+      ? allShowTrials
+      : allShowTrials.filter(trial => trial.id === scope.trialId);
 
   const allClasses = (classes ?? []).map(c => ({
     id: c.id,

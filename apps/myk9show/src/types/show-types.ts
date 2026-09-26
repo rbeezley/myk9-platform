@@ -35,6 +35,11 @@ export interface ShowTrial {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   maxEntriesPerHandler?: number | undefined;
+  // The show-creation wizard's real trial creation sequence (MYK9-827) — the
+  // same ordinal `computeDayTrialNumber` reads off `trials.display_order` on
+  // the warm path. Carried here so a cached show detail can back that same
+  // ordinal when the scoped trial read is unavailable.
+  displayOrder?: number | null | undefined;
 }
 
 export interface Class {

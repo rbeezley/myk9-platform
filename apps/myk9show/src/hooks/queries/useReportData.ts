@@ -221,6 +221,10 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           trial_number: Number(trial.trialNumber) || 0,
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
+          // MYK9-827: same ordinal source as the warm path (trials.display_order),
+          // so buildTrialReportProps's computeDayTrialNumber sorts same-day
+          // trials by creation order instead of falling back to UUID order.
+          display_order: trial.displayOrder ?? null,
         }))
       : undefined;
   const selectedTrialIsInShow =

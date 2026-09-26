@@ -4,7 +4,10 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
 import type { Show } from '@/types/show-types';
-import { mapReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { mapReportEntries, buildTrialReportProps } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildUKCNoseworkTrialReportValues } from '@/features/organization-forms/ukcNoseworkTrialReport';
+import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from '@/features/organization-forms/ukcNoseworkTrialReportFields';
+import type { DbTrial, DbClass } from '@/types/database-mappings';
 
 const hydrationMocks = vi.hoisted(() => ({
   revision: 0,
@@ -719,6 +722,63 @@ describe('useReportData', () => {
       await waitFor(() => expect(result.current.dataState).toBe('ready'));
       expect(result.current.isReady).toBe(true);
       expect(result.current.trials).toHaveLength(1);
+    });
+
+    it('ticks each same-day trial its own UKC box from cached show trials, not UUID order (MYK9-827)', async () => {
+      // Chosen so alphabetical (UUID) order is the OPPOSITE of display order:
+      // a naive fallback that drops display_order would tick trial 2's box on
+      // trial 1's report and vice versa.
+      const cachedShow = {
+        ...mockShow,
+        trials: [
+          {
+            id: 'zzzzzzzz-0000-0000-0000-000000000001',
+            name: 'Trial 1',
+            trialNumber: '1',
+            date: '2026-04-12',
+            displayOrder: 1,
+          },
+          {
+            id: 'aaaaaaaa-0000-0000-0000-000000000002',
+            name: 'Trial 2',
+            trialNumber: '2',
+            date: '2026-04-12',
+            displayOrder: 2,
+          },
+        ],
+      } as unknown as Show;
+      mockGetTrialsByShow.mockResolvedValue({
+        data: null,
+        error: new Error('verification offline'),
+      } as never);
+      mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+      const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.trials).toHaveLength(2);
+
+      const [reportOne, reportTwo] = buildTrialReportProps({
+        show: cachedShow,
+        trials: result.current.trials as DbTrial[],
+        classes: (result.current.classes ?? []) as DbClass[],
+        entries: [],
+        scope: { kind: 'show', showId: 'show-1' },
+        sortOrder: '',
+      });
+
+      expect(reportOne?.trial?.dayTrialNumber).toBe(1);
+      expect(reportTwo?.trial?.dayTrialNumber).toBe(2);
+
+      expect(buildUKCNoseworkTrialReportValues(reportOne).checkboxes).toEqual({
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne]: true,
+      });
+      expect(buildUKCNoseworkTrialReportValues(reportTwo).checkboxes).toEqual({
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo]: true,
+      });
     });
   });
 });

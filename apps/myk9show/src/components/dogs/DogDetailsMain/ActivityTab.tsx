@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { formatActivityDate, type DogActivityEntry } from '@/features/_shared/dogActivity';
+import {
+  formatActivityDate,
+  getEntryDisplayDate,
+  type DogActivityEntry,
+} from '@/features/_shared/dogActivity';
 import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
@@ -29,8 +33,7 @@ function UpcomingRow({
 }) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
-  const showDate = entry.show?.start_date;
-  const formattedDate = formatActivityDate(showDate);
+  const formattedDate = formatActivityDate(getEntryDisplayDate(entry));
   const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
   // One composed status line in the viewer's voice — never the raw enum
   // ("submitted") or a bare "pending" (UX walk remediation 2.B).

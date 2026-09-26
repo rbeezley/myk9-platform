@@ -619,6 +619,10 @@ async function postgrestGetEntriesByDog(dogId: string) {
         start_date,
         end_date,
         location
+      ),
+      trial:trial_id (
+        date,
+        timezone
       )
     `
     )

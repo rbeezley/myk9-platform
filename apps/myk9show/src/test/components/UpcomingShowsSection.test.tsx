@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import UpcomingShowsSection from '@/components/dogs/DogDetails/Competitions/UpcomingShows/UpcomingShowsSection';
 import ActivityTab from '@/components/dogs/DogDetailsMain/ActivityTab';
@@ -456,7 +456,7 @@ describe('UpcomingShowsSection', () => {
 
       render(<UpcomingShowsSection {...defaultProps} />);
 
-      expect(screen.getByText('1 entry on myK9Show · 1 external show')).toBeInTheDocument();
+      expect(screen.getByText('1 entry upcoming on myK9Show · 1 external show')).toBeInTheDocument();
     });
 
     it('pluralizes the entry unit', () => {
@@ -472,8 +472,70 @@ describe('UpcomingShowsSection', () => {
 
       render(<UpcomingShowsSection {...defaultProps} />);
 
-      expect(screen.getByText('2 entries on myK9Show')).toBeInTheDocument();
+      expect(screen.getByText('2 entries upcoming on myK9Show')).toBeInTheDocument();
     });
+  });
+});
+
+describe('per-trial dates on a multi-day show (MYK9-806)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    useCompetitionStore.setState({ competitions: [] });
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  // 'Heartland Scent Work Week' shape: one show, one trial per day, all
+  // sharing the same show.start_date — each entry's OWN trial.date must
+  // drive its row, or every row dates itself to the show's FIRST day.
+  const SHOW = { id: 'show-week', name: 'Heartland Scent Work Week', start_date: '2026-09-25' };
+
+  it('dates each row with its own trial day, not the show start date', () => {
+    vi.setSystemTime(new Date('2026-09-27T17:00:00Z')); // day 3, midday Chicago
+
+    useEntriesByDogQueryMock.mockReturnValue(
+      resolved([
+        entryRow({
+          id: 'entry-day-3',
+          show: SHOW,
+          trial: { date: '2026-09-27', timezone: 'America/Chicago' },
+        }),
+      ])
+    );
+
+    render(<UpcomingShowsSection {...defaultProps} />);
+
+    const card = screen.getByTestId('section-card');
+    const dateText = card.querySelectorAll('.text-muted-foreground')[0]?.textContent ?? '';
+    expect(dateText).not.toContain('09/25/2026');
+    expect(new Date(dateText).getDate()).toBe(27);
+  });
+
+  it('does not list a past, unrun trial from an in-progress show as upcoming', () => {
+    vi.setSystemTime(new Date('2026-09-27T17:00:00Z')); // day 3, midday Chicago
+
+    useEntriesByDogQueryMock.mockReturnValue(
+      resolved([
+        entryRow({
+          id: 'entry-day-1',
+          show: SHOW,
+          trial: { date: '2026-09-25', timezone: 'America/Chicago' }, // already past, unrun
+        }),
+        entryRow({
+          id: 'entry-day-3',
+          show: SHOW,
+          trial: { date: '2026-09-27', timezone: 'America/Chicago' }, // today
+        }),
+      ])
+    );
+
+    render(<UpcomingShowsSection {...defaultProps} />);
+
+    expect(screen.getAllByTestId('section-card')).toHaveLength(1);
+    expect(screen.getByText('1 entry upcoming on myK9Show')).toBeInTheDocument();
   });
 });
 

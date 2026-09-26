@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { deriveDogActivity, formatActivityDate, type DogActivityEntry } from '../dogActivity';
+import {
+  deriveDogActivity,
+  formatActivityDate,
+  getEntryDisplayDate,
+  type DogActivityEntry,
+} from '../dogActivity';
 
 const TODAY = new Date(2026, 6, 2);
 
@@ -122,5 +127,99 @@ describe('formatActivityDate', () => {
       weekday: 'Sat',
       monthDay: 'Aug 1',
     });
+  });
+});
+
+describe('per-trial dates on a multi-day show (MYK9-806)', () => {
+  // 'Heartland Scent Work Week' shape: one show, one trial per day — every
+  // entry shares the same show.start_date, so a display date or an
+  // upcoming/past classification derived from the SHOW is wrong for every
+  // trial after the first.
+  const SHOW = { id: 'show-week', name: 'Scent Work Week', start_date: '2026-09-25' };
+
+  it('getEntryDisplayDate prefers the entry’s own trial date over the show start date', () => {
+    const withTrial = entry({
+      show: SHOW,
+      trial: { date: '2026-09-28', timezone: 'America/Chicago' },
+    });
+    expect(getEntryDisplayDate(withTrial)).toBe('2026-09-28');
+  });
+
+  it('getEntryDisplayDate falls back to the show start date when no trial join is present', () => {
+    expect(getEntryDisplayDate(entry({ show: SHOW, trial: undefined }))).toBe('2026-09-25');
+  });
+
+  it('does not treat a past, unrun trial from a still-running show as upcoming', () => {
+    // Day 3 of the week (Sep 27) — day 1's trial has already passed.
+    const day3 = new Date(2026, 8, 27);
+    const activity = deriveDogActivity(
+      [
+        entry({
+          id: 'day-1-unrun',
+          show: SHOW,
+          trial: { date: '2026-09-25', timezone: 'America/Chicago' },
+        }),
+      ],
+      day3
+    );
+
+    expect(activity.upcoming).toEqual([]);
+  });
+
+  it('keeps today’s and future trials from the same multi-day show as upcoming', () => {
+    const day3 = new Date(2026, 8, 27);
+    const activity = deriveDogActivity(
+      [
+        entry({
+          id: 'day-3-today',
+          show: SHOW,
+          trial: { date: '2026-09-27', timezone: 'America/Chicago' },
+        }),
+        entry({
+          id: 'day-5-future',
+          show: SHOW,
+          trial: { date: '2026-09-29', timezone: 'America/Chicago' },
+        }),
+      ],
+      day3
+    );
+
+    expect(activity.upcoming.map(e => e.id)).toEqual(
+      expect.arrayContaining(['day-3-today', 'day-5-future'])
+    );
+    expect(activity.upcoming).toHaveLength(2);
+  });
+
+  it('reckons the trial day in the TRIAL zone, not the UTC day, right at the UTC/Chicago midnight gap', () => {
+    // 02:00 UTC on Sep 27 is 21:00 CDT on Sep 26 — UTC has already rolled to
+    // the 27th, but Chicago has not, so the Sep-26 trial is still "today",
+    // not yet past.
+    const justAfterUtcMidnight = new Date('2026-09-27T02:00:00Z');
+    const stillToday = deriveDogActivity(
+      [
+        entry({
+          id: 'day-2',
+          show: SHOW,
+          trial: { date: '2026-09-26', timezone: 'America/Chicago' },
+        }),
+      ],
+      justAfterUtcMidnight
+    );
+    expect(stillToday.upcoming.map(e => e.id)).toEqual(['day-2']);
+
+    // 08:00 UTC on Sep 27 is 03:00 CDT on Sep 27 — Chicago has now rolled
+    // over, so the Sep-26 trial is genuinely past.
+    const afterChicagoMidnight = new Date('2026-09-27T08:00:00Z');
+    const nowPast = deriveDogActivity(
+      [
+        entry({
+          id: 'day-2',
+          show: SHOW,
+          trial: { date: '2026-09-26', timezone: 'America/Chicago' },
+        }),
+      ],
+      afterChicagoMidnight
+    );
+    expect(nowPast.upcoming).toEqual([]);
   });
 });

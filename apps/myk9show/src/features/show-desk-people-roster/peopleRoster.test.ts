@@ -356,8 +356,13 @@ describe('peopleRoster', () => {
 
     expect(roster[0]).toEqual(
       expect.objectContaining({
-        id: 'handler-1',
+        // MYK9-824 round 2: the row key composes identity + printed name so
+        // two different typed handlers sharing a fallback handler_id never
+        // silently merge (see the id below and the round-2 tests further
+        // down this file).
+        id: 'handler-1::casey handler',
         name: 'Casey Handler',
+        contactName: 'Casey Handler',
         authUserId: 'auth-handler',
       })
     );
@@ -382,7 +387,7 @@ describe('peopleRoster', () => {
 
     expect(roster[0]).toEqual(
       expect.objectContaining({
-        id: 'handler-1',
+        id: 'handler-1::casey handler',
         name: 'Casey Handler',
         authUserId: null,
       })

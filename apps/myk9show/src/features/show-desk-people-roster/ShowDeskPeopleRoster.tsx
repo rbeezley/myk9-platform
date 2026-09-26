@@ -148,14 +148,14 @@ export function ShowDeskPeopleRoster({
 
   async function handleMessage(person: PeopleRosterPerson) {
     if (!person.authUserId) {
-      setActionError(`${person.name} does not have a message-capable account yet.`);
+      setActionError(`${person.contactName} does not have a message-capable account yet.`);
       return;
     }
 
     setActionError(null);
     const thread = await getOrCreateThread(showId, person.authUserId);
     if (!thread) {
-      setActionError(`Couldn't open a message thread for ${person.name}.`);
+      setActionError(`Couldn't open a message thread for ${person.contactName}.`);
       return;
     }
 

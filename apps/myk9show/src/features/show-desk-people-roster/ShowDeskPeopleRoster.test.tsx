@@ -344,6 +344,97 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).not.toHaveBeenCalled();
   });
 
+  // MYK9-824 round 2 (Codex): `handler_id` is allowed to fall back to the
+  // dog's owner when a mail-in typed handler matches no person. Two DIFFERENT
+  // typed handlers who happen to share that fallback owner must not merge
+  // into one roster row, and the Message action must be labelled with the
+  // account it actually opens (the owner's), never the printed handler text.
+  function fallbackOwnerEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
+    const owner = {
+      id: 'owner-1',
+      first_name: 'ZZ Rehearsal',
+      last_name: 'Owner One',
+      email: 'owner@example.test',
+      auth_user_id: 'auth-owner',
+    };
+    return entry({
+      handler_id: owner.id,
+      handler_person: {
+        id: owner.id,
+        first_name: owner.first_name,
+        last_name: owner.last_name,
+        auth_user_id: owner.auth_user_id,
+      },
+      dog: {
+        id: 'dog-1',
+        name: 'ZZRover',
+        call_name: 'ZZRover',
+        breed: 'Mixed Breed',
+        owner,
+      },
+      ...overrides,
+    });
+  }
+
+  it('keeps two typed handlers as separate rows even though the owner-fallback handler_id is shared', async () => {
+    renderRoster([
+      fallbackOwnerEntry({
+        id: 'entry-hana',
+        dog_id: 'dog-a',
+        handler: 'ZZ Rehearsal Handler Hana',
+        dog: {
+          id: 'dog-a',
+          name: 'ZZRover',
+          call_name: 'ZZRover',
+          breed: 'Mixed Breed',
+          owner: {
+            id: 'owner-1',
+            first_name: 'ZZ Rehearsal',
+            last_name: 'Owner One',
+            email: 'owner@example.test',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+      fallbackOwnerEntry({
+        id: 'entry-fred',
+        dog_id: 'dog-b',
+        handler: 'ZZ Rehearsal Handler Fred',
+        dog: {
+          id: 'dog-b',
+          name: 'ZZFido',
+          call_name: 'ZZFido',
+          breed: 'Mixed Breed',
+          owner: {
+            id: 'owner-1',
+            first_name: 'ZZ Rehearsal',
+            last_name: 'Owner One',
+            email: 'owner@example.test',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+    ]);
+
+    expect(await screen.findByRole('button', { name: /zz rehearsal handler hana/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /zz rehearsal handler fred/i })).toBeInTheDocument();
+  });
+
+  it('labels a failed message with the person it actually reaches, not the printed handler text', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce(null);
+    const { user } = renderRoster([
+      fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' }),
+    ]);
+
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal handler hana/i }));
+    await user.click(screen.getByRole('button', { name: /message/i }));
+
+    expect(
+      await screen.findByText(/couldn't open a message thread for zz rehearsal owner one/i)
+    ).toBeInTheDocument();
+    expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+  });
+
   it('keeps a failed check-in actionable and shows retry feedback', async () => {
     h.updateReplicatedCheckInStatus.mockRejectedValueOnce(new Error('offline'));
     const { user } = renderRoster();

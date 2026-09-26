@@ -15,7 +15,13 @@ interface ServerJudgeRow {
   judge: { id: string; first_name: string | null; last_name: string | null } | null;
 }
 
-async function readServerJudges(showId: string): Promise<ShowJudgeAssignment[]> {
+/** One assignment as `judge|class`, so a class moved between judges counts as a change. */
+const assignmentKey = (personId: string, classId: string | null | undefined) =>
+  `${personId}|${classId ?? ''}`;
+
+async function readServerJudges(
+  showId: string
+): Promise<{ judges: ShowJudgeAssignment[]; keys: Set<string> }> {
   const { data, error } = await supabase
     .from('judge_assignments')
     .select(
@@ -47,26 +53,31 @@ async function readServerJudges(showId: string): Promise<ShowJudgeAssignment[]> 
         ]
       : []
   );
-  return buildAssignedJudges(assignments, showId, people);
+  return {
+    judges: buildAssignedJudges(assignments, showId, people),
+    keys: new Set(rows.map(row => assignmentKey(row.person_id, row.class_id))),
+  };
 }
 
-/** This device's judge ids for the show, or null when the device cannot read them. */
-async function readDeviceJudgeIds(showId: string): Promise<Set<string> | null> {
+/** This device's assignments for the show, or null when the device cannot read them. */
+async function readDeviceAssignmentKeys(showId: string): Promise<Set<string> | null> {
   try {
     const assignments = await readJudgeAssignmentsOrThrow();
-    return new Set(assignments.filter(a => a.showId === showId).map(a => a.personId));
+    return new Set(
+      assignments.filter(a => a.showId === showId).map(a => assignmentKey(a.personId, a.classId))
+    );
   } catch {
     return null;
   }
 }
 
-function sameIds(a: Set<string>, b: Set<string>): boolean {
+function sameKeys(a: Set<string>, b: Set<string>): boolean {
   return a.size === b.size && [...a].every(id => b.has(id));
 }
 
 /**
  * The judges a published premium lists: the server's, and only when this
- * device agrees with them.
+ * device holds the same assignments (which judge has which class).
  *
  * The Edit Show form's judge list comes from a device read, and a failed read
  * leaves it empty, so publishing it put out a premium with no judges
@@ -81,11 +92,11 @@ function sameIds(a: Set<string>, b: Set<string>): boolean {
  * database error when the server cannot be read.
  */
 export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
-  const [serverJudges, deviceIds] = await Promise.all([
+  const [server, deviceKeys] = await Promise.all([
     readServerJudges(showId),
-    readDeviceJudgeIds(showId),
+    readDeviceAssignmentKeys(showId),
   ]);
-  if (deviceIds && !sameIds(deviceIds, new Set(serverJudges.map(j => j.judgeId)))) {
+  if (deviceKeys && !sameKeys(deviceKeys, server.keys)) {
     mutationManager.requestUpload();
     throw new PremiumPublishError(
       "This device's judges don't match the server's yet",
@@ -93,5 +104,5 @@ export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJud
       'judges-syncing'
     );
   }
-  return serverJudges;
+  return server.judges;
 }

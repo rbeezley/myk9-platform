@@ -26,10 +26,11 @@ const row = (personId: string, first: string, classId: string | null = null) => 
   confirmed_at: '2026-09-01',
   judge: { id: personId, first_name: first, last_name: 'Judge' },
 });
-const onDevice = (personId: string, showId = 'show-1') => ({
-  id: `a-${personId}`,
+const onDevice = (personId: string, showId = 'show-1', classId: string | null = null) => ({
+  id: `a-${personId}-${classId}`,
   personId,
   showId,
+  classId,
 });
 
 async function publishError(): Promise<PremiumPublishError> {
@@ -88,12 +89,22 @@ describe('fetchShowJudgesForPublish', () => {
     expect(queue.requestUpload).toHaveBeenCalled();
   });
 
+  it('stops when the device moved a class to a different judge', async () => {
+    server.eq.mockResolvedValue({
+      data: [row('j1', 'Pat', 'c1'), row('j2', 'Sam', 'c2')],
+      error: null,
+    });
+    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'c2'), onDevice('j2', 'show-1', 'c1')]);
+
+    expect((await publishError()).code).toBe('judges-syncing');
+  });
+
   it("groups a judge's class rows into one judge", async () => {
     server.eq.mockResolvedValue({
       data: [row('j1', 'Pat', 'c1'), row('j1', 'Pat', 'c2')],
       error: null,
     });
-    device.read.mockResolvedValue([onDevice('j1')]);
+    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'c1'), onDevice('j1', 'show-1', 'c2')]);
 
     const judges = await fetchShowJudgesForPublish('show-1');
 

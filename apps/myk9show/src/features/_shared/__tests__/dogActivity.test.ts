@@ -273,6 +273,50 @@ describe('per-trial dates on a multi-day show (MYK9-806)', () => {
     expect(activity.recentResults.map(e => e.id)).toEqual(['day-6', 'day-3']);
   });
 
+  it('gates a recent result on the ENTRY’s own trial day, not the show having started (MYK9-823)', () => {
+    // Day 1's trial has been judged and scored; day 3's trial carries the same
+    // result fields (a correction applied out of order, or a bulk import) but
+    // its own trial day has not arrived. Today is day 2 — the show has
+    // "started" (day 1 < today), so a gate keyed on show.start_date would count
+    // day 3 as a past result the moment ANY trial in the show runs. The fix
+    // must key on each entry's own trial date instead, so day 3 stays out of
+    // recent results until its own day arrives — even though it is already
+    // "accounted for" and so does not show as upcoming either. Day 5 is a
+    // genuinely unscored future trial, kept upcoming throughout.
+    const today = new Date(2026, 8, 26);
+    const activity = deriveDogActivity(
+      [
+        entry({
+          id: 'day-1-scored',
+          show: SHOW,
+          trial: { date: '2026-09-25', timezone: 'America/Chicago' },
+          entry_status: 'completed',
+          is_scored: true,
+          result_status: 'qualified',
+          search_time_seconds: 41.02,
+        }),
+        entry({
+          id: 'day-3-scored-early',
+          show: SHOW,
+          trial: { date: '2026-09-27', timezone: 'America/Chicago' },
+          entry_status: 'completed',
+          is_scored: true,
+          result_status: 'qualified',
+          search_time_seconds: 39.5,
+        }),
+        entry({
+          id: 'day-5-upcoming',
+          show: SHOW,
+          trial: { date: '2026-09-29', timezone: 'America/Chicago' },
+        }),
+      ],
+      today
+    );
+
+    expect(activity.recentResults.map(e => e.id)).toEqual(['day-1-scored']);
+    expect(activity.upcoming.map(e => e.id)).toEqual(['day-5-upcoming']);
+  });
+
   it('does not throw when a trial carries an invalid, non-empty IANA timezone string', () => {
     expect(() =>
       deriveDogActivity(

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DB_NAME, DB_VERSION } from '@myk9/replication';
+import { DB_NAME, DB_VERSION, REPLICATION_SCHEMA } from '@myk9/replication';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 
@@ -135,35 +135,38 @@ async function seedPaperScoringCache(page: Page) {
     },
   ];
 
-  await page.evaluate(
-    async ({ dbName, dbVersion, seedRows, timestamp }) => {
+  // MYK9-793: build the stores/indexes from the app's own schema
+  // (`REPLICATION_SCHEMA`, sourced from `DatabaseManager`) instead of a
+  // hand-written copy, so this seed can't silently diverge from what the app
+  // actually creates when it is the first thing to open the DB.
+  const indexNamesByStore = await page.evaluate(
+    async ({ dbName, dbVersion, seedRows, timestamp, schema }) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open(dbName, dbVersion);
 
         request.onupgradeneeded = () => {
           const database = request.result;
-          if (!database.objectStoreNames.contains('replicated_tables')) {
-            database.createObjectStore('replicated_tables', {
-              keyPath: ['tableName', 'id'],
+          for (const storeDef of schema) {
+            if (database.objectStoreNames.contains(storeDef.name)) continue;
+            const store = database.createObjectStore(storeDef.name, {
+              keyPath: storeDef.keyPath,
             });
-          }
-          if (!database.objectStoreNames.contains('sync_metadata')) {
-            database.createObjectStore('sync_metadata', { keyPath: 'tableName' });
-          }
-          if (!database.objectStoreNames.contains('pending_mutations')) {
-            database.createObjectStore('pending_mutations', { keyPath: 'id' });
-          }
-          if (!database.objectStoreNames.contains('prefetch_cache')) {
-            database.createObjectStore('prefetch_cache', { keyPath: 'key' });
-          }
-          if (!database.objectStoreNames.contains('offline_queue')) {
-            database.createObjectStore('offline_queue', { keyPath: 'id' });
+            for (const indexDef of storeDef.indexes) {
+              store.createIndex(indexDef.name, indexDef.keyPath, { unique: indexDef.unique });
+            }
           }
         };
 
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
+
+      const storeNames = Array.from(db.objectStoreNames);
+      const readTx = db.transaction(storeNames, 'readonly');
+      const namesByStore: Record<string, string[]> = {};
+      for (const storeName of storeNames) {
+        namesByStore[storeName] = Array.from(readTx.objectStore(storeName).indexNames).sort();
+      }
 
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction('replicated_tables', 'readwrite');
@@ -197,9 +200,25 @@ async function seedPaperScoringCache(page: Page) {
           reject(tx.error);
         };
       });
+
+      return namesByStore;
     },
-    { dbName: DB_NAME, dbVersion: DB_VERSION, seedRows: rows, timestamp: now }
+    {
+      dbName: DB_NAME,
+      dbVersion: DB_VERSION,
+      seedRows: rows,
+      timestamp: now,
+      schema: REPLICATION_SCHEMA,
+    }
   );
+
+  // Assert against the same schema the seed just built from: a version bump
+  // that adds/renames an index here fails this spec instead of silently
+  // seeding a DB that reads as empty (MYK9-793).
+  const expectedIndexNamesByStore = Object.fromEntries(
+    REPLICATION_SCHEMA.map(storeDef => [storeDef.name, storeDef.indexes.map(i => i.name).sort()])
+  );
+  expect(indexNamesByStore).toEqual(expectedIndexNamesByStore);
 }
 
 async function openScoringFlow(page: Page, mode: 'split' | 'sequential' = 'split') {

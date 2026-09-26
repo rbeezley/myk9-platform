@@ -112,9 +112,14 @@ export {
   DatabaseManager,
   databaseManager,
   REPLICATION_STORES,
+  REPLICATION_SCHEMA,
   trackTransaction,
   getActiveTransactionCount,
   waitForActiveTransactions,
+} from './core/DatabaseManager';
+export type {
+  ReplicationIndexDefinition,
+  ReplicationStoreDefinition,
 } from './core/DatabaseManager';
 
 export {

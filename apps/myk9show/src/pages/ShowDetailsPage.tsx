@@ -55,6 +55,8 @@ import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
 import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
+const NO_STORE_TRIALS: never[] = [];
+const NO_STORE_TRIAL_CLASSES: Record<string, never[]> = {};
 const SHOW_OFFLINE_MESSAGE = "You're offline. Connect to the internet to see this show.";
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
@@ -67,8 +69,11 @@ const ShowDetailsPage: React.FC = () => {
   const { endNavigation } = useNavigationPerformance();
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
-  const trials = useTrialStore(s => s.trials);
-  const trialClasses = useTrialStore(s => s.trialClasses);
+  // MYK9-783: a guest's trials and classes are the server's (useShowLandingData),
+  // never the device store, which holds what an earlier session could see.
+  const isGuest = !authLoading && !user;
+  const trials = useTrialStore(s => (isGuest ? NO_STORE_TRIALS : s.trials));
+  const trialClasses = useTrialStore(s => (isGuest ? NO_STORE_TRIAL_CLASSES : s.trialClasses));
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);

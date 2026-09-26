@@ -127,7 +127,9 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
-  const { user } = useAuthContext();
+  const { user, loading: authLoading } = useAuthContext();
+  // MYK9-783: no session at all. A ringside passcode session is not a guest.
+  const isGuest = !authLoading && !user;
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
 
   // Detect if we're in "results view mode" based on URL path
@@ -180,11 +182,15 @@ export function useClassDetailsData() {
       ? trials.find(trial => trial.id === currentClass.trialId)
       : undefined;
 
-  const storedParentShow = showId
-    ? shows.find(show => show.id === showId)
-    : parentTrial
-      ? shows.find(show => show.id === parentTrial.showId)
-      : undefined;
+  // A guest's show is the server's anon answer (useShowQuery), never the
+  // device store, which holds what an earlier signed-in session could see.
+  const storedParentShow = isGuest
+    ? undefined
+    : showId
+      ? shows.find(show => show.id === showId)
+      : parentTrial
+        ? shows.find(show => show.id === parentTrial.showId)
+        : undefined;
   const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? undefined;
 
   // Parent show for DISPLAY (section links, headers). Separate concern from the

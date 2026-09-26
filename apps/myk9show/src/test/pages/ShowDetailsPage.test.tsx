@@ -690,6 +690,23 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
   });
 
+  // MYK9-783: the trial and class lists came from the device's trial store for
+  // a guest too, so trials and classes an earlier signed-in session cached (a
+  // draft's, or since deleted on the server) reached the guest's tabs.
+  it("a guest's trials and classes are the server's, never the device trial store", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockTrials = [{ id: 'trial-stale', showId: 'show-1', trialDate: '2026-03-22', name: 'T' }];
+    mockTrialClasses = {
+      'trial-stale': [{ id: 'class-stale', element: 'Container', level: 'Novice' }],
+    };
+    // A management URL is the one place a guest meets the tabbed body (the
+    // route then sends them back); the server returns this show no classes.
+    renderPage('show-1', '/entries');
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
+  });
+
   it("offline, a guest is told the show needs a connection, not shown the replica's copy", () => {
     mockAuthContext.user = null;
     mockAuthContext.userWithRoles = null;

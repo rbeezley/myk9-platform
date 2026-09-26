@@ -24,7 +24,10 @@ import {
 } from '@/hooks/guestServerRead';
 import { useShowStore } from '@/store/showStore';
 import { getShowById } from '@/services/database/shows';
-import { getPublicShowById } from '@/services/database/shows/publicShowDetail';
+import {
+  fetchPublicShowDetail,
+  publicShowDetailQueryKey,
+} from '@/hooks/queries/publicShowDetailQuery';
 import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { Show } from '@/types/show-types';
 import { logger } from '@/services/LoggingService';
@@ -52,8 +55,6 @@ interface FastShowDetailsResult {
   loadTime: number;
   hasData: boolean;
 }
-
-export const PUBLIC_SHOW_DETAIL_QUERY_KEY = ['shows', 'public-detail'] as const;
 
 const NO_STORE_SHOWS: Show[] = [];
 
@@ -116,11 +117,8 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   // shows_select's answer for anon, never a cached row, not even as a
   // placeholder, not even offline (guestServerRead.ts).
   const guestQuery = useQuery({
-    queryKey: [...PUBLIC_SHOW_DETAIL_QUERY_KEY, showId],
-    queryFn: async () => {
-      const row = await getPublicShowById(showId!);
-      return row ? mapDatabaseToShow(row as MappableShowRow) : null;
-    },
+    queryKey: publicShowDetailQueryKey(showId ?? ''),
+    queryFn: () => fetchPublicShowDetail(showId!),
     enabled: isReadableId && isGuest,
     ...GUEST_READ_QUERY_OPTIONS,
   });

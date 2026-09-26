@@ -35,7 +35,13 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    // The selected class's trial is on the device: a cold trials replica now
+    // refuses the capacity check (MYK9-788).
+    getAllWithStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      rows: [{ id: 'trial-1', date: '2026-10-10', showId: 'show-1' }],
+      error: null,
+    }),
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn().mockResolvedValue([]),

@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -7,6 +8,7 @@ import {
 import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
 import { readJudgeAssignmentsOrThrow } from '@/services/database/judges/assignmentReads';
 import { rowsOrThrow } from '@/services/database/_shared/readRows';
+import { refreshShowStructureForRead } from './refreshShowStructureForRead';
 
 const CAPACITY_STATUSES = new Set([
   'submitted',
@@ -144,13 +146,11 @@ export function calculateOfflineCapacityOverrides({
 const CAPACITY_UNREADABLE =
   "We couldn't check class capacity on this device. Reload the page and try again.";
 
-export async function loadOfflineCapacityOverrides(
-  showId: string,
-  selections: OfflineCapacitySelection[]
-): Promise<Record<string, boolean>> {
-  // MYK9-761: counts from a never-synced show would call a full class open and
-  // record the entry as within capacity. The submission surfaces the error.
-  await requireShowEntriesSynced(showId);
+/** Plain language for the desk when the show's classes or trials are not on this device. */
+const STRUCTURE_NOT_LOADED =
+  "This show's classes haven't finished loading on this device. Connect to the internet and try again.";
+
+async function readCapacityInputs(showId: string) {
   // Every count below comes from a device read, and getAll() hands back [] for
   // a failed one: a full class or judge-day would then count as open and the
   // entry be recorded as within capacity, a fact the server keeps (MYK9-772,
@@ -174,6 +174,48 @@ export async function loadOfflineCapacityOverrides(
       rows.filter(entry => entry.showId === showId)
     ),
   ]);
+  return { show, classes, trials, assignments, entries };
+}
+
+type CapacityInputs = Awaited<ReturnType<typeof readCapacityInputs>>;
+
+/**
+ * MYK9-788: a cold but readable classes, trials or shows replica reads as "no
+ * class, so nothing is full; no trial date, so no judge-day; no show, so the
+ * default capacity" and would record capacity_override=false as fact. Every
+ * selected class, the trial it belongs to in this show, and the show itself
+ * must be on the device before anything is counted.
+ */
+function isShowStructureMissing(
+  { show, classes, trials }: CapacityInputs,
+  selections: OfflineCapacitySelection[]
+): boolean {
+  if (!show) return true;
+  const showTrialIds = new Set(trials.map(trial => trial.id));
+  const classesById = new Map(classes.map(entryClass => [entryClass.id, entryClass]));
+  return selections.some(selection => {
+    const trialId = classesById.get(selection.classId)?.trialId;
+    return !trialId || !showTrialIds.has(trialId);
+  });
+}
+
+export async function loadOfflineCapacityOverrides(
+  showId: string,
+  selections: OfflineCapacitySelection[]
+): Promise<Record<string, boolean>> {
+  // MYK9-761: counts from a never-synced show would call a full class open and
+  // record the entry as within capacity. The submission surfaces the error.
+  await requireShowEntriesSynced(showId);
+  let inputs = await readCapacityInputs(showId);
+  if (isShowStructureMissing(inputs, selections)) {
+    // Online, give the show's structure one bounded sync, as MYK9-761 does for
+    // entries; offline there is nothing to wait for.
+    if (!onlineManager.isOnline()) throw new Error(STRUCTURE_NOT_LOADED);
+    await refreshShowStructureForRead(showId, { includeShow: !inputs.show });
+    inputs = await readCapacityInputs(showId);
+    if (isShowStructureMissing(inputs, selections)) throw new Error(STRUCTURE_NOT_LOADED);
+  }
+  const { show, classes, trials, assignments, entries } = inputs;
 
   return calculateOfflineCapacityOverrides({
     selections,

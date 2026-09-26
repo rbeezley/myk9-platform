@@ -9,6 +9,9 @@ import {
 
 export interface UseMyAtShowEntryDetailsResult {
   entries: AtShowEntryDetail[];
+  /** The latest read of this show's entries failed; any list shown is the last good one (MYK9-774). */
+  loadFailed: boolean;
+  onRetry: () => void;
   /** True while the ownership set or the entry rows are still resolving. */
   isLoading: boolean;
   /**
@@ -72,5 +75,7 @@ export function useMyAtShowEntryDetails(
     entries,
     isLoading: ownershipLoading || (ownEntryIds.size > 0 && entriesQuery.isLoading),
     dataUpdatedAt: entriesQuery.dataUpdatedAt,
+    loadFailed: entriesQuery.isError,
+    onRetry: () => void entriesQuery.refetch(),
   };
 }

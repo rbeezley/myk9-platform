@@ -52,6 +52,8 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
         entries={[entry({ checkInStatus: status, isScored: status === 'completed' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -68,6 +70,8 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
         entries={[entry({ checkInStatus: 'conflict' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -91,6 +95,8 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -110,6 +116,8 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -131,6 +139,8 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -151,6 +161,8 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -169,6 +181,8 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={2}
+        loadFailed={false}
+        onRetry={vi.fn()}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -176,5 +190,55 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     await waitFor(() => {
       expect(screen.getByText('I am not there yet')).toBeInTheDocument();
     });
+  });
+});
+
+// MYK9-774: a failed device read of this show's entries used to leave an
+// exhibitor with "Your entries for this show haven't loaded yet" and nothing to
+// do. It now says the device could not read them and offers a retry.
+describe('AtShowMyEntriesToday — a failed device read', () => {
+  it('says the entries could not be read and retries on request', async () => {
+    const onRetry = vi.fn();
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[]}
+        isLoading={false}
+        dataUpdatedAt={0}
+        loadFailed
+        onRetry={onRetry}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByText("We couldn't read your entries on this device.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/haven't loaded yet/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the last list but marks it out of date when a later read fails', async () => {
+    const onRetry = vi.fn();
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({})]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed
+        onRetry={onRetry}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText(/This may be out of date/)).toBeInTheDocument();
+    expect(screen.getByRole('list')).toBeInTheDocument();
+    expect(
+      screen.queryByText("We couldn't read your entries on this device.")
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

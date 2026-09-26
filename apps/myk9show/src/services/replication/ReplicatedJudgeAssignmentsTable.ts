@@ -322,12 +322,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   async getByShowId(showId: string): Promise<ReplicatedJudgeAssignment[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(a => a.showId === showId);
   }
 
   async getByPersonId(personId: string): Promise<ReplicatedJudgeAssignment[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(a => a.personId === personId);
   }
 

@@ -9,6 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { Plus, ArrowLeft } from 'lucide-react';
+import { PageShell } from '@/components/common/PageShell';
+import { ErrorState } from '@/components/common/ErrorState';
+import { NotFoundState } from '@/components/common/NotFoundState';
 
 /**
  * Shown when the requested class doesn't exist
@@ -124,5 +127,45 @@ export function LoadingClassState() {
         </div>
       </main>
     </div>
+  );
+}
+
+export const GUEST_CLASS_OFFLINE_MESSAGE =
+  "You're offline. Connect to the internet to see these results.";
+
+/**
+ * MYK9-785: a signed-out guest's class is read online only, so offline and a
+ * failed read are states of their own, never a cached class.
+ */
+export function GuestClassUnavailableState({
+  offline,
+  onRetry,
+}: {
+  offline: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <PageShell>
+      <ErrorState
+        message={
+          offline ? GUEST_CLASS_OFFLINE_MESSAGE : "We couldn't load this class. Please try again."
+        }
+        onRetry={onRetry}
+        headingLevel={1}
+      />
+    </PageShell>
+  );
+}
+
+/** A class anon may not see in this show. Links back to the public show page. */
+export function GuestClassNotFoundState({ showId }: { showId: string | undefined }) {
+  return (
+    <PageShell>
+      <NotFoundState
+        entityName="Class"
+        backTo={showId ? `/shows/${showId}` : '/shows'}
+        backLabel="Back to Show"
+      />
+    </PageShell>
   );
 }

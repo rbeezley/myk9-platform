@@ -8,7 +8,7 @@
  * show, so a Trial 1 → Trial 2 move-up puts the fee in one card's scope and the
  * run in another's.
  */
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 
@@ -83,5 +83,50 @@ describe('FinancialSummary (per trial)', () => {
     // One run, $35 — not two entries, and not $0.
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.getAllByText('$35.00').length).toBeGreaterThan(0);
+  });
+
+  // MYK9-811: the raw <Select> payment-status filter moved onto the shared
+  // list-toolkit filter bar.
+  describe('payment-status filter (list toolkit)', () => {
+    it('filters the entry table by the picked payment status', async () => {
+      const { user } = renderSummary([
+        rawEntry({ id: 'paid-1', payment_status: 'paid', dog: { call_name: 'Acorn' } }),
+        rawEntry({ id: 'pending-1', payment_status: 'pending', dog: { call_name: 'Birch' } }),
+      ]);
+
+      await user.click(screen.getByRole('button', { name: /filter/i }));
+      await user.click(screen.getByRole('button', { name: /^Payment status$/ }));
+      await user.click(screen.getByRole('button', { name: /^Pending/ }));
+
+      expect(screen.getByText('Birch')).toBeInTheDocument();
+      expect(screen.queryByText('Acorn')).not.toBeInTheDocument();
+    });
+
+    it('searches across dog, owner, handler and class', async () => {
+      const { user } = renderSummary([
+        rawEntry({ id: 'a', dog: { call_name: 'Acorn' } }),
+        rawEntry({ id: 'b', dog: { call_name: 'Birch' } }),
+      ]);
+
+      await user.type(screen.getByPlaceholderText('Search entries...'), 'Birch');
+
+      expect(screen.getByText('Birch')).toBeInTheDocument();
+      expect(screen.queryByText('Acorn')).not.toBeInTheDocument();
+    });
+
+    it('counts comped separately from its raw paid payment_status', async () => {
+      const { user } = renderSummary([
+        rawEntry({ id: 'a', payment_status: 'paid', comped: false }),
+        rawEntry({ id: 'b', payment_status: 'paid', comped: true }),
+      ]);
+
+      await user.click(screen.getByRole('button', { name: /filter/i }));
+      await user.click(screen.getByRole('button', { name: /^Payment status$/ }));
+      const menu = screen.getByRole('group', { name: /payment status/i });
+      const paidOption = within(menu).getByRole('button', { name: /^Paid/ });
+      expect(paidOption).toHaveTextContent('1');
+      const compedOption = within(menu).getByRole('button', { name: /^Comped/ });
+      expect(compedOption).toHaveTextContent('1');
+    });
   });
 });

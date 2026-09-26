@@ -62,6 +62,7 @@ const reportProps = {
     // 073_trial_field_sync.sql.
     actualStartTime: '9:00 AM',
     actualEndTime: '3:30 PM',
+    dayTrialNumber: 1,
   },
   ukcTrialReportContext: {
     venueCity: 'Springfield',
@@ -127,7 +128,7 @@ describe('buildUKCNoseworkTrialReportValues', () => {
   it('maps report props into the official UKC Nosework Trial Report field names', () => {
     expect(buildUKCNoseworkTrialReportValues(reportProps)).toEqual({
       checkboxes: {
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.oneTrial]: true,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne]: true,
       },
       text: {
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName]: 'Demo Nosework Club',
@@ -172,6 +173,7 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       ukcTrialReportContext: null,
     });
 
+    expect(values.checkboxes).toEqual({});
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName);
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate);
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId);
@@ -187,53 +189,116 @@ describe('buildUKCNoseworkTrialReportValues', () => {
     });
   });
 
-  it('fills the official UKC Nosework Trial Report PDF with mapped values', async () => {
-    const templateBytes = new Uint8Array(
-      await readFile(resolve(repoRoot, 'docs/UKC-forms/NW-TrialReport.pdf'))
-    );
-    const filledBytes = await fillPdfForm(
-      templateBytes,
-      buildUKCNoseworkTrialReportValues(reportProps)
-    );
-    const pdf = await PDFDocument.load(filledBytes);
-    const form = pdf.getForm();
+  it('ticks neither trial-number box on a single-trial day', () => {
+    const values = buildUKCNoseworkTrialReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, dayTrialNumber: undefined },
+    });
 
-    expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.oneTrial).isChecked()).toBe(true);
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName).getText()).toBe(
-      'Demo Nosework Club'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate).getText()).toBe(
-      '6/12/2026'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries).getText()).toBe('1');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('2');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries).getText()).toBe(
-      '2'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
-      '16.00'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId).getText()).toBe('UKC-4821');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city).getText()).toBe('Springfield');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.state).getText()).toBe('IL');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted).getText()).toBe(
-      '9:00 AM'
-    );
-    expect(
-      form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass).getText()
-    ).toBe('3:30 PM');
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName).getText()).toBe(
-      'Alex Chairperson'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonZip).getText()).toBe(
-      '62701'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName).getText()).toBe(
-      'Sam Secretary'
-    );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryZip).getText()).toBe(
-      '62521'
-    );
+    expect(values.checkboxes).toEqual({});
+  });
+
+  it('ticks neither trial-number box when the trial is a third same-day trial (no box 3)', () => {
+    const values = buildUKCNoseworkTrialReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, dayTrialNumber: 3 },
+    });
+
+    expect(values.checkboxes).toEqual({});
+  });
+
+  describe('the filled PDF checkbox fields', () => {
+    async function fillTemplate(dayTrialNumber: number | undefined) {
+      const templateBytes = new Uint8Array(
+        await readFile(resolve(repoRoot, 'docs/UKC-forms/NW-TrialReport.pdf'))
+      );
+      const filledBytes = await fillPdfForm(
+        templateBytes,
+        buildUKCNoseworkTrialReportValues({
+          ...reportProps,
+          trial: { ...reportProps.trial, dayTrialNumber },
+        })
+      );
+      const pdf = await PDFDocument.load(filledBytes);
+      return pdf.getForm();
+    }
+
+    it("Trial 1 of a two-trial day ticks the form's box 1, not box 2", async () => {
+      const form = await fillTemplate(1);
+
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne).isChecked()).toBe(
+        true
+      );
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo).isChecked()).toBe(
+        false
+      );
+    });
+
+    it("Trial 2 of a two-trial day ticks the form's box 2, not box 1 (MYK9-827)", async () => {
+      const form = await fillTemplate(2);
+
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne).isChecked()).toBe(
+        false
+      );
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo).isChecked()).toBe(
+        true
+      );
+    });
+
+    it('a single-trial day ticks neither box', async () => {
+      const form = await fillTemplate(undefined);
+
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne).isChecked()).toBe(
+        false
+      );
+      expect(form.getCheckBox(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo).isChecked()).toBe(
+        false
+      );
+    });
+
+    it('fills the rest of the mapped text fields', async () => {
+      const form = await fillTemplate(1);
+
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName).getText()).toBe(
+        'Demo Nosework Club'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate).getText()).toBe(
+        '6/12/2026'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries).getText()).toBe('1');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('2');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries).getText()).toBe(
+        '2'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
+        '16.00'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId).getText()).toBe(
+        'UKC-4821'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city).getText()).toBe(
+        'Springfield'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.state).getText()).toBe('IL');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted).getText()).toBe(
+        '9:00 AM'
+      );
+      expect(
+        form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass).getText()
+      ).toBe('3:30 PM');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName).getText()).toBe(
+        'Alex Chairperson'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonZip).getText()).toBe(
+        '62701'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName).getText()).toBe(
+        'Sam Secretary'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryZip).getText()).toBe(
+        '62521'
+      );
+    });
   });
 });

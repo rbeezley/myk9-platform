@@ -213,14 +213,25 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   const reportTrials = hasCurrentReportTrials
     ? trialsQuery.data
     : show?.trials?.length
-      ? show.trials.map(trial => ({
+      ? show.trials.map((trial, index) => ({
           id: trial.id,
           show_id: showId,
           name: trial.name,
           date: trial.date,
-          trial_number: Number(trial.trialNumber) || 0,
+          // `trials.trial_number` is a TEXT column (MYK9-282) -- keep the
+          // string as-is. Coercing through `Number(...) || 0` used to silently
+          // zero out every non-numeric value (a name/label, an AKC event
+          // number) and crashed dayTrialNumber's `.trim()` read (MYK9-827).
+          trial_number: trial.trialNumber ?? null,
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
+          // MYK9-827: same ordinal source as the warm path (trials.display_order),
+          // now carried onto ShowTrial by mapDatabaseToShow / mapReplicatedTrialToRow
+          // so buildTrialReportProps's computeDayTrialNumber sorts same-day
+          // trials the same way here. Falls back to this array's position
+          // (already date-sorted upstream) only for a Show snapshot cached
+          // before displayOrder started round-tripping.
+          display_order: trial.displayOrder ?? index + 1,
         }))
       : undefined;
   const selectedTrialIsInShow =

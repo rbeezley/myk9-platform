@@ -73,6 +73,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         category: trialData.type,
         imageUrl: trialData.image,
         registryId: trialData.registryId,
+        timezone: trialData.timezone,
         _version: 1,
         _lastModified: new Date(),
         _lastModifiedBy: userId,

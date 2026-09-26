@@ -12,6 +12,7 @@ import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
 const snapshotWithNoTrials: SecretaryCockpitSnapshot = {
   showId: 'show-1',
   timeZone: 'America/Chicago',
+  registryId: 'AKC',
   now: new Date('2026-07-20T14:00:00.000Z'),
   trials: [],
   classes: [],

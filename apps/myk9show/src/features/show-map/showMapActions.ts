@@ -27,6 +27,7 @@ import {
   canMarkClassStarted,
   canMarkEntryCheckedIn,
   canMessageEntryHandler,
+  canMoveUpEntry,
   getEntrySourceId,
   getNodeSourceId,
   getParentSourceId,
@@ -327,20 +328,22 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         ...(classId ? { classId } : {}),
       });
     }
-    actions.push(
-      withHref(
-        {
-          id: 'move-up-entry',
-          nodeId: node.id,
-          label: 'Move up',
-          why: withEntryContext(node, 'Move this entry to the next eligible class'),
-          priority: 32,
-          icon: ArrowUpCircle,
-          ...(classId ? { classId } : {}),
-        },
-        undefined
-      )
-    );
+    if (canMoveUpEntry(node)) {
+      actions.push(
+        withHref(
+          {
+            id: 'move-up-entry',
+            nodeId: node.id,
+            label: 'Move up',
+            why: withEntryContext(node, 'Move this entry to the next eligible class'),
+            priority: 32,
+            icon: ArrowUpCircle,
+            ...(classId ? { classId } : {}),
+          },
+          undefined
+        )
+      );
+    }
 
     actions.push(
       withHref(

@@ -114,8 +114,8 @@ const SPLIT_LEVEL: SeedClass[] = [
   },
 ];
 
-function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean } = {}) {
-  const { isStaff = false } = opts;
+function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean; registryId?: string } = {}) {
+  const { isStaff = false, registryId = 'AKC' } = opts;
 
   mockUseDogStoreCompat.mockReturnValue({
     dogs: [{ id: DOG_ID, name: 'Rex', callName: 'Rex', registrations: [] }],
@@ -138,7 +138,7 @@ function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean } = {}) {
           id: TRIAL_ID,
           showId: SHOW_ID,
           name: 'Saturday Trial',
-          registryId: 'AKC',
+          registryId,
           trialType: 'Nosework',
           order: '1',
           trialDate: '2026-10-24',
@@ -200,6 +200,33 @@ function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean } = {}) {
   });
 }
 
+/**
+ * A UKC Vehicle trial: every level splits A/B, including Superior and Elite.
+ * Insertion order deliberately scrambled (matches the Oct 10 dress
+ * rehearsal's actual observed order: Novice, Advanced, Master, Elite,
+ * Superior) so the test can only pass by actually sorting on the registry
+ * ladder, not by preserving array order.
+ */
+const UKC_VEHICLE: SeedClass[] = [
+  { id: 'v-novice-a', name: 'Vehicle Novice A', element: 'Vehicle', level: 'Novice', section: 'A' },
+  {
+    id: 'v-advanced-a',
+    name: 'Vehicle Advanced A',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'A',
+  },
+  { id: 'v-master-a', name: 'Vehicle Master A', element: 'Vehicle', level: 'Master', section: 'A' },
+  { id: 'v-elite-a', name: 'Vehicle Elite A', element: 'Vehicle', level: 'Elite', section: 'A' },
+  {
+    id: 'v-superior-a',
+    name: 'Vehicle Superior A',
+    element: 'Vehicle',
+    level: 'Superior',
+    section: 'A',
+  },
+];
+
 function renderStep(props: { workflowMode?: WorkflowMode } = {}) {
   return render(
     <ClassSelectionStep
@@ -256,5 +283,29 @@ describe('ClassSelectionStep — chip labels (MYK9-489)', () => {
 
     expect(await screen.findByText('Advanced')).toBeInTheDocument();
     expect(screen.getByText('Advanced Preliminary')).toBeInTheDocument();
+  });
+});
+
+describe('ClassSelectionStep — UKC level order (MYK9-825)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('orders UKC classes by the registry ladder (Novice -> Elite), not insertion order', async () => {
+    setupMocks(UKC_VEHICLE, { registryId: 'UKC' });
+    renderStep();
+
+    await screen.findByText('Novice A');
+    const names = screen
+      .getAllByRole('checkbox')
+      .map(node => node.getAttribute('aria-label') ?? node.closest('label')?.textContent?.trim());
+
+    expect(names).toEqual([
+      'Select Novice A',
+      'Select Advanced A',
+      'Select Superior A',
+      'Select Master A',
+      'Select Elite A',
+    ]);
   });
 });

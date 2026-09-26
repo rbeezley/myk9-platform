@@ -12,6 +12,7 @@ import {
   getShowStyle,
   getTrialRegistry,
   getTrialTimezone,
+  resolveBrowserTrialTimezone,
   deriveRegistryId,
   resolveConfiguredRegistryId,
 } from '../helpers';
@@ -248,5 +249,31 @@ describe('getTrialTimezone', () => {
     getTrialTimezone({ id: 'trial-1', timezone: 'America/Nowhere-3' });
     getTrialTimezone({ id: 'trial-2', timezone: 'America/Nowhere-3' });
     expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resolveBrowserTrialTimezone', () => {
+  it("returns the browser's resolved IANA zone", () => {
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockReturnValue({ timeZone: 'America/Chicago' } as Intl.ResolvedDateTimeFormatOptions);
+    try {
+      expect(resolveBrowserTrialTimezone()).toBe('America/Chicago');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('falls back to America/New_York if resolving the browser zone throws', () => {
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockImplementation(() => {
+        throw new Error('unsupported');
+      });
+    try {
+      expect(resolveBrowserTrialTimezone()).toBe('America/New_York');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

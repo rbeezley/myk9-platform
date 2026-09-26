@@ -35,6 +35,15 @@ export function canMessageEntryHandler(node: ShowMapNode): boolean {
   return node.type === 'entry' && Boolean(node.entryDisplay?.handlerId);
 }
 
+/**
+ * False for a retired ('moved'/pulled/scratched, all classified `kind:
+ * 'muted'`) entry — it is a superseded source record, not something that can
+ * itself be moved up again (MYK9-825).
+ */
+export function canMoveUpEntry(node: ShowMapNode): boolean {
+  return node.type === 'entry' && node.status?.kind !== 'muted';
+}
+
 export function sourceIdFromNodeId(
   nodeId: string | undefined,
   expectedType: string

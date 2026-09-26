@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildClassDisambiguator, classNameExtra } from '../classLabel';
+import {
+  buildClassDisambiguator,
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+  buildTrialDayDisambiguator,
+  classNameExtra,
+} from '../classLabel';
 
 /**
  * The rule both the show premium and the registration wizard build their class
@@ -140,5 +146,122 @@ describe('buildClassDisambiguator', () => {
         section: 'B',
       })
     ).toBe('');
+  });
+});
+
+/**
+ * MYK9-825: a UKC show splits every level into A/B, giving 20 Vehicle classes
+ * across 2 trials. A stored class name that omits the section (created
+ * outside `generateScentWorkClasses`) must not collapse "Vehicle Novice A"
+ * and "Vehicle Novice B" into the same label.
+ */
+describe('buildFullClassLabel', () => {
+  it('composes element, level and section, ignoring a section-less stored name', () => {
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'A' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice A');
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'B' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice B');
+  });
+
+  it('appends the disambiguator extra when the caller supplies one', () => {
+    expect(
+      buildFullClassLabel(
+        { element: 'Container', level: 'Advanced', section: null },
+        'Preliminary',
+        'Container Advanced Preliminary'
+      )
+    ).toBe('Container Advanced Preliminary');
+  });
+
+  it('falls back to the stored name only when element and level are both unresolvable', () => {
+    expect(buildFullClassLabel({}, '', 'Handler Discrimination')).toBe('Handler Discrimination');
+    expect(buildFullClassLabel({}, '', null)).toBe('Class');
+  });
+});
+
+describe('buildClassDisambiguatorsByGroup', () => {
+  it('scopes the collision test to each class own group, not across groups', () => {
+    const trial1 = {
+      trialId: 't1',
+      name: 'Interior Advanced',
+      element: 'Interior',
+      level: 'Advanced',
+      section: null,
+    };
+    const trial2 = {
+      trialId: 't2',
+      name: 'Interior Advanced Preliminary',
+      element: 'Interior',
+      level: 'Advanced',
+      section: null,
+    };
+    const lookup = buildClassDisambiguatorsByGroup([trial1, trial2], cls => cls.trialId);
+
+    // Each trial has only ONE "Interior Advanced"-shaped class, so within its
+    // own group there is no collision even though the two groups together
+    // would look identical to `buildClassDisambiguator` run over both at once.
+    expect(lookup('t1')(trial1)).toBe('');
+    expect(lookup('t2')(trial2)).toBe('');
+  });
+
+  it('returns a no-op disambiguator for an unknown group key', () => {
+    const lookup = buildClassDisambiguatorsByGroup([], () => 'x');
+    expect(lookup('missing')({ name: 'Anything', element: 'E', level: 'L', section: null })).toBe(
+      ''
+    );
+  });
+});
+
+/**
+ * MYK9-832 #10: a two-trial Saturday show entering a dog in both trials'
+ * "Vehicle Novice B" showed the identical row twice, told apart only by a day
+ * label ("Sat ·") that read the same for both trials.
+ */
+describe('buildTrialDayDisambiguator', () => {
+  it('returns the trial name when two trials share a date', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', trialName: 'Saturday Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('Saturday Trial 1');
+    expect(disambiguate('trial-2')).toBe('Saturday Trial 2');
+  });
+
+  it('returns nothing for the ordinary one-trial-per-day case', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-11', trialName: 'Sunday Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for a trial with no date on record', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: null, trialName: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: null, trialName: 'Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+  });
+
+  it('returns nothing for a trial id absent from the set', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+    ]);
+
+    expect(disambiguate('unknown-trial')).toBe('');
   });
 });

@@ -107,11 +107,21 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
 
   return {
     checkboxes: {
-      // INTENT: This builder fills one trial at a time; show-level downloads should choose explicitly.
-      [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.oneTrial]: true,
+      // INTENT: Each trial's report ticks its own trial number for the day
+      // (MYK9-827, owner decision 2026-09-26), matching the printed header
+      // "TRIAL [ ]1 [ ]2 (only indicate if more than one Trial per day)". A
+      // single-trial day has no `dayTrialNumber` and ticks neither box, and a
+      // third same-day trial has no box to tick, so it also ticks neither.
+      ...(trialNumberCheckbox(props.trial?.dayTrialNumber) ?? {}),
     },
     text,
   };
+}
+
+function trialNumberCheckbox(dayTrialNumber: number | undefined): Record<string, boolean> | null {
+  if (dayTrialNumber === 1) return { [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne]: true };
+  if (dayTrialNumber === 2) return { [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo]: true };
+  return null;
 }
 
 export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts {

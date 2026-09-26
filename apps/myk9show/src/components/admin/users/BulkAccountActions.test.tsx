@@ -1,11 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, userEvent, waitFor } from '@/test/utils/testUtils';
+import {
+  render,
+  screen,
+  within,
+  userEvent,
+  waitFor,
+  act,
+  createTestQueryClient,
+} from '@/test/utils/testUtils';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 
 const mutateAsync = vi.hoisted(() => vi.fn());
 const invokeAdminInvite = vi.hoisted(() => vi.fn());
 const restoreUser = vi.hoisted(() => vi.fn());
 const hasPermission = vi.hoisted(() => vi.fn(() => true));
+const toastError = vi.hoisted(() => vi.fn());
+
+// Capture the summary toast so a test can press its "Retry failed" action.
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    error: toastError,
+    success: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
 
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useUpdateUserMutation: () => ({ mutateAsync }),
@@ -109,6 +129,40 @@ describe('BulkAccountActions', () => {
     const onClear = renderActions([person('gone', { deletedAt: new Date() })]);
     await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
     await waitFor(() => expect(onClear).toHaveBeenCalledOnce());
+  });
+
+  // Codex P2 (c839caa07): a "Retry failed" that succeeds runs inside the bulk
+  // dispatch, after the initial run's refresh — the restored person must not
+  // stay shown as removed.
+  it('refreshes the roster when a retried person succeeds', async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    restoreUser
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: new Error('transient') })
+      .mockResolvedValue({ error: null });
+    render(
+      <BulkAccountActions
+        selectedUsers={[
+          person('a', { deletedAt: new Date() }),
+          person('b', { deletedAt: new Date() }),
+        ]}
+        onClearSelection={vi.fn()}
+      />,
+      { queryClient }
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    const retry = toastError.mock.calls.at(-1)?.[1]?.action;
+    expect(retry).toBeDefined();
+
+    invalidate.mockClear();
+    await act(async () => {
+      retry.onClick();
+    });
+
+    await waitFor(() => expect(restoreUser).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] }));
   });
 
   it('reinstates without a confirmation', async () => {

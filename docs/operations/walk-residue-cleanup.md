@@ -2,20 +2,22 @@
 
 > **Status:** Reference
 
-The exhibitor task walk pays for one entry per run with a throwaway dog, `ZZ Walk Dog <run token> #N`, because the moment after paying is the state it most needs to see. Nothing in the UI can remove that dog afterwards: `soft_delete_dog` refuses a dog holding a paid entry (`MK002`), and withdraw and refund are out of the walk's scope. So each paying run leaves, on `exhibitor@`:
+**Since 2026-09-26 the exhibitor task walk stops at the Stripe Checkout boundary and never presses Pay** (`docs/qa/walks/exhibitor-task-walk.md` Part 1, owner decision). Because an entry is created only by the Stripe webhook after payment, a walk run no longer pays and no longer leaves a paid entry, a `stripe_orders` row or a checkout-created enrollment by default. What it still leaves, on `exhibitor@` and `exhibitor2@`:
 
-- the dog (and its registrations),
-- a paid entry and its `entry_status_history`,
-- a sandbox `stripe_orders` row (and the sandbox Stripe objects, which stay in Stripe),
-- possibly a checkout-created enrollment on the target show.
+- the throwaway dog (`ZZ Walk Dog <run token> #N`) and its registrations,
+- any cart line the run added.
 
-The dog count drifts (MYK9-545 was a CI sweep failing on 252 → 261 dogs), My Payments grows, and because the walk's target show (`Heartland UKC Nosework Trial`, `...011`) is one the reseed deletes, **a paid walk entry makes the next reseed abort on its money guard** (`seed-reset` skill, "When the seed aborts").
+Nothing in the UI can remove that dog today: **not because it holds a paid entry** (it doesn't, by design) but because of a separate bug, MYK9-799 (the delete dialog's pre-check 403s for every dog). The walk records this residue with a `WALK RESIDUE TOKEN <token>` line in its report rather than deleting it itself, per the walk's safe-mutation boundary.
+
+This script is still the sink for two things: (1) the paid residue three earlier runs left before the stop-at-checkout change (a dog, a paid entry, its `entry_status_history`, a sandbox `stripe_orders` row and possibly an enrollment), still sitting on staging, and (2) any future run that reaches Checkout and completes a payment by mistake. It handles plain unpaid dog/cart residue the same way — the entry, order and enrollment tables are simply empty for a token that never paid.
+
+The dog count drifts (MYK9-545 was a CI sweep failing on 252 → 261 dogs), and because the walk's target show (`Heartland UKC Nosework Trial`, `...011`) is one the reseed deletes, **a paid walk entry makes the next reseed abort on its money guard** (`seed-reset` skill, "When the seed aborts").
 
 The reseed does not remove this residue (option 1 in MYK9-734 does not hold): it refuses to. The sink is [`supabase/ops/walk-residue-cleanup.sql`](../../supabase/ops/walk-residue-cleanup.sql), keyed on one run's exact token.
 
 ## Who runs it
 
-An operator, against staging, never a walk. It hard-deletes a payment trail, which is a shared-system write; confirm it like a reseed. The walk's job is to name the token: its report carries a `WALK RESIDUE TOKEN <YYYY-MM-DD HHMM>` line with the paid dog's name and entry id.
+An operator, against staging, never a walk. It can hard-delete a payment trail, which is a shared-system write; confirm it like a reseed. The walk's job is to name the token: its report carries a `WALK RESIDUE TOKEN <YYYY-MM-DD HHMM>` line with the residue dog's name and id (and, for a legacy paying run, its entry id).
 
 ## Record, then apply
 
@@ -34,7 +36,7 @@ psql "$URL" -X -v ON_ERROR_STOP=1 -v token="$TOKEN" \
 tail -3 "docs/audits/walk-residue/$TOKEN.txt"   # RECORD SHA256 <hex>, then RECORD ONLY
 ```
 
-2. **Read the record.** It lists every dog, registration, entry, status-history row, order, enrollment, cart line, waitlist row and armband the apply would remove, in full. Check that every order is `cs_test_` and that nothing in it belongs to a seeded fixture. Commit the file (docs-only, direct to `main` is fine). This is the recorded step: once the apply runs, the file is the only copy of those rows.
+2. **Read the record.** It lists every dog, registration, entry, status-history row, order, enrollment, cart line, waitlist row and armband the apply would remove, in full. The script itself already refused if any order's Checkout session isn't a verified `cs_test_` one, but re-read the JSON anyway and check that nothing in it belongs to a seeded fixture. Commit the file (docs-only, direct to `main` is fine). This is the recorded step: once the apply runs, the file is the only copy of those rows.
 
 ```bash
 # 3. APPLY, with the SHA the record printed.
@@ -52,14 +54,14 @@ Every refusal rolls back with nothing deleted:
 
 - a token that is not exactly `YYYY-MM-DD HHMM` (a date alone, a prefix or a pattern), or one that matches no dog. Only dogs owned by `exhibitor@` or `exhibitor2@` and named exactly `ZZ Walk Dog <token> #<n>` are in scope, so one run's cleanup never reaches another run's rows;
 - an order that also paid for an entry outside that run's scope, since a mixed order is not walk residue;
-- an order with a `stripe_order_refunds` row (refund facts are permanent ledger history) or a `cs_live_` Checkout session;
+- an order with a `stripe_order_refunds` row (refund facts are permanent ledger history), or whose Checkout session id is not a verified sandbox (`cs_test_`) one — a positive requirement, not just a `cs_live_` blocklist, so a null or malformed session id refuses the same as a live one;
 - any other table whose foreign key into the dogs, entries, enrollments or orders it deletes would cascade or set null, if that table holds a row for them. The script reads those constraints from `pg_constraint` at run time, so a table added later is refused, named, until the script records it too. A `NO ACTION` / `RESTRICT` reference it does not clear fails the delete itself inside the same transaction.
 
 An enrollment is removed only when nothing outside the run still points at it. The walk account's enrollment on a show is unique per (show, handler), so it can carry several runs' entries and stays until the last of them is cleaned.
 
 ## Testing it
 
-`scripts/qa/walk-residue-cleanup-local.sh` runs the script against a throwaway local Postgres and a stub of the tables it touches (`scripts/qa/walk-residue-cleanup-local-fixture.sql`). It refuses any non-localhost URL, because the fixture drops schema `public`:
+`scripts/qa/walk-residue-cleanup-local.sh` runs the script against a throwaway local Postgres and a stub of the tables it touches (`scripts/qa/walk-residue-cleanup-local-fixture.sql`). It refuses any non-localhost URL, because the fixture drops schema `public` — including a URL whose query string sets `host=`/`hostaddr=`, which libpq honors over the URL's own host and would otherwise let a URL that merely _looks_ like `localhost` reach a real database (Codex P2 on #2453):
 
 ```bash
 WALK_RESIDUE_TEST_DB_URL=postgresql://postgres@localhost:<port>/postgres \

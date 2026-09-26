@@ -10,7 +10,24 @@
 set -uo pipefail
 
 url="${WALK_RESIDUE_TEST_DB_URL:-}"
-case "$url" in
+
+# Split off the query string first. libpq's own host=/hostaddr= key there
+# overrides the URL's embedded host outright, so a URL whose visible host
+# looks like localhost can still connect somewhere else entirely (Codex P2
+# on #2453, MYK9-734: `...localhost/postgres?host=remote` passed the old
+# check and the fixture then dropped schema public there). Refuse outright
+# rather than trying to parse and out-guess libpq's own precedence rules.
+url_base="${url%%\?*}"
+url_query="${url#"$url_base"}"
+url_query_lower="${url_query,,}"
+case "&${url_query_lower#\?}&" in
+  *'&host='* | *'&hostaddr='*)
+    echo "walk-residue-cleanup-local: WALK_RESIDUE_TEST_DB_URL's query string sets host=/hostaddr=, which libpq honors over the URL's own host; refusing." >&2
+    exit 2
+    ;;
+esac
+
+case "$url_base" in
   postgresql://*@localhost[:/]* | postgresql://*@127.0.0.1[:/]* | postgres://*@localhost[:/]* | postgres://*@127.0.0.1[:/]*) ;;
   *)
     echo "walk-residue-cleanup-local: WALK_RESIDUE_TEST_DB_URL must be a localhost Postgres URL (got '${url:-<unset>}'); refusing." >&2
@@ -91,14 +108,32 @@ if grep -q 'refund row' <<<"$out"; then pass "refunded order refused"; else fail
 out="$(run -v token='2026-09-23 0305')"
 if grep -q 'some_future_ledger' <<<"$out"; then pass "unrecorded cascading child refused"; else fail "unrecorded cascading child refused"; printf '%s\n' "$out" | tail -3; fi
 
-# 11. A token that matches nothing is refused.
+# 11. A NULL Checkout session id is refused: the check is a positive cs_test_
+#     requirement, not merely "not cs_live_" (Codex P1 on #2453, MYK9-734).
+out="$(run -v token='2026-09-24 0305')"
+if grep -q 'not a verified sandbox' <<<"$out" && grep -q '<null>' <<<"$out"; then
+  pass "order with a null Checkout session id refused"
+else
+  fail "order with a null Checkout session id refused"; printf '%s\n' "$out" | tail -3
+fi
+
+# 12. A Checkout session id that is neither cs_test_ nor cs_live_ is refused
+#     too -- an unrecognized/malformed value must not pass by default.
+out="$(run -v token='2026-09-25 0305')"
+if grep -q 'not a verified sandbox' <<<"$out" && grep -q 'sess_malformed' <<<"$out"; then
+  pass "order with a malformed Checkout session id refused"
+else
+  fail "order with a malformed Checkout session id refused"; printf '%s\n' "$out" | tail -3
+fi
+
+# 13. A token that matches nothing is refused.
 out="$(run -v token='2030-01-01 0000')"
 if grep -q 'nothing to do' <<<"$out"; then pass "unknown token refused"; else fail "unknown token refused"; fi
 
-# 12. The seeded dog and its entry are untouched after everything.
+# 14. The seeded dog and its entry are untouched after everything.
 [ "$(q "select count(*) from entries where id = '00000000-0000-0000-0000-0000000000a0'")" = "1" ] && pass "seeded entry untouched" || fail "seeded entry untouched"
 
-# 13. While a run holds its transaction, nobody can attach a new entry to a
+# 15. While a run holds its transaction, nobody can attach a new entry to a
 #     scoped dog (the lock that stops an unrecorded row being cascaded away).
 psql "$url" -X -q -v ON_ERROR_STOP=1 -f "$fixture" >/dev/null 2>&1
 held="$(mktemp)"
@@ -110,6 +145,26 @@ blocked="$(psql "$url" -X -q -c "SET lock_timeout = '1s'; INSERT INTO entries VA
 wait "$holder"
 rm -f "$held"
 if grep -q 'lock timeout' <<<"$blocked"; then pass "a scoped dog is locked against new entries for the whole run"; else fail "scoped dog lock ($blocked)"; fi
+
+# 16-17. This script's own URL guard (Codex P2 on #2453, MYK9-734): a query
+# string that sets host=/hostaddr= is refused before any statement runs, even
+# though the visible host looks like localhost, because libpq honors that
+# query key over the URL's own host. Re-invokes this file, not the fixture.
+attack_out="$(WALK_RESIDUE_TEST_DB_URL='postgresql://postgres@localhost:5432/postgres?host=evil.example.com' bash "$0" 2>&1)"
+attack_status=$?
+if [ "$attack_status" -eq 2 ] && grep -q 'host=/hostaddr=' <<<"$attack_out"; then
+  pass "a query-string host= override is refused before any statement runs"
+else
+  fail "query-string host= override refused (status=$attack_status)"; printf '%s\n' "$attack_out" | tail -3
+fi
+
+attack_out="$(WALK_RESIDUE_TEST_DB_URL='postgres://postgres@127.0.0.1/postgres?HOSTADDR=10.0.0.5' bash "$0" 2>&1)"
+attack_status=$?
+if [ "$attack_status" -eq 2 ] && grep -q 'host=/hostaddr=' <<<"$attack_out"; then
+  pass "a query-string HOSTADDR= override is refused case-insensitively"
+else
+  fail "query-string HOSTADDR= override refused (status=$attack_status)"; printf '%s\n' "$attack_out" | tail -3
+fi
 
 if [ "$failures" -eq 0 ]; then echo "walk-residue-cleanup-local: all cases passed"; exit 0; fi
 echo "walk-residue-cleanup-local: $failures case(s) failed"; exit 1

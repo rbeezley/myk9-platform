@@ -1,13 +1,25 @@
 -- ============================================================================
 -- Walk residue cleanup, by EXACT run token (MYK9-734)
 -- ----------------------------------------------------------------------------
--- The exhibitor task walk pays for one entry per run with a throwaway dog named
--- `ZZ Walk Dog <run token> #N`. The UI can never remove that dog afterwards:
--- soft_delete_dog refuses a dog holding a paid entry (MK002), and withdraw and
--- refund are out of the walk's scope. So each paying run leaves a dog, a paid
--- entry, its status history, a sandbox stripe_orders row and possibly a
--- checkout-created enrollment. On the walk's target show (a seed-deleted show)
--- that residue also makes the next reseed abort on its money guard.
+-- STATUS (2026-09-26): the exhibitor task walk now stops at the Stripe
+-- Checkout boundary and never presses Pay (docs/qa/walks/exhibitor-task-walk.md
+-- Part 1, owner decision 2026-09-26). Because entries are created only by the
+-- Stripe webhook after payment, a walk run no longer leaves a paid entry, a
+-- stripe_orders row or an enrollment by default -- only the throwaway dog
+-- (`ZZ Walk Dog <run token> #N`) plus its registration and any cart line the
+-- walk added. That unpaid residue is undeletable through the UI today because
+-- of a SEPARATE bug (MYK9-799: the delete dialog's pre-check 403s for every
+-- dog, not because the dog holds a paid entry), and the walk records it with a
+-- `WALK RESIDUE TOKEN <token>` line rather than deleting it itself.
+--
+-- This script still exists for two cases: (1) the paid residue three earlier
+-- runs left before the stop-at-checkout change, still sitting on staging, and
+-- (2) any future run that reaches Checkout and completes a payment by mistake.
+-- Both leave a dog, a paid entry, its status history, a sandbox stripe_orders
+-- row and possibly a checkout-created enrollment. On the walk's target show (a
+-- seed-deleted show) that residue also makes the next reseed abort on its
+-- money guard. It handles plain unpaid dog/cart residue too -- the entries,
+-- orders and enrollment tables are simply empty for a token that never paid.
 --
 -- This is the sink. It is an OPERATOR step, never run by a walk, and it is two
 -- runs, never one:
@@ -37,7 +49,9 @@
 --   * an order it would delete also paid for an entry outside the scope
 --     (a mixed order is not walk residue);
 --   * an order has a refund row (refund facts are permanent ledger history),
---     or a live-mode Checkout session (`cs_live_`);
+--     or its Checkout session id is not a verified sandbox one (`cs_test_`) --
+--     this is a positive requirement, not just a `cs_live_` blocklist, so a
+--     null or malformed session id refuses the same as a live one;
 --   * any OTHER table with a cascading or set-null foreign key into the dogs,
 --     entries, enrollments or orders it deletes holds a row for them. It reads
 --     those constraints from pg_constraint at run time, so a table added later
@@ -181,9 +195,15 @@ BEGIN
     RAISE EXCEPTION 'walk-residue-cleanup: % refund row(s) hang off this run''s orders; refund facts are permanent ledger history, so this is not walk residue', v_n;
   END IF;
 
-  SELECT count(*) INTO v_n FROM wr_orders WHERE stripe_checkout_session_id LIKE 'cs_live_%';
+  -- Positive requirement: every order must carry a VERIFIED sandbox session,
+  -- not merely fail to look like a live one. A null or unrecognized session id
+  -- (a data anomaly, a future Stripe id format) refuses exactly like cs_live_
+  -- does, rather than passing by default (Codex P1 on #2453, MYK9-734).
+  SELECT count(*), string_agg(coalesce(o.stripe_checkout_session_id, '<null>'), ', ') INTO v_n, v_ids
+  FROM wr_orders o
+  WHERE o.stripe_checkout_session_id IS NULL OR o.stripe_checkout_session_id NOT LIKE 'cs_test_%';
   IF v_n > 0 THEN
-    RAISE EXCEPTION 'walk-residue-cleanup: % order(s) were paid through a LIVE Checkout session; this script only ever removes sandbox residue', v_n;
+    RAISE EXCEPTION 'walk-residue-cleanup: order session(s) [%] are not a verified sandbox (cs_test_) Checkout session; this script only ever removes verified sandbox residue', v_ids;
   END IF;
 
   -- Every other cascading or set-null reference into what this run deletes.

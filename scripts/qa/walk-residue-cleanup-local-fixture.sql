@@ -141,3 +141,27 @@ CREATE TABLE public.some_future_ledger (
   id uuid PRIMARY KEY, entry_id uuid REFERENCES public.entries(id) ON DELETE CASCADE);
 INSERT INTO public.some_future_ledger VALUES
   ('00000000-0000-0000-0000-0000000000f6', '00000000-0000-0000-0000-0000000000a6');
+
+-- Run F, token 2026-09-24 0305: its order's Checkout session id is NULL -- a
+-- data anomaly, never a legitimate sandbox order, and never a `cs_live_`
+-- either. Proves the check is a positive cs_test_ requirement, not a
+-- cs_live_ blocklist (Codex P1 on #2453, MYK9-734).
+INSERT INTO public.dogs (id, name, owner_id) VALUES
+  ('00000000-0000-0000-0000-0000000000d7', 'ZZ Walk Dog 2026-09-24 0305 #1', '00000000-0000-0000-0000-00000000e001');
+INSERT INTO public.entries VALUES
+  ('00000000-0000-0000-0000-0000000000a7', '00000000-0000-0000-0000-0000000000d7',
+   '00000000-0000-0000-0000-000000000011', NULL, 'paid', 30);
+INSERT INTO public.stripe_orders VALUES
+  ('00000000-0000-0000-0000-0000000000c7', ARRAY['00000000-0000-0000-0000-0000000000a7'::uuid], 3000,
+   '00000000-0000-0000-0000-000000000011', NULL, NULL, 'pi_runF', 'succeeded');
+
+-- Run G, token 2026-09-25 0305: its order's Checkout session id is neither
+-- cs_test_ nor cs_live_ -- an unrecognized/malformed value must refuse too.
+INSERT INTO public.dogs (id, name, owner_id) VALUES
+  ('00000000-0000-0000-0000-0000000000d8', 'ZZ Walk Dog 2026-09-25 0305 #1', '00000000-0000-0000-0000-00000000e001');
+INSERT INTO public.entries VALUES
+  ('00000000-0000-0000-0000-0000000000a8', '00000000-0000-0000-0000-0000000000d8',
+   '00000000-0000-0000-0000-000000000011', NULL, 'paid', 30);
+INSERT INTO public.stripe_orders VALUES
+  ('00000000-0000-0000-0000-0000000000c8', ARRAY['00000000-0000-0000-0000-0000000000a8'::uuid], 3000,
+   '00000000-0000-0000-0000-000000000011', NULL, 'sess_malformed', 'pi_runG', 'succeeded');

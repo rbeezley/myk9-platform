@@ -8,11 +8,10 @@ export interface BulkActionsBarProps {
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-// Suspend / Reinstate are not dialogs here: they live in BulkAccountActions and
-// use the status-only update the row menu uses (MYK9-712's `updatePersonStatus`,
-// guarded by `people_protect_status`), which did not exist when a bulk status
-// dialog was first removed. Bulk role editing is deferred (docs/plan-list-toolkit.md);
-// roles change one person at a time from Manage roles.
+// Bulk account actions (Suspend, Reinstate, Send invitation, Restore) and bulk
+// role editing are both deferred (docs/plan-list-toolkit.md, MYK9-835 and
+// MYK9-820); roles and status change one person at a time, via the row menu's
+// existing paths.
 export type DialogType = 'delete' | 'cascadeConfirm' | null;
 
 export interface RelatedDataDetails {

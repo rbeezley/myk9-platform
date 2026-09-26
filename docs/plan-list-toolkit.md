@@ -26,13 +26,14 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - `apps/myk9show/src/components/list-toolkit/` — `ListViewTabs`, `ListFilterBar`, `ListResultLine`, `FloatingBulkBar`.
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
 - `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New this week, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
-- Bulk account actions on the floating bar, each shown only when it applies (count when it reaches fewer than all): Suspend / Reinstate (admin:manage; never the admin's own account; Suspend confirms), Send invitation (never-signed-in people with an email; confirms), Restore (removed people). A More menu holds Copy emails and Export. Each reuses the single-person path (`useUpdateUserMutation`, `invokeAdminInvite`, `restoreUser`) through `useBulkDispatch`. A mutating account action always ends by refreshing the list and clearing the selection — full, partial or failed — so no stale user objects stay selected (Codex round 3). Bulk delete keeps its existing rule: people blocked from deletion stay selected.
+- The floating bar's More menu holds Copy emails (read-only) and Export, plus bulk delete with confirmation. Bulk ACCOUNT actions (Suspend, Reinstate, Send invitation, Restore) are cut from this change — see Non-goals.
 - The bar gets a raised surface (accent wash, accent border, deep shadow) — in dark mode `--popover` equals the card colour, so it blended into the list.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.
 
 ## Non-goals
 
-- **Bulk role editing — deferred.** The Add / Keep / Remove panel (canvas variant D) and its planner drew Codex P2s three rounds running, so per the convergence rule it is cut from this change and redone after Oct 10 under its own Linear issue; the code stays in this branch's history (4fb86ccee). This change has no bulk role action: `BulkRoleDialog` and its runner are removed, and roles change one person at a time from Manage roles, unchanged.
+- **Bulk role editing — deferred to MYK9-820.** The Add / Keep / Remove panel (canvas variant D) and its planner drew Codex P2s three rounds running, so per the convergence rule it is cut from this change and redone under MYK9-820; the code stays in this branch's history (4fb86ccee). This change has no bulk role action: `BulkRoleDialog` and its runner are removed, and roles change one person at a time from Manage roles, unchanged.
+- **Bulk account actions — deferred to MYK9-835.** Suspend, Reinstate, Send invitation and Restore (`useBulkAccountActions.ts`, `bulkAccountTargets.ts`'s `accountTargets`, `BulkAccountActions.tsx` and their tests) are cut from this change; the code stays in this branch's history. The floating bar keeps row selection and the read-only Copy emails action (plus Export), which needed no scope cut. MYK9-835 also owns the stale-selection Codex finding against the removed actions.
 - Change-notification emails and bulk messaging (no notification path; needs compose, audit and unsubscribe rules). Bulk password reset and duplicate merge.
 - Adopting the kit on Dogs and Entries — separate follow-ups.
 - Keyboard shortcuts on the bulk bar.
@@ -42,6 +43,6 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - Unit tests for each kit component (render, chip removal, option pick, date range, bulk bar visibility and clear).
 - `userListParams` round-trip for `login`; `filterUsers` login buckets; view matching and counts.
 - `getColumnLayoutClasses` for `stickyRight`.
-- `BulkAccountActions`: shown only when applicable, confirmation, never the admin's own account, and the selection cleared after a partial or failed action.
+- `BulkActionsBar`'s More menu: Copy emails writes the selected addresses to the clipboard; no account-action buttons render (MYK9-835).
 - Update the existing UserManagementPage and BulkActionsBar suites; run them and the shuffled app suite for touched files.
 - Typecheck, lint, format, `qa:code-quality-ratchet`.

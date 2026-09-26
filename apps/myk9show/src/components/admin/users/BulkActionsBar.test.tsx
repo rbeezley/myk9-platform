@@ -88,9 +88,9 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// Components rendered by this bar read via useQuery/useQueryClient
-// (account actions invalidate the users list) — wrap every render in a
-// QueryClientProvider so those hooks don't throw outside a provider.
+// Components rendered by this bar (AdminDeleteUserDialog) read via useQuery —
+// wrap every render in a QueryClientProvider so those hooks don't throw
+// outside a provider.
 function render(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -410,24 +410,37 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    // Bulk role editing is deferred (docs/plan-list-toolkit.md); roles change
-    // one person at a time from Manage roles.
+    // Bulk role editing is deferred (docs/plan-list-toolkit.md, MYK9-820); roles
+    // change one person at a time from Manage roles.
     it('offers no bulk role action', () => {
       render(<BulkActionsBar {...defaultProps} />);
       expect(screen.queryByRole('button', { name: /roles/i })).not.toBeInTheDocument();
     });
 
-    // Account actions live in BulkAccountActions (own suite); here, only that
-    // the bar hosts them: two active people who never signed in, and a caller
-    // without admin:manage (this suite's default) gets no Suspend.
-    it('hosts the account actions that apply to the selection, and a More menu', () => {
+    // Bulk account actions (Suspend, Reinstate, Send invitation, Restore) are
+    // deferred (docs/plan-list-toolkit.md, MYK9-835); the bar hosts only the
+    // read-only More menu (Copy emails, Export CSV) alongside Delete.
+    it('has no account-action buttons, only the More menu', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       expect(screen.queryByRole('button', { name: /suspend/i })).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Send invitation' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /send invitation/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /reinstate/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
+    });
+
+    it('copies the selected emails from the More menu', async () => {
+      render(<BulkActionsBar {...defaultProps} />);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy emails' }));
+
+      await waitFor(() =>
+        expect(writeText).toHaveBeenCalledWith('john.doe@example.com, jane.smith@example.com')
+      );
     });
   });
 

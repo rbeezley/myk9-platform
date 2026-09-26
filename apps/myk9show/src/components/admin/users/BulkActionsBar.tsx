@@ -4,14 +4,16 @@
  * Features:
  * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
  *   is in view wherever the rows were ticked
- * - Account actions (BulkAccountActions: suspend, reinstate, invite, restore,
- *   copy emails, export), bulk delete with confirmation. Bulk role editing is
- *   deferred (docs/plan-list-toolkit.md); single-person Manage roles is unchanged.
- *   (soft/permanent for admins, cascade for related data)
+ * - A More menu (Copy emails, read-only; Export CSV) and bulk delete with
+ *   confirmation (soft/permanent for admins, cascade for related data).
+ *   Bulk account actions (Suspend, Reinstate, Send invitation, Restore) and
+ *   bulk role editing are both deferred (docs/plan-list-toolkit.md, MYK9-835
+ *   and MYK9-820); single-person actions in the row menu are unchanged.
  */
 
 import React from 'react';
-import { Trash2, AlertCircle } from 'lucide-react';
+import { Trash2, AlertCircle, ChevronUp, Copy, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,15 +25,41 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
-import { BulkAccountActions } from './BulkAccountActions';
+import { selectedEmails } from './bulkAccountTargets';
+import { exportUsersCSV } from '@/pages/admin/UserManagementPage.helpers';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
 const USER_NOUN = ['user', 'users'] as const;
+const ICON = 'h-4 w-4';
+
+async function copyEmails(selectedUsers: BulkActionsBarProps['selectedUsers']) {
+  const emails = selectedEmails(selectedUsers);
+  const missing = selectedUsers.length - emails.length;
+  if (emails.length === 0) {
+    toast.error('None of the selected people has an email address.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(emails.join(', '));
+    toast.success(
+      `Copied ${emails.length} email ${emails.length === 1 ? 'address' : 'addresses'}`,
+      missing > 0 ? { description: `${missing} selected without an email.` } : undefined
+    );
+  } catch {
+    toast.error('Could not copy to the clipboard. Try Export instead.');
+  }
+}
 
 export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   selectedUsers,
@@ -66,7 +94,30 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             .join(', ')}
           {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
         </p>
-        <BulkAccountActions selectedUsers={selectedUsers} onClearSelection={onClearSelection} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              More
+              <ChevronUp className={ICON} aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            <DropdownMenuItem className="min-h-11" onClick={() => void copyEmails(selectedUsers)}>
+              <Copy className={`${ICON} mr-2`} aria-hidden="true" />
+              Copy emails
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11"
+              onClick={() => exportUsersCSV(selectedUsers.map(item => item.user))}
+            >
+              <Download className={`${ICON} mr-2`} aria-hidden="true" />
+              Export CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <BulkBarButton
           tone="destructive"
           onClick={() => setCurrentDialog('delete')}

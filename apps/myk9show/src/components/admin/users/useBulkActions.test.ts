@@ -64,7 +64,7 @@ function hasRelatedDataError(entryCount: number, dogCount: number): ErrorWithRel
   return error;
 }
 
-describe('useBulkActions — delete only (account actions live in useBulkAccountActions)', () => {
+describe('useBulkActions — delete only (bulk account actions are deferred, MYK9-835)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

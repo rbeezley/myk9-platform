@@ -13,7 +13,7 @@ import {
   buildUKCNoseworkEntryFormValues,
 } from '../ukcNoseworkEntryForm';
 import { UKC_NOSEWORK_ENTRY_FORM_FIELDS } from '../ukcNoseworkEntryFormFields';
-import { extractDrawnPdfText } from './testPdfText';
+import { countWidgetAnnotations, extractDrawnPdfText } from './testPdfText';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
@@ -155,7 +155,30 @@ describe('UKC Nosework entry form PDF', () => {
     expect(drawn).toContain('555');
   });
 
-  it('accepts a stored phone number with a leading US country code', async () => {
+  it('keeps the AcroForm interactive for a single-dog download (flatten: false)', async () => {
+    // Codex round 2 (MYK9-828): copying the filled page into a fresh
+    // PDFDocument dropped the AcroForm catalog, so a "single dog" download
+    // that is supposed to stay editable came back with no form fields at all.
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const pdf = await PDFDocument.load(bytes);
+    const fields = pdf.getForm().getFields();
+    expect(fields.length).toBeGreaterThan(0);
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName).getText()).toBe(
+      'Sarah Johnson'
+    );
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone).getText()).toBe('0123');
+  });
+
+  it('normalizes a stored +1 US phone number for the last-four field and the drawn area code/exchange', async () => {
+    // Codex round 2 (MYK9-828): a stored "+1 (214) 555-0123" strips to 11
+    // digits, so both the last-four AcroForm field and the drawn area
+    // code/exchange marks were left blank.
     const dogWithCountryCode: EntryFormDog = {
       ...dog,
       owner: { ...dog.owner, phone: '+1 (214) 555-0123' },
@@ -173,21 +196,6 @@ describe('UKC Nosework entry form PDF', () => {
     const drawn = await extractDrawnPdfText(bytes);
     expect(drawn).toContain('214');
     expect(drawn).toContain('555');
-  });
-
-  it('keeps the single-dog PDF editable when flatten is false (MYK9-828 review)', async () => {
-    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
-      dog,
-      trials: [],
-      templateBytes: await readEntryTemplate(),
-      flatten: false,
-    });
-
-    const pdf = await PDFDocument.load(bytes);
-    expect(pdf.getForm().getFields().length).toBeGreaterThan(0);
-    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.callName).getText()).toBe(
-      'Star'
-    );
   });
 
   it('marks the trial, section, and element/level grid for each of the dog’s entries', async () => {
@@ -376,5 +384,57 @@ describe('UKC Nosework entry form PDF', () => {
     // annotations left behind on each page can, and must be empty too.
     expect(pdf.getForm().getFields().length).toBe(0);
     expect(pdf.getPages().map(p => p.node.Annots()?.size() ?? 0)).toEqual([0, 0]);
+  });
+
+  it('flattens a 7+ entry single-dog download instead of shipping a broken "editable" multi-page PDF', async () => {
+    // Codex round 3 (MYK9-828): copying multiple filled pages into one
+    // document (copyPages) drops the AcroForm catalog no matter what
+    // `flatten` says, so an "editable" (flatten: false) multi-page download
+    // silently had no working form fields at all. Owner decision: a
+    // single-dog download stays editable only when it fits on one page —
+    // once it overflows, every page is flattened first, so the result is an
+    // honest flattened PDF instead of a broken interactive one.
+    const manyEntries: EntryFormDog['entries'] = Array.from({ length: 7 }, (_, i) => ({
+      id: `entry-${i + 1}`,
+      trialId: 'trial-1',
+      classId: `class-${i + 1}`,
+      element: 'Container',
+      level: 'Novice',
+      section: null,
+      armband: 101,
+      handler: null,
+      handlerId: null,
+      submittedAt: null,
+    }));
+    const dogWithManyEntries: EntryFormDog = { ...dog, entries: manyEntries };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithManyEntries,
+      trials: [{ id: 'trial-1', date: '2026-10-10', trialNumber: 'Trial 1' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBe(2);
+    expect(pdf.getForm().getFields()).toEqual([]);
+    // `getForm().getFields()` alone doesn't distinguish a truly flattened
+    // page from the pre-fix bug: copying an unflattened page into a fresh
+    // PDFDocument also reports zero fields, because copyPages never
+    // registers the copied Widget annotations in the destination's
+    // /AcroForm — but it leaves those Widgets sitting on the page,
+    // orphaned rather than genuinely flattened into static content
+    // (confirmed by reverting this fix locally: the pre-fix output carried
+    // 28 orphaned Widget annotations per page). A flattened page has none.
+    expect(await countWidgetAnnotations(bytes, 0)).toBe(0);
+    expect(await countWidgetAnnotations(bytes, 1)).toBe(0);
+
+    // The grid/DOB/phone marks this module draws itself (drawMarks, not an
+    // AcroForm field) are unaffected by flattening and stay visible as plain
+    // page-content text on both pages.
+    const page1Marks = (await extractDrawnPdfText(bytes, 0)).filter(text => text === 'X');
+    const page2Marks = (await extractDrawnPdfText(bytes, 1)).filter(text => text === 'X');
+    expect(page1Marks.length).toBe(12); // 6 rows x (Trial 1 bracket + Container/Novice)
+    expect(page2Marks.length).toBe(2); // 1 row x (Trial 1 bracket + Container/Novice)
   });
 });

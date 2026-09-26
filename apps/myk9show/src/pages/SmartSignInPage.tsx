@@ -23,7 +23,6 @@ import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
-import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 import {
   TurnstileChallenge,
@@ -239,11 +238,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         return;
       }
       const typedName = displayName.trim();
-      // Confirmed here, at first entry — not only on a later reload's claim
-      // derivation — so a judge who never reloads until their access token
-      // has genuinely expired offline (a long show day) still has a cached
-      // claim to fall back to (MYK9-834).
-      persistRingsideClaim({ showId: result.showId, role: result.role });
+      // `setGrant` itself persists the confirmed claim to the offline-reload
+      // fallback cache (ringsideGrantStore.ts) — the single choke point every
+      // successful passcode entry passes through, this call included (MYK9-834).
       setGrant({
         showId: result.showId,
         role: result.role,

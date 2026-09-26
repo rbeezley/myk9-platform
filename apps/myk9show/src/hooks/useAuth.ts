@@ -164,14 +164,22 @@ export function useAuth() {
 
       // Clear the cached per-user appearance preferences on ANY sign-out —
       // explicit signOut, suspension-forced, session expiry, or another tab —
-      // so the next user on a shared browser doesn't inherit them. The
-      // ringside offline-reload fallback cache (MYK9-834) needs the same
-      // treatment: it is the one ringside artifact that survives a reload
-      // (ringsideGrantStore itself does not), so a real SIGNED_OUT — not
-      // just the unused `endAnonymousRingsideSession` helper — must purge it
-      // or a signed-out judge could be re-admitted offline from stale state.
+      // so the next user on a shared browser doesn't inherit them.
+      //
+      // The ringside offline-reload fallback cache (ringsideClaimCache.ts)
+      // rides along on the same event for the same reason (MYK9-834): it must
+      // never outlive a real sign-out (Account menu → useAuth().signOut() is
+      // the only production caller, and this listener is the single choke
+      // point every sign-out — that one included — passes through), and a new
+      // SIGNED_IN is a different identity taking over this device, so any
+      // claim cached for whoever was here before must not leak into that
+      // identity's own offline fallback. A genuinely-still-valid passcode
+      // grant re-persists immediately after via `setGrant` (ringsideGrantStore.ts).
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
+        persistRingsideClaim(null);
+      }
+      if (_event === 'SIGNED_IN') {
         persistRingsideClaim(null);
       }
     });

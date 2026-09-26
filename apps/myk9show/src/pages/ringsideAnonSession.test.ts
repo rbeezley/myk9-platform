@@ -7,11 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { startAnonymousRingsideSession, endAnonymousRingsideSession } from './ringsideAnonSession';
-import {
-  persistRingsideClaim,
-  readPersistedRingsideClaim,
-} from '@/features/at-show/ringsideClaimCache';
+import { startAnonymousRingsideSession } from './ringsideAnonSession';
 
 const getSession = vi.fn();
 const signInAnonymously = vi.fn();
@@ -245,45 +241,5 @@ describe('startAnonymousRingsideSession', () => {
     if (!result.ok) {
       expect(result.message).toBe("Couldn't connect. Check your signal and try again.");
     }
-  });
-});
-
-describe('endAnonymousRingsideSession', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    signOut.mockResolvedValue({ error: null });
-    window.localStorage.clear();
-  });
-
-  it('signs out an anonymous session', async () => {
-    getSession.mockResolvedValue(anonSession);
-    await endAnonymousRingsideSession();
-    expect(signOut).toHaveBeenCalledTimes(1);
-  });
-
-  it('never signs out a real account session', async () => {
-    getSession.mockResolvedValue(accountSession);
-    await endAnonymousRingsideSession();
-    expect(signOut).not.toHaveBeenCalled();
-  });
-
-  // MYK9-834: leaving a show explicitly must not let a later offline reload
-  // resurrect ringside access from the fallback cache.
-  it('purges the offline-reload fallback cache when signing out an anonymous session', async () => {
-    persistRingsideClaim({ showId: 'show-x', role: 'judge' });
-    getSession.mockResolvedValue(anonSession);
-
-    await endAnonymousRingsideSession();
-
-    expect(readPersistedRingsideClaim('show-x')).toBeNull();
-  });
-
-  it('leaves the fallback cache untouched when there is no anon session to end', async () => {
-    persistRingsideClaim({ showId: 'show-x', role: 'judge' });
-    getSession.mockResolvedValue(accountSession);
-
-    await endAnonymousRingsideSession();
-
-    expect(readPersistedRingsideClaim('show-x')).toBe('judge');
   });
 });

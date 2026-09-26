@@ -65,6 +65,7 @@ TEST_FILES=(
   "$TEST_DIR/judge_assignment_private_read_test.sql"
   "$TEST_DIR/judge_assignment_touches_class_test.sql"
   "$TEST_DIR/judge_qualification_rpc_authorization_test.sql"
+  "$TEST_DIR/myk9_833_judge_draft_show_visibility_test.sql"
   "$TEST_DIR/office_admin_rls_test.sql"
   "$TEST_DIR/one_registry_per_show_test.sql"
   "$TEST_DIR/null_club_show_authorization_test.sql"

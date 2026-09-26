@@ -13,6 +13,7 @@ import { AboutTab } from './AboutTab';
 import { MembersTab } from './MembersTab';
 import { BrandingTab } from './BrandingTab';
 import { ClubDialogs } from './ClubDialogs';
+import { ClubShowsUnsettled } from './ClubShowsUnsettled';
 import { useClubDetailsState } from './useClubDetailsState';
 
 export type { ClubDetailsProps };
@@ -35,11 +36,23 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   );
 
   // Build tab definitions — must be before early returns (rules of hooks)
-  const { upcomingShows, pastShows } = state;
+  const { upcomingShows, pastShows, showsStatus } = state;
+  // An unsettled guest read has no counts to show (MYK9-768).
+  const showsReady = showsStatus === 'ready';
   const tabDefs: PrimaryTabDef[] = useMemo(() => {
     const tabs: PrimaryTabDef[] = [
-      { id: 'upcoming', label: 'Upcoming Shows', icon: Calendar, count: upcomingShows.length },
-      { id: 'past', label: 'Past Shows', icon: History, count: pastShows.length },
+      {
+        id: 'upcoming',
+        label: 'Upcoming Shows',
+        icon: Calendar,
+        ...(showsReady ? { count: upcomingShows.length } : {}),
+      },
+      {
+        id: 'past',
+        label: 'Past Shows',
+        icon: History,
+        ...(showsReady ? { count: pastShows.length } : {}),
+      },
       { id: 'about', label: 'About', icon: Info },
       {
         id: 'members',
@@ -52,7 +65,13 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       tabs.push({ id: 'branding', label: 'Branding', icon: Palette });
     }
     return tabs;
-  }, [upcomingShows.length, pastShows.length, state.activeMembers.length, state.canEditBranding]);
+  }, [
+    showsReady,
+    upcomingShows.length,
+    pastShows.length,
+    state.activeMembers.length,
+    state.canEditBranding,
+  ]);
 
   if (!selectedClub) {
     return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
@@ -110,16 +129,24 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
                 </Button>
               )}
             </div>
-            <UpcomingShowsTab
-              shows={upcomingShows}
-              onViewShowDetails={state.handleViewShowDetails}
-              onRegisterForShow={state.handleRegisterForShow}
-              onAddShow={state.handleAddShow}
-            />
+            {showsStatus === 'ready' ? (
+              <UpcomingShowsTab
+                shows={upcomingShows}
+                onViewShowDetails={state.handleViewShowDetails}
+                onRegisterForShow={state.handleRegisterForShow}
+                onAddShow={state.handleAddShow}
+              />
+            ) : (
+              <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
+            )}
           </TabsContent>
 
           <TabsContent value="past" className="pt-6">
-            <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
+            {showsStatus === 'ready' ? (
+              <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
+            ) : (
+              <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
+            )}
           </TabsContent>
 
           <TabsContent value="about" className="pt-6">

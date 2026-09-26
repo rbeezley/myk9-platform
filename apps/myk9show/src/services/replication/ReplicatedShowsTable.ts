@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -224,10 +225,32 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /**
    * Sync shows from Supabase
    */
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<ShowRow, ReplicatedShow> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('shows')
+          .select('*')
+          .is('deleted_at', null)
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return (data ?? []) as unknown as ShowRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToShow,
+      rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
+    };
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')
@@ -256,10 +279,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
         return (data ?? []) as unknown as ShowRow[];
       },
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToShow,
-      rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.clubId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,

@@ -3,6 +3,7 @@ import {
   ReplicatedTable,
   parseUpdatedAtMs,
   syncReplicatedTable,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -73,6 +74,13 @@ interface PaperworkPrintQuery {
   select(columns: string): PaperworkPrintQuery;
   eq(column: string, value: string): PaperworkPrintQuery;
   gt(column: string, value: string): PaperworkPrintQuery;
+  in(
+    column: string,
+    values: string[]
+  ): Promise<{
+    data: PaperworkPrintRow[] | null;
+    error: { message: string } | null;
+  }>;
   order(
     column: string,
     options: { ascending: boolean }
@@ -113,6 +121,29 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     super('paperwork_prints', { logger });
   }
 
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<
+    PaperworkPrintRow,
+    ReplicatedPaperworkPrint
+  > {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await paperworkClient
+          .from('paperwork_prints')
+          .select('*')
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return data ?? [];
+      },
+      getRemoteId: row => row.id,
+      toLocalRow: rowToPaperworkPrint,
+      rebuildUpdatePayload: row => this.toVoidPayload(row),
+    };
+  }
+
   async sync(syncScopeId?: string): Promise<SyncResult> {
     const showId = syncScopeId?.trim();
     if (!showId) {
@@ -126,6 +157,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     }
 
     const adapter: SyncReplicatedTableAdapter<PaperworkPrintRow, ReplicatedPaperworkPrint> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async ({ since }) => {
         const { data, error } = await paperworkClient
           .from('paperwork_prints')
@@ -136,10 +168,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
         if (error) throw new Error(`Paperwork print refresh failed: ${error.message}`);
         return data ?? [];
       },
-      getRemoteId: row => row.id,
       getRemoteUpdatedAt: row => parseUpdatedAtMs(row.updated_at),
-      toLocalRow: rowToPaperworkPrint,
-      rebuildUpdatePayload: row => this.toVoidPayload(row),
       filterLocalRows: rows => rows.filter(row => row.showId === showId),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };

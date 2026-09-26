@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -170,6 +171,27 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Sync clubs from Supabase.
    * Note: clubs have no license_key scope — all clubs are visible.
    */
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<ClubRow, ReplicatedClub> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('clubs')
+          .select('*')
+          .is('deleted_at', null)
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return (data ?? []) as unknown as ClubRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToClub,
+      rebuildUpdatePayload: club => this.toSupabaseRow(club),
+    };
+  }
+
   async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -197,6 +219,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const forceFullSync = this._forceFullSyncNext || principalChanged;
 
     const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async ({ since }) => {
         const { data, error } = await supabase
           .from('clubs')
@@ -211,10 +234,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
 
         return (data ?? []) as unknown as ClubRow[];
       },
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToClub,
-      rebuildUpdatePayload: club => this.toSupabaseRow(club),
       resolveConflict: (_local, remote) => remote,
     };
 

@@ -12,7 +12,7 @@
  * "Retry failed" for any person the action could not reach.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -69,26 +69,33 @@ export function useBulkAccountActions({
     },
   };
 
-  // Invalidating lives INSIDE the per-item worker, not after `dispatch.run`
-  // resolves below: "Retry failed" re-invokes this SAME wrapped worker from
-  // inside useBulkDispatch, on the toast action's click, well past this
-  // function's return. An invalidate placed only after `dispatch.run` would
-  // never fire for that retry, so a person restored on retry kept reading as
-  // removed until some unrelated later refetch (Codex P2).
-  const withInvalidate =
+  // Whatever the outcome — full success, partial, or every person failed — a
+  // mutating action ends by CLEARING the selection. A
+  // kept selection holds the pre-action user objects, so after a partial
+  // Suspend the people who were suspended would still read as active and be
+  // offered Suspend again (Codex P2, round 3). The dispatch's own toast keeps
+  // "Retry failed" for the ones that did not go through.
+  // The roster refreshes whenever ANY person's change lands — in the first run
+  // or in a later "Retry failed", which runs inside the dispatch after `run`
+  // has returned (Codex P2 on c839caa07). Successes that land together share
+  // one refresh instead of refetching the roster once per person.
+  const refreshQueued = useRef(false);
+  const scheduleRefresh = () => {
+    if (refreshQueued.current) return;
+    refreshQueued.current = true;
+    setTimeout(() => {
+      refreshQueued.current = false;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    }, 0);
+  };
+  const refreshing =
     (worker: (item: SelectedUser) => Promise<void>) => async (item: SelectedUser) => {
       await worker(item);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      scheduleRefresh();
     };
 
-  // Whatever the outcome — full success, partial, or every person failed — a
-  // mutating action ends by CLEARING the selection. A kept selection holds
-  // the pre-action user objects, so after a partial Suspend the people who
-  // were suspended would still read as active and be offered Suspend again
-  // (Codex P2, round 3). The dispatch's own toast keeps "Retry failed" for
-  // the ones that did not go through.
   const run = async (action: BulkAccountAction) => {
-    const outcome = await dispatch.run(targets[action], withInvalidate(workers[action]));
+    const outcome = await dispatch.run(targets[action], refreshing(workers[action]));
     // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;
     setConfirming(null);

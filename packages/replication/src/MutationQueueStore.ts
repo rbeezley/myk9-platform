@@ -183,6 +183,17 @@ export class MutationQueueStore {
       });
   }
 
+  async getPendingMutationsForTable(
+    tableName: string,
+    authUserId: string
+  ): Promise<PendingMutation[]> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+    return all.filter(
+      mutation => mutation.tableName === tableName && mutation.authUserId === authUserId
+    );
+  }
+
   async getFailedMutations(authUserId: string): Promise<PendingMutation[]> {
     const db = await databaseManager.getDatabase('MutationManager');
     const failed = (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];

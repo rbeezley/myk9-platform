@@ -574,7 +574,7 @@ describe('Save & Publish lists the server judges on the premium', () => {
     fireEvent.click(await screen.findByTestId('edit-panel-save'));
 
     await waitFor(() => expect(published).toBeDefined());
-    expect(saveHarness.publishJudges).toHaveBeenCalledWith('show-1', loaded, saved);
+    expect(saveHarness.publishJudges).toHaveBeenCalledWith('show-1');
     expect(published?.trials.map(trial => trial.judges.map(judge => judge.name))).toEqual([
       ['Pat Judge'],
     ]);

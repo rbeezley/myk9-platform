@@ -2,7 +2,7 @@ import { createDatabaseError, supabase } from '../supabaseClient';
 import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import { diffShowJudges } from './showJudgeChanges';
+import { mutationManager } from '@/services/replication/sharedMutationManager';
 
 interface ServerJudgeRow {
   person_id: string;
@@ -19,16 +19,23 @@ interface ServerJudgeRow {
  * The Edit Show form's judge list comes from a device read, and a failed read
  * leaves it empty, so publishing it put out a premium with no judges
  * (MYK9-774). Publishing needs the network anyway, so the server list is the
- * source. The secretary's own changes in this save are applied on top: the
- * judge edits are queued writes and may not have reached the server yet.
+ * source. Judge edits are queued writes, from this save or an earlier one, so
+ * they are uploaded first; if one is still waiting, the server list would miss
+ * it, and publishing stops instead. A DELETE names only its row, so any waiting
+ * judge write that does not name another show counts.
  *
- * Throws when the server cannot be read; the caller reports a publish failure.
+ * Throws when the edits have not reached the server or the server cannot be
+ * read; the caller reports a publish failure.
  */
-export async function fetchShowJudgesForPublish(
-  showId: string,
-  loaded: ReadonlyArray<{ judgeId: string }>,
-  saved: ReadonlyArray<ShowJudgeAssignment>
-): Promise<ShowJudgeAssignment[]> {
+export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
+  await mutationManager.uploadPendingMutations();
+  const waiting = await mutationManager.getPendingMutationsForTable('judge_assignments');
+  if (waiting.some(mutation => (mutation.data.show_id ?? showId) === showId)) {
+    throw new Error(
+      "Some judge changes haven't reached the server yet. Try publishing again in a moment."
+    );
+  }
+
   const { data, error } = await supabase
     .from('judge_assignments')
     .select(
@@ -60,12 +67,5 @@ export async function fetchShowJudgesForPublish(
         ]
       : []
   );
-  const serverJudges = buildAssignedJudges(assignments, showId, people);
-
-  const { add, remove } = diffShowJudges(loaded, saved);
-  const removed = new Set(remove);
-  const kept = serverJudges.filter(judge => !removed.has(judge.judgeId));
-  const present = new Set(kept.map(judge => judge.judgeId));
-  const added = saved.filter(judge => add.includes(judge.judgeId) && !present.has(judge.judgeId));
-  return [...kept, ...added];
+  return buildAssignedJudges(assignments, showId, people);
 }

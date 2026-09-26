@@ -284,6 +284,24 @@ describe('MutationManager authenticated ownership', () => {
     expect(await db.get(REPLICATION_STORES.PENDING_MUTATIONS, 'theirs')).toBeDefined();
   });
 
+  it("lists a table's pending mutations for the active user only", async () => {
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('mine', 'user-b'));
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('theirs', 'user-a'));
+    await db.put(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      mutation('other-table', 'user-b', { tableName: 'dogs' })
+    );
+    await db.put(
+      REPLICATION_STORES.FAILED_MUTATIONS,
+      mutation('mine-failed', 'user-b', { status: 'failed', failedAt: 1 })
+    );
+    currentUserId.mockResolvedValue('user-b');
+
+    expect((await manager.getPendingMutationsForTable('entries')).map(item => item.id)).toEqual([
+      'mine',
+    ]);
+  });
+
   it('clears only mutations owned by the active user', async () => {
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('mine', 'user-b'));
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('theirs', 'user-a'));

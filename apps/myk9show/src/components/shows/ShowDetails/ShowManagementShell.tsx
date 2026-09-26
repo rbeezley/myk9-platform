@@ -436,12 +436,8 @@ function AuthorizedShowManagementShell({
               try {
                 // The form's judge list is a device read and is empty when that
                 // read failed; the published premium lists the server's judges,
-                // with this save's changes applied (MYK9-774).
-                const judges = await fetchShowJudgesForPublish(
-                  id,
-                  show.assignedJudges || [],
-                  showData.assignedJudges || []
-                );
+                // once this device's judge edits have reached it (MYK9-774).
+                const judges = await fetchShowJudgesForPublish(id);
                 const premium = applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,
                   showData as Partial<ShowInput>,

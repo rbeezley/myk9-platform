@@ -1,6 +1,6 @@
 # Linear backlog burndown — 2026-09-15/16
 
-> **Status:** Active
+> **Status:** Complete — session ended 2026-09-19; superseded by [`plan-backlog-batches-2026-09-23.md`](plan-backlog-batches-2026-09-23.md)
 
 Orchestrated clearance of every MyK9-platform issue in Todo or In Progress on 2026-09-15 (UTC). Each issue ends merged, PR-ready-but-blocked on an owner decision, or re-filed/split/closed with a comment. Codex is out of tokens until 2026-09-19 05:01 UTC, so `independent`-floor PRs merge under the owner override (`Deferred re-review: MYK9-544`) with two or more adversarial Claude lenses standing in.
 
@@ -181,7 +181,7 @@ Filled in as batches complete; the final report to Richard is generated from thi
 2. Staging reseed (`seed-reset`) after the 20260916213500 push: MYK9-566 and MYK9-538/539 confirm guards.
 3. Staging walks: MYK9-537 AC3 as secretary@myk9t.com; MYK9-575 cold-store Edit Entry replay; MYK9-590 one look at the /dogs header checkbox with two rows selected.
 4. MYK9-546: Vercel setting (monorepo skip-unaffected), the docs follow-up.
-5. Codex re-reviews on MYK9-544 once the token limit resets.
+5. ~~Codex re-reviews on MYK9-544 once the token limit resets.~~ Done: the 2026-09-19 audits (#2330, #2331, #2337, #2341; one P2 filed as MYK9-680, fixed by #2360) and the 2026-09-24 sweep of every remaining row; MYK9-544 closed 2026-09-24.
 
 ### Process changes applied (owner-approved 2026-09-17)
 

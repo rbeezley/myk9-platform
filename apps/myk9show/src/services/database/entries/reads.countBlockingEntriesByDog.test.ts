@@ -78,7 +78,21 @@ describe('countBlockingEntriesByDog', () => {
     expect(filter).toContain('payment_status.eq.paid');
     expect(filter).toContain('is_scored.is.true');
     expect(filter).toContain('scoring_completed_at.not.is.null');
-    expect(filter).toContain('result_status.neq.pending');
+  });
+
+  it('never names result_status — authenticated has no column grant on it (MYK9-799)', async () => {
+    // Assertion-first: red before the fix. `authenticated` lost its
+    // column-SELECT grant on entries.result_status in migration
+    // 20260620001929_restrict_authenticated_entry_results.sql; naming it
+    // inside `or()` makes PostgREST refuse the WHOLE request with 403,
+    // permanently disabling Delete for every dog (not just blocked ones).
+    const { chain, calls } = buildChain({ count: 0, error: null });
+    mocks.supabaseFrom.mockReturnValue(chain);
+
+    await countBlockingEntriesByDog('dog-123');
+
+    const filter = calls.or?.[0] ?? '';
+    expect(filter).not.toContain('result_status');
   });
 
   it('does not block on refunded or waived entries', async () => {

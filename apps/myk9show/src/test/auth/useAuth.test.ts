@@ -14,6 +14,15 @@ vi.mock('@/services/observability/sentry', () => ({
   captureAuthEmailRequestFailure,
 }));
 
+// signOut() awaits the real replication layer's IndexedDB transaction
+// (clearCachedHideCounts) unless stubbed — a real transaction under
+// vitest's parallel jsdom workers is a documented timeout-class flake
+// (docs/lessons/README.md#timeout-class-flake). Every signOut test in this
+// file exercises that call; stub it so timing here is deterministic.
+vi.mock('@/services/replication', () => ({
+  replicatedClassesTable: { clearCachedHideCounts: vi.fn().mockResolvedValue(undefined) },
+}));
+
 describe('useAuth', () => {
   const mockUser: User = {
     id: 'test-user-id',

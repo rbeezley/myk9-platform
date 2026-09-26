@@ -103,7 +103,15 @@ export const useRingsideGrantStore = create<RingsideGrantState>()(set => ({
     }
     set({ activeGrant: grant });
   },
-  clearGrant: () => set({ activeGrant: null }),
+  // Symmetric with `setGrant`'s auto-persist: every path that ends ringside
+  // access for this device — explicit "leave show", passcode revocation, or
+  // `useRehydrateRingsideGrant` discovering an offline-fallback grant is now
+  // stale (MYK9-834) — goes through here, so the offline-reload cache is
+  // purged at the same single choke point rather than at each call site.
+  clearGrant: () => {
+    persistRingsideClaim(null);
+    set({ activeGrant: null });
+  },
   suppressRehydration: false,
   setSuppressRehydration: value => set({ suppressRehydration: value }),
 }));

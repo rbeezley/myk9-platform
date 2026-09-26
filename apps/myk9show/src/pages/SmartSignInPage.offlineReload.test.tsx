@@ -153,8 +153,12 @@ describe('SmartSignInPage → offline reload (MYK9-834)', () => {
 
     // Simulate the hard reload: the in-memory store is wiped (it is
     // deliberately not persisted), the token has since expired, and the
-    // device is offline — the exact scenario from the Codex finding.
-    useRingsideGrantStore.getState().clearGrant();
+    // device is offline — the exact scenario from the Codex finding. A real
+    // reload resets the store by re-evaluating the module, not by calling
+    // `clearGrant()` — that action now also purges the offline-reload cache
+    // (MYK9-834 P2 fix), which is exactly the durable state a real reload
+    // must NOT touch. Reset only the in-memory field directly.
+    useRingsideGrantStore.setState({ activeGrant: null });
     mockUser = null;
     setOnline(false);
 

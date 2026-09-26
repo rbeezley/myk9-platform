@@ -21,7 +21,6 @@ import { supabase } from '@/lib/supabase';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { replicatedClassesTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
-import { persistRingsideClaim } from './ringsideClaimCache';
 
 /** Postgres SQLSTATE raised by the ringside RPCs for an insufficient-privilege denial. */
 const INSUFFICIENT_PRIVILEGE = '42501';
@@ -84,10 +83,10 @@ export function revokeRingsidePasscodeAccess(): void {
 
   const { clearGrant, setSuppressRehydration } = useRingsideGrantStore.getState();
   setSuppressRehydration(true);
+  // `clearGrant` itself purges the offline-reload fallback cache
+  // (ringsideGrantStore.ts) — the revoked passcode must not be resurrected by
+  // it once this device goes offline again.
   clearGrant();
-  // A revoked passcode must not be resurrected by the offline-reload fallback
-  // cache (ringsideClaimCache.ts) once this device goes offline again.
-  persistRingsideClaim(null);
 
   void supabase.auth
     .getSession()

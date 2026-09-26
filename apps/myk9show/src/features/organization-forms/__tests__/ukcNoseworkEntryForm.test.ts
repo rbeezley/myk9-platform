@@ -172,9 +172,7 @@ describe('UKC Nosework entry form PDF', () => {
     expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName).getText()).toBe(
       'Sarah Johnson'
     );
-    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone).getText()).toBe(
-      '0123'
-    );
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone).getText()).toBe('0123');
   });
 
   it('normalizes a stored +1 US phone number for the last-four field and the drawn area code/exchange', async () => {
@@ -186,9 +184,11 @@ describe('UKC Nosework entry form PDF', () => {
       owner: { ...dog.owner, phone: '+1 (214) 555-0123' },
     };
 
-    expect(buildUKCNoseworkEntryFormValues(dogWithCountryCode).text?.[
-      UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone
-    ]).toBe('0123');
+    expect(
+      buildUKCNoseworkEntryFormValues(dogWithCountryCode).text?.[
+        UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone
+      ]
+    ).toBe('0123');
 
     const bytes = await buildUKCNoseworkEntryFormPdfBytes({
       dog: dogWithCountryCode,

@@ -41,7 +41,11 @@ export const RegistrationChipsForShow: React.FC<RegistrationChipsForShowProps> =
           {/* Without a separator the accessible name runs the number into the
             marker: "SR12345601Used for this show". */}
           <span className="sr-only">, </span>
-          <span className="ml-1.5 font-normal text-muted-foreground">{USED_FOR_THIS_SHOW}</span>
+          {/* Weight, not colour, sets the marker below the number. This chip
+            is a primary tint, and muted-foreground on it in dark mode sits at
+            4.78:1 on a plain dog card, 4.45:1 on a selected one: the one
+            muted caption in the wizard under AA (MYK9-782). */}
+          <span className="ml-1.5 font-normal text-foreground">{USED_FOR_THIS_SHOW}</span>
         </Badge>
       )}
       {forShow.others.map(reg => (

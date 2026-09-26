@@ -1,40 +1,23 @@
 /**
- * Pure logic behind the bulk role-edit panel: who holds each role now, what the
- * admin's per-role Add / Keep / Remove choices turn into, and how that reads in
- * plain words before anything is written.
+ * UI logic for the bulk role-edit panel: who among the selection holds each role
+ * now, which Add / Keep / Remove choices can change anything, and how a plan
+ * from bulkRolePlanner reads in plain words.
  *
- * The plan runs through the existing per-user runner (bulkRoleRunner.ts) as
- * ordered steps — remove first, then add — so club scoping, the
- * show-limited/expiring-grant protection and the canonical-role validation all
- * stay on the one path they already have.
+ * It decides NOTHING about what will be written — that is bulkRolePlanner's
+ * job alone. `summarizeBulkPlan` only renders a plan the runner will execute
+ * unchanged, so the summary cannot promise what the runner will not do.
  */
 
 import { CLUB_SCOPED_ROLES, LOCKED_ROLES, ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import type { BulkRoleSubmitConfig } from './bulkRoleRunner';
+import type { BulkRolePlan, RoleAssignment } from './bulkRolePlanner';
 
 export type RoleChoice = 'add' | 'keep' | 'remove';
 
 export interface RoleHolding {
   role: string;
-  /** How many of the selected people hold the role now. */
+  /** How many of the selected people hold the role now (any scope). */
   holders: number;
-  /** Their ids and names (aligned), for the "Remove X from …" line. */
-  holderIds: string[];
-  holderNames: string[];
-}
-
-/**
- * One active grant of a club-scoped role, as the runner sees it. A role name
- * alone cannot say WHICH club a Secretary grant is for, and the runner revokes
- * only grants for the chosen clubs — so a removal summary must read these.
- */
-export interface ClubGrant {
-  userId: string;
-  role: string;
-  clubId: string | null;
-  /** Limited to one show or with an end date — the runner never revokes these. */
-  protected: boolean;
 }
 
 export function nameOf(user: SelectedUser): string {
@@ -42,15 +25,10 @@ export function nameOf(user: SelectedUser): string {
 }
 
 export function roleHoldings(selected: SelectedUser[], roles: readonly string[]): RoleHolding[] {
-  return roles.map(role => {
-    const holding = selected.filter(item => (item.user.roles ?? []).some(r => r === role));
-    return {
-      role,
-      holders: holding.length,
-      holderIds: holding.map(item => item.id),
-      holderNames: holding.map(nameOf),
-    };
-  });
+  return roles.map(role => ({
+    role,
+    holders: selected.filter(item => (item.user.roles ?? []).some(r => r === role)).length,
+  }));
 }
 
 /** "all 4", "none", "2 of 4" — the "who has it now" column. */
@@ -62,8 +40,8 @@ export function describeHolding(holders: number, total: number): string {
 
 /**
  * A choice that cannot change anything collapses to Keep: Add when everyone
- * already holds a non-club role, Remove when nobody does, and any change to a
- * locked role. Club-scoped roles stay addable even when everyone holds one —
+ * already holds a non-club role, Remove when nobody holds it, and any change to
+ * a locked role. Club-scoped roles stay addable even when everyone holds one —
  * the grant may be for a different club.
  */
 export function effectiveChoice(
@@ -78,18 +56,18 @@ export function effectiveChoice(
   return choice;
 }
 
-export interface RoleEditPlan {
+export interface ChosenChanges {
   add: string[];
   remove: string[];
   /** True when a club-scoped role is being added or removed. */
   needsClubs: boolean;
 }
 
-export function buildRoleEditPlan(
+export function chosenChanges(
   choices: Record<string, RoleChoice>,
   holdings: RoleHolding[],
   total: number
-): RoleEditPlan {
+): ChosenChanges {
   const add: string[] = [];
   const remove: string[] = [];
   for (const { role, holders } of holdings) {
@@ -101,15 +79,9 @@ export function buildRoleEditPlan(
   return { add, remove, needsClubs };
 }
 
-/**
- * Remove before add, so a role moved between clubs never has both grants live
- * at once and a failure mid-way leaves the narrower state.
- */
-export function planToSteps(plan: RoleEditPlan, clubIds: string[]): BulkRoleSubmitConfig[] {
-  const steps: BulkRoleSubmitConfig[] = [];
-  if (plan.remove.length > 0) steps.push({ mode: 'remove', roleNames: plan.remove, clubIds });
-  if (plan.add.length > 0) steps.push({ mode: 'add', roleNames: plan.add, clubIds });
-  return steps;
+export interface SummaryLine {
+  tone: 'add' | 'remove' | 'note';
+  text: string;
 }
 
 function people(count: number): string {
@@ -121,73 +93,57 @@ function listNames(names: string[]): string {
   return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
 }
 
-export interface SummaryLine {
-  tone: 'add' | 'remove' | 'note';
-  text: string;
-}
-
-/** True when a removal needs the selection's club grants before it can be stated. */
-export function needsClubGrants(plan: RoleEditPlan): boolean {
-  return plan.remove.some(role => CLUB_SCOPED_ROLES.has(role));
-}
-
 /**
- * The "What will happen" lines. Club-scoped lines name how many clubs, and a
- * club-scoped removal names only the people the runner will actually change:
- * holders of an unprotected grant for one of `clubIds`. Until `clubGrants` is
- * known it names nobody.
+ * The "What will happen" lines — a rendering of `plan`, nothing more. A chosen
+ * change the plan does not carry out is stated as such, never implied.
  */
-export function summarizePlan(
-  plan: RoleEditPlan,
-  holdings: RoleHolding[],
-  total: number,
-  clubIds: string[],
-  clubGrants?: ClubGrant[]
+export function summarizeBulkPlan(
+  plan: BulkRolePlan,
+  chosen: ChosenChanges,
+  selected: SelectedUser[],
+  clubCount: number
 ): SummaryLine[] {
-  const byRole = new Map(holdings.map(h => [h.role, h]));
-  const clubCount = clubIds.length;
-  const clubWord = clubCount === 1 ? 'club' : 'clubs';
-  const clubs = (role: string) =>
-    CLUB_SCOPED_ROLES.has(role) ? ` for ${clubCount} ${clubWord}` : '';
+  const nameById = new Map(selected.map(item => [item.id, nameOf(item)]));
   const label = (role: string) => ROLE_LABELS[role] ?? role;
+  const clubWord = clubCount === 1 ? 'club' : 'clubs';
+  const scope = (role: string) =>
+    CLUB_SCOPED_ROLES.has(role) ? ` for ${clubCount} ${clubWord}` : '';
+  const namesFor = (userIds: Iterable<string>) =>
+    listNames([...new Set(userIds)].map(id => nameById.get(id) ?? id));
 
   const lines: SummaryLine[] = [];
-  for (const role of plan.remove) {
-    const holding = byRole.get(role);
-    let names = holding?.holderNames ?? [];
-    if (CLUB_SCOPED_ROLES.has(role)) {
-      if (!clubGrants) {
-        lines.push({
-          tone: 'note',
-          text: `Checking who holds ${label(role)} for the chosen ${clubWord}…`,
-        });
-        continue;
-      }
-      const affected = new Set(
-        clubGrants
-          .filter(g => g.role === role && !g.protected && !!g.clubId && clubIds.includes(g.clubId))
-          .map(g => g.userId)
-      );
-      names = (holding?.holderIds ?? [])
-        .map((id, index) => (affected.has(id) ? holding?.holderNames[index] : undefined))
-        .filter((name): name is string => !!name);
-      if (names.length === 0) {
-        lines.push({
-          tone: 'note',
-          text: `Nobody selected holds ${label(role)} for the chosen ${clubWord} — nothing to remove`,
-        });
-        continue;
-      }
+  for (const role of chosen.remove) {
+    const losing = plan.people.filter(p => p.remove.some(a => a.role === role)).map(p => p.userId);
+    const kept = plan.leftUnchanged.filter(a => a.role === role);
+    if (losing.length > 0) {
+      lines.push({
+        tone: 'remove',
+        text: `Remove ${label(role)}${scope(role)} from ${namesFor(losing)}`,
+      });
+    } else if (kept.length === 0) {
+      const where = CLUB_SCOPED_ROLES.has(role) ? ` for the chosen ${clubWord}` : '';
+      lines.push({
+        tone: 'note',
+        text: `Nobody selected holds ${label(role)}${where} — nothing to remove`,
+      });
     }
-    lines.push({
-      tone: 'remove',
-      text: `Remove ${label(role)}${clubs(role)} from ${listNames(names)}`,
-    });
+    if (kept.length > 0) {
+      lines.push({
+        tone: 'note',
+        text: `${label(role)} stays for ${namesFor(kept.map((a: RoleAssignment) => a.userId))}: limited to one show or with an end date`,
+      });
+    }
   }
-  for (const role of plan.add) {
-    const lacking = total - (byRole.get(role)?.holders ?? 0);
-    const who = CLUB_SCOPED_ROLES.has(role) ? people(total) : people(lacking);
-    lines.push({ tone: 'add', text: `Add ${label(role)}${clubs(role)} to ${who}` });
+  for (const role of chosen.add) {
+    const gaining = plan.people.filter(p => p.add.some(g => g.role === role)).map(p => p.userId);
+    lines.push(
+      gaining.length > 0
+        ? {
+            tone: 'add',
+            text: `Add ${label(role)}${scope(role)} to ${people(new Set(gaining).size)}`,
+          }
+        : { tone: 'note', text: `Everyone selected already has ${label(role)}${scope(role)}` }
+    );
   }
   return lines;
 }

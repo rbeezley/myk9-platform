@@ -1,211 +1,28 @@
 /**
- * Per-user work unit for bulk role Add / Remove / Replace (design.md "Bulk dialog
- * semantics"). Kept free of React state so it's directly unit-testable — the hook
- * (`useBulkActions.handleBulkRoleChange`) wires this into `useBulkDispatch`.
+ * Executes one person's slice of a bulk role plan (bulkRolePlanner.ts) — and
+ * nothing else. It revokes exactly the planned assignment rows and grants
+ * exactly the planned (role, club) pairs, through the same RBAC service calls
+ * the single-person Manage roles dialog uses. It derives nothing: the planner
+ * alone decides what changes, so the panel's summary and this runner cannot
+ * disagree (Codex convergence restructure).
  *
- * `ensureUserHasRole` returns `false` for "already has this active role" — a no-op
- * skip in bulk-add, not an error. It also returns `false`/throws for other reasons,
- * but the pre-dispatch canonical-role validation (see useBulkActions.ts) rejects any
- * unknown role name before any work runs, so the dangerous "role doesn't exist"
- * case cannot reach this runner — only the legitimate already-assigned skip can.
+ * Revoke by row id, never by user + role, so a person who also holds a
+ * protected (show-limited / expiring) grant of the same role keeps it.
+ * `ensureUserHasRole` returning false ("already active") is a no-op, not an
+ * error. Throws on a real failure so the bulk dispatch reports that person.
  */
-import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
-import { CLUB_SCOPED_ROLES, LOCKED_ROLES } from '@/services/rbac/roleUiConstants';
-import type { ClubGrant } from './bulkRoleEditPlan';
+import type { PersonRolePlan } from './bulkRolePlanner';
 
-export type BulkRoleMode = 'add' | 'remove' | 'replace';
-
-export interface BulkRoleSubmitConfig {
-  mode: BulkRoleMode;
-  roleNames: string[];
-  clubIds: string[];
-}
-
-interface ActiveAssignmentRow {
-  id: string;
-  roleName: string;
-  clubId: string | null;
-  showId: string | null;
-  expiresAt: string | null;
-}
-
-async function fetchActiveAssignments(userId: string): Promise<ActiveAssignmentRow[]> {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('id, role_id, club_id, show_id, expires_at, roles(name)')
-    .eq('user_id', userId)
-    .eq('is_active', true);
-  if (error) throw error;
-  return (data ?? []).map((row: Record<string, unknown>) => ({
-    id: row.id as string,
-    roleName: (row.roles as { name: string } | null)?.name ?? '',
-    clubId: (row.club_id as string | null) ?? null,
-    showId: (row.show_id as string | null) ?? null,
-    expiresAt: (row.expires_at as string | null) ?? null,
-  }));
-}
-
-function isProtectedAssignment(assignment: ActiveAssignmentRow): boolean {
-  return assignment.showId !== null || assignment.expiresAt !== null;
-}
-
-/**
- * Every selected person's active club-scoped grants, in one read, for the bulk
- * panel's removal summary. Same row shape and protected-grant rule as the
- * runner, so the summary names exactly who a removal will change.
- */
-export async function fetchClubScopedGrants(userIds: string[]): Promise<ClubGrant[]> {
-  if (userIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('user_id, club_id, show_id, expires_at, roles(name)')
-    .in('user_id', userIds)
-    .eq('is_active', true);
-  if (error) throw error;
-  return (data ?? [])
-    .map((row: Record<string, unknown>) => {
-      const assignment: ActiveAssignmentRow = {
-        id: '',
-        roleName: (row.roles as { name: string } | null)?.name ?? '',
-        clubId: (row.club_id as string | null) ?? null,
-        showId: (row.show_id as string | null) ?? null,
-        expiresAt: (row.expires_at as string | null) ?? null,
-      };
-      return {
-        userId: row.user_id as string,
-        role: assignment.roleName,
-        clubId: assignment.clubId,
-        protected: isProtectedAssignment(assignment),
-      };
-    })
-    .filter(grant => CLUB_SCOPED_ROLES.has(grant.role));
-}
-
-function getProtectedRoleNames(assignments: ActiveAssignmentRow[]): Set<string> {
-  return new Set(
-    assignments
-      .filter(assignment => !!assignment.roleName && isProtectedAssignment(assignment))
-      .map(assignment => assignment.roleName)
-  );
-}
-
-export interface BulkRoleChangeResult {
-  skippedProtectedGrant: boolean;
-}
-
-export interface BulkRoleChangeOptions {
-  onProtectedGrantSkipped?: () => void;
-}
-
-async function addRolesToUser(userId: string, roleNames: string[], clubIds: string[]) {
-  for (const roleName of roleNames) {
-    if (CLUB_SCOPED_ROLES.has(roleName)) {
-      for (const clubId of clubIds) {
-        // false = user already has this role/scope — a legitimate skip, not a
-        // failure; do not throw.
-        await rbacService.ensureUserHasRole(userId, roleName, { clubId });
-      }
-    } else {
-      await rbacService.ensureUserHasRole(userId, roleName);
-    }
-  }
-}
-
-async function removeRolesFromUser(
-  userId: string,
-  roleNames: string[],
-  clubIds: string[],
-  options: BulkRoleChangeOptions
-): Promise<BulkRoleChangeResult> {
-  const assignments = await fetchActiveAssignments(userId);
-  const protectedRoleNames = getProtectedRoleNames(assignments);
-  const skippedProtectedGrant = roleNames.some(roleName => protectedRoleNames.has(roleName));
-  if (skippedProtectedGrant) options.onProtectedGrantSkipped?.();
-
-  for (const assignment of assignments) {
-    if (!roleNames.includes(assignment.roleName) || isProtectedAssignment(assignment)) continue;
-    if (
-      CLUB_SCOPED_ROLES.has(assignment.roleName) &&
-      (!assignment.clubId || !clubIds.includes(assignment.clubId))
-    ) {
-      continue;
-    }
-    // Revoke by row ID so a role with both ordinary and protected grants never
-    // falls back to RoleManager's broad user+role update.
+export async function executePersonPlan(person: PersonRolePlan): Promise<void> {
+  for (const assignment of person.remove) {
     await rbacService.revokeUserRole(assignment.id);
   }
-
-  return {
-    skippedProtectedGrant,
-  };
-}
-
-async function replaceRolesForUser(
-  userId: string,
-  roleNames: string[],
-  clubIds: string[],
-  options: BulkRoleChangeOptions
-): Promise<BulkRoleChangeResult> {
-  const assignments = await fetchActiveAssignments(userId);
-  const protectedRoleNames = getProtectedRoleNames(assignments);
-  if (protectedRoleNames.size > 0) options.onProtectedGrantSkipped?.();
-
-  // Validate → revoke → add ordering (design.md): revoke happens only after the
-  // caller has already validated `roleNames` against the canonical role table
-  // (see useBulkActions.handleBulkRoleChange), so a throw here always fails this
-  // user honestly rather than leaving them half-applied.
-  for (const assignment of assignments) {
-    if (!assignment.roleName || LOCKED_ROLES.has(assignment.roleName)) continue;
-    if (isProtectedAssignment(assignment)) continue;
-
-    if (CLUB_SCOPED_ROLES.has(assignment.roleName)) {
-      const roleSelected = roleNames.includes(assignment.roleName);
-      const clubInTarget =
-        roleSelected && !!assignment.clubId && clubIds.includes(assignment.clubId);
-      if (!assignment.clubId) {
-        // Legacy migrations created secretary/club_admin assignments without a
-        // club_id. Replace must remove that global grant when the target is a
-        // club-scoped set; otherwise narrowing a user to selected clubs leaves
-        // their old broad access active.
-        await rbacService.revokeUserRole(assignment.id);
-      } else if (!clubInTarget) {
-        await rbacService.revokeUserRole(assignment.id);
-      }
-    } else if (!roleNames.includes(assignment.roleName)) {
-      await rbacService.revokeUserRole(assignment.id);
-    }
+  for (const grant of person.add) {
+    await rbacService.ensureUserHasRole(
+      person.userId,
+      grant.role,
+      grant.clubId ? { clubId: grant.clubId } : undefined
+    );
   }
-
-  await addRolesToUser(userId, roleNames, clubIds);
-
-  // Locked roles (exhibitor) are hidden in the Replace UI, so they never appear
-  // in `roleNames` — mirror the single-user dialog's repair behavior (it forces
-  // LOCKED_ROLES into the effective set) by ensuring every locked role after the
-  // revoke phase. A user missing exhibitor gets it back; `false` (already
-  // assigned, the normal case) is a no-op.
-  for (const lockedRole of LOCKED_ROLES) {
-    await rbacService.ensureUserHasRole(userId, lockedRole);
-  }
-
-  return {
-    skippedProtectedGrant: protectedRoleNames.size > 0,
-  };
-}
-
-/** Applies one bulk role-change config to a single user. Throws on real failures. */
-export async function applyBulkRoleChangeToUser(
-  userId: string,
-  config: BulkRoleSubmitConfig,
-  options: BulkRoleChangeOptions = {}
-): Promise<BulkRoleChangeResult> {
-  const { mode, roleNames, clubIds } = config;
-  if (mode === 'replace') {
-    return replaceRolesForUser(userId, roleNames, clubIds, options);
-  }
-  if (mode === 'remove') {
-    return removeRolesFromUser(userId, roleNames, clubIds, options);
-  }
-  await addRolesToUser(userId, roleNames, clubIds);
-  return { skippedProtectedGrant: false };
 }

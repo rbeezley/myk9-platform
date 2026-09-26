@@ -4,9 +4,9 @@
  *
  * Each role shows who among the selected people holds it now ("2 of 4") and
  * takes one of Add / Keep / Remove. Nothing is written until Apply, and the
- * "What will happen" box states every change first. Choices run through the
- * existing per-user runner as remove-then-add steps (bulkRoleEditPlan.ts), so
- * club scoping and the show-limited/expiring-grant protection are unchanged.
+ * "What will happen" box states every change first. That box renders a plan
+ * from bulkRolePlanner, and Apply hands the runner that same plan — so what the
+ * admin reads is exactly what is written.
  *
  * Replaces BulkRoleDialog: its Add / Remove / Replace mode switch meant one
  * kind of change per pass and gave no view of who already held what.
@@ -29,16 +29,14 @@ import { supabase } from '@/services/database/supabaseClient';
 import { LOCKED_ROLES, MANAGEABLE_ROLES, ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { cn } from '@/lib/utils';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import { fetchClubScopedGrants, type BulkRoleSubmitConfig } from './bulkRoleRunner';
+import { fetchActiveAssignments, planBulkRoleEdit, type BulkRolePlan } from './bulkRolePlanner';
 import {
-  buildRoleEditPlan,
+  chosenChanges,
   describeHolding,
   effectiveChoice,
   nameOf,
-  needsClubGrants,
-  planToSteps,
   roleHoldings,
-  summarizePlan,
+  summarizeBulkPlan,
   type RoleChoice,
 } from './bulkRoleEditPlan';
 
@@ -48,8 +46,7 @@ interface BulkRoleEditPanelProps {
   selectedUsers: SelectedUser[];
   isProcessing: boolean;
   error: string | null;
-  notice?: string | null;
-  onSubmit: (steps: BulkRoleSubmitConfig[]) => void;
+  onSubmit: (plan: BulkRolePlan) => void;
 }
 
 const CHOICES: { value: RoleChoice; label: string; on: string }[] = [
@@ -80,7 +77,6 @@ export function BulkRoleEditPanel({
   selectedUsers,
   isProcessing,
   error,
-  notice = null,
   onSubmit,
 }: BulkRoleEditPanelProps) {
   const [choices, setChoices] = useState<Record<string, RoleChoice>>({});
@@ -99,32 +95,43 @@ export function BulkRoleEditPanel({
 
   const total = selectedUsers.length;
   const holdings = useMemo(() => roleHoldings(selectedUsers, MANAGEABLE_ROLES), [selectedUsers]);
-  const plan = buildRoleEditPlan(choices, holdings, total);
-  // A club-scoped removal only changes holders for the chosen clubs, so the
-  // summary reads the real grants before it names anyone (Codex P2).
-  const wantGrants = open && needsClubGrants(plan);
+  const chosen = chosenChanges(choices, holdings, total);
+  const hasChoice = chosen.add.length > 0 || chosen.remove.length > 0;
+
+  // Every current assignment of the selection, read in full (paginated), once a
+  // change is chosen. The planner needs it for both removals and adds; until it
+  // arrives no plan is shown, and a failed read shows an error, never a guess.
   const selectedIds = useMemo(() => selectedUsers.map(item => item.id), [selectedUsers]);
   const {
-    data: clubGrants,
-    error: grantsError,
-    refetch: refetchGrants,
+    data: assignments,
+    error: assignmentsError,
+    refetch: refetchAssignments,
   } = useQuery({
-    queryKey: ['bulk-role-club-grants', selectedIds],
-    queryFn: () => fetchClubScopedGrants(selectedIds),
-    enabled: wantGrants,
+    queryKey: ['bulk-role-assignments', selectedIds],
+    queryFn: () => fetchActiveAssignments(selectedIds),
+    enabled: open && hasChoice,
   });
-  const grantsPending = wantGrants && !clubGrants;
-  const summary = summarizePlan(plan, holdings, total, clubIds, clubGrants);
+  const plan: BulkRolePlan | null = assignments
+    ? planBulkRoleEdit({
+        userIds: selectedIds,
+        assignments,
+        add: chosen.add,
+        remove: chosen.remove,
+        clubIds,
+      })
+    : null;
+  const summary = plan ? summarizeBulkPlan(plan, chosen, selectedUsers, clubIds.length) : [];
+  const planPending = hasChoice && !plan && !assignmentsError;
 
   const {
     data: clubs = [],
     isLoading: clubsLoading,
     error: clubsError,
     refetch,
-  } = useClubs(open && plan.needsClubs);
+  } = useClubs(open && chosen.needsClubs);
   const clubName = (id: string) => clubs.find(club => club.id === id)?.name ?? id;
-  const missingClubs = plan.needsClubs && clubIds.length === 0;
-  const nothingToDo = plan.add.length === 0 && plan.remove.length === 0;
+  const missingClubs = chosen.needsClubs && clubIds.length === 0;
+  const nothingToDo = !plan || plan.people.length === 0;
 
   const names = selectedUsers.slice(0, 4).map(nameOf).join(', ');
   const subtitle = total > 4 ? `${names} and ${total - 4} more` : names;
@@ -139,7 +146,16 @@ export function BulkRoleEditPanel({
         <h3 id="bulk-summary-heading" className="mb-1 text-sm font-semibold">
           What will happen
         </h3>
-        {summary.length === 0 ? (
+        {assignmentsError ? (
+          <p className="flex items-center gap-2 text-sm font-medium">
+            Could not read everyone&apos;s current roles, so nothing can be applied yet.
+            <Button variant="outline" onClick={() => void refetchAssignments()}>
+              Retry
+            </Button>
+          </p>
+        ) : planPending ? (
+          <p className="text-sm text-muted-foreground">Checking current roles…</p>
+        ) : summary.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nothing yet. Choose Add or Remove on a role.
           </p>
@@ -164,14 +180,6 @@ export function BulkRoleEditPanel({
         {missingClubs && (
           <p className="mt-2 text-sm font-medium">Choose at least one club to continue.</p>
         )}
-        {grantsError && (
-          <p className="mt-2 flex items-center gap-2 text-sm font-medium">
-            Could not check who holds these roles.
-            <Button variant="outline" onClick={() => void refetchGrants()}>
-              Retry
-            </Button>
-          </p>
-        )}
         <p className="mt-2 text-sm text-muted-foreground">
           Grants limited to one show or with an end date are left unchanged.
         </p>
@@ -181,8 +189,10 @@ export function BulkRoleEditPanel({
           Cancel
         </Button>
         <Button
-          onClick={() => onSubmit(planToSteps(plan, clubIds))}
-          disabled={isProcessing || nothingToDo || missingClubs || !!clubsError || grantsPending}
+          onClick={() => plan && onSubmit(plan)}
+          disabled={
+            isProcessing || nothingToDo || missingClubs || !!clubsError || !!assignmentsError
+          }
         >
           {isProcessing ? 'Applying…' : 'Apply changes'}
         </Button>
@@ -204,11 +214,6 @@ export function BulkRoleEditPanel({
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {notice && (
-          <Alert>
-            <AlertDescription>{notice}</AlertDescription>
           </Alert>
         )}
 
@@ -269,7 +274,7 @@ export function BulkRoleEditPanel({
           </ul>
         </section>
 
-        {plan.needsClubs && (
+        {chosen.needsClubs && (
           <section aria-labelledby="bulk-clubs-heading" className="flex flex-col gap-2">
             <h3 id="bulk-clubs-heading" className="text-sm font-semibold">
               Clubs

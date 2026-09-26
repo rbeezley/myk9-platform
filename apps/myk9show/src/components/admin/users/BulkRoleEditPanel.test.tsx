@@ -4,9 +4,19 @@ import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 
-// Daniel is Secretary for another club; Sam for Golden Gate.
-const grantRows = [
+// Current assignments: Daniel is a Judge and Secretary for Gold Coast (club-2);
+// Sam is Secretary for Golden Gate (club-1).
+const assignmentRows = [
   {
+    id: 'd-judge',
+    user_id: '1',
+    club_id: null,
+    show_id: null,
+    expires_at: null,
+    roles: { name: 'judge' },
+  },
+  {
+    id: 'd-sec',
     user_id: '1',
     club_id: 'club-2',
     show_id: null,
@@ -14,6 +24,7 @@ const grantRows = [
     roles: { name: 'secretary' },
   },
   {
+    id: 's-sec',
     user_id: '2',
     club_id: 'club-1',
     show_id: null,
@@ -21,30 +32,41 @@ const grantRows = [
     roles: { name: 'secretary' },
   },
 ];
+const readFails = vi.hoisted(() => ({ value: false }));
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn((table: string) =>
-      table === 'user_roles'
-        ? {
-            select: () => ({
-              in: () => ({ eq: () => Promise.resolve({ data: grantRows, error: null }) }),
-            }),
-          }
-        : {
-            select: () => ({
-              is: () => ({
-                order: () =>
-                  Promise.resolve({
-                    data: [
-                      { id: 'club-1', name: 'Golden Gate SWC' },
-                      { id: 'club-2', name: 'Gold Coast KC' },
-                    ],
-                    error: null,
-                  }),
+    from: vi.fn((table: string) => {
+      if (table === 'user_roles') {
+        const query = {
+          select: () => query,
+          in: () => query,
+          eq: () => query,
+          order: () => query,
+          range: () =>
+            Promise.resolve(
+              readFails.value
+                ? { data: null, error: new Error('permission denied') }
+                : { data: assignmentRows, error: null }
+            ),
+        };
+        return query;
+      }
+      return {
+        select: () => ({
+          is: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [
+                  { id: 'club-1', name: 'Golden Gate SWC' },
+                  { id: 'club-2', name: 'Gold Coast KC' },
+                ],
+                error: null,
               }),
-            }),
-          }
-    ),
+          }),
+        }),
+      };
+    }),
   },
 }));
 
@@ -127,20 +149,51 @@ describe('BulkRoleEditPanel', () => {
     expect(choice('Steward', 'Add')).toBeEnabled();
   });
 
-  it('states the plan and submits remove-then-add steps', async () => {
+  it('states the plan and submits exactly that plan', async () => {
     const onSubmit = renderPanel();
     await userEvent.click(choice('Judge', 'Remove'));
     await userEvent.click(choice('Steward', 'Add'));
 
     const summary = screen.getByRole('region', { name: 'What will happen' });
-    expect(summary).toHaveTextContent('Remove Judge from Daniel Reyes');
+    await waitFor(() => expect(summary).toHaveTextContent('Remove Judge from Daniel Reyes'));
     expect(summary).toHaveTextContent('Add Steward to 2 people');
 
     await userEvent.click(screen.getByRole('button', { name: 'Apply changes' }));
-    expect(onSubmit).toHaveBeenCalledWith([
-      { mode: 'remove', roleNames: ['judge'], clubIds: [] },
-      { mode: 'add', roleNames: ['steward'], clubIds: [] },
-    ]);
+    expect(onSubmit).toHaveBeenCalledWith({
+      people: [
+        {
+          userId: '1',
+          remove: [
+            {
+              id: 'd-judge',
+              userId: '1',
+              role: 'judge',
+              clubId: null,
+              showId: null,
+              expiresAt: null,
+            },
+          ],
+          add: [{ role: 'steward', clubId: null }],
+        },
+        { userId: '2', remove: [], add: [{ role: 'steward', clubId: null }] },
+      ],
+      leftUnchanged: [],
+    });
+  });
+
+  it('shows an error and no plan when current roles cannot be read', async () => {
+    readFails.value = true;
+    try {
+      renderPanel();
+      await userEvent.click(choice('Steward', 'Add'));
+      expect(
+        await screen.findByText(/Could not read everyone.s current roles/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Add Steward/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Apply changes' })).toBeDisabled();
+    } finally {
+      readFails.value = false;
+    }
   });
 
   it('asks for a club before a club-scoped change can apply', async () => {

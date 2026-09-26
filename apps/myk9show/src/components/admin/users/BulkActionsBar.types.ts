@@ -13,7 +13,7 @@ export interface BulkActionsBarProps {
 // guarded by `people_protect_status`), which did not exist when a bulk status
 // dialog was first removed. 'role' was removed in MYK9-47 (broken canonical values, ignored
 // ensureUserHasRole result, no club scope) and rebuilt correctly in MYK9-58 —
-// see BulkRoleEditPanel.tsx and useBulkActions.handleBulkRoleChange.
+// see BulkRoleEditPanel.tsx, bulkRolePlanner.ts and useBulkActions.handleBulkRoleEdit.
 export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
 
 export interface RelatedDataDetails {

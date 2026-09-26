@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import type { ErrorWithRelatedData } from './BulkActionsBar.types';
-import type { BulkRoleSubmitConfig } from './bulkRoleRunner';
+import type { BulkRolePlan } from './bulkRolePlanner';
 
 const deleteUserMutateAsync = vi.fn();
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
@@ -34,22 +34,6 @@ vi.mock('@/services/rbac/RBACService', () => ({
     revokeUserRole: (...args: unknown[]) => revokeUserRoleMock(...args),
     clearAllCache: vi.fn(),
     clearUserCache: vi.fn(),
-  },
-}));
-
-// Active-assignments lookup used by Replace mode (bulkRoleRunner.ts).
-const activeAssignmentsMock = vi.hoisted(() =>
-  vi.fn(() => Promise.resolve({ data: [] as unknown[], error: null }))
-);
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => activeAssignmentsMock()),
-        })),
-      })),
-    })),
   },
 }));
 
@@ -116,7 +100,7 @@ describe('useBulkActions — no simulated bulk status action', () => {
     expect(typeof result.current.handleBulkDelete).toBe('function');
     expect(typeof result.current.handleCascadeDelete).toBe('function');
     expect(typeof result.current.handleBulkPermanentDelete).toBe('function');
-    expect(typeof result.current.handleBulkRoleChange).toBe('function');
+    expect(typeof result.current.handleBulkRoleEdit).toBe('function');
   });
 });
 
@@ -233,41 +217,64 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
   });
 });
 
-describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
+describe('useBulkActions — handleBulkRoleEdit (executes a bulkRolePlanner plan)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    activeAssignmentsMock.mockResolvedValue({ data: [], error: null });
     revokeUserRoleMock.mockResolvedValue(undefined);
   });
 
-  function baseConfig(overrides: Partial<BulkRoleSubmitConfig> = {}): BulkRoleSubmitConfig {
-    return { mode: 'add', roleNames: ['exhibitor'], clubIds: [], ...overrides };
+  function grant(userId: string, roleName: string, clubId: string | null = null): BulkRolePlan {
+    return {
+      people: [{ userId, remove: [], add: [{ role: roleName, clubId }] }],
+      leftUnchanged: [],
+    };
   }
 
-  it('rejects the whole batch when a role name is not canonical — no dispatch at all', async () => {
+  function grantAll(userIds: string[], roleName: string): BulkRolePlan {
+    return {
+      people: userIds.map(userId => ({
+        userId,
+        remove: [],
+        add: [{ role: roleName, clubId: null }],
+      })),
+      leftUnchanged: [],
+    };
+  }
+
+  it('rejects the whole batch when a granted role is not canonical — no dispatch at all', async () => {
     getAllRolesMock.mockResolvedValue([role('site_admin'), role('exhibitor')]);
     const selectedUsers = [selectedUser('u1', 'Alice')];
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(baseConfig({ roleNames: ['admin'] }));
+      await result.current.handleBulkRoleEdit(grant('u1', 'admin'));
     });
 
     expect(ensureUserHasRoleMock).not.toHaveBeenCalled();
-    expect(revokeRoleMock).not.toHaveBeenCalled();
-    expect(result.current.roleError).toMatch(/Unknown role/);
+    expect(revokeUserRoleMock).not.toHaveBeenCalled();
+    expect(result.current.roleError).toMatch(/Unknown role\(s\): admin/);
   });
 
-  it('carries the selected clubId on every scoped grant', async () => {
+  it('carries the planned clubId on every scoped grant', async () => {
     getAllRolesMock.mockResolvedValue([role('secretary')]);
     ensureUserHasRoleMock.mockResolvedValue(true);
     const selectedUsers = [selectedUser('u1', 'Alice')];
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(
-        baseConfig({ roleNames: ['secretary'], clubIds: ['club-1', 'club-2'] })
-      );
+      await result.current.handleBulkRoleEdit({
+        people: [
+          {
+            userId: 'u1',
+            remove: [],
+            add: [
+              { role: 'secretary', clubId: 'club-1' },
+              { role: 'secretary', clubId: 'club-2' },
+            ],
+          },
+        ],
+        leftUnchanged: [],
+      });
     });
 
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
@@ -275,47 +282,45 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     expect(result.current.roleError).toBeNull();
   });
 
-  // The bulk edit panel sends remove-then-add as ordered steps for each person.
-  it('runs ordered steps per person: the remove revokes before the add grants', async () => {
-    getAllRolesMock.mockResolvedValue([role('judge'), role('steward')]);
-    activeAssignmentsMock.mockResolvedValue({
-      data: [{ id: 'ur-judge', role_id: 'r-judge', club_id: null, roles: { name: 'judge' } }],
-      error: null,
-    });
+  it('revokes the planned assignment rows before granting, and nothing else', async () => {
+    getAllRolesMock.mockResolvedValue([role('steward')]);
     ensureUserHasRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange([
-        baseConfig({ mode: 'remove', roleNames: ['judge'] }),
-        baseConfig({ mode: 'add', roleNames: ['steward'] }),
-      ]);
+      await result.current.handleBulkRoleEdit({
+        people: [
+          {
+            userId: 'u1',
+            remove: [
+              {
+                id: 'ur-judge',
+                userId: 'u1',
+                role: 'judge',
+                clubId: null,
+                showId: null,
+                expiresAt: null,
+              },
+            ],
+            add: [{ role: 'steward', clubId: null }],
+          },
+        ],
+        leftUnchanged: [],
+      });
     });
 
-    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge');
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'steward');
+    expect(revokeUserRoleMock.mock.calls).toEqual([['ur-judge']]);
+    expect(ensureUserHasRoleMock.mock.calls).toEqual([['u1', 'steward', undefined]]);
     expect(revokeUserRoleMock.mock.invocationCallOrder[0]).toBeLessThan(
       ensureUserHasRoleMock.mock.invocationCallOrder[0]!
     );
-    expect(result.current.roleError).toBeNull();
-  });
-
-  it('validates the roles of every step before touching anyone', async () => {
-    getAllRolesMock.mockResolvedValue([role('judge')]);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleChange([
-        baseConfig({ mode: 'remove', roleNames: ['judge'] }),
-        baseConfig({ mode: 'add', roleNames: ['wizard'] }),
-      ]);
-    });
-
-    expect(revokeUserRoleMock).not.toHaveBeenCalled();
-    expect(ensureUserHasRoleMock).not.toHaveBeenCalled();
-    expect(result.current.roleError).toMatch(/Unknown role\(s\): wizard/);
+    // u2 is selected but not in the plan: untouched.
+    expect(ensureUserHasRoleMock).not.toHaveBeenCalledWith(
+      'u2',
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it('treats ensureUserHasRole returning false as a no-op skip, not a failure', async () => {
@@ -325,7 +330,7 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(baseConfig());
+      await result.current.handleBulkRoleEdit(grant('u1', 'exhibitor'));
     });
 
     expect(result.current.roleError).toBeNull();
@@ -339,91 +344,13 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(baseConfig());
+      await result.current.handleBulkRoleEdit(grantAll(['u1', 'u2'], 'exhibitor'));
     });
 
     expect(result.current.roleError).toMatch(/1 of 2 users updated — 1 failed/);
   });
 
-  it('replace validates the target roles, revokes non-locked roles not in the target set, and preserves exhibitor', async () => {
-    getAllRolesMock.mockResolvedValue([role('secretary'), role('judge'), role('exhibitor')]);
-    activeAssignmentsMock.mockResolvedValue({
-      data: [
-        { id: 'ur1', role_id: 'r-exhibitor', club_id: null, roles: { name: 'exhibitor' } },
-        { id: 'ur2', role_id: 'r-judge', club_id: null, roles: { name: 'judge' } },
-      ],
-      error: null,
-    });
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    revokeRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleChange(
-        baseConfig({ mode: 'replace', roleNames: ['secretary'], clubIds: ['club-1'] })
-      );
-    });
-
-    // judge is non-locked and not in the target set — revoked.
-    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur2');
-    // exhibitor is locked — never revoked even though it isn't in the target set.
-    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur1');
-    // Target role granted with the chosen club.
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
-    expect(result.current.roleError).toBeNull();
-  });
-
-  it('replace revokes a legacy global club-scoped role before adding selected club scopes', async () => {
-    getAllRolesMock.mockResolvedValue([role('secretary'), role('exhibitor')]);
-    activeAssignmentsMock.mockResolvedValue({
-      data: [
-        { id: 'ur1', role_id: 'r-secretary', club_id: null, roles: { name: 'secretary' } },
-        { id: 'ur2', role_id: 'r-exhibitor', club_id: null, roles: { name: 'exhibitor' } },
-      ],
-      error: null,
-    });
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    revokeRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleChange(
-        baseConfig({ mode: 'replace', roleNames: ['secretary'], clubIds: ['club-1'] })
-      );
-    });
-
-    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur1');
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
-    expect(result.current.roleError).toBeNull();
-  });
-
-  it('replace repairs a user missing the locked exhibitor role (ensures it after revoke+add)', async () => {
-    getAllRolesMock.mockResolvedValue([role('judge'), role('exhibitor')]);
-    // User has NO exhibitor assignment at all — only judge.
-    activeAssignmentsMock.mockResolvedValue({
-      data: [{ id: 'ur1', role_id: 'r-judge', club_id: null, roles: { name: 'judge' } }],
-      error: null,
-    });
-    ensureUserHasRoleMock.mockResolvedValue(true);
-    revokeRoleMock.mockResolvedValue(true);
-    const selectedUsers = [selectedUser('u1', 'Alice')];
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
-
-    await act(async () => {
-      await result.current.handleBulkRoleChange(
-        baseConfig({ mode: 'replace', roleNames: ['judge'], clubIds: [] })
-      );
-    });
-
-    // Replace never offers exhibitor in the UI, so it's absent from roleNames —
-    // the runner must still end the user with exhibitor ensured (unscoped).
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'exhibitor');
-    expect(result.current.roleError).toBeNull();
-  });
-
-  it('full success invalidates the users query family and clears the selection (list refresh, MYK9-58 Codex fix 1)', async () => {
+  it('full success invalidates the users query family and clears the selection', async () => {
     getAllRolesMock.mockResolvedValue([role('exhibitor')]);
     ensureUserHasRoleMock.mockResolvedValue(true);
     const onClearSelection = vi.fn();
@@ -439,7 +366,7 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     );
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(baseConfig());
+      await result.current.handleBulkRoleEdit(grant('u1', 'exhibitor'));
     });
 
     expect(onClearSelection).toHaveBeenCalledOnce();
@@ -458,15 +385,14 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     });
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(baseConfig());
+      await result.current.handleBulkRoleEdit(grantAll(['u1', 'u2'], 'exhibitor'));
     });
 
     expect(toastErrorMock).toHaveBeenCalled();
     const retryAction = toastErrorMock.mock.calls[0]?.[1]?.action;
     expect(retryAction).toBeDefined();
 
-    // Simulate u2 dropping out of the current admin list (e.g. deleted) before
-    // the operator clicks "Retry failed".
+    // u2 drops out of the current admin list (e.g. deleted) before "Retry failed".
     rerender({ selectedUsers: [u1], onBulkComplete: vi.fn() });
 
     ensureUserHasRoleMock.mockClear();
@@ -479,7 +405,7 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     });
 
     expect(ensureUserHasRoleMock).toHaveBeenCalledTimes(1);
-    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'exhibitor');
+    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'exhibitor', undefined);
     expect(toastInfoMock).toHaveBeenCalledWith(expect.stringMatching(/no longer eligible/));
   });
 
@@ -498,13 +424,12 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     let firstDone = false;
     let secondDone = false;
     await act(async () => {
-      const p1 = result.current.handleBulkRoleChange(baseConfig()).then(() => {
+      const p1 = result.current.handleBulkRoleEdit(grant('u1', 'exhibitor')).then(() => {
         firstDone = true;
       });
-      const p2 = result.current.handleBulkRoleChange(baseConfig()).then(() => {
+      const p2 = result.current.handleBulkRoleEdit(grant('u1', 'exhibitor')).then(() => {
         secondDone = true;
       });
-      // Let both calls reach their dispatch point before resolving the mutation.
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
@@ -514,7 +439,6 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
 
     expect(firstDone).toBe(true);
     expect(secondDone).toBe(true);
-    // Only one batch actually dispatched work for the single selected user.
     expect(ensureUserHasRoleMock).toHaveBeenCalledTimes(1);
   });
 });

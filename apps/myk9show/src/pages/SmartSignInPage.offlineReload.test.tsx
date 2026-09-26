@@ -56,8 +56,11 @@ vi.mock('./ringsideAnonSession', () => ({
   startAnonymousRingsideSession: (...args: unknown[]) => startAnonymousRingsideSessionMock(...args),
 }));
 
-let mockUser: { id?: string; is_anonymous?: boolean; app_metadata?: Record<string, unknown> } | null =
-  null;
+let mockUser: {
+  id?: string;
+  is_anonymous?: boolean;
+  app_metadata?: Record<string, unknown>;
+} | null = null;
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: mockUser,

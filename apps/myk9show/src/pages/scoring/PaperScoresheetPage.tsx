@@ -9,7 +9,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
-import { reloadEntriesAfterSave } from './paperScoresheetReload';
+import { reloadEntriesAfterSave, type LandedScoreChange } from './paperScoresheetReload';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -107,9 +107,9 @@ export function PaperScoresheetPage() {
     autoSelectedClassRef.current = classId;
   }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
 
-  const reloadEntries = async (): Promise<ScoringEntry[]> => {
+  const reloadEntries = async (landed: LandedScoreChange): Promise<ScoringEntry[]> => {
     if (!classId) return entries;
-    const { entries: fresh, refreshed } = await reloadEntriesAfterSave(classId, entries);
+    const { entries: fresh, refreshed } = await reloadEntriesAfterSave(classId, entries, landed);
     if (!refreshed)
       notifications.warning("Saved. This class's list couldn't refresh on this device.");
     setEntries(fresh);
@@ -123,8 +123,9 @@ export function PaperScoresheetPage() {
     reason?: string
   ) => {
     if (!scoring.selectedEntryId) return;
-    await scoring.saveEntry(scoring.selectedEntryId, result, timeDigits, faults, reason);
-    await reloadEntries();
+    const entryId = scoring.selectedEntryId;
+    await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
+    await reloadEntries({ entryId, scored: true });
   };
 
   const handleSaveAndNext = async (
@@ -136,15 +137,16 @@ export function PaperScoresheetPage() {
     if (!scoring.selectedEntryId) return;
     const currentEntryId = scoring.selectedEntryId;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
-    const fresh = await reloadEntries();
+    const fresh = await reloadEntries({ entryId: currentEntryId, scored: true });
     const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
     scoring.selectEntry(next?.entryId ?? null);
   };
 
   const handleClearResult = async () => {
     if (!scoring.selectedEntryId) return;
-    await scoring.clearEntry(scoring.selectedEntryId);
-    await reloadEntries();
+    const entryId = scoring.selectedEntryId;
+    await scoring.clearEntry(entryId);
+    await reloadEntries({ entryId, scored: false });
   };
 
   const handleModeChange = (mode: PaperScoringMode) => {

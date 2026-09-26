@@ -13,7 +13,6 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
-  type ReplicatedReadResult,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -145,27 +144,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * IndexedDB rows may predate MYK9-146 and still contain fee/notes; redacting
    * at the public collection boundary prevents those stale values from
    * reaching ordinary show/judge views while the next sync replaces them.
+   * Every collection read applies this, the show read included (MYK9-788).
    * `get()` remains raw for mutation merge payloads so an office update cannot
    * accidentally overwrite a fee or note it did not edit.
    */
-  override async getAll(): Promise<ReplicatedJudgeAssignment[]> {
-    // MYK9-774: getAll() on purpose — this override only redacts; callers that
-    // must tell a failed read from none use getAllWithStatus/getAllOrThrow.
-    const rows = await super.getAll();
+  protected override presentRows(rows: ReplicatedJudgeAssignment[]): ReplicatedJudgeAssignment[] {
     return rows.map(row => ({ ...row, fee: null, notes: null }));
-  }
-
-  override async getAllWithStatus(
-    licenseKey?: string
-  ): Promise<ReplicatedReadResult<ReplicatedJudgeAssignment>> {
-    const result = await super.getAllWithStatus(licenseKey);
-    if (!result.ok) return result;
-
-    return {
-      ok: true,
-      rows: result.rows.map(row => ({ ...row, fee: null, notes: null })),
-      error: null,
-    };
   }
 
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {

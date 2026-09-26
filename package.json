@@ -115,17 +115,17 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.125.0",
-    "@fission-ai/openspec": "^1.13.0",
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@fission-ai/openspec": "^1.13.1",
     "@playwright/test": "^1.63.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@supabase/supabase-js": "^2.116.0",
     "@types/node": "^22",
     "globals": "^17.12.0",
-    "prettier": "^3.9.6",
-    "tsx": "^4.23.13",
-    "turbo": "^2.10.12",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.3",
     "typescript": "~5.9.3",
     "vitest": "^5.0.0"
   },

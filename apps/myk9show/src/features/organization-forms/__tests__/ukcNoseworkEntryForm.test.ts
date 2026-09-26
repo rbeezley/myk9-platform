@@ -155,6 +155,41 @@ describe('UKC Nosework entry form PDF', () => {
     expect(drawn).toContain('555');
   });
 
+  it('accepts a stored phone number with a leading US country code', async () => {
+    const dogWithCountryCode: EntryFormDog = {
+      ...dog,
+      owner: { ...dog.owner, phone: '+1 (214) 555-0123' },
+    };
+
+    const values = buildUKCNoseworkEntryFormValues(dogWithCountryCode);
+    expect(values.text?.[UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone]).toBe('0123');
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithCountryCode,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+    const drawn = await extractDrawnPdfText(bytes);
+    expect(drawn).toContain('214');
+    expect(drawn).toContain('555');
+  });
+
+  it('keeps the single-dog PDF editable when flatten is false (MYK9-828 review)', async () => {
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getForm().getFields().length).toBeGreaterThan(0);
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.callName).getText()).toBe(
+      'Star'
+    );
+  });
+
   it('marks the trial, section, and element/level grid for each of the dog’s entries', async () => {
     // MYK9-828: `trials.trial_number` is a free-text label ("Trial 1", not
     // the bare digit "1" — see seed-demo.sql) — this fixture matches what the
@@ -236,6 +271,37 @@ describe('UKC Nosework entry form PDF', () => {
     const drawn = await extractDrawnPdfText(bytes);
     // Trial 1 bracket still marks (a known trial number); the grid cell does not.
     expect(drawn.filter(text => text === 'X').length).toBe(1);
+  });
+
+  it('marks the grid cell for an element/level with stray casing or whitespace', async () => {
+    const dogWithMessyEntry: EntryFormDog = {
+      ...dog,
+      entries: [
+        {
+          id: 'entry-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+          element: ' container ',
+          level: 'NOVICE',
+          section: null,
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+      ],
+    };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithMessyEntry,
+      trials: [{ id: 'trial-1', date: '2026-10-10', trialNumber: '1' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    // Trial 1 bracket + the Container/Novice cell, despite the mismatched case/whitespace.
+    expect(drawn.filter(text => text === 'X').length).toBe(2);
   });
 
   it('does not mark a trial bracket for a trial numbered beyond what the template offers', async () => {

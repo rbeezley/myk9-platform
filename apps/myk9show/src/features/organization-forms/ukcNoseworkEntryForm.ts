@@ -9,6 +9,7 @@ import {
   computeUKCEntryFormGridMarks,
   computeUKCEntryFormPhoneMarks,
   MAX_GRID_ROWS,
+  normalizeUSPhoneDigits,
   type EntryFormGridMark,
 } from './ukcNoseworkEntryFormGrid';
 
@@ -74,7 +75,12 @@ export function buildUKCNoseworkEntryFormPacketFilename(
  * The template's grid only offers `MAX_GRID_ROWS` rows, so a dog entered in
  * more entries than that gets one page per `MAX_GRID_ROWS`-sized batch —
  * repeating the dog's own header fields on each page — rather than silently
- * dropping the overflow entries off the printed form.
+ * dropping the overflow entries off the printed form. The common (single
+ * page) case returns that page's own filled document directly, so `flatten:
+ * false` really does leave its fields editable; `PDFDocument.copyPages` does
+ * not carry a source document's AcroForm across, so only the rare multi-page
+ * overflow case pays for the merge by losing field interactivity (the drawn
+ * marks and values still print — they just cannot be edited afterward).
  */
 export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   dog: EntryFormDog;
@@ -84,31 +90,50 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
 }): Promise<Uint8Array> {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
+
+  const pagePdfs = await Promise.all(
+    entryBatches.map(entries => fillAndMarkPage(input, values, entries))
+  );
+
+  if (pagePdfs.length === 1) {
+    return pagePdfs[0]!.save();
+  }
+
   const outputPdf = await PDFDocument.create();
-
-  for (const entries of entryBatches) {
-    const filledBytes = await fillPdfForm(input.templateBytes, values, {
-      flatten: input.flatten,
-    });
-    const pagePdf = await PDFDocument.load(filledBytes);
-    const page = pagePdf.getPages()[0];
-    if (page) {
-      const font = await pagePdf.embedFont(StandardFonts.Helvetica);
-      const marks = [
-        ...computeUKCEntryFormGridMarks({ entries }, input.trials),
-        ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
-        ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
-      ];
-      drawMarks(page, font, marks);
-    }
-
+  for (const pagePdf of pagePdfs) {
     const copiedPages = await outputPdf.copyPages(pagePdf, pagePdf.getPageIndices());
     for (const copiedPage of copiedPages) {
       outputPdf.addPage(copiedPage);
     }
   }
-
   return outputPdf.save();
+}
+
+async function fillAndMarkPage(
+  input: {
+    dog: EntryFormDog;
+    trials: readonly EntryFormTrial[];
+    templateBytes: Uint8Array;
+    flatten: boolean;
+  },
+  values: PdfFormFillValues,
+  entries: EntryFormDog['entries']
+): Promise<PDFDocument> {
+  const filledBytes = await fillPdfForm(input.templateBytes, values, {
+    flatten: input.flatten,
+  });
+  const pagePdf = await PDFDocument.load(filledBytes);
+  const page = pagePdf.getPages()[0];
+  if (page) {
+    const font = await pagePdf.embedFont(StandardFonts.Helvetica);
+    const marks = [
+      ...computeUKCEntryFormGridMarks({ entries }, input.trials),
+      ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
+      ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
+    ];
+    drawMarks(page, font, marks);
+  }
+  return pagePdf;
 }
 
 export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {
@@ -183,8 +208,7 @@ function dobYear(value: string | null | undefined): string | undefined {
 }
 
 function lastFourDigits(value: string | null | undefined): string | undefined {
-  const digits = value?.replace(/\D/g, '') ?? '';
-  return digits.length === 10 ? digits.slice(6) : undefined;
+  return normalizeUSPhoneDigits(value)?.slice(6);
 }
 
 function sanitizeFilenameToken(value: string): string {

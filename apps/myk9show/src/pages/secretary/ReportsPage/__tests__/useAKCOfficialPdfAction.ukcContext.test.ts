@@ -85,7 +85,10 @@ describe('useAKCOfficialPdfAction — UKC Trial Report context readiness (MYK9-8
           trialId: 'trial-1',
           classId: 'all',
           dogId: 'all',
-          officialPdfProps: { ...ukcTrialReportProps, trial: { ...ukcTrialReportProps.trial!, registryId: 'AKC' } },
+          officialPdfProps: {
+            ...ukcTrialReportProps,
+            trial: { ...ukcTrialReportProps.trial!, registryId: 'AKC' },
+          },
           officialClassPdfProps: null,
           // Still true — an AKC report never needs the UKC-only context.
           ukcTrialReportContextLoading: true,

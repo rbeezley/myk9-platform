@@ -37,37 +37,44 @@ const SECTION_X: Record<'A' | 'B', number> = {
   B: 187,
 };
 
-const ELEMENT_COLUMN_X: Record<string, number> = {
-  Container: 235.5508,
-  Exterior: 309.9199,
-  Interior: 384.289,
-  Vehicle: 458.6581,
-  'Handler Discrimination': 533.0273,
-};
+const ELEMENT_COLUMN_X = new Map<string, number>([
+  ['container', 235.5508],
+  ['exterior', 309.9199],
+  ['interior', 384.289],
+  ['vehicle', 458.6581],
+  ['handler discrimination', 533.0273],
+]);
 
 // The gutter between one column's level words and the next column's start
 // (or, for Container, the Section letters) is wide enough for a small mark.
 const GUTTER_OFFSET = 15;
 
-const STANDARD_LEVEL_BANDS: Record<string, TopBand> = {
-  Novice: { yMinTop: 213.9094, yMaxTop: 222.3024 },
-  Advanced: { yMinTop: 221.9094, yMaxTop: 230.3024 },
-  Superior: { yMinTop: 229.9094, yMaxTop: 238.3024 },
-  Master: { yMinTop: 237.9094, yMaxTop: 246.3024 },
-  Elite: { yMinTop: 245.9094, yMaxTop: 254.3024 },
-};
+const STANDARD_LEVEL_BANDS = new Map<string, TopBand>([
+  ['novice', { yMinTop: 213.9094, yMaxTop: 222.3024 }],
+  ['advanced', { yMinTop: 221.9094, yMaxTop: 230.3024 }],
+  ['superior', { yMinTop: 229.9094, yMaxTop: 238.3024 }],
+  ['master', { yMinTop: 237.9094, yMaxTop: 246.3024 }],
+  ['elite', { yMinTop: 245.9094, yMaxTop: 254.3024 }],
+]);
 
 // Handler Discrimination only goes to "Excellent", one level short of the
 // other four elements, and its rows sit 4pt lower than theirs.
-const HANDLER_DISCRIMINATION_LEVEL_BANDS: Record<string, TopBand> = {
-  Novice: { yMinTop: 217.9094, yMaxTop: 226.3024 },
-  Advanced: { yMinTop: 225.9094, yMaxTop: 234.3024 },
-  Excellent: { yMinTop: 233.9094, yMaxTop: 242.3024 },
-  Master: { yMinTop: 241.9094, yMaxTop: 250.3024 },
-};
+const HANDLER_DISCRIMINATION_LEVEL_BANDS = new Map<string, TopBand>([
+  ['novice', { yMinTop: 217.9094, yMaxTop: 226.3024 }],
+  ['advanced', { yMinTop: 225.9094, yMaxTop: 234.3024 }],
+  ['excellent', { yMinTop: 233.9094, yMaxTop: 242.3024 }],
+  ['master', { yMinTop: 241.9094, yMaxTop: 250.3024 }],
+]);
 
-function levelBandsFor(element: string): Record<string, TopBand> {
-  return element === 'Handler Discrimination'
+/** Trims and lowercases so a stray space or an inconsistently-cased value in
+ * `classes.element`/`classes.level` (e.g. "Novice " or "novice") still finds
+ * its column/row instead of silently dropping the mark. */
+function normalizeGridKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function levelBandsFor(element: string): Map<string, TopBand> {
+  return normalizeGridKey(element) === 'handler discrimination'
     ? HANDLER_DISCRIMINATION_LEVEL_BANDS
     : STANDARD_LEVEL_BANDS;
 }
@@ -137,8 +144,11 @@ export function computeUKCEntryFormGridMarks(
       });
     }
 
-    const columnX = ELEMENT_COLUMN_X[entry.element];
-    const band = columnX !== undefined ? levelBandsFor(entry.element)[entry.level] : undefined;
+    const columnX = ELEMENT_COLUMN_X.get(normalizeGridKey(entry.element));
+    const band =
+      columnX !== undefined
+        ? levelBandsFor(entry.element).get(normalizeGridKey(entry.level))
+        : undefined;
     if (columnX !== undefined && band) {
       marks.push({
         x: columnX - GUTTER_OFFSET,
@@ -173,6 +183,22 @@ function lineBaseline(band: TopBand): number {
   return PAGE_HEIGHT - band.yMaxTop + 2;
 }
 
+/**
+ * Strips a stored phone value to its 10 US digits, tolerating a leading "1"
+ * country code (`+1 (555) 123-4567` is 11 digits after stripping punctuation).
+ * Anything else — an extension, an international number, too few digits — is
+ * not a US phone number this template's three-blank layout can represent, so
+ * it returns undefined rather than guessing a split (MYK9-828 review: this
+ * used to require exactly 10 digits and print nothing for the common
+ * `+1`-prefixed case).
+ */
+export function normalizeUSPhoneDigits(value: string | null | undefined): string | undefined {
+  const digits = value?.replace(/\D/g, '') ?? '';
+  if (digits.length === 10) return digits;
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return undefined;
+}
+
 export function computeUKCEntryFormDobMarks(
   dateOfBirth: string | null | undefined
 ): EntryFormGridMark[] {
@@ -189,8 +215,8 @@ export function computeUKCEntryFormDobMarks(
 export function computeUKCEntryFormPhoneMarks(
   phone: string | null | undefined
 ): EntryFormGridMark[] {
-  const digits = phone?.replace(/\D/g, '') ?? '';
-  if (digits.length !== 10) return [];
+  const digits = normalizeUSPhoneDigits(phone);
+  if (!digits) return [];
   const areaCode = digits.slice(0, 3);
   const exchange = digits.slice(3, 6);
 

@@ -151,4 +151,54 @@ describe('useUKCTrialReportContext', () => {
       secretary: null,
     });
   });
+
+  it('fails rather than caching a Supabase error as a successful blank context (MYK9-828 review)', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'shows') {
+        return tableStub({ data: null, error: new Error('RLS denied') });
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    rpcMock.mockResolvedValue({ data: [], error: null });
+
+    const { result } = renderHook(() => useUKCTrialReportContext('show-1', true), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('picks the same official every time when a show names more than one per role', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'shows') {
+        return tableStub({ data: { city: null, state: null, club_id: null } });
+      }
+      if (table === 'people') {
+        return tableStub({
+          data: [
+            { id: 'sec-b', first_name: 'Blair', last_name: 'B', email: null },
+            { id: 'sec-a', first_name: 'Ana', last_name: 'A', email: null },
+          ],
+        });
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    // Two secretaries, deliberately returned with the "later" id first — the
+    // RPC carries no ordering, so the hook must not just take row [0].
+    rpcMock.mockResolvedValue({
+      data: [
+        { user_id: 'sec-b', role: 'secretary', email: null },
+        { user_id: 'sec-a', role: 'secretary', email: null },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useUKCTrialReportContext('show-1', true), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.secretary?.name).toBe('Ana A');
+  });
 });

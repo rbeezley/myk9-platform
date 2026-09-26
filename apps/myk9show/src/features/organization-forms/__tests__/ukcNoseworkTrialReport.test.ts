@@ -57,9 +57,11 @@ const reportProps = {
     date: '2026-06-12',
     judgeName: 'Pat Judge',
     trialNumber: '2026123401',
-    timezone: 'America/Chicago',
-    actualStartTime: '2026-06-12T14:00:00Z',
-    actualEndTime: '2026-06-12T20:30:00Z',
+    // TEXT columns holding an already-formatted display string (MYK9-828
+    // review) — never an ISO timestamp; see docs/UKC-forms and
+    // 073_trial_field_sync.sql.
+    actualStartTime: '9:00 AM',
+    actualEndTime: '3:30 PM',
   },
   ukcTrialReportContext: {
     venueCity: 'Springfield',

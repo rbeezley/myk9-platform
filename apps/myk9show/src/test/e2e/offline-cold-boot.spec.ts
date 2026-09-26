@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary, signInAsExhibitor } from './helpers/testUsers';
 
 /**
@@ -146,12 +146,12 @@ test.describe('offline cold boot', () => {
 
     // If the device is not primed yet, use the badge's own recovery action —
     // that is the affordance MYK9-203 shipped, so exercising it is part of the test.
-    if (await primeButton.isVisible().catch(() => false)) {
-      await primeButton.click();
-      await expectOfflineReady(page, 60_000);
-    }
-
-    await expectOfflineReady(page, 15_000);
+    // Decided inside the poll, never by one read: the page swaps its loading
+    // branch for the class list, which remounts the badge, and a new badge
+    // renders nothing until its first check. A one-shot read once landed in
+    // that frame, skipped priming, and then waited on a device nothing was
+    // priming (MYK9-766).
+    await expectOfflineReady(page, 75_000, primeButton);
 
     // 2. Backend disappears, then a genuine cold boot.
     const interceptedCount = await goOffline(context);
@@ -395,9 +395,10 @@ test.describe('offline cold boot', () => {
 /**
  * The readiness badge reads "Offline ready". On failure, name the signals the
  * not-ready badge reports as missing (MYK9-766: it once flipped back to not
- * ready with no clue why).
+ * ready with no clue why). With `primeWhenNotReady`, a not-ready badge is
+ * clicked to prime the device, re-decided on every poll.
  */
-async function expectOfflineReady(page: Page, timeout: number) {
+async function expectOfflineReady(page: Page, timeout: number, primeWhenNotReady?: Locator) {
   // Reads that never wait: an auto-waiting read of an absent badge would hold
   // a poll iteration for the whole action timeout, missing a ready badge that
   // appears meanwhile and losing the diagnosis.
@@ -413,9 +414,20 @@ async function expectOfflineReady(page: Page, timeout: number) {
         const missing = await notReady.evaluateAll(els =>
           els.length === 0 ? null : (els[0]!.getAttribute('data-offline-missing') ?? '')
         );
-        return missing === null
-          ? 'no badge (readiness unknown: not computed yet, or a storage probe failed)'
-          : `not ready; missing: ${missing || '(none listed)'}`;
+        if (missing === null) {
+          return 'no badge (readiness unknown: not computed yet, or a storage probe failed)';
+        }
+        const state = `not ready; missing: ${missing || '(none listed)'}`;
+        // The badge is disabled while a prime runs, so this never stacks primes.
+        if (
+          primeWhenNotReady &&
+          (await primeWhenNotReady.isVisible()) &&
+          (await primeWhenNotReady.isEnabled({ timeout: 1_000 }).catch(() => false))
+        ) {
+          await primeWhenNotReady.click({ timeout: 5_000 }).catch(() => {});
+          return `${state}; prime clicked`;
+        }
+        return state;
       },
       { timeout }
     )

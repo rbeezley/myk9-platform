@@ -50,6 +50,10 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
   replicationState: { lastSyncAt: null as number | null },
 }));
 
+const { settledListeners } = vi.hoisted(() => ({
+  settledListeners: new Map<string, Set<() => void>>(),
+}));
+
 vi.mock('@/hooks/useOptionalReplicationSync', () => ({
   useOptionalReplicationSync: () => ({ status: { lastSyncAt: replicationState.lastSyncAt } }),
 }));
@@ -100,7 +104,18 @@ vi.mock('@/context/rbacPermissionsCache', () => ({
 
 vi.mock('@/features/at-show/atShowDataAdapter', () => ({
   syncAtShowData: syncSpy,
+  subscribeAtShowSyncSettled: (showId: string, listener: () => void) => {
+    const listeners = settledListeners.get(showId) ?? new Set<() => void>();
+    listeners.add(listener);
+    settledListeners.set(showId, listeners);
+    return () => listeners.delete(listener);
+  },
 }));
+
+/** What `syncAtShowData` does once its rows are written (MYK9-766). */
+function settleAtShowSync(showId: string) {
+  for (const listener of settledListeners.get(showId) ?? []) listener();
+}
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -154,6 +169,7 @@ describe('useOfflineReadiness', () => {
     authState.isAnonymous = false;
     authState.databaseUserId = 'person-1';
     replicationState.lastSyncAt = null;
+    settledListeners.clear();
   });
 
   it('reports ready with the oldest timestamp when everything is on disk', async () => {
@@ -592,6 +608,39 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  // MYK9-766: the at-show page hydrates through syncAtShowData, which never
+  // advances the provider's lastSyncAt. A badge that checked before that sync
+  // wrote its rows stayed "Not offline ready" for a device that was ready.
+  it("rechecks when the at-show page's own sync settles", async () => {
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    primeAllSignals();
+    act(() => settleAtShowSync('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it("ignores another show's sync settling", async () => {
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    const { replicatedEntriesTable } = await import('@/services/replication');
+    const reads = vi.mocked(replicatedEntriesTable.getEntriesByShow).mock.calls.length;
+
+    act(() => settleAtShowSync('show-2'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(replicatedEntriesTable.getEntriesByShow).mock.calls.length).toBe(reads);
   });
 
   it('returns no readiness for an anonymous passcode session', async () => {

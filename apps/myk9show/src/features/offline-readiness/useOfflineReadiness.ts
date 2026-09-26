@@ -14,7 +14,7 @@ import {
 } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { subscribeAtShowSyncSettled, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -211,12 +211,17 @@ export function useOfflineReadiness(showId: string | undefined) {
     const handleRecheck = () => void check();
     window.addEventListener('online', handleRecheck);
     window.addEventListener('focus', handleRecheck);
+    // The at-show page hydrates this show through syncAtShowData, which never
+    // advances lastSyncAt. Without this, a check that ran before those rows
+    // landed left a ready device reading "Not offline ready" (MYK9-766).
+    const unsubscribeSettled = showId ? subscribeAtShowSyncSettled(showId, handleRecheck) : null;
     return () => {
       generationRef.current += 1;
       window.removeEventListener('online', handleRecheck);
       window.removeEventListener('focus', handleRecheck);
+      unsubscribeSettled?.();
     };
-  }, [check]);
+  }, [check, showId]);
 
   const prime = useCallback(async () => {
     if (!showId || isAnonymous) return;

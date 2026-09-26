@@ -198,6 +198,41 @@ type ClubMembershipRequestFunctions = {
   };
 };
 
+/**
+ * `get_show_class_availability` / `get_show_class_judge_day_availability`
+ * (MYK9-705 `20260925004700`, MYK9-753 `20260925201300`), both `RETURNS TABLE`.
+ * NULL is a real value in these rows: a class with no entry limit has NULL
+ * `class_max_entries` / `class_remaining`; a class with no confirmed judge day
+ * has NULL `judge_id` / `show_date` and NULL day figures; `self_service_block`
+ * is NULL when self-service entry is open; `judge_day_available` is NULL with
+ * no judge day. The generator emits every output column non-null, so these
+ * widenings used to be hand-edited into the generated file, where the next
+ * regeneration silently removed them.
+ */
+type ShowClassAvailability = WithReturnFields<
+  GeneratedFunctions['get_show_class_availability'],
+  {
+    judge_day_available: number | null;
+    judge_id: string | null;
+    self_service_block: string | null;
+  }
+>;
+
+type ShowClassJudgeDayAvailability = WithReturnFields<
+  GeneratedFunctions['get_show_class_judge_day_availability'],
+  {
+    class_max_entries: number | null;
+    class_remaining: number | null;
+    day_capacity: number | null;
+    day_mail_in_reserved: number | null;
+    day_remaining: number | null;
+    day_taken: number | null;
+    judge_id: string | null;
+    self_service_block: string | null;
+    show_date: string | null;
+  }
+>;
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -207,12 +242,17 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'update_own_entry_jump_height'
       | 'list_club_role_requests'
       | 'move_up_entry'
+      | 'get_show_class_availability'
+      | 'get_show_class_judge_day_availability'
+      | keyof ClubMembershipRequestFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
       update_own_entry_jump_height: UpdateOwnEntryJumpHeight;
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
+      get_show_class_availability: ShowClassAvailability;
+      get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;
   };
 };

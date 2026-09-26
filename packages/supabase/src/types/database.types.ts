@@ -12586,10 +12586,10 @@ export type Database = {
           class_id: string
           entry_count: number
           has_started: boolean
-          judge_day_available: number | null
+          judge_day_available: number
           judge_day_full: boolean
-          judge_id: string | null
-          self_service_block: string | null
+          judge_id: string
+          self_service_block: string
           waitlist_count: number
         }[]
       }
@@ -12597,10 +12597,10 @@ export type Database = {
         Args: { p_class_ids: string[] }
         Returns: {
           class_id: string
-          day_capacity: number | null
-          day_mail_in_reserved: number | null
+          day_capacity: number
+          day_mail_in_reserved: number
           day_remaining: number
-          day_taken: number | null
+          day_taken: number
           judge_id: string
           show_date: string
         }[]
@@ -13374,10 +13374,10 @@ export type Database = {
           class_id: string
           entry_count: number
           has_started: boolean
-          judge_day_available: number | null
+          judge_day_available: number
           judge_day_full: boolean
-          judge_id: string | null
-          self_service_block: string | null
+          judge_id: string
+          self_service_block: string
           waitlist_count: number
         }[]
       }
@@ -13395,15 +13395,15 @@ export type Database = {
           class_entry_count: number
           class_full: boolean
           class_id: string
-          class_max_entries: number | null
-          class_remaining: number | null
-          day_capacity: number | null
-          day_mail_in_reserved: number | null
-          day_remaining: number | null
-          day_taken: number | null
-          judge_id: string | null
-          self_service_block: string | null
-          show_date: string | null
+          class_max_entries: number
+          class_remaining: number
+          day_capacity: number
+          day_mail_in_reserved: number
+          day_remaining: number
+          day_taken: number
+          judge_id: string
+          self_service_block: string
+          show_date: string
         }[]
       }
       get_show_email_delivery_history: {

@@ -9,6 +9,22 @@ describe('compareLevels', () => {
     const levels = ['Elite', 'Masters', 'Novice'];
     expect([...levels].sort(compareLevels)).toEqual(['Novice', 'Masters', 'Elite']);
   });
+
+  it('normalizes case before the progression lookup (MYK9-811 Codex finding)', () => {
+    // Lowercase/mixed-case levels must not fall into the unknown bucket and
+    // sort alphabetically — they need the same progression order as their
+    // canonically-cased equivalents (Novice=0, Advanced=1, Excellent=3).
+    const levels = ['advanced', 'novice', 'Excellent', 'NOVICE'];
+    const sorted = [...levels].sort(compareLevels);
+    expect(sorted.indexOf('novice')).toBeLessThan(sorted.indexOf('advanced'));
+    expect(sorted.indexOf('NOVICE')).toBeLessThan(sorted.indexOf('advanced'));
+    expect(sorted.indexOf('advanced')).toBeLessThan(sorted.indexOf('Excellent'));
+  });
+
+  it('trims surrounding whitespace before the progression lookup (MYK9-811 Codex finding)', () => {
+    const levels = [' Advanced ', 'Novice'];
+    expect([...levels].sort(compareLevels)).toEqual(['Novice', ' Advanced ']);
+  });
 });
 
 describe('summarizeSchedule', () => {

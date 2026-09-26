@@ -57,9 +57,29 @@ const LEVEL_ALIASES: Record<string, string> = {
   Masters: 'Master',
 };
 
+const LEVEL_ORDER_BY_LOWER: Record<string, number> = Object.fromEntries(
+  Object.entries(LEVEL_ORDER).map(([level, order]) => [level.toLowerCase(), order])
+);
+const LEVEL_ALIASES_BY_LOWER: Record<string, string> = Object.fromEntries(
+  Object.entries(LEVEL_ALIASES).map(([alias, canonical]) => [
+    alias.toLowerCase(),
+    canonical.toLowerCase(),
+  ])
+);
+
+// Levels come from free-text DB columns and callers pass them through
+// unmodified, so casing and whitespace vary ('novice', ' Advanced ',
+// 'NOVICE') — normalize before the progression lookup so every caller gets
+// the same order regardless of how the source data was cased.
+function levelOrder(level: string): number {
+  const key = level.trim().toLowerCase();
+  const canonicalKey = LEVEL_ALIASES_BY_LOWER[key] ?? key;
+  return LEVEL_ORDER_BY_LOWER[canonicalKey] ?? 100;
+}
+
 export function compareLevels(a: string, b: string): number {
-  const aOrder = LEVEL_ORDER[LEVEL_ALIASES[a] ?? a] ?? 100;
-  const bOrder = LEVEL_ORDER[LEVEL_ALIASES[b] ?? b] ?? 100;
+  const aOrder = levelOrder(a);
+  const bOrder = levelOrder(b);
   if (aOrder !== bOrder) return aOrder - bOrder;
   return a.localeCompare(b);
 }

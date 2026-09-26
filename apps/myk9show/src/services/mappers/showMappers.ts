@@ -9,6 +9,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { getTrialTimezone } from '@/features/registries';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -231,12 +232,18 @@ export const mapDatabaseToShow = (
     // and the browse list is fed by replication. Reading only the snake_case
     // key silently yielded `[organization]` for every show, which made every
     // discipline filter on /shows return zero results.
+    // MYK9-807: some rows store the raw trial-type key ('SCENT_WORK') rather
+    // than its display label ('Scent Work') — signed-out /shows cards render
+    // this array directly, so an unformatted key surfaced verbatim (2026-09-26
+    // exhibitor walk, E51). `formatTrialTypeLabel` is idempotent on an
+    // already-correct label, so this is a no-op everywhere else.
     events: (() => {
       const trialTypes = [
         ...new Set(
           (rawTrials as Array<Record<string, unknown>>)
             .map(t => (t.trial_type ?? t.trialType) as string | null)
             .filter((s): s is string => !!s)
+            .map(formatTrialTypeLabel)
         ),
       ];
       return trialTypes.length > 0 ? trialTypes : [dbShow.organization];

@@ -190,6 +190,27 @@ describe('filterUsers created-date range', () => {
     const result = filterUsers(users, '', range(localDate(2020, 0, 1), null));
     expect(result.map(u => u.id)).not.toContain('none');
   });
+
+  // MYK9-837 (Codex): a rolling window's cutoff (e.g. "last 7 days" = now
+  // minus 7×24h) can land mid-day. Rounding `start` down to that day's
+  // midnight would silently widen the window by up to a day — a user created
+  // an hour before the exact cutoff must still be excluded.
+  it('honors a start time precisely rather than rounding it down to midnight', () => {
+    const precise = [
+      {
+        id: 'before-cutoff',
+        firstName: 'Before',
+        createdAt: new Date(2026, 5, 15, 10, 0, 0),
+      },
+      {
+        id: 'after-cutoff',
+        firstName: 'After',
+        createdAt: new Date(2026, 5, 15, 12, 0, 0),
+      },
+    ] as User[];
+    const cutoff = new Date(2026, 5, 15, 11, 0, 0);
+    expect(filterUsers(precise, '', range(cutoff, null)).map(u => u.id)).toEqual(['after-cutoff']);
+  });
 });
 
 // Sorting used to happen inside the table, which only ever held the current

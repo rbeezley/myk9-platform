@@ -118,13 +118,16 @@ describe('user views', () => {
   // MYK9-837: the view starts 7 days before "now", which on a Saturday spans
   // the previous Saturday through Sunday — not the calendar week. The label
   // must say what the filter actually does rather than claim "this week".
+  // Codex (PR #2537): the cutoff must be the exact instant 7×24h ago, not
+  // that day's midnight — rounding down would silently widen the window by
+  // up to a day when "now" isn't itself midnight.
   it('labels the "new" view by its actual rolling window, not a calendar week', () => {
     const view = USER_VIEWS.find(v => v.id === 'new');
     expect(view?.label).toBe('New, last 7 days');
 
     const { dateRange } = view!.filters(NOW);
     expect(dateRange.end).toBeNull();
-    expect(dateRange.start?.getTime()).toBe(new Date(NOW - 7 * 86_400_000).setHours(0, 0, 0, 0));
+    expect(dateRange.start?.getTime()).toBe(NOW - 7 * 86_400_000);
   });
 
   it('writes the login bucket as ?login= and ignores an unknown value', () => {

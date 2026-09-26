@@ -286,13 +286,12 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   }
 
   /**
-   * Get trials by show ID
+   * Get trials by show ID, through the show index (MYK9-792)
    */
   async getTrialsByShow(showId: string): Promise<ReplicatedTrial[]> {
-    const allTrials = await this.getAllOrThrow();
-    return allTrials
-      .filter(trial => trial.showId === showId)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return (await this.getByShowOrThrow(showId)).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
   }
 
   /**

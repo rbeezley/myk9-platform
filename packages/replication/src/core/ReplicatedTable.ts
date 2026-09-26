@@ -969,7 +969,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * reaches the caller's error state, fallback or aborted write.
    */
   async getAllOrThrow(licenseKey?: string): Promise<T[]> {
-    const result = await this.getAllWithStatus(licenseKey);
+    return this.rowsOrThrow(await this.getAllWithStatus(licenseKey));
+  }
+
+  /**
+   * One show's rows through the show index (getByShowWithStatus), or throw
+   * exactly as getAllOrThrow does when the device could not read them
+   * (MYK9-792). A show-scoped reader uses this instead of filtering a
+   * whole-table read, which scans every show held on the device.
+   */
+  async getByShowOrThrow(showId: string): Promise<T[]> {
+    return this.rowsOrThrow(await this.getByShowWithStatus(showId));
+  }
+
+  private rowsOrThrow(result: ReplicatedReadResult<T>): T[] {
     if (!result.ok) {
       // Plain words for any screen that shows it; the table and the storage
       // error ride along as the cause for logging.

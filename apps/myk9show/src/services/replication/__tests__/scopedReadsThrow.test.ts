@@ -10,7 +10,11 @@ const failed = { ok: false as const, rows: [] as never[], error: new Error('IDB 
 
 interface StatusReader {
   getAllWithStatus: (...args: never[]) => Promise<unknown>;
+  getByShowWithStatus: (...args: never[]) => Promise<unknown>;
 }
+
+/** A show-scoped reader reads through the show index (MYK9-792), not the whole table. */
+const SHOW_READ = 'getByShowWithStatus' as const;
 
 /**
  * MYK9-774: the scoped show-day readers were filters over getAll(), which hands
@@ -34,6 +38,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'entries by show',
       table: replicatedEntriesTable,
       read: () => replicatedEntriesTable.getEntriesByShow('s1'),
+      via: SHOW_READ,
     },
     {
       label: 'entries by armband',
@@ -49,6 +54,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'trials by show',
       table: replicatedTrialsTable,
       read: () => replicatedTrialsTable.getTrialsByShow('s1'),
+      via: SHOW_READ,
     },
     {
       label: 'trials by date',
@@ -59,6 +65,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'armbands by show',
       table: replicatedArmbandsTable,
       read: () => replicatedArmbandsTable.getByShow('s1'),
+      via: SHOW_READ,
     },
     {
       label: 'armbands by dog',
@@ -69,6 +76,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'judges by show',
       table: replicatedJudgeAssignmentsTable,
       read: () => replicatedJudgeAssignmentsTable.getByShowId('s1'),
+      via: SHOW_READ,
     },
     {
       label: 'judges by person',
@@ -79,9 +87,15 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'paperwork prints by show',
       table: replicatedPaperworkPrintsTable,
       read: () => replicatedPaperworkPrintsTable.getByShow('s1'),
+      via: SHOW_READ,
     },
-  ])('$label', async ({ table, read }) => {
-    vi.spyOn(table as unknown as StatusReader, 'getAllWithStatus').mockResolvedValue(failed);
+  ] as Array<{
+    label: string;
+    table: unknown;
+    read: () => Promise<unknown>;
+    via?: typeof SHOW_READ;
+  }>)('$label', async ({ table, read, via }) => {
+    vi.spyOn(table as StatusReader, via ?? 'getAllWithStatus').mockResolvedValue(failed);
 
     await expect(read()).rejects.toThrow(/couldn't read its saved show data/);
   });

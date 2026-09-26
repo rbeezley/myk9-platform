@@ -238,8 +238,9 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     await this.queueMutation('UPDATE', input.id, this.toVoidPayload(updated));
   }
 
+  /** One show's print records, through the show index (MYK9-792). */
   async getByShow(showId: string): Promise<ReplicatedPaperworkPrint[]> {
-    return (await this.getAllOrThrow()).filter(record => record.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   protected resolveConflict(

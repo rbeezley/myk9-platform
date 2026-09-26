@@ -125,3 +125,52 @@ describe('ReplicatedTable.getByShowWithStatus (MYK9-788)', () => {
     expect(result.error).toBeInstanceOf(Error);
   });
 });
+
+describe('ReplicatedTable.getByShowOrThrow (MYK9-792)', () => {
+  let table: ShowScopedTable;
+  let tableName: string;
+
+  beforeEach(async () => {
+    const { databaseManager } = await import('./DatabaseManager');
+    await databaseManager.reset();
+    tableName = `entries_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    table = new ShowScopedTable(tableName);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    const { databaseManager } = await import('./DatabaseManager');
+    await databaseManager.reset();
+  });
+
+  it("returns one show's rows through the show index, never the whole-table index", async () => {
+    await table.batchSet([
+      { id: 'a', showId: 'show-1', name: 'A' },
+      { id: 'b', showId: 'show-2', name: 'B' },
+    ]);
+
+    const indexSpy = vi.spyOn(IDBObjectStore.prototype, 'index');
+    const rows = await table.getByShowOrThrow('show-1');
+
+    expect(rows.map(row => row.id)).toEqual(['a']);
+    const opened = indexSpy.mock.calls.map(call => call[0]);
+    expect(opened).toContain(SHOW_ID_INDEX);
+    expect(opened).not.toContain('tableName');
+  });
+
+  it('throws the same ReplicaReadError as getAllOrThrow on a failed read', async () => {
+    const { databaseManager } = await import('./DatabaseManager');
+    const failure = new Error('IndexedDB unavailable');
+    vi.spyOn(databaseManager, 'getDatabase').mockRejectedValue(failure);
+
+    const byShow = await table.getByShowOrThrow('show-1').catch((error: unknown) => error);
+    const whole = await table.getAllOrThrow().catch((error: unknown) => error);
+
+    expect(byShow).toMatchObject({
+      name: 'ReplicaReadError',
+      message: "This device couldn't read its saved show data. Try again.",
+      cause: { table: tableName, error: failure },
+    });
+    expect(whole).toMatchObject({ name: 'ReplicaReadError', cause: { error: failure } });
+  });
+});

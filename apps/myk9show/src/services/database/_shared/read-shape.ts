@@ -46,6 +46,14 @@ interface ReadWithReplicationFallbackOptions<T> {
   operation: string;
   errorData: T;
   /**
+   * MYK9-774: when the local read THROWS (the device could not read its
+   * replica), the fallback server list would show any write this device has
+   * not uploaded as undone. With this set, the fallback first asks whether such
+   * a write exists or cannot be ruled out, and returns the caller's error
+   * instead of the server list when it might.
+   */
+  hasUnsyncedWrites?: () => Promise<boolean>;
+  /**
    * Opt-in for per-scope (per-show / per-dog) entry reads whose local replica
    * may legitimately be cold: entries replicate per-show, so a scope the caller
    * hasn't opened this session has an empty local store. Because
@@ -106,6 +114,10 @@ function defaultRowId(row: unknown): string {
   return String((row as { id?: unknown }).id);
 }
 
+/** Shown when the replica is unreadable and a local write may not have uploaded. */
+export const UNSYNCED_UNREADABLE_MESSAGE =
+  "This device couldn't read its saved data and has changes that haven't synced yet. Try again once it syncs.";
+
 export async function readWithReplicationFallback<T>({
   replication,
   postgrest,
@@ -116,6 +128,7 @@ export async function readWithReplicationFallback<T>({
   errorOnOnlineVerificationFailure,
   rowId,
   onUnverified,
+  hasUnsyncedWrites,
 }: ReadWithReplicationFallbackOptions<T>): Promise<ReadResult<T>> {
   let locallyDeletedIds: readonly string[] | undefined;
   let scopeUnsynced = false;
@@ -137,7 +150,14 @@ export async function readWithReplicationFallback<T>({
         replicationSucceeded = true;
         return { data: r.data, error: r.error };
       },
-      postgrest,
+      hasUnsyncedWrites
+        ? async () => {
+            if (await hasUnsyncedWrites()) {
+              throw new Error(UNSYNCED_UNREADABLE_MESSAGE);
+            }
+            return postgrest();
+          }
+        : postgrest,
       table,
       operation
     );

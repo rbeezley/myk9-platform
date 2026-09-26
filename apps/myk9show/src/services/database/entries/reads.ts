@@ -47,6 +47,7 @@ import {
   projectPostgrestEntryHandlerIdentity,
 } from './entryHandlerReadBoundary';
 import { joinRowsOrEmpty } from '../_shared/readRows';
+import { hasPendingLocalWritesOrUnknown } from '../_shared/pendingWrites';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -690,6 +691,7 @@ const isLiveEntry = (entry: ReplicatedEntry): boolean => !entry.deletedAt && !en
 // Get all entries with related data
 export const getAllEntries = async () => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAllOrThrow(),
@@ -720,6 +722,7 @@ export const getAllEntries = async () => {
 // Get entry by ID with full details
 export const getEntryById = async (id: string) => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const entry = await replicatedEntriesTable.getEntryById(id);
       if (!entry) return { data: null, error: null };
@@ -759,6 +762,7 @@ export const getEntriesByShow = async (showId: string) => {
   const refreshCompleted = await refreshShowEntriesForRead(showId);
   let unverified = false;
   const result = await readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -818,6 +822,7 @@ export const getEntriesByShow = async (showId: string) => {
  */
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [rawEntries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -865,6 +870,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
   // PostgREST (Codex P2 on #2463).
   await ensureShowEntriesSynced(showId).catch(() => false);
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [rawEntries, scopeSynced, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -942,6 +948,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
 // cold-store false zero. Verified online when the local read comes back empty.
 export const getEntriesByTrial = async (trialId: string) => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       // Get classes for this trial, then filter entries by those class IDs
       const [trialClasses, allEntries, dogsMap] = await Promise.all([
@@ -1007,6 +1014,7 @@ export const getEntriesByTrial = async (trialId: string) => {
 // as getEntriesByShow above.
 export const getEntriesByClass = async (classId: string) => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [entries, dogsMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByClass(classId),
@@ -1248,6 +1256,7 @@ export const countBlockingEntriesByDog = async (dogId: string): Promise<number> 
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({
+    hasUnsyncedWrites: hasPendingLocalWritesOrUnknown,
     replication: async () => {
       const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAllOrThrow(),

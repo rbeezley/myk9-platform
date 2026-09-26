@@ -1,4 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
+import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/read-shape';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -848,6 +849,23 @@ describe('entryQueries (replication)', () => {
         expect(result.error).not.toBeNull();
         expect(result.data).toEqual([]);
       } finally {
+        restore();
+      }
+    });
+
+    it('getAllEntries returns the error, not a server list, while a write waits to upload', async () => {
+      setupListMocks([]);
+      const restore = failDeviceRead(mockEntriesTable);
+      const { mutationManager } = await import('@/services/replication/sharedMutationManager');
+      const pending = vi.spyOn(mutationManager, 'getPendingCount').mockResolvedValue(1);
+      try {
+        const result = await getAllEntries();
+
+        // The guard's own message: the server list was never asked for.
+        expect(result.error?.message).toBe(UNSYNCED_UNREADABLE_MESSAGE);
+        expect(result.data).toEqual([]);
+      } finally {
+        pending.mockRestore();
         restore();
       }
     });

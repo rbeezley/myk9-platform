@@ -353,7 +353,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Get all clubs sorted by name
    */
   async getAllClubs(): Promise<ReplicatedClub[]> {
-    const allClubs = await this.getAll();
+    const allClubs = await this.getAllOrThrow();
     return allClubs.sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -368,7 +368,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Search clubs by name
    */
   async searchClubs(searchTerm: string): Promise<ReplicatedClub[]> {
-    const allClubs = await this.getAll();
+    const allClubs = await this.getAllOrThrow();
     const term = searchTerm.toLowerCase();
     return allClubs
       .filter(

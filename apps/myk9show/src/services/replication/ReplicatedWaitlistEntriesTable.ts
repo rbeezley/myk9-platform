@@ -180,7 +180,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
    * Get all waitlist entries for a specific class
    */
   async getByClass(classId: string): Promise<ReplicatedWaitlistEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.classId === classId);
   }
 
@@ -188,7 +188,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
    * Get all waitlist entries for a specific dog
    */
   async getByDog(dogId: string): Promise<ReplicatedWaitlistEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.dogId === dogId);
   }
 

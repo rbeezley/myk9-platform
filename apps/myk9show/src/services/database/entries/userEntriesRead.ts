@@ -352,7 +352,7 @@ async function readReplicaUserEntryRows(
       replicatedEntriesTable.getAllOrThrow(),
       replicatedDogsTable.getAllDogs(),
       joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
-      replicatedShowsTable.getAllShows(),
+      joinRowsOrEmpty(replicatedShowsTable.getAllShows(), 'show labels'),
       joinRowsOrEmpty(replicatedTrialsTable.getAllOrThrow(), 'trial dates'),
     ]);
     const dogsMap = buildMapFromArray(dogs, d => d.id);

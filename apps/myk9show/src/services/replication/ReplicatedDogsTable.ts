@@ -348,7 +348,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get all dogs
    */
   async getAllDogs(): Promise<ReplicatedDog[]> {
-    return this.getAll();
+    return this.getAllOrThrow();
   }
 
   /**
@@ -378,7 +378,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get dogs by owner
    */
   async getDogsByOwner(ownerId: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     return selectOwnedDogs(allDogs, ownerId);
   }
 
@@ -386,7 +386,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Search dogs by name
    */
   async searchDogs(query: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     const lowerQuery = query.toLowerCase();
 
     return allDogs.filter(
@@ -401,7 +401,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get dogs by breed
    */
   async getDogsByBreed(breed: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     return allDogs.filter(dog => dog.breed.toLowerCase() === breed.toLowerCase());
   }
 

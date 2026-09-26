@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, userEvent } from '@/test/utils/testUtils';
 import { ListFilterBar } from '../ListFilterBar';
@@ -17,7 +18,10 @@ function roleField(value: string | null, onChange = vi.fn()): ListFilterField {
   };
 }
 
-function createdField(value: ListDateRange, onChange = vi.fn()): ListFilterField {
+function createdField(
+  value: ListDateRange,
+  onChange: (value: ListDateRange) => void = vi.fn()
+): ListFilterField {
   return { kind: 'dateRange', key: 'created', label: 'Created', value, onChange };
 }
 
@@ -104,6 +108,36 @@ describe('ListFilterBar', () => {
     expect(last.start?.getFullYear()).toBe(2026);
     expect(last.start?.getMonth()).toBe(5);
     expect(last.start?.getDate()).toBe(1);
+  });
+
+  // Codex P2 (2ebcad645): setting the first bound makes the field active, so
+  // the parent stops listing it as available — the "+ Filter" editor must not
+  // vanish before the second bound can be entered.
+  it('keeps the date editor open under "+ Filter" after the first bound is set', async () => {
+    function Harness() {
+      const [range, setRange] = useState<ListDateRange>({ start: null, end: null });
+      return (
+        <ListFilterBar
+          searchValue=""
+          onSearchChange={vi.fn()}
+          searchPlaceholder="Search people"
+          fields={[roleField(null), createdField(range, setRange)]}
+        />
+      );
+    }
+    render(<Harness />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    await userEvent.click(
+      within(screen.getByRole('group', { name: 'Filter by' })).getByRole('button', {
+        name: 'Created',
+      })
+    );
+    await userEvent.type(screen.getByLabelText('From'), '2026-06-01');
+
+    // Still editing Created: the To input is there to fill in.
+    expect(screen.getByLabelText('To')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Filter by' })).not.toBeInTheDocument();
   });
 
   it('removing a date-range chip clears both ends', async () => {

@@ -66,7 +66,20 @@ function FilterChip({ field }: { field: ListFilterField }) {
   );
 }
 
-function AddFilterMenu({ fields }: { fields: ListFilterField[] }) {
+/**
+ * `fields` is every field; `available` the ones not yet in use. The field being
+ * edited is looked up in ALL fields: setting a date range's first bound makes
+ * it active, which drops it from `available`, and the editor must stay open for
+ * the second bound (Codex P2). For the same reason the menu stays mounted while
+ * open even when nothing is left to add.
+ */
+function AddFilterMenu({
+  fields,
+  available,
+}: {
+  fields: ListFilterField[];
+  available: ListFilterField[];
+}) {
   const [open, setOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const editing = fields.find(field => field.key === editingKey) ?? null;
@@ -75,6 +88,8 @@ function AddFilterMenu({ fields }: { fields: ListFilterField[] }) {
     setOpen(next);
     if (!next) setEditingKey(null);
   };
+
+  if (available.length === 0 && !open) return null;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -105,7 +120,7 @@ function AddFilterMenu({ fields }: { fields: ListFilterField[] }) {
           </>
         ) : (
           <div role="group" aria-label="Filter by" className="flex flex-col py-1">
-            {fields.map(field => (
+            {available.map(field => (
               <button
                 key={field.key}
                 type="button"
@@ -146,7 +161,7 @@ export function ListFilterBar({
       {active.map(field => (
         <FilterChip key={field.key} field={field} />
       ))}
-      {available.length > 0 && <AddFilterMenu fields={available} />}
+      <AddFilterMenu fields={fields} available={available} />
       {onClearAll && anythingActive && (
         <button
           type="button"

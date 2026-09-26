@@ -158,7 +158,10 @@ describe('normalizeEntryManagementCockpitParams', () => {
   // MYK9-795: the new payment-status filter for the registration-queue views.
   describe('paymentStatus', () => {
     it('round-trips through normalize/write and clears focus like the other scope filters', () => {
-      const written = writeCockpitPaymentStatus(params('registration=r1'), PaymentStatus.PAID_ONLINE);
+      const written = writeCockpitPaymentStatus(
+        params('registration=r1'),
+        PaymentStatus.PAID_ONLINE
+      );
       expect(written.toString()).toBe('paymentStatus=paid_online');
 
       const normalized = normalizeEntryManagementCockpitParams(written);

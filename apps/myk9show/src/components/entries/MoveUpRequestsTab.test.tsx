@@ -79,6 +79,8 @@ describe('MoveUpRequestsTab', () => {
     render(<MoveUpRequestsTab showId="show-1" />);
 
     await screen.findByText('No Pending Move-Up Requests');
-    expect(screen.queryByPlaceholderText('Search by dog, handler, or class...')).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText('Search by dog, handler, or class...')
+    ).not.toBeInTheDocument();
   });
 });

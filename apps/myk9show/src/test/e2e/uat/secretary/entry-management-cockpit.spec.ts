@@ -10,7 +10,11 @@ test('registration focus remains clear across desktop, history, and narrow layou
   page,
 }) => {
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
+  await expect(
+    page.getByRole('textbox', {
+      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+    })
+  ).toBeVisible({
     timeout: 30_000,
   });
 
@@ -45,7 +49,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
   await page.context().setOffline(true);
   try {
     await page
-      .getByRole('searchbox', { name: 'Search all show registrations' })
+      .getByRole('textbox', {
+        name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+      })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
     await expect(page.getByRole('button', { name: /Needs review/ })).toBeDisabled();
@@ -61,7 +67,11 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
+  await expect(
+    page.getByRole('textbox', {
+      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+    })
+  ).toBeVisible({
     timeout: 30_000,
   });
 
@@ -86,15 +96,19 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
   expect(hiddenPerRow.every(hidden => hidden <= 1)).toBe(true);
 });
 
-// MYK9-643: at 150% zoom on a phone the "Missing information" queue button
+// MYK9-643: at 150% zoom on a phone the "Missing info" queue button
 // would not shrink and pushed the page sideways.
 test('Entry Management does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
   await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
+  await expect(
+    page.getByRole('textbox', {
+      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+    })
+  ).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByRole('button', { name: /Missing information/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Missing info/ })).toBeVisible();
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
 

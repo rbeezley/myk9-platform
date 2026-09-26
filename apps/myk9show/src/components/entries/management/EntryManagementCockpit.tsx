@@ -165,10 +165,7 @@ export function EntryManagementCockpit({
 
   const handleExportSelectedCSV = (selectedEntries: EntryManagementEntry[]) => {
     if (selectedEntries.length === 0) return;
-    downloadCsv(
-      selectedEntriesExportFilename(),
-      buildSelectedEntriesExportCsv(selectedEntries)
-    );
+    downloadCsv(selectedEntriesExportFilename(), buildSelectedEntriesExportCsv(selectedEntries));
   };
 
   const handleStatusChangeWithDecisionPrompt = async (

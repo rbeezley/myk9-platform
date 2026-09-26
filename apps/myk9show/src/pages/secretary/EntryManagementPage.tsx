@@ -537,19 +537,19 @@ const EntryManagementPage: React.FC = () => {
       {selectedShowId &&
         cockpitUrl.state.tab === 'exceptions' &&
         cockpitUrl.state.exception === 'pulls' && (
-        <div className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <PullManagementTab
-                processedEntries={pulledEntries}
-                processedEntriesUnknown={Boolean(loadError)}
-                processedEntriesLoading={isLoading}
-                onRefresh={() => loadEntries(selectedShowId)}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+          <div className="mt-6">
+            <Card>
+              <CardContent className="pt-6">
+                <PullManagementTab
+                  processedEntries={pulledEntries}
+                  processedEntriesUnknown={Boolean(loadError)}
+                  processedEntriesLoading={isLoading}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
       {selectedShowId &&
         cockpitUrl.state.tab === 'exceptions' &&
         cockpitUrl.state.exception === 'waitlist' && (

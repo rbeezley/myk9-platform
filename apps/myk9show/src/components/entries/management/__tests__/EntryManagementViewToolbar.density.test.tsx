@@ -29,7 +29,10 @@ const COUNTS = {
   moveUps: 0,
 };
 
-function renderToolbar(overrides: Partial<EntryManagementCockpitState> = {}, onDensityChange = vi.fn()) {
+function renderToolbar(
+  overrides: Partial<EntryManagementCockpitState> = {},
+  onDensityChange = vi.fn()
+) {
   render(
     <EntryManagementViewToolbar
       state={{ ...BASE_STATE, ...overrides }}

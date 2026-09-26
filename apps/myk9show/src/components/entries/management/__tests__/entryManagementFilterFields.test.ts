@@ -26,9 +26,9 @@ describe('buildEntryManagementFilterFields', () => {
     });
     const trialField = fields.find(field => field.key === 'trial');
     expect(trialField?.kind).toBe('options');
-    expect(trialField && 'options' in trialField ? trialField.options.map(o => o.value) : []).toEqual([
-      't1',
-    ]);
+    expect(
+      trialField && 'options' in trialField ? trialField.options.map(o => o.value) : []
+    ).toEqual(['t1']);
   });
 
   it('offers every payment status as an option, replacing TrialClassFilters + adding payment', () => {

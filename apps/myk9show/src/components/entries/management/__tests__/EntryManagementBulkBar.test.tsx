@@ -49,11 +49,7 @@ describe('EntryManagementBulkBar', () => {
   it('dispatches Accept against the current selection, not a stale one (existing safety)', async () => {
     const user = userEvent.setup();
     const onBulkStatusChange = vi.fn(
-      (
-        _ids: string[],
-        _status: EntryStatus,
-        onFullSuccess?: () => void
-      ) => {
+      (_ids: string[], _status: EntryStatus, onFullSuccess?: () => void) => {
         onFullSuccess?.();
         return true;
       }
@@ -93,7 +89,11 @@ describe('EntryManagementBulkBar', () => {
     await user.click(screen.getByRole('button', { name: /Accept/ }));
 
     expect(onBulkStatusChange).toHaveBeenCalledTimes(1);
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['b'], EntryStatus.ACCEPTED, expect.any(Function));
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['b'],
+      EntryStatus.ACCEPTED,
+      expect.any(Function)
+    );
   });
 
   it('dispatches Reject against the current selection, not a stale one (existing safety)', async () => {
@@ -133,7 +133,11 @@ describe('EntryManagementBulkBar', () => {
 
     await user.click(screen.getByRole('button', { name: /Reject/ }));
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['b'], EntryStatus.REJECTED, expect.any(Function));
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['b'],
+      EntryStatus.REJECTED,
+      expect.any(Function)
+    );
   });
 
   it('confirms before resending, and sends only the still-eligible unique registrations (stale selection)', async () => {

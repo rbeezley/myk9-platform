@@ -279,5 +279,8 @@ export function writeCockpitView(
   if ((ENTRY_MANAGEMENT_EXCEPTIONS as readonly string[]).includes(viewId)) {
     return writeCockpitException(source, viewId as EntryManagementException);
   }
-  return writeCockpitQueue(writeCockpitTab(source, 'registrations'), viewId as ShowRegistrationQueue);
+  return writeCockpitQueue(
+    writeCockpitTab(source, 'registrations'),
+    viewId as ShowRegistrationQueue
+  );
 }

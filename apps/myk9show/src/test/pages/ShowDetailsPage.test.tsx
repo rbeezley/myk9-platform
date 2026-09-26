@@ -197,6 +197,8 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
   saveShowJudgeChanges: vi.fn(async () => undefined),
+  // A server with no judges yet: the judges this save added are what publishes.
+  fetchShowJudgesForPublish: vi.fn(async (...args: [string, unknown, unknown]) => args[2]),
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({

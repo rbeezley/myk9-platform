@@ -45,6 +45,7 @@ export type {
   JudgeAvailabilityUpsertData,
 } from './reads';
 export { diffShowJudges } from './showJudgeChanges';
+export { fetchShowJudgesForPublish } from './publishJudges';
 export {
   getActiveJudgeAssignmentShows,
   getActiveJudgeAssignmentsForShow,

@@ -114,14 +114,10 @@ function rowFor(name: string): HTMLElement {
   return row as HTMLElement;
 }
 
-/** Read a summary-tile count by its label (the tile number is the label's previous sibling). */
-function tileCount(label: string): string | undefined {
-  return (
-    screen
-      .getAllByText(label)
-      .map(el => el.previousElementSibling)
-      .find(prev => prev?.className.includes('text-2xl'))?.textContent ?? undefined
-  );
+/** Read a view tab's live count by its label (list-toolkit `ListViewTabs`, MYK9-811). */
+function viewCount(label: string): string | undefined {
+  const tab = screen.getByRole('button', { name: new RegExp(`^${label}`) });
+  return tab.querySelector('.tabular-nums')?.textContent ?? undefined;
 }
 
 describe('ClassManagementPage lifecycle chips (2.B)', () => {
@@ -158,11 +154,11 @@ describe('ClassManagementPage lifecycle chips (2.B)', () => {
     expect(within(rowFor('Container Novice A')).queryByText('Not started')).toBeNull();
   });
 
-  it('counts summary tiles by derived lifecycle (upcoming + scheduled both count as Not started)', () => {
+  it('counts view tabs by derived lifecycle (upcoming + scheduled both count as Not started)', () => {
     renderPage();
-    expect(tileCount('Not started')).toBe('2');
-    expect(tileCount('In Progress')).toBe('1');
-    expect(tileCount('Completed')).toBe('1');
+    expect(viewCount('Not started')).toBe('2');
+    expect(viewCount('In progress')).toBe('1');
+    expect(viewCount('Completed')).toBe('1');
   });
 
   it('announces summary lifecycle labels once through visible text', () => {

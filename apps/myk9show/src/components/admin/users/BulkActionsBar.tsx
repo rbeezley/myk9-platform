@@ -85,7 +85,12 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
   return (
     <>
-      <FloatingBulkBar count={selectedUsers.length} noun={USER_NOUN} onClear={onClearSelection}>
+      <FloatingBulkBar
+        count={selectedUsers.length}
+        noun={USER_NOUN}
+        onClear={onClearSelection}
+        busy={isProcessing}
+      >
         <p className="sr-only">
           Selected users:{' '}
           {selectedUsers

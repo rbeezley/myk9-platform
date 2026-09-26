@@ -109,6 +109,7 @@ function renderRoster(
     trialDate?: string;
     loadError?: unknown;
     onRetry?: () => void;
+    initialRoute?: string;
   } = {}
 ) {
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
@@ -154,7 +155,7 @@ function renderRoster(
       />
       <LocationProbe />
     </>,
-    { initialRoute: '/shows/show-1/show-day' }
+    { initialRoute: options.initialRoute ?? '/shows/show-1/show-day' }
   );
 }
 
@@ -172,7 +173,10 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.getByText('Poppy')).toBeInTheDocument();
-    expect(screen.getByText(/Container Novice A - 9:00 AM/i)).toBeInTheDocument();
+    // MYK9-825: the trial label now renders alongside the class (previously
+    // computed but silently dropped), so a dog entered in the same class
+    // shape across two trials is distinguishable.
+    expect(screen.getByText(/Container Novice A · Trial 1 - 9:00 AM/i)).toBeInTheDocument();
     expect(screen.getByText('114')).toBeInTheDocument();
     expect(
       container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')
@@ -180,6 +184,112 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-825: `ring` was built from `trialName || trialNumber`, so two
+   * same-day trials sharing a trial NAME (a real, common case: the wizard's
+   * own default names trials "Trial 1", "Trial 2" — but a secretary who
+   * renames both to something like "Saturday A" hits this) rendered
+   * identical rows for the same dog entered in the same class shape in both.
+   */
+  it('MYK9-825: distinguishes two same-day trials sharing a trial name', async () => {
+    const entryTrial1 = entry({
+      id: 'entry-t1',
+      class_id: 'class-t1',
+      trial_id: 'trial-1',
+      class: { id: 'class-t1', name: 'Vehicle Novice', class_number: '1', max_entries: 50 },
+    });
+    const entryTrial2 = entry({
+      id: 'entry-t2',
+      class_id: 'class-t2',
+      trial_id: 'trial-2',
+      class: { id: 'class-t2', name: 'Vehicle Novice', class_number: '1', max_entries: 50 },
+    });
+
+    const { user } = render(
+      <ShowDeskPeopleRoster
+        showId="show-1"
+        entries={[entryTrial1, entryTrial2]}
+        currentDate={new Date('2026-07-08T15:00:00.000Z')}
+        classes={[
+          {
+            id: 'class-t1',
+            name: 'Vehicle Novice',
+            element: 'Vehicle',
+            level: 'Novice',
+            section: '',
+            judgeName: '',
+            trialId: 'trial-1',
+            time: '9:00 AM',
+            status: 'scheduled',
+            entryCount: 1,
+            scoredCount: 0,
+            trialDate: '2026-07-08',
+            timezone: 'America/Chicago',
+            trialNumber: '1',
+            trialName: 'Saturday A',
+          },
+          {
+            id: 'class-t2',
+            name: 'Vehicle Novice',
+            element: 'Vehicle',
+            level: 'Novice',
+            section: '',
+            judgeName: '',
+            trialId: 'trial-2',
+            time: '9:00 AM',
+            status: 'scheduled',
+            entryCount: 1,
+            scoredCount: 0,
+            trialDate: '2026-07-08',
+            timezone: 'America/Chicago',
+            trialNumber: '2',
+            trialName: 'Saturday A',
+          },
+        ]}
+      />,
+      { initialRoute: '/shows/show-1/show-day' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(2\)/i)).toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-826: the Show Desk "Check in N entries" card links here via
+   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&rosterFilter=needs-check-in`).
+   * Landing pre-filtered must still surface a working Check in control for an
+   * accepted, not-yet-checked-in entry — not just open the roster.
+   */
+  it('MYK9-826: a rosterFilter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
+    const alreadyCheckedIn = entry({
+      id: 'entry-2',
+      handler_identity: {
+        name: 'Bea Handler',
+        person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },
+        source: 'assigned-person',
+      },
+      handler_person: {
+        id: 'person-2',
+        first_name: 'Bea',
+        last_name: 'Handler',
+        auth_user_id: 'auth-2',
+      },
+      check_in_status: 'checked-in',
+    });
+    const { user } = renderRoster([entry(), alreadyCheckedIn], {
+      initialRoute: '/shows/show-1/show-day?tool=people-at-show&rosterFilter=needs-check-in',
+    });
+
+    // Pre-filtered to "Needs check-in": the already-checked-in exhibitor is
+    // excluded, proving the filter (not just the tool sheet) applied on arrival.
+    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /alice martin/i }));
+    expect(screen.getByRole('button', { name: /^check in$/i })).toBeInTheDocument();
   });
 
   it('shows a retryable error instead of a false empty roster when entries fail to load', async () => {
@@ -342,6 +452,134 @@ describe('ShowDeskPeopleRoster', () => {
     expect(screen.getByRole('button', { name: /message/i })).toBeDisabled();
     expect(screen.getByText(/no message-capable account/i)).toBeInTheDocument();
     expect(h.getOrCreateThread).not.toHaveBeenCalled();
+  });
+
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` is allowed to fall
+  // back to the dog's owner when a mail-in typed handler matches no person.
+  // The roster keys and labels the row by the PERSON `handler_id` names (the
+  // owner, in the fallback case) rather than the printed handler text, so two
+  // different typed handlers who share that fallback owner land in ONE row
+  // under the owner's own name, with both printed names kept visible.
+  function fallbackOwnerEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
+    const owner = {
+      id: 'owner-1',
+      first_name: 'ZZ Rehearsal',
+      last_name: 'Owner One',
+      email: 'owner@example.test',
+      auth_user_id: 'auth-owner',
+    };
+    return entry({
+      handler_id: owner.id,
+      handler_person: {
+        id: owner.id,
+        first_name: owner.first_name,
+        last_name: owner.last_name,
+        auth_user_id: owner.auth_user_id,
+      },
+      dog: {
+        id: 'dog-1',
+        name: 'ZZRover',
+        call_name: 'ZZRover',
+        breed: 'Mixed Breed',
+        owner,
+      },
+      ...overrides,
+    });
+  }
+
+  it('merges two typed handlers sharing a fallback owner into one row, listing both printed names', async () => {
+    renderRoster([
+      fallbackOwnerEntry({
+        id: 'entry-hana',
+        dog_id: 'dog-a',
+        handler: 'ZZ Rehearsal Handler Hana',
+        dog: {
+          id: 'dog-a',
+          name: 'ZZRover',
+          call_name: 'ZZRover',
+          breed: 'Mixed Breed',
+          owner: {
+            id: 'owner-1',
+            first_name: 'ZZ Rehearsal',
+            last_name: 'Owner One',
+            email: 'owner@example.test',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+      fallbackOwnerEntry({
+        id: 'entry-fred',
+        dog_id: 'dog-b',
+        handler: 'ZZ Rehearsal Handler Fred',
+        dog: {
+          id: 'dog-b',
+          name: 'ZZFido',
+          call_name: 'ZZFido',
+          breed: 'Mixed Breed',
+          owner: {
+            id: 'owner-1',
+            first_name: 'ZZ Rehearsal',
+            last_name: 'Owner One',
+            email: 'owner@example.test',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+    ]);
+
+    expect(
+      await screen.findByRole('button', { name: /zz rehearsal owner one/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText('2 dogs - 2 classes')).toBeInTheDocument();
+    expect(screen.getByText(/also entered as/i)).toHaveTextContent(
+      'ZZ Rehearsal Handler Hana, ZZ Rehearsal Handler Fred'
+    );
+  });
+
+  it('labels the Message action, and a failed attempt, with the resolved contact, not the printed handler text', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce(null);
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
+
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
+    await user.click(screen.getByRole('button', { name: /message/i }));
+
+    expect(
+      await screen.findByText(/couldn't open a message thread for zz rehearsal owner one/i)
+    ).toBeInTheDocument();
+    expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+  });
+
+  // A concurrent session's commit (48d6c1c71) added a Message-button-label
+  // variant of this fix on top of round 2's contactName design; round 3
+  // (this design) removes contactName entirely and relabels the ROW itself
+  // by the handler_id person, so the row title already names the exact
+  // account Message opens -- no separate button-text switch is needed.
+  // Keeping the happy-path coverage that commit added: an enabled Message
+  // button on a fallback row still successfully opens a thread with the
+  // owner and navigates there.
+  it('opens a message thread with the owner from a fallback row', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce({
+      id: 'thread-owner-fallback',
+      show_id: 'show-1',
+      participant_id: 'auth-owner',
+      created_at: '2026-07-08T09:00:00.000Z',
+      last_message_at: '2026-07-08T09:00:00.000Z',
+    });
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
+
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
+
+    const messageButton = screen.getByRole('button', { name: /^message$/i });
+    expect(messageButton).toBeEnabled();
+
+    await user.click(messageButton);
+
+    await waitFor(() => {
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/secretary/messages?showId=show-1&threadId=thread-owner-fallback'
+      );
+    });
   });
 
   it('keeps a failed check-in actionable and shows retry feedback', async () => {

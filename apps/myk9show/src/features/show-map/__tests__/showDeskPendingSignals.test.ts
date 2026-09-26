@@ -9,6 +9,7 @@ import {
   matchesOperationalAttentionFilter,
 } from '@/features/entry-operations/attentionClassification';
 import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
+import { SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID } from '@/features/show-desk-people-roster/peopleRosterRoutes';
 
 const show = {
   id: 'show-1',
@@ -191,6 +192,58 @@ describe('computeShowDeskPendingSignals', () => {
     expect(review?.count).toBe(4);
   });
 
+  it('MYK9-825/826: excludes entries whose class trial is not today from the check-in count', () => {
+    // countEntriesWaitingCheckIn used to ignore trial date entirely, so the
+    // chip could read positive for a FUTURE trial's not-yet-checked-in
+    // entries even though checkInEligibility (which gates the roster's own
+    // "Check in" control) already excludes anything that isn't today.
+    const futureTrial = { ...trial, id: 'trial-2', trialDate: '2026-05-16' } as SyncableTrial;
+    const futureClass: ShowMapClassInput = {
+      id: 'class-future',
+      trialId: 'trial-2',
+      name: 'Interior Novice A',
+      status: 'Scheduled',
+    };
+    const rawEntries = [
+      {
+        id: 'e1',
+        class_id: 'class-active',
+        entry_status: 'accepted',
+        check_in_status: 'no-status',
+      },
+      {
+        id: 'e2',
+        class_id: 'class-future',
+        entry_status: 'accepted',
+        check_in_status: 'no-status',
+      },
+    ];
+    const t = buildShowMapTree({
+      show,
+      trials: [trial, futureTrial],
+      classes: [activeClass, futureClass],
+      entries: rawEntries,
+    });
+
+    const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
+      tree: t,
+      entries: rawEntries,
+      currentDate: new Date('2026-05-15T15:00:00.000Z'),
+    });
+    expect(signals.find(s => s.id === 'entries-waiting-checkin')?.count).toBe(1);
+
+    // Sanity: with no "today" reference, the date gate is skipped entirely
+    // (matches checkInEligibility's own no-currentDate behavior) and both
+    // entries count.
+    const signalsNoDate = computeShowDeskPendingSignals({
+      showId: 'show-1',
+      tree: t,
+      entries: rawEntries,
+    });
+    expect(signalsNoDate.find(s => s.id === 'entries-waiting-checkin')?.count).toBe(2);
+  });
+
   it('emits a signal when a class needs judge signature', () => {
     const t = tree(
       [
@@ -330,7 +383,7 @@ describe('computeShowDeskPendingSignals', () => {
       expect(normalized.mode).toBe('review');
     });
 
-    it('check-in count matches accepted/confirmed entries not yet checked in, and href round-trips to day-of mode', () => {
+    it('check-in count matches accepted/confirmed entries not yet checked in, and href round-trips to People at show, pre-filtered (MYK9-826)', () => {
       const rawEntries = [
         { entry_status: 'accepted', check_in_status: null },
         { entry_status: 'confirmed' },
@@ -357,10 +410,13 @@ describe('computeShowDeskPendingSignals', () => {
       expect(checkIn?.count).toBe(3);
       expect(checkIn?.href).toBeTruthy();
 
+      // MYK9-826: Entry Management's `mode=day-of` had no check-in control
+      // (its URL normalisation dropped `mode` entirely). The card now lands
+      // on the Show Desk's own People-at-show roster instead, pre-filtered.
       const params = new URLSearchParams(checkIn!.href!.split('?')[1]);
-      const normalized = normalizeEntryManagementSearchParams(params);
-      expect(normalized.attention).toBe('accepted');
-      expect(normalized.mode).toBe('day-of');
+      expect(params.get('tool')).toBe(SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID);
+      expect(params.get('rosterFilter')).toBe('needs-check-in');
+      expect(checkIn!.href).toMatch(/^\/shows\/show-1\/show-day\?/);
     });
 
     it('excludes terminal/pulled entries from waiting-review and payment-due counts', () => {

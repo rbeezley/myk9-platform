@@ -51,6 +51,21 @@ describe('FloatingBulkBar', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'Escape' });
     expect(onClear).toHaveBeenCalledTimes(2);
   });
+
+  it('disables Clear and ignores Escape while busy', async () => {
+    const onClear = vi.fn();
+    render(
+      <FloatingBulkBar count={1} noun={NOUN} onClear={onClear} busy>
+        <BulkBarButton onClick={vi.fn()} icon={null}>
+          Export
+        </BulkBarButton>
+      </FloatingBulkBar>
+    );
+    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'Escape' });
+    expect(onClear).not.toHaveBeenCalled();
+  });
 });
 
 describe('FloatingBulkBar portals', () => {

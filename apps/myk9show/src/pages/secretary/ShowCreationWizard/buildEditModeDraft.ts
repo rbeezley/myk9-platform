@@ -14,6 +14,7 @@ import type { User } from '@/types/user-types';
 import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
 import type { EditMode } from './show-creation-wizard-types';
+import { getTrialTimezone } from '@/features/registries';
 
 interface BuildEditModeDraftArgs {
   editMode: EditMode;
@@ -116,6 +117,14 @@ export function buildEditModeDraft({
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,
+      // MYK9-831: `loadDraft` REPLACES the whole `show` object (shallow merge at
+      // the top level), so a wizard opened over an existing show that omits
+      // this field wipes out whatever the wizard already held and every trial
+      // added afterward — even in add-trials mode, which starts with
+      // `wizardTrials: []` above — took the *editor's* browser zone instead of
+      // the show's own established one. Carry it from the show's own trials,
+      // the same source `getTrialTimezone` reads server-side.
+      timezone: getTrialTimezone(showTrials[0]),
       officials: {
         secretary: [] as string[],
         chairman: [] as string[],

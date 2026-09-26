@@ -14,7 +14,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
-import { deriveRegistryId } from '@/features/registries';
+import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -89,9 +89,14 @@ export function useShowCreationWizardActions({
     async (
       showId: string,
       showName: string,
-      showOrganization: string
+      showOrganization: string,
+      showTimezone: string | undefined
     ): Promise<Record<string, string>> => {
       const trialIdMap: Record<string, string> = {};
+      // MYK9-831: same fallback the online create path uses — a draft saved
+      // before the wizard's timezone field existed still gets a real zone
+      // rather than the trials.timezone column's America/New_York default.
+      const timezone = showTimezone || resolveBrowserTrialTimezone();
 
       // In edit mode, only add trials that don't already exist
       const trialsToAdd = editMode
@@ -126,6 +131,7 @@ export function useShowCreationWizardActions({
           showName,
           name: trialName,
           registryId,
+          timezone,
           trialDate: wizardTrial.dateTime
             ? format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd')
             : '',
@@ -326,7 +332,12 @@ export function useShowCreationWizardActions({
         });
 
         // Create trials (awaited) and get wizard-ID → real-UUID mapping
-        const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
+        const trialIdMap = await createTrials(
+          realShowId,
+          savedShow.name,
+          savedShow.organization,
+          show.timezone
+        );
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap, normalizedClasses);

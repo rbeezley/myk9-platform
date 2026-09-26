@@ -149,8 +149,8 @@ describe('offline capacity check on a show whose structure is not on the device 
   });
 
   it.each([
-    ['classes', { classes: false }, { classes: [] }],
-    ['trials', { trials: false }, { trials: [] }],
+    ['classes', { classes: false }, { classes: [] as unknown[] }],
+    ['trials', { trials: false }, { trials: [] as unknown[] }],
     ['show', { show: false }, { show: null }],
   ] as const)(
     'online, refuses when the sync still leaves the %s missing',

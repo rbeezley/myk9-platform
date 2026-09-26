@@ -27,6 +27,9 @@ export interface AtShowMyEntriesTodayProps {
   isLoading: boolean;
   /** From `useMyAtShowEntryDetails` — changes only when a fresh fetch lands. */
   dataUpdatedAt: number;
+  /** The device could not read this show's entries (MYK9-774). */
+  loadFailed: boolean;
+  onRetry: () => void;
   onSeeAllClasses: () => void;
 }
 
@@ -140,6 +143,8 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   entries,
   isLoading,
   dataUpdatedAt,
+  loadFailed,
+  onRetry,
   onSeeAllClasses,
 }) => {
   const navigate = useNavigate();
@@ -225,6 +230,18 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
 
       {isLoading ? (
         <AtShowMyEntriesTodaySkeleton />
+      ) : loadFailed ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center"
+          role="alert"
+        >
+          <p className="text-sm text-muted-foreground">
+            We couldn't read your entries on this device.
+          </p>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
       ) : displayEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
           <p className="text-sm text-muted-foreground">

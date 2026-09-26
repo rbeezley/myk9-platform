@@ -661,7 +661,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * Get classes by trial ID
    */
   async getClassesByTrial(trialId: string): Promise<ReplicatedClass[]> {
-    const allClasses = await this.getAll();
+    const allClasses = await this.getAllOrThrow();
     return allClasses.filter(cls => cls.trialId === trialId);
   }
 

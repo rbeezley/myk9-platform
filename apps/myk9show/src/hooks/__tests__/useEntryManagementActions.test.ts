@@ -565,4 +565,33 @@ describe('useEntryManagementActions', () => {
 
     expect(uncompEntry).toHaveBeenCalledWith('source-1');
   });
+
+  // MYK9-774: a failed device read of the show's armbands used to answer [],
+  // so "Next armband" suggested the show's starting number, which another dog
+  // may already wear. The read throws now; the dialog says so and suggests none.
+  it('shows an error in the armband dialog when the next armband cannot be worked out', async () => {
+    mocks.getNextArmbandForShow.mockRejectedValue(
+      new Error('Could not read armbands on this device')
+    );
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [makeEntry()],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+    act(() => {
+      result.current.setArmbandDialog({ open: true, entry: makeEntry(), value: '' });
+    });
+
+    await act(async () => {
+      await result.current.handleNextArmband();
+    });
+
+    expect(result.current.armbandDialog.value).toBe('');
+    expect(result.current.armbandDialog.error).toMatch(/Couldn't work out the next armband/);
+  });
 });

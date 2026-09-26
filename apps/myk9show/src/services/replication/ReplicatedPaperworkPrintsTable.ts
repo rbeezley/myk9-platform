@@ -210,7 +210,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
   }
 
   async getByShow(showId: string): Promise<ReplicatedPaperworkPrint[]> {
-    return (await this.getAll()).filter(record => record.showId === showId);
+    return (await this.getAllOrThrow()).filter(record => record.showId === showId);
   }
 
   protected resolveConflict(

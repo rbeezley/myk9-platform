@@ -228,7 +228,13 @@ export function useEntryManagementActions({
       const next = await getNextArmbandForShow(armbandDialog.entry.showId);
       setArmbandDialog(prev => ({ ...prev, value: String(next), error: null }));
     } catch (err) {
+      // A failed device read must not suggest the show's starting number, which
+      // another dog may already wear (MYK9-774). Say so, and let them type one.
       logger.error('Error fetching next armband:', 'secretary', {}, err as Error);
+      setArmbandDialog(prev => ({
+        ...prev,
+        error: "Couldn't work out the next armband on this device. Enter one, or try again.",
+      }));
     }
   }, [armbandDialog.entry]);
 

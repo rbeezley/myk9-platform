@@ -427,7 +427,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Get entries by class ID
    */
   async getEntriesByClass(classId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.classId === classId);
   }
 
@@ -435,7 +435,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Get entries by show ID
    */
   async getEntriesByShow(showId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.showId === showId);
   }
 
@@ -443,7 +443,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Get entries by armband number
    */
   async getEntriesByArmband(armband: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.armband === armband);
   }
 

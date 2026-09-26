@@ -247,7 +247,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    * Get trials by show ID
    */
   async getTrialsByShow(showId: string): Promise<ReplicatedTrial[]> {
-    const allTrials = await this.getAll();
+    const allTrials = await this.getAllOrThrow();
     return allTrials
       .filter(trial => trial.showId === showId)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -264,7 +264,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    * Get trials by date
    */
   async getTrialsByDate(date: string): Promise<ReplicatedTrial[]> {
-    const allTrials = await this.getAll();
+    const allTrials = await this.getAllOrThrow();
     return allTrials.filter(trial => trial.date === date);
   }
 

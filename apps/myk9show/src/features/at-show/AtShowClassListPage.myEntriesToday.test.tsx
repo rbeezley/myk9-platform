@@ -178,4 +178,24 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(screen.getByText('Not posted yet')).toBeInTheDocument();
     expect(screen.queryByText('This show has no classes yet.')).not.toBeInTheDocument();
   });
+
+  // MYK9-774: the entries read now throws on a failed device read. Before, it
+  // answered [] and an exhibitor was told their entries "haven't loaded yet".
+  // The page reads the same table for its class list, so it shows its own
+  // error with a retry.
+  it('shows an error, not an empty list, when the device cannot read entries', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockRejectedValue(
+      new Error('Could not read entries on this device')
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/The class list could not be read on this device/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/haven't loaded yet/)).not.toBeInTheDocument();
+  });
 });

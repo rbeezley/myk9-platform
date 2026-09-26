@@ -9,6 +9,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
+import { reloadEntriesAfterSave } from './paperScoresheetReload';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -17,6 +18,7 @@ import { SplitPanelView } from './components/SplitPanelView';
 import { SequentialView } from './components/SequentialView';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
+import { notifications } from '@/lib/notifications';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
 
@@ -107,7 +109,9 @@ export function PaperScoresheetPage() {
 
   const reloadEntries = async (): Promise<ScoringEntry[]> => {
     if (!classId) return entries;
-    const fresh = calculatePlacements(await loadEntriesWithDogs(classId));
+    const { entries: fresh, refreshed } = await reloadEntriesAfterSave(classId, entries);
+    if (!refreshed)
+      notifications.warning("Saved. This class's list couldn't refresh on this device.");
     setEntries(fresh);
     return fresh;
   };

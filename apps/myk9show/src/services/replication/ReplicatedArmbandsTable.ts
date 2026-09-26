@@ -175,7 +175,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * Get all armbands for a specific show
    */
   async getByShow(showId: string): Promise<ReplicatedArmband[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(a => a.showId === showId);
   }
 
@@ -183,7 +183,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * Get all armbands for a specific dog
    */
   async getByDog(dogId: string): Promise<ReplicatedArmband[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(a => a.dogId === dogId);
   }
 

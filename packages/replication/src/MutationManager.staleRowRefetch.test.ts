@@ -1,220 +1,44 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _resetConflictSurfacingForTests, configureConflictSurfacing } from './conflictConfig';
-import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import { ReplicatedTable } from './core/ReplicatedTable';
-import type { Logger } from './dependencies';
-import { MutationManager } from './MutationManager';
+import { databaseManager } from './core/DatabaseManager';
+import type { ReplicatedTable } from './core/ReplicatedTable';
+import type { MutationManager } from './MutationManager';
 import { OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
-import type { RowRefetchAdapter } from './refetchDirtyRowsById';
 import { syncReplicatedTable } from './syncReplicatedTable';
-import type { PendingMutation, SyncOptions, SyncResult } from './types';
+import {
+  adapterFor,
+  afterBackoff,
+  makeServer,
+  pendingFor,
+  PlainEntriesTable,
+  RefetchingEntriesTable,
+  resetForStaleRowTest,
+  seedStaleWrite,
+  startStaleRowManager,
+  stubWebLocks,
+  teardownStaleRowTest,
+  type LocalEntry,
+  type ServerRow,
+} from './test-utils/staleRowRefetchFixtures';
 
-const AUTH_USER_ID = 'stale-row-refetch-user';
-
-interface LocalEntry {
-  id: string;
-  status: string;
-  finalPlacement: number | null;
-}
-
-interface RemoteEntry {
-  id: string;
-  status: string;
-  final_placement: number | null;
-  version: number;
-}
-
-interface ServerRow {
-  status: string;
-  final_placement: number | null;
-  version: number;
-}
-
-/** A table with no `fetchRowsById`: a stale full-row write keeps backing off. */
-class PlainEntriesTable extends ReplicatedTable<LocalEntry> {
-  async sync(_scope: string, _options?: Partial<SyncOptions>): Promise<SyncResult> {
-    return {
-      tableName: this.getTableName(),
-      success: true,
-      operation: 'incremental-sync',
-      rowsAffected: 0,
-      duration: 0,
-    };
-  }
-
-  protected resolveConflict(_local: LocalEntry, remote: LocalEntry): LocalEntry {
-    return remote;
-  }
-}
-
-class RefetchingEntriesTable extends PlainEntriesTable {
-  constructor(
-    tableName: string,
-    private readonly adapter: RowRefetchAdapter<RemoteEntry, LocalEntry>
-  ) {
-    super(tableName);
-  }
-
-  protected override getRowRefetchAdapter(): RowRefetchAdapter<RemoteEntry, LocalEntry> {
-    return this.adapter;
-  }
-}
-
-interface UpdateCall {
-  data: Record<string, unknown>;
-  expectedVersion: unknown;
-}
-
-/** A one-row fake server with a real OCC precondition: `version=eq.<n>` must match. */
-function makeServer(row: ServerRow, options: { offline?: boolean } = {}) {
-  const updates: UpdateCall[] = [];
-  const from = vi.fn(() => ({
-    update: (data: Record<string, unknown>) => {
-      const call: UpdateCall = { data, expectedVersion: undefined };
-      updates.push(call);
-      const builder = {
-        eq(column: string, value: unknown) {
-          if (column === 'version') call.expectedVersion = value;
-          return builder;
-        },
-        async select() {
-          if (options.offline) throw new TypeError('Failed to fetch');
-          if (call.expectedVersion !== undefined && call.expectedVersion !== row.version) {
-            return { data: [], error: null };
-          }
-          row.status = data.status as string;
-          row.final_placement = data.final_placement as number | null;
-          row.version += 1;
-          return { data: [{ id: data.id, version: row.version }], error: null };
-        },
-      };
-      return builder;
-    },
-    // The OCC re-check that tells a stale token from an RLS denial.
-    select: () => ({
-      eq: () => ({
-        maybeSingle: async () => ({ data: { version: row.version }, error: null }),
-      }),
-    }),
-  }));
-  return { supabase: { from } as unknown as SupabaseClient, updates };
-}
-
-function adapterFor(
-  row: ServerRow,
-  fetchRowsById?: (ids: string[]) => Promise<RemoteEntry[]>
-): RowRefetchAdapter<RemoteEntry, LocalEntry> {
-  return {
-    fetchRowsById: vi.fn(
-      fetchRowsById ?? (async (ids: string[]) => (ids.includes('1') ? [{ id: '1', ...row }] : []))
-    ),
-    getRemoteId: remote => remote.id,
-    toLocalRow: remote => ({
-      id: remote.id,
-      status: remote.status,
-      finalPlacement: remote.final_placement,
-    }),
-    rebuildUpdatePayload: local => ({
-      id: local.id,
-      status: local.status,
-      final_placement: local.finalPlacement,
-    }),
-  };
-}
-
-/**
- * MYK9-771. A queued full-row UPDATE can hold an OCC token older than the
- * server's. The OCC handler advances only the ROW's token, and an incremental
- * sync never downloads a row it already holds at the server's version, so the
- * write retried `version=eq.<stale>` forever while the page read it as saved.
- * Each such rejection now re-fetches exactly that row and reconciles it.
- */
 describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
   let manager: MutationManager;
   let tableName: string;
 
   beforeEach(async () => {
-    await databaseManager.reset();
-    // reset() closes the shared IndexedDB without deleting it, and an upload
-    // pass sends EVERY queued mutation to this test's fake server, which
-    // ignores the table name. A write another test left queued would land
-    // here and move the fake row's version under this test's assertions.
-    const db = await databaseManager.getDatabase('test');
-    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
-    await db.clear(REPLICATION_STORES.FAILED_MUTATIONS);
-    configureConflictSurfacing(true);
-    Object.defineProperty(globalThis, 'localStorage', {
-      value: { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() },
-      configurable: true,
-    });
-    tableName = `entries_${crypto.randomUUID()}`;
+    tableName = await resetForStaleRowTest();
   });
 
-  afterEach(async () => {
-    manager?.destroy();
-    _resetConflictSurfacingForTests();
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    await databaseManager.reset();
-  });
+  afterEach(() => teardownStaleRowTest(manager));
 
   function startManager(table: ReplicatedTable<LocalEntry>, supabase: SupabaseClient) {
-    const logger: Logger = { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-    manager = new MutationManager(supabase, {
-      logger,
-      // Keep the runner's self-scheduled retry timer (30s cap) out of the way:
-      // only the test's explicit passes upload.
-      retryBackoffBase: 60_000,
-      getCurrentUserId: async () => AUTH_USER_ID,
-      getCurrentUploadContext: async () => ({ authUserId: AUTH_USER_ID, supabaseClient: supabase }),
-    });
-    table.setMutationManager(manager);
-    return logger;
+    const started = startStaleRowManager(table, supabase);
+    manager = started.manager;
+    return started.logger;
   }
 
-  /**
-   * The row was clean at version 3 and the device set `status` to `done`; the
-   * queued full-row write carries version 3. The server has since moved on.
-   */
-  async function seedStaleWrite(
-    table: ReplicatedTable<LocalEntry>,
-    extra: Partial<PendingMutation> = {}
-  ) {
-    await table.set('1', { id: '1', status: 'scored', finalPlacement: null }, false, undefined, 3);
-    await table.set('1', { id: '1', status: 'done', finalPlacement: null }, true);
-    const db = await databaseManager.getDatabase('test');
-    const mutation: PendingMutation = {
-      id: `mut-stale-${tableName}`,
-      authUserId: AUTH_USER_ID,
-      tableName,
-      operation: 'UPDATE',
-      rowId: '1',
-      data: { id: '1', status: 'done', final_placement: null },
-      explicitDataKeys: ['id', 'status', 'final_placement'],
-      timestamp: Date.now(),
-      retries: 0,
-      status: 'pending',
-      serverVersion: 3,
-      ...extra,
-    };
-    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
-  }
-
-  // databaseManager.reset() closes the shared IndexedDB without deleting it, so
-  // queue reads are scoped to this test's table.
-  async function pending(): Promise<PendingMutation[]> {
-    const db = await databaseManager.getDatabase('test');
-    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
-    return all.filter(mutation => mutation.tableName === tableName);
-  }
-
-  /** Let the OCC backoff lapse so the next pass attempts the mutation again. */
-  function afterBackoff(minutes = 10) {
-    const later = Date.now() + minutes * 60_000;
-    vi.spyOn(Date, 'now').mockReturnValue(later);
-  }
+  const pending = () => pendingFor(tableName);
 
   it('a stale token alone rebases the write onto the server version, then uploads', async () => {
     // Another writer set `final_placement` (a field this device never touched)
@@ -406,28 +230,6 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
       { serverVersion: 8, data: { id: '1', status: 'done', final_placement: 2 } },
     ]);
   });
-
-  /** A FIFO stand-in for navigator.locks that records every lock section. */
-  function stubWebLocks() {
-    const events: string[] = [];
-    let tail: Promise<unknown> = Promise.resolve();
-    let sections = 0;
-    const request = <R>(name: string, callback: () => Promise<R>): Promise<R> => {
-      const id = ++sections;
-      const run = tail.then(async () => {
-        events.push(`acquire ${name} #${id}`);
-        try {
-          return await callback();
-        } finally {
-          events.push(`release #${id}`);
-        }
-      });
-      tail = run.catch(() => undefined);
-      return run;
-    };
-    vi.stubGlobal('navigator', { onLine: true, locks: { request } });
-    return events;
-  }
 
   it('a re-fetch requested during an upload waits for that upload to release the lock', async () => {
     const events = stubWebLocks();

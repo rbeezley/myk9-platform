@@ -62,6 +62,25 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
   };
 }
 
+/**
+ * True when a server snapshot is older than the version the row already holds
+ * (MYK9-794). A re-fetch can read v8, then a sync download applies v9 before
+ * the re-fetch's write. Applying v8 then would roll the row's data and base
+ * back while its token stays at v9, and could mark a conflict against a
+ * version the server has left. Callers check this inside the same readwrite
+ * transaction as their write, so it is atomic against the download.
+ */
+export function isOlderThanRow(
+  row: Pick<ReplicatedRow<unknown>, 'serverVersion'>,
+  remoteServerVersion: number | undefined
+): boolean {
+  return (
+    remoteServerVersion !== undefined &&
+    row.serverVersion !== undefined &&
+    remoteServerVersion < row.serverVersion
+  );
+}
+
 interface BuildReconciledDirtyRowOptions<T extends { id: string }> {
   existingRow: ReplicatedRow<T>;
   /** Local data with server-authoritative untouched fields merged in. */

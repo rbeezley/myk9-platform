@@ -1,6 +1,7 @@
 import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
 
@@ -288,15 +289,15 @@ export class MutationQueueStore {
     if (toUpdate.length === 0) return 0;
 
     await confirmOwner?.();
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    for (const mutation of toUpdate) {
-      await tx.store.put({ ...mutation, serverVersion: newServerVersion });
-    }
-    await tx.done;
-    this.logger.log(
-      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${toUpdate.length} mutation(s) on ${tableName}/${rowId}`
+    const updated = await rewriteQueuedMutations(
+      db,
+      toUpdate.map(mutation => mutation.id),
+      mutation => ({ ...mutation, serverVersion: newServerVersion })
     );
-    return toUpdate.length;
+    this.logger.log(
+      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${updated} mutation(s) on ${tableName}/${rowId}`
+    );
+    return updated;
   }
 
   async reconcilePendingMutationsForRow(
@@ -320,46 +321,12 @@ export class MutationQueueStore {
     if (candidates.length === 0) return 0;
 
     await confirmOwner?.();
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    let changed = 0;
-    for (const mutation of candidates) {
-      const isRpc = mutation.rpc !== undefined;
-      // A full-row UPDATE can only be advanced if we can also refresh its payload;
-      // otherwise advancing the token would trade a 40001 for a silent clobber.
-      if (!isRpc && rebuiltData === undefined) continue;
-
-      const nextServerVersion =
-        mutation.serverVersion === undefined || newServerVersion > mutation.serverVersion
-          ? newServerVersion
-          : mutation.serverVersion;
-
-      const explicitDataKeys =
-        mutation.explicitDataKeys ??
-        Object.keys(mutation.data).filter(key => !legacyOmittedKeysServerWins.includes(key));
-      const reconciledData =
-        !isRpc && rebuiltData !== undefined ? { ...rebuiltData } : mutation.data;
-
-      if (!isRpc && rebuiltData !== undefined) {
-        for (const key of explicitDataKeys) {
-          if (
-            !(key in reconciledData) &&
-            Object.prototype.hasOwnProperty.call(mutation.data, key)
-          ) {
-            reconciledData[key] = mutation.data[key];
-          }
-        }
-      }
-
-      const next: PendingMutation = {
-        ...mutation,
-        serverVersion: nextServerVersion,
-        explicitDataKeys,
-        ...(!isRpc && rebuiltData !== undefined ? { data: reconciledData } : {}),
-      };
-      await tx.store.put(next);
-      changed++;
-    }
-    await tx.done;
+    const changed = await rewriteQueuedMutations(
+      db,
+      candidates.map(mutation => mutation.id),
+      mutation =>
+        rebaseQueuedMutation(mutation, newServerVersion, rebuiltData, legacyOmittedKeysServerWins)
+    );
 
     if (changed > 0) {
       this.logger.log(

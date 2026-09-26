@@ -1,10 +1,20 @@
 import type { ReplicatedRow, ReplicationConflictSnapshot } from '../types';
+import { isOlderThanRow } from './ReplicatedTableRowState';
 
+/**
+ * @param remoteServerVersion the detecting snapshot's raw server version;
+ *   a snapshot older than the row's token marks nothing (MYK9-794).
+ */
 export function applyConflictSnapshot<T>(
   existingRow: ReplicatedRow<T> | undefined,
-  conflict: ReplicationConflictSnapshot<T>
+  conflict: ReplicationConflictSnapshot<T>,
+  remoteServerVersion?: number
 ): ReplicatedRow<T> | null {
-  if (!existingRow || existingRow.version !== conflict.localVersion) {
+  if (
+    !existingRow ||
+    existingRow.version !== conflict.localVersion ||
+    isOlderThanRow(existingRow, remoteServerVersion)
+  ) {
     return null;
   }
 

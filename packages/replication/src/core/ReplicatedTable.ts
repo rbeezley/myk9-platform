@@ -47,6 +47,7 @@ import {
   buildReconciledDirtyRow,
   buildReplicatedRowForSet,
   buildSyncedReplicatedRow,
+  isOlderThanRow,
   selectStaleCleanRows,
 } from './ReplicatedTableRowState';
 import {
@@ -570,15 +571,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /** Returns true when the conflict was written; false if the version changed
-   *  under us (row edited concurrently — stale snapshot, safe to ignore). */
-  async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<boolean> {
+   *  under us (row edited concurrently, or `remoteServerVersion` is older than
+   *  the row's token: a stale snapshot either way, safe to ignore). */
+  async markConflict(
+    id: string,
+    conflict: ReplicationConflictSnapshot<T>,
+    remoteServerVersion?: number
+  ): Promise<boolean> {
     const db = await this.init();
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
 
-    const conflictedRow = applyConflictSnapshot(existingRow, conflict);
+    const conflictedRow = applyConflictSnapshot(existingRow, conflict, remoteServerVersion);
     if (!conflictedRow) {
       await tx.done;
       return false;
@@ -793,8 +799,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
 
-    // Only reconcile a still-dirty, non-conflicted row.
-    if (!existingRow || !existingRow.isDirty || existingRow.syncStatus === 'conflict') {
+    // Only reconcile a still-dirty, non-conflicted row, and never from a snapshot
+    // older than the row's token (a download may have landed first, MYK9-794).
+    if (
+      !existingRow ||
+      !existingRow.isDirty ||
+      existingRow.syncStatus === 'conflict' ||
+      isOlderThanRow(existingRow, params.remoteServerVersion)
+    ) {
       await tx.done;
       return false;
     }

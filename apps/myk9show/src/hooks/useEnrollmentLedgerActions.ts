@@ -10,7 +10,11 @@ import { recordEnrollmentPayment } from '@/services/database/show-payments';
 import { logger } from '@/services/LoggingService';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { PaymentStatus } from '@/types/show-registration-types';
-import { getEntryPaidAmount, hasEntryLevelRefund } from '@/utils/entryManagementUtils';
+import {
+  getEntryPaidAmount,
+  hasEntryLevelRefund,
+  mapPaymentStatus,
+} from '@/utils/entryManagementUtils';
 import { mapEnrollmentStatusToEntryPaymentStatus } from './useEntryManagementActions';
 
 function toNumberOrNull(value: number | string | null): number | null {
@@ -23,16 +27,22 @@ function toNumberOrNull(value: number | string | null): number | null {
  * The enrollment's rows as `record_enrollment_payment` left them. Mirrors the
  * optimistic patch in `handleEnrollmentPaymentChange`, but from the server's
  * answer: the RPC decides the status (a partial that covers the balance is
- * paid) and the running paid total, so the client never guesses either.
+ * paid), the running paid total and (MYK9-773) each entry's own status, so the
+ * client never guesses any of them. Only a server that predates the per-entry
+ * answer falls back to the local rule.
  */
 export function applyRecordedEnrollmentPayment(
   entry: EntryManagementEntry,
   recorded: RecordedEnrollmentPayment
 ): EntryManagementEntry {
   const status = recorded.payment_status as PaymentStatus;
-  const paymentStatus = hasEntryLevelRefund(entry)
-    ? entry.paymentStatus
-    : mapEnrollmentStatusToEntryPaymentStatus(status);
+  const serverEntryStatus = recorded.entries?.find(e => e.id === entry.id)?.payment_status;
+  const paymentStatus =
+    serverEntryStatus != null
+      ? mapPaymentStatus(serverEntryStatus)
+      : hasEntryLevelRefund(entry)
+        ? entry.paymentStatus
+        : mapEnrollmentStatusToEntryPaymentStatus(status);
   return {
     ...entry,
     enrollmentPaymentStatus: status,

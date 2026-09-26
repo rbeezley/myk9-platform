@@ -14,19 +14,19 @@
  *
  * WHAT THIS DOES NOT COVER, precisely (MYK9-600 review). `error` means the
  * count QUERY failed — `countBlockingEntriesByDog` threw. It does not mean "the
- * count might be wrong". `countBlockingEntriesByDog` is an ordinary PostgREST
- * `head: true` count over `entries`, so rows RLS hides from this reader are not
- * an error at all: PostgREST returns `count: 0, error: null` and this maps to
- * `{ status: 'ready', count: 0 }`. A reader who cannot see a dog's paid entries
- * still gets a plain, enabled Delete.
+ * count might be wrong".
  *
- * That residual case is caught server-side, not here: `soft_delete_dog` is
- * SECURITY DEFINER and refuses with MK002 regardless of what the client could
- * read, and MYK9-595 keeps the dialog mounted through a rejected delete so the
- * refusal is reported where the user is still looking. Closing the gap on the
- * client would mean replacing the count with a SECURITY DEFINER counting RPC
- * that sees exactly what the guard sees; until that exists, do not widen this
- * doc comment to claim RLS-hidden entries are handled.
+ * MYK9-822: `countBlockingEntriesByDog` now calls a SECURITY DEFINER RPC
+ * (`count_blocking_entries_by_dog`) that shares soft_delete_dog's own guard
+ * predicate, rather than an ordinary PostgREST count over `entries` — so an
+ * RLS-hidden entry is no longer a possible false "not blocked" here. A reader
+ * with no row-level visibility into a dog's entries still gets the RPC's real
+ * count, because the RPC runs as its definer, not as the caller.
+ *
+ * `soft_delete_dog` remains the backstop regardless: it is itself SECURITY
+ * DEFINER and refuses with MK002 on the same predicate, and MYK9-595 keeps the
+ * dialog mounted through a rejected delete so a refusal is reported where the
+ * user is still looking.
  */
 export type BlockingEntryCountState =
   | { status: 'pending' }

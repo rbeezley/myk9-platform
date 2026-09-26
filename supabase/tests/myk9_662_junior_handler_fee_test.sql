@@ -101,10 +101,10 @@ VALUES
 -- private.entry_handler_is_junior LEFT JOINs people_private, so an absent
 -- row reads as NULL, exactly like a person who has one but left it blank.
 INSERT INTO public.people_private (person_id, date_of_birth)
-SELECT '00000000-0000-0000-0000-000000662001',
+SELECT '00000000-0000-0000-0000-000000662001'::uuid,
        (((now() AT TIME ZONE 'UTC')::date + 30) - interval '15 years' - interval '1 month')::date
 UNION ALL
-SELECT '00000000-0000-0000-0000-000000662002',
+SELECT '00000000-0000-0000-0000-000000662002'::uuid,
        (((now() AT TIME ZONE 'UTC')::date + 30) - interval '40 years')::date;
 
 -- `handle_new_user` adopts each pre-seeded people row BY EMAIL (migration 131)

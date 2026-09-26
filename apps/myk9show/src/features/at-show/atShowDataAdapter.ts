@@ -85,12 +85,17 @@ export function syncAtShowData(
     if (existing) await existing.then(noop, noop);
     await replicatedTrialsTable.sync(showId, ...syncArgs);
     const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-    await Promise.all([
+    // allSettled, then rethrow: a scope that fails early must not settle the
+    // operation (and fire the readiness signal) while another scope is still
+    // writing rows (MYK9-766).
+    const results = await Promise.allSettled([
       // Classes are scoped by trial_id, so hydrate only the trials that belong
       // to this show. An empty scope would fetch every visible changed class.
       ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
       replicatedEntriesTable.sync(showId, ...syncArgs),
     ]);
+    const failed = results.find(result => result.status === 'rejected');
+    if (failed) throw failed.reason;
   })();
   atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {

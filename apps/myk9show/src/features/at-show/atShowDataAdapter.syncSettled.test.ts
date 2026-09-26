@@ -75,6 +75,31 @@ describe('subscribeAtShowSyncSettled', () => {
     unsubscribeOther();
   });
 
+  // Codex P2: Promise.all rejects as soon as one scope fails, which fired the
+  // signal while the entries scope was still writing, and nothing fired again.
+  it('on a part-way failure, waits for every started scope before firing', async () => {
+    const entries = deferred();
+    entriesSync.mockReturnValueOnce(entries.promise);
+    classesSync.mockRejectedValueOnce(new Error('network'));
+    const listener = vi.fn();
+    const unsubscribe = subscribeAtShowSyncSettled('show-d', listener);
+
+    const running = syncAtShowData('show-d');
+    const outcome = running.then(
+      () => 'resolved',
+      (error: Error) => error.message
+    );
+    await flush();
+    // Classes already failed; entries are still being written.
+    expect(listener).not.toHaveBeenCalled();
+
+    entries.resolve();
+    expect(await outcome).toBe('network');
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
   it('stops firing after unsubscribe', async () => {
     const listener = vi.fn();
     subscribeAtShowSyncSettled('show-c', listener)();

@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import type { ErrorWithRelatedData } from './BulkActionsBar.types';
-import type { BulkRoleSubmitConfig } from './BulkRoleDialog';
+import type { BulkRoleSubmitConfig } from './bulkRoleRunner';
 
 const deleteUserMutateAsync = vi.fn();
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
@@ -273,6 +273,49 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-2' });
     expect(result.current.roleError).toBeNull();
+  });
+
+  // The bulk edit panel sends remove-then-add as ordered steps for each person.
+  it('runs ordered steps per person: the remove revokes before the add grants', async () => {
+    getAllRolesMock.mockResolvedValue([role('judge'), role('steward')]);
+    activeAssignmentsMock.mockResolvedValue({
+      data: [{ id: 'ur-judge', role_id: 'r-judge', club_id: null, roles: { name: 'judge' } }],
+      error: null,
+    });
+    ensureUserHasRoleMock.mockResolvedValue(true);
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange([
+        baseConfig({ mode: 'remove', roleNames: ['judge'] }),
+        baseConfig({ mode: 'add', roleNames: ['steward'] }),
+      ]);
+    });
+
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge');
+    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'steward');
+    expect(revokeUserRoleMock.mock.invocationCallOrder[0]).toBeLessThan(
+      ensureUserHasRoleMock.mock.invocationCallOrder[0]!
+    );
+    expect(result.current.roleError).toBeNull();
+  });
+
+  it('validates the roles of every step before touching anyone', async () => {
+    getAllRolesMock.mockResolvedValue([role('judge')]);
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange([
+        baseConfig({ mode: 'remove', roleNames: ['judge'] }),
+        baseConfig({ mode: 'add', roleNames: ['wizard'] }),
+      ]);
+    });
+
+    expect(revokeUserRoleMock).not.toHaveBeenCalled();
+    expect(ensureUserHasRoleMock).not.toHaveBeenCalled();
+    expect(result.current.roleError).toMatch(/Unknown role\(s\): wizard/);
   });
 
   it('treats ensureUserHasRole returning false as a no-op skip, not a failure', async () => {

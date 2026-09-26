@@ -11,7 +11,7 @@ export interface BulkActionsBarProps {
 // 'status' dialog removed: no correct per-user account-status mutation exists to
 // mirror in bulk. 'role' was removed in MYK9-47 (broken canonical values, ignored
 // ensureUserHasRole result, no club scope) and rebuilt correctly in MYK9-58 —
-// see BulkRoleDialog.tsx and useBulkActions.handleBulkRoleChange.
+// see BulkRoleEditPanel.tsx and useBulkActions.handleBulkRoleChange.
 export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
 
 export interface RelatedDataDetails {

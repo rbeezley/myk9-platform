@@ -26,7 +26,7 @@ import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { exportUsersCSV } from '@/pages/admin/UserManagementPage.helpers';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
-import { BulkRoleDialog } from './BulkRoleDialog';
+import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
@@ -207,9 +207,9 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       </Dialog>
 
       {/* Change Roles Dialog */}
-      <BulkRoleDialog
+      <BulkRoleEditPanel
         open={currentDialog === 'role'}
-        onOpenChange={() => closeDialog()}
+        onClose={closeDialog}
         selectedUsers={selectedUsers}
         isProcessing={isRoleProcessing}
         error={roleError}

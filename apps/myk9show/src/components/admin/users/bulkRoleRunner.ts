@@ -12,7 +12,14 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
 import { CLUB_SCOPED_ROLES, LOCKED_ROLES } from '@/services/rbac/roleUiConstants';
-import type { BulkRoleMode, BulkRoleSubmitConfig } from './BulkRoleDialog';
+
+export type BulkRoleMode = 'add' | 'remove' | 'replace';
+
+export interface BulkRoleSubmitConfig {
+  mode: BulkRoleMode;
+  roleNames: string[];
+  clubIds: string[];
+}
 
 interface ActiveAssignmentRow {
   id: string;
@@ -169,5 +176,3 @@ export async function applyBulkRoleChangeToUser(
   await addRolesToUser(userId, roleNames, clubIds);
   return { skippedProtectedGrant: false };
 }
-
-export type { BulkRoleMode, BulkRoleSubmitConfig };

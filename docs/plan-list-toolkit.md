@@ -26,12 +26,13 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - `apps/myk9show/src/components/list-toolkit/` — `ListViewTabs`, `ListFilterBar`, `ListResultLine`, `FloatingBulkBar`.
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
 - `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New this week, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
+- Bulk role-edit panel (canvas variant D): per role Add / Keep / Remove with "who has it now" counts, club picker for club-scoped roles, and a "What will happen" summary beside Apply. It sends remove-then-add steps through the existing `bulkRoleRunner`, so club scoping, canonical-role validation and the show-limited/expiring-grant protection are unchanged. Replaces `BulkRoleDialog` and its Add / Remove / Replace mode switch.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.
 
 ## Non-goals
 
-- The tri-state bulk-edit side panel (canvas variant D). The existing `BulkRoleDialog` (add / remove / replace with club scope) stays the bulk role path.
-- Bulk suspend (no bulk account-status mutation exists; see `BulkActionsBar.types.ts`).
+- Replace mode in the bulk UI. The runner keeps it; a club-less legacy Secretary/Club Admin grant is still removable one person at a time from Manage roles.
+- Bulk suspend and change-notification emails from the variant D mockup (no bulk account-status mutation or notification path exists; see `BulkActionsBar.types.ts`).
 - Adopting the kit on Dogs and Entries — separate follow-ups.
 - Keyboard shortcuts on the bulk bar.
 
@@ -40,5 +41,6 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - Unit tests for each kit component (render, chip removal, option pick, date range, bulk bar visibility and clear).
 - `userListParams` round-trip for `login`; `filterUsers` login buckets; view matching and counts.
 - `getColumnLayoutClasses` for `stickyRight`.
+- `bulkRoleEditPlan` (holdings, collapse-to-Keep, remove-then-add steps, summary lines); the panel (gating, club requirement, submitted steps); `useBulkActions` running ordered steps and validating every step before any write.
 - Update the existing UserManagementPage and BulkActionsBar suites; run them and the shuffled app suite for touched files.
 - Typecheck, lint, format, `qa:code-quality-ratchet`.

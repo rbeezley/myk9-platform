@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
-import type { BulkRoleSubmitConfig } from './BulkRoleDialog';
+import type { BulkRoleSubmitConfig } from './bulkRoleRunner';
 
 const getAllRolesMock = vi.hoisted(() => vi.fn());
 const ensureUserHasRoleMock = vi.hoisted(() => vi.fn());

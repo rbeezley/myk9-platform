@@ -33,7 +33,7 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
 }));
 
-// BulkRoleDialog's clubs-list query — resolve empty so opening the dialog doesn't
+// BulkRoleEditPanel's clubs-list query — resolve empty so opening the dialog doesn't
 // hit a real client. Role-change behavior itself is covered in useBulkActions.test.ts.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -87,7 +87,7 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// BulkRoleDialog (rendered by this component) reads via useQuery/useQueryClient
+// BulkRoleEditPanel (rendered by this component) reads via useQuery/useQueryClient
 // (clubs-list + role change cache invalidation) — wrap every render in a
 // QueryClientProvider so those hooks don't throw outside a provider.
 function render(ui: React.ReactElement) {
@@ -409,13 +409,14 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders a "Change roles" action opening BulkRoleDialog (MYK9-58 rebuild)', () => {
+    it('renders a "Change roles" action opening the bulk role-edit panel', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       const rolesButton = screen.getByRole('button', { name: /change roles/i });
       fireEvent.click(rolesButton);
 
-      expect(screen.getByText('Change Roles')).toBeInTheDocument();
+      expect(screen.getByText('Change roles for 2 people')).toBeInTheDocument();
+      expect(screen.getByText('What will happen')).toBeInTheDocument();
     });
 
     it('does not render a status action (no real per-user status mutation exists)', () => {

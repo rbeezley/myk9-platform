@@ -10,8 +10,7 @@ import {
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { queryKeys } from '@/lib/queryClient';
 import { rbacService } from '@/services/rbac/RBACService';
-import type { BulkRoleSubmitConfig } from './BulkRoleDialog';
-import { applyBulkRoleChangeToUser } from './bulkRoleRunner';
+import { applyBulkRoleChangeToUser, type BulkRoleSubmitConfig } from './bulkRoleRunner';
 import type { DialogType, ErrorWithRelatedData } from './BulkActionsBar.types';
 
 interface UseBulkActionsOptions {
@@ -306,8 +305,12 @@ export function useBulkActions({
     }
   }, [selectedUsers, permanentDeleteMutation, closeDialog, onBulkComplete, onUsersDeleted]);
 
+  // One config, or ordered steps applied to each person in turn (the bulk edit
+  // panel sends remove-then-add). Every step's roles are validated before any
+  // person is touched.
   const handleBulkRoleChange = useCallback(
-    async (config: BulkRoleSubmitConfig) => {
+    async (change: BulkRoleSubmitConfig | BulkRoleSubmitConfig[]) => {
+      const steps = Array.isArray(change) ? change : [change];
       setRoleError(null);
       setRoleNotice(null);
       setIsRoleProcessing(true);
@@ -319,7 +322,9 @@ export function useBulkActions({
         // shared-vocabulary rationale in proposal.md).
         const allRoles = await rbacService.getAllRoles();
         const canonicalNames = new Set(allRoles.map(r => r.name));
-        const unknown = config.roleNames.filter(name => !canonicalNames.has(name));
+        const unknown = [...new Set(steps.flatMap(step => step.roleNames))].filter(
+          name => !canonicalNames.has(name)
+        );
         if (unknown.length > 0) {
           setRoleError(`Unknown role(s): ${unknown.join(', ')}. No changes were made.`);
           return;
@@ -335,11 +340,13 @@ export function useBulkActions({
         const outcome = await roleDispatch.run(
           selectedUsers,
           async user => {
-            const result = await applyBulkRoleChangeToUser(user.id, config, {
-              onProtectedGrantSkipped: () => protectedGrantUserIds.add(user.id),
-            });
-            if (result.skippedProtectedGrant) {
-              protectedGrantUserIds.add(user.id);
+            for (const step of steps) {
+              const result = await applyBulkRoleChangeToUser(user.id, step, {
+                onProtectedGrantSkipped: () => protectedGrantUserIds.add(user.id),
+              });
+              if (result.skippedProtectedGrant) {
+                protectedGrantUserIds.add(user.id);
+              }
             }
             await queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
             await queryClient.invalidateQueries({

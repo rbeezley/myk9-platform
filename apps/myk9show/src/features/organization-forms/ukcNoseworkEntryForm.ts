@@ -8,6 +8,7 @@ import {
   computeUKCEntryFormDobMarks,
   computeUKCEntryFormGridMarks,
   computeUKCEntryFormPhoneMarks,
+  normalizeUSPhoneDigits,
   MAX_GRID_ROWS,
   type EntryFormGridMark,
 } from './ukcNoseworkEntryFormGrid';
@@ -84,7 +85,7 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
 }): Promise<Uint8Array> {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
-  const outputPdf = await PDFDocument.create();
+  const pagePdfs: PDFDocument[] = [];
 
   for (const entries of entryBatches) {
     const filledBytes = await fillPdfForm(input.templateBytes, values, {
@@ -101,7 +102,20 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
       ];
       drawMarks(page, font, marks);
     }
+    pagePdfs.push(pagePdf);
+  }
 
+  // The common single-page, unflattened download (fields must stay editable)
+  // can return the filled document as-is. Assembling it into a fresh
+  // PDFDocument via copyPages below drops the AcroForm catalog pdf-lib needs
+  // for getForm()/interactive fields (MYK9-828 Codex round 2) — only the
+  // multi-page and flattened-packet cases actually need that assembly.
+  if (pagePdfs.length === 1 && !input.flatten) {
+    return pagePdfs[0].save();
+  }
+
+  const outputPdf = await PDFDocument.create();
+  for (const pagePdf of pagePdfs) {
     const copiedPages = await outputPdf.copyPages(pagePdf, pagePdf.getPageIndices());
     for (const copiedPage of copiedPages) {
       outputPdf.addPage(copiedPage);
@@ -183,8 +197,7 @@ function dobYear(value: string | null | undefined): string | undefined {
 }
 
 function lastFourDigits(value: string | null | undefined): string | undefined {
-  const digits = value?.replace(/\D/g, '') ?? '';
-  return digits.length === 10 ? digits.slice(6) : undefined;
+  return normalizeUSPhoneDigits(value)?.slice(6);
 }
 
 function sanitizeFilenameToken(value: string): string {

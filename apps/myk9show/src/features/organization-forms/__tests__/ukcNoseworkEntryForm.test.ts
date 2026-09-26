@@ -155,6 +155,52 @@ describe('UKC Nosework entry form PDF', () => {
     expect(drawn).toContain('555');
   });
 
+  it('keeps the AcroForm interactive for a single-dog download (flatten: false)', async () => {
+    // Codex round 2 (MYK9-828): copying the filled page into a fresh
+    // PDFDocument dropped the AcroForm catalog, so a "single dog" download
+    // that is supposed to stay editable came back with no form fields at all.
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const pdf = await PDFDocument.load(bytes);
+    const fields = pdf.getForm().getFields();
+    expect(fields.length).toBeGreaterThan(0);
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName).getText()).toBe(
+      'Sarah Johnson'
+    );
+    expect(pdf.getForm().getTextField(UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone).getText()).toBe(
+      '0123'
+    );
+  });
+
+  it('normalizes a stored +1 US phone number for the last-four field and the drawn area code/exchange', async () => {
+    // Codex round 2 (MYK9-828): a stored "+1 (214) 555-0123" strips to 11
+    // digits, so both the last-four AcroForm field and the drawn area
+    // code/exchange marks were left blank.
+    const dogWithCountryCode: EntryFormDog = {
+      ...dog,
+      owner: { ...dog.owner, phone: '+1 (214) 555-0123' },
+    };
+
+    expect(buildUKCNoseworkEntryFormValues(dogWithCountryCode).text?.[
+      UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone
+    ]).toBe('0123');
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithCountryCode,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+    const drawn = await extractDrawnPdfText(bytes);
+    expect(drawn).toContain('214');
+    expect(drawn).toContain('555');
+  });
+
   it('marks the trial, section, and element/level grid for each of the dog’s entries', async () => {
     // MYK9-828: `trials.trial_number` is a free-text label ("Trial 1", not
     // the bare digit "1" — see seed-demo.sql) — this fixture matches what the

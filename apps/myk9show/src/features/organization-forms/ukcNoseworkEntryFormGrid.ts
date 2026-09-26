@@ -173,6 +173,19 @@ function lineBaseline(band: TopBand): number {
   return PAGE_HEIGHT - band.yMaxTop + 2;
 }
 
+/**
+ * Strips a phone value to digits and drops a stored US country code, so a
+ * number saved as "+1 (214) 555-0123" (11 digits) normalizes the same as
+ * "(214) 555-0123" (10 digits) instead of failing both the last-four
+ * AcroForm field and {@link computeUKCEntryFormPhoneMarks}'s 10-digit check
+ * (MYK9-828 Codex round 2). Any other length is left unrecognized.
+ */
+export function normalizeUSPhoneDigits(value: string | null | undefined): string | undefined {
+  const digits = value?.replace(/\D/g, '') ?? '';
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits.length === 10 ? digits : undefined;
+}
+
 export function computeUKCEntryFormDobMarks(
   dateOfBirth: string | null | undefined
 ): EntryFormGridMark[] {
@@ -189,8 +202,8 @@ export function computeUKCEntryFormDobMarks(
 export function computeUKCEntryFormPhoneMarks(
   phone: string | null | undefined
 ): EntryFormGridMark[] {
-  const digits = phone?.replace(/\D/g, '') ?? '';
-  if (digits.length !== 10) return [];
+  const digits = normalizeUSPhoneDigits(phone);
+  if (!digits) return [];
   const areaCode = digits.slice(0, 3);
   const exchange = digits.slice(3, 6);
 

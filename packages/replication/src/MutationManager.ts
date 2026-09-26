@@ -234,18 +234,6 @@ export class MutationManager {
     return pending;
   }
 
-  /**
-   * List this user's queued mutations for a whole table: writes the server has
-   * not received yet. A caller about to read the server as the truth for that
-   * table checks this first, or the read misses the device's own edits.
-   */
-  async getPendingMutationsForTable(tableName: string): Promise<PendingMutation[]> {
-    const authUserId = await this.requireCurrentUserId();
-    const pending = await this.queueStore.getPendingMutationsForTable(tableName, authUserId);
-    await this.requireSameCurrentUserId(authUserId);
-    return pending;
-  }
-
   // ========================================
   // FAILED MUTATION MANAGEMENT
   // ========================================

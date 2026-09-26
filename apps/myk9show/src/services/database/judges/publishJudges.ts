@@ -1,8 +1,10 @@
 import { createDatabaseError, supabase } from '../supabaseClient';
 import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
+import { PremiumPublishError } from '@/features/premium/premiumPublishErrors';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
-import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
+import { readJudgeAssignmentsOrThrow } from './assignmentReads';
 
 interface ServerJudgeRow {
   person_id: string;
@@ -13,29 +15,7 @@ interface ServerJudgeRow {
   judge: { id: string; first_name: string | null; last_name: string | null } | null;
 }
 
-/**
- * The judges a published premium lists, taken from the server.
- *
- * The Edit Show form's judge list comes from a device read, and a failed read
- * leaves it empty, so publishing it put out a premium with no judges
- * (MYK9-774). Publishing needs the network anyway, so the server list is the
- * source. Judge edits are queued writes, from this save or an earlier one, so
- * they are uploaded first; if one is still waiting, the server list would miss
- * it, and publishing stops instead. A DELETE names only its row, so any waiting
- * judge write that does not name another show counts.
- *
- * Throws when the edits have not reached the server or the server cannot be
- * read; the caller reports a publish failure.
- */
-export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
-  await mutationManager.uploadPendingMutations();
-  const waiting = await mutationManager.getPendingMutationsForTable('judge_assignments');
-  if (waiting.some(mutation => (mutation.data.show_id ?? showId) === showId)) {
-    throw new Error(
-      "Some judge changes haven't reached the server yet. Try publishing again in a moment."
-    );
-  }
-
+async function readServerJudges(showId: string): Promise<ShowJudgeAssignment[]> {
   const { data, error } = await supabase
     .from('judge_assignments')
     .select(
@@ -68,4 +48,50 @@ export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJud
       : []
   );
   return buildAssignedJudges(assignments, showId, people);
+}
+
+/** This device's judge ids for the show, or null when the device cannot read them. */
+async function readDeviceJudgeIds(showId: string): Promise<Set<string> | null> {
+  try {
+    const assignments = await readJudgeAssignmentsOrThrow();
+    return new Set(assignments.filter(a => a.showId === showId).map(a => a.personId));
+  } catch {
+    return null;
+  }
+}
+
+function sameIds(a: Set<string>, b: Set<string>): boolean {
+  return a.size === b.size && [...a].every(id => b.has(id));
+}
+
+/**
+ * The judges a published premium lists: the server's, and only when this
+ * device agrees with them.
+ *
+ * The Edit Show form's judge list comes from a device read, and a failed read
+ * leaves it empty, so publishing it put out a premium with no judges
+ * (MYK9-774). The server is the source instead. When the device CAN read its
+ * judges and they differ from the server's, some change has not landed on one
+ * side: an edit still uploading or queued, one the server refused, or another
+ * device's edit not yet synced here. Publishing then stops, rather than
+ * guessing which side is right, and asks for an upload. When the device cannot
+ * read its judges at all, the server's list stands.
+ *
+ * Throws a `judges-syncing` PremiumPublishError when the two disagree, and a
+ * database error when the server cannot be read.
+ */
+export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
+  const [serverJudges, deviceIds] = await Promise.all([
+    readServerJudges(showId),
+    readDeviceJudgeIds(showId),
+  ]);
+  if (deviceIds && !sameIds(deviceIds, new Set(serverJudges.map(j => j.judgeId)))) {
+    mutationManager.requestUpload();
+    throw new PremiumPublishError(
+      "This device's judges don't match the server's yet",
+      'experience-snapshot',
+      'judges-syncing'
+    );
+  }
+  return serverJudges;
 }

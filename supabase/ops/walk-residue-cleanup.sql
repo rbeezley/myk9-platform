@@ -94,8 +94,12 @@ END $$;
 -- saw it), and the dog delete would cascade that unrecorded entry away. A
 -- FOR UPDATE lock on a row conflicts with the FOR KEY SHARE lock every FK
 -- insert takes on its parent, so while these are held nobody can attach a
--- new entry to a scoped dog, a new history row to a scoped entry, or edit a
--- scoped row. A writer that tries simply waits for this run to finish.
+-- new entry to a scoped dog, or a new history/cart/waitlist/armband/
+-- registration/refund row to a scoped row. That parent lock does NOT stop an
+-- UPDATE to an EXISTING child row's own columns (no FK is touched), so each
+-- child table below gets its own FOR UPDATE immediately before it is
+-- captured, closing that gap too (Codex finding on this PR). A writer that
+-- tries any of this simply waits for this run to finish.
 DO $$
 BEGIN
   PERFORM 1
@@ -121,6 +125,19 @@ END $$;
 CREATE TEMP TABLE wr_entries ON COMMIT DROP AS
 SELECT e.* FROM public.entries e WHERE e.dog_id IN (SELECT id FROM wr_dogs);
 
+-- entry_status_history rows are children of entries, but locking entries only
+-- stops a NEW history row being INSERTed (that takes a FOR KEY SHARE lock on
+-- its parent, which conflicts with FOR UPDATE above). An UPDATE to an
+-- EXISTING history row's own columns takes no lock on entries at all, so
+-- without this the row captured into wr_history below could still be
+-- rewritten before this transaction's DELETE cascades it away, recording
+-- content that no longer matches what gets deleted (Codex finding on this
+-- PR). Lock the rows themselves.
+DO $$
+BEGIN
+  PERFORM 1 FROM public.entry_status_history WHERE entry_id IN (SELECT id FROM wr_entries) FOR UPDATE;
+END $$;
+
 CREATE TEMP TABLE wr_history ON COMMIT DROP AS
 SELECT h.* FROM public.entry_status_history h WHERE h.entry_id IN (SELECT id FROM wr_entries);
 
@@ -136,6 +153,13 @@ END $$;
 CREATE TEMP TABLE wr_orders ON COMMIT DROP AS
 SELECT o.* FROM public.stripe_orders o
 WHERE o.entry_ids && ARRAY(SELECT id FROM wr_entries);
+
+-- Same gap as entry_status_history above: locking stripe_orders blocks a NEW
+-- refund row's INSERT, not an UPDATE to an existing refund row's own columns.
+DO $$
+BEGIN
+  PERFORM 1 FROM public.stripe_order_refunds WHERE order_id IN (SELECT id FROM wr_orders) FOR UPDATE;
+END $$;
 
 CREATE TEMP TABLE wr_refunds ON COMMIT DROP AS
 SELECT r.* FROM public.stripe_order_refunds r WHERE r.order_id IN (SELECT id FROM wr_orders);
@@ -153,6 +177,19 @@ WHERE (en.id IN (SELECT registration_id FROM wr_entries WHERE registration_id IS
                   WHERE e.registration_id = en.id AND e.id NOT IN (SELECT id FROM wr_entries))
   AND NOT EXISTS (SELECT 1 FROM public.stripe_orders o
                   WHERE o.enrollment_id = en.id AND o.id NOT IN (SELECT id FROM wr_orders));
+
+-- Same gap again for every other child keyed on the locked dogs/entries: the
+-- dog/entry lock stops a new row being attached, not an existing row's own
+-- columns being edited out from under the record (Codex finding on this PR).
+DO $$
+BEGIN
+  PERFORM 1 FROM public.entry_cart_items
+  WHERE dog_id IN (SELECT id FROM wr_dogs) OR entry_id IN (SELECT id FROM wr_entries)
+  FOR UPDATE;
+  PERFORM 1 FROM public.waitlist_entries WHERE dog_id IN (SELECT id FROM wr_dogs) FOR UPDATE;
+  PERFORM 1 FROM public.armbands WHERE dog_id IN (SELECT id FROM wr_dogs) FOR UPDATE;
+  PERFORM 1 FROM public.dog_registrations WHERE dog_id IN (SELECT id FROM wr_dogs) FOR UPDATE;
+END $$;
 
 CREATE TEMP TABLE wr_cart_items ON COMMIT DROP AS
 SELECT c.* FROM public.entry_cart_items c
@@ -199,9 +236,16 @@ BEGIN
   -- not merely fail to look like a live one. A null or unrecognized session id
   -- (a data anomaly, a future Stripe id format) refuses exactly like cs_live_
   -- does, rather than passing by default (Codex P1 on #2453, MYK9-734).
+  --
+  -- A LITERAL prefix, never LIKE: '_' in 'cs_test_' is a LIKE wildcard for any
+  -- single character, so `LIKE 'cs_test_%'` would also accept a malformed id
+  -- such as 'csXtestY123' as verified sandbox evidence (Codex finding on this
+  -- PR). This check authorizes deleting payment-trail rows, so it compares the
+  -- literal prefix instead of trusting an unescaped pattern.
   SELECT count(*), string_agg(coalesce(o.stripe_checkout_session_id, '<null>'), ', ') INTO v_n, v_ids
   FROM wr_orders o
-  WHERE o.stripe_checkout_session_id IS NULL OR o.stripe_checkout_session_id NOT LIKE 'cs_test_%';
+  WHERE o.stripe_checkout_session_id IS NULL
+     OR left(o.stripe_checkout_session_id, 8) <> 'cs_test_';
   IF v_n > 0 THEN
     RAISE EXCEPTION 'walk-residue-cleanup: order session(s) [%] are not a verified sandbox (cs_test_) Checkout session; this script only ever removes verified sandbox residue', v_ids;
   END IF;

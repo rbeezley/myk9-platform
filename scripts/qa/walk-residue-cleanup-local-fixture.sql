@@ -165,3 +165,19 @@ INSERT INTO public.entries VALUES
 INSERT INTO public.stripe_orders VALUES
   ('00000000-0000-0000-0000-0000000000c8', ARRAY['00000000-0000-0000-0000-0000000000a8'::uuid], 3000,
    '00000000-0000-0000-0000-000000000011', NULL, 'sess_malformed', 'pi_runG', 'succeeded');
+
+-- Run H, token 2026-09-26 0305: its order's Checkout session id is exactly 8
+-- characters positioned so `LIKE 'cs_test_%'` reads its wildcard underscores
+-- as "any single character" and accepts it -- proves the check is a LITERAL
+-- prefix comparison, not an unescaped LIKE pattern (Codex finding on this PR).
+-- NOTE: entry id ...a9 is reserved by walk-residue-cleanup-local.sh's own
+-- concurrency-lock test (case 15/17, a fresh INSERT against a reloaded
+-- fixture), so this run uses ...aa/...ca instead to avoid colliding with it.
+INSERT INTO public.dogs (id, name, owner_id) VALUES
+  ('00000000-0000-0000-0000-0000000000da', 'ZZ Walk Dog 2026-09-26 0305 #1', '00000000-0000-0000-0000-00000000e001');
+INSERT INTO public.entries VALUES
+  ('00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000da',
+   '00000000-0000-0000-0000-000000000011', NULL, 'paid', 30);
+INSERT INTO public.stripe_orders VALUES
+  ('00000000-0000-0000-0000-0000000000ca', ARRAY['00000000-0000-0000-0000-0000000000aa'::uuid], 3000,
+   '00000000-0000-0000-0000-000000000011', NULL, 'csXtestY123', 'pi_runH', 'succeeded');

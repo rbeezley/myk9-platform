@@ -20,6 +20,20 @@ url="${WALK_RESIDUE_TEST_DB_URL:-}"
 url_base="${url%%\?*}"
 url_query="${url#"$url_base"}"
 url_query_lower="${url_query,,}"
+
+# libpq percent-decodes a query string BEFORE reading its keys, so
+# `?%68ost=remote` or `?host%61ddr=remote` decode to host=/hostaddr= at
+# connect time even though neither literal key appears here (Codex finding on
+# this PR: the plain-text check above missed exactly this). Refuse any `%` in
+# the query string outright rather than writing a decoder to out-guess libpq:
+# a throwaway local test URL never legitimately needs one.
+case "$url_query_lower" in
+  *'%'*)
+    echo "walk-residue-cleanup-local: WALK_RESIDUE_TEST_DB_URL's query string contains a percent-encoded character, which could decode to a host=/hostaddr= override at connect time; refusing." >&2
+    exit 2
+    ;;
+esac
+
 case "&${url_query_lower#\?}&" in
   *'&host='* | *'&hostaddr='*)
     echo "walk-residue-cleanup-local: WALK_RESIDUE_TEST_DB_URL's query string sets host=/hostaddr=, which libpq honors over the URL's own host; refusing." >&2
@@ -126,6 +140,16 @@ else
   fail "order with a malformed Checkout session id refused"; printf '%s\n' "$out" | tail -3
 fi
 
+# 12b. A session id shaped so LIKE's own wildcards (the underscores in
+#      'cs_test_') match it is refused too: the check is a LITERAL prefix
+#      comparison, not an unescaped LIKE pattern (Codex finding on this PR).
+out="$(run -v token='2026-09-26 0305')"
+if grep -q 'not a verified sandbox' <<<"$out" && grep -q 'csXtestY123' <<<"$out"; then
+  pass "order with a LIKE-wildcard-shaped session id refused"
+else
+  fail "order with a LIKE-wildcard-shaped session id refused"; printf '%s\n' "$out" | tail -3
+fi
+
 # 13. A token that matches nothing is refused.
 out="$(run -v token='2030-01-01 0000')"
 if grep -q 'nothing to do' <<<"$out"; then pass "unknown token refused"; else fail "unknown token refused"; fi
@@ -146,6 +170,26 @@ wait "$holder"
 rm -f "$held"
 if grep -q 'lock timeout' <<<"$blocked"; then pass "a scoped dog is locked against new entries for the whole run"; else fail "scoped dog lock ($blocked)"; fi
 
+# 15b. The parent-row lock above does NOT stop an UPDATE to an EXISTING
+#      child row's own columns (no FK is touched). Prove the child's own lock
+#      (Codex finding on this PR, entry_status_history specifically) blocks
+#      an UPDATE to run A's existing history row while a run holds its
+#      transaction, the same way case 15 proves it for a new entries INSERT.
+psql "$url" -X -q -v ON_ERROR_STOP=1 -f "$fixture" >/dev/null 2>&1
+held="$(mktemp)"
+sed 's/^ROLLBACK;$/SELECT pg_sleep(4);\nROLLBACK;/' "$script" >"$held"
+psql "$url" -X -q -v token='2026-09-13 0305' -f "$held" >/dev/null 2>&1 &
+holder=$!
+sleep 1.5
+blocked="$(psql "$url" -X -q -c "SET lock_timeout = '1s'; UPDATE entry_status_history SET new_status = 'tampered' WHERE id = '00000000-0000-0000-0000-0000000000b1'" 2>&1)"
+wait "$holder"
+rm -f "$held"
+if grep -q 'lock timeout' <<<"$blocked"; then
+  pass "a scoped entry's history row is locked against edits for the whole run"
+else
+  fail "scoped history row lock ($blocked)"
+fi
+
 # 16-17. This script's own URL guard (Codex P2 on #2453, MYK9-734): a query
 # string that sets host=/hostaddr= is refused before any statement runs, even
 # though the visible host looks like localhost, because libpq honors that
@@ -164,6 +208,26 @@ if [ "$attack_status" -eq 2 ] && grep -q 'host=/hostaddr=' <<<"$attack_out"; the
   pass "a query-string HOSTADDR= override is refused case-insensitively"
 else
   fail "query-string HOSTADDR= override refused (status=$attack_status)"; printf '%s\n' "$attack_out" | tail -3
+fi
+
+# 18-19. libpq percent-decodes a query string before reading its keys, so
+# `?%68ost=` and `?host%61ddr=` decode to host=/hostaddr= at connect time even
+# though neither literal key appears in the URL text (Codex finding on this
+# PR against the case 16-17 fix above). Any '%' in the query string refuses.
+attack_out="$(WALK_RESIDUE_TEST_DB_URL='postgresql://postgres@localhost:5432/postgres?%68ost=evil.example.com' bash "$0" 2>&1)"
+attack_status=$?
+if [ "$attack_status" -eq 2 ] && grep -q 'percent-encoded character' <<<"$attack_out"; then
+  pass "a percent-encoded host= (%68ost=) is refused before any statement runs"
+else
+  fail "percent-encoded host= refused (status=$attack_status)"; printf '%s\n' "$attack_out" | tail -3
+fi
+
+attack_out="$(WALK_RESIDUE_TEST_DB_URL='postgresql://postgres@localhost:5432/postgres?host%61ddr=evil.example.com' bash "$0" 2>&1)"
+attack_status=$?
+if [ "$attack_status" -eq 2 ] && grep -q 'percent-encoded character' <<<"$attack_out"; then
+  pass "a percent-encoded hostaddr key (host%61ddr=) is refused"
+else
+  fail "percent-encoded hostaddr key refused (status=$attack_status)"; printf '%s\n' "$attack_out" | tail -3
 fi
 
 if [ "$failures" -eq 0 ]; then echo "walk-residue-cleanup-local: all cases passed"; exit 0; fi

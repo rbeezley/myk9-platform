@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeSchedule, type ScheduleClassRow } from './schedule-summary';
+import { compareLevels, summarizeSchedule, type ScheduleClassRow } from './schedule-summary';
+
+describe('compareLevels', () => {
+  it("treats the 'Masters' plural alias as the canonical 'Master' level (MYK9-811 Codex finding)", () => {
+    // A truly unknown level ('Elite') sorts alphabetically before 'Masters' —
+    // if 'Masters' is not aliased to 'Master' it falls back to the same
+    // unknown bucket and ties with 'Elite' on that alphabetical order.
+    const levels = ['Elite', 'Masters', 'Novice'];
+    expect([...levels].sort(compareLevels)).toEqual(['Novice', 'Masters', 'Elite']);
+  });
+});
 
 describe('summarizeSchedule', () => {
   it('groups classes by date and discipline', () => {

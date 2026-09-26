@@ -70,7 +70,12 @@ export function ClassBulkActionsBar({
 
   return (
     <>
-      <FloatingBulkBar count={selectedClasses.length} noun={CLASS_NOUN} onClear={onClear}>
+      <FloatingBulkBar
+        count={selectedClasses.length}
+        noun={CLASS_NOUN}
+        onClear={onClear}
+        busy={bulkBusy}
+      >
         <RowActionMenu
           actions={actions}
           size="touch"

@@ -9,7 +9,12 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { deriveTrialStatusKey, formatTrialLabel, matchesAny, type ClassStatusValue } from '@myk9/core';
+import {
+  deriveTrialStatusKey,
+  formatTrialLabel,
+  matchesAny,
+  type ClassStatusValue,
+} from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
@@ -176,7 +181,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   return (
     <div className="space-y-4">
-      {trials.length > TRIALS_SEARCH_THRESHOLD && (
+      {(trials.length > TRIALS_SEARCH_THRESHOLD || searchTerm !== '') && (
         <ListFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -220,7 +225,13 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                 ? 'No trials completed yet.'
                 : 'No trials match the current filter.'
           }
-          action={{ label: 'Show all trials', onClick: () => setStatusFilter('all') }}
+          action={{
+            label: 'Show all trials',
+            onClick: () => {
+              setStatusFilter('all');
+              setSearchTerm('');
+            },
+          }}
         />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

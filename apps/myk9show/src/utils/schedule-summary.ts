@@ -51,9 +51,15 @@ export const LEVEL_ORDER: Record<string, number> = {
   Master: 5,
 };
 
+// 'Masters' (plural) is a legacy AKC alias for 'Master' — the DB and current
+// templates use 'Master', but some legacy data still emits 'Masters'.
+const LEVEL_ALIASES: Record<string, string> = {
+  Masters: 'Master',
+};
+
 export function compareLevels(a: string, b: string): number {
-  const aOrder = LEVEL_ORDER[a] ?? 100;
-  const bOrder = LEVEL_ORDER[b] ?? 100;
+  const aOrder = LEVEL_ORDER[LEVEL_ALIASES[a] ?? a] ?? 100;
+  const bOrder = LEVEL_ORDER[LEVEL_ALIASES[b] ?? b] ?? 100;
   if (aOrder !== bOrder) return aOrder - bOrder;
   return a.localeCompare(b);
 }

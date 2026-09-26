@@ -124,4 +124,9 @@ describe('ClassBulkActionsBar', () => {
     setup([cls('1', 'Scheduled')], true);
     expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled();
   });
+
+  it('disables the Clear button while a bulk operation is running', () => {
+    setup([cls('1', 'Scheduled')], true);
+    expect(screen.getByRole('button', { name: /clear selection/i })).toBeDisabled();
+  });
 });

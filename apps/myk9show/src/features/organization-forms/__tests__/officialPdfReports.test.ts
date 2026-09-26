@@ -4,6 +4,7 @@ import {
   buildOfficialPdfFilename,
   getOfficialPdfMissingFieldLabels,
   getOfficialPdfReportConfig,
+  isStaticOfficialPdfReport,
 } from '../officialPdfReports';
 
 const reportProps = {
@@ -148,6 +149,25 @@ describe('buildOfficialPdfFilename', () => {
           })
         : ''
     ).toBe('akc-trial-chairman-report-trial.pdf');
+  });
+});
+
+describe('isStaticOfficialPdfReport', () => {
+  it('is true for the templates with no AcroForm fields at all (MYK9-828)', () => {
+    expect(isStaticOfficialPdfReport('ukc-nosework-judges-book-element')).toBe(true);
+    expect(isStaticOfficialPdfReport('ukc-nosework-judges-book-handler-discrimination')).toBe(
+      true
+    );
+    expect(isStaticOfficialPdfReport('ukc-nosework-trial-score-sheet')).toBe(true);
+  });
+
+  it('is false for a report that actually fills its fields', () => {
+    expect(isStaticOfficialPdfReport('ukc-nosework-trial-report')).toBe(false);
+    expect(isStaticOfficialPdfReport('trial-secretary-report')).toBe(false);
+  });
+
+  it('is false for an unknown report id', () => {
+    expect(isStaticOfficialPdfReport('not-a-real-report')).toBe(false);
   });
 });
 

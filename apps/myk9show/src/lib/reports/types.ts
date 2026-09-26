@@ -174,6 +174,31 @@ export interface ReportEntryFormData {
   isError: boolean;
 }
 
+/** A person the UKC Trial Report can print a contact block for (MYK9-828). */
+export interface UKCTrialReportOfficial {
+  name: string;
+  streetAddress: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/**
+ * Show/club/officials data the UKC Trial Report needs beyond what `ReportProps`
+ * otherwise carries — none of it is on the replicated `Show`/`DbTrial` shapes,
+ * so it is fetched separately (`useUKCTrialReportContext`) and merged in.
+ * Absent fields print blank rather than guessed (MYK9-828).
+ */
+export interface UKCTrialReportContext {
+  venueCity: string | null;
+  venueState: string | null;
+  clubNumber: string | null;
+  chairperson: UKCTrialReportOfficial | null;
+  secretary: UKCTrialReportOfficial | null;
+}
+
 export interface ReportProps {
   showId?: string;
   showName: string;
@@ -185,6 +210,12 @@ export interface ReportProps {
     judgeName: string;
     eventNumber?: string;
     registryId?: string;
+    /** `trials.timezone`, for formatting actualStartTime/actualEndTime in ring-local time. */
+    timezone?: string;
+    /** `trials.actual_start_time` — set once the trial's first class actually starts. */
+    actualStartTime?: string;
+    /** `trials.actual_end_time` — set once the trial's last class actually ends. */
+    actualEndTime?: string;
   };
   classData?: {
     element: string;
@@ -206,6 +237,8 @@ export interface ReportProps {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
+  /** See `UKCTrialReportContext` — populated only for the UKC Trial Report. */
+  ukcTrialReportContext?: UKCTrialReportContext | null;
   organization?: string;
   activityType?: string;
   clubName?: string;

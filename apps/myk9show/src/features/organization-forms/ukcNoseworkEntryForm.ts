@@ -1,9 +1,15 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 import { normalizeOrganization } from '@/features/dogs/identity';
-import type { EntryFormDog } from '@/lib/reports/entryFormTypes';
+import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
 import type { PdfFormFillValues } from './pdfForm';
 import { fillPdfForm } from './pdfForm';
 import { UKC_NOSEWORK_ENTRY_FORM_FIELDS } from './ukcNoseworkEntryFormFields';
+import {
+  computeUKCEntryFormDobMarks,
+  computeUKCEntryFormGridMarks,
+  computeUKCEntryFormPhoneMarks,
+  type EntryFormGridMark,
+} from './ukcNoseworkEntryFormGrid';
 
 export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillValues {
   const text: NonNullable<PdfFormFillValues['text']> = {};
@@ -18,7 +24,10 @@ export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillV
   );
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.breed, dog.breed);
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.sex, dog.sex);
-  addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.dateOfBirth, formatDate(dog.dateOfBirth));
+  // The AcroForm field for date of birth only has room for the year (MYK9-828)
+  // — the printed "/  /" slashes to its left have no field, so the month and
+  // day are drawn separately; see computeUKCEntryFormDobMarks.
+  addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.dateOfBirth, dobYear(dog.dateOfBirth));
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.registeredName, registeredName(dog));
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.callName, dog.callName);
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName, personName(dog.owner));
@@ -26,7 +35,9 @@ export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillV
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.city, dog.owner.city);
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.state, dog.owner.state);
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.postalCode, dog.owner.zipCode);
-  addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone, dog.owner.phone);
+  // Same story as date of birth: the field only has room for the last four
+  // digits (MYK9-828) — the area code and exchange blanks have no field.
+  addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone, lastFourDigits(dog.owner.phone));
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.email, dog.owner.email);
 
   const hasRegistrationNumber = Boolean(dog.registration?.registrationNumber?.trim());
@@ -51,20 +62,55 @@ export function buildUKCNoseworkEntryFormPacketFilename(
   return `ukc-nosework-entry-form-packet-${showToken}.pdf`;
 }
 
+/**
+ * Fills the AcroForm fields, then draws the marks the template has no fields
+ * for at all: which trial/section/element/level the dog is entered in, and
+ * the date-of-birth/phone segments that fall outside the (too narrow) fields
+ * (MYK9-828). `flatten` should match the caller's other official-PDF downloads
+ * — the packet flattens so pages can be copied into one document; a single
+ * dog's download leaves fields editable like every other official PDF.
+ */
+export async function buildUKCNoseworkEntryFormPdfBytes(input: {
+  dog: EntryFormDog;
+  trials: readonly EntryFormTrial[];
+  templateBytes: Uint8Array;
+  flatten: boolean;
+}): Promise<Uint8Array> {
+  const filledBytes = await fillPdfForm(
+    input.templateBytes,
+    buildUKCNoseworkEntryFormValues(input.dog),
+    { flatten: input.flatten }
+  );
+
+  const pdf = await PDFDocument.load(filledBytes);
+  const page = pdf.getPages()[0];
+  if (page) {
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const marks = [
+      ...computeUKCEntryFormGridMarks(input.dog, input.trials),
+      ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
+      ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
+    ];
+    drawMarks(page, font, marks);
+  }
+
+  return pdf.save();
+}
+
 export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {
   dogs: EntryFormDog[];
+  trials: readonly EntryFormTrial[];
   templateBytes: Uint8Array;
 }): Promise<Uint8Array> {
   const outputPdf = await PDFDocument.create();
 
   for (const dog of sortDogsForPacket(input.dogs)) {
-    const filledBytes = await fillPdfForm(
-      input.templateBytes,
-      buildUKCNoseworkEntryFormValues(dog),
-      {
-        flatten: true,
-      }
-    );
+    const filledBytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog,
+      trials: input.trials,
+      templateBytes: input.templateBytes,
+      flatten: true,
+    });
     const filledPdf = await PDFDocument.load(filledBytes);
     const copiedPages = await outputPdf.copyPages(filledPdf, filledPdf.getPageIndices());
     for (const page of copiedPages) {
@@ -73,6 +119,12 @@ export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {
   }
 
   return outputPdf.save();
+}
+
+function drawMarks(page: PDFPage, font: PDFFont, marks: EntryFormGridMark[]): void {
+  for (const mark of marks) {
+    page.drawText(mark.text, { x: mark.x, y: mark.y, size: mark.size, font });
+  }
 }
 
 function addText(
@@ -101,11 +153,14 @@ function personName(person: { firstName: string | null; lastName: string | null 
   return [person.firstName, person.lastName].filter(Boolean).join(' ').trim();
 }
 
-function formatDate(value: string | null | undefined): string | undefined {
-  const date = value?.slice(0, 10);
-  const match = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return value ?? undefined;
-  return `${match[2]}/${match[3]}/${match[1]}`;
+function dobYear(value: string | null | undefined): string | undefined {
+  const match = value?.slice(0, 10).match(/^(\d{4})-\d{2}-\d{2}$/);
+  return match?.[1];
+}
+
+function lastFourDigits(value: string | null | undefined): string | undefined {
+  const digits = value?.replace(/\D/g, '') ?? '';
+  return digits.length === 10 ? digits.slice(6) : undefined;
 }
 
 function sanitizeFilenameToken(value: string): string {

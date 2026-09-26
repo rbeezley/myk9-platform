@@ -43,6 +43,7 @@ import {
   buildUKCNoseworkEntryFormFilename,
   buildUKCNoseworkEntryFormPacketFilename,
   buildUKCNoseworkEntryFormPacketPdfBytes,
+  buildUKCNoseworkEntryFormPdfBytes,
   buildUKCNoseworkEntryFormValues,
 } from '@/features/organization-forms/ukcNoseworkEntryForm';
 import { UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/ukcNoseworkEntryFormFields';
@@ -468,16 +469,21 @@ export function useAKCOfficialPdfAction({
         }
         bytes = await buildUKCNoseworkEntryFormPacketPdfBytes({
           dogs: entryFormData.dogs,
+          trials: entryFormData.trials,
           templateBytes: new Uint8Array(await response.arrayBuffer()),
         });
         filename = buildUKCNoseworkEntryFormPacketFilename(showName ?? currentShowName);
       } else {
-        const { buildOfficialPdfBytesFromValues } =
-          await import('@/features/organization-forms/officialPdfDownload');
-        bytes = await buildOfficialPdfBytesFromValues(
-          'ukc-nosework-entry-form',
-          officialUKCEntryPdfValues!
-        );
+        const response = await fetch(getOrganizationFormTemplateUrl('ukc-nosework-entry-form'));
+        if (!response.ok) {
+          throw new Error('Unable to load UKC Nosework entry form template.');
+        }
+        bytes = await buildUKCNoseworkEntryFormPdfBytes({
+          dog: officialUKCEntryPdfDog!,
+          trials: entryFormData.trials,
+          templateBytes: new Uint8Array(await response.arrayBuffer()),
+          flatten: false,
+        });
         filename = buildUKCNoseworkEntryFormFilename(officialUKCEntryPdfDog!);
       }
 
@@ -493,6 +499,7 @@ export function useAKCOfficialPdfAction({
     currentShowName,
     dogId,
     entryFormData.dogs,
+    entryFormData.trials,
     officialUKCEntryPdfDog,
     officialUKCEntryPdfValues,
     showName,

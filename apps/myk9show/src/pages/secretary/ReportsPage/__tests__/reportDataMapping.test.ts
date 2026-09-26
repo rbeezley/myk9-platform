@@ -27,6 +27,9 @@ const trial = fromAny<DbTrial, unknown>({
   event_number: '2026123401',
   registry_id: 'UKC',
   trial_number: 2026123401,
+  timezone: 'America/Chicago',
+  actual_start_time: '2026-04-12T14:00:00Z',
+  actual_end_time: '2026-04-12T20:30:00Z',
 });
 
 const classData = {
@@ -96,6 +99,9 @@ describe('buildTrialReportProps', () => {
         registryId: 'UKC',
         trialNumber: '2026123401',
         judgeName: 'Pat Judge',
+        timezone: 'America/Chicago',
+        actualStartTime: '2026-04-12T14:00:00Z',
+        actualEndTime: '2026-04-12T20:30:00Z',
       },
       entries: [
         {

@@ -3,15 +3,17 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
-import type { EntryFormDog } from '@/lib/reports/entryFormTypes';
+import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
 import { fillPdfForm } from '../pdfForm';
 import {
   buildUKCNoseworkEntryFormFilename,
   buildUKCNoseworkEntryFormPacketFilename,
   buildUKCNoseworkEntryFormPacketPdfBytes,
+  buildUKCNoseworkEntryFormPdfBytes,
   buildUKCNoseworkEntryFormValues,
 } from '../ukcNoseworkEntryForm';
 import { UKC_NOSEWORK_ENTRY_FORM_FIELDS } from '../ukcNoseworkEntryFormFields';
+import { extractDrawnPdfText } from './testPdfText';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
@@ -67,10 +69,15 @@ describe('UKC Nosework entry form PDF', () => {
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.breed]: 'Golden Retriever',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.callName]: 'Star',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.city]: 'Dallas',
-        [UKC_NOSEWORK_ENTRY_FORM_FIELDS.dateOfBirth]: '03/15/2022',
+        // The AcroForm field only has room for the year -- the month/day are
+        // drawn into their own (fieldless) blanks (MYK9-828); see the "draws
+        // the date of birth" test below.
+        [UKC_NOSEWORK_ENTRY_FORM_FIELDS.dateOfBirth]: '2022',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.email]: 'sarah@example.com',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName]: 'Sarah Johnson',
-        [UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone]: '(214) 555-0123',
+        // Same story: only the last four digits fit the field; area code and
+        // exchange are drawn separately.
+        [UKC_NOSEWORK_ENTRY_FORM_FIELDS.phone]: '0123',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.postalCode]: '75001',
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.registeredName]: "CH Oakwood's Rising Star",
         [UKC_NOSEWORK_ENTRY_FORM_FIELDS.registrationNumber]: 'U123456',
@@ -116,6 +123,7 @@ describe('UKC Nosework entry form PDF', () => {
   it('can build a flattened packet from the official template', async () => {
     const bytes = await buildUKCNoseworkEntryFormPacketPdfBytes({
       dogs: [dog, { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 102 }],
+      trials: [],
       templateBytes: await readEntryTemplate(),
     });
     const pdf = await PDFDocument.load(bytes);
@@ -130,5 +138,100 @@ describe('UKC Nosework entry form PDF', () => {
     expect(buildUKCNoseworkEntryFormPacketFilename('Spring Trial')).toBe(
       'ukc-nosework-entry-form-packet-Spring-Trial.pdf'
     );
+  });
+
+  it('draws the date of birth month/day and phone area code/exchange in their own blanks', async () => {
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog,
+      trials: [],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    expect(drawn).toContain('03');
+    expect(drawn).toContain('15');
+    expect(drawn).toContain('214');
+    expect(drawn).toContain('555');
+  });
+
+  it('marks the trial, section, and element/level grid for each of the dog’s entries', async () => {
+    const trials: EntryFormTrial[] = [
+      { id: 'trial-1', date: '2026-10-10', trialNumber: '1' },
+      { id: 'trial-2', date: '2026-10-11', trialNumber: '2' },
+    ];
+    const dogWithEntries: EntryFormDog = {
+      ...dog,
+      entries: [
+        {
+          id: 'entry-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+        {
+          id: 'entry-2',
+          trialId: 'trial-2',
+          classId: 'class-2',
+          element: 'Handler Discrimination',
+          level: 'Excellent',
+          section: null,
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+      ],
+    };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithEntries,
+      trials,
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    const markCount = drawn.filter(text => text === 'X').length;
+    // Trial 1 bracket + Section A + Container/Novice, then Trial 2 bracket +
+    // Handler Discrimination/Excellent (no section — entry-2 has none).
+    expect(markCount).toBe(5);
+  });
+
+  it('does not mark a grid cell for an unrecognized element or level', async () => {
+    const dogWithUnknownEntry: EntryFormDog = {
+      ...dog,
+      entries: [
+        {
+          id: 'entry-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+          element: 'Not A Real Element',
+          level: 'Not A Real Level',
+          section: null,
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+      ],
+    };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithUnknownEntry,
+      trials: [{ id: 'trial-1', date: '2026-10-10', trialNumber: '1' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    // Trial 1 bracket still marks (a known trial number); the grid cell does not.
+    expect(drawn.filter(text => text === 'X').length).toBe(1);
   });
 });

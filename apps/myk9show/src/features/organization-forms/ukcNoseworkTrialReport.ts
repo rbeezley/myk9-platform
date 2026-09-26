@@ -1,10 +1,57 @@
 import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import { UKC_NOSEWORK_REPORT_FEE_PER_ENTRY } from '@/lib/reports/reportConstants';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
-import type { ReportEntry, ReportProps } from '@/lib/reports/types';
+import type { ReportEntry, ReportProps, UKCTrialReportOfficial } from '@/lib/reports/types';
+import { getTrialTimezone } from '@/features/registries';
+import { formatTime } from '@/lib/format/dates';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined } from './reportValueHelpers';
 import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from './ukcNoseworkTrialReportFields';
+
+interface OfficialFieldNames {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+  email: string;
+}
+
+const CHAIRPERSON_FIELD_PREFIX: OfficialFieldNames = {
+  name: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName,
+  address: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonAddress,
+  city: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonCity,
+  state: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonState,
+  zip: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonZip,
+  phone: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonPhone,
+  email: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonEmail,
+} as const;
+
+const SECRETARY_FIELD_PREFIX: OfficialFieldNames = {
+  name: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName,
+  address: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryAddress,
+  city: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryCity,
+  state: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryState,
+  zip: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryZip,
+  phone: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryPhone,
+  email: UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryEmail,
+} as const;
+
+function addOfficial(
+  text: NonNullable<PdfFormFillValues['text']>,
+  fields: OfficialFieldNames,
+  official: UKCTrialReportOfficial | null | undefined
+): void {
+  if (!official) return;
+  if (official.name) text[fields.name] = official.name;
+  if (official.streetAddress) text[fields.address] = official.streetAddress;
+  if (official.city) text[fields.city] = official.city;
+  if (official.state) text[fields.state] = official.state;
+  if (official.zipCode) text[fields.zip] = official.zipCode;
+  if (official.phone) text[fields.phone] = official.phone;
+  if (official.email) text[fields.email] = official.email;
+}
 
 export interface UKCEntryCounts {
   dayOfShowEntries: number;
@@ -39,6 +86,21 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
 
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName] = clubName;
+
+  const context = props.ukcTrialReportContext;
+  if (context?.clubNumber) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId] = context.clubNumber;
+  if (context?.venueCity) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city] = context.venueCity;
+  if (context?.venueState) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.state] = context.venueState;
+  addOfficial(text, CHAIRPERSON_FIELD_PREFIX, context?.chairperson);
+  addOfficial(text, SECRETARY_FIELD_PREFIX, context?.secretary);
+
+  const timezone = getTrialTimezone(props.trial);
+  const timeTrialStarted = formatTime(props.trial?.actualStartTime, timezone);
+  if (timeTrialStarted) text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted] = timeTrialStarted;
+  const conclusionOfLastClass = formatTime(props.trial?.actualEndTime, timezone);
+  if (conclusionOfLastClass) {
+    text[UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass] = conclusionOfLastClass;
+  }
 
   return {
     checkboxes: {

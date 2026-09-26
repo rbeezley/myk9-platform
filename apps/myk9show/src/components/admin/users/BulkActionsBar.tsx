@@ -4,15 +4,14 @@
  * Features:
  * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
  *   is in view wherever the rows were ticked
- * - A More menu (Copy emails, read-only; Export CSV) and bulk delete with
- *   confirmation (soft/permanent for admins, cascade for related data).
- *   Bulk account actions (Suspend, Reinstate, Send invitation, Restore) and
- *   bulk role editing are both deferred (docs/plan-list-toolkit.md, MYK9-835
- *   and MYK9-820); single-person actions in the row menu are unchanged.
+ * - Change roles (BulkRoleEditPanel), account actions (BulkAccountActions:
+ *   suspend, reinstate, invite, restore), a More menu (Copy emails, read-only;
+ *   Export CSV) and bulk delete with confirmation (soft/permanent for admins,
+ *   cascade for related data).
  */
 
-import React from 'react';
-import { Trash2, AlertCircle, ChevronUp, Copy, Download } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Trash2, AlertCircle, ChevronUp, Copy, Download, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +36,8 @@ import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
 import { selectedEmails } from './bulkAccountTargets';
 import { exportUsersCSV } from '@/pages/admin/UserManagementPage.helpers';
+import { BulkAccountActions } from './BulkAccountActions';
+import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
@@ -63,6 +64,7 @@ async function copyEmails(selectedUsers: BulkActionsBarProps['selectedUsers']) {
 
 export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   selectedUsers,
+  users,
   onClearSelection,
   onBulkComplete,
   onUsersDeleted,
@@ -77,7 +79,16 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted });
+    handleBulkRoleEdit,
+    isRoleProcessing,
+    roleError,
+  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
+
+  // The live roster, keyed by id — the single source bulk account actions and
+  // role editing resolve targets and eligibility from at dispatch time and on
+  // every retry (MYK9-835, MYK9-820), never from the selection snapshot.
+  const usersById = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const selectedIds = useMemo(() => selectedUsers.map(u => u.id), [selectedUsers]);
 
   if (selectedUsers.length === 0) {
     return null;
@@ -94,6 +105,17 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             .join(', ')}
           {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
         </p>
+        <BulkBarButton
+          onClick={() => setCurrentDialog('role')}
+          icon={<Shield className="h-4 w-4" aria-hidden="true" />}
+        >
+          Change roles
+        </BulkBarButton>
+        <BulkAccountActions
+          selectedIds={selectedIds}
+          usersById={usersById}
+          onClearSelection={onClearSelection}
+        />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -244,6 +266,15 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       </Dialog>
 
       {/* Change Roles Dialog */}
+      <BulkRoleEditPanel
+        open={currentDialog === 'role'}
+        onClose={closeDialog}
+        selectedIds={selectedIds}
+        usersById={usersById}
+        isProcessing={isRoleProcessing}
+        error={roleError}
+        onSubmit={handleBulkRoleEdit}
+      />
     </>
   );
 };

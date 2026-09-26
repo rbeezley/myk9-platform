@@ -37,7 +37,7 @@ export const USER_VIEWS: readonly UserViewDefinition[] = [
   { id: 'recent', label: 'Signed in, last 30 days', filters: preset({ login: 'recent30' }) },
   {
     id: 'new',
-    label: 'New this week',
+    label: 'New, last 7 days',
     filters: now => ({
       ...DEFAULT_USER_FILTER,
       dateRange: { start: startOfDayDaysAgo(now, 7), end: null },

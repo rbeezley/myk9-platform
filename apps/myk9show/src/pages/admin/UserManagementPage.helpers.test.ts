@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { escapeCsvCell, filterUsers, sortUsers } from './UserManagementPage.helpers';
 import { DEFAULT_USER_FILTER, hasActiveUserFilters } from './UserManagementPage.types';
@@ -229,6 +230,31 @@ describe('sortUsers', () => {
     const input = [...users];
     sortUsers(input, { id: 'name', desc: true });
     expect(input.map(u => u.id)).toEqual(['b', 'a', 'n']);
+  });
+});
+
+// The Roles column's badge (UserTable/columns.tsx) shows the highest-priority
+// role, not roles[0] — sorting on roles[0] can order a row by a role the
+// admin never sees on the badge (MYK9-837).
+describe('sortUsers by role — sorts by the badge lead role, not roles[0]', () => {
+  const roleUsers = [
+    // roles[0] is 'exhibitor', but the badge (and the sort) shows 'judge'.
+    { id: 'multi', firstName: 'Multi', roles: [UserRole.EXHIBITOR, UserRole.JUDGE] },
+    { id: 'admin', firstName: 'Admin', roles: [UserRole.SITE_ADMIN] },
+    { id: 'exhibitor', firstName: 'Exhibitor', roles: [UserRole.EXHIBITOR] },
+  ] as AdminUser[];
+
+  it('sorts by the lead role string ("judge"), not roles[0] ("exhibitor")', () => {
+    // Sorting by roles[0] would tie "multi" with "exhibitor" (both read
+    // "exhibitor") and land it ahead of "admin" ("site_admin"): ['multi',
+    // 'exhibitor', 'admin']. Sorting by the badge's lead role puts "multi" at
+    // "judge", which alphabetically falls between "exhibitor" and
+    // "site_admin".
+    expect(sortUsers(roleUsers, { id: 'role', desc: false }).map(u => u.id)).toEqual([
+      'exhibitor',
+      'multi',
+      'admin',
+    ]);
   });
 });
 

@@ -12,6 +12,7 @@ import type { User } from '@/types/user-types';
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
+import { getLeadRole } from '@/components/admin/users/UserTable/utils';
 
 /** Start of the day, so "created after Jul 3" includes everything on Jul 3. */
 function startOfDay(date: Date): number {
@@ -137,7 +138,9 @@ function sortValue(user: AdminUser, columnId: string): string {
     case 'email':
       return user.email?.toLowerCase() ?? '';
     case 'role':
-      return user.roles?.[0] ?? '';
+      // Same lead-role calculation as the Roles badge (UserTable/columns.tsx),
+      // so sorting never orders a row by a role the admin can't see (MYK9-837).
+      return getLeadRole(user.roles) ?? '';
     case 'lastLogin':
       return user.lastSignInAt ?? '';
     case 'status':

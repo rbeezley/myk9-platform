@@ -299,6 +299,11 @@ export const mapDatabaseToShow = (
     maxTotalEntries: dbShow.max_total_entries || undefined,
     allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
     isNationals: dbShow.is_nationals ?? false,
+    // MYK9-830: the header's "Payment methods" tile reads these off the Show
+    // object; dropping them here silently hid Check/Cash even when the
+    // wizard set both flags on the row.
+    acceptCheckPayments: dbShow.accept_check_payments ?? undefined,
+    acceptCashPayments: dbShow.accept_cash_payments ?? undefined,
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,

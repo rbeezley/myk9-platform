@@ -4,7 +4,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { toLocalDateOnly } from '@/utils/date-format';
-import { deriveRegistryId } from '@/features/registries';
+import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/registries';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
@@ -50,6 +50,9 @@ export interface TrialRpcPayload {
    *  create_show_with_children RPC reads this so online-created trials persist the right
    *  registry instead of the DB default. */
   registry_id: string;
+  /** IANA zone (MYK9-831), so online-created trials persist the show's zone
+   *  instead of the trials.timezone column's 'America/New_York' default. */
+  timezone: string;
 }
 
 export interface ClassRpcPayload {
@@ -135,12 +138,17 @@ export function buildCreateShowPayload(
   const trialIdMap: Record<string, string> = {};
   // Registry is show-wide (scoping §7) — derive once from the show's organization.
   const registryId = deriveRegistryId(show.organization);
+  // Timezone is show-wide too: the wizard's show step collects one zone for
+  // the whole show (MYK9-831). Falls back to the browser's zone for a draft
+  // saved before that field existed, rather than the RPC's own NY default.
+  const timezone = show.timezone || resolveBrowserTrialTimezone();
   const trialPayloads: TrialRpcPayload[] = trials.map((wizardTrial, index) => {
     const trialId = crypto.randomUUID();
     trialIdMap[wizardTrial.id] = trialId;
     const trialName = trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
     return {
       registry_id: registryId,
+      timezone,
       id: trialId,
       name: trialName,
       date: wizardTrial.dateTime
@@ -232,6 +240,7 @@ export function buildCreateShowPayload(
     displayOrder: t.display_order ?? undefined,
     category: t.category ?? undefined,
     registryId: t.registry_id,
+    timezone: t.timezone,
     _version: 1,
     _lastModified: new Date(),
     _syncStatus: 'synced',

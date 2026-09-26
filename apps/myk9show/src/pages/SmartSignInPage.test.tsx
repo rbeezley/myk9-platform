@@ -80,6 +80,7 @@ describe('SmartSignInPage', () => {
     signInWithAppleMock.mockReset();
     useShowQueryMock.mockReset();
     useShowQueryMock.mockReturnValue({ data: undefined });
+    window.localStorage.clear();
   });
 
   afterEach(() => {
@@ -239,6 +240,31 @@ describe('SmartSignInPage', () => {
     );
     expect(setGrantSpy.mock.calls[0]?.[0]).not.toHaveProperty('name');
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
+  });
+
+  // MYK9-834 review finding: the offline-reload fallback cache must be
+  // populated at first entry, not only on a later reload's claim derivation
+  // — a judge who works a whole show without reloading, then reloads once
+  // offline after a long day, would otherwise have nothing cached.
+  it('persists the offline-reload fallback claim on anonymous passcode entry', async () => {
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
+
+    await waitFor(() =>
+      expect(window.localStorage.getItem('myk9:ringside-claim-cache')).toEqual(
+        JSON.stringify({ showId: 'show-x', role: 'judge' })
+      )
+    );
   });
 
   it('requires Turnstile before creating an anonymous ringside session when configured', async () => {

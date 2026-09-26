@@ -812,5 +812,32 @@ describe('useAuth', () => {
       expect(result.current.user).toBeDefined();
       expect(typeof result.current.signUp).toBe('function');
     });
+
+    // MYK9-834 review finding: the offline-reload fallback cache is the one
+    // ringside artifact that survives a reload (ringsideGrantStore does not),
+    // so a real SIGNED_OUT — from any source, not only the app's own signOut()
+    // call — must purge it, or a signed-out judge could be re-admitted
+    // offline from stale state.
+    it('purges the ringside offline-reload fallback cache on SIGNED_OUT, from any source', async () => {
+      window.localStorage.setItem(
+        'myk9:ringside-claim-cache',
+        JSON.stringify({ showId: 'show-1', role: 'judge' })
+      );
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_OUT', null);
+      });
+
+      expect(window.localStorage.getItem('myk9:ringside-claim-cache')).toBeNull();
+    });
   });
 });

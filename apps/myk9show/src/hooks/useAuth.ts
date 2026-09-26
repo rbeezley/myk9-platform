@@ -4,6 +4,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { replicatedClassesTable } from '@/services/replication';
+import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 import type { User } from '@supabase/supabase-js';
 import {
   decodeOAuthRoleIntent,
@@ -163,9 +164,15 @@ export function useAuth() {
 
       // Clear the cached per-user appearance preferences on ANY sign-out —
       // explicit signOut, suspension-forced, session expiry, or another tab —
-      // so the next user on a shared browser doesn't inherit them.
+      // so the next user on a shared browser doesn't inherit them. The
+      // ringside offline-reload fallback cache (MYK9-834) needs the same
+      // treatment: it is the one ringside artifact that survives a reload
+      // (ringsideGrantStore itself does not), so a real SIGNED_OUT — not
+      // just the unused `endAnonymousRingsideSession` helper — must purge it
+      // or a signed-out judge could be re-admitted offline from stale state.
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
+        persistRingsideClaim(null);
       }
     });
 

@@ -407,40 +407,85 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
     ]);
   });
 
-  it('discards a by-id response older than a sync that landed while it was in flight', async () => {
-    // The rejection advanced the row to 8. While the re-fetch of version 8 is in
-    // flight, a normal sync downloads version 9 (another writer set
-    // final_placement to 3) and rebases the write onto it. The late version-8
-    // response must not roll the row, its base or the write back.
-    const v8: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
-    const v9: ServerRow = { status: 'scored', final_placement: 3, version: 9 };
-    const syncAdapter = adapterFor(v9);
-    let table!: RefetchingEntriesTable;
-    const adapter = adapterFor(v8, async () => {
-      await syncReplicatedTable(
-        table,
-        { ...syncAdapter, fetchRemoteRows: async () => [{ id: '1', ...v9 }] },
-        {},
-        { conflictSurfacingEnabled: true }
-      );
-      return [{ id: '1', ...v8 }];
+  /** A FIFO stand-in for navigator.locks that records every lock section. */
+  function stubWebLocks() {
+    const events: string[] = [];
+    let tail: Promise<unknown> = Promise.resolve();
+    let sections = 0;
+    const request = <R>(name: string, callback: () => Promise<R>): Promise<R> => {
+      const id = ++sections;
+      const run = tail.then(async () => {
+        events.push(`acquire ${name} #${id}`);
+        try {
+          return await callback();
+        } finally {
+          events.push(`release #${id}`);
+        }
+      });
+      tail = run.catch(() => undefined);
+      return run;
+    };
+    vi.stubGlobal('navigator', { onLine: true, locks: { request } });
+    return events;
+  }
+
+  it('a re-fetch requested during an upload waits for that upload to release the lock', async () => {
+    const events = stubWebLocks();
+    const serverRow: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
+    const adapter = adapterFor(serverRow, async () => {
+      events.push('fetch');
+      return [{ id: '1', ...serverRow }];
     });
-    table = new RefetchingEntriesTable(tableName, adapter);
-    startManager(table, makeServer(v9).supabase);
+    const table = new RefetchingEntriesTable(tableName, adapter);
+    startManager(table, makeServer(serverRow).supabase);
     await seedStaleWrite(table);
-    const db = await databaseManager.getDatabase('test');
-    const { advanceReplicatedRowServerVersion } = await import('./mutation-row-sync');
-    await advanceReplicatedRowServerVersion(db, tableName, '1', 8);
 
-    await manager.rowRefetchers.request(tableName, '1');
+    // The OCC rejection inside the upload queues the re-fetch; awaiting the
+    // lock there instead would deadlock this call.
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () => expect((await pending())[0]?.serverVersion).toBe(8));
 
-    const row = await table.getReplicatedRow('1');
-    expect(row?.syncStatus).not.toBe('conflict');
-    expect(row?.serverVersion).toBe(9);
-    expect(row?.data).toEqual({ id: '1', status: 'done', finalPlacement: 3 });
-    expect(row?.baseData).toEqual({ id: '1', status: 'scored', finalPlacement: 3 });
-    expect(await pending()).toMatchObject([
-      { serverVersion: 9, data: { id: '1', status: 'done', final_placement: 3 } },
+    expect(events).toEqual([
+      'acquire replication-upload #1',
+      'release #1',
+      'acquire replication-upload #2',
+      'fetch',
+      'release #2',
     ]);
+  });
+
+  it('no upload, and so no other OCC rejection, can run while a re-fetch holds the lock', async () => {
+    const events = stubWebLocks();
+    const serverRow: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
+    let releaseFetch!: () => void;
+    const fetchGate = new Promise<void>(resolve => (releaseFetch = resolve));
+    const adapter = adapterFor(serverRow, async () => {
+      events.push('fetch started');
+      await fetchGate;
+      events.push('fetch done');
+      return [{ id: '1', ...serverRow }];
+    });
+    const table = new RefetchingEntriesTable(tableName, adapter);
+    const { supabase, updates } = makeServer(serverRow);
+    startManager(table, supabase);
+    await seedStaleWrite(table);
+
+    await manager.uploadPendingMutations();
+    await vi.waitFor(() => expect(events).toContain('fetch started'));
+    afterBackoff();
+    const secondUpload = manager.uploadPendingMutations();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    // The second upload is parked on the lock: it has sent nothing.
+    expect(updates).toHaveLength(1);
+    releaseFetch();
+    await secondUpload;
+
+    expect(events.indexOf('fetch done')).toBeLessThan(
+      events.indexOf('acquire replication-upload #3')
+    );
+    // It uploaded the REBASED write, not the stale one.
+    expect(updates.map(call => call.expectedVersion)).toEqual([3, 8]);
+    expect(await pending()).toHaveLength(0);
   });
 });

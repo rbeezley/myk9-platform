@@ -25,6 +25,9 @@ export type RowRefetchAdapter<TRemote, TLocal extends { id: string }> = Pick<
  * conflict against, and a conflicted row already waits on the user. A fetch
  * failure rejects; the caller drops it and the next rejection asks again.
  *
+ * Callers run this under the `replication-upload` lock (RowRefetchRegistry),
+ * so no upload or OCC rejection interleaves with the fetch-then-write.
+ *
  * @returns the number of rows written.
  */
 export async function refetchDirtyRowsById<TRemote, TLocal extends { id: string }>(
@@ -50,29 +53,19 @@ export async function refetchDirtyRowsById<TRemote, TLocal extends { id: string 
   for (const remote of remotes) {
     const id = String(adapter.getRemoteId(remote));
     if (!wanted.includes(id)) continue;
-    // Re-read after the fetch: the write may have uploaded, a sync may have
-    // applied a newer version, or the row may have gone into conflict meanwhile.
+    // Re-read after the fetch: the write may have uploaded meanwhile.
     const existing = await table.getReplicatedRow(id);
     if (!existing?.isDirty || existing.baseData === undefined) continue;
-    if (existing.syncStatus === 'conflict') continue;
-    const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
-    // A response older than the row's token would roll its data and base back
-    // (or surface a false conflict); without a version it cannot be ordered.
-    if (!isAtLeastRowToken(remoteServerVersion, existing.serverVersion)) continue;
+    const remoteServerVersion = (remote as Record<string, unknown>).version;
+    // A row with no version cannot carry an OCC token; nothing to rebase onto.
+    if (typeof remoteServerVersion !== 'number') continue;
     const outcome = await reconcileDirtyRemoteRow(table, adapter, {
       id,
       existing: { ...existing, baseData: existing.baseData },
       remoteLocal: { ...adapter.toLocalRow(remote), id } as TLocal,
       remoteServerVersion,
-      // Re-checked inside the reconcile transaction: a sync can still land
-      // between the read above and that write.
-      rejectOlderThanRow: true,
     });
     if (outcome.changed) changed++;
   }
   return changed;
-}
-
-function isAtLeastRowToken(remote: number | undefined, row: number | undefined): boolean {
-  return typeof remote === 'number' && (row === undefined || remote >= row);
 }

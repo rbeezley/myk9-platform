@@ -55,7 +55,9 @@ export class MutationManager {
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
     this.queueStore = new MutationQueueStore(this.logger);
     this.backupStore = new MutationBackupStore(this.logger);
-    this.rowRefetchers = new RowRefetchRegistry(this.logger);
+    this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>
+      this.uploadRunner.runExclusive(work)
+    );
     this.uploadRunner = new MutationUploadRunner(
       this.logger,
       options.maxRetries ?? 3,

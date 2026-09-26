@@ -3,6 +3,9 @@ import type { Logger } from './dependencies';
 /** Re-fetch rows by id and run them through dirty-row reconciliation. */
 export type RowRefetcher = (rowIds: string[]) => Promise<unknown>;
 
+/** Runs work under the `replication-upload` lock (MutationUploadRunner.runExclusive). */
+export type RunExclusive = <R>(work: () => Promise<R>) => Promise<R>;
+
 /**
  * Tables that can fetch ONE row, keyed by table name (MYK9-771).
  *
@@ -14,14 +17,22 @@ export type RowRefetcher = (rowIds: string[]) => Promise<unknown>;
  * here for a re-fetch; the table reconciles the fresh row, which either rebases
  * the write or surfaces a same-field conflict.
  *
+ * The whole re-fetch (fetch, detect, mark or reconcile) runs under the upload
+ * lock, so no upload or OCC rejection can interleave with it. A request made
+ * from inside an upload only QUEUES: the work takes the lock after that upload
+ * releases it. Waiting for the lock inline would deadlock.
+ *
  * There is no bookkeeping to lose: a failed fetch is logged and dropped, the
  * write stays queued, and its next rejection asks again.
  */
 export class RowRefetchRegistry {
   private readonly refetchers = new Map<string, RowRefetcher>();
-  private readonly inFlight = new Map<string, Promise<void>>();
+  private readonly pending = new Map<string, Promise<void>>();
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly runExclusive: RunExclusive
+  ) {}
 
   /** @returns an unregister function that removes only this refetcher. */
   register(tableName: string, refetch: RowRefetcher): () => void {
@@ -32,21 +43,22 @@ export class RowRefetchRegistry {
   }
 
   /**
-   * Fire-and-forget re-fetch of one row. Never rejects. A request for a row
-   * whose re-fetch is still running joins it. Returns undefined when the table
-   * registered no refetcher (current behavior: the write keeps backing off).
+   * Queue a re-fetch of one row; never awaits the lock itself, never rejects.
+   * A request for a row whose re-fetch is still queued or running joins it.
+   * Returns undefined when the table registered no refetcher (current
+   * behavior: the write keeps backing off).
    */
   request(tableName: string, rowId: string): Promise<void> | undefined {
     const refetch = this.refetchers.get(tableName);
     if (!refetch) return undefined;
     const key = `${tableName}/${rowId}`;
-    const running = this.inFlight.get(key);
-    if (running) return running;
+    const queued = this.pending.get(key);
+    if (queued) return queued;
 
-    // Deferred through .then so the refetcher never runs (or throws) before the
-    // in-flight entry exists, and `finally` always removes it.
+    // Deferred through .then so the lock is requested after this call returns
+    // (the caller may be an upload holding it), and `finally` always clears.
     const run = Promise.resolve()
-      .then(() => refetch([rowId]))
+      .then(() => this.runExclusive(() => refetch([rowId])))
       .then(
         () => undefined,
         (error: unknown) => {
@@ -58,9 +70,9 @@ export class RowRefetchRegistry {
         }
       )
       .finally(() => {
-        this.inFlight.delete(key);
+        this.pending.delete(key);
       });
-    this.inFlight.set(key, run);
+    this.pending.set(key, run);
     return run;
   }
 }

@@ -780,9 +780,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
-      /** No-op when the row's token is already past `remoteServerVersion`: a
-       *  late single-row re-fetch must not roll back a newer sync (MYK9-771). */
-      rejectOlderThanRow?: boolean;
     }
   ): Promise<boolean> {
     const db = await this.init();
@@ -798,14 +795,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     // Only reconcile a still-dirty, non-conflicted row.
     if (!existingRow || !existingRow.isDirty || existingRow.syncStatus === 'conflict') {
-      await tx.done;
-      return false;
-    }
-    if (
-      params.rejectOlderThanRow &&
-      (params.remoteServerVersion === undefined ||
-        params.remoteServerVersion < (existingRow.serverVersion ?? -Infinity))
-    ) {
       await tx.done;
       return false;
     }

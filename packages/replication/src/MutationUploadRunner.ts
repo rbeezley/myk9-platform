@@ -3,6 +3,7 @@ import type { Logger } from './dependencies';
 import { executeMutation } from './mutation-execute';
 import { ContainmentError, OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
+import { UploadLock } from './upload-lock';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
@@ -44,6 +45,7 @@ export class MutationUploadRunner {
    * turn a ringside-scoring brownout into a platform-wide sync outage.
    */
   private containmentUntil: number | null = null;
+  private readonly uploadLock = new UploadLock();
 
   constructor(
     private readonly logger: Logger,
@@ -113,21 +115,15 @@ export class MutationUploadRunner {
   }
 
   async uploadPendingMutations(): Promise<SyncResult[]> {
-    const locks =
-      typeof navigator !== 'undefined'
-        ? (
-            navigator as unknown as {
-              locks?: {
-                request?: (name: string, cb: () => Promise<SyncResult[]>) => Promise<SyncResult[]>;
-              };
-            }
-          ).locks
-        : undefined;
-    if (locks && typeof locks.request === 'function') {
-      const result = await locks.request('replication-upload', () => this.runUploadPass());
-      return result ?? [];
-    }
-    return this.runUploadPass();
+    // Without Web Locks an overlapping request skips and flags a rerun, as it
+    // always has; queueing it behind the running pass would change that.
+    if (this.isUploading && !this.uploadLock.isCrossTab()) return this.runUploadPass();
+    return (await this.uploadLock.run(() => this.runUploadPass())) ?? [];
+  }
+
+  /** Run `work` under the upload lock (MYK9-771). Never call it from inside an upload. */
+  runExclusive<R>(work: () => Promise<R>): Promise<R> {
+    return this.uploadLock.run(work);
   }
 
   // eslint-disable-next-line complexity -- branch order is part of queue correctness

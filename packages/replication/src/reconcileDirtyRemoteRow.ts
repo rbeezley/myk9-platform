@@ -33,8 +33,6 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
     existing: ReplicatedRow<TLocal> & { baseData: TLocal };
     remoteLocal: TLocal;
     remoteServerVersion: number | undefined;
-    /** Skip the reconcile if the row's token has moved past this remote. */
-    rejectOlderThanRow?: boolean;
   }
 ): Promise<DirtyRemoteRowOutcome> {
   const { id, existing, remoteLocal, remoteServerVersion } = params;
@@ -78,7 +76,6 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
       ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
       : undefined,
     rebuildPayload: adapter.rebuildUpdatePayload,
-    ...(params.rejectOlderThanRow ? { rejectOlderThanRow: true } : {}),
   });
   return { conflict: false, changed: reconciled };
 }

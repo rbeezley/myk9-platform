@@ -80,6 +80,7 @@ describe('SmartSignInPage', () => {
     signInWithAppleMock.mockReset();
     useShowQueryMock.mockReset();
     useShowQueryMock.mockReturnValue({ data: undefined });
+    window.localStorage.clear();
   });
 
   afterEach(() => {

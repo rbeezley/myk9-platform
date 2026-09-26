@@ -83,6 +83,9 @@ export function revokeRingsidePasscodeAccess(): void {
 
   const { clearGrant, setSuppressRehydration } = useRingsideGrantStore.getState();
   setSuppressRehydration(true);
+  // `clearGrant` itself purges the offline-reload fallback cache
+  // (ringsideGrantStore.ts) — the revoked passcode must not be resurrected by
+  // it once this device goes offline again.
   clearGrant();
 
   void supabase.auth

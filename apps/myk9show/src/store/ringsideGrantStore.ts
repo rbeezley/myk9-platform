@@ -24,6 +24,7 @@
 import { create } from 'zustand';
 import type { User } from '@supabase/supabase-js';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
+import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 
 export interface RingsideGrant {
   /** The show this grant is scoped to. A grant for show X never applies to Y. */
@@ -51,6 +52,20 @@ export interface RingsideGrant {
    * (account + passcode merge); `'account'` is reserved for future use.
    */
   source: 'passcode' | 'account';
+  /**
+   * True ONLY for a grant restored by `useRehydrateRingsideGrant`'s offline
+   * fallback (`ringsideClaimCache.ts`) — a cached echo of a claim last
+   * confirmed against a live session, not a live confirmation itself. Marks
+   * the grant as revalidate-on-reconnect: once the device is back online and
+   * `useAuthContext().user` definitively resolves to no user, this grant is
+   * known-stale and is cleared rather than left admitting the ring on
+   * unconfirmed state (Codex review, MYK9-834). Every other `setGrant` call
+   * (entry-time, claim-derived on reload, the 1b account-merge confirmation)
+   * omits this — the offline-reload race those already tolerate (see
+   * `AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
+   * passcode grant") must never be swept up by this same-day-only guard.
+   */
+  unconfirmedOffline?: boolean;
 }
 
 interface RingsideGrantState {
@@ -75,8 +90,28 @@ interface RingsideGrantState {
 
 export const useRingsideGrantStore = create<RingsideGrantState>()(set => ({
   activeGrant: null,
-  setGrant: grant => set({ activeGrant: grant }),
-  clearGrant: () => set({ activeGrant: null }),
+  setGrant: grant => {
+    // Every confirmed passcode grant — account-less or account-expansion,
+    // whether attached here directly (SmartSignInPage) or re-derived by
+    // `useRehydrateRingsideGrant` — snapshots into the offline-reload fallback
+    // cache. This is the one choke point every successful passcode entry
+    // passes through (MYK9-834): persisting only from the rehydrate hook's own
+    // effect missed the normal case, where `setGrant` is called directly and
+    // the store already holding a grant short-circuits that effect entirely.
+    if (grant.source === 'passcode') {
+      persistRingsideClaim({ showId: grant.showId, role: grant.role });
+    }
+    set({ activeGrant: grant });
+  },
+  // Symmetric with `setGrant`'s auto-persist: every path that ends ringside
+  // access for this device — explicit "leave show", passcode revocation, or
+  // `useRehydrateRingsideGrant` discovering an offline-fallback grant is now
+  // stale (MYK9-834) — goes through here, so the offline-reload cache is
+  // purged at the same single choke point rather than at each call site.
+  clearGrant: () => {
+    persistRingsideClaim(null);
+    set({ activeGrant: null });
+  },
   suppressRehydration: false,
   setSuppressRehydration: value => set({ suppressRehydration: value }),
 }));

@@ -20,6 +20,8 @@ export interface OccRejectionContext {
   failedMutations: PendingMutation[];
   blockedDependencyIds: Set<string>;
   failedDependencyIds: Set<string>;
+  /** Ask the row's table to re-fetch it (fire-and-forget); see RowRefetchRegistry. */
+  requestRowRefetch?: (tableName: string, rowId: string) => unknown;
 }
 
 /**
@@ -47,6 +49,7 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
     failedMutations,
     blockedDependencyIds,
     failedDependencyIds,
+    requestRowRefetch,
   } = ctx;
 
   // Concurrent server write rejected this stale offline mutation.
@@ -169,6 +172,15 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
       nextRetryAt,
     });
     occPersisted = true;
+    // MYK9-771: a full-row UPDATE's own token is never advanced here, and the
+    // row now holds the server's token, so no incremental sync re-downloads it.
+    // Re-fetch that one row: a stale token alone rebases the write for its next
+    // retry; a same-field change marks the row for the user. Only after the
+    // backoff is persisted, so the rebase is not overwritten by this put.
+    // RPC deltas (ringside scoring) keep their existing path: the cap above.
+    if (stillQueued.rpc === undefined && stillQueued.operation === 'UPDATE') {
+      requestRowRefetch?.(error.tableName, error.rowId);
+    }
   }
 
   logger.warn(

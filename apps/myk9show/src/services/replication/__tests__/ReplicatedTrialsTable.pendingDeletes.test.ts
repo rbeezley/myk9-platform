@@ -48,6 +48,7 @@ vi.mock('@myk9/core', () => ({
 function fakeQueue() {
   const pending: PendingMutation[] = [];
   const manager = {
+    rowRefetchers: { register: () => () => undefined },
     queueMutation: vi.fn(
       async (
         tableName: string,

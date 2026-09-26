@@ -14,6 +14,7 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -126,10 +127,32 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * Sync armbands from Supabase.
    * Full sync — armbands table has no updated_at column.
    */
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<ArmbandRow, ReplicatedArmband> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('armbands')
+          .select('*')
+          .eq('is_available', false)
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return (data ?? []) as unknown as ArmbandRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToArmband,
+      rebuildUpdatePayload: armband => this.toSupabaseRow(armband),
+    };
+  }
+
   async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting full sync`);
 
     const adapter: SyncReplicatedTableAdapter<ArmbandRow, ReplicatedArmband> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async () => {
         const { data, error } = await supabase
           .from('armbands')
@@ -143,9 +166,6 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
 
         return (data ?? []) as unknown as ArmbandRow[];
       },
-      getRemoteId: remote => String(remote.id),
-      toLocalRow: rowToArmband,
-      rebuildUpdatePayload: armband => this.toSupabaseRow(armband),
       resolveConflict: (_local, remote) => remote,
       shouldCleanupStaleRows: true,
     };

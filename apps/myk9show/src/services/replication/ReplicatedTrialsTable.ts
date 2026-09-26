@@ -11,6 +11,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type MutationManager,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -171,6 +172,23 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     return this.toSupabaseRow(trial);
   }
 
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<TrialRow, ReplicatedTrial> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase.from('trials').select('*').in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToTrial,
+      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
+    };
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -179,6 +197,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     let queuedDeleteIds = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
+      ...this.getRowRefetchAdapter(),
       // A trial deleted here but not yet uploaded is still on the server; it
       // must not read as a missing row (MYK9-762).
       getPendingDeleteIds: ({ scope }) => this.pendingDeletes.coveredIds(scope.value),
@@ -231,10 +250,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
         return data ?? [];
       },
       shouldSkipRemoteRow: remote => queuedDeleteIds.has(String(remote.id)),
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToTrial,
-      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.showId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,

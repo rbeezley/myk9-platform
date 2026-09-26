@@ -64,12 +64,12 @@ function hasRelatedDataError(entryCount: number, dogCount: number): ErrorWithRel
   return error;
 }
 
-describe('useBulkActions — delete only (bulk account actions are deferred, MYK9-835)', () => {
+describe('useBulkActions — delete and role editing (MYK9-820, MYK9-835)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('exposes the delete actions and no bulk role or status action (both deferred or elsewhere)', () => {
+  it('exposes the delete actions and the role-edit action, no ad hoc status action', () => {
     const selectedUsers = [selectedUser('u1', 'Alice')];
     const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
 
@@ -80,8 +80,9 @@ describe('useBulkActions — delete only (bulk account actions are deferred, MYK
     expect(typeof result.current.handleBulkDelete).toBe('function');
     expect(typeof result.current.handleCascadeDelete).toBe('function');
     expect(typeof result.current.handleBulkPermanentDelete).toBe('function');
-    expect(result.current).not.toHaveProperty('handleBulkRoleEdit');
-    expect(result.current).not.toHaveProperty('handleBulkRoleChange');
+    expect(typeof result.current.handleBulkRoleEdit).toBe('function');
+    expect(result.current.isRoleProcessing).toBe(false);
+    expect(result.current.roleError).toBeNull();
   });
 });
 

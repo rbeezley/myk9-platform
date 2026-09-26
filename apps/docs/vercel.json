@@ -1,7 +1,10 @@
 {
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": false,
+      "claude/*": false,
+      "codex/*": false,
+      "worktree-*": false
     }
   }
 }

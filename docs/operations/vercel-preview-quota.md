@@ -40,6 +40,12 @@ Verification after changing Vercel settings:
 - An app-only PR should not build the guides project.
 - A shared package change should build only the projects that actually depend on that package.
 
+### Agent branches never build a guides preview
+
+Skip-unaffected alone was not enough. On 2026-09-25 the guides project made 78 deployments: 46 skipped as "Not affected", but 32 built, 21 of them for agent PRs that touched only myK9Show, migrations or edge functions, most likely because a branch's first push has no earlier deployment to compare against. The account hit its 100-a-day limit and the real myK9Show production deploy was refused (`api-deployments-free-per-day`).
+
+So [`apps/docs/vercel.json`](../../apps/docs/vercel.json) turns Git deploys off for `claude/*`, `codex/*` and `worktree-*`, as well as `main` (the guides site is released deliberately, not on merge). Hand-made branches still preview. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins the list. If an agent edits the guides and a preview is needed, push the same commit to a hand-named branch.
+
 ## 2. Keep Vercel previews non-required
 
 GitHub branch protection should continue to use GitHub CI as the required gate. As of 2026-07-07, the `main-required-checks` ruleset requires only:

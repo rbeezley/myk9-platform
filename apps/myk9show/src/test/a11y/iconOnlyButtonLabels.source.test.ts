@@ -6,10 +6,6 @@ const repoRoot = path.resolve(__dirname, '../../../../..');
 
 const requiredLabels: Array<{ file: string; labels: string[] }> = [
   {
-    file: 'apps/myk9show/src/components/common/UnifiedSidebar.tsx',
-    labels: ['Close sidebar', 'Clear ${title} search'],
-  },
-  {
     file: 'apps/myk9show/src/components/layout/sidebar/RoleSidebar.tsx',
     labels: ['Close sidebar'],
   },

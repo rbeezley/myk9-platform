@@ -1,6 +1,6 @@
 /**
  * Unified Entry Types for Table Display
- * These types ensure consistent data structure between ClassEntriesTable and BulkResultEntry
+ * These types ensure consistent data structure for BulkResultEntry
  */
 
 import { TrialType } from './template.types';

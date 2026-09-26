@@ -10,7 +10,7 @@
  * Local entries take priority and are emitted first; DB-only entries (not yet
  * in the local store) are appended afterwards. Both shapes are transformed
  * into the unified `ScentWorkEntry` representation consumed by the secretary
- * UI surfaces (dashboard, PlacementCalculator, ResultsGrid, BulkResultEntry).
+ * UI surfaces (dashboard, PlacementCalculator, BulkResultEntry).
  *
  * The order — local first, then DB-only fallbacks — is load-bearing: the
  * dashboard relies on it for entry list ordering. Do not change it without

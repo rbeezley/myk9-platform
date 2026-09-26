@@ -366,5 +366,11 @@ describe('UKC Nosework entry form PDF', () => {
     const page2Marks = (await extractDrawnPdfText(bytes, 1)).filter(text => text === 'X');
     expect(page1Marks.length).toBe(12); // 6 rows x (Trial 1 bracket + Container/Novice)
     expect(page2Marks.length).toBe(4); // 2 rows x (Trial 1 bracket + Container/Novice)
+
+    // Codex round 3 (MYK9-828): copyPages cannot carry a source document's
+    // AcroForm across, so a merged multi-page document can never stay
+    // genuinely editable. It is flattened outright — whatever `flatten` was
+    // requested — rather than shipping orphaned, half-broken form widgets.
+    expect(pdf.getForm().getFields().length).toBe(0);
   });
 });

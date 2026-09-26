@@ -75,12 +75,13 @@ export function buildUKCNoseworkEntryFormPacketFilename(
  * The template's grid only offers `MAX_GRID_ROWS` rows, so a dog entered in
  * more entries than that gets one page per `MAX_GRID_ROWS`-sized batch —
  * repeating the dog's own header fields on each page — rather than silently
- * dropping the overflow entries off the printed form. The common (single
- * page) case returns that page's own filled document directly, so `flatten:
- * false` really does leave its fields editable; `PDFDocument.copyPages` does
- * not carry a source document's AcroForm across, so only the rare multi-page
- * overflow case pays for the merge by losing field interactivity (the drawn
- * marks and values still print — they just cannot be edited afterward).
+ * dropping the overflow entries off the printed form. `PDFDocument.copyPages`
+ * does not carry a source document's AcroForm across, so a merged multi-page
+ * document can never stay genuinely editable (Codex review, round 3): the
+ * common single-page case returns that page's own filled document directly,
+ * honoring `flatten: false`; the overflow case is always flattened, whatever
+ * `flatten` was asked for, so the download never claims an editability it
+ * cannot deliver — the drawn marks and values still print correctly either way.
  */
 export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   dog: EntryFormDog;
@@ -90,8 +91,9 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
 }): Promise<Uint8Array> {
   const values = buildUKCNoseworkEntryFormValues(input.dog);
   const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
+  const flatten = input.flatten || entryBatches.length > 1;
   const pagePdfs = await Promise.all(
-    entryBatches.map(entries => fillAndMarkPage(input, values, entries))
+    entryBatches.map(entries => fillAndMarkPage({ ...input, flatten }, values, entries))
   );
 
   if (pagePdfs.length === 1) {

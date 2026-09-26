@@ -12,7 +12,7 @@
 
 import { PaymentStatus } from '@/types/show-registration-types';
 import { isPastShowEntry } from './myEntriesStats.helpers';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 const PREFIX = 'myk9:paid-strip-seen:';
 
@@ -67,13 +67,44 @@ export interface PaidStrip {
   date: Date;
 }
 
+/** This ROW's own resolved payment status, falling back to the order's only
+ *  when the row never carried one of its own — the same fallback
+ *  `toBalanceSources` (myEntryOrderBalance.ts) uses for the DUE side. */
+function resolvedRowPaymentStatus(cls: EntryClass, order: MyEntry): PaymentStatus {
+  return cls.paymentStatus ?? order.paymentStatus;
+}
+
 /**
- * Whether an order's money arrived through the ONLINE cart. Cash, check,
- * secretary-recorded and waived orders never produce a strip: there was no
- * checkout to confirm, and no receipt email to point at.
+ * Every (dogName, feeCents) this order actually settled through the ONLINE
+ * cart, read from each ROW'S OWN payment status — never the order's
+ * reconciled status. `reconcileOrderPaymentStatus` (myEntryOrderBalance.ts)
+ * deliberately returns PENDING the moment any sibling row is still unpaid, so
+ * gating on `order.paymentStatus` here silently dropped a dog's already-paid
+ * class the moment another dog on the SAME order still owed money — the exact
+ * "order can mix paid and pending class rows" case `EntryClass.paymentStatus`
+ * exists to cover (MYK9-804).
+ *
+ * Cash, check, secretary-recorded and waived rows never produce a strip:
+ * there was no checkout to confirm, and no receipt email to point at.
  */
-function isPaidOnline(order: MyEntry): boolean {
-  return order.paymentStatus === PaymentStatus.PAID_ONLINE;
+function paidOnlineRowsOf(order: MyEntry): { dogName: string; feeCents: number }[] {
+  if (order.dogs.length === 0) {
+    // Hand-built fixture with no `dogs[]` populated — fall back to the
+    // order's own top-level fields, matching the pre-existing behavior.
+    return order.paymentStatus === PaymentStatus.PAID_ONLINE
+      ? [{ dogName: order.dogName, feeCents: Math.round(order.totalFee * 100) }]
+      : [];
+  }
+
+  const rows: { dogName: string; feeCents: number }[] = [];
+  for (const dog of order.dogs) {
+    for (const cls of dog.classes) {
+      if (resolvedRowPaymentStatus(cls, order) === PaymentStatus.PAID_ONLINE) {
+        rows.push({ dogName: dog.dogName, feeCents: Math.round(cls.fee * 100) });
+      }
+    }
+  }
+  return rows;
 }
 
 /** Was this payment recent enough to still be worth confirming? */
@@ -84,7 +115,10 @@ function isWithinWindow(order: MyEntry, now: Date): boolean {
 /**
  * The paid strip a show group should render right now, or null.
  *
- * @param orders The show group's orders.
+ * @param orders EVERY order for this show, regardless of the page's own When
+ *   or Status filters — a dated statement of money received must not change
+ *   when the list is filtered (MYK9-804). Callers must pass the show's full,
+ *   unfiltered order set, never a filtered view like `MyShowGroup.orders`.
  * @param hasSeen Injected so the pure derivation stays testable and the caller
  *   can keep an in-memory dismissal set alongside the stored one.
  */
@@ -95,22 +129,25 @@ export function derivePaidStrip(
 ): PaidStrip | null {
   const fresh = orders.filter(
     order =>
-      isPaidOnline(order) &&
       isWithinWindow(order, now) &&
       !isPastShowEntry(order, now) &&
-      !hasSeen(order.id)
+      !hasSeen(order.id) &&
+      paidOnlineRowsOf(order).length > 0
   );
   if (fresh.length === 0) return null;
 
   const dogNames: string[] = [];
+  let amountCents = 0;
   for (const order of fresh) {
-    const names = order.dogs.length > 0 ? order.dogs.map(dog => dog.dogName) : [order.dogName];
-    for (const name of names) if (!dogNames.includes(name)) dogNames.push(name);
+    for (const row of paidOnlineRowsOf(order)) {
+      if (!dogNames.includes(row.dogName)) dogNames.push(row.dogName);
+      amountCents += row.feeCents;
+    }
   }
   return {
     orderIds: fresh.map(order => order.id),
     dogNames,
-    amountCents: fresh.reduce((sum, order) => sum + Math.round(order.totalFee * 100), 0),
+    amountCents,
     date: fresh.reduce(
       (latest, order) => (order.submittedAt > latest ? order.submittedAt : latest),
       fresh[0].submittedAt

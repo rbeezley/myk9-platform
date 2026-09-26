@@ -8,6 +8,8 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
+import { buildClassDisambiguator, type ClassIdentity } from '@/features/_shared/classLabel';
+import { deriveResultReleaseDisplay } from '@/features/result-card';
 import {
   isRunnableScheduleStatus,
   resolveClassSection,
@@ -59,6 +61,10 @@ export interface EnrichedShowEntry {
     time?: string;
     placement?: number;
     faults?: number;
+    /** MYK9-263/MYK9-805: true until the class is released — the schedule
+     *  must label the result preliminary the same way My Shows does. Optional
+     *  only for hand-built fixtures; the hook always sets it. */
+    isPreliminary?: boolean;
   };
 }
 
@@ -323,6 +329,28 @@ export function useShowEntriesForUser(
     );
 
     const classMap = new Map(classes.map(c => [c.id, c]));
+
+    // MYK9-489/MYK9-805: `getClassName`/`classDisplayName` build a label from
+    // element+level+section alone, which renders two different classes in the
+    // same trial (e.g. "Interior Advanced" and "Interior Advanced Preliminary")
+    // identically. Disambiguate over the trials this exhibitor's classes
+    // belong to, the same shared rule the public premium and the registration
+    // wizard already use — gated on a real name collision, so it never touches
+    // an ordinary class.
+    const relevantTrialIds = new Set(
+      myEntries.map(e => classMap.get(e.classId)?.trialId).filter((id): id is string => !!id)
+    );
+    const disambiguateClass = buildClassDisambiguator(
+      classes
+        .filter(c => relevantTrialIds.has(c.trialId))
+        .map((c): ClassIdentity => ({
+          name: c.className,
+          element: c.element,
+          level: c.level,
+          section: c.section,
+        }))
+    );
+
     const dogNameMap = new Map(
       dogs
         .filter(d => visibleDogIds.has(d.id))
@@ -371,6 +399,17 @@ export function useShowEntriesForUser(
       const compData = entry.competitionData;
       const hasResult = !!compData;
 
+      const classTitleBase = cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle;
+      const classExtra = cls
+        ? disambiguateClass({
+            name: cls.className,
+            element: cls.element,
+            level: cls.level,
+            section: cls.section,
+          })
+        : '';
+      const classTitle = classExtra ? `${classTitleBase} ${classExtra}` : classTitleBase;
+
       enriched.push({
         entryId: entry.id,
         classId: entry.classId,
@@ -382,7 +421,7 @@ export function useShowEntriesForUser(
         element,
         level,
         section,
-        classTitle: cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle,
+        classTitle,
         trialDate,
         dayLabel: formatWeekdayLongMonthDay(trialDate),
         trialName: cls?.trial ?? '',
@@ -400,6 +439,11 @@ export function useShowEntriesForUser(
                 ...(compData.time != null ? { time: compData.time } : {}),
                 ...(compData.placement ? { placement: parseInt(compData.placement, 10) } : {}),
                 ...(compData.faults != null ? { faults: compData.faults } : {}),
+                isPreliminary: deriveResultReleaseDisplay({
+                  resultsReleasedAt: cls?.results_released_at,
+                  resultStatus: compData.qualified ? 'qualified' : 'nq',
+                  finalPlacement: null,
+                }).isPreliminary,
               },
             }
           : {}),

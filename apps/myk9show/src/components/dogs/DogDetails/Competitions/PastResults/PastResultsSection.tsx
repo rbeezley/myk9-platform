@@ -17,6 +17,7 @@ import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ManualResult } from '@/types/manual-result-types';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { deriveResultReleaseDisplay } from '@/features/result-card';
 
 // Map ManualResult → PastResult for view/edit dialogs (bridge)
 function manualToPastResult(mr: ManualResult): PastResult {
@@ -138,30 +139,45 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
     <div className="myk9-section-content">
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Platform results (read-only) */}
-        {platformResults.map(result => (
-          <div key={`platform-${result.id}`} className="myk9-record-card">
-            <div className="myk9-record-header">
-              <div className="flex items-center gap-2">
-                <ShowSourceBadge source="myK9Show" />
-                <span className="myk9-record-title">{result.showName}</span>
+        {platformResults.map(result => {
+          // MYK9-263/MYK9-805: placement is withheld until the class is
+          // released, and an unreleased result reads "preliminary" — the same
+          // rule My Shows already enforces, reused rather than re-derived here.
+          const release = deriveResultReleaseDisplay({
+            resultsReleasedAt: result.resultsReleasedAt,
+            resultStatus: result.resultStatus,
+            finalPlacement: result.finalPlacement,
+          });
+          return (
+            <div key={`platform-${result.id}`} className="myk9-record-card">
+              <div className="myk9-record-header">
+                <div className="flex items-center gap-2">
+                  <ShowSourceBadge source="myK9Show" />
+                  <span className="myk9-record-title">{result.showName}</span>
+                </div>
+              </div>
+              <div className="myk9-record-content">
+                <div className="myk9-record-meta mb-2">Class: {result.className}</div>
+                <div className="flex gap-2 flex-wrap mb-2">
+                  <ResultBadge resultStatus={result.resultStatus} />
+                  {release.placement != null && (
+                    <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                      #{release.placement}
+                    </span>
+                  )}
+                  {release.isPreliminary && (
+                    <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                      preliminary
+                    </span>
+                  )}
+                </div>
+                <div className="myk9-record-meta">
+                  {result.showDate ? formatLongDate(result.showDate) : ''}
+                </div>
               </div>
             </div>
-            <div className="myk9-record-content">
-              <div className="myk9-record-meta mb-2">Class: {result.className}</div>
-              <div className="flex gap-2 flex-wrap mb-2">
-                <ResultBadge resultStatus={result.resultStatus} />
-                {result.finalPlacement && (
-                  <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                    #{result.finalPlacement}
-                  </span>
-                )}
-              </div>
-              <div className="myk9-record-meta">
-                {result.showDate ? formatLongDate(result.showDate) : ''}
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Manual results (editable) */}
         {manualResults.map(result => {

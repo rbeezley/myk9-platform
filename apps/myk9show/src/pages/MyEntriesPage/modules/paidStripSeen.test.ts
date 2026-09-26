@@ -327,4 +327,70 @@ describe('derivePaidStrip', () => {
 
     expect(derivePaidStrip(orders, NOW, neverSeen)?.dogNames).toEqual(['Rex', 'Scout']);
   });
+
+  // MYK9-804: a registration can hold one dog's paid class beside another
+  // dog's still-pending one. `reconcileOrderPaymentStatus` (myEntryOrderBalance.ts)
+  // reconciles that ORDER to PENDING — correctly, for the due side — but the
+  // paid strip must still confirm the row that actually settled, not gate the
+  // whole order out because a sibling row still owes money.
+  it("confirms the dog whose OWN row is paid, even when a sibling dog's row on the same order is still pending", () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          id: 'e-ranger',
+          registrationId: 'reg-mixed',
+          dogId: 'd-ranger',
+          dogName: 'Ranger',
+          classes: [
+            makeClass({ id: 'c-ranger', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
+          ],
+        }),
+        makeRow({
+          id: 'e-juni',
+          registrationId: 'reg-mixed',
+          dogId: 'd-juni',
+          dogName: 'Juni',
+          classes: [makeClass({ id: 'c-juni', fee: 30, paymentStatus: PaymentStatus.PENDING })],
+        }),
+      ],
+      NOW
+    );
+    // One order for the registration: the due side reconciles it to PENDING.
+    expect(orders).toHaveLength(1);
+    expect(orders[0].paymentStatus).toBe(PaymentStatus.PENDING);
+
+    const strip = derivePaidStrip(orders, NOW, neverSeen);
+
+    expect(strip).toEqual({
+      orderIds: ['e-ranger'],
+      dogNames: ['Ranger'],
+      amountCents: 3000,
+      date: PAID_AT,
+    });
+  });
+
+  it('sums only the paid rows on a mixed order, never the pending sibling’s fee', () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          id: 'e-mixed',
+          registrationId: 'reg-mixed-2',
+          dogId: 'd-mixed',
+          dogName: 'Atlas',
+          classes: [
+            makeClass({ id: 'c-mixed-1', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
+            makeClass({ id: 'c-mixed-2', fee: 40, paymentStatus: PaymentStatus.PENDING }),
+          ],
+        }),
+      ],
+      NOW
+    );
+
+    expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
+      orderIds: ['e-mixed'],
+      dogNames: ['Atlas'],
+      amountCents: 3000,
+      date: PAID_AT,
+    });
+  });
 });

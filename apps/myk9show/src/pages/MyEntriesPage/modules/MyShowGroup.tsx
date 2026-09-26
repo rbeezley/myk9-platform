@@ -43,6 +43,14 @@ export interface MyShowGroupProps {
    * (MYK9-629 restructure 1).
    */
   source: UserEntriesSource;
+  /**
+   * EVERY order for this show, regardless of the page's own When/Status
+   * filters — feeds the paid strip alone, so a dated statement of money
+   * received never changes when the list is filtered (MYK9-804). Falls back
+   * to `group.orders` when the show has no unfiltered entry (a fixture or a
+   * show that dropped out of the current read entirely).
+   */
+  allOrders?: MyEntry[] | undefined;
   /** Captured once per render pass by the list; never `new Date()` inline. */
   now: Date;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
@@ -62,6 +70,7 @@ export interface MyShowGroupProps {
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
   source,
+  allOrders,
   now,
   selfCheckinByClassId,
   seenResultReleaseKeys,
@@ -89,7 +98,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const paidStrip = moneyUnknown
     ? null
     : derivePaidStrip(
-        group.orders,
+        allOrders ?? group.orders,
         now,
         orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
       );

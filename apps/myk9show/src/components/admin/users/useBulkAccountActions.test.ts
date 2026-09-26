@@ -81,7 +81,11 @@ describe('useBulkAccountActions', () => {
   it('never offers Suspend on the current admin, even when selected', () => {
     const roster = rosterOf(user('a'), user('me', { user_id: 'auth-me' }));
     const { result } = renderHook(() =>
-      useBulkAccountActions({ selectedIds: ['a', 'me'], usersById: roster, onClearSelection: vi.fn() })
+      useBulkAccountActions({
+        selectedIds: ['a', 'me'],
+        usersById: roster,
+        onClearSelection: vi.fn(),
+      })
     );
     expect(result.current.targets.suspend).toEqual(['a']);
     expect(result.current.targets.selfSkipped).toBe(true);
@@ -91,7 +95,11 @@ describe('useBulkAccountActions', () => {
     const roster = rosterOf(user('a'), user('b'));
     const onClear = vi.fn();
     const { result } = renderHook(() =>
-      useBulkAccountActions({ selectedIds: ['a', 'b'], usersById: roster, onClearSelection: onClear })
+      useBulkAccountActions({
+        selectedIds: ['a', 'b'],
+        usersById: roster,
+        onClearSelection: onClear,
+      })
     );
 
     await act(async () => {
@@ -109,7 +117,11 @@ describe('useBulkAccountActions', () => {
     mutateAsync.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('boom'));
     const roster = rosterOf(user('a'), user('b'));
     const { result } = renderHook(() =>
-      useBulkAccountActions({ selectedIds: ['a', 'b'], usersById: roster, onClearSelection: vi.fn() })
+      useBulkAccountActions({
+        selectedIds: ['a', 'b'],
+        usersById: roster,
+        onClearSelection: vi.fn(),
+      })
     );
 
     await act(async () => {
@@ -162,9 +174,7 @@ describe('useBulkAccountActions', () => {
     // "b" is no longer eligible for Suspend (already suspended) — it must be
     // skipped, not re-attempted.
     expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith(
-      expect.stringContaining('no longer eligible')
-    );
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('no longer eligible'));
   });
 
   // MYK9-835 stale-data case: the person signs in between selection and a

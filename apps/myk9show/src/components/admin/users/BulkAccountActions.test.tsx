@@ -69,7 +69,11 @@ describe('BulkAccountActions', () => {
   });
 
   it('shows only the actions that apply, with a count when they reach fewer than all', () => {
-    renderActions([user('a'), user('b', { status: 'suspended' }), user('me', { user_id: 'auth-me' })]);
+    renderActions([
+      user('a'),
+      user('b', { status: 'suspended' }),
+      user('me', { user_id: 'auth-me' }),
+    ]);
     // "me" is the admin: left out of Suspend.
     expect(screen.getByRole('button', { name: 'Suspend 1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reinstate 1' })).toBeInTheDocument();

@@ -228,7 +228,9 @@ describe('planBulkRoleEdit', () => {
       clubIds: [],
       currentUserId: 'me',
     });
-    expect(plan.people).toEqual([{ userId: 'me', remove: [], add: [{ role: 'steward', clubId: null }] }]);
+    expect(plan.people).toEqual([
+      { userId: 'me', remove: [], add: [{ role: 'steward', clubId: null }] },
+    ]);
   });
 });
 

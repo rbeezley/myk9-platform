@@ -128,8 +128,7 @@ export function useBulkAccountActions({
       // trusting whatever was true when the batch was first dispatched — a
       // person who signed in, changed status, or left the roster in between is
       // skipped, not re-run (MYK9-835).
-      applicableWhen: id =>
-        isEligible(action, id, usersByIdRef.current, currentUserIdRef.current),
+      applicableWhen: id => isEligible(action, id, usersByIdRef.current, currentUserIdRef.current),
     });
     // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;

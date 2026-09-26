@@ -144,7 +144,9 @@ export function BulkRoleEditPanel({
         currentUserId,
       })
     : null;
-  const summary = plan ? summarizeBulkPlan(plan, chosen, selectedIds, usersById, clubIds.length) : [];
+  const summary = plan
+    ? summarizeBulkPlan(plan, chosen, selectedIds, usersById, clubIds.length)
+    : [];
   const planPending = !assignments && !assignmentsError;
 
   const {

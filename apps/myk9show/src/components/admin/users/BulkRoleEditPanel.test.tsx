@@ -144,7 +144,9 @@ describe('BulkRoleEditPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply changes' }));
 
     // The stale plan (both people) must never reach the runner.
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/changed since you opened/i));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/changed since you opened/i)
+    );
     expect(onSubmit).not.toHaveBeenCalled();
 
     // The summary now reflects reality: only Sam still holds it.

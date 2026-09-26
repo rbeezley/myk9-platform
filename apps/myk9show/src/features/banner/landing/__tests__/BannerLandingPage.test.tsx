@@ -136,16 +136,17 @@ describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
     );
 
     // jsdom resolves no custom properties, so pin both halves of the chain:
-    // the status text reads --bn-flag, and the page sets it to the club flag.
+    // the status text reads --bn-flag-text, and the page sets it to the club's
+    // text-safe flag (MYK9-765: the raw flag can be unreadable on paper).
     const status = container.querySelector<HTMLElement>('.bn-subbar-status');
-    expect(status?.style.color).toBe('var(--bn-flag)');
+    expect(status?.style.color).toBe('var(--bn-flag-text)');
     const scope = status?.closest<HTMLElement>('[data-banner]');
-    expect(scope?.style.getPropertyValue('--bn-flag')).toBe(baseData.brandColors.flag);
+    expect(scope?.style.getPropertyValue('--bn-flag-text')).toBe(baseData.brandColors.flagText);
     // Nothing between them re-sets the variable to something else.
     for (let el = status?.parentElement; el && el !== scope; el = el.parentElement) {
-      expect(el.style.getPropertyValue('--bn-flag')).toBe('');
+      expect(el.style.getPropertyValue('--bn-flag-text')).toBe('');
     }
     // The fixture's flag must differ from the default, or this proves nothing.
-    expect(baseData.brandColors.flag).not.toBe(bannerColors.flag);
+    expect(baseData.brandColors.flagText).not.toBe(bannerColors.flag);
   });
 });

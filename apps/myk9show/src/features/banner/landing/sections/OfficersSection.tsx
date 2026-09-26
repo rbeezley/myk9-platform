@@ -8,14 +8,14 @@ interface OfficersSectionProps {
   officers: BannerOfficer[];
   secretaryName: string | null;
   secretaryEmail: string | null;
-  flag: string;
+  flagText: string;
 }
 
 export function OfficersSection({
   officers,
   secretaryName,
   secretaryEmail,
-  flag,
+  flagText,
 }: OfficersSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
@@ -40,8 +40,8 @@ export function OfficersSection({
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="07" label="Who" flag={flag}>
-        Officers <span style={{ color: flag }}>& staff.</span>
+      <BannerSectionHead number="07" label="Who" flagText={flagText}>
+        Officers <span style={{ color: flagText }}>& staff.</span>
       </BannerSectionHead>
 
       <div
@@ -72,7 +72,7 @@ export function OfficersSection({
                 fontSize: 10,
                 letterSpacing: '0.28em',
                 textTransform: 'uppercase',
-                color: flag,
+                color: flagText,
                 marginBottom: 10,
               }}
             >

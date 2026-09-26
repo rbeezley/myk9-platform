@@ -69,6 +69,7 @@ export function BannerLandingPage({
           background: 'var(--bn-paper, #fafaf8)',
           color: 'var(--bn-ink, #111111)',
           ['--bn-flag' as string]: brandColors.flag,
+          ['--bn-flag-text' as string]: brandColors.flagText,
           ['--bn-flag-deep' as string]: brandColors.flagDeep,
           ['--bn-flag-bright' as string]: brandColors.flagBright,
           ['--bn-text-on-flag' as string]: brandColors.textOnFlag,
@@ -117,7 +118,7 @@ export function BannerLandingPage({
         <WelcomeSection
           welcomeText={data.welcomeText}
           trialChairName={data.trialChairName}
-          flag={brandColors.flag}
+          flagText={brandColors.flagText}
         />
         <ParticularsSection
           licenseLanguage={data.licenseLanguage}
@@ -129,31 +130,33 @@ export function BannerLandingPage({
           trialsCount={data.trials.length}
           timezone={data.timezone}
           flag={brandColors.flag}
+          flagText={brandColors.flagText}
         />
         <JudgesSection
           judges={data.judges}
           trialsCount={data.trials.length}
-          flag={brandColors.flag}
+          flagText={brandColors.flagText}
         />
         <RosterSection
           entryCount={data.entryCount}
           entryLimit={data.entryLimit}
           flag={brandColors.flag}
+          flagText={brandColors.flagText}
           flagBright={brandColors.flagBright}
         />
-        <PlanSection accommodations={data.accommodations} flag={brandColors.flag} />
+        <PlanSection accommodations={data.accommodations} flagText={brandColors.flagText} />
         <OnTheDaySection
           items={data.onTheDay}
           hospitalityNotes={data.hospitalityNotes}
           awardsDescription={data.awardsDescription}
           houseRulesNotes={data.houseRulesNotes}
-          flag={brandColors.flag}
+          flagText={brandColors.flagText}
         />
         <OfficersSection
           officers={data.officers}
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
-          flag={brandColors.flag}
+          flagText={brandColors.flagText}
         />
         <OfferedClassesSection show={show} className="bn-section" />
 

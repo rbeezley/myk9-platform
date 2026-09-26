@@ -5,9 +5,9 @@
  * root of a non-Banner page is a no-op. Mirrors the heritage.css /
  * monogram.css pattern.
  *
- * The flag color (--bn-flag and its two siblings) is per-club configurable.
- * Banner consumers set inline `--bn-flag` / `--bn-flag-deep` / `--bn-flag-bright`
- * on the [data-banner] root via React style prop; the defaults below are the
+ * The flag color (--bn-flag and its siblings) is per-club configurable.
+ * Banner consumers set inline `--bn-flag` / `--bn-flag-text` / `--bn-flag-deep` /
+ * `--bn-flag-bright` on the [data-banner] root via React style prop; the defaults below are the
  * design-handoff deep teal and act as fallbacks if a club's brand_color is
  * unset.
  */
@@ -20,6 +20,7 @@
   --bn-mute: #6b6b6b;
   --bn-hair: #d8d8d4;
   --bn-flag: #0d4d4f;
+  --bn-flag-text: #0d4d4f;
   --bn-flag-deep: #093234;
   --bn-flag-bright: #1a7679;
   --bn-warn: #d97742;

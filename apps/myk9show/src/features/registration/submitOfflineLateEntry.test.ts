@@ -51,7 +51,7 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: createEntryMock,
     getEntriesByShow: getEntriesByShowMock,
-    getAllWithStatus: async () => ({
+    getByShowWithStatus: async () => ({
       ok: true,
       rows: (((await getEntriesByShowMock('show-1')) ?? []) as Array<Record<string, unknown>>).map(
         row => ({
@@ -82,7 +82,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedTrialsTable: {
     getTrialsByShow: getTrialsByShowMock,
-    getAllWithStatus: async () => ({
+    getByShowWithStatus: async () => ({
       ok: true,
       rows: (((await getTrialsByShowMock('show-1')) ?? []) as Array<Record<string, unknown>>).map(
         row => ({
@@ -95,7 +95,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: getJudgeAssignmentsByShowMock,
-    getAllWithStatus: async () => ({
+    getByShowWithStatus: async () => ({
       ok: true,
       rows: (await getJudgeAssignmentsByShowMock()) ?? [],
       error: null,

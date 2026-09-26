@@ -902,6 +902,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * One show's rows (by the mapped row's `showId`) with explicit local-read
+   * status, read through the show index instead of a whole-table scan
+   * (MYK9-788).
+   */
+  async getByShowWithStatus(showId: string): Promise<ReplicatedReadResult<T>> {
+    return this.queryManager.getByShowWithStatus(showId);
+  }
+
+  /**
    * Get all rows, or throw when the device could not read them. getAll() hands
    * back [] for a failed read, which a caller then reports or acts on as "there
    * are none". Scoped readers built on this throw instead, so a failed read

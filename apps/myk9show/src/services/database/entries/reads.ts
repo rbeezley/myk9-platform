@@ -1227,9 +1227,22 @@ export const countActiveEntriesByDog = async (dogId: string): Promise<number> =>
   return count ?? 0;
 };
 
-// Count a dog's live entries that BLOCK a delete — the exact predicate
-// soft_delete_dog refuses on (MK002, migration 20260830140000). Kept in step
-// with it by `entryBlocksDogDelete.contract.test.ts`, which reads both.
+// Count a dog's live entries that BLOCK a delete — a NARROWED copy of the
+// predicate soft_delete_dog refuses on (MK002, migration 20260830140000).
+// Kept in step with the arms it still shares with the server by
+// `entryBlocksDogDelete.contract.test.ts`, which reads both.
+//
+// Deliberately excludes result_status (MYK9-799): migration
+// 20260620001929_restrict_authenticated_entry_results.sql revoked
+// `authenticated`'s column-SELECT grant on entries.result_status, so naming
+// it in a PostgREST filter — even inside an `or()` — makes PostgREST refuse
+// the WHOLE request with 403, which permanently disabled Delete for every
+// dog. is_scored and scoring_completed_at are written together with
+// result_status by every scoring write path in the app (score submission,
+// manual results entry), so this predicate is not weaker in the cases that
+// occur; soft_delete_dog's full predicate, including result_status, remains
+// the authoritative guard and still refuses with MK002 if the two ever
+// diverge.
 //
 // 'refunded' and 'waived' do not block: no money is being kept. A direct
 // head-count for the same reason as countActiveEntriesByDog above — a
@@ -1240,9 +1253,7 @@ export const countBlockingEntriesByDog = async (dogId: string): Promise<number> 
     .select('id', { count: 'exact', head: true })
     .eq('dog_id', dogId)
     .is('deleted_at', null)
-    .or(
-      'payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null,and(result_status.not.is.null,result_status.neq.pending)'
-    );
+    .or('payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null');
   if (error) throw error;
   return count ?? 0;
 };

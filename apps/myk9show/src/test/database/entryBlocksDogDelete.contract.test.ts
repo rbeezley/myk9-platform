@@ -13,6 +13,16 @@
  * narrowing the SQL guard while the dialog keeps describing the old rule, so the
  * warning silently becomes a lie and the user meets a server error the dialog
  * told them would not happen.
+ *
+ * The client filter is a DELIBERATE, NARROWER subset of the server guard
+ * (MYK9-799): it omits `result_status` because `authenticated` has no
+ * column-SELECT grant on `entries.result_status` (migration
+ * 20260620001929_restrict_authenticated_entry_results.sql), and naming an
+ * ungranted column inside a PostgREST `or()` filter makes PostgREST refuse the
+ * whole request with 403 — which is what permanently disabled Delete for
+ * every dog until this fix. `ARMS` below therefore lists only the arms both
+ * sides implement; the column-allowlist test lower in this file guards
+ * against the client filter ever naming an ungranted column again.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -65,22 +75,49 @@ function clientFilter(): string {
   return body.slice(or);
 }
 
-// [sql fragment, postgrest fragment] for each arm of the predicate.
+// [sql fragment, postgrest fragment] for each arm BOTH sides implement.
+// `result_status` is server-only — see the file header comment.
 const ARMS: ReadonlyArray<readonly [string, string]> = [
   ["e.payment_status = 'paid'", 'payment_status.eq.paid'],
   ['e.is_scored IS TRUE', 'is_scored.is.true'],
   ['e.scoring_completed_at IS NOT NULL', 'scoring_completed_at.not.is.null'],
-  ["e.result_status <> 'pending'", 'result_status.neq.pending'],
+];
+
+// The migration that revoked authenticated's column-SELECT grant on entries
+// (20260620001929_restrict_authenticated_entry_results.sql). Mirrors the list
+// pinned in authenticatedEntryResultsRlsContract.test.ts — naming any of
+// these in a PostgREST filter makes PostgREST refuse the whole request.
+const FORBIDDEN_AUTHENTICATED_COLUMNS = [
+  'result_status',
+  'search_time_seconds',
+  'total_faults',
+  'total_score',
+  'final_placement',
+  'judge_notes',
+  'judge_signature',
+  'disqualification_reason',
+  'video_review_notes',
 ];
 
 describe('delete-blocking entry predicate', () => {
-  it('is the same set of arms on the server and in the dialog', () => {
+  it('is the same set of client-readable arms on the server and in the dialog', () => {
     const sql = sqlGuardBody();
     const filter = clientFilter();
 
     for (const [sqlArm, clientArm] of ARMS) {
       expect(sql, `SQL guard is missing ${sqlArm}`).toContain(sqlArm);
       expect(filter, `client filter is missing ${clientArm}`).toContain(clientArm);
+    }
+  });
+
+  it('never names a column authenticated cannot SELECT on entries (MYK9-799)', () => {
+    // Assertion-first: this was red before the fix — the filter contained
+    // `result_status.neq.pending`, and PostgREST 403s the ENTIRE request when
+    // an `or()` filter names a column outside the caller's column grant, so
+    // Delete was disabled for every dog regardless of its entries.
+    const filter = clientFilter();
+    for (const col of FORBIDDEN_AUTHENTICATED_COLUMNS) {
+      expect(filter, `client filter names ungranted column ${col}`).not.toContain(col);
     }
   });
 

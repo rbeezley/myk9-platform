@@ -35,7 +35,9 @@ describe('DeleteShowDialog permanent-delete refusal', () => {
     vi.stubEnv('DEV', false);
   });
 
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('shows the server refusal, not a generic error', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code: '23503', message: REFUSAL } });

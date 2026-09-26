@@ -25,7 +25,9 @@ describe('useStripeLivemode staleness', () => {
     maybeSingle.mockResolvedValue({ data: { stripe_livemode: false }, error: null });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('re-reads platform_settings on a new mount ten minutes after the last read', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

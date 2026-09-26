@@ -1376,7 +1376,9 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   // `vi.clearAllMocks()` clears call history but NOT return-value overrides
   // (see the note in the first describe), so a seeded position would otherwise
   // follow this file into whichever describe runs next.
-  afterEach(() => seedPosition([]));
+  afterEach(() => {
+    seedPosition([]);
+  });
 
   it('counts the position on the Waitlist chip', async () => {
     renderWithProviders(<MyEntriesPage />);

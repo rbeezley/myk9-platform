@@ -912,7 +912,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (!result.ok) {
       // Plain words for any screen that shows it; the table and the storage
       // error ride along as the cause for logging.
+      // Named so a caller's server fallback can tell "the device could not read"
+      // from any other throw (it must not serve server rows over writes this
+      // device has not uploaded).
       throw Object.assign(new Error("This device couldn't read its saved show data. Try again."), {
+        name: 'ReplicaReadError',
         cause: { table: this.tableName, error: result.error },
       });
     }

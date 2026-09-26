@@ -1,4 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
+import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/replication-fallback';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -826,9 +827,11 @@ describe('entryQueries (replication)', () => {
       table.getAll.mockResolvedValue([]);
       Object.defineProperty(table, 'getAllOrThrow', {
         configurable: true,
-        value: vi
-          .fn()
-          .mockRejectedValue(new Error("This device couldn't read its saved show data.")),
+        value: vi.fn().mockRejectedValue(
+          Object.assign(new Error("This device couldn't read its saved show data."), {
+            name: 'ReplicaReadError',
+          })
+        ),
       });
       return () => {
         if (original) Object.defineProperty(table, 'getAllOrThrow', original);
@@ -848,6 +851,23 @@ describe('entryQueries (replication)', () => {
         expect(result.error).not.toBeNull();
         expect(result.data).toEqual([]);
       } finally {
+        restore();
+      }
+    });
+
+    it('getAllEntries returns the error, not a server list, while a write waits to upload', async () => {
+      setupListMocks([]);
+      const restore = failDeviceRead(mockEntriesTable);
+      const { mutationManager } = await import('@/services/replication/sharedMutationManager');
+      const pending = vi.spyOn(mutationManager, 'getPendingCount').mockResolvedValue(1);
+      try {
+        const result = await getAllEntries();
+
+        // The guard's own message: the server list was never asked for.
+        expect(result.error?.message).toBe(UNSYNCED_UNREADABLE_MESSAGE);
+        expect(result.data).toEqual([]);
+      } finally {
+        pending.mockRestore();
         restore();
       }
     });

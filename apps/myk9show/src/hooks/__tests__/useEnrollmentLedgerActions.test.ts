@@ -99,7 +99,9 @@ describe('applyRecordedEnrollmentPayment', () => {
 });
 
 describe('useEnrollmentLedgerActions', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('defaults received dates to today on the show calendar', () => {
     vi.useFakeTimers({ toFake: ['Date'] });

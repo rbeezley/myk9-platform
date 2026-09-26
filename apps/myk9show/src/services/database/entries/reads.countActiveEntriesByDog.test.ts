@@ -52,7 +52,9 @@ function buildChain(result: { count: number | null; error: unknown }) {
 }
 
 describe('countActiveEntriesByDog', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('counts only live entries for the given dog (excludes tombstones)', async () => {
     const { chain, calls } = buildChain({ count: 16, error: null });

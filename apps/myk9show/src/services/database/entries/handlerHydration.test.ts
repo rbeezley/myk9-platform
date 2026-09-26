@@ -24,7 +24,9 @@ describe('loadHandlerPeople offline boundary', () => {
     vi.spyOn(db.instance.people, 'bulkGet').mockResolvedValue([]);
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('returns cached identities without starting the online read offline', async () => {
     const originalOnline = navigator.onLine;

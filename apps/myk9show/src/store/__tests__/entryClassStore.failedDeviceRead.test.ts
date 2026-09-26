@@ -18,7 +18,9 @@ const failed = { ok: false as const, rows: [] as [], error: new Error('IDB timeo
  * exactly as it does on a device, and only the throwing read sees the failure.
  */
 describe('entry and class stores — a failed device read', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('entryStore keeps its entries and reports an error', async () => {
     vi.spyOn(replicatedEntriesTable, 'getAllWithStatus').mockResolvedValue(failed);

@@ -14,7 +14,9 @@ function supabaseWithEvent(eventId: string | null, error: { message: string } | 
 }
 
 describe('dispatchWaitlistEvent', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('enqueues the durable event before invoking the dedicated dispatcher', async () => {
     const supabase = supabaseWithEvent('00000000-0000-4000-8000-000000000003');
@@ -67,7 +69,9 @@ describe('dispatchWaitlistEvent', () => {
 });
 
 describe('processHalfwayReminders', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('dispatches only the atomic database batch of new due reminder events', async () => {
     const rpc = vi.fn().mockResolvedValue({
@@ -99,7 +103,9 @@ describe('processHalfwayReminders', () => {
 });
 
 describe('retryWaitlistNotificationEvents', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('reuses stranded durable events without creating a second event', async () => {
     const rpc = vi.fn().mockResolvedValue({
@@ -131,7 +137,9 @@ describe('retryWaitlistNotificationEvents', () => {
 });
 
 describe('dispatchQueuedWaitlistEvents', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('bounds provider calls to three concurrent requests', async () => {
     let active = 0;

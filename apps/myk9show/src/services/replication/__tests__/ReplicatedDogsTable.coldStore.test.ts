@@ -12,7 +12,9 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 const dog = { id: 'dog-1', name: 'Ziva', breed: 'Malinois' } as ReplicatedDog;
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('ReplicatedDogsTable.getAllDogsWithStatus', () => {
   it('reports a failed local read as cold', async () => {

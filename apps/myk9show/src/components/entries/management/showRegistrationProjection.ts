@@ -1,4 +1,5 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   classifyEntryAttention,
@@ -186,6 +187,8 @@ export interface BuildShowRegistrationPageOptions {
   search?: string;
   classId?: string | null;
   trialClassIds?: readonly string[];
+  /** Unfiltered when omitted or `null` — bypassed under search, same as classId/trialClassIds. */
+  paymentStatus?: PaymentStatus | null;
   pageIndex: number;
   pageSize?: number;
 }
@@ -240,7 +243,7 @@ function entryClassId(entryClass: EntryManagementEntry['classes'][number]): stri
   return entryClass.classId ?? entryClass.id;
 }
 
-export function scopeShowRegistrationGroups(
+function scopeShowRegistrationGroupsByClassOrTrial(
   groups: ShowRegistrationGroup[],
   classId: string | null | undefined,
   trialClassIds: readonly string[] | undefined
@@ -263,13 +266,41 @@ export function scopeShowRegistrationGroups(
   return groups;
 }
 
+/**
+ * Keeps whole registrations that hold at least one entry at `paymentStatus`.
+ * A `null`/`undefined` status is unfiltered — same "omit the key, don't scope"
+ * convention as `trialClassIds` elsewhere in this module.
+ */
+export function scopeShowRegistrationGroupsByPayment(
+  groups: ShowRegistrationGroup[],
+  paymentStatus: PaymentStatus | null | undefined
+): ShowRegistrationGroup[] {
+  if (!paymentStatus) return groups;
+  return groups.filter(group =>
+    group.entries.some(entry => entry.paymentStatus === paymentStatus)
+  );
+}
+
+export function scopeShowRegistrationGroups(
+  groups: ShowRegistrationGroup[],
+  classId: string | null | undefined,
+  trialClassIds: readonly string[] | undefined,
+  paymentStatus?: PaymentStatus | null
+): ShowRegistrationGroup[] {
+  return scopeShowRegistrationGroupsByPayment(
+    scopeShowRegistrationGroupsByClassOrTrial(groups, classId, trialClassIds),
+    paymentStatus
+  );
+}
+
 export function getScopedShowRegistrationQueueCounts(
   groups: ShowRegistrationGroup[],
   classId: string | null | undefined,
-  trialClassIds: readonly string[] | undefined
+  trialClassIds: readonly string[] | undefined,
+  paymentStatus?: PaymentStatus | null
 ): ShowRegistrationQueueCounts {
   return getShowRegistrationQueueCounts(
-    scopeShowRegistrationGroups(groups, classId, trialClassIds)
+    scopeShowRegistrationGroups(groups, classId, trialClassIds, paymentStatus)
   );
 }
 
@@ -308,7 +339,8 @@ export function buildShowRegistrationPage(
     const scopedGroups = scopeShowRegistrationGroups(
       groups,
       options.classId,
-      options.trialClassIds
+      options.trialClassIds,
+      options.paymentStatus
     );
     effectiveGroups = selectShowRegistrationQueue(scopedGroups, options.queue);
   }

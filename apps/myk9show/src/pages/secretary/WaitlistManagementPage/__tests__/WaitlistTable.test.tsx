@@ -70,9 +70,12 @@ describe('WaitlistTable', () => {
     expect(screen.getByRole('button', { name: /added/i })).toBeInTheDocument();
   });
 
-  it('renders search input', () => {
+  // MYK9-795: search moved to the page's shared `ListFilterBar` — this table
+  // no longer renders its own search box (`showSearch={false}` on the
+  // underlying DataTable), it only stays controlled by `searchTerm`/`onSearchChange`.
+  it('does not render its own search input', () => {
     render(<WaitlistTable {...defaultProps} />);
-    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
   });
 
   it('renders entry data rows with dog names', () => {

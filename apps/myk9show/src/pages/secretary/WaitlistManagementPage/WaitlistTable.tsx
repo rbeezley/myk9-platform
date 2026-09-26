@@ -139,6 +139,10 @@ export function WaitlistTable({
           columns={columns}
           data={entries}
           loading={isLoading}
+          // Search lives on the page's shared `ListFilterBar` (MYK9-795), not
+          // this table's own built-in search box — `globalFilter`/
+          // `onGlobalFilterChange` stay controlled from there.
+          showSearch={false}
           globalFilter={searchTerm}
           onGlobalFilterChange={onSearchChange}
           emptyState={

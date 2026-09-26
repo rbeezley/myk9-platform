@@ -3,7 +3,8 @@ import { fireEvent, render, screen, userEvent } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import type { AddDogPanelProps } from '@/components/panels/edit/AddDogPanel/types';
 import { AddDogPanel } from '@/components/panels/edit';
-import { QuickCreateFlow, shouldShowQuickCreateShell } from '../QuickCreateFlow';
+import { QuickCreateFlow } from '../QuickCreateFlow';
+import { shouldShowQuickCreateShell } from '../QuickCreateFlow.helpers';
 
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: vi.fn((props: AddDogPanelProps) =>

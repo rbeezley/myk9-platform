@@ -23,7 +23,7 @@
  * - Scenario 4: an offline refresh failure never calls `signOut()`.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';

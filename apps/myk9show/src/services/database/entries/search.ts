@@ -161,9 +161,9 @@ export const searchEntries = async (searchTerm: string) => {
       async () => {
         const [allEntries, dogs, classes, shows] = await Promise.all([
           replicatedEntriesTable.getAllOrThrow(),
-          replicatedDogsTable.getAllDogs(),
+          joinRowsOrEmpty(replicatedDogsTable.getAllDogs(), 'dog labels'),
           joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
-          replicatedShowsTable.getAllShows(),
+          joinRowsOrEmpty(replicatedShowsTable.getAllShows(), 'show labels'),
         ]);
         const dogsMap = buildMapFromArray(dogs, d => d.id);
         const classesMap = buildMapFromArray(classes, c => c.id);

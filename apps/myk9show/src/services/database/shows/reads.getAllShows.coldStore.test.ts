@@ -125,7 +125,6 @@ describe('getAllShows — a failed device read', () => {
   const failed = { ok: false as const, rows: [] as never[], error: new Error('IDB timeout') };
   const TABLES = {
     shows: mockShowsTable,
-    clubs: mockClubsTable,
     trials: mockTrialsTable,
     classes: mockClassesTable,
     'judge assignments': mockJudgeAssignmentsTable,
@@ -158,5 +157,19 @@ describe('getAllShows — a failed device read', () => {
 
     expect(result.error).not.toBeNull();
     expect(result.data).toEqual([]);
+  });
+
+  // Club names only label the shows (joinRowsOrEmpty): a failed clubs read
+  // leaves them out and keeps the local list, with its unsynced edits.
+  it('keeps the local list without club labels when clubs cannot be read', async () => {
+    mockClubsTable.getAllWithStatus.mockResolvedValue(failed);
+
+    const result = await getAllShows();
+
+    expect(result.error).toBeNull();
+    expect((result.data as { id: string; name: string }[]).map(s => s.name)).toEqual([
+      'Local Copy',
+    ]);
+    expect(mockPostgrestGetAllShows).not.toHaveBeenCalled();
   });
 });

@@ -644,8 +644,8 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Bella', callName: 'Belle', breed: 'Retriever' }),
         ];
 
-        // Mock getAll to return all dogs (searchDogs calls getAll internally)
-        const getAllSpy = vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        // Mock getAllOrThrow to return all dogs (searchDogs reads through it)
+        const getAllSpy = vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('max');
 
@@ -661,7 +661,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', callName: 'Chuck' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('bear');
 
@@ -676,7 +676,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', breed: 'German Shepherd' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('shepherd');
 
@@ -690,7 +690,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '2', name: 'Bella' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('nonexistent');
 
@@ -700,7 +700,7 @@ describe('ReplicatedDogsTable', () => {
       it('should handle search with special characters', async () => {
         const dogs = [createMockDog({ id: '1', name: "Max's Dog" })];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs("max's");
 
@@ -716,7 +716,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', breed: 'german shepherd' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.getDogsByBreed('German Shepherd');
 
@@ -727,7 +727,7 @@ describe('ReplicatedDogsTable', () => {
       it('should return empty array when no dogs of breed', async () => {
         const dogs = [createMockDog({ id: '1', name: 'Max', breed: 'German Shepherd' })];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.getDogsByBreed('Poodle');
 

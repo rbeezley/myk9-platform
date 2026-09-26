@@ -145,7 +145,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   async getPendingMutationIdsForDog(dogId: string): Promise<string[]> {
-    const registrations = (await this.getAll()).filter(
+    const registrations = (await this.getAllOrThrow()).filter(
       registration => registration.dogId === dogId
     );
     const pendingIds = await Promise.all(
@@ -159,7 +159,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     if (dogIds.length === 0) return [];
 
     const dogIdSet = new Set(dogIds);
-    const registrations = await this.getAll();
+    const registrations = await this.getAllOrThrow();
     return registrations
       .filter(registration => dogIdSet.has(registration.dogId))
       .map(registration => this.toSupabaseRow(registration));

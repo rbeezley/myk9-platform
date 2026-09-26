@@ -351,9 +351,9 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
   const isColdStore = allEntries.length === 0 || !scopeSynced;
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
-    replicatedDogsTable.getAllDogs(),
     // Joins that label the entries (see joinRowsOrEmpty): throwing would drop
     // readable entries and their unsynced writes for a server list (MYK9-774).
+    joinRowsOrEmpty(replicatedDogsTable.getAllDogs(), 'owner and handler labels'),
     joinRowsOrEmpty(replicatedClassesTable.getAllOrThrow(), 'class labels'),
     joinRowsOrEmpty(replicatedArmbandsTable.getByShow(showId), 'armbands'),
     joinRowsOrEmpty(replicatedTrialsTable.getTrialsByShow(showId), 'trials'),

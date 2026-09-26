@@ -11,13 +11,15 @@ import {
 } from '../_shared/read-shape';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import { joinRowsOrEmpty } from '../_shared/readRows';
 
 type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
 type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   return loadLookupMap(
-    () => replicatedShowsTable.getAllShows(),
+    // A join: show labels on trials (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedShowsTable.getAllShows(), 'show labels'),
     s => s.id
   );
 }

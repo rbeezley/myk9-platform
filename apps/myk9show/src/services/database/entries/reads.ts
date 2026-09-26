@@ -59,7 +59,8 @@ const ENROLLMENT_FINANCIAL_SELECT = `
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
   return loadLookupMap(
-    () => replicatedDogsTable.getAllDogs(),
+    // A join: dog and owner labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedDogsTable.getAllDogs(), 'dog labels'),
     d => d.id
   );
 }
@@ -74,7 +75,8 @@ async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   return loadLookupMap(
-    () => replicatedShowsTable.getAllShows(),
+    // A join: show labels on entries (see joinRowsOrEmpty).
+    () => joinRowsOrEmpty(replicatedShowsTable.getAllShows(), 'show labels'),
     s => s.id
   );
 }

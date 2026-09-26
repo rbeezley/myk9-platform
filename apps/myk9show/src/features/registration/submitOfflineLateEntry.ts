@@ -169,11 +169,20 @@ export async function submitOfflineLateEntry({
   const entryIds: string[] = [];
   const entryOutcomes: EntrySubmissionOutcome[] = [];
 
+  // Every dog's pending-write dependencies are read before anything is queued:
+  // a failed device read then stops the submission with nothing written,
+  // rather than after some dogs' armbands and entries are already queued
+  // (MYK9-774).
+  const dependencyIdsByDog = new Map<string, string[]>();
+  for (const dogId of new Set(classSelections.map(selection => selection.dogId))) {
+    dependencyIdsByDog.set(dogId, [
+      ...(await replicatedDogsTable.getPendingMutationIdsForRow(dogId)),
+      ...(await replicatedDogRegistrationsTable.getPendingMutationIdsForDog(dogId)),
+    ]);
+  }
+
   for (const selection of classSelections) {
-    const dogDependencyIds = [
-      ...(await replicatedDogsTable.getPendingMutationIdsForRow(selection.dogId)),
-      ...(await replicatedDogRegistrationsTable.getPendingMutationIdsForDog(selection.dogId)),
-    ];
+    const dogDependencyIds = dependencyIdsByDog.get(selection.dogId) ?? [];
     let reservation = dogReservations.get(selection.dogId);
     if (!reservation) {
       const existingArmband = showArmbands.find(armband => armband.dogId === selection.dogId);

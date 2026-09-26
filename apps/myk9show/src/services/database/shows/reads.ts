@@ -10,7 +10,7 @@ import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { readWithReplicationFallback } from '../_shared/read-shape';
-import { rowsOrThrow } from '../_shared/readRows';
+import { joinRowsOrEmpty, rowsOrThrow } from '../_shared/readRows';
 import { hasAuthenticatedSession } from '../_shared/session';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
@@ -52,7 +52,12 @@ async function loadAllShows(): Promise<ReplicatedShow[]> {
 }
 
 async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
-  const clubs = await rowsOrThrow(replicatedClubsTable.getAllWithStatus(), unreadable('clubs'));
+  // A join: club labels on shows (see joinRowsOrEmpty); the show rows and their
+  // unsynced edits must not be dropped for a missing club name.
+  const clubs = await joinRowsOrEmpty(
+    rowsOrThrow(replicatedClubsTable.getAllWithStatus(), unreadable('clubs')),
+    'club labels'
+  );
   return buildMapFromArray(clubs, c => c.id);
 }
 

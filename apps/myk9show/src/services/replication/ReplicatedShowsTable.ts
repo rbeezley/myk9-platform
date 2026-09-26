@@ -295,7 +295,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get all shows sorted by start date
    */
   async getAllShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     return allShows.sort(
       (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
@@ -312,7 +312,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get shows by club
    */
   async getShowsByClub(clubId: string): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     return allShows
       .filter(show => show.clubId === clubId)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
@@ -322,7 +322,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get upcoming shows
    */
   async getUpcomingShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     const now = Date.now();
 
     return allShows
@@ -334,7 +334,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Get active shows (currently ongoing)
    */
   async getActiveShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAll();
+    const allShows = await this.getAllOrThrow();
     const now = Date.now();
 
     return allShows

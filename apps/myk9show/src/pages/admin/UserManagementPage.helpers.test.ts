@@ -1,18 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
-import { UserRole } from '@/types/auth-types';
-import {
-  countActiveUsers,
-  escapeCsvCell,
-  filterUsers,
-  sortUsers,
-} from './UserManagementPage.helpers';
-import {
-  DEFAULT_USER_FILTER,
-  countActiveUserFilters,
-  hasActiveUserFilters,
-} from './UserManagementPage.types';
+import { escapeCsvCell, filterUsers, sortUsers } from './UserManagementPage.helpers';
+import { DEFAULT_USER_FILTER, hasActiveUserFilters } from './UserManagementPage.types';
 
 describe('filterUsers status filter', () => {
   const users = [
@@ -242,42 +232,14 @@ describe('sortUsers', () => {
   });
 });
 
-// "Active Users" used to count `email && firstName` — profile completeness, not
-// account state — and was the headline number on an oversight page.
-describe('countActiveUsers', () => {
-  it('counts by account status, not by how complete the profile is', () => {
-    const users = [
-      { id: '1', status: 'active', email: undefined, firstName: '' },
-      { id: '2', status: 'suspended', email: 'b@example.com', firstName: 'Bob' },
-      { id: '3', status: 'active', deletedAt: '2026-07-01', email: 'c@example.com' },
-      { id: '4', email: 'd@example.com', firstName: 'Dana' },
-    ] as User[];
-
-    // 1 (active, sparse profile) and 4 (status defaults to active) count;
-    // 2 is suspended and 3 is removed.
-    expect(countActiveUsers(users)).toBe(2);
-  });
-});
-
-// The Filters badge and the panel's Reset button read from one predicate now —
-// they drifted before, so the badge could be absent while Reset was enabled.
+// The result line, the empty state and "Clear all" read from one predicate.
 describe('active-filter predicates', () => {
-  it('counts every filter dimension, including showDeleted and dates', () => {
-    expect(countActiveUserFilters(DEFAULT_USER_FILTER)).toBe(0);
-    expect(
-      countActiveUserFilters({
-        ...DEFAULT_USER_FILTER,
-        role: UserRole.JUDGE,
-        showDeleted: true,
-        dateRange: { start: new Date('2026-01-01'), end: null },
-      })
-    ).toBe(3);
-  });
-
-  it('treats a search term as an active filter, but not as a filter chip', () => {
+  it('treats a search term, the login bucket and removed users as active filters', () => {
+    expect(hasActiveUserFilters(DEFAULT_USER_FILTER, '')).toBe(false);
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, 'ann')).toBe(true);
-    expect(countActiveUserFilters(DEFAULT_USER_FILTER)).toBe(0);
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, '   ')).toBe(false);
+    expect(hasActiveUserFilters({ ...DEFAULT_USER_FILTER, login: 'never' }, '')).toBe(true);
+    expect(hasActiveUserFilters({ ...DEFAULT_USER_FILTER, showDeleted: true }, '')).toBe(true);
   });
 });
 

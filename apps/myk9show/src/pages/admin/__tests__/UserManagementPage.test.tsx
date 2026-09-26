@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -73,15 +73,10 @@ vi.mock('@/components/panels/edit/UserEditPanel', () => ({
   UserEditPanel: () => null,
 }));
 
-vi.mock('../UserManagementStats', () => ({
-  UserManagementStats: () => <div data-testid="user-stats">Stats</div>,
-}));
-
 vi.mock('../UserManagementPage.helpers', () => ({
   filterUsers: (users: User[]) => users,
   sortUsers: (users: User[]) => users,
   calculateRoleStats: () => ({}),
-  countActiveUsers: (users: User[]) => users.length,
   exportUsersCSV: vi.fn(),
 }));
 
@@ -142,9 +137,19 @@ describe('UserManagementPage (shared primitives migration)', () => {
     expect(screen.getByText('Try Again')).toBeInTheDocument();
   });
 
-  it('renders UserManagementStats section', () => {
+  // The views replaced the stat cards: each count is pressable, and the
+  // request queue is a link to its own page rather than a copy of it.
+  it('renders the user views, with the role requests queue as a link', () => {
     renderPage();
-    expect(screen.getByTestId('user-stats')).toBeInTheDocument();
+    const views = screen.getByRole('navigation', { name: 'User views' });
+    expect(within(views).getByRole('button', { name: /^All/ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(within(views).getByRole('link', { name: /role requests/i })).toHaveAttribute(
+      'href',
+      '/admin/role-requests'
+    );
   });
 
   // The placeholder may only promise fields `filterUsers` actually searches.

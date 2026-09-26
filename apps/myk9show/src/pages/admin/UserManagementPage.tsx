@@ -13,47 +13,35 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { Filter, Plus, Download, Search, Users, ShieldCheck } from 'lucide-react';
+import { Plus, Download, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 // Hooks and services
 import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
-import { UserFilters } from '@/components/admin/users/UserFilters';
 import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
 import { BulkActionsBar } from '@/components/admin/users/BulkActionsBar';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import { ManageUserRolesDialog } from '@/components/admin/permissions/ManageUserRolesDialog';
 // Extracted modules
 import type { UserFilter, UserSort, SelectedUser } from './UserManagementPage.types';
-import {
-  DEFAULT_USER_FILTER,
-  countActiveUserFilters,
-  hasActiveUserFilters,
-} from './UserManagementPage.types';
+import { DEFAULT_USER_FILTER, hasActiveUserFilters } from './UserManagementPage.types';
 import {
   parseUserListParams,
   userListHref,
   userListParamsToSearch,
   type UserListParams,
 } from './userListParams';
-import {
-  filterUsers,
-  sortUsers,
-  calculateRoleStats,
-  exportUsersCSV,
-} from './UserManagementPage.helpers';
-import { UserManagementStats } from './UserManagementStats';
+import { filterUsers, sortUsers, exportUsersCSV } from './UserManagementPage.helpers';
+import { UserListToolbar } from './UserListToolbar';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { SearchBar } from '@/components/common/SearchBar';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -106,7 +94,6 @@ const UserManagementPage: React.FC = () => {
   // Selection and dialogs are genuinely ephemeral — they describe what the admin
   // is doing right now, not which list they are looking at.
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
@@ -168,10 +155,8 @@ const UserManagementPage: React.FC = () => {
   // a search narrows results while the user is on a later page).
   const clampedPage = Math.min(currentPage, Math.max(1, totalPages));
   const paginatedUsers = sortedUsers.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
-  const roleStats = useMemo(() => calculateRoleStats(users), [users]);
 
   const hasActiveFilters = hasActiveUserFilters(filters, searchTerm);
-  const activeFilterCount = countActiveUserFilters(filters);
 
   // Only selections the current filters still show can be acted on. Derived
   // rather than reconciled in an effect, so narrowing a filter can never leave
@@ -207,6 +192,12 @@ const UserManagementPage: React.FC = () => {
       });
     },
     [paginatedUsers]
+  );
+
+  // Reaches past the current page: every row the search and filters leave.
+  const handleSelectAllMatching = useCallback(
+    () => setSelectedUsers(sortedUsers.map(user => ({ id: user.id, user }))),
+    [sortedUsers]
   );
 
   const clearSelection = useCallback(() => setSelectedUsers([]), []);
@@ -328,12 +319,6 @@ const UserManagementPage: React.FC = () => {
 
   const actionButtons = (
     <>
-      <Button variant="outline" asChild>
-        <Link to="/admin/role-requests">
-          <ShieldCheck className="h-4 w-4 mr-2" />
-          Role Requests
-        </Link>
-      </Button>
       <Button variant="outline" onClick={() => exportUsersCSV(sortedUsers)}>
         <Download className="h-4 w-4 mr-2" />
         Export Users
@@ -377,77 +362,18 @@ const UserManagementPage: React.FC = () => {
             actions={actionButtons}
           />
 
-          {/* Statistics */}
-          <UserManagementStats filteredUsers={sortedUsers} />
-
-          {/* Bulk Actions Bar */}
-          {visibleSelection.length > 0 && (
-            <BulkActionsBar
-              selectedUsers={visibleSelection}
-              onClearSelection={clearSelection}
-              onBulkComplete={deletedUserIds => {
-                removeDeletedUsers(deletedUserIds ?? []);
-              }}
-              onUsersDeleted={deletedUserIds => {
-                removeDeletedUsers(deletedUserIds);
-              }}
-            />
-          )}
-
-          {/* Search & Filters toolbar */}
-          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <div className="flex-1 w-full sm:max-w-md">
-                <SearchBar
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder="Search by name, email, or phone..."
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant={showFilters ? 'default' : 'outline'}
-                  onClick={() => setShowFilters(!showFilters)}
-                  aria-expanded={showFilters}
-                  aria-controls="user-filters-panel"
-                  className="h-11 px-4 rounded-xl"
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                  {activeFilterCount > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 h-6 min-w-6 px-1.5 flex items-center justify-center rounded-full"
-                    >
-                      <span className="sr-only">Active filters: </span>
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Button>
-                {visibleSelection.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={clearSelection}
-                    className="h-11 px-4 rounded-xl"
-                  >
-                    Clear Selection ({visibleSelection.length})
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {showFilters && (
-              <div id="user-filters-panel" className="pt-3 border-t border-border">
-                <UserFilters filters={filters} onFiltersChange={setFilters} roleStats={roleStats} />
-              </div>
-            )}
-
-            <p className="sr-only" role="status" aria-live="polite">
-              {hasActiveFilters
-                ? `${sortedUsers.length} matching user${sortedUsers.length !== 1 ? 's' : ''}`
-                : `${sortedUsers.length} user${sortedUsers.length !== 1 ? 's' : ''} in view`}
-            </p>
-          </div>
+          <UserListToolbar
+            users={users}
+            matchCount={sortedUsers.length}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearAll={clearFilters}
+            selectedCount={visibleSelection.length}
+            onSelectAllMatching={handleSelectAllMatching}
+            hasActiveFilters={hasActiveFilters}
+          />
 
           {/* Empty states — zero users at all, or zero matches for the filters */}
           {showEmptyState &&
@@ -493,6 +419,14 @@ const UserManagementPage: React.FC = () => {
               onPageSizeChange={handlePageSizeChange}
             />
           )}
+
+          {/* Floats at the bottom of the viewport, in view wherever rows were ticked. */}
+          <BulkActionsBar
+            selectedUsers={visibleSelection}
+            onClearSelection={clearSelection}
+            onBulkComplete={deletedUserIds => removeDeletedUsers(deletedUserIds ?? [])}
+            onUsersDeleted={removeDeletedUsers}
+          />
         </>
       )}
 

@@ -22,7 +22,12 @@ const tableSrc =
   readFileSync(join(__dirname, 'columns.tsx'), 'utf8');
 const typesSrc = readFileSync(join(__dirname, 'types.ts'), 'utf8');
 const utilsSrc = readFileSync(join(__dirname, 'utils.ts'), 'utf8');
-const filtersSrc = readFileSync(join(__dirname, '..', 'UserFilters.tsx'), 'utf8');
+// The roster's filters are the shared list toolkit now (docs/plan-list-toolkit.md).
+const toolkitDir = join(__dirname, '..', '..', '..', 'list-toolkit');
+const filtersSrc = ['ListFilterBar.tsx', 'FilterFieldEditor.tsx', 'ListViewTabs.tsx']
+  .map(file => readFileSync(join(toolkitDir, file), 'utf8'))
+  .join('\n');
+const floatingBarSrc = readFileSync(join(toolkitDir, 'FloatingBulkBar.tsx'), 'utf8');
 const bulkSrc = readFileSync(join(__dirname, '..', 'BulkActionsBar.tsx'), 'utf8');
 const tableCss = readFileSync(
   join(__dirname, '..', '..', '..', '..', 'styles', 'myk9-table.css'),
@@ -36,8 +41,9 @@ describe('no inline hex in the user table presentation layer', () => {
     ['UserTable/index.tsx+columns.tsx', tableSrc],
     ['UserTable/types.ts', typesSrc],
     ['UserTable/utils.ts', utilsSrc],
-    ['UserFilters.tsx', filtersSrc],
+    ['list-toolkit filters', filtersSrc],
     ['BulkActionsBar.tsx', bulkSrc],
+    ['list-toolkit FloatingBulkBar.tsx', floatingBarSrc],
     ['myk9-table.css', tableCss],
   ])('%s carries no hardcoded hex colour', (_name, src) => {
     expect(src).not.toMatch(HEX);
@@ -77,7 +83,7 @@ describe('the table inherits the app font (Montserrat), never SF Pro', () => {
   it.each([
     ['UserTable/index.tsx+columns.tsx', tableSrc],
     ['UserTable/types.ts', typesSrc],
-    ['UserFilters.tsx', filtersSrc],
+    ['list-toolkit filters', filtersSrc],
   ])('%s does not force -apple-system/SF Pro', (_name, src) => {
     expect(src).not.toContain('-apple-system');
     expect(src).not.toContain('SF Pro');
@@ -102,10 +108,12 @@ describe('table-owned controls that would inherit the wrong scope are off', () =
 });
 
 describe('accessibility pins', () => {
-  it('chip dismiss controls keep a 44px hit area', () => {
-    // 24px box + 10px padding each side = 44px, with a matching negative margin
-    // so the chip does not grow. Dropping to p-2 silently returns it to 40px.
-    expect(filtersSrc).toContain('-m-2.5 box-content p-2.5');
+  it('filter chips, their remove control and the bulk bar keep 44px targets', () => {
+    // The chip and its × are separate h-11 buttons; the × is also w-11.
+    expect(filtersSrc).toContain('inline-flex h-11 items-center');
+    expect(filtersSrc).toContain("'w-11 justify-center border-l border-border'");
+    expect(floatingBarSrc).toContain('h-11 w-11');
+    expect(floatingBarSrc).toContain('inline-flex h-11 shrink-0');
   });
 
   it('the row action trigger and menu items are 44px', () => {
@@ -127,7 +135,11 @@ describe('accessibility pins', () => {
   it('the checkbox and actions columns are marked interactive, so rows stay rows', () => {
     // Without `meta: { interactive: true }` DataTable turns every <tr> into a
     // role="button", which destroys row/column semantics for screen readers.
-    expect(tableSrc.match(/meta: \{ interactive: true \}/g) ?? []).toHaveLength(2);
+    expect(tableSrc.match(/meta: \{ interactive: true[ ,]/g) ?? []).toHaveLength(2);
+  });
+
+  it('the actions column is pinned right, so its menu is never clipped', () => {
+    expect(tableSrc).toContain('meta: { interactive: true, stickyRight: true }');
   });
 
   it('keeps profile navigation available as a keyboard-accessible control', () => {
@@ -149,7 +161,7 @@ describe('no hand-paired dark: status classes (eslint-backed)', () => {
 
   it.each([
     ['UserTable/index.tsx+columns.tsx', tableSrc],
-    ['UserFilters.tsx', filtersSrc],
+    ['list-toolkit filters', filtersSrc],
     ['BulkActionsBar.tsx', bulkSrc],
   ])('%s has no banned dark: status pair', (_name, src) => {
     expect(banned.test(src)).toBe(false);

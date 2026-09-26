@@ -2,15 +2,17 @@
  * BulkActionsBar Component - Toolbar for bulk user operations
  *
  * Features:
- * - Bulk delete with confirmation (soft/permanent for admins, cascade for related data)
- * - Selection management
+ * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
+ *   is in view wherever the rows were ticked
+ * - Account actions (BulkAccountActions: suspend, reinstate, invite, restore,
+ *   copy emails, export), bulk delete with confirmation. Bulk role editing is
+ *   deferred (docs/plan-list-toolkit.md); single-person Manage roles is unchanged.
+ *   (soft/permanent for admins, cascade for related data)
  */
 
 import React from 'react';
-import { Users, Trash2, AlertCircle, X, Shield } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -22,11 +24,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
-import { BulkRoleDialog } from './BulkRoleDialog';
+import { BulkAccountActions } from './BulkAccountActions';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
+
+const USER_NOUN = ['user', 'users'] as const;
 
 export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   selectedUsers,
@@ -44,11 +49,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-    handleBulkRoleChange,
-    isRoleProcessing,
-    roleError,
-    roleNotice,
-  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
+  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted });
 
   if (selectedUsers.length === 0) {
     return null;
@@ -56,68 +57,24 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
   return (
     <>
-      {/* Bulk Actions Bar */}
-      <Card
-        className="border-primary/30 bg-primary/5 rounded-xl"
-        role="region"
-        aria-label="Bulk actions"
-      >
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3 min-w-0">
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="default"
-                  className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary border-0 text-sm"
-                >
-                  <Users className="h-4 w-4" />
-                  {selectedUsers.length} selected
-                </Badge>
-                <Button
-                  variant="ghost"
-                  onClick={onClearSelection}
-                  aria-label="Clear selection"
-                  className="h-11 w-11 p-0 rounded-xl hover:bg-primary/20"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <p className="text-sm text-muted-foreground truncate max-w-full sm:max-w-md">
-                <span className="sr-only">Selected users: </span>
-                {selectedUsers
-                  .slice(0, 3)
-                  .map(u => getUserFullName(u.user))
-                  .join(', ')}
-                {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Change roles */}
-              <Button
-                variant="outline"
-                onClick={() => setCurrentDialog('role')}
-                className="h-11 px-4 rounded-xl"
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Change roles
-              </Button>
-
-              {/* Delete */}
-              <Button
-                variant="outline"
-                onClick={() => setCurrentDialog('delete')}
-                className="h-11 px-4 rounded-xl border-destructive/30 bg-destructive/10 text-destructive
-                           hover:bg-destructive/20 hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FloatingBulkBar count={selectedUsers.length} noun={USER_NOUN} onClear={onClearSelection}>
+        <p className="sr-only">
+          Selected users:{' '}
+          {selectedUsers
+            .slice(0, 3)
+            .map(u => getUserFullName(u.user))
+            .join(', ')}
+          {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
+        </p>
+        <BulkAccountActions selectedUsers={selectedUsers} onClearSelection={onClearSelection} />
+        <BulkBarButton
+          tone="destructive"
+          onClick={() => setCurrentDialog('delete')}
+          icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+        >
+          Delete
+        </BulkBarButton>
+      </FloatingBulkBar>
 
       {/* Delete dialog — offers the reversible removal and the permanent one,
           and describes each accurately. (A second, non-admin dialog used to sit
@@ -236,15 +193,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       </Dialog>
 
       {/* Change Roles Dialog */}
-      <BulkRoleDialog
-        open={currentDialog === 'role'}
-        onOpenChange={() => closeDialog()}
-        selectedUsers={selectedUsers}
-        isProcessing={isRoleProcessing}
-        error={roleError}
-        notice={roleNotice}
-        onSubmit={handleBulkRoleChange}
-      />
     </>
   );
 };

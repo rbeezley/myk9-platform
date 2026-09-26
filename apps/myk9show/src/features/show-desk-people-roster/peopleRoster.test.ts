@@ -16,7 +16,6 @@ function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEn
     handlerName: 'Alice Martin',
     handlerId: 'person-1',
     handlerAuthUserId: 'auth-1',
-    handlerPersonName: 'Alice Martin',
     ownerId: 'person-1',
     ownerAuthUserId: 'auth-1',
     classes: [
@@ -111,7 +110,6 @@ describe('peopleRoster', () => {
           dogName: 'Cedar',
           ownerName: 'Bob Chen',
           handlerName: 'Bob Chen',
-          handlerPersonName: 'Bob Chen',
           ownerId: 'person-2',
           ownerAuthUserId: 'auth-2',
           handlerId: 'person-2',
@@ -140,7 +138,6 @@ describe('peopleRoster', () => {
           dogName: 'Cedar',
           ownerName: 'Bob Chen',
           handlerName: 'Bob Chen',
-          handlerPersonName: 'Bob Chen',
           ownerId: 'person-2',
           ownerAuthUserId: 'auth-2',
           handlerId: 'person-2',
@@ -340,7 +337,6 @@ describe('peopleRoster', () => {
           handlerName: 'Casey Handler',
           handlerId: 'handler-1',
           handlerAuthUserId: 'auth-handler',
-          handlerPersonName: 'Casey Handler',
           ownerName: 'Alice Owner',
           ownerId: 'owner-1',
           ownerAuthUserId: 'auth-owner',
@@ -362,7 +358,6 @@ describe('peopleRoster', () => {
       expect.objectContaining({
         id: 'handler-1',
         name: 'Casey Handler',
-        secondaryText: null,
         authUserId: 'auth-handler',
       })
     );
@@ -377,7 +372,6 @@ describe('peopleRoster', () => {
           handlerName: 'Casey Handler',
           handlerId: 'handler-1',
           handlerAuthUserId: null,
-          handlerPersonName: 'Casey Handler',
           ownerName: 'Alice Owner',
           ownerId: 'owner-1',
           ownerAuthUserId: 'auth-owner',
@@ -395,30 +389,39 @@ describe('peopleRoster', () => {
     );
   });
 
-  // MYK9-824 round 3 (Codex): round 2's `groupKey` composed `handlerId` with
-  // the normalized PRINTED text, and `contactName` compared `handlerAuthUserId`
-  // to `ownerAuthUserId` to guess whether the id was a real handler or an
-  // owner fallback. Both bugs lived in that inference. It is gone: `handler_id`
-  // alone is the row key and `handlerPersonName` alone is the label, with no
-  // comparison against the printed text to decide anything.
-  it('groups same handlerId entries into one row even when the printed spelling differs', () => {
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` can fall back to
+  // the dog's owner for an unmatched mail-in typed handler. The roster keys
+  // and labels every handler row by the PERSON on `handler_id`
+  // (`handlerPersonName`) rather than the printed `handlerName`, so it never
+  // has to guess whether that id is a real handler or the fallback. Two
+  // typed handlers who share that fallback owner land in ONE row, under the
+  // owner's own name, with both printed names kept as `alternateNames`.
+  it('groups by the handler_id person, not the printed text, and keeps both printed names', () => {
     const roster = buildPeopleRoster({
       entries: [
         entry({
-          id: 'entry-1',
-          handlerName: 'Casey Handler',
-          handlerId: 'handler-1',
-          handlerAuthUserId: 'auth-handler',
-          handlerPersonName: 'Casey Handler',
+          id: 'entry-hana',
+          dogId: 'dog-a',
+          dogName: 'ZZRover',
+          handlerName: 'ZZ Rehearsal Handler Hana',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
         }),
         entry({
-          id: 'entry-2',
-          dogId: 'dog-2',
-          dogName: 'Juniper',
-          handlerName: 'Kasey Handlar',
-          handlerId: 'handler-1',
-          handlerAuthUserId: 'auth-handler',
-          handlerPersonName: 'Casey Handler',
+          id: 'entry-fred',
+          dogId: 'dog-b',
+          dogName: 'ZZFido',
+          handlerName: 'ZZ Rehearsal Handler Fred',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
         }),
       ],
       presence: [],
@@ -427,49 +430,29 @@ describe('peopleRoster', () => {
     expect(roster).toHaveLength(1);
     expect(roster[0]).toEqual(
       expect.objectContaining({
-        id: 'handler-1',
-        name: 'Casey Handler',
-        secondaryText: 'handled by Kasey Handlar',
-        authUserId: 'auth-handler',
-      })
-    );
-    expect(roster[0]?.dogNames).toEqual(['Poppy', 'Juniper']);
-  });
-
-  it('labels an owner-fallback row with the owner, keeps the typed name as secondary text, and messages the owner', () => {
-    const roster = buildPeopleRoster({
-      entries: [
-        entry({
-          handlerName: 'Hana',
-          handlerId: 'owner-1',
-          handlerAuthUserId: 'auth-owner',
-          handlerPersonName: 'Owner One',
-          ownerName: 'Owner One',
-          ownerId: 'owner-1',
-          ownerAuthUserId: 'auth-owner',
-        }),
-      ],
-      presence: [],
-    });
-
-    expect(roster[0]).toEqual(
-      expect.objectContaining({
         id: 'owner-1',
-        name: 'Owner One',
-        secondaryText: 'handled by Hana',
+        name: 'ZZ Rehearsal Owner One',
         authUserId: 'auth-owner',
+        alternateNames: ['ZZ Rehearsal Handler Hana', 'ZZ Rehearsal Handler Fred'],
       })
     );
+    expect(filterPeopleRoster(roster, 'hana', 'all')).toHaveLength(1);
+    expect(filterPeopleRoster(roster, 'fred', 'all')).toHaveLength(1);
   });
 
-  it('trusts a stale handler_id over the printed text: row and message both name the secretary', () => {
+  // MYK9-824 round 3. `handler_id` is trusted directly for whoever it names,
+  // even a stale FK unrelated to both the printed text and the dog's owner
+  // (e.g. left behind by a rename) -- there is no comparison against the
+  // printed text to decide whether the id is "real". The row labels with,
+  // and a Message reaches, that person alone.
+  it('trusts a stale handler_id pointing at an unrelated person over the printed text', () => {
     const roster = buildPeopleRoster({
       entries: [
         entry({
           handlerName: 'Jordan Typed',
+          handlerPersonName: 'Sam Secretary',
           handlerId: 'secretary-1',
           handlerAuthUserId: 'auth-secretary',
-          handlerPersonName: 'Sam Secretary',
           ownerName: 'Alice Owner',
           ownerId: 'owner-1',
           ownerAuthUserId: 'auth-owner',
@@ -482,31 +465,11 @@ describe('peopleRoster', () => {
       expect.objectContaining({
         id: 'secretary-1',
         name: 'Sam Secretary',
-        secondaryText: 'handled by Jordan Typed',
         authUserId: 'auth-secretary',
+        alternateNames: ['Jordan Typed'],
       })
     );
-  });
-
-  it('finds the owner-fallback row by searching the printed handler name', () => {
-    const roster = buildPeopleRoster({
-      entries: [
-        entry({
-          handlerName: 'Hana',
-          handlerId: 'owner-1',
-          handlerAuthUserId: 'auth-owner',
-          handlerPersonName: 'Owner One',
-          ownerName: 'Owner One',
-          ownerId: 'owner-1',
-          ownerAuthUserId: 'auth-owner',
-        }),
-      ],
-      presence: [],
-    });
-
-    const found = filterPeopleRoster(roster, 'hana', 'all');
-    expect(found).toHaveLength(1);
-    expect(found[0]?.name).toBe('Owner One');
+    expect(filterPeopleRoster(roster, 'jordan typed', 'all')).toHaveLength(1);
   });
 
   it('ignores placeholder handler names for owner-only rows', () => {

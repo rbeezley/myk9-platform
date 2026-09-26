@@ -42,17 +42,17 @@ export interface EntryManagementEntry {
   ownerName: string;
   ownerEmail: string;
   handlerName: string;
-  handlerId?: string | null;
-  handlerAuthUserId?: string | null;
   /**
-   * MYK9-824 round 3. The name on the `handler_id` person record itself
-   * (`handler_person`), independent of `handlerName`'s printed paperwork
-   * text. `handler_id` can point at the dog's owner as a fallback for an
-   * unmatched typed handler, or a stale FK left behind by a rename — this is
-   * whoever that id actually names, trusted directly, with no attempt to
-   * infer from the printed text whether the id is a "real" handler.
+   * MYK9-824 round 3. The name of the PERSON `handler_id` names, straight
+   * from the join -- distinct from `handlerName`, which is the printed text
+   * the paperwork shows. When a mail-in typed handler had no person match,
+   * `handler_id` falls back to the dog's owner (MYK9-824), so this is then
+   * the owner's own name. The Show Desk roster keys and labels a person by
+   * THIS field; `handlerName` stays what is shown per entry.
    */
   handlerPersonName?: string | null;
+  handlerId?: string | null;
+  handlerAuthUserId?: string | null;
   ownerId?: string | null;
   ownerAuthUserId?: string | null;
   classes: EntryClass[];

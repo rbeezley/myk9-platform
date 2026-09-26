@@ -35,22 +35,16 @@ export interface PeopleRosterClassRow {
 
 export interface PeopleRosterPerson {
   id: string;
-  /**
-   * MYK9-824 round 3. Always the name on the `handler_id` person record
-   * (or the owner's, for a row with no handler at all) — never the printed
-   * paperwork text. The Message action names and opens a thread with this
-   * SAME person (`authUserId`), so there is no separate "contact name" to
-   * track: whoever the row is labelled with is who a message reaches.
-   */
   name: string;
   /**
-   * MYK9-824 round 3. Printed handler text from this row's entries that
-   * reads differently from `name` (a mail-in typed handler whose `handler_id`
-   * fell back to the owner, or a stale FK left by a rename). Null when every
-   * entry's printed text agrees with `name`, or there is no handler text at
-   * all.
+   * MYK9-824 round 3. Distinct printed handler texts within this row that
+   * differ from `name` -- e.g. two mail-in entries typed for different
+   * handlers who share this same person as their `handler_id` fallback (an
+   * unmatched typed handler defaults to the dog's owner). The row is keyed
+   * and labelled by the PERSON on `handler_id`, so both stay in one row; this
+   * is how their own, different printed names are not simply dropped.
    */
-  secondaryText: string | null;
+  alternateNames: string[];
   searchText: string;
   authUserId: string | null;
   presence: ShowPresence | null;
@@ -101,17 +95,22 @@ function hasHandlerIdentity(entry: EntryManagementEntry): boolean {
 }
 
 /**
- * MYK9-824 round 3. The name on the `handler_id` person record, or the
- * owner's when the entry has no handler concept at all. Deliberately does
- * NOT compare against the printed `handlerName` text — round 2's attempt to
- * infer "is this id a real handler or an owner fallback" from that
- * comparison had two bugs of its own (Codex, round 2 follow-up). `handler_id`
- * is trusted directly for whoever it names, fallback or stale FK alike.
+ * MYK9-824 round 3 (Codex, owner-approved). The roster keys and labels a row
+ * by the PERSON `handler_id` names -- `handlerPersonName`, straight from the
+ * join -- not by the printed `handler` text. Round 2 tried to infer from the
+ * printed text whether `handler_id` was a real handler or the owner fallback
+ * and kept splitting or mislabelling one of the two; this stops guessing.
+ * `handlerPersonName` already IS the owner's own name when the fallback
+ * fired (handler_id = owner_id), so no owner/fallback comparison is needed
+ * here at all.
  */
-function primaryName(entry: EntryManagementEntry): string {
+function displayName(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
     return (
-      personName(entry.handlerPersonName) || personName(entry.ownerName) || 'Unknown exhibitor'
+      personName(entry.handlerPersonName) ||
+      personName(entry.handlerName) ||
+      personName(entry.ownerName) ||
+      'Unknown exhibitor'
     );
   }
 
@@ -120,7 +119,12 @@ function primaryName(entry: EntryManagementEntry): string {
 
 function groupKey(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    return entry.handlerId || entry.handlerAuthUserId || entry.id;
+    return (
+      entry.handlerId ||
+      entry.handlerAuthUserId ||
+      normalize(personName(entry.handlerName)) ||
+      entry.id
+    );
   }
 
   return (
@@ -128,8 +132,18 @@ function groupKey(entry: EntryManagementEntry): string {
     entry.ownerAuthUserId ||
     entry.registrationId ||
     entry.ownerEmail ||
-    normalize(primaryName(entry)) ||
+    normalize(displayName(entry)) ||
     entry.id
+  );
+}
+
+/** Printed handler texts in this group that are not just the row's own label, for the "also entered as" line. */
+function alternateHandlerNames(entries: EntryManagementEntry[], label: string): string[] {
+  const labelNorm = normalize(label);
+  return unique(
+    entries
+      .map(entry => personName(entry.handlerName) ?? '')
+      .filter(name => name && normalize(name) !== labelNorm)
   );
 }
 
@@ -139,26 +153,6 @@ function groupAuthUserId(entries: EntryManagementEntry[]): string | null {
   }
 
   return entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ?? null;
-}
-
-/**
- * MYK9-824 round 3. Distinct printed handler texts among this row's entries
- * that read differently from `primary` (the row's real name), in first-seen
- * order. Case/punctuation-insensitive comparison so `Hana` and `hana` count
- * as the same text, but the ORIGINAL casing is what's shown.
- */
-function secondaryPrintedNames(entries: EntryManagementEntry[], primary: string): string[] {
-  const seen = new Set<string>();
-  const distinct: string[] = [];
-  for (const entry of entries) {
-    const printed = personName(entry.handlerName);
-    if (!printed) continue;
-    const key = normalize(printed);
-    if (key === normalize(primary) || seen.has(key)) continue;
-    seen.add(key);
-    distinct.push(printed);
-  }
-  return distinct;
 }
 
 function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
@@ -302,10 +296,8 @@ export function buildPeopleRoster({
 
   return [...grouped.entries()]
     .map(([id, groupEntries]) => {
-      const name = primaryName(groupEntries[0]!);
-      const secondaryNames = secondaryPrintedNames(groupEntries, name);
-      const secondaryText =
-        secondaryNames.length > 0 ? `handled by ${secondaryNames.join(', ')}` : null;
+      const name = displayName(groupEntries[0]!);
+      const alternateNames = alternateHandlerNames(groupEntries, name);
       const authUserId = groupAuthUserId(groupEntries);
       const personPresence = authUserId ? (presenceByUserId.get(authUserId) ?? null) : null;
       const classRows = buildClassRows(groupEntries, classesById, currentDate);
@@ -314,6 +306,7 @@ export function buildPeopleRoster({
       const searchText = normalize(
         [
           name,
+          ...alternateNames,
           ...groupEntries.map(entry => personName(entry.ownerName) ?? ''),
           ...groupEntries.map(entry => personName(entry.handlerName) ?? ''),
           ...dogNames,
@@ -325,7 +318,7 @@ export function buildPeopleRoster({
       return {
         id,
         name,
-        secondaryText,
+        alternateNames,
         searchText,
         authUserId,
         presence: personPresence,

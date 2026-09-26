@@ -145,9 +145,9 @@ export function mapSecretaryEntryToEntryManagementEntry(
     ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
     ownerEmail: entry.dog?.owner?.email ?? '',
     handlerName: handlerIdentity.name || 'Not specified',
+    handlerPersonName: personName(entry.handler_person),
     handlerId: entry.handler_id,
     handlerAuthUserId: entry.handler_person?.auth_user_id ?? null,
-    handlerPersonName: personName(entry.handler_person),
     ownerId: entry.dog?.owner?.id ?? null,
     ownerAuthUserId: entry.dog?.owner?.auth_user_id ?? null,
     classes: entry.class

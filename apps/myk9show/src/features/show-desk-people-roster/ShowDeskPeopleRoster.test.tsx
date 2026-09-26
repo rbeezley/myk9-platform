@@ -344,13 +344,12 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).not.toHaveBeenCalled();
   });
 
-  // MYK9-824 round 3 (Codex): `handler_id` is allowed to fall back to the
-  // dog's owner when a mail-in typed handler matches no person. Round 2 tried
-  // to infer "is this id a real handler or an owner fallback" by comparing the
-  // printed text to the resolved names, which had two bugs of its own. There
-  // is no more inference: the row groups by `handler_id` alone, labels with
-  // the `handler_id` person's own name, and shows any differing printed text
-  // as secondary "handled by" text.
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` is allowed to fall
+  // back to the dog's owner when a mail-in typed handler matches no person.
+  // The roster keys and labels the row by the PERSON `handler_id` names (the
+  // owner, in the fallback case) rather than the printed handler text, so two
+  // different typed handlers who share that fallback owner land in ONE row
+  // under the owner's own name, with both printed names kept visible.
   function fallbackOwnerEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     const owner = {
       id: 'owner-1',
@@ -378,7 +377,7 @@ describe('ShowDeskPeopleRoster', () => {
     });
   }
 
-  it('merges two typed handlers sharing the owner-fallback handler_id into one row labelled with the owner', async () => {
+  it('merges two typed handlers sharing a fallback owner into one row, listing both printed names', async () => {
     renderRoster([
       fallbackOwnerEntry({
         id: 'entry-hana',
@@ -418,14 +417,16 @@ describe('ShowDeskPeopleRoster', () => {
       }),
     ]);
 
-    const rows = await screen.findAllByRole('button', { name: /zz rehearsal owner one/i });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveTextContent(
-      'handled by ZZ Rehearsal Handler Hana, ZZ Rehearsal Handler Fred'
+    expect(
+      await screen.findByRole('button', { name: /zz rehearsal owner one/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText('2 dogs - 2 classes')).toBeInTheDocument();
+    expect(screen.getByText(/also entered as/i)).toHaveTextContent(
+      'ZZ Rehearsal Handler Hana, ZZ Rehearsal Handler Fred'
     );
   });
 
-  it('labels a failed message with the person it actually reaches, not the printed handler text', async () => {
+  it('labels the Message action, and a failed attempt, with the resolved contact, not the printed handler text', async () => {
     h.getOrCreateThread.mockResolvedValueOnce(null);
     const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
 
@@ -438,35 +439,36 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
   });
 
-  it('trusts a stale handler_id over the printed text: row and message both name the secretary', async () => {
+  // A concurrent session's commit (48d6c1c71) added a Message-button-label
+  // variant of this fix on top of round 2's contactName design; round 3
+  // (this design) removes contactName entirely and relabels the ROW itself
+  // by the handler_id person, so the row title already names the exact
+  // account Message opens -- no separate button-text switch is needed.
+  // Keeping the happy-path coverage that commit added: an enabled Message
+  // button on a fallback row still successfully opens a thread with the
+  // owner and navigates there.
+  it('opens a message thread with the owner from a fallback row', async () => {
     h.getOrCreateThread.mockResolvedValueOnce({
-      id: 'thread-secretary',
+      id: 'thread-owner-fallback',
       show_id: 'show-1',
-      participant_id: 'auth-secretary',
+      participant_id: 'auth-owner',
       created_at: '2026-07-08T09:00:00.000Z',
       last_message_at: '2026-07-08T09:00:00.000Z',
     });
-    const { user } = renderRoster([
-      entry({
-        handler: 'Jordan Typed',
-        handler_id: 'secretary-1',
-        handler_person: {
-          id: 'secretary-1',
-          first_name: 'Sam',
-          last_name: 'Secretary',
-          auth_user_id: 'auth-secretary',
-        },
-      }),
-    ]);
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
 
-    const row = await screen.findByRole('button', { name: /sam secretary/i });
-    expect(row).toHaveTextContent('handled by Jordan Typed');
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
 
-    await user.click(row);
-    await user.click(screen.getByRole('button', { name: /message/i }));
+    const messageButton = screen.getByRole('button', { name: /^message$/i });
+    expect(messageButton).toBeEnabled();
+
+    await user.click(messageButton);
 
     await waitFor(() => {
-      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-secretary');
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/secretary/messages?showId=show-1&threadId=thread-owner-fallback'
+      );
     });
   });
 

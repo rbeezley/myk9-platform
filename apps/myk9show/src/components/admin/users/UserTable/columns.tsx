@@ -11,7 +11,6 @@ import { Mail, Phone } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 
 import { User } from '@/types/user-types';
-import { USER_ROLE_HIERARCHY, type UserRole } from '@/types/auth-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { DENSITY_CONFIG, ROLE_CONFIG, UNKNOWN_ROLE_CHIP } from './types';
@@ -24,6 +23,7 @@ import {
   getStatusConfig,
   getDeletedStatusConfig,
   highlightSearchTerm,
+  getLeadRole,
 } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -41,12 +41,6 @@ function isStaleLogin(dateString: string | null | undefined, thresholdDays = STA
   if (!dateString) return false;
   const diffMs = Date.now() - new Date(dateString).getTime();
   return diffMs > thresholdDays * 86400000;
-}
-
-/** Hierarchy position, highest first; unknown roles sort last. */
-function rolePriority(role: UserRole): number {
-  const index = USER_ROLE_HIERARCHY.indexOf(role);
-  return index === -1 ? USER_ROLE_HIERARCHY.length : index;
 }
 
 const CHIP_CLASS = 'text-xs font-medium px-3 py-1 rounded-full border-0';
@@ -208,7 +202,7 @@ export function buildColumns(
       id: 'role',
       header: 'Roles',
       meta: { responsiveHide: 'lg' },
-      accessorFn: (row: AdminUser) => row.roles?.[0] ?? '',
+      accessorFn: (row: AdminUser) => getLeadRole(row.roles) ?? '',
       cell: ({ row }) => {
         const user = row.original;
         const roles = user.roles ?? [];
@@ -225,7 +219,8 @@ export function buildColumns(
         // One badge, the highest role, plus "+N" — wrapped badges stacked three
         // deep and tripled the row height. The full list stays in the accessible
         // name and the tooltip; the person record lists every grant.
-        const [lead, ...rest] = [...roles].sort((a, b) => rolePriority(a) - rolePriority(b));
+        const lead = getLeadRole(roles);
+        const rest = roles.filter(role => role !== lead);
         const labelOf = (role: string) =>
           ROLE_CONFIG[role as keyof typeof ROLE_CONFIG]?.label || role;
         const leadConfig = ROLE_CONFIG[lead as keyof typeof ROLE_CONFIG];

@@ -15,6 +15,7 @@ import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/ent
 import { toLocalDate } from '@/utils/date-format';
 import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isTrialDayAhead, isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { getTrialTimezone } from '@/features/registries';
 
 export interface DogActivityEntry {
   id: string;
@@ -73,7 +74,7 @@ function isTodayOrFuture(entry: DogActivityEntry, today: Date): boolean {
   // hasn't landed yet (legacy rows, pending offline writes).
   const trialDate = parseShowDate(entry.trial?.date);
   if (trialDate) {
-    const timezone = entry.trial?.timezone ?? undefined;
+    const timezone = getTrialTimezone(entry.trial);
     return (
       isTrialDayToday(trialDate, timezone, today) || isTrialDayAhead(trialDate, timezone, today)
     );
@@ -127,11 +128,11 @@ export function deriveDogActivity(
 ): DogActivity {
   const upcoming = entries
     .filter(entry => isLiveUpcomingEntry(entry, today))
-    .sort((a, b) => (a.show?.start_date ?? '').localeCompare(b.show?.start_date ?? ''));
+    .sort((a, b) => (getEntryDisplayDate(a) ?? '').localeCompare(getEntryDisplayDate(b) ?? ''));
 
   const recentResults = entries
     .filter(entry => hasRealResult(entry, today))
-    .sort((a, b) => (b.show?.start_date ?? '').localeCompare(a.show?.start_date ?? ''))
+    .sort((a, b) => (getEntryDisplayDate(b) ?? '').localeCompare(getEntryDisplayDate(a) ?? ''))
     .slice(0, 10);
 
   return { upcoming, recentResults };

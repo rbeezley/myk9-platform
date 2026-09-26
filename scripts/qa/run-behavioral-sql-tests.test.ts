@@ -68,6 +68,7 @@ const launchCriticalSqlTests = [
   'judge_assignment_private_read_test.sql',
   'judge_assignment_touches_class_test.sql',
   'myk9_833_judge_draft_show_visibility_test.sql',
+  'myk9_841_staff_on_behalf_entries_accepted_test.sql',
   'office_admin_rls_test.sql',
   'one_registry_per_show_test.sql',
   'entry_status_history_rls_test.sql',

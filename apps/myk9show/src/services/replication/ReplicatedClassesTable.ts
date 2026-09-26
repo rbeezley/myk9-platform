@@ -739,6 +739,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * permanently deleted (e.g. due to a schema mismatch that has since been fixed).
    */
   async repairUnsynced(): Promise<number> {
+    // MYK9-774: getAll() on purpose — maintenance: [] repairs nothing this
+    // pass and the next run retries; it never reports or writes a wrong fact.
     const allLocal = await this.getAll();
     let repaired = 0;
 

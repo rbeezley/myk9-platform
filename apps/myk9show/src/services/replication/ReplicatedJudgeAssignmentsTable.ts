@@ -149,6 +149,8 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * accidentally overwrite a fee or note it did not edit.
    */
   override async getAll(): Promise<ReplicatedJudgeAssignment[]> {
+    // MYK9-774: getAll() on purpose — this override only redacts; callers that
+    // must tell a failed read from none use getAllWithStatus/getAllOrThrow.
     const rows = await super.getAll();
     return rows.map(row => ({ ...row, fee: null, notes: null }));
   }

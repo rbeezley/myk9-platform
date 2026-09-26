@@ -251,6 +251,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
+    // MYK9-774: getAll() on purpose — maintenance: [] refreshes nothing this
+    // pass; receipts keep their current references until the next refresh.
     const localRows = await this.getAll();
     const showIds = new Set(
       localRows.map(row => row.showId).filter((showId): showId is string => Boolean(showId))

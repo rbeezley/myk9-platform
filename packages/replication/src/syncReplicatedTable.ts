@@ -149,7 +149,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   let uploadError: string | undefined;
 
   const getLocalRowsForScope = async (): Promise<TLocal[]> => {
-    const rows = await table.getAll(adapter.filterLocalRows ? undefined : scope.value);
+    // MYK9-774: getAllOrThrow, not getAll. These rows decide full vs
+    // incremental, which rows stale cleanup keeps, and the totalRows recorded
+    // for the scope; a failed device read answered as [] would record an empty
+    // scope as synced. A throw fails this sync instead.
+    const rows = await table.getAllOrThrow(adapter.filterLocalRows ? undefined : scope.value);
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
 

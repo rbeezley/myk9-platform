@@ -53,7 +53,8 @@ export function useClassCompletion(classId: string | undefined): UseClassComplet
 
       if (!classesTable || !entriesTable) return;
 
-      // Get all entries for this class from IndexedDB
+      // MYK9-774: getAll() on purpose — this only decides whether to show a
+      // celebration; a failed read shows none and changes nothing.
       const allEntries = await entriesTable.getAll();
       const entries = allEntries.filter(entry => entry.class_id === classId);
 

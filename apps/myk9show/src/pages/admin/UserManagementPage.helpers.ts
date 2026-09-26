@@ -105,9 +105,11 @@ export function filterUsers<T extends User>(
     );
   }
 
-  // Apply created-date range. `start` is an exact timestamp, not floored to
-  // midnight: the date picker already hands back local midnight, and the
-  // "New, last 7 days" view needs a true rolling cutoff instead.
+  // Apply created-date range. `start` is used exactly, not rounded down to
+  // its calendar day — the calendar-picker chip always hands back local
+  // midnight already, but a rolling window's cutoff (userListViews' "New,
+  // last 7 days") lands mid-day, and rounding it down would silently widen
+  // the window by up to a day (MYK9-837 Codex finding).
   const { start, end } = filters.dateRange;
   if (start) {
     const from = start.getTime();

@@ -157,3 +157,20 @@ export function getTrialTimezone(trial: TrialLike | null | undefined): string {
   reportInvalidTrialTimezone(raw, trial?.id);
   return 'America/New_York';
 }
+
+/**
+ * The write-side counterpart to `getTrialTimezone`: what a NEW trial should
+ * be created with when nothing else (a club timezone, a location-derived
+ * zone) is available. There is no location-to-timezone lookup in this
+ * codebase (MYK9-831) — deriving one from an address or lat/lng would need a
+ * geocoding service call this client-only wizard doesn't make — so the show
+ * wizard asks the browser instead of leaving the column to its
+ * 'America/New_York' default regardless of where the show actually is.
+ */
+export function resolveBrowserTrialTimezone(): string {
+  try {
+    return getTrialTimezone({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  } catch {
+    return getTrialTimezone(undefined);
+  }
+}

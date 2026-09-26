@@ -2,73 +2,70 @@
  * Drift check between the delete-blocking predicate in TWO places:
  *
  *   * the server guard in soft_delete_dog (SQLSTATE MK002) — the authority;
- *   * `countBlockingEntriesByDog`'s PostgREST filter, which the delete dialog
- *     uses to explain the refusal BEFORE the user clicks.
+ *   * count_blocking_entries_by_dog, the RPC the delete dialog calls to
+ *     explain the refusal BEFORE the user clicks.
  *
- * What this can and cannot prove, stated plainly because a source-reading test
- * that oversells itself is worse than none: it CANNOT prove either predicate
- * behaves correctly — the behaviour lives in
- * `supabase/tests/soft_delete_dog_cascade_test.sql`, which runs in CI. What it
- * catches is the failure that has no other detector: someone widening or
- * narrowing the SQL guard while the dialog keeps describing the old rule, so the
- * warning silently becomes a lie and the user meets a server error the dialog
- * told them would not happen.
+ * Before MYK9-822 these were two independent copies of the same condition —
+ * the server's SQL guard and a client-side PostgREST `.or()` filter — and
+ * this file caught them reading differently. MYK9-822 replaced the client
+ * filter with a SECURITY DEFINER RPC that calls the SAME
+ * `private.count_dog_blocking_entries` predicate soft_delete_dog's guard
+ * calls, so the two conditions can no longer literally diverge in SQL. What
+ * this file checks instead is that both callers still REACH that shared
+ * predicate rather than one of them reverting to its own inline copy —
+ * which would silently reopen the exact drift MYK9-822 closed, while every
+ * other check (compilation, the unit test on the client wrapper) stays
+ * green, because a hand-copied condition still compiles and still returns a
+ * number.
  *
- * The client filter is a DELIBERATE, NARROWER subset of the server guard
- * (MYK9-799): it omits `result_status` because `authenticated` has no
- * column-SELECT grant on `entries.result_status` (migration
- * 20260620001929_restrict_authenticated_entry_results.sql), and naming an
- * ungranted column inside a PostgREST `or()` filter makes PostgREST refuse the
- * whole request with 403 — which is what permanently disabled Delete for
- * every dog until this fix. `ARMS` below therefore lists only the arms both
- * sides implement; the column-allowlist test lower in this file guards
- * against the client filter ever naming an ungranted column again.
- *
- * Narrower is not equivalent: an entry can carry a settled result_status
- * ('absent' or 'excused') without is_scored or scoring_completed_at ever
- * being set (migrations 20260712180000 and 20260904160000 define "accounted
- * for" as exactly `is_scored OR result_status IN ('absent', 'excused')`
- * because the two diverge in practice). Such an entry passes the client
- * filter as not-blocking, so the dialog under-warns; soft_delete_dog still
- * refuses the actual delete with MK002 on the full predicate, so no data is
- * lost, only the pre-click warning is briefly wrong. See MYK9-822 for a
- * server-side count that can share soft_delete_dog's own predicate instead.
+ * What this file CANNOT prove: that the predicate itself is correct, or that
+ * the RPC's authorization actually matches soft_delete_dog's at the database
+ * level (types can't see SQL semantics). That behaviour lives in
+ * `supabase/tests/myk9_822_blocking_entries_rpc_test.sql`, which runs in CI.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(import.meta.dirname, '../../../../..');
-
-// The LATEST migration carrying the guard, not a hardcoded filename: the guard
-// has already moved once (20260830140000 -> 20260830190000, when the armband
-// half was reverted), and a pinned name would have kept reading the superseded
-// copy and passing while the live definition drifted away underneath it.
 const migrationsDir = resolve(repoRoot, 'supabase/migrations');
-const guardMigrationName = readdirSync(migrationsDir)
+
+// Sorted descending: migration filenames are 14-digit UTC timestamps, so the
+// FIRST file containing a marker is the latest one that (re)defines it. A
+// function that has moved before (soft_delete_dog has, more than once) must
+// be read from wherever it lives NOW, never a hardcoded filename.
+const migrationFiles = readdirSync(migrationsDir)
   .filter(f => f.endsWith('.sql'))
   .sort()
-  .reverse()
-  .find(f => readFileSync(resolve(migrationsDir, f), 'utf8').includes("ERRCODE = 'MK002'"));
+  .reverse();
 
-if (!guardMigrationName) {
-  throw new Error('No migration defines the MK002 delete guard');
+function latestMigrationDefining(marker: string): string {
+  const name = migrationFiles.find(f =>
+    readFileSync(resolve(migrationsDir, f), 'utf8').includes(marker)
+  );
+  expect(name, `no migration defines: ${marker}`).toBeTruthy();
+  return readFileSync(resolve(migrationsDir, name!), 'utf8');
 }
 
-const migration = readFileSync(resolve(migrationsDir, guardMigrationName), 'utf8');
+/** The body of `CREATE OR REPLACE FUNCTION <signature> ... AS <tag> ... <tag>`. */
+function sqlFunctionBody(migration: string, signature: string): string {
+  const start = migration.indexOf(`CREATE OR REPLACE FUNCTION ${signature}`);
+  expect(start, `migration does not define ${signature}`).toBeGreaterThan(-1);
+  // The dollar-quote tag varies ($$ vs $function$ elsewhere in this repo), so
+  // read whichever one opens this function's body rather than assuming one.
+  const tagMatch = /AS (\$[A-Za-z_]*\$)/.exec(migration.slice(start, start + 400));
+  expect(tagMatch, `no function body delimiter found for ${signature}`).not.toBeNull();
+  const tag = tagMatch![1];
+  const bodyStart = migration.indexOf(tag, start) + tag.length;
+  const bodyEnd = migration.indexOf(tag, bodyStart);
+  expect(bodyEnd).toBeGreaterThan(bodyStart);
+  return migration.slice(start, bodyEnd);
+}
+
 const reads = readFileSync(
   resolve(repoRoot, 'apps/myk9show/src/services/database/entries/reads.ts'),
   'utf8'
 );
-
-/** The guard body: from the MK002 EXISTS test up to its RAISE. */
-function sqlGuardBody(): string {
-  const start = migration.indexOf('IF EXISTS (');
-  const end = migration.indexOf("USING ERRCODE = 'MK002'");
-  expect(start).toBeGreaterThan(-1);
-  expect(end).toBeGreaterThan(start);
-  return migration.slice(start, end);
-}
 
 function clientFunctionBody(): string {
   const start = reads.indexOf('export const countBlockingEntriesByDog');
@@ -78,74 +75,48 @@ function clientFunctionBody(): string {
   return reads.slice(start, end);
 }
 
-function clientFilter(): string {
-  const body = clientFunctionBody();
-  const or = body.indexOf('.or(');
-  expect(or).toBeGreaterThan(-1);
-  return body.slice(or);
-}
-
-// [sql fragment, postgrest fragment] for each arm BOTH sides implement.
-// `result_status` is server-only — see the file header comment.
-const ARMS: ReadonlyArray<readonly [string, string]> = [
-  ["e.payment_status = 'paid'", 'payment_status.eq.paid'],
-  ['e.is_scored IS TRUE', 'is_scored.is.true'],
-  ['e.scoring_completed_at IS NOT NULL', 'scoring_completed_at.not.is.null'],
-];
-
-// The migration that revoked authenticated's column-SELECT grant on entries
-// (20260620001929_restrict_authenticated_entry_results.sql). Mirrors the list
-// pinned in authenticatedEntryResultsRlsContract.test.ts — naming any of
-// these in a PostgREST filter makes PostgREST refuse the whole request.
-const FORBIDDEN_AUTHENTICATED_COLUMNS = [
-  'result_status',
-  'search_time_seconds',
-  'total_faults',
-  'total_score',
-  'final_placement',
-  'judge_notes',
-  'judge_signature',
-  'disqualification_reason',
-  'video_review_notes',
-];
-
-describe('delete-blocking entry predicate', () => {
-  it('is the same set of client-readable arms on the server and in the dialog', () => {
-    const sql = sqlGuardBody();
-    const filter = clientFilter();
-
-    for (const [sqlArm, clientArm] of ARMS) {
-      expect(sql, `SQL guard is missing ${sqlArm}`).toContain(sqlArm);
-      expect(filter, `client filter is missing ${clientArm}`).toContain(clientArm);
-    }
+describe('delete-blocking entry predicate (MYK9-822)', () => {
+  it("soft_delete_dog's MK002 guard calls the shared private predicate", () => {
+    const migration = latestMigrationDefining("USING ERRCODE = 'MK002'");
+    const body = sqlFunctionBody(migration, 'public.soft_delete_dog(p_dog_id uuid)');
+    expect(body).toContain('private.count_dog_blocking_entries(p_dog_id)');
+    // Guards against reintroducing an inline copy of the predicate's arms —
+    // exactly how the client and server drifted apart before MYK9-822.
+    expect(body).not.toContain("e.payment_status = 'paid'");
   });
 
-  it('never names a column authenticated cannot SELECT on entries (MYK9-799)', () => {
-    // Assertion-first: this was red before the fix — the filter contained
-    // `result_status.neq.pending`, and PostgREST 403s the ENTIRE request when
-    // an `or()` filter names a column outside the caller's column grant, so
-    // Delete was disabled for every dog regardless of its entries.
-    const filter = clientFilter();
-    for (const col of FORBIDDEN_AUTHENTICATED_COLUMNS) {
-      expect(filter, `client filter names ungranted column ${col}`).not.toContain(col);
-    }
+  it('count_blocking_entries_by_dog calls the same shared predicate', () => {
+    const migration = latestMigrationDefining(
+      'CREATE OR REPLACE FUNCTION public.count_blocking_entries_by_dog'
+    );
+    const body = sqlFunctionBody(migration, 'public.count_blocking_entries_by_dog(p_dog_id uuid)');
+    expect(body).toContain('private.count_dog_blocking_entries(p_dog_id)');
   });
 
-  it('both sides ignore tombstoned entries', () => {
-    // An already-deleted entry is not a reason to refuse — without this the
-    // guard would permanently block a dog whose entries were scratched.
-    expect(sqlGuardBody()).toContain('e.deleted_at IS NULL');
-    expect(clientFunctionBody()).toContain(".is('deleted_at', null)");
-  });
-
-  it('neither side blocks on refunded or waived entries', () => {
-    // The money is not being kept, so these must stay deletable. A blanket
-    // "payment_status is not null" on either side would trap both.
-    const sql = sqlGuardBody();
-    const filter = clientFilter();
+  it('the shared predicate ignores tombstoned entries and never blocks on refunded or waived', () => {
+    const migration = latestMigrationDefining(
+      'CREATE OR REPLACE FUNCTION private.count_dog_blocking_entries'
+    );
+    const body = sqlFunctionBody(migration, 'private.count_dog_blocking_entries(p_dog_id uuid)');
+    // Tombstoned entries never block — they are already gone.
+    expect(body).toContain('e.deleted_at IS NULL');
+    // The money is not being kept in either case, so a blanket
+    // "payment_status is not null" that traps both must never appear.
     for (const status of ['refunded', 'waived']) {
-      expect(sql, `SQL guard blocks on ${status}`).not.toContain(status);
-      expect(filter, `client filter blocks on ${status}`).not.toContain(status);
+      expect(body, `predicate blocks on ${status}`).not.toContain(status);
     }
+  });
+
+  it('the client calls the RPC, never a hand-rolled PostgREST filter', () => {
+    // Regression guard for the bug this migration fixes: a PostgREST filter
+    // naming result_status inside an `or()` 403s the WHOLE request (MYK9-799)
+    // because authenticated has no column-SELECT grant on it. The RPC
+    // sidesteps that by running SECURITY DEFINER, so the client must never go
+    // back to composing its own filter over `entries`.
+    const body = clientFunctionBody();
+    expect(body).toContain(".rpc('count_blocking_entries_by_dog'");
+    expect(body).toContain('p_dog_id: dogId');
+    expect(body).not.toContain('.or(');
+    expect(body).not.toContain("supabase.from('entries')");
   });
 });

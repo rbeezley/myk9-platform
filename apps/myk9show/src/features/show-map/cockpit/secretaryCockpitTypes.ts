@@ -115,6 +115,10 @@ export interface SecretaryCockpitClass {
   entryRows: readonly SecretaryCockpitEntryRow[];
   trialId: string;
   name: string;
+  /** Registry element/level/section (MYK9-825) — the label is composed from these, not `name` alone. */
+  element?: string | null;
+  level?: string | null;
+  section?: string | null;
   classOrder: number;
   scheduledStart?: string | null;
   revisedExpectedStart?: string | null;
@@ -137,6 +141,8 @@ export interface SecretaryCockpitClass {
 export interface SecretaryCockpitSnapshot {
   showId: string;
   timeZone: string;
+  /** The show's sanctioning registry (MYK9-825) — drives level-progression order on the schedule. */
+  registryId: RegistryId;
   now: Date;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];
@@ -206,4 +212,5 @@ export interface SecretaryCockpitModel {
   focusedClass: FocusedClassModel | null;
 }
 import type { ReportScope } from '@/lib/reports/types';
+import type { RegistryId } from '@/features/registries';
 import type { ShowMapAutoSortKind } from '../showMapRunOrderAutoSort';

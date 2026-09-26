@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { escapeCsvCell, filterUsers, sortUsers } from './UserManagementPage.helpers';
 import { DEFAULT_USER_FILTER, hasActiveUserFilters } from './UserManagementPage.types';
@@ -189,6 +190,27 @@ describe('filterUsers created-date range', () => {
     const result = filterUsers(users, '', range(localDate(2020, 0, 1), null));
     expect(result.map(u => u.id)).not.toContain('none');
   });
+
+  // MYK9-837 (Codex): a rolling window's cutoff (e.g. "last 7 days" = now
+  // minus 7×24h) can land mid-day. Rounding `start` down to that day's
+  // midnight would silently widen the window by up to a day — a user created
+  // an hour before the exact cutoff must still be excluded.
+  it('honors a start time precisely rather than rounding it down to midnight', () => {
+    const precise = [
+      {
+        id: 'before-cutoff',
+        firstName: 'Before',
+        createdAt: new Date(2026, 5, 15, 10, 0, 0),
+      },
+      {
+        id: 'after-cutoff',
+        firstName: 'After',
+        createdAt: new Date(2026, 5, 15, 12, 0, 0),
+      },
+    ] as User[];
+    const cutoff = new Date(2026, 5, 15, 11, 0, 0);
+    expect(filterUsers(precise, '', range(cutoff, null)).map(u => u.id)).toEqual(['after-cutoff']);
+  });
 });
 
 // Sorting used to happen inside the table, which only ever held the current
@@ -229,6 +251,31 @@ describe('sortUsers', () => {
     const input = [...users];
     sortUsers(input, { id: 'name', desc: true });
     expect(input.map(u => u.id)).toEqual(['b', 'a', 'n']);
+  });
+});
+
+// The Roles column's badge (UserTable/columns.tsx) shows the highest-priority
+// role, not roles[0] — sorting on roles[0] can order a row by a role the
+// admin never sees on the badge (MYK9-837).
+describe('sortUsers by role — sorts by the badge lead role, not roles[0]', () => {
+  const roleUsers = [
+    // roles[0] is 'exhibitor', but the badge (and the sort) shows 'judge'.
+    { id: 'multi', firstName: 'Multi', roles: [UserRole.EXHIBITOR, UserRole.JUDGE] },
+    { id: 'admin', firstName: 'Admin', roles: [UserRole.SITE_ADMIN] },
+    { id: 'exhibitor', firstName: 'Exhibitor', roles: [UserRole.EXHIBITOR] },
+  ] as AdminUser[];
+
+  it('sorts by the lead role string ("judge"), not roles[0] ("exhibitor")', () => {
+    // Sorting by roles[0] would tie "multi" with "exhibitor" (both read
+    // "exhibitor") and land it ahead of "admin" ("site_admin"): ['multi',
+    // 'exhibitor', 'admin']. Sorting by the badge's lead role puts "multi" at
+    // "judge", which alphabetically falls between "exhibitor" and
+    // "site_admin".
+    expect(sortUsers(roleUsers, { id: 'role', desc: false }).map(u => u.id)).toEqual([
+      'exhibitor',
+      'multi',
+      'admin',
+    ]);
   });
 });
 

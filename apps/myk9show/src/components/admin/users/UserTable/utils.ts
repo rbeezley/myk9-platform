@@ -5,6 +5,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { User } from '@/types/user-types';
+import { USER_ROLE_HIERARCHY, type UserRole } from '@/types/auth-types';
 
 // Status config type
 export interface StatusConfig {
@@ -14,6 +15,22 @@ export interface StatusConfig {
   /** Solid dot colour for the avatar badge, where there is no room for a label. */
   dotClass: string;
   label: string;
+}
+
+/** Hierarchy position, highest first; unknown roles sort last. */
+function rolePriority(role: UserRole): number {
+  const index = USER_ROLE_HIERARCHY.indexOf(role);
+  return index === -1 ? USER_ROLE_HIERARCHY.length : index;
+}
+
+/**
+ * The role the Roles badge displays: highest-priority, not roles[0]. The
+ * Roles column sort must use this same calculation, or a row can be ordered
+ * by a role the admin never sees on the badge (MYK9-837).
+ */
+export function getLeadRole(roles: readonly UserRole[] | undefined): UserRole | undefined {
+  if (!roles || roles.length === 0) return undefined;
+  return [...roles].sort((a, b) => rolePriority(a) - rolePriority(b))[0];
 }
 
 /** Get user initials for avatar fallback */

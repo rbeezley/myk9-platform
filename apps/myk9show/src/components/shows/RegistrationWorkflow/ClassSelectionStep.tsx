@@ -11,7 +11,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
-import { compareLevels } from '@/utils/schedule-summary';
+import { compareLevelsByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import { useCartStore, useCartItems } from '@/store/cartStore';
 import type { EnsureCartResult } from '@/store/cartStore.types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -206,6 +206,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     );
 
     for (const trial of showTrials) {
+      // Registry-aware so UKC/ASCA levels the wizard didn't previously know
+      // (Superior, Elite, Open) sort by the rulebook's ladder rather than
+      // falling out to alphabetical order (MYK9-825).
+      const trialRegistryId = resolveConfiguredRegistryId(trial.registryId) ?? 'AKC';
       // Mapped rather than assigned straight through: `SyncableTrialClass`
       // spells the stored name `name`, and `RegistrationClassSource` spells it
       // `className`. Assigning the array directly type-checks — `className` is
@@ -264,7 +268,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       const sorted = classes.slice().sort((a, b) => {
         const elemCmp = (a.element || '').localeCompare(b.element || '');
         if (elemCmp !== 0) return elemCmp;
-        const levelCmp = compareLevels(a.level || '', b.level || '');
+        const levelCmp = compareLevelsByProgression(a.level || '', b.level || '', trialRegistryId);
         if (levelCmp !== 0) return levelCmp;
         return (a.section || '').localeCompare(b.section || '');
       });

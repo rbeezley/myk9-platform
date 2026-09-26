@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import {
   getUserStatus,
   getUserFullName,
   getStatusConfig,
   getDeletedStatusConfig,
   highlightSearchTerm,
+  getLeadRole,
 } from './utils';
 
 describe('getUserStatus', () => {
@@ -61,6 +63,24 @@ describe('status configs use --chip-* token pairs, never inline hex', () => {
     expect(config.label).toBe('Removed');
     expect(config.chipClass).toContain('var(--chip-stone-bg)');
     expect(config.chipClass).not.toMatch(HEX);
+  });
+});
+
+// The Roles badge shows the highest-priority role, not roles[0] — the sort
+// on that column must agree, or a row can land out of order by a role the
+// admin never sees (MYK9-837).
+describe('getLeadRole', () => {
+  it('picks the highest-priority role even when it is not first in the array', () => {
+    expect(getLeadRole([UserRole.EXHIBITOR, UserRole.JUDGE])).toBe(UserRole.JUDGE);
+  });
+
+  it('returns the only role for a single-role user', () => {
+    expect(getLeadRole([UserRole.STEWARD])).toBe(UserRole.STEWARD);
+  });
+
+  it('returns undefined for no roles', () => {
+    expect(getLeadRole([])).toBeUndefined();
+    expect(getLeadRole(undefined)).toBeUndefined();
   });
 });
 

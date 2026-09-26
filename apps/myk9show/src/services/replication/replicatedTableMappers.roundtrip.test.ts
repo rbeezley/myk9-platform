@@ -419,6 +419,7 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
       trial_number: '1',
       status: 'in_progress',
       registry_id: 'AKC',
+      timezone: 'America/New_York',
     });
   });
 
@@ -434,6 +435,38 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     const table = new TestableTrialsTable();
     const rebuilt = table.publicRebuildUpdatePayload(domain);
     expect(rebuilt.registry_id).toBe('AKC');
+  });
+
+  it('trials: round-trips a non-default timezone on write-back (MYK9-831)', () => {
+    const domain = rowToTrial({
+      id: 'trial-3',
+      show_id: 'show-1',
+      name: 'Tulsa Trial',
+      date: '2026-08-01',
+      timezone: 'America/Chicago',
+    } as never);
+
+    const table = new TestableTrialsTable();
+    const rebuilt = table.publicRebuildUpdatePayload(domain);
+    expect(rebuilt.timezone).toBe('America/Chicago');
+  });
+
+  it('trials: defaults timezone to America/New_York on write-back when unset (MYK9-831)', () => {
+    // Codex review (PR #2543): toSupabaseRow silently dropped timezone
+    // entirely, so an offline-created or add-trials trial synced without
+    // it and the column's own default landed regardless of the wizard's
+    // picker — the same "last-hop drop" pattern as MYK9-830.
+    const domain = rowToTrial({
+      id: 'trial-4',
+      show_id: 'show-1',
+      name: 'No Timezone Trial',
+      date: '2026-08-01',
+      timezone: null,
+    } as never);
+
+    const table = new TestableTrialsTable();
+    const rebuilt = table.publicRebuildUpdatePayload(domain);
+    expect(rebuilt.timezone).toBe('America/New_York');
   });
 
   it('judge assignments: maps embedded class/trial enrichment and round-trips writable fields', () => {

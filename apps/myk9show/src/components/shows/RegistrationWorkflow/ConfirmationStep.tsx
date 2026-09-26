@@ -323,12 +323,20 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             </span>
             {'. '}
             <span>Wait list positions: </span>
-            {waitlistEntries.map((entry, idx) => (
-              <span key={entry.id}>
-                {`${entry.className ?? ''} #${entry.position}`.trimStart()}
-                {idx < waitlistEntries.length - 1 ? ', ' : '.'}
-              </span>
-            ))}
+            {waitlistEntries.map((entry, idx) => {
+              // MYK9-832 #12: without the trial name, two identically-named
+              // waitlisted classes in different trials read as the same line
+              // twice, e.g. "Vehicle Novice B, Vehicle Novice B".
+              const trialId = classes.find(c => c.id === entry.class_id)?.trialId;
+              const trialName = trials.find(t => t.id === trialId)?.name;
+              const label = [trialName, entry.className].filter(Boolean).join(' — ');
+              return (
+                <span key={entry.id}>
+                  {`${label} #${entry.position}`.trimStart()}
+                  {idx < waitlistEntries.length - 1 ? ', ' : '.'}
+                </span>
+              );
+            })}
           </AlertDescription>
         </Alert>
       )}

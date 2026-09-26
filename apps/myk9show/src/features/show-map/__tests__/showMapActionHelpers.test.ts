@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canMarkClassComplete,
   canMarkEntryCheckedIn,
+  canMoveUpEntry,
   getEntrySourceId,
   isSyntheticDisplayActionNode,
   sourceIdFromNodeId,
@@ -111,5 +112,19 @@ describe('showMapActionHelpers', () => {
         )
       ).toBe(false);
     }
+  });
+
+  it('MYK9-825: rejects Move up for a moved (or otherwise muted) entry, allows it for an ordinary one', () => {
+    expect(canMoveUpEntry(makeNode({ id: 'entry:ready', type: 'entry' }))).toBe(true);
+    expect(
+      canMoveUpEntry(
+        makeNode({
+          id: 'entry:moved',
+          type: 'entry',
+          status: { value: 'moved', label: 'Moved', kind: 'muted' },
+        })
+      )
+    ).toBe(false);
+    expect(canMoveUpEntry(makeNode({ id: 'class:not-an-entry', type: 'class' }))).toBe(false);
   });
 });

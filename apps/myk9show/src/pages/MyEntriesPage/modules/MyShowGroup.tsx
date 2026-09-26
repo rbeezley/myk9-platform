@@ -92,16 +92,22 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const money = deriveShowMoneyState(group.orders, now, source);
   const moneyUnknown = money.kind === 'unknown';
   const refunds = refundNotesByDog(group.orders, source);
+  // The paid strip reads from `allOrders` (the show's FULL order set,
+  // MYK9-804), not `group.orders` — so its own money-confirmed gate must
+  // cover THAT set. `moneyUnknown` alone only inspects `group.orders`; an
+  // order the current filter hides can carry an unresolved money root
+  // (`balance.moneyRootUnresolved`, the partial-replication window) that
+  // `group.orders` would have refused to render money for, and the paid
+  // strip must refuse it too (Codex review on PR #2548).
+  const paidOrders = allOrders ?? group.orders;
+  const paidMoneyUnknown =
+    moneyUnknown || paidOrders.some(order => order.balance?.moneyRootUnresolved);
   // The paid strip quotes a dollar amount and a date, so it is money under the
   // same gate — `derivePaidStrip` is skipped outright rather than rendered and
   // hidden, so there is no figure in the tree to leak.
-  const paidStrip = moneyUnknown
+  const paidStrip = paidMoneyUnknown
     ? null
-    : derivePaidStrip(
-        allOrders ?? group.orders,
-        now,
-        orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
-      );
+    : derivePaidStrip(paidOrders, now, rowId => hasSeenPaidStrip(rowId) || dismissed.has(rowId));
 
   const orderStates = group.orders.map(order => ({
     order,

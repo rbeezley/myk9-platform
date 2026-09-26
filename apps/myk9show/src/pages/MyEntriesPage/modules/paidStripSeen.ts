@@ -120,7 +120,18 @@ function paidOnlineRowsOf(order: MyEntry): PaidRow[] {
   return rows;
 }
 
-/** Was this payment recent enough to still be worth confirming? */
+/**
+ * Was this payment recent enough to still be worth confirming?
+ *
+ * Gated per ORDER, on `groupEntriesByOrder`'s earliest-row `submittedAt`
+ * (unchanged by MYK9-804). Known limitation, flagged in adversarial review of
+ * PR #2548: a row added to an existing registration long after its first row
+ * was submitted would inherit that older date, and could miss this window
+ * even though ITS OWN payment is recent. Left as-is because the row-level
+ * paid amount this module derives has no per-row submission timestamp to
+ * gate on instead, and it is unconfirmed whether this product's data model
+ * ever attaches a new row to an already-submitted registration.
+ */
 function isWithinWindow(order: MyEntry, now: Date): boolean {
   return now.getTime() - order.submittedAt.getTime() <= PAID_STRIP_WINDOW_MS;
 }

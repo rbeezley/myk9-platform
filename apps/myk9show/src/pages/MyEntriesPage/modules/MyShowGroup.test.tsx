@@ -336,6 +336,73 @@ describe('paid confirmation states the real total (MYK9-804)', () => {
     // reads from the unfiltered total.
     expect(screen.queryByText('Willow')).not.toBeInTheDocument();
   });
+
+  // Codex review (correctness/data-flow lens) on PR #2548: the paid strip now
+  // reads from `allOrders`, not `group.orders`, so its own money-confirmed
+  // gate must cover the SAME set — `moneyUnknown` alone only inspects
+  // `group.orders` and would miss an unresolved order the active filter hid.
+  it('withholds the paid strip when an order outside the filtered view has an unresolved money root', () => {
+    // A completed order the current filter hides, carrying a paid class —
+    // but its balance still marks the partial-replication `moneyRootUnresolved`
+    // window `deriveShowMoneyState`'s own gate exists to withhold money for.
+    const unresolvedOrder = futureShowRow({
+      id: 'e-unresolved',
+      registrationId: 'reg-unresolved',
+      dogId: 'dog-hidden',
+      dogName: 'Hidden',
+      totalFee: 30,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      paymentMethod: 'online',
+      // Inside the 14-day paid-strip window (NOW is 2026-10-24) — the
+      // fixture default is 2026-09-01, which `derivePaidStrip`'s OWN window
+      // check would already exclude regardless of this test's fix, making
+      // the scenario a false negative for the money-root gate specifically.
+      submittedAt: new Date('2026-10-22T12:00:00Z'),
+      dogs: [
+        {
+          id: 'c-hidden-1',
+          dogId: 'dog-hidden',
+          dogName: 'Hidden',
+          entryStatus: EntryStatus.ACCEPTED,
+          classes: [
+            makeClass({ id: 'c-hidden-1', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
+          ],
+        },
+      ],
+      balance: {
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: 'online',
+        amountDueCents: 0,
+        onlineDueCents: 0,
+        payAtShowDueCents: 0,
+        payAtShowMethod: null,
+        dueEntryIds: [],
+        moneyRootUnresolved: true,
+      },
+    });
+
+    const visibleOrders = toOrders([
+      futureShowRow({
+        id: 'e-visible',
+        registrationId: 'reg-visible',
+        dogId: 'dog-visible',
+        dogName: 'Visible',
+        totalFee: 30,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: 'online',
+        classes: [
+          makeClass({ id: 'c-visible-1', fee: 30, paymentStatus: PaymentStatus.PAID_ONLINE }),
+        ],
+      }),
+    ]);
+
+    renderRows([], {
+      filteredEntries: visibleOrders,
+      allEntries: [...visibleOrders, unresolvedOrder],
+    });
+
+    expect(screen.queryByText(/entry is paid|entries are paid/)).not.toBeInTheDocument();
+  });
 });
 
 describe('entries-close deadline', () => {

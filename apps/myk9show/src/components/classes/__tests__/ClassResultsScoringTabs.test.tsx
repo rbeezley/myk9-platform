@@ -176,25 +176,26 @@ describe('ClassResultsTable scoring tabs', () => {
   const rawUnscoredB = makeRawEntry('entry-2', false);
   const allRawEntries = [rawUnscoredA, rawUnscoredB, rawScoredA, rawScoredB];
 
-  it('renders Pending, Completed, and All tabs', () => {
+  // The result views moved onto the shared list-toolkit `ListViewTabs`
+  // (MYK9-811) — plain buttons (`aria-pressed`), not ARIA tabs.
+  it('renders Pending, Completed, and All views', () => {
     renderTable(allEntries, allRawEntries);
-    expect(screen.getByRole('tab', { name: /Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Completed/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /All/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
   });
 
-  it('defaults to the Pending tab', () => {
+  it('defaults to the Pending view', () => {
     renderTable(allEntries, allRawEntries);
-    const pendingTab = screen.getByRole('tab', { name: /Pending/ });
-    expect(pendingTab).toHaveAttribute('aria-selected', 'true');
+    const pendingView = screen.getByRole('button', { name: /^Pending/ });
+    expect(pendingView).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('shows badge counts on Pending and Completed tabs', () => {
+  it('shows badge counts on Pending and Completed views', () => {
     renderTable(allEntries, allRawEntries);
-    // The SubTabs component renders badge counts as small circular spans.
     // Pending: 2 unscored entries, Completed: 2 scored entries
-    const tabList = screen.getByRole('tablist');
-    const badges = within(tabList).getAllByText(/^[0-9]+$/);
+    const nav = screen.getByRole('navigation', { name: /result views/i });
+    const badges = within(nav).getAllByText(/^[0-9]+$/);
     const badgeValues = badges.map(b => b.textContent);
     expect(badgeValues).toContain('2');
   });
@@ -246,10 +247,10 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('handles empty entries list', () => {
     renderTable([]);
-    // Tabs should still render
-    expect(screen.getByRole('tab', { name: /Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Completed/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /All/ })).toBeInTheDocument();
+    // Views should still render
+    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
   });
 
   it('detects scored entries via rawEntries is_scored flag', () => {

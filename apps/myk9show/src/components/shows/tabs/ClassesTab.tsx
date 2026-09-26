@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
@@ -8,18 +7,19 @@ import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
-import {
-  formatTrialLabel,
-  getClassDisplayStatus,
-  type ClassStatusValue,
-  type ClassDisplayStatus,
-} from '@myk9/core';
-import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
+import { formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/status';
+import { ListViewTabs } from '@/components/list-toolkit';
+import {
+  activeClassesTabViewId,
+  buildClassesTabViews,
+  classesTabViewFilters,
+  filterClassesForTab,
+} from './classesTabViews';
 
 export interface ClassInfo {
   id: string;
@@ -73,9 +73,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     userHasEntries ? 'cards' : 'table'
   );
   const [viewModeTouched, setViewModeTouched] = useState(false);
-  const [isMine, setIsMine] = useState(userHasEntries);
-  const [mineFilterTouched, setMineFilterTouched] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
+  // Always starts on the whole show (Oct 10 rehearsal: a secretary who also
+  // holds entries in the show must land on "All", never auto-scoped to
+  // "Mine" — that scoping is now one pressable view among four, not a
+  // silent default). See `classesTabViews.ts`.
+  const [viewId, setViewId] = useState('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
   const viewMode =
     userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
@@ -85,54 +87,14 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     setViewModePreference(mode);
   };
 
-  // Entry ownership resolves after mount. Keep defaulting to "Mine" until the
-  // exhibitor explicitly asks for all classes.
-  const effectiveIsMine = userHasEntries && !mineFilterTouched ? true : isMine;
-
-  const handleMineToggle = () => {
-    setMineFilterTouched(true);
-    setIsMine(!effectiveIsMine);
-  };
-
-  const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
-  const mineFilteredClasses = useMemo(
-    () => (effectiveIsMine ? classes.filter(c => c.userHasEntry) : classes),
-    [classes, effectiveIsMine]
+  const viewFilters = classesTabViewFilters(viewId);
+  const views = useMemo(() => buildClassesTabViews(classes), [classes]);
+  const activeViewId = activeClassesTabViewId(viewFilters);
+  const filteredClasses = useMemo(
+    () => filterClassesForTab(classes, viewFilters),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- viewFilters is derived from viewId
+    [classes, viewId]
   );
-
-  const classDisplayStatuses = useMemo(() => {
-    const map = new Map<string, ClassDisplayStatus>();
-    for (const cls of mineFilteredClasses) {
-      const input: Parameters<typeof getClassDisplayStatus>[0] = {
-        status: cls.status,
-        entry_count: cls.entryCount ?? 0,
-        scored_count: cls.scoredCount ?? 0,
-      };
-      if (cls.isScoringFinalized !== undefined) input.is_scoring_finalized = cls.isScoringFinalized;
-      if (cls.hasActiveEntries !== undefined) input.has_active_entries = cls.hasActiveEntries;
-      map.set(cls.id, getClassDisplayStatus(input));
-    }
-    return map;
-  }, [mineFilteredClasses]);
-
-  const statusCounts = useMemo(() => {
-    let pending = 0;
-    let completed = 0;
-    for (const ds of classDisplayStatuses.values()) {
-      if (ds === 'completed') completed++;
-      else pending++;
-    }
-    return { all: mineFilteredClasses.length, pending, completed };
-  }, [mineFilteredClasses, classDisplayStatuses]);
-
-  const filteredClasses = useMemo(() => {
-    if (statusFilter === 'all') return mineFilteredClasses;
-    return mineFilteredClasses.filter(cls => {
-      const ds = classDisplayStatuses.get(cls.id) ?? 'not-started';
-      if (statusFilter === 'completed') return ds === 'completed';
-      return ds !== 'completed'; // pending = not-started + in-progress
-    });
-  }, [mineFilteredClasses, statusFilter, classDisplayStatuses]);
 
   // Group classes by trial (date + number)
   const groupedByTrial = useMemo(() => {
@@ -274,31 +236,14 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     );
   }
 
+  // "Mine" is hidden when the signed-in user holds no entries in the show —
+  // it would only ever read "Mine (0)" (MineToggle's `hidden` prop, before it).
+  const visibleViews = userHasEntries ? views : views.filter(view => view.id !== 'mine');
+
   return (
     <div className="space-y-4">
-      {userHasEntries && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-          Showing your entered classes first. Switch to all classes for the complete schedule.
-        </div>
-      )}
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusFilter
-            filter={statusFilter}
-            onFilterChange={setStatusFilter}
-            counts={statusCounts}
-          />
-          <MineToggle
-            isMine={effectiveIsMine}
-            onToggle={handleMineToggle}
-            allLabel="All Classes"
-            mineLabel="My Classes"
-            allCount={classes.length}
-            mineCount={mineCount}
-            hidden={!userHasEntries}
-          />
-        </div>
+        <ListViewTabs label="Class views" views={visibleViews} activeId={activeViewId} onSelect={setViewId} />
         <div className="flex items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
           {canManage && (
@@ -322,13 +267,15 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           variant="filter"
           size="sm"
           title={
-            statusFilter === 'pending'
-              ? 'All classes completed!'
-              : statusFilter === 'completed'
-                ? 'No classes completed yet.'
-                : 'No classes match the current filter.'
+            viewFilters.mine
+              ? 'None of your entered classes match.'
+              : viewFilters.status === 'pending'
+                ? 'All classes completed!'
+                : viewFilters.status === 'completed'
+                  ? 'No classes completed yet.'
+                  : 'No classes match the current filter.'
           }
-          action={{ label: 'Show all classes', onClick: () => setStatusFilter('all') }}
+          action={{ label: 'Show all classes', onClick: () => setViewId('all') }}
         />
       ) : viewMode === 'table' ? (
         <DataTable

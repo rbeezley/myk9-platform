@@ -41,7 +41,10 @@ describe('anonymous access boundary', () => {
   });
 
   it('keeps entry-bearing trial and class routes behind the boundary', () => {
-    expect(routeBlock('/shows/:showId/trials/:trialId')).toContain('<ProtectedRoute>');
+    // MYK9-789: Trial Details is account-only, so a ringside passcode session
+    // is sent to sign-in too, on both paths that render it.
+    expect(routeBlock('/shows/:showId/trials/:trialId')).toContain('<ProtectedRoute accountOnly>');
+    expect(routeBlock('/trials/:trialId')).toContain('<ProtectedRoute accountOnly>');
     expect(routeBlock('/shows/:showId/trials/:trialId/classes/:classId')).toContain(
       '<ProtectedRoute>'
     );

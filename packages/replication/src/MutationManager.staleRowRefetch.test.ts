@@ -137,6 +137,13 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
 
   beforeEach(async () => {
     await databaseManager.reset();
+    // reset() closes the shared IndexedDB without deleting it, and an upload
+    // pass sends EVERY queued mutation to this test's fake server, which
+    // ignores the table name. A write another test left queued would land
+    // here and move the fake row's version under this test's assertions.
+    const db = await databaseManager.getDatabase('test');
+    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await db.clear(REPLICATION_STORES.FAILED_MUTATIONS);
     configureConflictSurfacing(true);
     Object.defineProperty(globalThis, 'localStorage', {
       value: { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() },
@@ -157,6 +164,9 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
     const logger: Logger = { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
     manager = new MutationManager(supabase, {
       logger,
+      // Keep the runner's self-scheduled retry timer (30s cap) out of the way:
+      // only the test's explicit passes upload.
+      retryBackoffBase: 60_000,
       getCurrentUserId: async () => AUTH_USER_ID,
       getCurrentUploadContext: async () => ({ authUserId: AUTH_USER_ID, supabaseClient: supabase }),
     });

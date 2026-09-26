@@ -23,6 +23,16 @@
  * every dog until this fix. `ARMS` below therefore lists only the arms both
  * sides implement; the column-allowlist test lower in this file guards
  * against the client filter ever naming an ungranted column again.
+ *
+ * Narrower is not equivalent: an entry can carry a settled result_status
+ * ('absent' or 'excused') without is_scored or scoring_completed_at ever
+ * being set (migrations 20260712180000 and 20260904160000 define "accounted
+ * for" as exactly `is_scored OR result_status IN ('absent', 'excused')`
+ * because the two diverge in practice). Such an entry passes the client
+ * filter as not-blocking, so the dialog under-warns; soft_delete_dog still
+ * refuses the actual delete with MK002 on the full predicate, so no data is
+ * lost, only the pre-click warning is briefly wrong. See MYK9-822 for a
+ * server-side count that can share soft_delete_dog's own predicate instead.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

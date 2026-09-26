@@ -13,6 +13,7 @@ import {
   mapReportTrialFields,
 } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import { isStaticOfficialPdfReport } from '@/features/organization-forms/officialPdfReports';
 import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
 import { buildPages, selectionHasEntries } from './reportPreviewPages';
@@ -373,7 +374,9 @@ export function ReportPreview({
             ? 'This form belongs to a different registry than the trial you have selected, so there is nothing to download. Pick the trial it belongs to, or choose a different form.'
             : downloadBlockedReason
               ? `There is no on-screen preview for this one; it downloads as a filled PDF. ${downloadBlockedReason}`
-              : 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'}
+              : isStaticOfficialPdfReport(reportType)
+                ? 'This one has no fillable fields. Use the download button above to get a blank copy of the registry’s own form, then fill it in by hand.'
+                : 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'}
         </p>
       </div>
     );

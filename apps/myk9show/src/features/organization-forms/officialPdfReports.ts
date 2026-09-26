@@ -171,6 +171,16 @@ export function getOfficialPdfReportConfig(
   }
 }
 
+/**
+ * True for reports whose template has no AcroForm fields at all (`downloadMode:
+ * 'static'` with `values: emptyPdfValues`), so the panel copy can say the form
+ * is blank instead of claiming it arrives filled in (MYK9-828). Every one of
+ * these configs ignores `props`, so a null probe is safe.
+ */
+export function isStaticOfficialPdfReport(reportId: string): boolean {
+  return getOfficialPdfReportConfig(reportId, null)?.downloadMode === 'static';
+}
+
 export function getOfficialPdfMissingFieldLabels(reportId: string, props: ReportProps): string[] {
   const config = getOfficialPdfReportConfig(reportId, props);
   if (!config) return [];

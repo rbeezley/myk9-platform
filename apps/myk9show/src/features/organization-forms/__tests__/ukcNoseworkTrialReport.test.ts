@@ -57,7 +57,35 @@ const reportProps = {
     date: '2026-06-12',
     judgeName: 'Pat Judge',
     trialNumber: '2026123401',
+    // TEXT columns holding an already-formatted display string (MYK9-828
+    // review) — never an ISO timestamp; see docs/UKC-forms and
+    // 073_trial_field_sync.sql.
+    actualStartTime: '9:00 AM',
+    actualEndTime: '3:30 PM',
     dayTrialNumber: 1,
+  },
+  ukcTrialReportContext: {
+    venueCity: 'Springfield',
+    venueState: 'IL',
+    clubNumber: 'UKC-4821',
+    chairperson: {
+      name: 'Alex Chairperson',
+      streetAddress: '1 Chair Way',
+      city: 'Springfield',
+      state: 'IL',
+      zipCode: '62701',
+      phone: '2175551000',
+      email: 'chair@example.com',
+    },
+    secretary: {
+      name: 'Sam Secretary',
+      streetAddress: '2 Secretary Ave',
+      city: 'Decatur',
+      state: 'IL',
+      zipCode: '62521',
+      phone: '2175552000',
+      email: 'secretary@example.com',
+    },
   },
 } satisfies ReportProps;
 
@@ -104,6 +132,9 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       },
       text: {
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName]: 'Demo Nosework Club',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId]: 'UKC-4821',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city]: 'Springfield',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.state]: 'IL',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries]: 2,
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowSubtotal]: '8.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate]: '6/12/2026',
@@ -113,6 +144,22 @@ describe('buildUKCNoseworkTrialReportValues', () => {
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries]: 2,
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntrySubtotal]: '8.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: 5,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted]: '9:00 AM',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass]: '3:30 PM',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName]: 'Alex Chairperson',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonAddress]: '1 Chair Way',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonCity]: 'Springfield',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonState]: 'IL',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonZip]: '62701',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonPhone]: '2175551000',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonEmail]: 'chair@example.com',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName]: 'Sam Secretary',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryAddress]: '2 Secretary Ave',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryCity]: 'Decatur',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryState]: 'IL',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryZip]: '62521',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryPhone]: '2175552000',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryEmail]: 'secretary@example.com',
       },
     });
   });
@@ -123,11 +170,17 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       clubName: undefined,
       entries: [],
       trial: undefined,
+      ukcTrialReportContext: null,
     });
 
     expect(values.checkboxes).toEqual({});
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName);
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate);
+    expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId);
+    expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city);
+    expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName);
+    expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName);
+    expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted);
     expect(values.text).toMatchObject({
       [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries]: 0,
       [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: '0.00',
@@ -220,6 +273,29 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
         '16.00'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId).getText()).toBe('UKC-4821');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city).getText()).toBe(
+        'Springfield'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.state).getText()).toBe('IL');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.timeTrialStarted).getText()).toBe(
+        '9:00 AM'
+      );
+      expect(
+        form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.conclusionOfLastClass).getText()
+      ).toBe('3:30 PM');
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName).getText()).toBe(
+        'Alex Chairperson'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonZip).getText()).toBe(
+        '62701'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryName).getText()).toBe(
+        'Sam Secretary'
+      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.secretaryZip).getText()).toBe(
+        '62521'
       );
     });
   });

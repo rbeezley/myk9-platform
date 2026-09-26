@@ -467,4 +467,31 @@ describe('SmartSignInPage', () => {
     expect(navigateSpy).not.toHaveBeenCalled();
     expect(screen.getByTestId('passcode-continue-button')).toBeInTheDocument();
   });
+
+  it('shows a calm connection message in place when the session cannot be started, and lets the judge retry without re-navigating', async () => {
+    // MYK9-829: a failed join (bad passcode, refresh failure, unstamped
+    // session) must not silently reset the judge to the start with no
+    // explanation — the calm message renders in place, on the same step.
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: false,
+      kind: 'session',
+      reason: 'network',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'a1234');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
+
+    expect(
+      await screen.findByText("Couldn't connect. Check your signal and try again.")
+    ).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+    // Still on the passcode step, credential preserved — retry needs no
+    // re-navigation.
+    expect(screen.getByTestId('passcode-continue-button')).toBeInTheDocument();
+    expect(screen.queryByTestId('credential-input')).not.toBeInTheDocument();
+  });
 });

@@ -139,7 +139,12 @@ describe('startAnonymousRingsideSession', () => {
 
     expect(signInAnonymously).not.toHaveBeenCalled();
     expect(validatePasscode).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+    expect(result).toEqual({
+      ok: false,
+      kind: 'session',
+      reason: 'unknown',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
   });
 
   it('refuses to clobber a real account session (auth-restore race guard)', async () => {
@@ -152,7 +157,12 @@ describe('startAnonymousRingsideSession', () => {
     expect(signInAnonymously).not.toHaveBeenCalled();
     expect(validatePasscode).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+    expect(result).toEqual({
+      ok: false,
+      kind: 'session',
+      reason: 'unknown',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
   });
 
   it('fails closed when the passcode validated but the session was not stamped', async () => {
@@ -163,17 +173,27 @@ describe('startAnonymousRingsideSession', () => {
 
     expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+    expect(result).toEqual({
+      ok: false,
+      kind: 'session',
+      reason: 'network',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
   });
 
-  it('returns a session error and never validates when anon sign-in fails', async () => {
+  it('returns a network session error and never validates when anon sign-in fails', async () => {
     getSession.mockResolvedValue(noSession);
     signInAnonymously.mockResolvedValue({ error: { message: 'anon disabled' } });
 
     const result = await startAnonymousRingsideSession('jh3k9');
 
     expect(validatePasscode).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+    expect(result).toEqual({
+      ok: false,
+      kind: 'session',
+      reason: 'network',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
   });
 
   it('drops the dangling anon session and surfaces the result on an invalid passcode', async () => {
@@ -188,14 +208,39 @@ describe('startAnonymousRingsideSession', () => {
     expect(result).toEqual(invalid);
   });
 
-  it('signs out and returns a session error when the refresh fails', async () => {
+  it('signs out and returns a network session error when the refresh fails', async () => {
     getSession.mockResolvedValue(noSession);
     refreshSession.mockResolvedValue({ error: { message: 'refresh failed' } });
 
     const result = await startAnonymousRingsideSession('jh3k9');
 
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
+    expect(result).toEqual({
+      ok: false,
+      kind: 'session',
+      reason: 'network',
+      message: "Couldn't connect. Check your signal and try again.",
+    });
+  });
+
+  it('keeps the failure message set after signOut runs as part of cleanup', async () => {
+    // The message must survive the signOut() cleanup call — it is read from
+    // the returned result object, not from any state signOut could clear.
+    getSession.mockResolvedValue(noSession);
+    signOut.mockImplementation(async () => {
+      // Simulate signOut() clearing session-derived state as a side effect;
+      // the result object returned below must be unaffected by this.
+      return { error: null };
+    });
+    refreshSession.mockResolvedValue({ error: { message: 'refresh failed' } });
+
+    const result = await startAnonymousRingsideSession('jh3k9');
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toBe("Couldn't connect. Check your signal and try again.");
+    }
   });
 });
 

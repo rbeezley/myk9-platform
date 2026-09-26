@@ -4,7 +4,10 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
 import type { Show } from '@/types/show-types';
-import { mapReportEntries, buildTrialReportProps } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import {
+  mapReportEntries,
+  buildTrialReportProps,
+} from '@/pages/secretary/ReportsPage/reportDataMapping';
 import { buildUKCNoseworkTrialReportValues } from '@/features/organization-forms/ukcNoseworkTrialReport';
 import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from '@/features/organization-forms/ukcNoseworkTrialReportFields';
 import type { DbTrial, DbClass } from '@/types/database-mappings';
@@ -277,6 +280,32 @@ describe('useReportData', () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.trials).toEqual([
       expect.objectContaining({ id: 'trial-1', trial_number: 1, date: '2026-04-12' }),
+    ]);
+  });
+
+  it('numbers cached show trials by array position, not trial id, so a same-day fallback print ticks the right UKC trial-number box (MYK9-827)', async () => {
+    mockGetTrialsByShow.mockImplementation(() => new Promise(() => {}) as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+    const cachedShow = {
+      ...mockShow,
+      trials: [
+        // A UUID for trial-2 that sorts BEFORE trial-1's, so a fallback that
+        // tie-broke on id (instead of preserving this array's date order)
+        // would report trial-2 first.
+        { id: 'aaaa-trial-2', name: 'Trial 2', trialNumber: 2, date: '2026-04-12' },
+        { id: 'zzzz-trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' },
+      ],
+    } as never;
+    const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.trials).toEqual([
+      expect.objectContaining({ id: 'aaaa-trial-2', display_order: 1 }),
+      expect.objectContaining({ id: 'zzzz-trial-1', display_order: 2 }),
     ]);
   });
 
@@ -724,26 +753,26 @@ describe('useReportData', () => {
       expect(result.current.trials).toHaveLength(1);
     });
 
-    it('ticks each same-day trial its own UKC box from cached show trials, not UUID order (MYK9-827)', async () => {
-      // Chosen so alphabetical (UUID) order is the OPPOSITE of display order:
-      // a naive fallback that drops display_order would tick trial 2's box on
-      // trial 1's report and vice versa.
+    it('ticks each same-day trial its own UKC box from cached show trials, using real display_order over UUID or array order (MYK9-827)', async () => {
+      // Array position AND alphabetical (UUID) order are both the OPPOSITE of
+      // displayOrder: this only passes if the fallback carries the real
+      // display_order field through, not a positional or id-based guess.
       const cachedShow = {
         ...mockShow,
         trials: [
-          {
-            id: 'zzzzzzzz-0000-0000-0000-000000000001',
-            name: 'Trial 1',
-            trialNumber: '1',
-            date: '2026-04-12',
-            displayOrder: 1,
-          },
           {
             id: 'aaaaaaaa-0000-0000-0000-000000000002',
             name: 'Trial 2',
             trialNumber: '2',
             date: '2026-04-12',
             displayOrder: 2,
+          },
+          {
+            id: 'zzzzzzzz-0000-0000-0000-000000000001',
+            name: 'Trial 1',
+            trialNumber: '1',
+            date: '2026-04-12',
+            displayOrder: 1,
           },
         ],
       } as unknown as Show;
@@ -761,7 +790,9 @@ describe('useReportData', () => {
       await waitFor(() => expect(result.current.dataState).toBe('ready'));
       expect(result.current.trials).toHaveLength(2);
 
-      const [reportOne, reportTwo] = buildTrialReportProps({
+      // Returned in the same order as the trials array above: Trial 2 first,
+      // Trial 1 second — the opposite of their real display order.
+      const [propsForTrialTwo, propsForTrialOne] = buildTrialReportProps({
         show: cachedShow,
         trials: result.current.trials as DbTrial[],
         classes: (result.current.classes ?? []) as DbClass[],
@@ -770,13 +801,13 @@ describe('useReportData', () => {
         sortOrder: '',
       });
 
-      expect(reportOne?.trial?.dayTrialNumber).toBe(1);
-      expect(reportTwo?.trial?.dayTrialNumber).toBe(2);
+      expect(propsForTrialOne?.trial?.dayTrialNumber).toBe(1);
+      expect(propsForTrialTwo?.trial?.dayTrialNumber).toBe(2);
 
-      expect(buildUKCNoseworkTrialReportValues(reportOne).checkboxes).toEqual({
+      expect(buildUKCNoseworkTrialReportValues(propsForTrialOne).checkboxes).toEqual({
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberOne]: true,
       });
-      expect(buildUKCNoseworkTrialReportValues(reportTwo).checkboxes).toEqual({
+      expect(buildUKCNoseworkTrialReportValues(propsForTrialTwo).checkboxes).toEqual({
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.trialNumberTwo]: true,
       });
     });

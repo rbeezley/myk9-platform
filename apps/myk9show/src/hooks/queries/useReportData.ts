@@ -213,7 +213,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   const reportTrials = hasCurrentReportTrials
     ? trialsQuery.data
     : show?.trials?.length
-      ? show.trials.map(trial => ({
+      ? show.trials.map((trial, index) => ({
           id: trial.id,
           show_id: showId,
           name: trial.name,
@@ -222,9 +222,12 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
           // MYK9-827: same ordinal source as the warm path (trials.display_order),
+          // now carried onto ShowTrial by mapDatabaseToShow / mapReplicatedTrialToRow
           // so buildTrialReportProps's computeDayTrialNumber sorts same-day
-          // trials by creation order instead of falling back to UUID order.
-          display_order: trial.displayOrder ?? null,
+          // trials the same way here. Falls back to this array's position
+          // (already date-sorted upstream) only for a Show snapshot cached
+          // before displayOrder started round-tripping.
+          display_order: trial.displayOrder ?? index + 1,
         }))
       : undefined;
   const selectedTrialIsInShow =

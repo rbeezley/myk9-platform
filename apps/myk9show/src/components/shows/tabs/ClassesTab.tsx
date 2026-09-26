@@ -243,7 +243,12 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <ListViewTabs label="Class views" views={visibleViews} activeId={activeViewId} onSelect={setViewId} />
+        <ListViewTabs
+          label="Class views"
+          views={visibleViews}
+          activeId={activeViewId}
+          onSelect={setViewId}
+        />
         <div className="flex items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
           {canManage && (

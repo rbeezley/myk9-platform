@@ -37,7 +37,10 @@ export function filterManagedClasses<T extends ClassManagementRowLike>(
   filters: Pick<ClassManagementFilterState, 'status' | 'element'>
 ): T[] {
   return classes.filter(cls => {
-    const matchesSearch = matchesAny([cls.name ?? '', cls.element ?? '', cls.level ?? ''], searchTerm);
+    const matchesSearch = matchesAny(
+      [cls.name ?? '', cls.element ?? '', cls.level ?? ''],
+      searchTerm
+    );
     const matchesStatus =
       filters.status === 'all' || deriveClassLifecycleValue(cls.status) === filters.status;
     const matchesElement = filters.element === 'all' || cls.element === filters.element;

@@ -47,12 +47,17 @@ function toClassDisplayStatus(cls: ClassInfo): ClassDisplayStatus {
 }
 
 /** The single source of truth for the tab's visible rows AND every view count. */
-export function filterClassesForTab(classes: ClassInfo[], state: ClassesTabFilterState): ClassInfo[] {
+export function filterClassesForTab(
+  classes: ClassInfo[],
+  state: ClassesTabFilterState
+): ClassInfo[] {
   const scoped = state.mine ? classes.filter(cls => cls.userHasEntry) : classes;
   if (state.status === 'all') return scoped;
   return scoped.filter(cls => {
     const displayStatus = toClassDisplayStatus(cls);
-    return state.status === 'completed' ? displayStatus === 'completed' : displayStatus !== 'completed';
+    return state.status === 'completed'
+      ? displayStatus === 'completed'
+      : displayStatus !== 'completed';
   });
 }
 

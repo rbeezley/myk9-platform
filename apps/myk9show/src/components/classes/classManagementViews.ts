@@ -27,11 +27,10 @@ interface ClassManagementViewDefinition {
   state: () => ClassManagementFilterState;
 }
 
-const preset =
-  (status: ClassManagementStatusFilter) => (): ClassManagementFilterState => ({
-    ...DEFAULT_CLASS_MANAGEMENT_FILTERS,
-    status,
-  });
+const preset = (status: ClassManagementStatusFilter) => (): ClassManagementFilterState => ({
+  ...DEFAULT_CLASS_MANAGEMENT_FILTERS,
+  status,
+});
 
 const CLASS_MANAGEMENT_VIEWS: readonly ClassManagementViewDefinition[] = [
   { id: 'all', label: 'All', state: preset('all') },

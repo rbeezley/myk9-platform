@@ -7,7 +7,13 @@ import {
 } from '../classManagementViews';
 
 function cls(patch: Partial<ClassManagementRowLike>): ClassManagementRowLike {
-  return { name: 'Container Novice A', element: 'Container', level: 'Novice', status: null, ...patch };
+  return {
+    name: 'Container Novice A',
+    element: 'Container',
+    level: 'Novice',
+    status: null,
+    ...patch,
+  };
 }
 
 const classes: ClassManagementRowLike[] = [
@@ -37,9 +43,9 @@ describe('filterManagedClasses', () => {
   });
 
   it('filters by element', () => {
-    expect(
-      filterManagedClasses(classes, '', { status: 'all', element: 'Container' })
-    ).toHaveLength(1);
+    expect(filterManagedClasses(classes, '', { status: 'all', element: 'Container' })).toHaveLength(
+      1
+    );
   });
 });
 
@@ -62,13 +68,15 @@ describe('Class Management views', () => {
     expect(
       activeClassManagementViewId({ status: 'not_started', element: 'Container', search: '' })
     ).toBeNull();
-    expect(
-      activeClassManagementViewId({ status: 'not_started', element: 'all', search: '' })
-    ).toBe('not_started');
+    expect(activeClassManagementViewId({ status: 'not_started', element: 'all', search: '' })).toBe(
+      'not_started'
+    );
   });
 
   it('a view is active only on an exact match — a coexisting search term reads as custom', () => {
-    expect(activeClassManagementViewId({ status: 'all', element: 'all', search: 'novice' })).toBeNull();
+    expect(
+      activeClassManagementViewId({ status: 'all', element: 'all', search: 'novice' })
+    ).toBeNull();
   });
 
   it('selecting a view resets element and search to the view preset', () => {

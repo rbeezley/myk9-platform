@@ -67,7 +67,7 @@ describe('filterClassesForTab', () => {
     expect(result.map(c => c.id)).toEqual(['completed']);
   });
 
-  it('mine=true scopes to the signed-in user\'s entered classes first', () => {
+  it("mine=true scopes to the signed-in user's entered classes first", () => {
     const result = filterClassesForTab(classes, { status: 'all', mine: true });
     expect(result.map(c => c.id)).toEqual(['mine']);
   });

@@ -64,7 +64,6 @@ const MIGRATED_RENDERERS = [
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/judge/JudgeCheckInDashboard.tsx',
   'pages/MyEntriesPage/modules/entryTabDefs.ts',
-  'components/classes/ClassLifecyclePresetTiles.tsx',
   'components/stewards/GateStewardInterfaceComponents.tsx',
   'pages/TrialDetailsPage.tsx',
   'pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx',

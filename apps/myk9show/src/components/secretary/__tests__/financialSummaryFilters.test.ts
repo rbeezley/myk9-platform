@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { TrialFinancialEntryRow } from '../financialSummaryTypes';
 import { filterFinancialEntries } from '../financialSummaryFilters';
 
-function row(patch: Partial<TrialFinancialEntryRow> & Pick<TrialFinancialEntryRow, 'id'>): TrialFinancialEntryRow {
+function row(
+  patch: Partial<TrialFinancialEntryRow> & Pick<TrialFinancialEntryRow, 'id'>
+): TrialFinancialEntryRow {
   return {
     entryStatus: 'confirmed',
     movedFromEntryId: null,

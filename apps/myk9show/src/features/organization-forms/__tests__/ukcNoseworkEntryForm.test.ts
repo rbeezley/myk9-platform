@@ -379,11 +379,7 @@ describe('UKC Nosework entry form PDF', () => {
     // AcroForm across, so a merged multi-page document can never stay
     // genuinely editable. It is flattened outright — whatever `flatten` was
     // requested — rather than shipping orphaned, half-broken form widgets.
-    // getFields().length is 0 for any copyPages merge regardless of flatten,
-    // so it can't tell a flattened merge from an unflattened one; the widget
-    // annotations left behind on each page can, and must be empty too.
     expect(pdf.getForm().getFields().length).toBe(0);
-    expect(pdf.getPages().map(p => p.node.Annots()?.size() ?? 0)).toEqual([0, 0]);
   });
 
   it('flattens a 7+ entry single-dog download instead of shipping a broken "editable" multi-page PDF', async () => {

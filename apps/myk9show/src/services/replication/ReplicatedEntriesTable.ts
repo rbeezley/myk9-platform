@@ -17,6 +17,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type ColdInsertGuardMode,
+  type MutationManager,
   type ReplicatedSetResult,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
@@ -27,6 +28,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { deletePayload, PendingDeletes } from './pendingDeletes';
 import {
   entryToSupabaseRow,
   rowToEntry,
@@ -149,8 +151,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   private _deletedIds: Set<string> = new Set();
 
+  /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
+  readonly pendingDeletes = new PendingDeletes('entries');
+
   constructor() {
     super('entries', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.pendingDeletes.attach(manager);
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -264,6 +274,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     let receiptReferenceColumnObserved = false;
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
+      // The server counts a deleted entry until its queued DELETE uploads; it
+      // is not a missing row, and must not force every sync full (MYK9-762).
+      getPendingDeleteIds: () => this.pendingDeletes.coveredIds(showScopeId),
       getRemoteRowCount: async () => {
         try {
           const { count, error } = await supabase
@@ -1526,8 +1539,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async deleteEntry(entryId: string): Promise<string | null> {
     this._deletedIds.add(entryId);
+    // Read before removing: the payload records the entry's show when it was
+    // already on the server, so readiness can count the pending delete.
+    const entry = await this.get(entryId);
     await this.delete(entryId);
-    const mutationId = await this.queueMutation('DELETE', entryId, { id: entryId });
+    const mutationId = await this.queueMutation('DELETE', entryId, deletePayload(entryId, entry));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
     return mutationId;

@@ -284,6 +284,30 @@ describe('MutationManager authenticated ownership', () => {
     expect(await db.get(REPLICATION_STORES.PENDING_MUTATIONS, 'theirs')).toBeDefined();
   });
 
+  // MYK9-762: offline readiness counts this user's queued deletes per table.
+  it('isolates table-level queue inspection by owner and table', async () => {
+    await db.put(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      mutation('mine-1', 'user-b', { operation: 'DELETE', sequenceNumber: 2 })
+    );
+    await db.put(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      mutation('mine-2', 'user-b', { sequenceNumber: 1 })
+    );
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('theirs', 'user-a'));
+    await db.put(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      mutation('other-table', 'user-b', { tableName: 'trials' })
+    );
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('legacy', undefined));
+    currentUserId.mockResolvedValue('user-b');
+
+    expect((await manager.getPendingMutationsForTable('entries')).map(item => item.id)).toEqual([
+      'mine-2',
+      'mine-1',
+    ]);
+  });
+
   it('clears only mutations owned by the active user', async () => {
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('mine', 'user-b'));
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('theirs', 'user-a'));

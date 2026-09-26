@@ -6,6 +6,8 @@ const { table, store } = vi.hoisted(() => ({
     meta: null as { expectedRemoteRows?: number } | null,
     rows: [] as Array<{ id: string }>,
     syncResult: null as null | { expectedRemoteRows: number; rows: Array<{ id: string }> },
+    pendingDeleteIds: new Set<string>(),
+    coveredIds: vi.fn(),
     getSyncMetadata: vi.fn(),
     getTrialsByShow: vi.fn(),
     sync: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
     getSyncMetadata: table.getSyncMetadata,
     getTrialsByShow: table.getTrialsByShow,
     sync: table.sync,
+    pendingDeletes: { coveredIds: table.coveredIds },
   },
 }));
 
@@ -38,6 +41,8 @@ describe('useAddTrialsExistingTrials (MYK9-758)', () => {
     table.meta = null;
     table.rows = [];
     table.syncResult = null;
+    table.pendingDeleteIds = new Set();
+    table.coveredIds.mockImplementation(async () => table.pendingDeleteIds);
     table.getSyncMetadata.mockImplementation(async () => table.meta);
     table.getTrialsByShow.mockImplementation(async () => table.rows);
     table.sync.mockImplementation(async () => {
@@ -164,6 +169,33 @@ describe('useAddTrialsExistingTrials (MYK9-758)', () => {
   it("does not count a pending local trial toward the show's current trials (MYK9-752)", async () => {
     table.meta = { expectedRemoteRows: 2 };
     table.rows = [{ id: 't1' }, { id: 'local', _localOnly: true } as { id: string }];
+
+    const { result } = renderHook(() => useAddTrialsExistingTrials('show-1', 20));
+
+    await waitFor(() => expect(result.current.readStatus).toBe('error'));
+    expect(result.current.ready).toBe(false);
+  });
+
+  // MYK9-762: deleting a trial offline removed the row at once while the cached
+  // server count still included it, and the step then read "couldn't load".
+  it('stays usable offline after a trial is deleted here, its DELETE still queued', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    table.meta = { expectedRemoteRows: 2 };
+    table.rows = [{ id: 't1' }];
+    table.pendingDeleteIds = new Set(['t2']);
+    try {
+      const { result } = renderHook(() => useAddTrialsExistingTrials('show-1'));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      expect(table.coveredIds).toHaveBeenCalledWith('show-1');
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('does not let a pending trial delete stand in for a trial the device lacks', async () => {
+    table.meta = { expectedRemoteRows: 3 };
+    table.rows = [{ id: 't1' }];
+    table.pendingDeleteIds = new Set(['t2']);
 
     const { result } = renderHook(() => useAddTrialsExistingTrials('show-1', 20));
 

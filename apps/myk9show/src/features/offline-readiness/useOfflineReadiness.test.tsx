@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@/test/utils/testUtils';
-import { replicatedShowsTable } from '@/services/replication';
+import { replicatedShowsTable, replicatedTrialsTable } from '@/services/replication';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 /**
@@ -25,12 +25,20 @@ function renderHook<T>(callback: () => T) {
 
 const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
   tables: {
-    trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    trials: {
+      meta: null as unknown,
+      rows: [] as Array<{ id: string }>,
+      pendingDeleteIds: new Set<string>(),
+    },
     classes: {
       metaByTrial: new Map<string, unknown>(),
       rowsByTrial: new Map<string, Array<{ id: string }>>(),
     },
-    entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    entries: {
+      meta: null as unknown,
+      rows: [] as Array<{ id: string }>,
+      pendingDeleteIds: new Set<string>(),
+    },
     shows: { row: null as { id: string } | null },
     judgeAssignments: {
       rows: [] as Array<{ id: string }>,
@@ -63,6 +71,7 @@ vi.mock('@/services/replication', () => ({
     getSyncMetadata: vi.fn(async () => tables.trials.meta),
     getTrialsByShow: vi.fn(async () => tables.trials.rows),
     updateSyncMetadata: vi.fn(async () => {}),
+    pendingDeletes: { coveredIds: vi.fn(async () => tables.trials.pendingDeleteIds) },
   },
   replicatedClassesTable: {
     getSyncMetadata: vi.fn(
@@ -77,6 +86,7 @@ vi.mock('@/services/replication', () => ({
     getSyncMetadata: vi.fn(async () => tables.entries.meta),
     getEntriesByShow: vi.fn(async () => tables.entries.rows),
     updateSyncMetadata: vi.fn(async () => {}),
+    pendingDeletes: { coveredIds: vi.fn(async () => tables.entries.pendingDeleteIds) },
   },
   replicatedShowsTable: {
     getShowById: vi.fn(async () => tables.shows.row),
@@ -156,10 +166,12 @@ describe('useOfflineReadiness', () => {
     rbacCache.entry = null;
     tables.trials.meta = null;
     tables.trials.rows = [];
+    tables.trials.pendingDeleteIds = new Set();
     tables.classes.metaByTrial.clear();
     tables.classes.rowsByTrial.clear();
     tables.entries.meta = null;
     tables.entries.rows = [];
+    tables.entries.pendingDeleteIds = new Set();
     tables.shows.row = null;
     tables.judgeAssignments.rows = [];
     tables.judgeAssignments.meta = null;
@@ -471,6 +483,47 @@ describe('useOfflineReadiness', () => {
       ...rows(2),
       { id: 'local-entry', _localOnly: true } as unknown as { id: string },
     ];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+  });
+
+  // MYK9-762: the server counts a deleted row until its queued DELETE uploads.
+  it('does not read an entry deleted here, DELETE still queued, as missing', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(2); // the server still counts 3
+    tables.entries.pendingDeleteIds = new Set(['row-deleted']);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it('stays ready offline after a trial is deleted here, its DELETE still queued', async () => {
+    primeAllSignals();
+    tables.trials.rows = [{ id: 'trial-1' }]; // the server still counts 2
+    tables.trials.pendingDeleteIds = new Set(['trial-2']);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+    expect(vi.mocked(replicatedTrialsTable.pendingDeletes.coveredIds)).toHaveBeenCalledWith(
+      'show-1'
+    );
+  });
+
+  it('does not let a pending delete hide a row that is genuinely missing', async () => {
+    primeAllSignals();
+    // The server counts 3: one deleted here (DELETE queued), one evicted.
+    tables.entries.rows = rows(1);
+    tables.entries.pendingDeleteIds = new Set(['row-deleted']);
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 

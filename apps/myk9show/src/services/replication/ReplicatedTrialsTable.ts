@@ -10,6 +10,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type MutationManager,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -17,6 +18,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { deletePayload, PendingDeletes } from './pendingDeletes';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -97,8 +99,16 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
+  /** Trials this device deleted and has queued (MYK9-762). */
+  readonly pendingDeletes = new PendingDeletes('trials');
+
   constructor() {
     super('trials', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.pendingDeletes.attach(manager);
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -164,7 +174,14 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
+    // Rows with a queued DELETE, read after each fetch so a full fetch cannot
+    // bring back a trial this device deleted before the DELETE uploads.
+    let queuedDeleteIds = new Set<string>();
+
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
+      // A trial deleted here but not yet uploaded is still on the server; it
+      // must not read as a missing row (MYK9-762).
+      getPendingDeleteIds: ({ scope }) => this.pendingDeletes.coveredIds(scope.value),
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase.from('trials').select('id', { count: 'exact', head: true });
@@ -210,8 +227,10 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
+        queuedDeleteIds = await this.pendingDeletes.allIds();
         return data ?? [];
       },
+      shouldSkipRemoteRow: remote => queuedDeleteIds.has(String(remote.id)),
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToTrial,
@@ -219,6 +238,13 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.showId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
+      // Trials are hard-deleted, and an incremental fetch never sees a
+      // deletion, so a trial deleted on the server stayed on this device and
+      // its count could only drift UP — toward a false "ready" (MYK9-762). The
+      // fetch is filtered by show exactly as filterLocalRows is, so a full
+      // fetch returns every trial of the scope; the engine keeps other shows'
+      // trials and skips the cleanup after a fetch short of the server count.
+      cleanupStaleRowsOnFullSync: true,
     };
 
     const result = await syncReplicatedTable(
@@ -338,11 +364,16 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   }
 
   /**
-   * Delete a trial locally and queue DELETE mutation for Supabase sync
+   * Queue a DELETE for Supabase sync, then remove the trial locally. Queued
+   * first so there is no moment when the row is gone here with no DELETE on
+   * record — a sync then would fetch it back (MYK9-762). The payload records
+   * the trial's show when it was already on the server, which is what lets
+   * offline readiness count the pending delete (see pendingDeletes).
    */
   async deleteTrial(trialId: string): Promise<string | null> {
+    const trial = await this.get(trialId);
+    const mutationId = await this.queueMutation('DELETE', trialId, deletePayload(trialId, trial));
     await this.delete(trialId);
-    const mutationId = await this.queueMutation('DELETE', trialId, { id: trialId });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted trial ${trialId}`);
     return mutationId;

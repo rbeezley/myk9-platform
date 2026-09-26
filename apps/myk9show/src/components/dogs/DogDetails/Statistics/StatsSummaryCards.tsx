@@ -13,7 +13,7 @@ const StatsSummaryCards: React.FC<StatsSummaryCardsProps> = ({ summary, overall 
     <StatsGrid columns={4}>
       <StatCard
         icon={BarChart3}
-        title="Total Entries"
+        title="Scored Entries"
         value={summary.totalCompetitions}
         color="blue"
       />

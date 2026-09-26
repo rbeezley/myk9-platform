@@ -36,6 +36,15 @@ export interface PeopleRosterClassRow {
 export interface PeopleRosterPerson {
   id: string;
   name: string;
+  /**
+   * MYK9-824 round 3. Distinct printed handler texts within this row that
+   * differ from `name` -- e.g. two mail-in entries typed for different
+   * handlers who share this same person as their `handler_id` fallback (an
+   * unmatched typed handler defaults to the dog's owner). The row is keyed
+   * and labelled by the PERSON on `handler_id`, so both stay in one row; this
+   * is how their own, different printed names are not simply dropped.
+   */
+  alternateNames: string[];
   searchText: string;
   authUserId: string | null;
   presence: ShowPresence | null;
@@ -85,9 +94,24 @@ function hasHandlerIdentity(entry: EntryManagementEntry): boolean {
   return Boolean(entry.handlerId || entry.handlerAuthUserId || personName(entry.handlerName));
 }
 
+/**
+ * MYK9-824 round 3 (Codex, owner-approved). The roster keys and labels a row
+ * by the PERSON `handler_id` names -- `handlerPersonName`, straight from the
+ * join -- not by the printed `handler` text. Round 2 tried to infer from the
+ * printed text whether `handler_id` was a real handler or the owner fallback
+ * and kept splitting or mislabelling one of the two; this stops guessing.
+ * `handlerPersonName` already IS the owner's own name when the fallback
+ * fired (handler_id = owner_id), so no owner/fallback comparison is needed
+ * here at all.
+ */
 function displayName(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
+    return (
+      personName(entry.handlerPersonName) ||
+      personName(entry.handlerName) ||
+      personName(entry.ownerName) ||
+      'Unknown exhibitor'
+    );
   }
 
   return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
@@ -110,6 +134,16 @@ function groupKey(entry: EntryManagementEntry): string {
     entry.ownerEmail ||
     normalize(displayName(entry)) ||
     entry.id
+  );
+}
+
+/** Printed handler texts in this group that are not just the row's own label, for the "also entered as" line. */
+function alternateHandlerNames(entries: EntryManagementEntry[], label: string): string[] {
+  const labelNorm = normalize(label);
+  return unique(
+    entries
+      .map(entry => personName(entry.handlerName) ?? '')
+      .filter(name => name && normalize(name) !== labelNorm)
   );
 }
 
@@ -263,6 +297,7 @@ export function buildPeopleRoster({
   return [...grouped.entries()]
     .map(([id, groupEntries]) => {
       const name = displayName(groupEntries[0]!);
+      const alternateNames = alternateHandlerNames(groupEntries, name);
       const authUserId = groupAuthUserId(groupEntries);
       const personPresence = authUserId ? (presenceByUserId.get(authUserId) ?? null) : null;
       const classRows = buildClassRows(groupEntries, classesById, currentDate);
@@ -271,6 +306,7 @@ export function buildPeopleRoster({
       const searchText = normalize(
         [
           name,
+          ...alternateNames,
           ...groupEntries.map(entry => personName(entry.ownerName) ?? ''),
           ...groupEntries.map(entry => personName(entry.handlerName) ?? ''),
           ...dogNames,
@@ -282,6 +318,7 @@ export function buildPeopleRoster({
       return {
         id,
         name,
+        alternateNames,
         searchText,
         authUserId,
         presence: personPresence,

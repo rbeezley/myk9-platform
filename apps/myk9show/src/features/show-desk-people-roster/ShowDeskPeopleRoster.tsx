@@ -272,6 +272,11 @@ export function ShowDeskPeopleRoster({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{person.name}</span>
+                    {person.alternateNames.length > 0 && (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        Also entered as {person.alternateNames.join(', ')}
+                      </span>
+                    )}
                     <span className="mt-1 block truncate text-sm text-muted-foreground">
                       {person.summary}
                     </span>

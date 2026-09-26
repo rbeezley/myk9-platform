@@ -225,6 +225,10 @@ function serverMessages(kind: RemoveFromClassKind | undefined): Record<string, s
     '22023': `Something went wrong preparing this ${noun} — we've logged it.`,
     P0002: 'This entry no longer exists — refresh the page and try again.',
     '40001': 'Someone else changed this entry — reopen it and try again.',
+    // MYK9-778: the owner tier refuses once the show has finished (closed out,
+    // or its last calendar day is past in the show's zone). A settled fact, so
+    // a definite sentence — never "try again" or "ask the secretary".
+    MK006: `This show has finished, so this entry can no longer be ${past}.`,
   };
 }
 

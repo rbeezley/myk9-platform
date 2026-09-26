@@ -94,6 +94,7 @@ describe('AtShowAccessGate offline-reload fallback', () => {
       showId: 'show-1',
       role: 'judge',
       source: 'passcode',
+      unconfirmedOffline: true,
     });
   });
 
@@ -154,5 +155,65 @@ describe('AtShowAccessGate offline-reload fallback', () => {
     expect(window.localStorage.getItem('myk9:ringside-claim-cache')).toEqual(
       JSON.stringify({ showId: 'show-1', role: 'judge' })
     );
+  });
+
+  // Codex review finding (e8fafeb85): an offline-fallback grant is
+  // unconfirmed by construction. Once the device is back online and the
+  // session turns out to be genuinely gone (not merely offline-unconfirmed),
+  // a grant left over in the store must not keep admitting the ring.
+  it('clears a stale offline-fallback grant once back online with a confirmed absence of a user', async () => {
+    useRingsideGrantStore.getState().setGrant({
+      showId: 'show-1',
+      role: 'judge',
+      sessionId: 'stale-session',
+      source: 'passcode',
+      unconfirmedOffline: true,
+    });
+    setOnline(true);
+    mockUser = null;
+
+    renderGate();
+
+    expect(await screen.findByText('SIGN IN PAGE')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+  });
+
+  it('keeps admitting from an offline-fallback grant while still offline (does not treat it as stale)', () => {
+    useRingsideGrantStore.getState().setGrant({
+      showId: 'show-1',
+      role: 'judge',
+      sessionId: 'fallback-session',
+      source: 'passcode',
+      unconfirmedOffline: true,
+    });
+    setOnline(false);
+    mockUser = null;
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
+  });
+
+  // The revalidation guard is scoped to `unconfirmedOffline` ONLY — an
+  // ordinary grant (entry-time, or claim-derived) must survive a
+  // momentarily-null `user` online, exactly like
+  // `AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
+  // passcode grant". Clearing it here would be the regression Codex's fix
+  // must not reintroduce.
+  it('never clears an ordinary (non-fallback) grant just because the user is momentarily null online', () => {
+    useRingsideGrantStore.getState().setGrant({
+      showId: 'show-1',
+      role: 'judge',
+      sessionId: 'ordinary-session',
+      source: 'passcode',
+    });
+    setOnline(true);
+    mockUser = null;
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
   });
 });

@@ -36,6 +36,7 @@
  * (see `ringsideClaimCache.ts`). In that specific combination — no user, no
  * network — fall back to the last claim this hook itself confirmed for this
  * show. Never applied while online, where a null user is the real signal.
+ * The grant this writes is marked `unconfirmedOffline: true` — see below.
  *
  * RETURN VALUE, AND WHY THE STORE WRITE ALONE ISN'T ENOUGH: the store is
  * populated from a `useEffect`, which runs AFTER this render commits.
@@ -47,6 +48,19 @@
  * first render; the effect still runs afterward to make the store agree for
  * every other consumer (`useRingsideGrantRole`, presence, the revocation
  * flow).
+ *
+ * REVALIDATION ON RECONNECT (Codex review, MYK9-834): an offline-fallback
+ * grant is unconfirmed by construction — it was never re-checked against the
+ * live session, only against a cache. If the device comes back online and the
+ * session turns out to be genuinely dead (`loading` is false and `user` is
+ * null with real network available), an `unconfirmedOffline` grant still on
+ * record is now known-stale and is cleared. Scoped ONLY to that flag: a grant
+ * set by ordinary entry (`SmartSignInPage`) or claim-derivation can likewise
+ * observe a momentarily-null `user` while the just-created session's
+ * `onAuthStateChange` event is still propagating, and that race is a already
+ * a tolerated, correct part of Locked Decision #8's client-only trust model
+ * (`AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
+ * passcode grant") — clearing on it would be a regression, not a fix.
  */
 
 import { useEffect } from 'react';
@@ -65,6 +79,7 @@ export function useRehydrateRingsideGrant(
   const { user, loading } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const setGrant = useRingsideGrantStore(state => state.setGrant);
+  const clearGrant = useRingsideGrantStore(state => state.clearGrant);
   const suppressRehydration = useRingsideGrantStore(state => state.suppressRehydration);
 
   const resolvable = !loading && !!showId && !suppressRehydration;
@@ -75,9 +90,18 @@ export function useRehydrateRingsideGrant(
     resolvable && !storeRole && !claimRole && !user && isOffline
       ? readPersistedRingsideClaim(showId!)
       : null;
+  // Only an offline-fallback grant is subject to reconnect revalidation — see
+  // the module docstring for why an ordinary grant must NOT be swept up here.
+  const staleGrant =
+    resolvable && storeRole && !user && !isOffline && activeGrant?.unconfirmedOffline === true;
 
   useEffect(() => {
-    if (!resolvable || storeRole) return;
+    if (!resolvable) return;
+    if (staleGrant) {
+      clearGrant();
+      return;
+    }
+    if (storeRole) return;
     if (claimRole) {
       persistRingsideClaim({ showId: showId!, role: claimRole });
       setGrant({
@@ -94,9 +118,19 @@ export function useRehydrateRingsideGrant(
         role: offlineFallbackRole,
         sessionId: crypto.randomUUID(),
         source: 'passcode',
+        unconfirmedOffline: true,
       });
     }
-  }, [resolvable, storeRole, claimRole, offlineFallbackRole, showId, setGrant]);
+  }, [
+    resolvable,
+    staleGrant,
+    storeRole,
+    claimRole,
+    offlineFallbackRole,
+    showId,
+    setGrant,
+    clearGrant,
+  ]);
 
-  return storeRole ?? claimRole ?? offlineFallbackRole;
+  return staleGrant ? null : (storeRole ?? claimRole ?? offlineFallbackRole);
 }

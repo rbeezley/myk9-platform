@@ -51,6 +51,20 @@ export interface RingsideGrant {
    * (account + passcode merge); `'account'` is reserved for future use.
    */
   source: 'passcode' | 'account';
+  /**
+   * True ONLY for a grant restored by `useRehydrateRingsideGrant`'s offline
+   * fallback (`ringsideClaimCache.ts`) — a cached echo of a claim last
+   * confirmed against a live session, not a live confirmation itself. Marks
+   * the grant as revalidate-on-reconnect: once the device is back online and
+   * `useAuthContext().user` definitively resolves to no user, this grant is
+   * known-stale and is cleared rather than left admitting the ring on
+   * unconfirmed state (Codex review, MYK9-834). Every other `setGrant` call
+   * (entry-time, claim-derived on reload, the 1b account-merge confirmation)
+   * omits this — the offline-reload race those already tolerate (see
+   * `AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
+   * passcode grant") must never be swept up by this same-day-only guard.
+   */
+  unconfirmedOffline?: boolean;
 }
 
 interface RingsideGrantState {

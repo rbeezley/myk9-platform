@@ -156,9 +156,12 @@ describe('UKC Nosework entry form PDF', () => {
   });
 
   it('marks the trial, section, and element/level grid for each of the dog’s entries', async () => {
+    // MYK9-828: `trials.trial_number` is a free-text label ("Trial 1", not
+    // the bare digit "1" — see seed-demo.sql) — this fixture matches what the
+    // database actually returns.
     const trials: EntryFormTrial[] = [
-      { id: 'trial-1', date: '2026-10-10', trialNumber: '1' },
-      { id: 'trial-2', date: '2026-10-11', trialNumber: '2' },
+      { id: 'trial-1', date: '2026-10-10', trialNumber: 'Trial 1' },
+      { id: 'trial-2', date: '2026-10-11', trialNumber: 'Friday Trial 2' },
     ];
     const dogWithEntries: EntryFormDog = {
       ...dog,
@@ -233,5 +236,69 @@ describe('UKC Nosework entry form PDF', () => {
     const drawn = await extractDrawnPdfText(bytes);
     // Trial 1 bracket still marks (a known trial number); the grid cell does not.
     expect(drawn.filter(text => text === 'X').length).toBe(1);
+  });
+
+  it('does not mark a trial bracket for a trial numbered beyond what the template offers', async () => {
+    const dogWithThirdTrialEntry: EntryFormDog = {
+      ...dog,
+      entries: [
+        {
+          id: 'entry-1',
+          trialId: 'trial-3',
+          classId: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          armband: 101,
+          handler: null,
+          handlerId: null,
+          submittedAt: null,
+        },
+      ],
+    };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithThirdTrialEntry,
+      trials: [{ id: 'trial-3', date: '2026-10-12', trialNumber: 'Trial 3' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const drawn = await extractDrawnPdfText(bytes);
+    // Only the Container/Novice cell marks; there is no "Trial 3" bracket to check.
+    expect(drawn.filter(text => text === 'X').length).toBe(1);
+  });
+
+  it('gives a dog entered in more than six classes an overflow page instead of dropping entries', async () => {
+    const manyEntries: EntryFormDog['entries'] = Array.from({ length: 8 }, (_, i) => ({
+      id: `entry-${i + 1}`,
+      trialId: 'trial-1',
+      classId: `class-${i + 1}`,
+      element: 'Container',
+      level: 'Novice',
+      section: null,
+      armband: 101,
+      handler: null,
+      handlerId: null,
+      submittedAt: null,
+    }));
+    const dogWithManyEntries: EntryFormDog = { ...dog, entries: manyEntries };
+
+    const bytes = await buildUKCNoseworkEntryFormPdfBytes({
+      dog: dogWithManyEntries,
+      trials: [{ id: 'trial-1', date: '2026-10-10', trialNumber: 'Trial 1' }],
+      templateBytes: await readEntryTemplate(),
+      flatten: false,
+    });
+
+    const pdf = await PDFDocument.load(bytes);
+    // 8 entries over a 6-row grid: page 1 marks 6 Container/Novice cells (plus
+    // the Trial 1 bracket on each of the 6 rows it fills), page 2 the other 2.
+    expect(pdf.getPageCount()).toBe(2);
+
+    const page1Marks = (await extractDrawnPdfText(bytes, 0)).filter(text => text === 'X');
+    const page2Marks = (await extractDrawnPdfText(bytes, 1)).filter(text => text === 'X');
+    expect(page1Marks.length).toBe(12); // 6 rows x (Trial 1 bracket + Container/Novice)
+    expect(page2Marks.length).toBe(4); // 2 rows x (Trial 1 bracket + Container/Novice)
   });
 });

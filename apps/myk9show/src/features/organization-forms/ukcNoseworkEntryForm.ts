@@ -8,6 +8,7 @@ import {
   computeUKCEntryFormDobMarks,
   computeUKCEntryFormGridMarks,
   computeUKCEntryFormPhoneMarks,
+  MAX_GRID_ROWS,
   type EntryFormGridMark,
 } from './ukcNoseworkEntryFormGrid';
 
@@ -69,6 +70,11 @@ export function buildUKCNoseworkEntryFormPacketFilename(
  * (MYK9-828). `flatten` should match the caller's other official-PDF downloads
  * — the packet flattens so pages can be copied into one document; a single
  * dog's download leaves fields editable like every other official PDF.
+ *
+ * The template's grid only offers `MAX_GRID_ROWS` rows, so a dog entered in
+ * more entries than that gets one page per `MAX_GRID_ROWS`-sized batch —
+ * repeating the dog's own header fields on each page — rather than silently
+ * dropping the overflow entries off the printed form.
  */
 export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   dog: EntryFormDog;
@@ -76,25 +82,33 @@ export async function buildUKCNoseworkEntryFormPdfBytes(input: {
   templateBytes: Uint8Array;
   flatten: boolean;
 }): Promise<Uint8Array> {
-  const filledBytes = await fillPdfForm(
-    input.templateBytes,
-    buildUKCNoseworkEntryFormValues(input.dog),
-    { flatten: input.flatten }
-  );
+  const values = buildUKCNoseworkEntryFormValues(input.dog);
+  const entryBatches = chunk(input.dog.entries, MAX_GRID_ROWS);
+  const outputPdf = await PDFDocument.create();
 
-  const pdf = await PDFDocument.load(filledBytes);
-  const page = pdf.getPages()[0];
-  if (page) {
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
-    const marks = [
-      ...computeUKCEntryFormGridMarks(input.dog, input.trials),
-      ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
-      ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
-    ];
-    drawMarks(page, font, marks);
+  for (const entries of entryBatches) {
+    const filledBytes = await fillPdfForm(input.templateBytes, values, {
+      flatten: input.flatten,
+    });
+    const pagePdf = await PDFDocument.load(filledBytes);
+    const page = pagePdf.getPages()[0];
+    if (page) {
+      const font = await pagePdf.embedFont(StandardFonts.Helvetica);
+      const marks = [
+        ...computeUKCEntryFormGridMarks({ entries }, input.trials),
+        ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
+        ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
+      ];
+      drawMarks(page, font, marks);
+    }
+
+    const copiedPages = await outputPdf.copyPages(pagePdf, pagePdf.getPageIndices());
+    for (const copiedPage of copiedPages) {
+      outputPdf.addPage(copiedPage);
+    }
   }
 
-  return pdf.save();
+  return outputPdf.save();
 }
 
 export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {
@@ -125,6 +139,16 @@ function drawMarks(page: PDFPage, font: PDFFont, marks: EntryFormGridMark[]): vo
   for (const mark of marks) {
     page.drawText(mark.text, { x: mark.x, y: mark.y, size: mark.size, font });
   }
+}
+
+/** Splits `items` into `size`-sized batches; always returns at least one (possibly empty) batch. */
+function chunk<T>(items: T[], size: number): T[][] {
+  if (items.length === 0) return [[]];
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
 }
 
 function addText(

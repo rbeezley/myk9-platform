@@ -155,9 +155,7 @@ describe('buildOfficialPdfFilename', () => {
 describe('isStaticOfficialPdfReport', () => {
   it('is true for the templates with no AcroForm fields at all (MYK9-828)', () => {
     expect(isStaticOfficialPdfReport('ukc-nosework-judges-book-element')).toBe(true);
-    expect(isStaticOfficialPdfReport('ukc-nosework-judges-book-handler-discrimination')).toBe(
-      true
-    );
+    expect(isStaticOfficialPdfReport('ukc-nosework-judges-book-handler-discrimination')).toBe(true);
     expect(isStaticOfficialPdfReport('ukc-nosework-trial-score-sheet')).toBe(true);
   });
 

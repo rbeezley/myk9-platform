@@ -23,7 +23,10 @@ interface PersonRow {
   email: string | null;
 }
 
-function buildOfficial(person: PersonRow | undefined, fallbackEmail: string | null): UKCTrialReportOfficial | null {
+function buildOfficial(
+  person: PersonRow | undefined,
+  fallbackEmail: string | null
+): UKCTrialReportOfficial | null {
   if (!person) return null;
   const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
   if (!name) return null;
@@ -48,16 +51,17 @@ async function fetchUKCTrialReportContext(showId: string): Promise<UKCTrialRepor
   const clubId = (showRow as { club_id: string | null } | null)?.club_id ?? null;
   const clubNumber = clubId
     ? ((
-        await supabase.from('clubs').select('club_number').eq('id', clubId).maybeSingle()
-      ).data as { club_number: string | null } | null)?.club_number ?? null
+        (await supabase.from('clubs').select('club_number').eq('id', clubId).maybeSingle())
+          .data as { club_number: string | null } | null
+      )?.club_number ?? null)
     : null;
 
   const officials =
     (officialsData as Array<{ user_id: string; role: string; email: string | null }> | null) ?? [];
   const chairmanRow = officials.find(o => o.role === 'chairman');
   const secretaryRow = officials.find(o => o.role === 'secretary');
-  const personIds = [chairmanRow?.user_id, secretaryRow?.user_id].filter(
-    (id): id is string => Boolean(id)
+  const personIds = [chairmanRow?.user_id, secretaryRow?.user_id].filter((id): id is string =>
+    Boolean(id)
   );
 
   const { data: peopleRaw } =

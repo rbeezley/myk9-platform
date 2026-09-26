@@ -68,6 +68,13 @@ interface UseAKCOfficialPdfActionInput {
   dogId: string;
   officialPdfProps: ReportProps | null;
   officialClassPdfProps: ReportProps | null;
+  /**
+   * True while `useUKCTrialReportContext` is still fetching the Trial Report's
+   * city/state/club/officials data. Without this, a secretary could download
+   * the UKC Trial Report the instant a trial is selected and get a PDF with
+   * those fields blank even though the records exist (MYK9-828).
+   */
+  ukcTrialReportContextLoading: boolean;
 }
 
 function isAKCRegistry(props: ReportProps | null | undefined): boolean {
@@ -101,6 +108,7 @@ export function useAKCOfficialPdfAction({
   dogId,
   officialPdfProps,
   officialClassPdfProps,
+  ukcTrialReportContextLoading,
 }: UseAKCOfficialPdfActionInput): OfficialPdfAction | undefined {
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
@@ -570,8 +578,9 @@ export function useAKCOfficialPdfAction({
     isUKCChangeEntryFormReport && selectedTrialAllowsUKCAction && selectedClassAllowsUKCAction;
 
   if (officialPdfConfig && selectedTrialAllowsOfficialPdfConfig) {
+    const waitingOnUKCContext = isUKCRegistry(officialPdfProps) && ukcTrialReportContextLoading;
     return {
-      disabled: !isDataReady || !hasShow || trialId === 'all',
+      disabled: !isDataReady || !hasShow || trialId === 'all' || waitingOnUKCContext,
       isLoading: isDownloadingOfficialPdf,
       label: officialPdfConfig.actionLabel,
       disabledReason: trialId === 'all' ? NEEDS_TRIAL : undefined,

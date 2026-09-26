@@ -7,10 +7,7 @@ import { PDFArray, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from
  * builder output": these marks have no AcroForm field, so `form.getTextField`
  * cannot see them.
  */
-export async function extractDrawnPdfText(
-  pdfBytes: Uint8Array,
-  pageIndex = 0
-): Promise<string[]> {
+export async function extractDrawnPdfText(pdfBytes: Uint8Array, pageIndex = 0): Promise<string[]> {
   const pdf = await PDFDocument.load(pdfBytes);
   const page = pdf.getPages()[pageIndex];
   if (!page) return [];

@@ -84,6 +84,18 @@ export interface EntryFormGridMark {
 }
 
 /**
+ * `trials.trial_number` is a free-text label ("Trial 1", "Friday Trial 2" —
+ * see MYK9-282/MYK9-610), never the bare digit, so matching the string
+ * against `'1'`/`'2'` never matched real data. Read the trailing number
+ * instead; a trial numbered beyond what the template offers (3+) has no
+ * bracket to mark, so it is left unmarked rather than guessed.
+ */
+function trialBracketNumber(label: string | undefined): '1' | '2' | undefined {
+  const match = label?.trim().match(/(\d+)\s*$/);
+  return match?.[1] === '1' || match?.[1] === '2' ? (match[1] as '1' | '2') : undefined;
+}
+
+/**
  * Computes an "X" mark for every one of this dog's entries (up to the six rows
  * the template offers) whose trial number, section, element and level we can
  * match against the printed grid. An entry that does not match anything on the
@@ -98,7 +110,7 @@ export function computeUKCEntryFormGridMarks(
   const marks: EntryFormGridMark[] = [];
 
   dog.entries.slice(0, MAX_GRID_ROWS).forEach((entry, rowIndex) => {
-    const trialNumber = trialById.get(entry.trialId)?.trialNumber?.trim();
+    const trialNumber = trialBracketNumber(trialById.get(entry.trialId)?.trialNumber);
     if (trialNumber === '1') {
       marks.push({
         x: TRIAL_BRACKET_X_MID - 2,
@@ -161,7 +173,9 @@ function lineBaseline(band: TopBand): number {
   return PAGE_HEIGHT - band.yMaxTop + 2;
 }
 
-export function computeUKCEntryFormDobMarks(dateOfBirth: string | null | undefined): EntryFormGridMark[] {
+export function computeUKCEntryFormDobMarks(
+  dateOfBirth: string | null | undefined
+): EntryFormGridMark[] {
   const match = dateOfBirth?.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return [];
   const [, , month, day] = match;
@@ -172,7 +186,9 @@ export function computeUKCEntryFormDobMarks(dateOfBirth: string | null | undefin
   ];
 }
 
-export function computeUKCEntryFormPhoneMarks(phone: string | null | undefined): EntryFormGridMark[] {
+export function computeUKCEntryFormPhoneMarks(
+  phone: string | null | undefined
+): EntryFormGridMark[] {
   const digits = phone?.replace(/\D/g, '') ?? '';
   if (digits.length !== 10) return [];
   const areaCode = digits.slice(0, 3);

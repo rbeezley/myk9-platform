@@ -327,6 +327,8 @@ export default function ReportsPage() {
     dogId,
     officialPdfProps,
     officialClassPdfProps,
+    ukcTrialReportContextLoading:
+      UKC_TRIAL_REPORT_TYPES.has(reportType) && ukcTrialReportContextQuery.isLoading,
   });
 
   return (

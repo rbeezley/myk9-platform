@@ -48,6 +48,10 @@ function setOnline(online: boolean) {
     value: online,
     configurable: true,
   });
+  // Dispatch the real event too: useRehydrateRingsideGrant subscribes via
+  // useSyncExternalStore, and a live reconnect (no remount) only re-evaluates
+  // when this event actually fires — see the "live reconnect" test below.
+  window.dispatchEvent(new Event(online ? 'online' : 'offline'));
 }
 
 function renderGate(initialRoute = '/at-show/show-1') {
@@ -193,6 +197,35 @@ describe('AtShowAccessGate offline-reload fallback', () => {
 
     expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
     expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
+  });
+
+  // Codex review round 2 (22612b3b8): a bare `navigator.onLine` read in the
+  // render body only ever refreshes when SOMETHING ELSE re-renders this
+  // component. If `user` was already null throughout the offline window, a
+  // definitive dead-session determination that also leaves `user` null
+  // (React bails out of `setUser(null)` when it's already null) produces no
+  // re-render on its own -- so reconnecting must itself force one via a real
+  // `online` event, with no remount and no user/store change beyond that.
+  it('revalidates a stale offline-fallback grant on a live reconnect, with no remount', async () => {
+    useRingsideGrantStore.getState().setGrant({
+      showId: 'show-1',
+      role: 'judge',
+      sessionId: 'fallback-session',
+      source: 'passcode',
+      unconfirmedOffline: true,
+    });
+    setOnline(false);
+    mockUser = null;
+
+    renderGate();
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+
+    // Reconnect live, in place -- no renderGate() call, no user/store change
+    // beyond the connectivity event itself.
+    setOnline(true);
+
+    expect(await screen.findByText('SIGN IN PAGE')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
   });
 
   // The revalidation guard is scoped to `unconfirmedOffline` ONLY — an

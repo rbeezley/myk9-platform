@@ -61,9 +61,22 @@
  * a tolerated, correct part of Locked Decision #8's client-only trust model
  * (`AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
  * passcode grant") — clearing on it would be a regression, not a fix.
+ *
+ * Connectivity is read via `useSyncExternalStore` subscribed to the browser's
+ * `online`/`offline` events, not a bare `navigator.onLine` read in the render
+ * body: a plain read is only ever fresh when *something else* re-renders this
+ * component, and React bails out of a `setUser(null)` that arrives while
+ * `user` is already `null` (`Object.is` short-circuit) — the exact shape of a
+ * genuinely-dead session discovered while `user` was already null from the
+ * offline window. Without a real subscription, reconnecting after that could
+ * leave the stale grant admitting the ring indefinitely, with nothing left to
+ * trigger the reevaluation above (Codex review round 2). Deliberately not the
+ * app's `useNetworkStatus()`/`NetworkStatusProvider` — that requires a
+ * provider ancestor every existing `AtShowAccessGate` test would need to add;
+ * this hook needs only the two DOM events, so it subscribes directly.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   useRingsideGrantStore,
@@ -73,10 +86,24 @@ import {
 } from '@/store/ringsideGrantStore';
 import { readPersistedRingsideClaim } from './ringsideClaimCache';
 
+function subscribeToConnectivity(onChange: () => void): () => void {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+
+function getIsOnline(): boolean {
+  return navigator.onLine;
+}
+
 export function useRehydrateRingsideGrant(
   showId: string | undefined
 ): RingsideGrant['role'] | null {
   const { user, loading } = useAuthContext();
+  const isOnline = useSyncExternalStore(subscribeToConnectivity, getIsOnline, getIsOnline);
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const setGrant = useRingsideGrantStore(state => state.setGrant);
   const clearGrant = useRingsideGrantStore(state => state.clearGrant);
@@ -85,15 +112,14 @@ export function useRehydrateRingsideGrant(
   const resolvable = !loading && !!showId && !suppressRehydration;
   const storeRole = resolvable ? selectGrantRoleForShow(activeGrant, showId) : null;
   const claimRole = resolvable && !storeRole ? deriveRingsideRoleFromClaim(user, showId) : null;
-  const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
   const offlineFallbackRole =
-    resolvable && !storeRole && !claimRole && !user && isOffline
+    resolvable && !storeRole && !claimRole && !user && !isOnline
       ? readPersistedRingsideClaim(showId!)
       : null;
   // Only an offline-fallback grant is subject to reconnect revalidation — see
   // the module docstring for why an ordinary grant must NOT be swept up here.
   const staleGrant =
-    resolvable && storeRole && !user && !isOffline && activeGrant?.unconfirmedOffline === true;
+    resolvable && storeRole && !user && isOnline && activeGrant?.unconfirmedOffline === true;
 
   useEffect(() => {
     if (!resolvable) return;

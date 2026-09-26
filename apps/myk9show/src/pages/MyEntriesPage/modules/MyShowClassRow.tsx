@@ -120,12 +120,13 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       : null,
   ].filter((part): part is string => Boolean(part));
 
-  // All four terms live in `leaveClassRow.ts` so the rule is drivable without a
+  // All five terms live in `leaveClassRow.ts` so the rule is drivable without a
   // render. Deliberately NOT gated on the entry-close deadline — see that
   // module and `docs/plan-exhibitor-show-actions.md` §4 Q9.
   const canLeave = canLeaveClass({
     kind: state.kind,
     isPastShow: checkInContext.isPastShow,
+    isShowClosedOut: Boolean(order?.isShowClosedOut),
     unresolved: Boolean(cls.unresolved),
     hasShowId: showId !== '',
   });

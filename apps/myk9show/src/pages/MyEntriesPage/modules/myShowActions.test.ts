@@ -130,10 +130,11 @@ describe('canLeaveClassRow', () => {
   });
 });
 
-describe('canLeaveClass — the three terms the row kind cannot express', () => {
+describe('canLeaveClass — the four terms the row kind cannot express', () => {
   const live = {
     kind: 'opens-later' as ClassRowKind,
     isPastShow: false,
+    isShowClosedOut: false,
     unresolved: false,
     hasShowId: true,
   };
@@ -144,6 +145,7 @@ describe('canLeaveClass — the three terms the row kind cannot express', () => 
 
   it.each([
     ['the show is over', { isPastShow: true }],
+    ['the secretary closed the show out (MYK9-778)', { isShowClosedOut: true }],
     ['the class is an unresolved placeholder', { unresolved: true }],
     ['the show relation has not replicated', { hasShowId: false }],
     ['the row kind is settled', { kind: 'withdrawn' as ClassRowKind }],
@@ -162,8 +164,14 @@ describe('canLeaveClass — the three terms the row kind cannot express', () => 
   // ("Pull: always available before the class runs"). Withdraw's own cutoff is
   // the registry policy's, enforced inside the chooser. Stated here so a future
   // reader meets the decision at the predicate rather than inferring it from an
-  // absence.
+  // absence. MYK9-778 added a show-closed-out term, still not a deadline one.
   it('does not consult the entry-close deadline', () => {
-    expect(Object.keys(live)).toEqual(['kind', 'isPastShow', 'unresolved', 'hasShowId']);
+    expect(Object.keys(live)).toEqual([
+      'kind',
+      'isPastShow',
+      'isShowClosedOut',
+      'unresolved',
+      'hasShowId',
+    ]);
   });
 });

@@ -116,6 +116,7 @@ TEST_FILES=(
   "$TEST_DIR/user_roles_show_manager_read_test.sql"
   "$TEST_DIR/withdraw_own_entry_test.sql"
   "$TEST_DIR/withdraw_or_pull_own_entry_test.sql"
+  "$TEST_DIR/myk9_778_no_owner_withdraw_after_show_completed_test.sql"
   "$TEST_DIR/myk9_719_scratch_requested_retired_test.sql"
   "$TEST_DIR/update_own_entry_jump_height_test.sql"
   "$TEST_DIR/update_entry_handler_for_entry_management_test.sql"

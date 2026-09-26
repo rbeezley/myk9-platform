@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { render } from '@/test/utils/testUtils';
 import { LeaveClassDialog } from './LeaveClassDialog';
 
@@ -213,5 +214,38 @@ describe('LeaveClassDialog — round 1 corrections', () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onUpdate).toHaveBeenCalled();
+  });
+});
+
+describe('LeaveClassDialog — MYK9-778 finished show', () => {
+  // The row control is withheld on a finished show, but a card rendered before
+  // the secretary closed the show out can still reach the RPC. Its refusal
+  // (SQLSTATE MK006) is a settled fact, so the toast must say so plainly — not
+  // the "ask the show secretary" line a 42501 gets, which reads as if the entry
+  // might still be removable.
+  it('shows a definite sentence when the server says the show has finished', async () => {
+    const toastError = vi.spyOn(toast, 'error');
+    const user = userEvent.setup();
+    mocks.withdrawEntry.mockResolvedValue({
+      data: null,
+      error: {
+        code: 'MK006',
+        message: `Entry ${target.classId} cannot be withdrawn: the show has finished`,
+      },
+    });
+    renderDialog();
+
+    const dialog = within(await chooser());
+    await waitFor(() => expect(dialog.getByRole('button', { name: /^withdraw$/i })).toBeEnabled());
+    await user.click(dialog.getByRole('button', { name: /^withdraw$/i }));
+    await user.click(dialog.getByRole('button', { name: /dog in season/i }));
+    await user.click(dialog.getByRole('button', { name: /withdraw entry/i }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'This show has finished, so this entry can no longer be withdrawn.'
+      )
+    );
+    toastError.mockRestore();
   });
 });

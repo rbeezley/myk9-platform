@@ -64,6 +64,12 @@ export interface LeaveClassRowContext {
   /** The show is over; nothing is left to leave. */
   isPastShow: boolean;
   /**
+   * The secretary closed the show out (`shows.status = 'completed'`), which can
+   * happen before its last calendar day is behind us. `withdraw_own_entry`
+   * refuses an owner from then on (MYK9-778), so the row stops offering it.
+   */
+  isShowClosedOut: boolean;
+  /**
    * The partial-replication placeholder: the money is real but the class
    * identity is not, and the row renders "Unknown Class". `unresolved` is a
    * property of the ROW, not of its kind — an unresolved row derives as
@@ -85,10 +91,11 @@ export interface LeaveClassRowContext {
   hasShowId: boolean;
 }
 
-/** True when this row may offer "Leave class…". One place, all four terms. */
+/** True when this row may offer "Leave class…". One place, all five terms. */
 export function canLeaveClass(context: LeaveClassRowContext): boolean {
   return (
     !context.isPastShow &&
+    !context.isShowClosedOut &&
     !context.unresolved &&
     context.hasShowId &&
     canLeaveClassRow(context.kind)

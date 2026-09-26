@@ -12,7 +12,9 @@ export async function rowsOrThrow<T>(
   message: string
 ): Promise<T[]> {
   const result = await read;
-  if (!result.ok) throw new Error(message);
+  // Named like ReplicatedTable.getAllOrThrow's error, so a server fallback
+  // guards unsynced writes for it too.
+  if (!result.ok) throw Object.assign(new Error(message), { name: 'ReplicaReadError' });
   return result.rows;
 }
 

@@ -1,5 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/read-shape';
+import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/replication-fallback';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -827,9 +827,11 @@ describe('entryQueries (replication)', () => {
       table.getAll.mockResolvedValue([]);
       Object.defineProperty(table, 'getAllOrThrow', {
         configurable: true,
-        value: vi
-          .fn()
-          .mockRejectedValue(new Error("This device couldn't read its saved show data.")),
+        value: vi.fn().mockRejectedValue(
+          Object.assign(new Error("This device couldn't read its saved show data."), {
+            name: 'ReplicaReadError',
+          })
+        ),
       });
       return () => {
         if (original) Object.defineProperty(table, 'getAllOrThrow', original);

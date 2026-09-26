@@ -761,6 +761,7 @@ describe('ReplicatedTable', () => {
         "This device couldn't read its saved show data. Try again."
       );
       expect((error as { cause?: unknown }).cause).toMatchObject({ error: expect.any(Error) });
+      expect((error as Error).name).toBe('ReplicaReadError');
       getDatabase.mockRestore();
     });
 

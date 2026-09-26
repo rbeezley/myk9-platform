@@ -247,6 +247,46 @@ describe('ReplicatedTrialsTable', () => {
       });
     });
 
+    describe('createTrial — timezone write path (MYK9-831)', () => {
+      // Same shape as the registry write path above: toSupabaseRow is the final
+      // write hop, so a timezone chosen in the wizard that never reaches this
+      // payload is a timezone that never reaches the row.
+      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
+
+      it('persists the wizard-selected timezone into the INSERT payload', async () => {
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-tz-1');
+
+        await table.createTrial({
+          id: 'trial-chicago',
+          showId: 'show-1',
+          name: 'Saturday Trial',
+          date: '2026-06-12',
+          timezone: 'America/Chicago',
+        });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload.timezone).toBe('America/Chicago');
+      });
+
+      it('defaults timezone to America/New_York when unset (never writes NULL to the NOT-NULL column)', async () => {
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-tz-2');
+
+        await table.createTrial({
+          id: 'trial-default-tz',
+          showId: 'show-1',
+          name: 'Trial',
+          date: '2026-06-12',
+        });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload.timezone).toBe('America/New_York');
+      });
+    });
+
     describe('updateTrial — dependsOn pass-through (MYK9-490)', () => {
       // The last hop. `resyncTrialRegistry` names the show mutation, but a dependency that
       // is dropped between here and `queueMutation` is invisible to a test on the caller:

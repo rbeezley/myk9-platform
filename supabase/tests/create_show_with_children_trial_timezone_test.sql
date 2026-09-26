@@ -13,38 +13,38 @@
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-0000000t0c01', 'Trial Timezone Test Club');
+VALUES ('00000000-0000-0000-0000-0000000f0c01', 'Trial Timezone Test Club');
 
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES (
-  '00000000-0000-0000-0000-0000000t0c11',
+  '00000000-0000-0000-0000-0000000f0c11',
   'Timezone', 'Test Secretary',
-  '00000000-0000-0000-0000-0000000t0c21'
+  '00000000-0000-0000-0000-0000000f0c21'
 );
 
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES (
-  '00000000-0000-0000-0000-0000000t0c01',
-  '00000000-0000-0000-0000-0000000t0c11',
+  '00000000-0000-0000-0000-0000000f0c01',
+  '00000000-0000-0000-0000-0000000f0c11',
   'active'
 );
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
-  '00000000-0000-0000-0000-0000000t0c11',
+  '00000000-0000-0000-0000-0000000f0c11',
   id,
-  '00000000-0000-0000-0000-0000000t0c01',
+  '00000000-0000-0000-0000-0000000f0c01',
   true,
-  '00000000-0000-0000-0000-0000000t0c21'
+  '00000000-0000-0000-0000-0000000f0c21'
 FROM public.roles
 WHERE name = 'secretary';
 
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000t0c21', true);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000f0c21', true);
 SELECT set_config(
   'request.jwt.claims',
   jsonb_build_object(
-    'sub', '00000000-0000-0000-0000-0000000t0c21',
+    'sub', '00000000-0000-0000-0000-0000000f0c21',
     'role', 'authenticated',
     'app_metadata', '{}'::jsonb
   )::text,
@@ -53,13 +53,13 @@ SELECT set_config(
 
 DO $$
 DECLARE
-  club          CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c01';
-  show_valid    CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c02';
-  trial_valid   CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c03';
-  show_missing  CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c04';
-  trial_missing CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c05';
-  show_bad      CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c06';
-  trial_bad     CONSTANT uuid := '00000000-0000-0000-0000-0000000t0c07';
+  club          CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c01';
+  show_valid    CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c02';
+  trial_valid   CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c03';
+  show_missing  CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c04';
+  trial_missing CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c05';
+  show_bad      CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c06';
+  trial_bad     CONSTANT uuid := '00000000-0000-0000-0000-0000000f0c07';
   got_timezone  text;
 BEGIN
   -- A valid IANA zone lands on the row exactly as sent — the Tulsa, OK show

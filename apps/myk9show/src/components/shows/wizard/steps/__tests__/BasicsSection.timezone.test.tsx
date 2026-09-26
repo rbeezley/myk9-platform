@@ -60,7 +60,11 @@ describe('BasicsSection timezone field', () => {
 
   it('shows the persisted draft timezone instead of overriding it with the browser zone', () => {
     render(
-      <BasicsSection show={{ ...BASE, timezone: 'America/Chicago' }} onUpdate={vi.fn()} clubField={null} />
+      <BasicsSection
+        show={{ ...BASE, timezone: 'America/Chicago' }}
+        onUpdate={vi.fn()}
+        clubField={null}
+      />
     );
     expect(timezoneField()).toHaveTextContent('Central (CT)');
   });

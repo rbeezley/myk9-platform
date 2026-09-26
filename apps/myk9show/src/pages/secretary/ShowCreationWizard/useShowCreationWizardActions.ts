@@ -6,15 +6,14 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import type { ShowPasscodes } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
-import { useTrialStore, type TrialInput } from '@/store/trialStore';
-import { deriveRegistryId } from '@/features/registries';
+import { useTrialStore } from '@/store/trialStore';
+import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -33,6 +32,7 @@ import { grantShowOfficials, officialsDeferredOfflineMessage } from './grantShow
 import { completePartialShowSave, isOfficialsNotAssignedError } from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
+import { buildTrialInputFromWizard } from './buildTrialInputFromWizard';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 import {
@@ -114,38 +114,33 @@ export function useShowCreationWizardActions({
       // Registry is show-wide (scoping §7): every trial under this show shares the
       // registry derived from the show's organization. Compute once.
       const registryId = deriveRegistryId(showOrganization);
+      // Timezone is show-wide too (MYK9-831): both the offline path (new show,
+      // no network) and the add-trials/edit-mode path share this trial builder,
+      // so both must carry the wizard's chosen zone instead of leaving it to
+      // fall through to the trials.timezone column's 'America/New_York' default.
+      const timezone = show.timezone || resolveBrowserTrialTimezone();
 
       // Create trials sequentially — parallel Promise.all would leave a
       // partially-populated trialIdMap if one insert fails, causing classes
       // for the failed trial to be silently dropped with no trialId.
       for (const [index, wizardTrial] of trialsToAdd.entries()) {
-        const trialName =
-          trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
-        const newTrial: TrialInput = {
+        const newTrial = buildTrialInputFromWizard({
+          wizardTrial,
+          index,
           showId,
           showName,
-          name: trialName,
+          showOrganization,
+          timezone,
           registryId,
-          trialDate: wizardTrial.dateTime
-            ? format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd')
-            : '',
-          trialNumber: trialName,
-          status: 'Upcoming',
-          eventNumber: wizardTrial.eventNumber || '',
-          type: trialName,
-          trialType: wizardTrial.trialType || showOrganization,
-          plannedStartTime: wizardTrial.dateTime
-            ? format(new Date(wizardTrial.dateTime), 'h:mm a')
-            : '09:00 AM',
-          order: String(index + 1),
-        };
+          trialView,
+        });
         const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
         trialIdMap[wizardTrial.id] = savedTrial.id;
       }
 
       return trialIdMap;
     },
-    [editMode, existingTrials, trials, addTrialToStore, user, trialView]
+    [editMode, existingTrials, trials, addTrialToStore, user, trialView, show.timezone]
   );
 
   /**

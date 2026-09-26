@@ -42,6 +42,10 @@ export interface TrialInput {
    *  deriveRegistryId(). Threaded to toSupabaseRow so created/updated trials persist
    *  the right registry instead of the DB default. */
   registryId?: string | undefined;
+  /** IANA zone selected in the wizard's Basics step (MYK9-831). Threaded to
+   *  toSupabaseRow so offline-created and add-trials trials persist the show's
+   *  chosen zone instead of the DB's 'America/New_York' default. */
+  timezone?: string | undefined;
   // Additional fields from Trial interface for updates
   image?: string | undefined;
   timeStarted?: string | undefined;

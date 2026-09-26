@@ -1,4 +1,4 @@
--- Behavioral test for 20260926174500_myk9_824_submit_entries_handler_defaults_to_owner.sql (MYK9-824).
+-- Behavioral test for 20260926183700_myk9_824_submit_entries_handler_defaults_to_owner.sql (MYK9-824).
 --
 -- `submit_show_entries` must never fall back an unresolved typed handler to
 -- the SUBMITTER. Found in the MYK9-819 dress rehearsal: a secretary took a

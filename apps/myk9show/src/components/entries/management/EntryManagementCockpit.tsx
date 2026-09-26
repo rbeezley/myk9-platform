@@ -1,32 +1,26 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
-import { Search, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
-import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
+import type { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
-import { TrialClassFilters } from './TrialClassFilters';
 import { EntryRegistrationQueue } from './EntryRegistrationQueue';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
-import { EntryRegistrationSelectionToolbar } from './EntryRegistrationSelectionToolbar';
-import { DensityControl } from '@/features/operational-views/DensityControl';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EntryManagementBulkBar } from './EntryManagementBulkBar';
 import {
   entryCockpitResponsiveReducer,
   initialEntryCockpitResponsiveState,
 } from './entryManagementCockpitResponsive';
-import type {
-  EntryManagementTrial,
-  EntryManagementTrialClass,
-} from '@/hooks/useEntryManagementTrialScope';
-import type { ShowRegistrationGroup } from './showRegistrationProjection';
-import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
+import {
+  buildSelectedEntriesExportCsv,
+  selectedEntriesExportFilename,
+} from './entrySelectionExport';
+import { downloadCsv } from '@/utils/downloadCsv';
 import type {
   BulkActionResult,
   EntryClass,
@@ -36,35 +30,28 @@ import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 
-const QUEUES = [
-  { id: 'needs-review', label: 'Needs review' },
-  { id: 'missing-information', label: 'Missing information' },
-  { id: 'payment-due', label: 'Payment due' },
-  { id: 'all', label: 'All registrations' },
-] as const;
-
-// INTENT: `queue` is the single source of registration-status filtering on
-// Entry Management. Do not add a second status control: contradictory status
-// filters create an honest-looking zero-registration state. Show-day check-in
-// is also intentionally absent here; the page links to the canonical Check-in
-// desk instead of duplicating that concern in registration management.
+// INTENT: `cockpit.state.queue` (set from the page's unified `ListViewTabs`) is
+// the single source of registration-status filtering on Entry Management. Do
+// not add a second status control: contradictory status filters create an
+// honest-looking zero-registration state. Show-day check-in is also
+// intentionally absent here; the page links to the canonical Check-in desk
+// instead of duplicating that concern in registration management.
 
 interface EntryManagementCockpitProps {
   entries: EntryManagementEntry[];
-  registrationGroups: ShowRegistrationGroup[];
-  cockpitState: EntryManagementCockpitState;
-  trials: EntryManagementTrial[];
-  trialClasses: EntryManagementTrialClass[];
-  /** `undefined` when the trial's class list could not be read — see
-   * `useEntryManagementTrialClasses`. Never coerce this to `[]`. */
-  trialClassIds: readonly string[] | undefined;
-  isLoadingTrials: boolean;
-  isLoadingClasses: boolean;
-  /** A trial is selected but its classes are unknown, so trial scoping cannot
-   * be applied and the counts below are for the whole show, not the trial. */
+  /** Built by the PAGE (`useEntryManagementCockpit`) and passed down, so the
+   * page's `ListViewTabs`/`ListFilterBar` and this list read one shared state
+   * instead of each computing their own (MYK9-795). */
+  cockpit: ReturnType<typeof useEntryManagementCockpit>;
+  /** `registrationGroups` (unfiltered) is empty — the show itself has no
+   * registrations, not just none matching the current queue/filters. */
+  showHasNoRegistrations: boolean;
+  /** A trial is selected but which classes it holds is still being read. */
+  trialScopePending: boolean;
+  /** A trial is selected but its class list could not be read, so trial
+   * scoping cannot be applied and the counts are for the whole show. */
   trialClassesUnknown?: boolean;
   onRetryTrialClasses?: () => void;
-  canValidateFocus?: boolean;
   showId: string;
   showName?: string;
   busy?: boolean;
@@ -100,16 +87,11 @@ interface EntryManagementCockpitProps {
 
 export function EntryManagementCockpit({
   entries,
-  registrationGroups,
-  cockpitState,
-  trials,
-  trialClasses,
-  trialClassIds,
-  isLoadingTrials,
-  isLoadingClasses,
+  cockpit,
+  showHasNoRegistrations,
+  trialScopePending,
   trialClassesUnknown = false,
   onRetryTrialClasses,
-  canValidateFocus = true,
   showId,
   showName,
   busy = false,
@@ -126,12 +108,6 @@ export function EntryManagementCockpit({
   onRefresh,
   paymentLedger,
 }: EntryManagementCockpitProps) {
-  const cockpit = useEntryManagementCockpit({
-    groups: registrationGroups,
-    state: cockpitState,
-    trialClassIds,
-    canValidateFocus,
-  });
   const focusedKey = cockpit.focusedGroup?.groupKey ?? null;
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const [responsive, dispatchResponsive] = useReducer(
@@ -156,6 +132,8 @@ export function EntryManagementCockpit({
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
   const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
+  const isResendDisabled = (registrationId: string) =>
+    (resendCooldowns[registrationId] ?? 0) > Date.now();
 
   const handleResendEmail = async (registrationId: string) => {
     setResendCooldowns(current => ({ ...current, [registrationId]: Date.now() + 60_000 }));
@@ -171,6 +149,26 @@ export function EntryManagementCockpit({
       });
       toast.error('Failed to resend email');
     }
+  };
+
+  // Bulk resend (MYK9-795): dedupes to one send per registration, skips any
+  // target `isResendDisabled` now reports (re-checked here, at dispatch —
+  // `registrationIds` is already resolved fresh by the caller from the live
+  // selection), and clears the selection afterward the same way the existing
+  // Accept/Reject `runBulkAndClear` does, regardless of individual failures —
+  // a partial send still moves the selection out from under a spent action,
+  // and each attempt already reports its own toast.
+  const handleBulkResendEmail = async (registrationIds: string[]) => {
+    await Promise.allSettled(registrationIds.map(handleResendEmail));
+    cockpit.selection.clearSelection();
+  };
+
+  const handleExportSelectedCSV = (selectedEntries: EntryManagementEntry[]) => {
+    if (selectedEntries.length === 0) return;
+    downloadCsv(
+      selectedEntriesExportFilename(),
+      buildSelectedEntriesExportCsv(selectedEntries)
+    );
   };
 
   const handleStatusChangeWithDecisionPrompt = async (
@@ -195,62 +193,11 @@ export function EntryManagementCockpit({
   };
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
-  /** A trial is selected but which classes it holds is still being read. */
-  const trialScopePending = Boolean(cockpit.state.trialId) && isLoadingClasses;
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
   return (
-    <div ref={ref} className={cn('space-y-4', cockpit.selection.selectedCount > 0 && 'pb-32')}>
-      <div className="flex items-start justify-between gap-2">
-        <div
-          className="flex min-w-0 flex-1 flex-wrap gap-2 pb-1"
-          role="group"
-          aria-label="Registration queues"
-        >
-          {QUEUES.map(queue => (
-            <Button
-              key={queue.id}
-              type="button"
-              variant={cockpit.state.queue === queue.id ? 'secondary' : 'ghost'}
-              disabled={Boolean(cockpit.state.search)}
-              className={cn(
-                // Not shrink-0: at 150% zoom on a phone the longest queue label
-                // overflowed the page; it wraps inside its own button instead.
-                'h-auto min-h-11 max-w-full gap-3 whitespace-normal text-left',
-                cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
-              )}
-              // F19: the active queue was signalled by colour alone. A show with one
-              // entry lands on Needs review, reads "No matching registrations", and
-              // shows "All registrations 1" beside it with nothing saying which
-              // filter is responsible. The Exceptions sub-tabs on this same page
-              // already expose a pressed state.
-              aria-pressed={cockpit.state.queue === queue.id}
-              onClick={() => cockpit.setQueue(queue.id)}
-            >
-              {queue.label}
-              {!trialScopePending && (
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {cockpit.queueCounts[queue.id]}
-                </span>
-              )}
-            </Button>
-          ))}
-        </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="min-h-11 shrink-0 gap-2">
-              <SlidersHorizontal className="h-4 w-4" aria-hidden />
-              Density
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto">
-            <p className="mb-2 text-sm font-semibold">Registration row density</p>
-            <DensityControl density={cockpit.state.density} onChange={cockpit.setDensity} />
-          </PopoverContent>
-        </Popover>
-      </div>
-
+    <div ref={ref} className="space-y-4">
       {/* MYK9-635: "All registrations 514" beside a show page saying 517 entries
           read as a bucket that excluded Needs review. It never was — All is
           every queue — the two numbers count registrations and entries. Both
@@ -268,37 +215,9 @@ export function EntryManagementCockpit({
         </p>
       )}
 
-      <div className="grid gap-2 lg:grid-cols-[minmax(18rem,1fr)_auto]">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={cockpit.state.search}
-            onChange={event => cockpit.setSearch(event.target.value)}
-            placeholder="Search exhibitor, dog, handler, armband, confirmation, class…"
-            className="min-h-11 pl-9"
-            aria-label="Search all show registrations"
-          />
-        </div>
-        <TrialClassFilters
-          trials={trials}
-          classes={trialClasses}
-          trialFilter={cockpit.state.trialId}
-          classFilter={cockpit.state.classId}
-          onTrialChange={trialId => cockpit.setScope(trialId)}
-          onClassChange={classId => cockpit.setScope(cockpit.state.trialId, classId)}
-          isLoadingTrials={isLoadingTrials}
-          isLoadingClasses={isLoadingClasses}
-          disabled={Boolean(cockpit.state.search)}
-        />
-      </div>
-
       {cockpit.state.search && (
         <p role="status" className="text-sm text-muted-foreground">
-          Search covers the whole show. Clear search to use queue, Trial, and Class filters.
+          Search covers the whole show. Clear search to use the Trial, Class, and Payment filters.
         </p>
       )}
 
@@ -342,8 +261,8 @@ export function EntryManagementCockpit({
         )}
       >
         {/*
-          Trial picked, classes not back yet. `trialClassIds` is `undefined`
-          here, so the queue would render EVERY registration in the show while
+          Trial picked, classes not back yet. `trialScopePending` is true here,
+          so the queue would render EVERY registration in the show while
           appearing scoped to the trial -- and "Select all on page" would then
           bulk-act on another trial's entries. Refusing to scope is the right
           call once the read has failed, but during the read the honest answer
@@ -371,10 +290,7 @@ export function EntryManagementCockpit({
             rangeStart={cockpit.page.rangeStart}
             rangeEnd={cockpit.page.rangeEnd}
             total={cockpit.page.total}
-            // `registrationGroups` is every registration in the show, before any
-            // queue, scope or search narrowing, so an empty one means the show
-            // itself is empty rather than the filters being wrong.
-            showHasNoRegistrations={registrationGroups.length === 0}
+            showHasNoRegistrations={showHasNoRegistrations}
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}
@@ -423,9 +339,7 @@ export function EntryManagementCockpit({
               paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
               onResendEmail={handleResendEmail}
-              isResendDisabled={registrationId =>
-                (resendCooldowns[registrationId] ?? 0) > Date.now()
-              }
+              isResendDisabled={isResendDisabled}
               onSendDecisionEmail={onSendDecisionEmail}
               lastDecisionEmailedAt={
                 cockpit.focusedGroup.enrollmentId
@@ -440,12 +354,15 @@ export function EntryManagementCockpit({
         )}
       </div>
 
-      <EntryRegistrationSelectionToolbar
+      <EntryManagementBulkBar
         registrations={cockpit.selection.selectedCount}
         selectedEntries={selectedEntries}
         onBulkStatusChange={onBulkStatusChange}
         onClear={cockpit.selection.clearSelection}
         busy={busy}
+        isResendDisabled={isResendDisabled}
+        onBulkResend={handleBulkResendEmail}
+        onExportSelected={handleExportSelectedCSV}
       />
       {lifecycleEmails.dialog}
     </div>

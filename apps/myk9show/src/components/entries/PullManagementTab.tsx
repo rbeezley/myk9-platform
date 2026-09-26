@@ -10,8 +10,8 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, XCircle, RefreshCw } from 'lucide-react';
+import { XCircle, RefreshCw } from 'lucide-react';
+import { ListFilterBar } from '@/components/list-toolkit';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { NoPulledEntriesCard, PulledEntriesUnknownCard } from './PullTabStateCards';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -78,16 +78,13 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by dog, handler, or class..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      {/* Search — the list-toolkit's shared search field (MYK9-795). */}
+      <ListFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by dog, handler, or class..."
+        fields={[]}
+      />
 
       {processedEntriesLoading ? (
         // Section load = table skeleton (previews the pulled-entries list).

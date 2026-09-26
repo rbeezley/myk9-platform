@@ -2,6 +2,7 @@ import {
   isOperationalViewDensity,
   type OperationalViewDensity,
 } from '@/features/operational-views/operationalViews';
+import { PaymentStatus } from '@/types/show-registration-types';
 import {
   SHOW_REGISTRATION_QUEUES,
   type ShowRegistrationGroup,
@@ -14,6 +15,13 @@ export type EntryManagementCockpitTab = (typeof ENTRY_MANAGEMENT_COCKPIT_TABS)[n
 export const ENTRY_MANAGEMENT_EXCEPTIONS = ['move-ups', 'pulls', 'waitlist'] as const;
 export type EntryManagementException = (typeof ENTRY_MANAGEMENT_EXCEPTIONS)[number];
 
+/**
+ * Every id the unified list-toolkit view row (`ListViewTabs`) can select
+ * (MYK9-795): the four registration queues plus the three exception panes.
+ * The two id spaces are disjoint, so one `activeId` can describe either.
+ */
+export type EntryManagementViewId = ShowRegistrationQueue | EntryManagementException;
+
 export interface EntryManagementCockpitState {
   tab: EntryManagementCockpitTab;
   exception: EntryManagementException;
@@ -22,7 +30,14 @@ export interface EntryManagementCockpitState {
   density: OperationalViewDensity;
   trialId: string | null;
   classId: string | null;
+  /** Registration-view-only filter (MYK9-795). Always `null` on the Exceptions tab. */
+  paymentStatus: PaymentStatus | null;
   registrationKey: string | null;
+}
+
+/** The view id the current state resolves to — what `ListViewTabs` highlights. */
+export function entryManagementViewId(state: EntryManagementCockpitState): EntryManagementViewId {
+  return state.tab === 'exceptions' ? state.exception : state.queue;
 }
 
 export interface CockpitNormalizationContext {
@@ -50,6 +65,15 @@ function isShowRegistrationQueue(value: string | null): value is ShowRegistratio
 
 function isEntryManagementException(value: string | null): value is EntryManagementException {
   return ENTRY_MANAGEMENT_EXCEPTIONS.includes(value as EntryManagementException);
+}
+
+function isPaymentStatus(value: string | null): value is PaymentStatus {
+  return value !== null && (Object.values(PaymentStatus) as string[]).includes(value);
+}
+
+function getPaymentStatus(source: URLSearchParams): PaymentStatus | null {
+  const raw = source.get('paymentStatus');
+  return isPaymentStatus(raw) ? raw : null;
 }
 
 function getLegacyException(source: URLSearchParams): EntryManagementException | null {
@@ -113,6 +137,7 @@ export function normalizeEntryManagementCockpitParams(
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
   const trialId = tab === 'registrations' ? source.get('trial') : null;
   const classId = tab === 'registrations' ? source.get('class') : null;
+  const paymentStatus = tab === 'registrations' ? getPaymentStatus(source) : null;
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;
   const params = new URLSearchParams();
 
@@ -125,6 +150,7 @@ export function normalizeEntryManagementCockpitParams(
     if (density !== 'comfortable') params.set('density', density);
     if (trialId) params.set('trial', trialId);
     if (classId) params.set('class', classId);
+    if (paymentStatus) params.set('paymentStatus', paymentStatus);
     if (registrationKey) params.set('registration', registrationKey);
   }
 
@@ -138,6 +164,7 @@ export function normalizeEntryManagementCockpitParams(
       density,
       trialId,
       classId,
+      paymentStatus,
       registrationKey,
     },
   };
@@ -186,6 +213,17 @@ export function writeCockpitScope(
   return next;
 }
 
+export function writeCockpitPaymentStatus(
+  source: URLSearchParams,
+  paymentStatus: PaymentStatus | null
+): URLSearchParams {
+  const next = new URLSearchParams(source);
+  if (paymentStatus) next.set('paymentStatus', paymentStatus);
+  else next.delete('paymentStatus');
+  next.delete('registration');
+  return next;
+}
+
 export function writeCockpitDensity(
   source: URLSearchParams,
   density: OperationalViewDensity
@@ -213,6 +251,7 @@ export function writeCockpitTab(
   next.delete('search');
   next.delete('trial');
   next.delete('class');
+  next.delete('paymentStatus');
   next.delete('registration');
   return next;
 }
@@ -225,4 +264,20 @@ export function writeCockpitException(
   if (exception === 'move-ups') next.delete('exception');
   else next.set('exception', exception);
   return next;
+}
+
+/**
+ * Selects one of the seven unified views (MYK9-795): the four registration
+ * queues route through the Registrations tab, the other three swap in the
+ * Exceptions workspace's dedicated pane. One setter for `ListViewTabs`, so the
+ * page never has to know which id space a click landed in.
+ */
+export function writeCockpitView(
+  source: URLSearchParams,
+  viewId: EntryManagementViewId
+): URLSearchParams {
+  if ((ENTRY_MANAGEMENT_EXCEPTIONS as readonly string[]).includes(viewId)) {
+    return writeCockpitException(source, viewId as EntryManagementException);
+  }
+  return writeCockpitQueue(writeCockpitTab(source, 'registrations'), viewId as ShowRegistrationQueue);
 }

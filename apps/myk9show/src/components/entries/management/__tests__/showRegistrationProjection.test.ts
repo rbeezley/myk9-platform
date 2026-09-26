@@ -8,6 +8,7 @@ import {
   getVisiblePageSelectionState,
   paginateShowRegistrations,
   groupEntriesByShowRegistration,
+  scopeShowRegistrationGroupsByPayment,
   searchShowRegistrationGroups,
   selectShowRegistrationQueue,
 } from '../showRegistrationProjection';
@@ -359,5 +360,62 @@ describe('groupEntriesByShowRegistration', () => {
     expect(page.page.total).toBe(1_000);
     expect(searched.page.items.map(group => group.groupKey)).toEqual(['registration-999']);
     expect(elapsed).toBeLessThan(1_000);
+  });
+});
+
+// MYK9-795: the new payment-status filter for the registration-queue views.
+describe('payment status scoping', () => {
+  const groups = groupEntriesByShowRegistration([
+    entry({ id: 'e1', dogId: 'dog-1', dogName: 'Fido', paymentStatus: PaymentStatus.PENDING }),
+    entry({
+      id: 'e2',
+      registrationId: 'registration-2',
+      dogId: 'dog-2',
+      dogName: 'Rex',
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    }),
+    entry({
+      id: 'e3',
+      registrationId: 'registration-3',
+      dogId: 'dog-3',
+      dogName: 'Bella',
+      paymentStatus: PaymentStatus.WAIVED,
+    }),
+  ]);
+
+  it('keeps only registrations holding an entry at the given status', () => {
+    expect(
+      scopeShowRegistrationGroupsByPayment(groups, PaymentStatus.PAID_ONLINE).map(
+        group => group.groupKey
+      )
+    ).toEqual(['registration-2']);
+  });
+
+  it('is unfiltered when the status is null/undefined, matching the trial/class convention', () => {
+    expect(scopeShowRegistrationGroupsByPayment(groups, null)).toHaveLength(3);
+    expect(scopeShowRegistrationGroupsByPayment(groups, undefined)).toHaveLength(3);
+  });
+
+  it('narrows the queue counts', () => {
+    expect(
+      getScopedShowRegistrationQueueCounts(groups, null, undefined, PaymentStatus.WAIVED).all
+    ).toBe(1);
+  });
+
+  it('narrows buildShowRegistrationPage, but is bypassed under search like class/trial scope', () => {
+    const scoped = buildShowRegistrationPage(groups, {
+      queue: 'all',
+      paymentStatus: PaymentStatus.PENDING,
+      pageIndex: 0,
+    });
+    expect(scoped.page.items.map(group => group.groupKey)).toEqual(['registration-1']);
+
+    const searched = buildShowRegistrationPage(groups, {
+      queue: 'all',
+      search: 'Rex',
+      paymentStatus: PaymentStatus.PENDING,
+      pageIndex: 0,
+    });
+    expect(searched.page.items.map(group => group.groupKey)).toEqual(['registration-2']);
   });
 });

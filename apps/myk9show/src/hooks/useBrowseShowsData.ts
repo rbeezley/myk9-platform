@@ -98,10 +98,15 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
-  const { userWithRoles: user, loading: authLoading } = useAuthContext();
-  // Signed out: no session at all. Only a session reads the replica (INTENT below).
-  const isGuest = !authLoading && !user;
-  const rawStoreShows = useShowStore(s => (user ? s.shows : NO_STORE_SHOWS));
+  const { user: sessionUser, userWithRoles: user, loading: authLoading } = useAuthContext();
+  // Signed out: no session at all. Only a session reads the replica (INTENT
+  // below). Guest status keys on the raw session, not userWithRoles: a
+  // signed-in session whose roles have not loaded (or failed to) is still not
+  // a guest, and offline it keeps its replica list. userWithRoles stays the
+  // input for role-dependent behavior only.
+  const hasSession = Boolean(sessionUser);
+  const isGuest = !authLoading && !hasSession;
+  const rawStoreShows = useShowStore(s => (hasSession ? s.shows : NO_STORE_SHOWS));
   // Store shows carry no trials, so stamp each with its entry-window zone
   // from the trial store: every Browse surface (cards, table, scrubber, map,
   // filters) judges entry status in the show's own zone (MYK9-714).
@@ -110,7 +115,7 @@ export function useBrowseShowsData({
     () => withEntryWindowTimeZones(rawStoreShows, storeTrials),
     [rawStoreShows, storeTrials]
   );
-  const showsLoading = useShowStore(s => Boolean(user) && s.isLoading);
+  const showsLoading = useShowStore(s => hasSession && s.isLoading);
 
   // INTENT: MYK9-780, same owner decision as MYK9-747/768: public, signed-out
   // surfaces read online and never read the shared replica. The shows
@@ -133,10 +138,10 @@ export function useBrowseShowsData({
   const refetchGuestShows = guestQuery.refetch;
 
   let shows: Show[] = NO_STORE_SHOWS;
-  if (user) shows = storeShows;
+  if (hasSession) shows = storeShows;
   else if (guestRead?.kind === 'ready') shows = guestRead.data;
   const showsOffline = guestRead?.kind === 'offline';
-  const storeErrorMsg = useShowStore(s => (user ? s.error : null));
+  const storeErrorMsg = useShowStore(s => (hasSession ? s.error : null));
   let showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   if (guestRead?.kind === 'error') showsError = new Error("Couldn't load shows");
   if (showsOffline) showsError = new Error('Offline');

@@ -14,7 +14,8 @@ import { useBrowseShowsData } from '../useBrowseShowsData';
 // deleted_at IS NULL only, and the store's Show has no deletedAt).
 
 const auth = vi.hoisted(() => ({
-  value: { userWithRoles: null, loading: false } as {
+  value: { user: null, userWithRoles: null, loading: false } as {
+    user: { id: string } | null;
     userWithRoles: { id: string; roles: string[]; databaseUserId?: string } | null;
     loading: boolean;
   },
@@ -118,7 +119,7 @@ const ids = (shows: Show[]) => shows.map(s => s.id);
 
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  auth.value = { userWithRoles: null, loading: false };
+  auth.value = { user: null, userWithRoles: null, loading: false };
   replica.shows = [DRAFT, DELETED];
   replica.reads = 0;
   getPublicShows.mockReset();
@@ -198,6 +199,7 @@ describe('useBrowseShowsData for a signed-out guest (MYK9-780)', () => {
 describe('useBrowseShowsData for a signed-in viewer (MYK9-780)', () => {
   it('keeps reading the replica, offline too, and never calls the public read', async () => {
     auth.value = {
+      user: { id: 'user-1' },
       userWithRoles: { id: 'user-1', roles: ['secretary'], databaseUserId: 'person-1' },
       loading: false,
     };
@@ -210,6 +212,21 @@ describe('useBrowseShowsData for a signed-in viewer (MYK9-780)', () => {
     expect(result.current.showsOffline).toBeFalsy();
     expect(result.current.quickStats.upcoming).toBe(2);
     expect(replica.reads).toBeGreaterThan(0);
+    expect(getPublicShows).not.toHaveBeenCalled();
+  });
+
+  // Codex P2 on the MYK9-779/780 branch: a signed-in session whose roles have
+  // not loaded (or failed to) has a session user but no userWithRoles. It is
+  // not a guest, so offline it keeps its replica list rather than an error.
+  it('with roles still unresolved, is not a guest: reads the replica offline', async () => {
+    auth.value = { user: { id: 'user-1' }, userWithRoles: null, loading: false };
+    onlineManager.setOnline(false);
+
+    const { result } = renderBrowse();
+
+    await waitFor(() => expect(ids(result.current.shows)).toEqual(['show-draft', 'show-del']));
+    expect(result.current.hasError).toBe(false);
+    expect(result.current.showsOffline).toBeFalsy();
     expect(getPublicShows).not.toHaveBeenCalled();
   });
 });

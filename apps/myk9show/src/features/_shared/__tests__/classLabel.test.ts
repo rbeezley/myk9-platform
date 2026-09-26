@@ -3,6 +3,7 @@ import {
   buildClassDisambiguator,
   buildClassDisambiguatorsByGroup,
   buildFullClassLabel,
+  buildTrialDayDisambiguator,
   classNameExtra,
 } from '../classLabel';
 
@@ -218,5 +219,49 @@ describe('buildClassDisambiguatorsByGroup', () => {
     expect(lookup('missing')({ name: 'Anything', element: 'E', level: 'L', section: null })).toBe(
       ''
     );
+  });
+});
+
+/**
+ * MYK9-832 #10: a two-trial Saturday show entering a dog in both trials'
+ * "Vehicle Novice B" showed the identical row twice, told apart only by a day
+ * label ("Sat ·") that read the same for both trials.
+ */
+describe('buildTrialDayDisambiguator', () => {
+  it('returns the trial name when two trials share a date', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', trialName: 'Saturday Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('Saturday Trial 1');
+    expect(disambiguate('trial-2')).toBe('Saturday Trial 2');
+  });
+
+  it('returns nothing for the ordinary one-trial-per-day case', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-11', trialName: 'Sunday Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for a trial with no date on record', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: null, trialName: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: null, trialName: 'Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+  });
+
+  it('returns nothing for a trial id absent from the set', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+    ]);
+
+    expect(disambiguate('unknown-trial')).toBe('');
   });
 });

@@ -154,6 +154,16 @@ type UpdateShowStyle = {
 };
 
 /**
+ * `20260926174500` (MYK9-822) adds the delete-dog dialog's blocking-entry
+ * count RPC. Hand-declared until the next `supabase gen types` picks it up,
+ * the same way `mark_enrollment_paid_online` was before its own regen.
+ */
+type CountBlockingEntriesByDog = {
+  Args: { p_dog_id: string };
+  Returns: number;
+};
+
+/**
  * Club membership requests (MYK9-685) —
  * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
@@ -251,6 +261,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
+      count_blocking_entries_by_dog: CountBlockingEntriesByDog;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

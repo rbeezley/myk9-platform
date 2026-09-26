@@ -1,6 +1,6 @@
 /**
  * MYK9 Codex P2 (UserListToolbar.tsx:63-65): the clock behind the roster's
- * time-based view counts (30-day, 90-day, "New this week") was fixed at
+ * time-based view counts (30-day, 90-day, "New, last 7 days") was fixed at
  * mount, while the page's own `filterUsers` call for the actually-shown rows
  * defaulted to a fresh `Date.now()` on every roster/filter change. Left open
  * across a day boundary, a view's advertised count and the rows it actually
@@ -9,7 +9,7 @@
  * This drifts most visibly on a login-recency view ("Signed in, last 30
  * days"): its filter stays symbolic ('recent30') rather than resolving to a
  * concrete date, so every re-evaluation re-applies whichever clock it is
- * handed. "New this week" resolves to a fixed date at selection time, so it
+ * handed. "New, last 7 days" resolves to a fixed date at selection time, so it
  * cannot exhibit the same badge-vs-rows split; the recency view is the
  * reachable repro for the same root cause the fix addresses.
  */

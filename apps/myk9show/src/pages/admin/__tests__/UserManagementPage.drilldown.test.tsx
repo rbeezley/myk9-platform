@@ -88,7 +88,9 @@ function renderAt(url: string) {
 const backTo = () => JSON.parse(screen.getByTestId('person-state').textContent || 'null')?.backTo;
 
 describe('UserManagementPage drill-down', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('opens the person record on a row click', async () => {
     const { user } = renderAt('/admin/users');

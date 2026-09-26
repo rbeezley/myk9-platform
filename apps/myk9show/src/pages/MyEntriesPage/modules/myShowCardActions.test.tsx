@@ -71,7 +71,9 @@ function aheadClass(overrides: Partial<EntryClass> = {}): EntryClass {
   });
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
   it('replaces the four-link row with a labelled Actions button', () => {

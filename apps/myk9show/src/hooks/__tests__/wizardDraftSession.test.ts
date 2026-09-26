@@ -23,7 +23,9 @@ const draft = (over: Partial<DraftMetadata>): DraftMetadata => ({
 });
 
 describe('wizard same-tab session marker', () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
 
   it('scopes the marker to one show and one user', () => {
     markWizardSessionOpen('show-1', 'user-1');

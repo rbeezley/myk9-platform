@@ -11,7 +11,9 @@ vi.mock('@/utils/entryStatusUtils', () => ({
 const show = (id: string): Show => ({ id }) as Show;
 
 describe('EntryClosedNotice', () => {
-  beforeEach(() => canEnter.mockReset());
+  beforeEach(() => {
+    canEnter.mockReset();
+  });
 
   it('renders nothing off the "all" tab', () => {
     canEnter.mockReturnValue(false);

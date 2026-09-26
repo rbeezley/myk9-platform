@@ -13,7 +13,9 @@ const entryFor = (showId: string): SyncableShowEntry =>
   ({ showId, registrationData: { handler: USER } }) as unknown as SyncableShowEntry;
 
 describe('getUserEntriesByStatus', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   const shows = [
     show('past', '2026-05-10', '2026-05-11'),

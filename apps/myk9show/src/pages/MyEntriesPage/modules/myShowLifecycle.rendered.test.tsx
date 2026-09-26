@@ -95,7 +95,9 @@ function rowFor(className: string): HTMLElement {
   return row as HTMLElement;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe('My Shows lifecycle — an absent class beside a scored one', () => {
   const rows = () => [mapleRow('maple-absent', 'Container Novice', 'absent'), scoredRow()];

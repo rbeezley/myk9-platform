@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { persistNoSubscription } from './noSubscription.ts';
 
 describe('persistNoSubscription', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('upserts the exact sentinel payload using the unique subscription ID', async () => {
     const db = makeDatabase();

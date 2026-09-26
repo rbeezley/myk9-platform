@@ -15,7 +15,9 @@ function hookState(
 }
 
 describe('WithdrawalPolicyDisclosure', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders the described policy line for a resolved policy', () => {
     mockHook.mockReturnValue(

@@ -63,7 +63,9 @@ describe('submitOfflineLateEntry across show-time midnight', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('charges the fee of the bucket it records', async () => {
     await submitOfflineLateEntry({

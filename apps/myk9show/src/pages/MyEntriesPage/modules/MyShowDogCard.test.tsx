@@ -61,7 +61,9 @@ function expectNoCheckInAnywhere() {
   expect(screen.queryByRole('button', { name: /^Check in Rex for/ })).not.toBeInTheDocument();
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe('MyShowDogCard — check-in is withheld from rows that cannot take one', () => {
   /**

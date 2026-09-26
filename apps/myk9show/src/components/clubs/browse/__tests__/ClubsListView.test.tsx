@@ -30,7 +30,9 @@ const clubs: Club[] = [
 ];
 
 describe('ClubsListView', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('renders clubs in the shared DataTable with standard controls', () => {
     render(<ClubsListView clubs={clubs} clubShowCounts={new Map([['club-1', 3]])} />);

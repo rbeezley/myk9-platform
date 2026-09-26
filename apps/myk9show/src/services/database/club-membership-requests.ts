@@ -55,9 +55,12 @@ export async function submitClubMembershipRequest(input: {
   clubId: string;
   note: string;
 }): Promise<string> {
+  const requesterNote = input.note.trim();
+  // An empty note is omitted, not sent as null: the RPC's default is NULL and
+  // the generated arg type is optional (exactOptionalPropertyTypes).
   const { data, error } = await supabase.rpc('submit_club_membership_request', {
     p_club_id: input.clubId,
-    p_requester_note: input.note.trim() || null,
+    ...(requesterNote ? { p_requester_note: requesterNote } : {}),
   });
 
   if (error) {
@@ -114,9 +117,10 @@ export async function denyClubMembershipRequest(
   requestId: string,
   note?: string | null
 ): Promise<void> {
+  const reviewerNote = note?.trim();
   const { error } = await supabase.rpc('deny_club_membership_request', {
     p_request_id: requestId,
-    p_note: note?.trim() || null,
+    ...(reviewerNote ? { p_note: reviewerNote } : {}),
   });
   if (error) throw error;
 }

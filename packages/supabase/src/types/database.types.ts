@@ -39,6 +39,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_request_email_jobs: {
+        Row: {
+          attempts: number
+          claim_token: string | null
+          claimed_at: string | null
+          created_at: string
+          delivered_to: string[]
+          event: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          request_id: string
+          request_kind: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          delivered_to?: string[]
+          event: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          request_id: string
+          request_kind: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          delivered_to?: string[]
+          event?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          request_id?: string
+          request_kind?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       achievements: {
         Row: {
           certificate_number: string | null
@@ -1219,6 +1270,70 @@ export type Database = {
           },
         ]
       }
+      club_membership_requests: {
+        Row: {
+          auth_user_id: string
+          club_id: string
+          created_at: string
+          id: string
+          person_id: string
+          requester_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_note: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          club_id: string
+          created_at?: string
+          id?: string
+          person_id: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          club_id?: string
+          created_at?: string
+          id?: string
+          person_id?: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_membership_requests_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_membership_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_membership_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_officers: {
         Row: {
           club_id: string
@@ -1996,6 +2111,7 @@ export type Database = {
           refund_decided_by: string | null
           refund_decision: string | null
           refund_notes: string | null
+          refund_origin: string | null
           refunded_at: string | null
           registration_id: string | null
           result_status: string | null
@@ -2092,6 +2208,7 @@ export type Database = {
           refund_decided_by?: string | null
           refund_decision?: string | null
           refund_notes?: string | null
+          refund_origin?: string | null
           refunded_at?: string | null
           registration_id?: string | null
           result_status?: string | null
@@ -2188,6 +2305,7 @@ export type Database = {
           refund_decided_by?: string | null
           refund_decision?: string | null
           refund_notes?: string | null
+          refund_origin?: string | null
           refunded_at?: string | null
           registration_id?: string | null
           result_status?: string | null
@@ -7505,6 +7623,174 @@ export type Database = {
           },
         ]
       }
+      show_payments: {
+        Row: {
+          amount: number
+          client_payment_id: string | null
+          created_at: string
+          enrollment_id: string | null
+          entry_id: string | null
+          id: string
+          kind: string
+          method: string
+          note: string | null
+          received_on: string
+          recorded_by: string | null
+          reference: string | null
+          show_id: string
+        }
+        Insert: {
+          amount: number
+          client_payment_id?: string | null
+          created_at?: string
+          enrollment_id?: string | null
+          entry_id?: string | null
+          id?: string
+          kind: string
+          method: string
+          note?: string | null
+          received_on: string
+          recorded_by?: string | null
+          reference?: string | null
+          show_id: string
+        }
+        Update: {
+          amount?: number
+          client_payment_id?: string | null
+          created_at?: string
+          enrollment_id?: string | null
+          entry_id?: string | null
+          id?: string
+          kind?: string
+          method?: string
+          note?: string | null
+          received_on?: string
+          recorded_by?: string | null
+          reference?: string | null
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_payments_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results_replication"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_payments_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       show_payouts: {
         Row: {
           amount_cents: number
@@ -12154,6 +12440,10 @@ export type Database = {
         Args: { p_grant_id: string; p_reason: string }
         Returns: undefined
       }
+      approve_club_membership_request: {
+        Args: { p_note?: string; p_request_id: string }
+        Returns: undefined
+      }
       approve_club_role_request: {
         Args: { p_note?: string; p_request_id: string }
         Returns: undefined
@@ -12176,6 +12466,14 @@ export type Database = {
         Returns: {
           jobname: string
           missing_secret: string
+        }[]
+      }
+      begin_class_results_push: {
+        Args: { p_class_id: string }
+        Returns: {
+          claim_token: string
+          delivered_to: string[]
+          outcome: string
         }[]
       }
       begin_or_reconcile_premium_publish: {
@@ -12234,6 +12532,31 @@ export type Database = {
           remaining_attempts: number
         }[]
       }
+      claim_access_request_email_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          claim_token: string | null
+          claimed_at: string | null
+          created_at: string
+          delivered_to: string[]
+          event: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          request_id: string
+          request_kind: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "access_request_email_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }
         Returns: boolean
@@ -12282,6 +12605,16 @@ export type Database = {
           show_date: string
         }[]
       }
+      class_results_push_audience: {
+        Args: { p_class_id: string }
+        Returns: {
+          co_owner_auth_user_id: string
+          dog_call_name: string
+          handler_auth_user_id: string
+          owner_auth_user_id: string
+        }[]
+      }
+      class_results_push_health: { Args: never; Returns: Json }
       cleanup_stale_ringside_anon_users: {
         Args: {
           p_claimless_ttl?: string
@@ -12415,6 +12748,10 @@ export type Database = {
         Args: { p_person_id: string; p_show_id: string }
         Returns: undefined
       }
+      deny_club_membership_request: {
+        Args: { p_note?: string; p_request_id: string }
+        Returns: undefined
+      }
       deny_club_role_request: {
         Args: { p_note?: string; p_request_id: string }
         Returns: undefined
@@ -12454,6 +12791,10 @@ export type Database = {
         Returns: string
       }
       emergency_packet_section: { Args: { p_section: string }; Returns: string }
+      enqueue_access_request_email_job: {
+        Args: { p_event: string; p_request_id: string; p_request_kind: string }
+        Returns: undefined
+      }
       enqueue_due_waitlist_reminder_events: {
         Args: { p_limit?: number; p_now?: string }
         Returns: {
@@ -12600,6 +12941,26 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      finish_access_request_email_job: {
+        Args: {
+          p_claim_token: string
+          p_delivered_to?: string[]
+          p_error?: string
+          p_job_id: string
+          p_outcome: string
+        }
+        Returns: string
+      }
+      finish_class_results_push: {
+        Args: {
+          p_claim_token: string
+          p_class_id: string
+          p_delivered_to: string[]
+          p_error: string
+          p_outcome: string
+        }
+        Returns: boolean
       }
       force_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
       get_account_today_entries: {
@@ -12959,6 +13320,13 @@ export type Database = {
           stripe_payment_intent_id: string
         }[]
       }
+      get_my_club_membership_request_status: {
+        Args: { p_club_id: string }
+        Returns: {
+          reviewer_note: string
+          state: string
+        }[]
+      }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_onboarding_requests: {
         Args: never
@@ -12998,11 +13366,44 @@ export type Database = {
           role: string
         }[]
       }
+      get_show_class_availability: {
+        Args: { p_show_id: string }
+        Returns: {
+          allow_waitlist: boolean
+          class_full: boolean
+          class_id: string
+          entry_count: number
+          has_started: boolean
+          judge_day_available: number | null
+          judge_day_full: boolean
+          judge_id: string | null
+          self_service_block: string | null
+          waitlist_count: number
+        }[]
+      }
       get_show_class_hide_counts: {
         Args: { p_show_id: string }
         Returns: {
           class_id: string
           num_hides: number
+        }[]
+      }
+      get_show_class_judge_day_availability: {
+        Args: { p_show_id: string }
+        Returns: {
+          allow_waitlist: boolean
+          class_entry_count: number
+          class_full: boolean
+          class_id: string
+          class_max_entries: number | null
+          class_remaining: number | null
+          day_capacity: number | null
+          day_mail_in_reserved: number | null
+          day_remaining: number | null
+          day_taken: number | null
+          judge_id: string | null
+          self_service_block: string | null
+          show_date: string | null
         }[]
       }
       get_show_email_delivery_history: {
@@ -13024,39 +13425,6 @@ export type Database = {
           show_id: string
           source_kind: string
           status_updated_at: string
-        }[]
-      }
-      get_show_class_availability: {
-        Args: { p_show_id: string }
-        Returns: {
-          allow_waitlist: boolean
-          class_full: boolean
-          class_id: string
-          entry_count: number
-          has_started: boolean
-          judge_day_available: number | null
-          judge_day_full: boolean
-          judge_id: string | null
-          self_service_block: string | null
-          waitlist_count: number
-        }[]
-      }
-      get_show_class_judge_day_availability: {
-        Args: { p_show_id: string }
-        Returns: {
-          allow_waitlist: boolean
-          class_entry_count: number
-          class_full: boolean
-          class_id: string
-          class_max_entries: number | null
-          class_remaining: number | null
-          day_capacity: number | null
-          day_mail_in_reserved: number | null
-          day_remaining: number | null
-          day_taken: number | null
-          judge_id: string | null
-          self_service_block: string | null
-          show_date: string | null
         }[]
       }
       get_show_judges: {
@@ -13190,6 +13558,19 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: string
       }
+      list_club_membership_requests: {
+        Args: { p_club_id: string }
+        Returns: {
+          club_id: string
+          created_at: string
+          id: string
+          person_id: string
+          requester_email: string
+          requester_name: string
+          requester_note: string
+          status: string
+        }[]
+      }
       list_club_role_requests: {
         Args: { p_club_id: string }
         Returns: {
@@ -13228,6 +13609,14 @@ export type Database = {
           event_type: string
           waitlist_entry_id: string
         }[]
+      }
+      lock_club_membership_request_pair: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
+      }
+      lock_role_request_pair: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
       }
       manageable_show_ids: { Args: never; Returns: string[] }
       move_up_entry: {
@@ -13313,6 +13702,19 @@ export type Database = {
           reason: string
         }[]
       }
+      record_enrollment_payment: {
+        Args: {
+          p_amount?: number
+          p_client_payment_id?: string
+          p_enrollment_id: string
+          p_kind: string
+          p_method?: string
+          p_note?: string
+          p_received_on?: string
+          p_reference?: string
+        }
+        Returns: Json
+      }
       record_login_attempt: {
         Args: {
           p_ip_address: string
@@ -13382,6 +13784,10 @@ export type Database = {
       }
       replace_judge_qualifications: {
         Args: { p_person_id: string; p_qualifications: Json }
+        Returns: undefined
+      }
+      request_access_request_email_dispatch: {
+        Args: { p_base_url: string; p_secret: string }
         Returns: undefined
       }
       request_trial_packet_generation: {
@@ -13664,6 +14070,10 @@ export type Database = {
       ringside_claim_generation_current: { Args: never; Returns: boolean }
       ringside_containment_rearm: { Args: { p_reason: string }; Returns: Json }
       ringside_containment_sample: { Args: never; Returns: undefined }
+      ringside_replay_applied_version: {
+        Args: { p_allowed_fields: Json; p_entry_id: string }
+        Returns: number
+      }
       ringside_update_entry: {
         Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
         Returns: number
@@ -13738,6 +14148,10 @@ export type Database = {
         }
         Returns: string
       }
+      submit_club_membership_request: {
+        Args: { p_club_id: string; p_requester_note?: string }
+        Returns: string
+      }
       submit_role_request: {
         Args: {
           p_club_id?: string
@@ -13751,6 +14165,7 @@ export type Database = {
       submit_show_entries: {
         Args: {
           p_entries: Json
+          p_payment?: Json
           p_payment_method: string
           p_registration_id: string
           p_show_id: string

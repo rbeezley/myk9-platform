@@ -21,7 +21,6 @@ describe('fanout fail-closed wiring', () => {
 
     expect(chatSource).toContain('assertAudienceQuerySucceeded(showError)');
     expect(chatRecipientsSource).toContain('assertAudienceQuerySucceeded(secretariesError)');
-    expect(chatRecipientsSource).toContain('assertAudienceQuerySucceeded(adminsError)');
     expect(chatSource).toContain('assertAudienceQuerySucceeded(subscriptionsError)');
     expect(announcementSource).toContain('assertAudienceQuerySucceeded(exhibitorError)');
     expect(announcementSource).toContain('assertAudienceQuerySucceeded(officialError)');

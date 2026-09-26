@@ -32,12 +32,29 @@ import {
 } from '@/services/replication';
 import { validatePasscode, type ValidatePasscodeResult } from './validatePasscode';
 
-const SESSION_ERROR =
-  "We couldn't start your ringside session. Check your connection and try again.";
+/**
+ * Calm, in-place copy for the anon-session flow's own failure modes (MYK9-829).
+ * Every branch below is either a network/service hiccup (anon sign-in, refresh,
+ * or a transient stamping failure) or an internal precondition edge case that
+ * should never surface its specifics to the judge — so they all share this one
+ * connection-flavored message. An invalid/expired passcode gets its own message
+ * from `validatePasscode` and is passed through unchanged, never this one.
+ */
+const CONNECTION_ERROR = "Couldn't connect. Check your signal and try again.";
 
-/** A passcode result, plus the one failure mode unique to the anon-session flow. */
+/** Why the anon-session flow itself failed (distinct from a bad passcode). */
+export type AnonSessionFailureReason =
+  /** signInAnonymously() or refreshSession() failed, or the edge fn validated
+   * the passcode but couldn't confirm the stamp — all network/service issues. */
+  | 'network'
+  /** An internal precondition wasn't met (e.g. a real session was already
+   * present, or CAPTCHA was required but missing) — not a passcode problem. */
+  | 'unknown';
+
+/** A passcode result, plus the failure modes unique to the anon-session flow. */
 export type AnonRingsideResult =
-  ValidatePasscodeResult | { ok: false; kind: 'session'; message: string };
+  | ValidatePasscodeResult
+  | { ok: false; kind: 'session'; reason: AnonSessionFailureReason; message: string };
 
 export interface AnonymousRingsideSessionOptions {
   captchaToken?: string;
@@ -61,18 +78,18 @@ export async function startAnonymousRingsideSession(
   // Refuse instead (the caller re-submits once auth resolves, hitting the
   // signed-in branch). Symmetric with endAnonymousRingsideSession's guard.
   if (current && current.is_anonymous !== true) {
-    return { ok: false, kind: 'session', message: SESSION_ERROR };
+    return { ok: false, kind: 'session', reason: 'unknown', message: CONNECTION_ERROR };
   }
   if (!current?.is_anonymous) {
     if (options.requireCaptcha && !options.captchaToken) {
-      return { ok: false, kind: 'session', message: SESSION_ERROR };
+      return { ok: false, kind: 'session', reason: 'unknown', message: CONNECTION_ERROR };
     }
     const { error } = options.captchaToken
       ? await supabase.auth.signInAnonymously({
           options: { captchaToken: options.captchaToken },
         })
       : await supabase.auth.signInAnonymously();
-    if (error) return { ok: false, kind: 'session', message: SESSION_ERROR };
+    if (error) return { ok: false, kind: 'session', reason: 'network', message: CONNECTION_ERROR };
   }
 
   // 2. Validate — the edge fn stamps the ringside claim onto this anon session.
@@ -91,7 +108,7 @@ export async function startAnonymousRingsideSession(
   if (refreshErr) {
     await supabase.auth.signOut();
     await replicatedClassesTable.clearCachedHideCounts();
-    return { ok: false, kind: 'session', message: SESSION_ERROR };
+    return { ok: false, kind: 'session', reason: 'network', message: CONNECTION_ERROR };
   }
 
   // The anon flow ALWAYS expects a stamp. If the edge fn validated the passcode
@@ -101,7 +118,7 @@ export async function startAnonymousRingsideSession(
   if (!result.sessionStamped) {
     await supabase.auth.signOut();
     await replicatedClassesTable.clearCachedHideCounts();
-    return { ok: false, kind: 'session', message: SESSION_ERROR };
+    return { ok: false, kind: 'session', reason: 'network', message: CONNECTION_ERROR };
   }
 
   // The ringside claim is only live AFTER the refresh above. But signInAnonymously

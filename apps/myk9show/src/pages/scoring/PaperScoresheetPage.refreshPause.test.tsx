@@ -74,7 +74,10 @@ describe('PaperScoresheetPage — the list cannot refresh after a save', () => {
     harness.saveEntry.mockResolvedValue(undefined);
   });
 
-  it('pauses scoring with a retry, then moves on to the next dog once the list reads', async () => {
+  it.each([
+    { opened: 'from the class', route: '/paper/class-1' },
+    { opened: 'from an entry deep link', route: '/paper/class-1?entryId=e1' },
+  ])('pauses scoring with a retry, then moves on to the next dog ($opened)', async ({ route }) => {
     harness.load
       .mockResolvedValueOnce([dog('e1', 1), dog('e2', 2)])
       .mockRejectedValueOnce(new Error('Could not read entries on this device'))
@@ -84,7 +87,7 @@ describe('PaperScoresheetPage — the list cannot refresh after a save', () => {
       <Routes>
         <Route path="/paper/:classId" element={<PaperScoresheetPage />} />
       </Routes>,
-      { initialRoute: '/paper/class-1' }
+      { initialRoute: route }
     );
     fireEvent.click(await screen.findByRole('button', { name: 'save and next' }));
 

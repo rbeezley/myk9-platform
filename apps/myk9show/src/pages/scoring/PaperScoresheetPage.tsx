@@ -35,6 +35,13 @@ function getClassDetailsHref({
   return `/classes/${classId}`;
 }
 
+/** The next dog to score after `from`, in exhibitor order. */
+function nextUnscoredAfter(entries: ScoringEntry[], from: string): string | null {
+  return (
+    sortByExhibitorOrder(entries).find(e => !e.isScored && e.entryId !== from)?.entryId ?? null
+  );
+}
+
 export function PaperScoresheetPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
@@ -52,6 +59,12 @@ export function PaperScoresheetPage() {
   const [error, setError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
+  // Counts class loads that read successfully. A save-and-next whose refresh
+  // failed records the dog it left and the count it was waiting past; the next
+  // successful load completes the advance, however the page was opened
+  // (MYK9-774).
+  const [freshLoads, setFreshLoads] = useState(0);
+  const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -65,10 +78,8 @@ export function PaperScoresheetPage() {
           return;
         }
         const scoringEntries = await loadEntriesWithDogs(classId);
-        // A fresh list re-arms the auto-select, so a retry after a failed
-        // post-save refresh lands on the next unscored dog (MYK9-774).
-        autoSelectedClassRef.current = null;
         setEntries(calculatePlacements(scoringEntries));
+        setFreshLoads(count => count + 1);
         setClassName(cls.name);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');
@@ -111,6 +122,13 @@ export function PaperScoresheetPage() {
     autoSelectedClassRef.current = classId;
   }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
 
+  useEffect(() => {
+    const pending = pendingAdvanceRef.current;
+    if (!pending || freshLoads <= pending.afterLoad) return;
+    pendingAdvanceRef.current = null;
+    scoring.selectEntry(nextUnscoredAfter(entries, pending.from));
+  }, [entries, freshLoads, scoring]);
+
   // After a landed save: a list that cannot refresh pauses scoring rather than
   // letting the judge act on stale rows (MYK9-774).
   const reloadEntries = async (): Promise<ScoringEntry[] | null> => {
@@ -143,9 +161,11 @@ export function PaperScoresheetPage() {
     const currentEntryId = scoring.selectedEntryId;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
     const fresh = await reloadEntries();
-    if (!fresh) return;
-    const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
-    scoring.selectEntry(next?.entryId ?? null);
+    if (!fresh) {
+      pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
+      return;
+    }
+    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId));
   };
 
   const handleClearResult = async () => {

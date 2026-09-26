@@ -93,7 +93,9 @@ describe('mapReleasedResultRow', () => {
 });
 
 describe('useClassReleasedResults', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('does not query when results are not released', () => {
     mockQuery([]);

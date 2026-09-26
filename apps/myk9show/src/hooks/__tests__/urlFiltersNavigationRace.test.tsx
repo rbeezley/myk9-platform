@@ -78,7 +78,9 @@ beforeEach(() => {
   probe.pathname = '';
   setter.set = null;
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('a pending write never follows the user to another route', () => {
   it('CONTROL: with nothing pending, navigation is clean', () => {

@@ -80,7 +80,9 @@ const tombstoneCamel = entry('camel', { deletedAt: '2026-06-16T00:00:00Z' });
 const tombstoneSnake = entry('snake', { deleted_at: '2026-06-16T00:00:00Z' });
 
 describe('replication-backed entry reads exclude tombstones', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('getEntriesByShow drops entries tombstoned via deletedAt and deleted_at', async () => {
     mocks.getEntriesByShow.mockResolvedValue([live, tombstoneCamel, tombstoneSnake]);

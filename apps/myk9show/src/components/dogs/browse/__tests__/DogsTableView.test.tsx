@@ -302,7 +302,9 @@ describe('DogsTableView', () => {
       document.head.appendChild(styleEl);
     });
 
-    afterEach(() => styleEl.remove());
+    afterEach(() => {
+      styleEl.remove();
+    });
 
     // Queried straight off the DOM rather than by role: a cell this change
     // hides correctly is REMOVED from the accessibility tree, so a role query

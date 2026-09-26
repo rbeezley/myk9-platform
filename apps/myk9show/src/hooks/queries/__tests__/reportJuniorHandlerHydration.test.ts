@@ -82,7 +82,9 @@ function entry(overrides: Partial<Record<string, unknown>> = {}): ReportDbEntry 
 }
 
 describe('loadEntryHandlerJuniorFlags', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('asks people for the name only — never the date of birth — and the RPC for the flag', async () => {
     const select = peopleRead([PERSON]);
@@ -134,7 +136,9 @@ describe('loadEntryHandlerJuniorFlags', () => {
 });
 
 describe('the report hydration hop', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('attaches the handler name and the flag when the entry carries a handler_id', async () => {
     peopleRead([PERSON]);

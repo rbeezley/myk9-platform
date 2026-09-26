@@ -43,7 +43,9 @@ function renderGrid(entries: ScentWorkEntry[] = []) {
 }
 
 describe('EntryCardGrid', () => {
-  beforeEach(() => mockNavigate.mockClear());
+  beforeEach(() => {
+    mockNavigate.mockClear();
+  });
 
   it('renders one card per entry', () => {
     const entries = [

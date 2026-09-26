@@ -70,7 +70,9 @@ describe('ShowPublicLanding style preview', () => {
     onlineManager.setOnline(true);
   });
 
-  afterEach(() => onlineManager.setOnline(true));
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
 
   it('shows Monogram as the current default and filters premium styles without entitlement', () => {
     renderPreview();

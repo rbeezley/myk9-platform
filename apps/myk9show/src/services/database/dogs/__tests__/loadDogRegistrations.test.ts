@@ -63,7 +63,9 @@ import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
  * creating device's local mirror.
  */
 describe('loadDogRegistrations', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   // The UUIDs sort opposite to the order the exhibitor entered the rows. This
   // fixture keeps equal server timestamps so the local mirror is the only
@@ -385,7 +387,9 @@ describe('getAllDogs registration completeness', () => {
  * rows would pass with the batching removed, because the mock has no URL.
  */
 describe('loadDogRegistrations batching', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   const ids = Array.from({ length: 250 }, (_, i) => `dog-${i}`);
 

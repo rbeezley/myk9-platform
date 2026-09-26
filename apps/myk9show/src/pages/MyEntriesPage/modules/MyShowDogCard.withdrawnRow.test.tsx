@@ -84,7 +84,9 @@ function rowFor(className: string): HTMLElement {
   return row as HTMLElement;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () => {
   it('marks only the withdrawn row', () => {

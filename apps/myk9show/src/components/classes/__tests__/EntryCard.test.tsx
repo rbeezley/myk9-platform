@@ -35,7 +35,9 @@ function renderCard(props: Partial<React.ComponentProps<typeof EntryCard>> = {})
 }
 
 describe('EntryCard', () => {
-  beforeEach(() => mockNavigate.mockClear());
+  beforeEach(() => {
+    mockNavigate.mockClear();
+  });
 
   it('renders armband number', () => {
     renderCard();

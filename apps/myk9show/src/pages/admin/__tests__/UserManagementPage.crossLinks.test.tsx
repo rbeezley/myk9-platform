@@ -57,7 +57,9 @@ function renderPage() {
 }
 
 describe('UserManagementPage cross-links', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('links to the role requests queue that feeds it', async () => {
     renderPage();

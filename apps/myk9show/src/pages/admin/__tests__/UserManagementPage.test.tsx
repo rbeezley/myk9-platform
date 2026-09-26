@@ -220,7 +220,9 @@ describe('UserManagementPage (shared primitives migration)', () => {
         configurable: true,
       });
 
-    afterEach(() => setOnLine(true));
+    afterEach(() => {
+      setOnLine(true);
+    });
 
     it('shows the calm waiting state when the query is paused with no roster', () => {
       mockQueryReturn = { ...mockQueryReturn, data: undefined, fetchStatus: 'paused' };

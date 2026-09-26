@@ -27,7 +27,9 @@ function makeEntry(overrides = {}) {
 }
 
 describe('ExhibitorClassCallout', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders nothing when user has no entries', () => {
     mockHook({ myEntries: [], isAfterClass: false });

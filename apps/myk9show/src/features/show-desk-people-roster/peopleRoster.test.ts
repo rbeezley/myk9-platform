@@ -490,8 +490,8 @@ describe('formatTrialIdentity', () => {
    * "Trial 1", "Trial 2") produced identical, indistinguishable rows.
    */
   it('combines name and number when they differ, so same-named same-day trials stay distinguishable', () => {
-    expect(formatTrialIdentity('Saturday A', '1')).toBe('Saturday A (Trial 1)');
-    expect(formatTrialIdentity('Saturday A', '2')).toBe('Saturday A (Trial 2)');
+    expect(formatTrialIdentity('Saturday A', '1')).toBe('Saturday A (1)');
+    expect(formatTrialIdentity('Saturday A', '2')).toBe('Saturday A (2)');
   });
 
   it('does not repeat the number when the name already reads as that trial', () => {
@@ -499,9 +499,25 @@ describe('formatTrialIdentity', () => {
     expect(formatTrialIdentity('Trial 1', '1')).toBe('Trial 1');
   });
 
+  /**
+   * `trial_number` is free text the show-creation wizard sometimes writes as
+   * an already-worded identity, not a bare ordinal (seed-demo.sql's real UKC
+   * demo trial — the exact fixture behind MYK9-819's dress rehearsal — has
+   * name='UKC Nosework Trial', trial_number='UKC-Nosework'). Prepending the
+   * literal word "Trial" to it reproduces the doubled/garbled label
+   * `trialLabel.ts` (MYK9-704) was written to prevent ("Trial Trial 1",
+   * "Trial Saturday T 2") — that file's rule is "never prefix or combine";
+   * this function combines by design, so it must at least never prefix.
+   */
+  it('never prepends the literal word "Trial" to a number that is already worded text', () => {
+    expect(formatTrialIdentity('UKC Nosework Trial', 'UKC-Nosework')).toBe(
+      'UKC Nosework Trial (UKC-Nosework)'
+    );
+  });
+
   it('falls back to name-only or number-only when the other is missing', () => {
     expect(formatTrialIdentity('Saturday A', '')).toBe('Saturday A');
-    expect(formatTrialIdentity('', '2')).toBe('Trial 2');
+    expect(formatTrialIdentity('', '2')).toBe('2');
   });
 
   it('returns null when both are missing', () => {

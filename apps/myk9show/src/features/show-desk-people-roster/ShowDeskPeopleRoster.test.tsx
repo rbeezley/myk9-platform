@@ -253,8 +253,8 @@ describe('ShowDeskPeopleRoster', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: /alice martin/i }));
-    expect(screen.getByText(/Vehicle Novice · Saturday A \(Trial 1\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Vehicle Novice · Saturday A \(Trial 2\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Novice · Saturday A \(2\)/i)).toBeInTheDocument();
   });
 
   /**

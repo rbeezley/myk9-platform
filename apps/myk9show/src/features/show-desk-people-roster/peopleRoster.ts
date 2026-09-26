@@ -93,6 +93,13 @@ function normalize(value: string | null | undefined): string {
  * trials "Trial 1", "Trial 2", etc. So both name and number are shown UNLESS
  * the name already reads as that number (e.g. name "Trial 1", number "1"),
  * where appending it would only repeat it.
+ *
+ * Never prefixes either value with the literal word "Trial": `trial_number`
+ * is free text the wizard sometimes writes as an already-worded identity, not
+ * a bare ordinal (seed-demo.sql's UKC demo trial has trial_number
+ * 'UKC-Nosework'), and `trialLabel.ts` (MYK9-704, `@myk9/core`) exists
+ * precisely because prefixing a stored label produced "Trial Trial 1" /
+ * "Trial Saturday T 2". Shown as-is, same convention as that helper.
  */
 export function formatTrialIdentity(
   trialName: string | null | undefined,
@@ -100,9 +107,9 @@ export function formatTrialIdentity(
 ): string | null {
   const name = (trialName ?? '').trim();
   const number = (trialNumber ?? '').trim();
-  if (!name) return number ? `Trial ${number}` : null;
+  if (!name) return number || null;
   if (!number || name.includes(number)) return name;
-  return `${name} (Trial ${number})`;
+  return `${name} (${number})`;
 }
 
 function unique(values: string[]): string[] {

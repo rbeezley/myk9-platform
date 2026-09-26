@@ -8,7 +8,7 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
-import { buildClassDisambiguator, type ClassIdentity } from '@/features/_shared/classLabel';
+import { buildTrialDisambiguators } from '@/features/_shared/classLabel';
 import { deriveResultReleaseDisplay } from '@/features/result-card';
 import {
   isRunnableScheduleStatus,
@@ -333,22 +333,21 @@ export function useShowEntriesForUser(
     // MYK9-489/MYK9-805: `getClassName`/`classDisplayName` build a label from
     // element+level+section alone, which renders two different classes in the
     // same trial (e.g. "Interior Advanced" and "Interior Advanced Preliminary")
-    // identically. Disambiguate over the trials this exhibitor's classes
-    // belong to, the same shared rule the public premium and the registration
-    // wizard already use — gated on a real name collision, so it never touches
-    // an ordinary class.
+    // identically. `buildTrialDisambiguators` scopes the shared MYK9-487/489
+    // rule to each trial, the same way the public premium and the
+    // registration wizard already use it.
     const relevantTrialIds = new Set(
       myEntries.map(e => classMap.get(e.classId)?.trialId).filter((id): id is string => !!id)
     );
-    const disambiguateClass = buildClassDisambiguator(
-      classes
-        .filter(c => relevantTrialIds.has(c.trialId))
-        .map((c): ClassIdentity => ({
-          name: c.className,
-          element: c.element,
-          level: c.level,
-          section: c.section,
-        }))
+    const disambiguatorByTrialId = buildTrialDisambiguators(
+      classes.map(c => ({
+        trialId: c.trialId,
+        name: c.className,
+        element: c.element,
+        level: c.level,
+        section: c.section,
+      })),
+      relevantTrialIds
     );
 
     const dogNameMap = new Map(
@@ -401,12 +400,12 @@ export function useShowEntriesForUser(
 
       const classTitleBase = cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle;
       const classExtra = cls
-        ? disambiguateClass({
+        ? (disambiguatorByTrialId.get(cls.trialId)?.({
             name: cls.className,
             element: cls.element,
             level: cls.level,
             section: cls.section,
-          })
+          }) ?? '')
         : '';
       const classTitle = classExtra ? `${classTitleBase} ${classExtra}` : classTitleBase;
 

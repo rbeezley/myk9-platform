@@ -298,10 +298,10 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             type="button"
             variant="ghost"
             onClick={() => {
-              for (const orderId of paidStrip.orderIds) markPaidStripSeen(orderId);
+              for (const rowId of paidStrip.paidRowIds) markPaidStripSeen(rowId);
               setDismissed(prev => {
                 const next = new Set(prev);
-                for (const orderId of paidStrip.orderIds) next.add(orderId);
+                for (const rowId of paidStrip.paidRowIds) next.add(rowId);
                 return next;
               });
             }}

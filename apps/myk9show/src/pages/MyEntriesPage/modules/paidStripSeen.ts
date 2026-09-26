@@ -27,35 +27,41 @@ export const PAID_STRIP_WINDOW_DAYS = 14;
 
 const PAID_STRIP_WINDOW_MS = PAID_STRIP_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
-export function hasSeenPaidStrip(orderId: string): boolean {
+export function hasSeenPaidStrip(rowId: string): boolean {
   try {
-    return localStorage.getItem(`${PREFIX}${orderId}`) === '1';
+    return localStorage.getItem(`${PREFIX}${rowId}`) === '1';
   } catch {
     // Storage can be unavailable in private browsing or locked-down contexts.
     return false;
   }
 }
 
-export function markPaidStripSeen(orderId: string): void {
+export function markPaidStripSeen(rowId: string): void {
   try {
-    localStorage.setItem(`${PREFIX}${orderId}`, '1');
+    localStorage.setItem(`${PREFIX}${rowId}`, '1');
   } catch {
     // Same: the strip is dismissed in memory for this page load either way.
   }
 }
 
 /**
- * ONE strip per show, folding every recently paid, not-yet-dismissed order at
- * that show together. One strip per ORDER was the first cut, and the browser
- * walk on the seeded exhibitor rendered 255 of them: a show entered through
- * many orders must still say "you're paid here" exactly once.
+ * ONE strip per show, folding every recently paid, not-yet-dismissed PAYMENT
+ * at that show together. One strip per ORDER was the first cut, and the
+ * browser walk on the seeded exhibitor rendered 255 of them: a show entered
+ * through many orders must still say "you're paid here" exactly once.
+ *
+ * Dismissal keys on the ROW that was paid, not the order (Codex review on
+ * PR #2548): an order can mix a paid class with a still-pending sibling
+ * (MYK9-804), and keying dismissal on the order would hide that sibling's OWN
+ * strip forever once it is later paid too — the same order id would already
+ * read "seen".
  */
 export interface PaidStrip {
-  /** Every order the strip confirms; Dismiss retires them all. */
-  orderIds: string[];
+  /** Row ids the strip confirms; Dismiss retires exactly these payments. */
+  paidRowIds: string[];
   /** Dogs the payments covered, in card order, each once. */
   dogNames: string[];
-  /** What was paid across those orders, in cents. */
+  /** What was paid across those rows, in cents. */
   amountCents: number;
   /**
    * When it was paid: the LATEST `submittedAt` among the folded orders. An
@@ -87,20 +93,27 @@ function resolvedRowPaymentStatus(cls: EntryClass, order: MyEntry): PaymentStatu
  * Cash, check, secretary-recorded and waived rows never produce a strip:
  * there was no checkout to confirm, and no receipt email to point at.
  */
-function paidOnlineRowsOf(order: MyEntry): { dogName: string; feeCents: number }[] {
+interface PaidRow {
+  /** The class row's own id, or the order's id for a `dogs`-less fixture. */
+  rowId: string;
+  dogName: string;
+  feeCents: number;
+}
+
+function paidOnlineRowsOf(order: MyEntry): PaidRow[] {
   if (order.dogs.length === 0) {
     // Hand-built fixture with no `dogs[]` populated — fall back to the
     // order's own top-level fields, matching the pre-existing behavior.
     return order.paymentStatus === PaymentStatus.PAID_ONLINE
-      ? [{ dogName: order.dogName, feeCents: Math.round(order.totalFee * 100) }]
+      ? [{ rowId: order.id, dogName: order.dogName, feeCents: Math.round(order.totalFee * 100) }]
       : [];
   }
 
-  const rows: { dogName: string; feeCents: number }[] = [];
+  const rows: PaidRow[] = [];
   for (const dog of order.dogs) {
     for (const cls of dog.classes) {
       if (resolvedRowPaymentStatus(cls, order) === PaymentStatus.PAID_ONLINE) {
-        rows.push({ dogName: dog.dogName, feeCents: Math.round(cls.fee * 100) });
+        rows.push({ rowId: cls.id, dogName: dog.dogName, feeCents: Math.round(cls.fee * 100) });
       }
     }
   }
@@ -120,37 +133,32 @@ function isWithinWindow(order: MyEntry, now: Date): boolean {
  *   when the list is filtered (MYK9-804). Callers must pass the show's full,
  *   unfiltered order set, never a filtered view like `MyShowGroup.orders`.
  * @param hasSeen Injected so the pure derivation stays testable and the caller
- *   can keep an in-memory dismissal set alongside the stored one.
+ *   can keep an in-memory dismissal set alongside the stored one. Called per
+ *   PAID ROW id, not per order — see `PaidStrip`'s own doc.
  */
 export function derivePaidStrip(
   orders: MyEntry[],
   now: Date,
-  hasSeen: (orderId: string) => boolean
+  hasSeen: (rowId: string) => boolean
 ): PaidStrip | null {
-  const fresh = orders.filter(
-    order =>
-      isWithinWindow(order, now) &&
-      !isPastShowEntry(order, now) &&
-      !hasSeen(order.id) &&
-      paidOnlineRowsOf(order).length > 0
-  );
-  if (fresh.length === 0) return null;
-
+  const paidRowIds: string[] = [];
   const dogNames: string[] = [];
   let amountCents = 0;
-  for (const order of fresh) {
-    for (const row of paidOnlineRowsOf(order)) {
+  let date: Date | null = null;
+
+  for (const order of orders) {
+    if (!isWithinWindow(order, now) || isPastShowEntry(order, now)) continue;
+    const rows = paidOnlineRowsOf(order).filter(row => !hasSeen(row.rowId));
+    if (rows.length === 0) continue;
+
+    for (const row of rows) {
+      paidRowIds.push(row.rowId);
       if (!dogNames.includes(row.dogName)) dogNames.push(row.dogName);
       amountCents += row.feeCents;
     }
+    if (!date || order.submittedAt > date) date = order.submittedAt;
   }
-  return {
-    orderIds: fresh.map(order => order.id),
-    dogNames,
-    amountCents,
-    date: fresh.reduce(
-      (latest, order) => (order.submittedAt > latest ? order.submittedAt : latest),
-      fresh[0].submittedAt
-    ),
-  };
+
+  if (paidRowIds.length === 0 || !date) return null;
+  return { paidRowIds, dogNames, amountCents, date };
 }

@@ -123,7 +123,7 @@ describe('derivePaidStrip', () => {
     const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen);
 
     expect(strip).toEqual({
-      orderIds: ['e1'],
+      paidRowIds: ['c1'],
       dogNames: ['Rex'],
       amountCents: 4500,
       date: PAID_AT,
@@ -183,14 +183,17 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
-      orderIds: ['e1', 'e2', 'e3'],
+      paidRowIds: ['c1', 'c2', 'c3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
       date: later,
     });
   });
 
-  it('drops a dismissed order out of the fold and retires the strip when none remain', () => {
+  // Dismissal keys on the ROW that was paid, not the order (Codex review on
+  // PR #2548): the order id would stay "seen" forever, hiding a later payment
+  // for a DIFFERENT row on that same order.
+  it('drops a dismissed row out of the fold and retires the strip when none remain', () => {
     const orders = groupEntriesByOrder(
       [
         makeRow({ id: 'e1', registrationId: 'r1', dogId: 'd1', dogName: 'Rex' }),
@@ -204,15 +207,36 @@ describe('derivePaidStrip', () => {
       ],
       NOW
     );
-    markPaidStripSeen('e1');
+    markPaidStripSeen('c1');
 
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
-      orderIds: ['e2'],
+      paidRowIds: ['c2'],
       dogNames: ['Scout'],
     });
 
-    markPaidStripSeen('e2');
+    markPaidStripSeen('c2');
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toBeNull();
+  });
+
+  // MYK9-804 / Codex review: a SECOND paid row on the same order must still
+  // surface once the first is dismissed — the whole point of keying
+  // dismissal on the row rather than the order. Keying on `order.id` would
+  // read this order as "seen" forever the moment either row was dismissed.
+  it('still surfaces a second row on an order whose first row was already dismissed', () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({ id: 'e1', registrationId: 'r1', classes: [makeClass({ id: 'c1' })] }),
+        makeRow({ id: 'e1b', registrationId: 'r1', classes: [makeClass({ id: 'c1b', fee: 20 })] }),
+      ],
+      NOW
+    );
+    expect(orders).toHaveLength(1);
+    markPaidStripSeen('c1');
+
+    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
+      paidRowIds: ['c1b'],
+      amountCents: 2000,
+    });
   });
 
   it("hides the strip once the show's last date has passed", () => {
@@ -232,8 +256,8 @@ describe('derivePaidStrip', () => {
 
     // The component's in-memory dismissal set still hides it for this load.
     const dismissed = new Set<string>();
-    markPaidStripSeen('e1');
-    dismissed.add('e1');
+    markPaidStripSeen('c1');
+    dismissed.add('c1');
     expect(
       derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))
     ).toBeNull();
@@ -362,7 +386,7 @@ describe('derivePaidStrip', () => {
     const strip = derivePaidStrip(orders, NOW, neverSeen);
 
     expect(strip).toEqual({
-      orderIds: ['e-ranger'],
+      paidRowIds: ['c-ranger'],
       dogNames: ['Ranger'],
       amountCents: 3000,
       date: PAID_AT,
@@ -387,7 +411,7 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
-      orderIds: ['e-mixed'],
+      paidRowIds: ['c-mixed-1'],
       dogNames: ['Atlas'],
       amountCents: 3000,
       date: PAID_AT,

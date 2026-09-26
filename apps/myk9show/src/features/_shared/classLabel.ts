@@ -155,3 +155,27 @@ export function buildClassDisambiguator(
     return classNameExtra(cls.name, cls.element, cls.level, cls.section);
   };
 }
+
+/** A class identity a caller has already scoped to the trial it belongs to. */
+export interface TrialScopedClassIdentity extends ClassIdentity {
+  trialId: string;
+}
+
+/**
+ * One disambiguator per trial (MYK9-805): a collision is a question about
+ * classes offered in the SAME trial, not the whole show. Building a single
+ * disambiguator over every relevant trial's classes together could add a
+ * suffix two different trials' classes never actually collide over, or mask a
+ * real within-trial collision behind an unrelated third name sharing its
+ * element/level elsewhere in the show (Codex review on PR #2548).
+ */
+export function buildTrialDisambiguators(
+  classes: readonly TrialScopedClassIdentity[],
+  trialIds: ReadonlySet<string>
+): Map<string, (cls: ClassIdentity) => string> {
+  const byTrialId = new Map<string, (cls: ClassIdentity) => string>();
+  for (const trialId of trialIds) {
+    byTrialId.set(trialId, buildClassDisambiguator(classes.filter(cls => cls.trialId === trialId)));
+  }
+  return byTrialId;
+}

@@ -274,9 +274,7 @@ describe('buildUKCNoseworkTrialReportValues', () => {
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
         '16.00'
       );
-      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId).getText()).toBe(
-        'UKC-4821'
-      );
+      expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubId).getText()).toBe('UKC-4821');
       expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.city).getText()).toBe(
         'Springfield'
       );

@@ -4,12 +4,13 @@
  * Features:
  * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
  *   is in view wherever the rows were ticked
- * - Change roles, export the selection, bulk delete with confirmation
+ * - Change roles, account actions (BulkAccountActions: suspend, reinstate,
+ *   invite, restore, copy emails, export), bulk delete with confirmation
  *   (soft/permanent for admins, cascade for related data)
  */
 
 import React from 'react';
-import { Trash2, AlertCircle, Shield, Download } from 'lucide-react';
+import { Trash2, AlertCircle, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,10 +24,10 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
-import { exportUsersCSV } from '@/pages/admin/UserManagementPage.helpers';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
 import { BulkRoleEditPanel } from './BulkRoleEditPanel';
+import { BulkAccountActions } from './BulkAccountActions';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
@@ -75,12 +76,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
         >
           Change roles
         </BulkBarButton>
-        <BulkBarButton
-          onClick={() => exportUsersCSV(selectedUsers.map(item => item.user))}
-          icon={<Download className="h-4 w-4" aria-hidden="true" />}
-        >
-          Export
-        </BulkBarButton>
+        <BulkAccountActions selectedUsers={selectedUsers} onClearSelection={onClearSelection} />
         <BulkBarButton
           tone="destructive"
           onClick={() => setCurrentDialog('delete')}

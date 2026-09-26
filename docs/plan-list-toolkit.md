@@ -27,12 +27,14 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
 - `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New this week, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
 - Bulk role-edit panel (canvas variant D): per role Add / Keep / Remove with "who has it now" counts, club picker for club-scoped roles, and a "What will happen" summary beside Apply. It sends remove-then-add steps through the existing `bulkRoleRunner`, so club scoping, canonical-role validation and the show-limited/expiring-grant protection are unchanged. Replaces `BulkRoleDialog` and its Add / Remove / Replace mode switch.
+- Bulk account actions on the floating bar, each shown only when it applies (count when it reaches fewer than all): Suspend / Reinstate (admin:manage; never the admin's own account; Suspend confirms), Send invitation (never-signed-in people with an email; confirms), Restore (removed people). A More menu holds Copy emails and Export. Each reuses the single-person path (`useUpdateUserMutation`, `invokeAdminInvite`, `restoreUser`) through `useBulkDispatch`.
+- The bar gets a raised surface (accent wash, accent border, deep shadow) — in dark mode `--popover` equals the card colour, so it blended into the list.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.
 
 ## Non-goals
 
 - Replace mode in the bulk UI. The runner keeps it; a club-less legacy Secretary/Club Admin grant is still removable one person at a time from Manage roles.
-- Bulk suspend and change-notification emails from the variant D mockup (no bulk account-status mutation or notification path exists; see `BulkActionsBar.types.ts`).
+- Change-notification emails and bulk messaging (no notification path; needs compose, audit and unsubscribe rules). Bulk password reset and duplicate merge.
 - Adopting the kit on Dogs and Entries — separate follow-ups.
 - Keyboard shortcuts on the bulk bar.
 

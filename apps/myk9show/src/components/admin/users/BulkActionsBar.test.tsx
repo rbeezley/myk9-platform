@@ -20,6 +20,7 @@ import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeleteUserMutation: vi.fn(),
   usePermanentDeleteUserMutation: vi.fn(),
+  useUpdateUserMutation: vi.fn(() => ({ mutateAsync: vi.fn() })),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -419,10 +420,17 @@ describe('BulkActionsBar', () => {
       expect(screen.getByText('What will happen')).toBeInTheDocument();
     });
 
-    it('does not render a status action (no real per-user status mutation exists)', () => {
+    // Account actions live in BulkAccountActions (own suite); here, only that
+    // the bar hosts them: two active people who never signed in, and a caller
+    // without admin:manage (this suite's default) gets no Suspend.
+    it('hosts the account actions that apply to the selection, and a More menu', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.queryByRole('button', { name: /^status$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /suspend/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send invitation' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /reinstate/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
     });
   });
 

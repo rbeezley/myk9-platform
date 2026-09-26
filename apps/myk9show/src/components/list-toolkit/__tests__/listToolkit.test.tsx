@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createPortal } from 'react-dom';
 import { render, screen, fireEvent, userEvent } from '@/test/utils/testUtils';
 import { BulkBarButton, FloatingBulkBar } from '../FloatingBulkBar';
 import { ListResultLine } from '../ListResultLine';
@@ -49,6 +50,22 @@ describe('FloatingBulkBar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
     fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'Escape' });
     expect(onClear).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('FloatingBulkBar portals', () => {
+  it('ignores an Escape that bubbles in from a portal (a dialog opened from the bar)', () => {
+    const onClear = vi.fn();
+    const portalTarget = document.createElement('div');
+    document.body.appendChild(portalTarget);
+    render(
+      <FloatingBulkBar count={2} noun={NOUN} onClear={onClear}>
+        {createPortal(<button type="button">In a dialog</button>, portalTarget)}
+      </FloatingBulkBar>
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'In a dialog' }), { key: 'Escape' });
+    expect(onClear).not.toHaveBeenCalled();
+    portalTarget.remove();
   });
 });
 

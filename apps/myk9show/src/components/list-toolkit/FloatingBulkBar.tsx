@@ -23,10 +23,28 @@ interface FloatingBulkBarProps {
   children: ReactNode;
 }
 
+/**
+ * The bar must read as a raised control, not part of the list under it. In
+ * dark mode `--popover` IS the card colour, so a plain popover surface vanished
+ * into the table. A light accent wash over the opaque popover, an accent-tinted
+ * border and a deep shadow set it apart in both themes. Built with color-mix
+ * because Tailwind's `/opacity` modifiers emit nothing for this app's bare-var
+ * tokens (see data-table/types.ts).
+ */
+const BAR_SURFACE = [
+  '[background:linear-gradient(color-mix(in_srgb,var(--primary)_12%,transparent),color-mix(in_srgb,var(--primary)_12%,transparent)),var(--popover)]',
+  '[border-color:color-mix(in_srgb,var(--primary)_45%,var(--border))]',
+  'shadow-[0_12px_32px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.2)]',
+].join(' ');
+
 export function FloatingBulkBar({ count, noun, onClear, children }: FloatingBulkBarProps) {
   if (count === 0) return null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // React bubbles events from portals (a menu or dialog opened from the bar)
+    // to here too; only an Escape pressed IN the bar's own DOM clears the
+    // selection, so closing a confirmation never discards it.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
       onClear();
@@ -41,7 +59,10 @@ export function FloatingBulkBar({ count, noun, onClear, children }: FloatingBulk
           role="toolbar"
           aria-label="Bulk actions"
           onKeyDown={handleKeyDown}
-          className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2xl"
+          className={cn(
+            'pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 text-popover-foreground',
+            BAR_SURFACE
+          )}
         >
           <span className="whitespace-nowrap px-3 text-sm font-semibold" aria-live="polite">
             {count.toLocaleString()} {count === 1 ? noun[0] : noun[1]} selected

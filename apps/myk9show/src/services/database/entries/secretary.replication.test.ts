@@ -953,6 +953,34 @@ describe('secretary entry read replication', () => {
     });
   });
 
+  // MYK9-774: a failed device read (here the classes join) throws out of the
+  // replicated read. The server list must not then be served over a check-in
+  // this device has not uploaded: the secretary would see it undone.
+  it('shows the retry state, not a server list, when a device read fails over an unsaved write', async () => {
+    const LOCAL_CHECK_IN = { id: 'entry-checked-in', showId: 'show-1', classId: 'class-1' };
+    mocks.getEntriesByShow.mockResolvedValue([LOCAL_CHECK_IN]);
+    mocks.getAllClasses.mockRejectedValueOnce(
+      new Error("This device couldn't read its saved show data. Try again.")
+    );
+    mocks.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: id === 'entry-checked-in',
+    }));
+    mockPostgrestEntriesRead([
+      { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
+    ]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(result).toEqual({
+      data: null,
+      error: expect.objectContaining({
+        message: "We couldn't load entries for this show. Please retry.",
+      }),
+    });
+  });
+
   it('warns when falling back to PostgREST after a replicated read failure', async () => {
     const replicationError = new Error('replicated entries unavailable');
     mocks.getEntriesByShow.mockRejectedValueOnce(replicationError);

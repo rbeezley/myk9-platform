@@ -8,7 +8,7 @@ vi.mock('@/config/dataSource', async importOriginal => ({
   shouldUseMockData: () => false,
 }));
 
-const failed = { ok: false as const, rows: [] as never[], error: new Error('IDB timeout') };
+const failed = { ok: false as const, rows: [] as [], error: new Error('IDB timeout') };
 
 /**
  * MYK9-774: getAll() answers [] for a failed device read, so a store reload

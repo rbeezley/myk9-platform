@@ -18,7 +18,7 @@ export const ClubStatistics: React.FC<ClubStatisticsProps> = ({ stats, onTabChan
           title={stat.title}
           value={stat.value}
           color={stat.type === 'shows' ? 'blue' : 'emerald'}
-          subtitle={`${stat.detail1} \u00B7 ${stat.detail2}`}
+          subtitle={[stat.detail1, stat.detail2].filter(Boolean).join(' \u00B7 ')}
           onClick={() => onTabChange(stat.tab)}
         />
       ))}

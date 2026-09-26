@@ -63,6 +63,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
     sample: [],
     retry_job: { scheduled: true, active: true, last_success_at: iso(0), last_status: 'succeeded' },
   },
+  platform_settings_singleton: { count: 1 },
   ...over,
 });
 
@@ -103,6 +104,7 @@ describe('buildSnapshot — contract shape', () => {
       'public_schema_create_acl',
       'stray_published_shows',
       'class_results_push',
+      'platform_settings_singleton',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');

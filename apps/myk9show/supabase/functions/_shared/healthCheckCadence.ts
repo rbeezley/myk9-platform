@@ -31,6 +31,9 @@ export const HEALTH_CHECK_INTERVAL_MS = {
   // MYK9-737. One indexed read of private.class_results_push; its retry cron
   // runs every five minutes, so the check keeps the same pace.
   class_results_push: 5 * 60 * 1000,
+  // MYK9-781. One primary-key count; checkout and the entry wizard fail
+  // closed the moment the row is gone, so every run reads it.
+  platform_settings_singleton: 5 * 60 * 1000,
 } as const;
 
 /** Expected source-job windows used to judge whether a scheduled job is late.
@@ -55,6 +58,7 @@ export const CONTINUOUS_HEALTH_CHECK_KEYS: readonly HealthCheckKey[] = [
   'ringside_conflicts',
   'sign_in_email_drift',
   'class_results_push',
+  'platform_settings_singleton',
 ];
 
 export function isHealthCheckKey(value: string): value is HealthCheckKey {

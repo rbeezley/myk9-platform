@@ -27,6 +27,7 @@ import {
   type SnapshotCheck,
 } from '../_shared/systemHealthChecks.ts';
 import type { HealthCheckRunMode } from '../_shared/healthCheckCadence.ts';
+import { readPlatformSettingsRowCount } from '../_shared/platformSettingsChecks.ts';
 import { PUBLIC_LISTING_STATUSES, readListedShows } from '../_shared/strayShowChecks.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -137,6 +138,7 @@ async function runHealthSnapshot(
     { data: publicSchemaAcl, error: publicSchemaAclError },
     publishedShows,
     { data: classResultsPush, error: classResultsPushError },
+    platformSettingsRows,
   ] = await Promise.all([
     supabase.rpc('system_health_probe', {
       p_include_expensive: mode === 'full',
@@ -147,6 +149,11 @@ async function runHealthSnapshot(
     })),
     // MYK9-737: stuck "Results Posted" pushes. Cheap, so every run.
     supabase.rpc('class_results_push_health'),
+    // MYK9-781: the platform_settings singleton. One primary-key count, every
+    // run; `id`, never `*` (LESSONS postgrest-count-column).
+    readPlatformSettingsRowCount(() =>
+      supabase.from('platform_settings').select('id', { count: 'exact', head: true })
+    ),
   ]);
 
   const source = runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE;
@@ -185,6 +192,7 @@ async function runHealthSnapshot(
       class_results_push: classResultsPushError
         ? { error: classResultsPushError.message }
         : classResultsPush,
+      platform_settings_singleton: platformSettingsRows,
     },
     {
       now: Date.now(),

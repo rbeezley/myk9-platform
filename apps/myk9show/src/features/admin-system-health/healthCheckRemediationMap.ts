@@ -120,6 +120,13 @@ export const HEALTH_CHECK_REMEDIATION: Readonly<Record<string, HealthCheckRemedi
     nextStep:
       "A class's Results Posted push failed or is still pending after 20 minutes, or the class-results-push-retry cron has stopped. Check that cron first (it retries, prunes and queues missed classes), then last_error and the push-trigger-scoring logs for the named classes; once fixed, set a failed row back to pending with attempts 0 so the retry sends it.",
   },
+  platform_settings_singleton: {
+    ownerLabel: 'Platform Settings',
+    actionLabel: 'Open Admin Help',
+    target: routeTarget('/admin/help'),
+    nextStep:
+      'The platform_settings row is missing (or unreadable), so checkout, the entry wizard and the show publish gate all fail closed. An UPDATE cannot recreate it: re-insert the single id=true row over psql with the live fee percent, flat, floor and stripe_livemode values, then find out what removed it (DELETE and TRUNCATE are refused since MYK9-781, so something disabled that guard).',
+  },
   probe: HEALTH_RUNNER,
   'malformed-checks': HEALTH_RUNNER,
 };

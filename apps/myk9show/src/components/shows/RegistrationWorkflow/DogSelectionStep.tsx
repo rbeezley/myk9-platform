@@ -145,9 +145,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">You don't have any dogs yet.</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          Add a dog to enter this show.
-        </p>
+        <p className="text-sm text-muted-foreground mt-2">Add a dog to enter this show.</p>
         <Button asChild variant="outline" size="touch" className="mt-4">
           <Link to="/dogs?add=true">
             <Plus className="mr-2 h-4 w-4" />

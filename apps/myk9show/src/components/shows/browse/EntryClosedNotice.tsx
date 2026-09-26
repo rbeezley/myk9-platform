@@ -25,9 +25,7 @@ export function EntryClosedNotice({ shows, selectedTab }: EntryClosedNoticeProps
   // happened, so "aren't accepting online entries yet... when its entry
   // window opens" is future-tense wording for a window that is never
   // reopening (2026-09-26 exhibitor walk, E52).
-  const allPast = shows.every(
-    show => showDateRangeStatus(show.startDate, show.endDate) === 'past'
-  );
+  const allPast = shows.every(show => showDateRangeStatus(show.startDate, show.endDate) === 'past');
 
   return (
     <Alert className="mt-4">

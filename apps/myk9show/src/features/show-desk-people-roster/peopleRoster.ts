@@ -35,17 +35,22 @@ export interface PeopleRosterClassRow {
 
 export interface PeopleRosterPerson {
   id: string;
+  /**
+   * MYK9-824 round 3. Always the name on the `handler_id` person record
+   * (or the owner's, for a row with no handler at all) — never the printed
+   * paperwork text. The Message action names and opens a thread with this
+   * SAME person (`authUserId`), so there is no separate "contact name" to
+   * track: whoever the row is labelled with is who a message reaches.
+   */
   name: string;
   /**
-   * MYK9-824 round 2. The person a Message actually reaches. Usually the same
-   * as `name`, but NOT when `handler_id` names the dog's owner only because a
-   * mail-in typed handler had no person match (MYK9-824's fallback) — there
-   * `name` stays the printed handler text (what the paperwork says) while
-   * `authUserId` resolves to the owner's account. Labelling the Message
-   * action with `name` in that case would tell the secretary they are
-   * messaging the handler when the thread actually opens with the owner.
+   * MYK9-824 round 3. Printed handler text from this row's entries that
+   * reads differently from `name` (a mail-in typed handler whose `handler_id`
+   * fell back to the owner, or a stale FK left by a rename). Null when every
+   * entry's printed text agrees with `name`, or there is no handler text at
+   * all.
    */
-  contactName: string;
+  secondaryText: string | null;
   searchText: string;
   authUserId: string | null;
   presence: ShowPresence | null;
@@ -95,29 +100,19 @@ function hasHandlerIdentity(entry: EntryManagementEntry): boolean {
   return Boolean(entry.handlerId || entry.handlerAuthUserId || personName(entry.handlerName));
 }
 
-function displayName(entry: EntryManagementEntry): string {
-  if (hasHandlerIdentity(entry)) {
-    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
-  }
-
-  return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
-}
-
 /**
- * MYK9-824 round 2. The printed handler text (`displayName`) and the person a
- * Message reaches (`authUserId`) can name different people once `handler_id`
- * is allowed to fall back to the dog's owner for an unmatched typed handler.
- * When that fallback fired -- `handlerAuthUserId` and `ownerAuthUserId` are
- * the SAME account -- the honest contact name is the owner's, not the typed
- * text. Every other case (the handler IS a resolvable, distinct person, or
- * there is no handler identity at all) already agrees with `displayName`.
+ * MYK9-824 round 3. The name on the `handler_id` person record, or the
+ * owner's when the entry has no handler concept at all. Deliberately does
+ * NOT compare against the printed `handlerName` text — round 2's attempt to
+ * infer "is this id a real handler or an owner fallback" from that
+ * comparison had two bugs of its own (Codex, round 2 follow-up). `handler_id`
+ * is trusted directly for whoever it names, fallback or stale FK alike.
  */
-function contactName(entry: EntryManagementEntry): string {
+function primaryName(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    if (entry.handlerAuthUserId && entry.handlerAuthUserId === entry.ownerAuthUserId) {
-      return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
-    }
-    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
+    return (
+      personName(entry.handlerPersonName) || personName(entry.ownerName) || 'Unknown exhibitor'
+    );
   }
 
   return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
@@ -125,17 +120,7 @@ function contactName(entry: EntryManagementEntry): string {
 
 function groupKey(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
-    // MYK9-824 round 2. `handlerId` alone is not a safe row key once it can
-    // point at the dog's owner as a fallback: two DIFFERENT typed handlers
-    // who share that same owner (fallback `handler_id`) would merge into one
-    // roster row and silently lose one handler's name. Composing the printed
-    // name in keeps same-handler entries (identical id AND name) grouped
-    // exactly as before, while splitting entries whose id matches but whose
-    // printed name does not.
-    const identity = entry.handlerId || entry.handlerAuthUserId || '';
-    const nameKey = normalize(personName(entry.handlerName)) || '';
-    if (identity && nameKey) return `${identity}::${nameKey}`;
-    return identity || nameKey || entry.id;
+    return entry.handlerId || entry.handlerAuthUserId || entry.id;
   }
 
   return (
@@ -143,7 +128,7 @@ function groupKey(entry: EntryManagementEntry): string {
     entry.ownerAuthUserId ||
     entry.registrationId ||
     entry.ownerEmail ||
-    normalize(displayName(entry)) ||
+    normalize(primaryName(entry)) ||
     entry.id
   );
 }
@@ -156,12 +141,24 @@ function groupAuthUserId(entries: EntryManagementEntry[]): string | null {
   return entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ?? null;
 }
 
-/** Same entry-selection rule as {@link groupAuthUserId}, so the contact name always names the account that id opens a thread with. */
-function groupContactName(entries: EntryManagementEntry[]): string {
-  const source = entries.some(hasHandlerIdentity)
-    ? entries.find(entry => entry.handlerAuthUserId)
-    : entries.find(entry => entry.ownerAuthUserId);
-  return contactName(source ?? entries[0]!);
+/**
+ * MYK9-824 round 3. Distinct printed handler texts among this row's entries
+ * that read differently from `primary` (the row's real name), in first-seen
+ * order. Case/punctuation-insensitive comparison so `Hana` and `hana` count
+ * as the same text, but the ORIGINAL casing is what's shown.
+ */
+function secondaryPrintedNames(entries: EntryManagementEntry[], primary: string): string[] {
+  const seen = new Set<string>();
+  const distinct: string[] = [];
+  for (const entry of entries) {
+    const printed = personName(entry.handlerName);
+    if (!printed) continue;
+    const key = normalize(printed);
+    if (key === normalize(primary) || seen.has(key)) continue;
+    seen.add(key);
+    distinct.push(printed);
+  }
+  return distinct;
 }
 
 function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
@@ -305,8 +302,10 @@ export function buildPeopleRoster({
 
   return [...grouped.entries()]
     .map(([id, groupEntries]) => {
-      const name = displayName(groupEntries[0]!);
-      const contact = groupContactName(groupEntries);
+      const name = primaryName(groupEntries[0]!);
+      const secondaryNames = secondaryPrintedNames(groupEntries, name);
+      const secondaryText =
+        secondaryNames.length > 0 ? `handled by ${secondaryNames.join(', ')}` : null;
       const authUserId = groupAuthUserId(groupEntries);
       const personPresence = authUserId ? (presenceByUserId.get(authUserId) ?? null) : null;
       const classRows = buildClassRows(groupEntries, classesById, currentDate);
@@ -326,7 +325,7 @@ export function buildPeopleRoster({
       return {
         id,
         name,
-        contactName: contact,
+        secondaryText,
         searchText,
         authUserId,
         presence: personPresence,

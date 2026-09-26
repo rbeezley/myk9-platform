@@ -344,11 +344,13 @@ describe('ShowDeskPeopleRoster', () => {
     expect(h.getOrCreateThread).not.toHaveBeenCalled();
   });
 
-  // MYK9-824 round 2 (Codex): `handler_id` is allowed to fall back to the
-  // dog's owner when a mail-in typed handler matches no person. Two DIFFERENT
-  // typed handlers who happen to share that fallback owner must not merge
-  // into one roster row, and the Message action must be labelled with the
-  // account it actually opens (the owner's), never the printed handler text.
+  // MYK9-824 round 3 (Codex): `handler_id` is allowed to fall back to the
+  // dog's owner when a mail-in typed handler matches no person. Round 2 tried
+  // to infer "is this id a real handler or an owner fallback" by comparing the
+  // printed text to the resolved names, which had two bugs of its own. There
+  // is no more inference: the row groups by `handler_id` alone, labels with
+  // the `handler_id` person's own name, and shows any differing printed text
+  // as secondary "handled by" text.
   function fallbackOwnerEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     const owner = {
       id: 'owner-1',
@@ -376,7 +378,7 @@ describe('ShowDeskPeopleRoster', () => {
     });
   }
 
-  it('keeps two typed handlers as separate rows even though the owner-fallback handler_id is shared', async () => {
+  it('merges two typed handlers sharing the owner-fallback handler_id into one row labelled with the owner', async () => {
     renderRoster([
       fallbackOwnerEntry({
         id: 'entry-hana',
@@ -416,23 +418,56 @@ describe('ShowDeskPeopleRoster', () => {
       }),
     ]);
 
-    expect(await screen.findByRole('button', { name: /zz rehearsal handler hana/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /zz rehearsal handler fred/i })).toBeInTheDocument();
+    const rows = await screen.findAllByRole('button', { name: /zz rehearsal owner one/i });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent(
+      'handled by ZZ Rehearsal Handler Hana, ZZ Rehearsal Handler Fred'
+    );
   });
 
   it('labels a failed message with the person it actually reaches, not the printed handler text', async () => {
     h.getOrCreateThread.mockResolvedValueOnce(null);
-    const { user } = renderRoster([
-      fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' }),
-    ]);
+    const { user } = renderRoster([fallbackOwnerEntry({ handler: 'ZZ Rehearsal Handler Hana' })]);
 
-    await user.click(await screen.findByRole('button', { name: /zz rehearsal handler hana/i }));
+    await user.click(await screen.findByRole('button', { name: /zz rehearsal owner one/i }));
     await user.click(screen.getByRole('button', { name: /message/i }));
 
     expect(
       await screen.findByText(/couldn't open a message thread for zz rehearsal owner one/i)
     ).toBeInTheDocument();
     expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-owner');
+  });
+
+  it('trusts a stale handler_id over the printed text: row and message both name the secretary', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce({
+      id: 'thread-secretary',
+      show_id: 'show-1',
+      participant_id: 'auth-secretary',
+      created_at: '2026-07-08T09:00:00.000Z',
+      last_message_at: '2026-07-08T09:00:00.000Z',
+    });
+    const { user } = renderRoster([
+      entry({
+        handler: 'Jordan Typed',
+        handler_id: 'secretary-1',
+        handler_person: {
+          id: 'secretary-1',
+          first_name: 'Sam',
+          last_name: 'Secretary',
+          auth_user_id: 'auth-secretary',
+        },
+      }),
+    ]);
+
+    const row = await screen.findByRole('button', { name: /sam secretary/i });
+    expect(row).toHaveTextContent('handled by Jordan Typed');
+
+    await user.click(row);
+    await user.click(screen.getByRole('button', { name: /message/i }));
+
+    await waitFor(() => {
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-secretary');
+    });
   });
 
   it('keeps a failed check-in actionable and shows retry feedback', async () => {

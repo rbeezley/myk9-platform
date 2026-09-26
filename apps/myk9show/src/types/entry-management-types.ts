@@ -44,6 +44,15 @@ export interface EntryManagementEntry {
   handlerName: string;
   handlerId?: string | null;
   handlerAuthUserId?: string | null;
+  /**
+   * MYK9-824 round 3. The name on the `handler_id` person record itself
+   * (`handler_person`), independent of `handlerName`'s printed paperwork
+   * text. `handler_id` can point at the dog's owner as a fallback for an
+   * unmatched typed handler, or a stale FK left behind by a rename — this is
+   * whoever that id actually names, trusted directly, with no attempt to
+   * infer from the printed text whether the id is a "real" handler.
+   */
+  handlerPersonName?: string | null;
   ownerId?: string | null;
   ownerAuthUserId?: string | null;
   classes: EntryClass[];

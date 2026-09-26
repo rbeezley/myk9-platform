@@ -148,14 +148,14 @@ export function ShowDeskPeopleRoster({
 
   async function handleMessage(person: PeopleRosterPerson) {
     if (!person.authUserId) {
-      setActionError(`${person.contactName} does not have a message-capable account yet.`);
+      setActionError(`${person.name} does not have a message-capable account yet.`);
       return;
     }
 
     setActionError(null);
     const thread = await getOrCreateThread(showId, person.authUserId);
     if (!thread) {
-      setActionError(`Couldn't open a message thread for ${person.contactName}.`);
+      setActionError(`Couldn't open a message thread for ${person.name}.`);
       return;
     }
 
@@ -271,7 +271,15 @@ export function ShowDeskPeopleRoster({
                     role="img"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{person.name}</span>
+                    <span className="block truncate font-medium">
+                      {person.name}
+                      {person.secondaryText && (
+                        <span className="font-normal text-muted-foreground">
+                          {' '}
+                          · {person.secondaryText}
+                        </span>
+                      )}
+                    </span>
                     <span className="mt-1 block truncate text-sm text-muted-foreground">
                       {person.summary}
                     </span>

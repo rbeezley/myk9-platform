@@ -98,7 +98,7 @@ export const SignInCredentialForm: React.FC<SignInCredentialFormProps> = ({
         </div>
       </div>
       {/* Live disambiguation (visible) — empty while invalid/empty. */}
-      <div id="credential-hint" className="min-h-5 mb-3 text-sm text-muted-foreground">
+      <div id="credential-hint" className="min-h-4 mb-2 text-sm text-muted-foreground">
         {liveHint}
       </div>
 
@@ -151,8 +151,8 @@ export const SignInCredentialForm: React.FC<SignInCredentialFormProps> = ({
         INSIDE this paragraph, and axe's link-in-text-block wants a non-colour
         distinguisher — primary on muted-foreground is 1.01:1, far under the
         3:1 it would otherwise require. */}
-    <p id="credential-help" className="mt-4 sm:mt-5 text-xs sm:text-sm text-muted-foreground">
-      Working a show? Use your secretary's 5-character passcode.{' '}
+    <p id="credential-help" className="mt-2 text-xs sm:text-sm text-muted-foreground">
+      Have a passcode? Enter it above.{' '}
       {!passcodeOnly && (
         <Link to="/help/credentials" className="text-primary underline">
           How it works &rarr;

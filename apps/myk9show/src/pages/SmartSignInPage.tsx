@@ -325,9 +325,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   // subtracting the combined value double-counts the header, and using
   // 100vh flat overflows by the banner's height whenever it shows.
   return (
-    <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-4 pt-[var(--app-header-height,3rem)]">
-      <div className="bg-card p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="mb-3 flex justify-center">
+    <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-2 pt-[var(--app-header-height,3rem)]">
+      <div className="bg-card p-6 rounded-2xl shadow-xl w-full max-w-md">
+        <div className="mb-2 flex justify-center">
           <Link
             to="/"
             className="flex items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
@@ -338,14 +338,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               aria-hidden="true"
               width="40"
               height="40"
-              className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 object-contain"
+              className="h-8 w-8 shrink-0 object-contain"
             />
-            <span className="text-base sm:text-lg font-bold text-primary">myK9Show</span>
+            <span className="text-base font-bold text-primary">myK9Show</span>
           </Link>
         </div>
-        <h2 className="mb-1 text-center text-base sm:text-lg font-bold">{heading}</h2>
+        <h2 className="mb-1 text-center text-base font-bold">{heading}</h2>
         {!passcodeOnly && (
-          <div className="text-muted-foreground mb-4 sm:mb-5 text-center text-sm">
+          <div className="text-muted-foreground mb-2 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
               Sign up
@@ -385,7 +385,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                   onApple={handleAppleSignIn}
                   disabled={isLoading || googleLoading || appleLoading}
                 />
-                <div className="relative my-4 sm:my-5">
+                <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-input" />
                   </div>

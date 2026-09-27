@@ -10,12 +10,24 @@ main show-management surfaces.
 **Un-defer decision (owner, 2026-07-10):** the judge responsibility
 verification sweep found that a judge self-service dashboard
 (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) was already
-implemented, routed, nav-registered, role-gated, and tested — contradicting
-the earlier blanket deferral. The owner chose to **own the shipped surface**
-rather than delete it. The already-built dashboard is therefore in scope and
-must be verified/maintained like any other role surface (tracked as row J6.4
-in [`judge-responsibility-coverage.md`](judge-responsibility-coverage.md)).
+implemented, routed, and role-gated — contradicting the earlier blanket
+deferral. The owner chose to **own the shipped surface** rather than delete
+it. The already-built dashboard is therefore in scope and must be
+verified/maintained like any other role surface (tracked as row J6.4 in
+[`judge-responsibility-coverage.md`](judge-responsibility-coverage.md)).
 Nothing beyond what is already built is being added for fall.
+
+**Correction (owner, 2026-09-27, MYK9-850):** `/judge/check-in` was never
+actually nav-registered — the 2026-07-10 sweep's "nav-registered" label was
+wrong, and its data was hard-coded mock data (`loadRingEntries()`'s own
+comment: "in real implementation, this would fetch from API"), not real
+assignments. A fresh reachability audit found no nav item, menu, dashboard,
+role-home redirect, or deep link reaching it — only a typed URL. The route,
+`JudgeCheckInInterface`, the gate-steward mock screen, and the disconnected
+`OfflineCheckInInterface` subsystem it opened were deleted; `/judge/check-in`
+now redirects to the real, replication-backed ringside surface at
+`/at-show`. `/judge/dashboard` and `/judge/stats` are unaffected and remain
+owned per the 2026-07-10 decision.
 
 ## What exists for fall
 
@@ -25,8 +37,8 @@ Nothing beyond what is already built is being added for fall.
   with Estimated Time.
 - The ringside `/at-show` scoring experience (passcode access, no account).
 - The shipped judge dashboard: `/judge/dashboard` (Today/Upcoming/Completed
-  assignments), `/judge/stats`, `/judge/check-in` — for judges with accounts
-  and the `judge` role.
+  assignments) and `/judge/stats` — for judges with accounts and the `judge`
+  role. (`/judge/check-in` was mock-data-only and was deleted, MYK9-850.)
 
 ## Qualification management authorization
 

@@ -27,8 +27,9 @@ The project SHALL maintain a judge responsibility coverage matrix mapping each r
 
 #### Scenario: Shipped judge dashboard is owned
 
-- **WHEN** a row concerns the shipped judge dashboard (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`)
+- **WHEN** a row concerns the shipped judge dashboard (`/judge/dashboard`, `/judge/stats`)
 - **THEN** it is treated as in fall scope per the 2026-07-10 owner un-defer decision and verified like any other role surface
+- **NOTE** (2026-09-27, MYK9-850): `/judge/check-in` was removed from this scenario's scope — it was never nav-registered and ran on hard-coded mock data, so it was deleted rather than owned; it now redirects to `/`, the role-aware home (bare `/at-show` is not itself a registered route)
 
 ### Requirement: Verification is ordered by show-day risk
 

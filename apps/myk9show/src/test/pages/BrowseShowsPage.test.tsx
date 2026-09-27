@@ -224,6 +224,7 @@ const defaultFilters: ShowFilters = {
   radius: 'all',
   organization: 'all',
   club: 'all',
+  status: 'all',
 };
 
 /** Set up the mock hooks for a specific user scenario */

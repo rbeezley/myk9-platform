@@ -1,33 +1,17 @@
 /**
- * ShowBulkActionsBar — toolbar displayed when one or more shows are selected.
- *
- * Actions: status change, export, delete (with confirmation dialog).
- * Follows the same pattern as admin/users/BulkActionsBar.
+ * ShowBulkActionsBar — the Managing tab's floating bulk-action bar
+ * (list-toolkit rollout, MYK9-798): Mark completed, Mark cancelled, Export,
+ * Delete. Composes the shared `FloatingBulkBar`/`BulkBarButton` for the
+ * floating shell; the dispatch (updateShow/deleteShow) and confirmation
+ * dialogs below are unchanged from the page's original bar.
  */
 
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { updateShow, deleteShow } from '@/services/database/shows';
-import {
-  Trash2,
-  AlertCircle,
-  X,
-  ChevronDown,
-  Download,
-  CheckCircle2,
-  XCircle,
-  CalendarCheck,
-} from 'lucide-react';
+import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +21,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 // Must stay in sync with the shows_status_check CHECK constraint
@@ -204,94 +189,44 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
 
   return (
     <>
-      {/* Bulk Actions Bar */}
-      <Card
-        className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 backdrop-blur-xl
-                   rounded-2xl shadow-sm"
+      <FloatingBulkBar
+        count={selectedShows.length}
+        noun={['show', 'shows']}
+        onClear={onClearSelection}
+        busy={isProcessing}
       >
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <Badge
-                variant="default"
-                className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary
-                           border-0 font-semibold text-sm"
-              >
-                {selectedShows.length} selected
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClearSelection}
-                className="h-8 w-8 p-0 rounded-xl hover:bg-primary/20 transition-colors duration-200"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Status Change */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-semibold
-                               hover:bg-muted/50 transition-all duration-300"
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Status
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-                  {STATUS_OPTIONS.map(option => {
-                    const Icon = option.icon;
-                    return (
-                      <DropdownMenuItem
-                        key={option.value}
-                        onClick={() => {
-                          setPendingStatus(option.value);
-                          setCurrentDialog('status');
-                        }}
-                        className="rounded-lg font-medium text-sm py-3 focus:bg-primary/10 focus:text-primary"
-                      >
-                        <Icon className="h-4 w-4 mr-3" />
-                        {option.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Export */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentDialog('export')}
-                className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-semibold
-                           hover:bg-muted/50 transition-all duration-300"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-
-              {/* Delete */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentDialog('delete')}
-                className="h-10 px-4 rounded-xl border-destructive/50 bg-destructive/10 text-destructive font-semibold
-                           hover:bg-destructive/10 hover:text-destructive transition-all duration-300
-                             "
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <BulkBarButton
+          onClick={() => {
+            setPendingStatus('completed');
+            setCurrentDialog('status');
+          }}
+          icon={<CalendarCheck className="h-4 w-4" aria-hidden="true" />}
+        >
+          Mark completed
+        </BulkBarButton>
+        <BulkBarButton
+          onClick={() => {
+            setPendingStatus('cancelled');
+            setCurrentDialog('status');
+          }}
+          icon={<XCircle className="h-4 w-4" aria-hidden="true" />}
+        >
+          Mark cancelled
+        </BulkBarButton>
+        <BulkBarButton
+          onClick={() => setCurrentDialog('export')}
+          icon={<Download className="h-4 w-4" aria-hidden="true" />}
+        >
+          Export
+        </BulkBarButton>
+        <BulkBarButton
+          onClick={() => setCurrentDialog('delete')}
+          icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+          tone="destructive"
+        >
+          Delete
+        </BulkBarButton>
+      </FloatingBulkBar>
 
       {/* Status Change Dialog */}
       <Dialog open={currentDialog === 'status'} onOpenChange={() => closeDialog()}>

@@ -4,18 +4,8 @@
  */
 
 import { useState, useMemo } from 'react';
-import {
-  Trophy,
-  Filter,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  BarChart3,
-  Scale,
-  Medal,
-} from 'lucide-react';
+import { Trophy, ChevronDown, ChevronRight, Clock, BarChart3, Scale, Medal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -24,6 +14,7 @@ import {
   PrimaryTabsContent,
   type PrimaryTabDef,
 } from '@/components/common/PrimaryTabs';
+import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import { PodiumCard } from './PodiumCard';
 import {
   useShowResults,
@@ -118,9 +109,15 @@ interface PodiumContentProps {
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
   const [filters, setFilters] = useState<ResultsFilters>({ element: null, level: null });
+  const [search, setSearch] = useState('');
   const [pendingExpanded, setPendingExpanded] = useState(false);
 
-  const filtered = useMemo(() => filterResults(results, filters), [results, filters]);
+  const elementLevelFiltered = useMemo(() => filterResults(results, filters), [results, filters]);
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return elementLevelFiltered;
+    return elementLevelFiltered.filter(cls => cls.className.toLowerCase().includes(query));
+  }, [elementLevelFiltered, search]);
   const { elements, levels } = useMemo(() => getFilterOptions(results), [results]);
 
   const { withPlacements, pending } = useMemo(() => {
@@ -132,7 +129,26 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     return { withPlacements: w, pending: p };
   }, [filtered]);
 
-  const hasActiveFilters = filters.element || filters.level;
+  const hasActiveFilters = Boolean(filters.element || filters.level || search.trim());
+
+  const filterFields: ListFilterField[] = [
+    {
+      kind: 'options',
+      key: 'element',
+      label: 'Element',
+      value: filters.element,
+      onChange: value => setFilters(f => ({ ...f, element: value })),
+      options: elements.map(element => ({ value: element, label: element })),
+    },
+    {
+      kind: 'options',
+      key: 'level',
+      label: 'Level',
+      value: filters.level,
+      onChange: value => setFilters(f => ({ ...f, level: value })),
+      options: levels.map(level => ({ value: level, label: level })),
+    },
+  ];
 
   if (isLoading) {
     return <LoadingSpinner message="Loading results..." />;
@@ -164,53 +180,23 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   return (
     <div className="space-y-4">
       {(elements.length > 1 || levels.length > 1) && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-
-          {elements.length > 1 && (
-            <select
-              value={filters.element || ''}
-              onChange={e => setFilters(f => ({ ...f, element: e.target.value || null }))}
-              className="h-8 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="">All Elements</option>
-              {elements.map(el => (
-                <option key={el} value={el}>
-                  {el}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {levels.length > 1 && (
-            <select
-              value={filters.level || ''}
-              onChange={e => setFilters(f => ({ ...f, level: e.target.value || null }))}
-              className="h-8 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="">All Levels</option>
-              {levels.map(lv => (
-                <option key={lv} value={lv}>
-                  {lv}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => setFilters({ element: null, level: null })}
-            >
-              Clear
-            </Button>
-          )}
-
-          <Badge variant="secondary" className="ml-auto">
-            {withPlacements.length} class{withPlacements.length !== 1 ? 'es' : ''}
-          </Badge>
+        <div className="flex flex-col gap-2">
+          <ListFilterBar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by class name..."
+            fields={filterFields}
+            onClearAll={() => {
+              setFilters({ element: null, level: null });
+              setSearch('');
+            }}
+          />
+          <ListResultLine
+            shown={withPlacements.length}
+            total={results.filter(cls => cls.placements.length > 0).length}
+            noun={['class', 'classes']}
+            filtered={hasActiveFilters}
+          />
         </div>
       )}
 

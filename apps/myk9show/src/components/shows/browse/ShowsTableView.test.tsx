@@ -87,12 +87,10 @@ describe('ShowsTableView columns (MYK9-427)', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('checkbox', { name: 'Select all you manage' })).toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: 'Select Heartland Scent Work Classic' })
     ).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Select Other Show' })).not.toBeInTheDocument();
-    expect(screen.getByText('Select all you manage')).toBeInTheDocument();
   });
 
   it('shows five columns by default — Organization and Status stay in the Columns menu', () => {

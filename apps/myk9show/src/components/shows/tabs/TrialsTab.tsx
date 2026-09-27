@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
-import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
+import { ListViewTabs } from '@/components/list-toolkit';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
@@ -14,6 +14,13 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
+import {
+  activeTrialsTabViewId,
+  buildTrialsTabViews,
+  filterTrialsForTab,
+  trialsTabViewFilters,
+  type TrialsTabStatus,
+} from './trialsTabViews';
 
 export interface TrialStats {
   classCount: number;
@@ -43,16 +50,6 @@ const EMPTY_STATS: TrialStats = {
   completedClasses: 0,
   hasStarted: false,
 };
-
-function getTrialDisplayStatus(trial: Trial, trialStats: Record<string, TrialStats>) {
-  const stats = trialStats[trial.id] || EMPTY_STATS;
-  return deriveTrialStatusKey({
-    trialStatus: trial.status,
-    classCount: stats.classCount,
-    completedCount: stats.completedClasses,
-    hasStarted: stats.hasStarted,
-  });
-}
 
 interface TrialRow {
   id: string;
@@ -120,24 +117,18 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const { hasPermission } = useRBAC();
 
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
+  const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
-  const statusCounts = useMemo(() => {
-    let completed = 0;
-    for (const trial of trials) {
-      if (getTrialDisplayStatus(trial, trialStats) === 'completed') completed++;
-    }
-    return { all: trials.length, pending: trials.length - completed, completed };
-  }, [trials, trialStats]);
+  const trialViews = useMemo(
+    () => buildTrialsTabViews(trials, trialStats),
+    [trials, trialStats]
+  );
 
-  const filteredTrials = useMemo(() => {
-    if (statusFilter === 'all') return trials;
-    return trials.filter(trial => {
-      const isCompleted = getTrialDisplayStatus(trial, trialStats) === 'completed';
-      return statusFilter === 'completed' ? isCompleted : !isCompleted;
-    });
-  }, [trials, trialStats, statusFilter]);
+  const filteredTrials = useMemo(
+    () => filterTrialsForTab(trials, trialStats, statusFilter),
+    [trials, trialStats, statusFilter]
+  );
 
   const tableData = useMemo<TrialRow[]>(
     () =>
@@ -161,11 +152,14 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <StatusFilter
-          filter={statusFilter}
-          onFilterChange={setStatusFilter}
-          counts={statusCounts}
-        />
+        {trialViews.length > 0 && (
+          <ListViewTabs
+            label="Trial views"
+            views={trialViews}
+            activeId={activeTrialsTabViewId(statusFilter)}
+            onSelect={id => setStatusFilter(trialsTabViewFilters(id))}
+          />
+        )}
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
           {canManage && (

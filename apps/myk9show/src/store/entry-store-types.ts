@@ -79,6 +79,12 @@ export interface ShowEntry {
   // Registration reference
   registrationId?: string | undefined;
 
+  // Soft-delete marker, carried through from the replicated entry so
+  // consumers (e.g. cascading-delete previews) can tell a live entry from a
+  // tombstone without a second lookup.
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
+
   // Metadata
   createdAt: string; // ISO string
   updatedAt: string; // ISO string

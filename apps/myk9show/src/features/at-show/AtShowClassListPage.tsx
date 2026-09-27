@@ -27,7 +27,7 @@ import {
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
-import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
+import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
@@ -179,14 +179,16 @@ export const AtShowClassListPage: React.FC = () => {
     isUnknown: ownershipUnknown,
   } = useMyAtShowEntries(showId);
   // 'Your dogs today' must never offer Check In for a class the
-  // `self_checkin_entry` RPC will refuse (MYK9-800 follow-up) — the same
-  // resolved cascade My Shows' day check-in gate already uses, so the two
-  // surfaces can't disagree about which classes allow self-check-in.
+  // `self_checkin_entry` RPC will refuse, or for one the cascade hasn't
+  // resolved yet (MYK9-800 follow-up) — the tri-state map shares its
+  // underlying queries/cache with My Shows' day check-in gate
+  // (`useSelfCheckinMap`), so the two surfaces can't disagree about which
+  // classes allow self-check-in.
   const allClassIds = useMemo(
     () => groups.flatMap(group => group.classes.map(cls => cls.id)),
     [groups]
   );
-  const selfCheckinByClassId = useSelfCheckinMap(allClassIds);
+  const selfCheckinByClassId = useSelfCheckinStateMap(allClassIds);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -199,7 +201,7 @@ export const AtShowClassListPage: React.FC = () => {
             ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
             : {}),
           isRevisedStart: Boolean(cls.revised_expected_start),
-          selfCheckinEnabled: selfCheckinByClassId[cls.id] ?? true,
+          selfCheckinState: selfCheckinByClassId[cls.id] ?? 'unknown',
         });
       }
     }

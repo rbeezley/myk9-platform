@@ -94,6 +94,12 @@ function EntryRow({
             Self check-in is off for this class. Please check in at the secretary table.
           </div>
         )}
+        {action.kind === 'self-checkin-unknown' && (
+          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            Check-in isn't available right now. Ask at the show desk.
+          </div>
+        )}
       </div>
 
       {action.kind === 'check-in' && (

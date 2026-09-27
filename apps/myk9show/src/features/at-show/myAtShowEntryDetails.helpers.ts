@@ -14,6 +14,7 @@ import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
+import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -42,12 +43,12 @@ export interface AtShowClassSummary {
   isRevisedStart?: boolean | undefined;
   /**
    * The class/trial/show self-check-in cascade already resolved by the
-   * caller (`useSelfCheckinMap`, the same hook My Shows' day check-in gate
-   * uses). Missing/undefined defaults OPEN — matches `isSelfCheckinEnabled`
-   * in `dayCheckIn.ts` — so a class the map hasn't answered for yet never
-   * hides Check In on its own.
+   * caller (`useSelfCheckinStateMap`). Missing/undefined is treated as
+   * 'unknown' — a class the map hasn't answered for yet (still loading, or
+   * the read failed, including offline) must never expose Check In as if it
+   * were known-allowed (MYK9-800 follow-up).
    */
-  selfCheckinEnabled?: boolean | undefined;
+  selfCheckinState?: SelfCheckinState | undefined;
 }
 
 export interface AtShowEntryDetail {
@@ -64,7 +65,7 @@ export interface AtShowEntryDetail {
   hasRunOrder: boolean;
   isScored: boolean;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
-  selfCheckinEnabled: boolean;
+  selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
   trialLabel: string | null;
 }
@@ -74,7 +75,8 @@ export type AtShowEntryNextAction =
   | { kind: 'wait-running-order' }
   | { kind: 'view-class' }
   | { kind: 'scored' }
-  | { kind: 'self-checkin-disabled' };
+  | { kind: 'self-checkin-disabled' }
+  | { kind: 'self-checkin-unknown' };
 
 /** A trial's own calendar day + timezone, keyed by trial id (from `useAtShowClassList`'s groups). */
 export interface AtShowTrialSummary {
@@ -128,7 +130,7 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
-      selfCheckinEnabled: classSummary?.selfCheckinEnabled ?? true,
+      selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
     });
   }
@@ -140,8 +142,10 @@ export function buildMyAtShowEntryDetails(
  * The single primary next action for an entry row. Precedence: already
  * scored (nothing to do) > checked in already (nothing to do) > running
  * order not posted yet (don't invite a check-in tap that has nowhere to go)
- * > self-check-in disabled for this class (don't offer a tap the
- * `self_checkin_entry` RPC will refuse — MYK9-800 follow-up) > check in.
+ * > self-check-in not resolved as allowed for this class (don't offer a tap
+ * the `self_checkin_entry` RPC will refuse — MYK9-800 follow-up; this
+ * includes 'unknown', since an unresolved cascade is exactly as unsafe to
+ * act on as a known-off one) > check in.
  */
 export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNextAction {
   if (detail.isScored) return { kind: 'scored' };
@@ -149,7 +153,10 @@ export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNe
   if (!detail.classId || !detail.className || !detail.hasRunOrder) {
     return { kind: 'wait-running-order' };
   }
-  if (!detail.selfCheckinEnabled) {
+  if (detail.selfCheckinState === 'unknown') {
+    return { kind: 'self-checkin-unknown' };
+  }
+  if (detail.selfCheckinState === 'not-allowed') {
     return { kind: 'self-checkin-disabled' };
   }
   return { kind: 'check-in' };

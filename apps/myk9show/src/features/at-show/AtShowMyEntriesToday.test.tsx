@@ -31,7 +31,7 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
-    selfCheckinEnabled: true,
+    selfCheckinState: 'allowed',
     trialLabel: null,
     ...overrides,
   };
@@ -253,7 +253,7 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     render(
       <AtShowMyEntriesToday
         showId="show-1"
-        entries={[entry({ selfCheckinEnabled: false })]}
+        entries={[entry({ selfCheckinState: 'not-allowed' })]}
         isLoading={false}
         dataUpdatedAt={1}
         loadFailed={false}
@@ -270,7 +270,7 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     render(
       <AtShowMyEntriesToday
         showId="show-1"
-        entries={[entry({ selfCheckinEnabled: true })]}
+        entries={[entry({ selfCheckinState: 'allowed' })]}
         isLoading={false}
         dataUpdatedAt={1}
         loadFailed={false}
@@ -280,6 +280,29 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     );
 
     expect(await screen.findByRole('button', { name: /Check in/ })).toBeInTheDocument();
+  });
+
+  // MYK9-800 follow-up P1 (Codex): an unresolved cascade (batch query error,
+  // still loading, or the device is offline — this is a server RPC with no
+  // replicated fallback) must show the same calm, non-actionable state as a
+  // known 'not-allowed' class, never fall open to a tappable Check In.
+  it('hides the Check in button and shows a calm message when self-check-in is unresolved', async () => {
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ selfCheckinState: 'unknown' })]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/Check-in isn't available right now\. Ask at the show desk\./)
+    ).toBeInTheDocument();
   });
 });
 

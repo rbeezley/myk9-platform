@@ -86,13 +86,13 @@
 
 ## Section 4: Judge / Steward (Judging nav group)
 
-| Page / Feature         | Route              | Classification | Rationale                                                                          |
-| ---------------------- | ------------------ | -------------- | ---------------------------------------------------------------------------------- |
-| Dashboard              | /judge/dashboard   | park           | Judge pages → park per rules; myK9Q is primary for fall                            |
-| My Stats               | /judge/stats       | park           | Judge pages → park per rules                                                       |
+| Page / Feature         | Route              | Classification | Rationale                                                                            |
+| ---------------------- | ------------------ | -------------- | ------------------------------------------------------------------------------------ |
+| Dashboard              | /judge/dashboard   | park           | Judge pages → park per rules; myK9Q is primary for fall                              |
+| My Stats               | /judge/stats       | park           | Judge pages → park per rules                                                         |
 | Check-In               | /judge/check-in    | deleted        | Mock-data-only, no nav path in; deleted MYK9-850. Route now redirects to `/at-show`. |
-| JudgeScoringPage       | /scoring/\*        | delete/hide    | myK9Q owns scoring; duplicate surface splits maintenance and causes user confusion |
-| Result Entry Dashboard | /results/dashboard | park           | Judge-accessible; myK9Q is canonical scoring surface for fall                      |
+| JudgeScoringPage       | /scoring/\*        | delete/hide    | myK9Q owns scoring; duplicate surface splits maintenance and causes user confusion   |
+| Result Entry Dashboard | /results/dashboard | park           | Judge-accessible; myK9Q is canonical scoring surface for fall                        |
 
 ---
 

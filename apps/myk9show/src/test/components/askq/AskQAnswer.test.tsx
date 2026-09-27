@@ -62,7 +62,12 @@ describe('AskQAnswer', () => {
 
   it("shows Tera's face as the sender mark next to each answer", () => {
     render(
-      <AskQAnswer query="test" answer="Buddy qualified in Excellent!" toolsUsed={[]} isStreaming={false} />
+      <AskQAnswer
+        query="test"
+        answer="Buddy qualified in Excellent!"
+        toolsUsed={[]}
+        isStreaming={false}
+      />
     );
     expect(screen.getByTestId('tera-face')).toBeInTheDocument();
   });

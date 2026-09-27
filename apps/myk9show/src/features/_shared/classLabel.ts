@@ -285,3 +285,78 @@ export function buildTrialDayDisambiguator(
     return clean(trial?.trialName);
   };
 }
+
+/** A trial as far as identical-rendered-label disambiguation is concerned. */
+export interface TrialLabelIdentity {
+  trialId: string;
+  trialDate?: string | null | undefined;
+  /** The trial's own already-rendered label (e.g. `formatTrialIdentity`'s
+   *  output) -- the exact string shown to the secretary, not just its bare
+   *  name. */
+  label?: string | null | undefined;
+}
+
+/**
+ * Disambiguates trials whose RENDERED label collides with another trial's on
+ * the same calendar day (MYK9-842) -- a narrower, later case than
+ * `buildTrialDayDisambiguator` above.
+ *
+ * The People-at-show roster's own trial identity (`formatTrialIdentity`,
+ * MYK9-825) already combines a trial's name and number so two same-day
+ * trials sharing a NAME stay distinguishable ("Saturday A (1)" vs
+ * "Saturday A (2)"). That combination still collides when two trials ALSO
+ * share a number, or neither has one -- a real data duplicate, not the
+ * ordinary case. This is gated on that actual label collision, so the
+ * common case (same day, distinct labels) is never touched, and nothing is
+ * concatenated onto a label unconditionally (MYK9-704).
+ *
+ * The suffix is each colliding trial's 1-based position among the group, in
+ * the order the caller passed them in -- callers already sort trials for
+ * display, so this reuses that ordering rather than inventing a second one.
+ */
+export function buildTrialLabelCollisionDisambiguator(
+  trials: readonly TrialLabelIdentity[]
+): (trialId: string) => string {
+  const idsByKey = new Map<string, string[]>();
+  const labelsByDate = new Map<string, Set<string>>();
+
+  for (const trial of trials) {
+    const date = clean(trial.trialDate);
+    const label = clean(trial.label).toLowerCase();
+    if (!date || !label) continue;
+    const key = `${date}\u0000${label}`;
+    const ids = idsByKey.get(key) ?? [];
+    if (!ids.includes(trial.trialId)) ids.push(trial.trialId);
+    idsByKey.set(key, ids);
+
+    const labels = labelsByDate.get(date) ?? new Set<string>();
+    labels.add(label);
+    labelsByDate.set(date, labels);
+  }
+
+  // A suffixed candidate (e.g. "trial 1 #1") must not collide with another
+  // trial's own rendered label on the same day (MYK9-842 follow-up) -- so
+  // each candidate is checked against the full set of that day's labels,
+  // skipping any number already taken, rather than always using position + 1.
+  const positionByTrialId = new Map<string, number>();
+  for (const [key, ids] of idsByKey) {
+    if (ids.length < 2) continue;
+    const separatorIndex = key.indexOf('\u0000');
+    const date = key.slice(0, separatorIndex);
+    const label = key.slice(separatorIndex + 1);
+    const takenLabels = labelsByDate.get(date) ?? new Set<string>();
+    for (const id of ids) {
+      let candidate = 1;
+      while (takenLabels.has(`${label} #${candidate}`)) {
+        candidate += 1;
+      }
+      positionByTrialId.set(id, candidate);
+      takenLabels.add(`${label} #${candidate}`);
+    }
+  }
+
+  return trialId => {
+    const position = positionByTrialId.get(trialId);
+    return position === undefined ? '' : String(position);
+  };
+}

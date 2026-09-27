@@ -61,7 +61,7 @@ describe('RoleRequestsPage', () => {
     expect(await screen.findByText('Pat Morgan')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
 
-    await user.selectOptions(screen.getByLabelText(/club/i), 'club-1');
+    await user.selectOptions(screen.getByRole('combobox', { name: /club/i }), 'club-1');
     await user.type(screen.getByLabelText(/admin note/i), 'Verified with club.');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
 
@@ -114,9 +114,9 @@ describe('RoleRequestsPage', () => {
 
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    // Approved requests live behind the "Approved" filter.
-    await screen.findByRole('button', { name: /Approved \(1\)/ });
-    await userEvent.setup().click(screen.getByRole('button', { name: /Approved \(1\)/ }));
+    // Approved requests live behind the "Approved" view.
+    await screen.findByRole('button', { name: /^Approved/ });
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Approved/ }));
 
     expect(await screen.findByText(/Best Club/)).toBeInTheDocument();
   });
@@ -173,7 +173,10 @@ describe('RoleRequestsPage', () => {
     expect(await screen.findByText('Pat Morgan')).toBeInTheDocument();
     expect(screen.getByText('Jordan Lee')).toBeInTheDocument();
 
-    await user.type(screen.getByRole('searchbox', { name: 'Search role requests' }), 'other club');
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search by name, email, club, or role' }),
+      'other club'
+    );
 
     expect(screen.queryByText('Pat Morgan')).not.toBeInTheDocument();
     expect(screen.getByText('Jordan Lee')).toBeInTheDocument();
@@ -188,7 +191,7 @@ describe('RoleRequestsPage', () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
     expect(await screen.findByText('Pat Morgan')).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/club/i), 'club-1');
+    await user.selectOptions(screen.getByRole('combobox', { name: /club/i }), 'club-1');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("We couldn't approve this request");
@@ -227,7 +230,7 @@ describe('RoleRequestsPage', () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
     expect(await screen.findByText('Pat Morgan')).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/club/i), 'club-1');
+    await user.selectOptions(screen.getByRole('combobox', { name: /club/i }), 'club-1');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load role requests.');
@@ -262,7 +265,7 @@ describe('RoleRequestsPage', () => {
 
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    await user.click(await screen.findByRole('button', { name: /Approved \(1\)/ }));
+    await user.click(await screen.findByRole('button', { name: /^Approved/ }));
     await user.click(await screen.findByRole('button', { name: 'View details' }));
 
     expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
@@ -273,10 +276,10 @@ describe('RoleRequestsPage', () => {
   it('marks the active status filter with aria-pressed for assistive tech', async () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    const pendingFilter = await screen.findByRole('button', { name: /Pending \(1\)/ });
+    const pendingFilter = await screen.findByRole('button', { name: /^Pending/ });
     expect(pendingFilter).toHaveAttribute('aria-pressed', 'true');
 
-    const allFilter = screen.getByRole('button', { name: /All \(1\)/ });
+    const allFilter = screen.getByRole('button', { name: /^All/ });
     expect(allFilter).toHaveAttribute('aria-pressed', 'false');
   });
 

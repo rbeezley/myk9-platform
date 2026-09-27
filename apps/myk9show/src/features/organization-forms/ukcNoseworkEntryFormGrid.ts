@@ -1,3 +1,5 @@
+import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
+import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
 
 /**
@@ -103,11 +105,28 @@ function trialBracketNumber(label: string | undefined): '1' | '2' | undefined {
 }
 
 /**
- * Computes an "X" mark for every one of this dog's entries (up to the six rows
- * the template offers) whose trial number, section, element and level we can
- * match against the printed grid. An entry that does not match anything on the
- * template (an unrecognized element/level string, or a trial numbered beyond
- * "2") is silently skipped rather than guessing — never invent a mark.
+ * MYK9-845: an entry that will never produce a normal run (withdrawn,
+ * scratched, not accepted) or that has been superseded by a move-up
+ * (`entry_status = 'moved'`) is not actually entered in that class anymore —
+ * marking it would print a class the dog is not really running. Reuses the
+ * same predicates `ukcNoseworkTrialReport.ts`'s entry counting and the
+ * exhibitor-facing status surfaces already use, rather than inventing a new
+ * status rule for the entry form alone.
+ */
+function isActiveGridEntry(entry: Pick<EntryFormDog['entries'][number], 'entryStatus'>): boolean {
+  if (isSupersededMoveUpEntry(entry)) return false;
+  return !isRemovedStatus(getEntryStatusKind(entry.entryStatus));
+}
+
+/**
+ * Computes an "X" mark for every one of this dog's ACTIVE entries (up to the
+ * six rows the template offers) whose trial number, section, element and
+ * level we can match against the printed grid. A withdrawn, scratched,
+ * not-accepted, or superseded-move-up entry is skipped entirely — see
+ * {@link isActiveGridEntry}. Among the remaining entries, one that does not
+ * match anything on the template (an unrecognized element/level string, or a
+ * trial numbered beyond "2") is silently skipped rather than guessing — never
+ * invent a mark.
  */
 export function computeUKCEntryFormGridMarks(
   dog: Pick<EntryFormDog, 'entries'>,
@@ -116,48 +135,51 @@ export function computeUKCEntryFormGridMarks(
   const trialById = new Map(trials.map(trial => [trial.id, trial]));
   const marks: EntryFormGridMark[] = [];
 
-  dog.entries.slice(0, MAX_GRID_ROWS).forEach((entry, rowIndex) => {
-    const trialNumber = trialBracketNumber(trialById.get(entry.trialId)?.trialNumber);
-    if (trialNumber === '1') {
-      marks.push({
-        x: TRIAL_BRACKET_X_MID - 2,
-        y: toPdfBaseline(TRIAL1_BRACKET, rowIndex),
-        text: 'X',
-        size: 8,
-      });
-    } else if (trialNumber === '2') {
-      marks.push({
-        x: TRIAL_BRACKET_X_MID - 2,
-        y: toPdfBaseline(TRIAL2_BRACKET, rowIndex),
-        text: 'X',
-        size: 8,
-      });
-    }
+  dog.entries
+    .filter(isActiveGridEntry)
+    .slice(0, MAX_GRID_ROWS)
+    .forEach((entry, rowIndex) => {
+      const trialNumber = trialBracketNumber(trialById.get(entry.trialId)?.trialNumber);
+      if (trialNumber === '1') {
+        marks.push({
+          x: TRIAL_BRACKET_X_MID - 2,
+          y: toPdfBaseline(TRIAL1_BRACKET, rowIndex),
+          text: 'X',
+          size: 8,
+        });
+      } else if (trialNumber === '2') {
+        marks.push({
+          x: TRIAL_BRACKET_X_MID - 2,
+          y: toPdfBaseline(TRIAL2_BRACKET, rowIndex),
+          text: 'X',
+          size: 8,
+        });
+      }
 
-    const section = entry.section?.trim().toUpperCase();
-    if (section === 'A' || section === 'B') {
-      marks.push({
-        x: SECTION_X[section],
-        y: toPdfBaseline(SECTION_BAND, rowIndex),
-        text: 'X',
-        size: 8,
-      });
-    }
+      const section = entry.section?.trim().toUpperCase();
+      if (section === 'A' || section === 'B') {
+        marks.push({
+          x: SECTION_X[section],
+          y: toPdfBaseline(SECTION_BAND, rowIndex),
+          text: 'X',
+          size: 8,
+        });
+      }
 
-    const columnX = ELEMENT_COLUMN_X.get(normalizeGridKey(entry.element));
-    const band =
-      columnX !== undefined
-        ? levelBandsFor(entry.element).get(normalizeGridKey(entry.level))
-        : undefined;
-    if (columnX !== undefined && band) {
-      marks.push({
-        x: columnX - GUTTER_OFFSET,
-        y: toPdfBaseline(band, rowIndex),
-        text: 'X',
-        size: 7,
-      });
-    }
-  });
+      const columnX = ELEMENT_COLUMN_X.get(normalizeGridKey(entry.element));
+      const band =
+        columnX !== undefined
+          ? levelBandsFor(entry.element).get(normalizeGridKey(entry.level))
+          : undefined;
+      if (columnX !== undefined && band) {
+        marks.push({
+          x: columnX - GUTTER_OFFSET,
+          y: toPdfBaseline(band, rowIndex),
+          text: 'X',
+          size: 7,
+        });
+      }
+    });
 
   return marks;
 }

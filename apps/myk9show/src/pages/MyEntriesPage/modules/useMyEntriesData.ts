@@ -270,6 +270,12 @@ export function useMyEntriesData({
       rowRegistration?.payment_status,
       isShowCancelled
     );
+    // Ground truth for the paid strip (MYK9-804): this row's OWN
+    // `entries.payment_status`, never folded against the registration's. See
+    // `EntryClass.rawPaymentStatus`.
+    const rawEntryPaymentStatus = entry.payment_status
+      ? mapPaymentStatus(entry.payment_status as string)
+      : undefined;
     const entryStatusKind = getOwnEntryStatusKind(
       rawEntryStatus,
       entry.check_in_status as string | null | undefined,
@@ -310,6 +316,7 @@ export function useMyEntriesData({
         withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,
         handler: (entry.handler as string) || undefined,
         paymentStatus: rowPaymentStatus,
+        rawPaymentStatus: rawEntryPaymentStatus,
         paymentMethod: rowPaymentMethod,
         // Read the persisted check-in status instead of hardcoding undefined,
         // or the card always shows "Not Checked In" even after a check-in.

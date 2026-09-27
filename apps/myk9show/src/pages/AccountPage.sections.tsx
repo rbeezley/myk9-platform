@@ -47,10 +47,7 @@ export function ProfileSection() {
 
   const { upload, uploading, error: avatarError } = useAvatarUpload({ onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
-  const clubNameById = useMemo(
-    () => new Map(clubs.map(club => [club.id, club.name])),
-    [clubs]
-  );
+  const clubNameById = useMemo(() => new Map(clubs.map(club => [club.id, club.name])), [clubs]);
   const roleBadges = useMemo(
     () => describeUserRoleBadges(getUserRoles(), rbacUserRoles ?? [], clubNameById),
     [getUserRoles, rbacUserRoles, clubNameById]

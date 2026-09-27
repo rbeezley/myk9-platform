@@ -6,7 +6,8 @@ describe('buildAccountNotificationPayload', () => {
     const payload = buildAccountNotificationPayload({
       id: 'notif-1',
       type: 'club_access_approved',
-      message: 'Riverside Kennel Club is approved. You can now manage the club and create its shows.',
+      message:
+        'Riverside Kennel Club is approved. You can now manage the club and create its shows.',
       deep_link_url: '/clubs/club-1',
       created_at: '2026-09-27T12:00:00.000Z',
     });

@@ -2,25 +2,19 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAccountNotifications } from '../useAccountNotifications';
 
-const {
-  mockAddAlert,
-  mockRefreshPermissions,
-  mockUseQueryResult,
-  mockUpdate,
-  mockEq,
-  mockIn,
-} = vi.hoisted(() => {
-  const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
-  const mockEq = vi.fn(() => ({ in: mockIn }));
-  return {
-    mockAddAlert: vi.fn(),
-    mockRefreshPermissions: vi.fn(),
-    mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
-    mockUpdate: vi.fn(() => ({ eq: mockEq })),
-    mockEq,
-    mockIn,
-  };
-});
+const { mockAddAlert, mockRefreshPermissions, mockUseQueryResult, mockUpdate, mockEq, mockIn } =
+  vi.hoisted(() => {
+    const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
+    const mockEq = vi.fn(() => ({ in: mockIn }));
+    return {
+      mockAddAlert: vi.fn(),
+      mockRefreshPermissions: vi.fn(),
+      mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
+      mockUpdate: vi.fn(() => ({ eq: mockEq })),
+      mockEq,
+      mockIn,
+    };
+  });
 
 vi.mock('@/lib/supabase', () => ({
   supabase: { from: vi.fn(() => ({ update: mockUpdate })) },

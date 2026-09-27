@@ -181,3 +181,24 @@ INSERT INTO public.entries VALUES
 INSERT INTO public.stripe_orders VALUES
   ('00000000-0000-0000-0000-0000000000ca', ARRAY['00000000-0000-0000-0000-0000000000aa'::uuid], 3000,
    '00000000-0000-0000-0000-000000000011', NULL, 'csXtestY123', 'pi_runH', 'succeeded');
+
+-- Run I, token 2026-09-27 0305: a COMPOSITE (multi-column) foreign key
+-- references entries, one of the cleanup target tables. The single-column
+-- survey's array_length(c.conkey, 1) = 1 filter would silently skip this --
+-- it only ever inspects conkey[1] -- so the script must REFUSE loudly instead
+-- (owner decision, MYK9-734, restructure). A composite FK needs a matching
+-- multi-column unique constraint on the parent side; (id, show_id) is unique
+-- on entries because id alone already is.
+ALTER TABLE public.entries ADD CONSTRAINT entries_id_show_id_key UNIQUE (id, show_id);
+CREATE TABLE public.some_composite_ledger (
+  id uuid PRIMARY KEY, entry_id uuid, show_id uuid,
+  CONSTRAINT some_composite_ledger_entry_fk
+    FOREIGN KEY (entry_id, show_id) REFERENCES public.entries(id, show_id) ON DELETE CASCADE);
+INSERT INTO public.dogs (id, name, owner_id) VALUES
+  ('00000000-0000-0000-0000-0000000000db', 'ZZ Walk Dog 2026-09-27 0305 #1', '00000000-0000-0000-0000-00000000e001');
+INSERT INTO public.entries VALUES
+  ('00000000-0000-0000-0000-0000000000ab', '00000000-0000-0000-0000-0000000000db',
+   '00000000-0000-0000-0000-000000000011', NULL, 'pending', 30);
+INSERT INTO public.some_composite_ledger VALUES
+  ('00000000-0000-0000-0000-0000000000fb', '00000000-0000-0000-0000-0000000000ab',
+   '00000000-0000-0000-0000-000000000011');

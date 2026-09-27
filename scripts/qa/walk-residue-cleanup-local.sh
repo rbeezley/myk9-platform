@@ -150,6 +150,20 @@ else
   fail "order with a LIKE-wildcard-shaped session id refused"; printf '%s\n' "$out" | tail -3
 fi
 
+# 12c. A composite (multi-column) foreign key referencing a cleanup target
+#      table is refused loudly, naming the constraint and table, before any
+#      delete or update runs (owner decision, MYK9-734, restructure: composite
+#      FKs are unsupported by this script, so it must refuse rather than
+#      silently skip them the way the single-column survey's
+#      array_length(c.conkey, 1) = 1 filter otherwise would).
+before_i="$(counts)"
+out="$(run -v token='2026-09-27 0305')"
+if grep -q 'composite (multi-column) foreign key' <<<"$out" && grep -q 'some_composite_ledger' <<<"$out" && [ "$(counts)" = "$before_i" ]; then
+  pass "composite foreign key referencing a cleanup target table is refused before any delete or update"
+else
+  fail "composite foreign key refused"; printf '%s\n' "$out" | tail -3
+fi
+
 # 13. A token that matches nothing is refused.
 out="$(run -v token='2030-01-01 0000')"
 if grep -q 'nothing to do' <<<"$out"; then pass "unknown token refused"; else fail "unknown token refused"; fi

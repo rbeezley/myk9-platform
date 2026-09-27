@@ -56,6 +56,11 @@
 --     entries, enrollments or orders it deletes holds a row for them. It reads
 --     those constraints from pg_constraint at run time, so a table added later
 --     is refused until this file records it, rather than destroyed unrecorded;
+--   * any foreign key into the dogs, entries, enrollments or orders it deletes
+--     is composite (more than one column). Composite FKs are unsupported --
+--     the survey above only ever inspects the constraint's first column, so a
+--     multi-column FK would pass unseen. This is a hard refusal, not something
+--     to extend automatically; supporting one is a deliberate by-hand change;
 --   * the hash does not match (apply mode).
 -- A NO ACTION / RESTRICT reference it does not clear fails the DELETE itself
 -- with a 23503, inside the same transaction, which is equally safe.
@@ -249,6 +254,30 @@ BEGIN
   IF v_n > 0 THEN
     RAISE EXCEPTION 'walk-residue-cleanup: order session(s) [%] are not a verified sandbox (cs_test_) Checkout session; this script only ever removes verified sandbox residue', v_ids;
   END IF;
+
+  -- Composite foreign keys are unsupported (owner decision, MYK9-734,
+  -- restructure after the survey below was found to silently skip them via
+  -- array_length(c.conkey, 1) = 1). The single-column survey only ever reads
+  -- conkey[1], so a multi-column foreign key into a cleanup target table
+  -- would never be surfaced by it and could be cascaded or set-null'd
+  -- unrecorded. Refuse loudly instead of guessing at multi-column semantics;
+  -- supporting a specific composite FK is a deliberate, by-hand extension of
+  -- this file, not something the survey infers on its own.
+  FOR r IN
+    SELECT format('%I.%I', cn.nspname, cc.relname) AS child,
+           c.conname AS constraint_name,
+           pc.relname AS parent
+    FROM pg_constraint c
+    JOIN pg_class cc ON cc.oid = c.conrelid
+    JOIN pg_namespace cn ON cn.oid = cc.relnamespace
+    JOIN pg_class pc ON pc.oid = c.confrelid
+    WHERE c.contype = 'f'
+      AND array_length(c.conkey, 1) > 1
+      AND c.confrelid IN ('public.dogs'::regclass, 'public.entries'::regclass,
+                          'public.enrollments'::regclass, 'public.stripe_orders'::regclass)
+  LOOP
+    RAISE EXCEPTION 'walk-residue-cleanup: constraint % on % is a composite (multi-column) foreign key referencing %; composite foreign keys are unsupported by this script and it must be extended by hand', r.constraint_name, r.child, r.parent;
+  END LOOP;
 
   -- Every other cascading or set-null reference into what this run deletes.
   FOR r IN

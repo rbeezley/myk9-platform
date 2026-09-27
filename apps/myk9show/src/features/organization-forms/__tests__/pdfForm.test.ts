@@ -38,9 +38,9 @@ describe('fillPdfForm — WinAnsi-unencodable characters (MYK9-846)', () => {
     });
 
     const form = (await PDFDocument.load(filledBytes)).getForm();
-    expect(
-      form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName).getText()
-    ).toBe('Lukasz ');
+    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.chairpersonName).getText()).toBe(
+      'Lukasz '
+    );
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName).getText()).toBe(
       'Zoë Müller Club'
     );

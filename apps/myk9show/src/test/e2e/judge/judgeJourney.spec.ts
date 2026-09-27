@@ -11,8 +11,8 @@ import { signInAsJudge } from '../uat/shared/auth';
  *
  * MYK9-850: the mock-data check-in dashboard and gate steward screen were
  * deleted (no nav path ever reached them); `/judge/check-in` now redirects
- * to the judge's own assignments dashboard at `/judge/dashboard` (bare
- * `/at-show` has no showId and isn't itself a registered route).
+ * to `/`, the role-aware home, because the retired route also admitted
+ * stewards and `/judge/dashboard` is judge/admin only.
  *
  * NOT covered here — "assignment acceptance": judge_assignments supports an
  * 'invited' status (see assignmentStatus.ts ACTIVE_JUDGE_ASSIGNMENT_STATUSES), but

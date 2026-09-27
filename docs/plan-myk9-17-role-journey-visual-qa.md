@@ -14,7 +14,7 @@ browser-health checks explicit and runnable from a focused local command.
 - Exhibitor: Browse Shows → Show Detail → registration guardrails.
 - Secretary: setup/workbench and Entry Management.
 - Judge/steward: `/judge/dashboard`. (`/judge/check-in` was mock-data-only
-  and was deleted, MYK9-850; it now redirects to `/judge/dashboard`.)
+  and was deleted, MYK9-850; it now redirects to `/`, the role-aware home.)
 - Admin: concise support/management path.
 - Viewports: phone, tablet, and desktop; themes: light and dark.
 - Checks: render, horizontal overflow, console/page errors, modal feedback, and

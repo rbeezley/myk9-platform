@@ -267,8 +267,11 @@ export function ProfileSection() {
         <CardContent>
           {roleBadges.length > 0 ? (
             <div className="flex flex-wrap gap-2" aria-label="Assigned roles">
-              {roleBadges.map(label => (
-                <Badge key={label} variant="secondary">
+              {roleBadges.map((label, index) => (
+                // Two distinct clubs can share a display name, so the same
+                // label text can legitimately appear twice — index keeps the
+                // key unique without changing the label itself.
+                <Badge key={`${label}-${index}`} variant="secondary">
                   {label}
                 </Badge>
               ))}

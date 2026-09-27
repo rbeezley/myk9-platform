@@ -36,6 +36,26 @@ describe('describeUserRoleBadges', () => {
     expect(labels).toEqual(['Club Admin: Alpha Club', 'Club Admin: Beta Club']);
   });
 
+  it('keeps both badges when two distinct clubs happen to share the same name', () => {
+    // Regression guard: labels used to be deduped by the RENDERED string
+    // ("Secretary: X Club"), which silently collapsed two different clubs
+    // with the same name into one badge even though the grants differ.
+    // Dedup must be keyed by club id.
+    const labels = describeUserRoleBadges(
+      [UserRole.SECRETARY],
+      [
+        { role: { name: 'secretary' }, scope_type: 'club', scope_id: 'club-1', is_active: true },
+        { role: { name: 'secretary' }, scope_type: 'club', scope_id: 'club-2', is_active: true },
+      ],
+      new Map([
+        ['club-1', 'Companion Dog Club'],
+        ['club-2', 'Companion Dog Club'],
+      ])
+    );
+
+    expect(labels).toEqual(['Secretary: Companion Dog Club', 'Secretary: Companion Dog Club']);
+  });
+
   it('falls back to the bare role label when no matching club scope is known yet', () => {
     const labels = describeUserRoleBadges([UserRole.SECRETARY], [], new Map());
 

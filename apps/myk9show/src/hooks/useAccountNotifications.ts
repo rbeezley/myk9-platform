@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ensureError } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useNotificationDelivery } from '@/hooks/useNotificationDelivery';
+import { useNotificationStore } from '@/store/notificationStore';
 import {
   buildAccountNotificationPayload,
   type AccountNotificationRow,
@@ -21,10 +23,18 @@ const ROLE_CHANGING_TYPES = new Set(['club_access_approved']);
  * RBAC refresh so the sidebar reflects a new role grant without a sign-out.
  * Ephemeral by design, matching every other alert in the store: a row is
  * marked read immediately after delivery, so a reload shows it once.
+ *
+ * Goes straight to the store's `addAlert` rather than
+ * `useNotificationDelivery().deliver()` — `deliver` suppresses (and never
+ * calls `addAlert`) when the user's master notification toggle is off or
+ * they're mid-ring, and this hook has no other consumer of the durable row:
+ * suppressed here means marked read and gone forever, silently defeating the
+ * one thing MYK9-859 exists to do. An account-level notice like "your club
+ * was approved" isn't the ambient show-day chatter that toggle is for.
  */
 export function useAccountNotifications(): void {
   const { userWithRoles, refreshPermissions } = useAuthContext();
-  const { deliver } = useNotificationDelivery();
+  const addAlert = useNotificationStore(s => s.addAlert);
   const authUserId = userWithRoles?.id ?? null;
   const deliveredRef = useRef<Set<string>>(new Set());
 
@@ -54,17 +64,29 @@ export function useAccountNotifications(): void {
     let shouldRefreshPermissions = false;
     for (const row of unseen) {
       deliveredRef.current.add(row.id);
-      deliver(buildAccountNotificationPayload(row));
+      addAlert(buildAccountNotificationPayload(row));
       if (ROLE_CHANGING_TYPES.has(row.type)) shouldRefreshPermissions = true;
     }
     if (shouldRefreshPermissions) refreshPermissions();
 
+    const authUserIdForUpdate = authUserId as string;
     void supabase
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
+      .eq('user_id', authUserIdForUpdate)
       .in(
         'id',
         unseen.map(row => row.id)
-      );
-  }, [rows, deliver, refreshPermissions]);
+      )
+      .then(({ error }) => {
+        if (error) {
+          logger.error(
+            'Failed to mark account notifications read',
+            'notifications',
+            {},
+            ensureError(error)
+          );
+        }
+      });
+  }, [rows, addAlert, refreshPermissions, authUserId]);
 }

@@ -36,22 +36,28 @@ export function describeUserRoleBadges(
       continue;
     }
 
-    const scopedLabels = new Set<string>();
+    // Keyed by club id, not the rendered label — two distinct clubs can
+    // legitimately share a display name, and a label-keyed Set would
+    // silently collapse that into one badge even though the grants differ.
+    const scopedClubIds = new Set<string>();
     for (const entry of rbacRoleScopes) {
       if (
         entry.is_active === false ||
         entry.role?.name !== role ||
         entry.scope_type !== 'club' ||
-        !entry.scope_id
+        !entry.scope_id ||
+        !clubNameById.has(entry.scope_id)
       ) {
         continue;
       }
-      const clubName = clubNameById.get(entry.scope_id);
-      if (clubName) scopedLabels.add(`${roleLabel}: ${clubName}`);
+      scopedClubIds.add(entry.scope_id);
     }
 
-    if (scopedLabels.size > 0) {
-      labels.push(...[...scopedLabels].sort());
+    if (scopedClubIds.size > 0) {
+      const scopedLabels = [...scopedClubIds]
+        .map(clubId => `${roleLabel}: ${clubNameById.get(clubId)}`)
+        .sort();
+      labels.push(...scopedLabels);
     } else {
       labels.push(roleLabel);
     }

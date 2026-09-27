@@ -2,24 +2,32 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAccountNotifications } from '../useAccountNotifications';
 
-const { mockDeliver, mockRefreshPermissions, mockUseQueryResult, mockUpdate, mockIn } = vi.hoisted(
-  () => {
-    const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
-    return {
-      mockDeliver: vi.fn(),
-      mockRefreshPermissions: vi.fn(),
-      mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
-      mockUpdate: vi.fn(() => ({ in: mockIn })),
-      mockIn,
-    };
-  }
-);
+const {
+  mockAddAlert,
+  mockRefreshPermissions,
+  mockUseQueryResult,
+  mockUpdate,
+  mockEq,
+  mockIn,
+} = vi.hoisted(() => {
+  const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
+  const mockEq = vi.fn(() => ({ in: mockIn }));
+  return {
+    mockAddAlert: vi.fn(),
+    mockRefreshPermissions: vi.fn(),
+    mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
+    mockUpdate: vi.fn(() => ({ eq: mockEq })),
+    mockEq,
+    mockIn,
+  };
+});
 
 vi.mock('@/lib/supabase', () => ({
   supabase: { from: vi.fn(() => ({ update: mockUpdate })) },
 }));
-vi.mock('@/hooks/useNotificationDelivery', () => ({
-  useNotificationDelivery: () => ({ deliver: mockDeliver }),
+vi.mock('@/store/notificationStore', () => ({
+  useNotificationStore: (selector: (state: { addAlert: typeof mockAddAlert }) => unknown) =>
+    selector({ addAlert: mockAddAlert }),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -51,7 +59,7 @@ describe('useAccountNotifications', () => {
 
     renderHook(() => useAccountNotifications());
 
-    expect(mockDeliver).toHaveBeenCalledWith({
+    expect(mockAddAlert).toHaveBeenCalledWith({
       id: 'notif-1',
       type: 'announcement',
       title: 'Account update',
@@ -70,23 +78,28 @@ describe('useAccountNotifications', () => {
     expect(mockRefreshPermissions).toHaveBeenCalledOnce();
   });
 
-  it('marks delivered rows read so a later poll does not redeliver them', () => {
+  it('marks delivered rows read, scoped to the signed-in user, so a later poll does not redeliver them', () => {
     mockUseQueryResult.mockReturnValue({ data: [clubApprovedRow] });
 
     renderHook(() => useAccountNotifications());
 
     expect(mockUpdate).toHaveBeenCalledWith({ read_at: expect.any(String) });
+    expect(mockEq).toHaveBeenCalledWith('user_id', 'auth-user-1');
     expect(mockIn).toHaveBeenCalledWith('id', ['notif-1']);
   });
 
-  it('does not redeliver the same row across rerenders', () => {
-    mockUseQueryResult.mockReturnValue({ data: [clubApprovedRow] });
+  it('does not redeliver the same row when a later poll returns it again unread', () => {
+    // Each call returns a NEW array/object (a fresh poll response with the
+    // same still-unread row), so the effect's `rows` dependency actually
+    // changes identity across rerenders and the deliveredRef guard — not
+    // React's own effect-dependency memoization — is what's under test.
+    mockUseQueryResult.mockImplementation(() => ({ data: [{ ...clubApprovedRow }] }));
 
     const { rerender } = renderHook(() => useAccountNotifications());
     rerender();
     rerender();
 
-    expect(mockDeliver).toHaveBeenCalledTimes(1);
+    expect(mockAddAlert).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when there are no unread rows', () => {
@@ -94,7 +107,7 @@ describe('useAccountNotifications', () => {
 
     renderHook(() => useAccountNotifications());
 
-    expect(mockDeliver).not.toHaveBeenCalled();
+    expect(mockAddAlert).not.toHaveBeenCalled();
     expect(mockRefreshPermissions).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
   });

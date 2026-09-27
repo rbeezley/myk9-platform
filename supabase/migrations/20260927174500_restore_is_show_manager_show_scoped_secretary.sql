@@ -106,6 +106,15 @@ COMMENT ON FUNCTION public.is_show_manager() IS
   'depend on it. Uses is_any_secretary() (any granularity) rather than is_trial_secretary() '
   '(club-wide only since 20260830210000) so a show-scoped secretary is not excluded.';
 
+-- `CREATE OR REPLACE` does not reset existing grants, so this restates the SAME decision
+-- 20260611120000 already made (there, `REVOKE ALL ... FROM public`) rather than changing it —
+-- required explicitly here because this migration postdates
+-- 20260728120000_advisor_grant_regrowth_guard.sql, so migrationGrantDecisionContract.test.ts
+-- checks every function this file creates/replaces for its own anon+authenticated decision.
+REVOKE ALL ON FUNCTION public.is_show_manager() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_show_manager() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_show_manager() TO authenticated;
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

@@ -244,6 +244,52 @@ describe('computeShowDeskPendingSignals', () => {
     expect(signalsNoDate.find(s => s.id === 'entries-waiting-checkin')?.count).toBe(2);
   });
 
+  it('MYK9-842: emits NO check-in signal (not just a zero count) when unchecked entries exist only on a future day', () => {
+    // Regression: countEntriesWaitingCheckIn used to count every unchecked
+    // entry regardless of trial date, so a multi-day show with entries only
+    // on a future/setup day still rendered "Check in N entries" -- a signal
+    // the roster's own checkInEligibility (gated on trial date) could never
+    // actually clear. The chip must not exist at all in this case, not just
+    // report a count of 0.
+    const futureTrial = { ...trial, id: 'trial-2', trialDate: '2026-05-16' } as SyncableTrial;
+    const futureClass: ShowMapClassInput = {
+      id: 'class-future',
+      trialId: 'trial-2',
+      name: 'Interior Novice A',
+      status: 'Scheduled',
+    };
+    const rawEntries = [
+      {
+        id: 'e1',
+        class_id: 'class-future',
+        entry_status: 'accepted',
+        check_in_status: 'no-status',
+      },
+      {
+        id: 'e2',
+        class_id: 'class-future',
+        entry_status: 'confirmed',
+        check_in_status: null,
+      },
+    ];
+    const t = buildShowMapTree({
+      show,
+      trials: [trial, futureTrial],
+      classes: [activeClass, futureClass],
+      entries: rawEntries,
+    });
+
+    const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
+      tree: t,
+      entries: rawEntries,
+      currentDate: new Date('2026-05-15T15:00:00.000Z'),
+    });
+
+    expect(signals.find(s => s.id === 'entries-waiting-checkin')).toBeUndefined();
+    expect(signals.some(s => s.id === 'entries-waiting-checkin')).toBe(false);
+  });
+
   it('emits a signal when a class needs judge signature', () => {
     const t = tree(
       [

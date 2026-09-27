@@ -14,7 +14,7 @@ import React from 'react';
 import type { ResultCardModel } from '@/features/result-card';
 import type { UserEntriesSource } from '@/services/database/entries';
 import type { ShowMoneyKind } from './showMoneyState';
-import { groupEntriesByShow } from './groupEntriesByShow';
+import { buildShowGroupIndex, groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
@@ -41,6 +41,14 @@ export function useMyShowGroups(
 export interface MyShowsListProps {
   filteredEntries: MyEntry[];
   /**
+   * The account's FULL, unfiltered order set — used only so the paid
+   * confirmation strip can sum a show's paid entries without shifting under
+   * the When/Status filters (MYK9-804). Defaults to `filteredEntries`, which
+   * reproduces the pre-fix (filter-dependent) behavior for every caller that
+   * has not loaded a separate unfiltered set.
+   */
+  allOrders?: MyEntry[] | undefined;
+  /**
    * Where the rows came from. Passed straight through to each show group, which
    * hands it to the one money derivation. This list reads it for nothing.
    */
@@ -66,6 +74,7 @@ export interface MyShowsListProps {
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
   filteredEntries,
+  allOrders: allOrdersProp,
   source,
   selectedStatus = 'any',
   selfCheckinByClassId,
@@ -79,6 +88,10 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   now: nowProp,
 }) => {
   const groups = useMyShowGroups(filteredEntries, selectedStatus);
+  const allOrders = allOrdersProp ?? filteredEntries;
+  // Indexed once per unfiltered-set change, not per show group, so a page
+  // with many shows still builds it a single time per render pass.
+  const fullShowIndex = React.useMemo(() => buildShowGroupIndex(allOrders), [allOrders]);
   // One instant for the whole render pass, so the day gate, the money state
   // and the paid-strip window cannot disagree mid-list. Captured in state
   // rather than a `useMemo` — a `new Date()` inside a memo is a dependency
@@ -92,6 +105,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         <li key={group.key}>
           <MyShowGroupCard
             group={group}
+            allOrders={fullShowIndex.get(group.key)?.orders ?? group.orders}
             source={source}
             now={now}
             selfCheckinByClassId={selfCheckinByClassId}

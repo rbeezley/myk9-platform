@@ -1,30 +1,39 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId, useRosterIsOwnDogsOnly } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useBrowseDogsData, type DogFilters } from '@/hooks/useBrowseDogsData';
+import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
 import { BlockedDogDeleteDialog } from '@/components/dogs/browse/BlockedDogDeleteDialog';
 import { useBlockedDogDeletes } from '@/components/dogs/browse/useBlockedDogDeletes';
+import {
+  activeDogViewId,
+  buildDogViews,
+  dogViewFilters,
+} from '@/components/dogs/browse/dogBrowseViews';
+import { buildDogFilterFields } from '@/components/dogs/browse/dogBrowseFilterFields';
+import type { DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ListControls } from '@/components/common/ListControls';
-import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPagination } from '@/components/common/ListPagination';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+
+const DOG_NOUN = ['dog', 'dogs'] as const;
 
 /**
  * One pagination contract per dataset, not one per view mode (MYK9-218). The
@@ -69,6 +78,7 @@ const BrowseDogsPage: React.FC = () => {
     hasActiveFilters,
     clearAllFilters,
     availableBreeds,
+    availableOwners,
   } = useBrowseDogsData();
 
   // `useRoleBasedDogs` returns [] until `userWithRoles` resolves, while
@@ -112,34 +122,6 @@ const BrowseDogsPage: React.FC = () => {
   // (MYK9-584). See useBlockedDogDeletes for the full reasoning.
   const blockedDeletes = useBlockedDogDeletes(dogSelection.clearSelection);
 
-  // FilterChips definitions
-  const chipFilters: ChipFilterDefinition[] = useMemo(
-    () => [
-      {
-        key: 'breed',
-        label: 'Breed',
-        options: availableBreeds.map(b => ({ label: b, value: b })),
-      },
-      {
-        key: 'sex',
-        label: 'Sex',
-        options: [
-          { label: 'Male', value: 'male' },
-          { label: 'Female', value: 'female' },
-        ],
-      },
-    ],
-    [availableBreeds]
-  );
-
-  // Bridge chip filter values from existing filters state
-  const chipFilterValues = useMemo(() => {
-    const values: Record<string, string> = {};
-    if (filters.breed !== 'all') values.breed = filters.breed;
-    if (filters.sex !== 'all') values.sex = filters.sex;
-    return values;
-  }, [filters.breed, filters.sex]);
-
   // Every filter change goes through here so the card view cannot be left
   // stranded on a page number the narrowed result set no longer has. Resetting
   // on the event rather than in an effect keeps the page a plain function of
@@ -152,13 +134,6 @@ const BrowseDogsPage: React.FC = () => {
     [setFilters]
   );
 
-  const handleChipFilterChange = useCallback(
-    (key: string, value: string | null) => {
-      applyFilters(prev => ({ ...prev, [key]: value || 'all' }));
-    },
-    [applyFilters]
-  );
-
   const handleSearchChange = useCallback(
     (value: string) => applyFilters(prev => ({ ...prev, search: value })),
     [applyFilters]
@@ -168,6 +143,41 @@ const BrowseDogsPage: React.FC = () => {
     setCardPage(1);
     clearAllFilters();
   }, [clearAllFilters]);
+
+  // Owner earns its place in the filter menu only where the Owner table/card
+  // column does — an own-dogs-only roster (exhibitor, judge, steward,
+  // chairman) has one owner: the viewer (MYK9-219).
+  const showOwnerField = !ownDogsOnly;
+
+  // `showOwnerField` can flip false mid-session (identity resolving after a
+  // cold/offline boot, or a role change) while an Owner filter from a shared
+  // link or an earlier staff view is still active. Without this, the field
+  // simply disappears from the menu while `filters.owner` keeps narrowing the
+  // roster, and "Clear all" is the only way out (Codex review, PR #2561).
+  useEffect(() => {
+    if (!showOwnerField && filters.owner !== 'all') {
+      setFilters(prev => ({ ...prev, owner: 'all' }));
+    }
+  }, [showOwnerField, filters.owner, setFilters]);
+
+  const dogViews = useMemo(() => buildDogViews(dogs), [dogs]);
+  const activeViewId = activeDogViewId(filters);
+  const handleSelectView = useCallback(
+    (viewId: string) => applyFilters(prev => dogViewFilters(viewId, prev)),
+    [applyFilters]
+  );
+
+  const filterFields = useMemo(
+    () =>
+      buildDogFilterFields({
+        filters,
+        availableBreeds,
+        availableOwners,
+        showOwnerField,
+        onChange: patch => applyFilters(prev => ({ ...prev, ...patch })),
+      }),
+    [filters, availableBreeds, availableOwners, showOwnerField, applyFilters]
+  );
 
   // Clamped rather than trusted: the roster can shrink underneath a page
   // number from a background sync as well as from a filter, and an out-of-range
@@ -338,23 +348,43 @@ const BrowseDogsPage: React.FC = () => {
             showTitle
           />
 
-          <ListControls
-            search={filters.search}
-            onSearchChange={handleSearchChange}
-            searchPlaceholder={
-              isExhibitorOnly
-                ? 'Search your dogs by name or breed...'
-                : 'Search dogs by name, breed, or owner...'
-            }
-            filters={chipFilters}
-            filterValues={chipFilterValues}
-            onFilterChange={handleChipFilterChange}
-            {...(isExhibitorOnly ? {} : { viewMode, onViewModeChange: setViewMode })}
-            resultsShowing={filteredDogs.length}
-            resultsTotal={dogs.length}
-            filtered={hasActiveFilters}
-            entityName={dogs.length === 1 ? 'dog' : 'dogs'}
-          />
+          <div className="space-y-3">
+            <ListViewTabs
+              label="Dog views"
+              views={dogViews}
+              activeId={activeViewId}
+              onSelect={handleSelectView}
+            />
+            <div className="flex flex-wrap items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <ListFilterBar
+                  searchValue={filters.search}
+                  onSearchChange={handleSearchChange}
+                  searchPlaceholder={
+                    isExhibitorOnly
+                      ? 'Search your dogs by name or breed...'
+                      : 'Search dogs by name, breed, or owner...'
+                  }
+                  fields={filterFields}
+                  {...(hasActiveFilters ? { onClearAll: handleClearAllFilters } : {})}
+                />
+              </div>
+              {!isExhibitorOnly && (
+                <ViewToggle
+                  modes={CARD_TABLE_MODES}
+                  active={viewMode}
+                  onChange={setViewMode}
+                  className="shrink-0"
+                />
+              )}
+            </div>
+            <ListResultLine
+              shown={filteredDogs.length}
+              total={dogs.length}
+              noun={DOG_NOUN}
+              filtered={hasActiveFilters}
+            />
+          </div>
 
           {/* Dog Cards / Table */}
           {renderContent()}

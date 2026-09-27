@@ -1,5 +1,21 @@
+import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
+import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryFormTrial, EntryFormEntry, EntryFormDog, GridCell } from './entryFormTypes';
 import { AKC_SCENT_WORK_ELEMENTS } from './entryFormTypes';
+
+/**
+ * MYK9-847: an entry that will never produce a normal run (withdrawn,
+ * scratched, not accepted) or that has been superseded by a move-up
+ * (`entry_status = 'moved'`) is not actually entered in that class anymore —
+ * checking it on the AKC class selection grid would print a class the dog is
+ * not really running. Mirrors `isActiveGridEntry` in
+ * `ukcNoseworkEntryFormGrid.ts` (MYK9-845), reusing the same predicates
+ * rather than inventing a new status rule for this form too.
+ */
+function isActiveGridEntry(entry: Pick<EntryFormEntry, 'entryStatus'>): boolean {
+  if (isSupersededMoveUpEntry(entry)) return false;
+  return !isRemovedStatus(getEntryStatusKind(entry.entryStatus));
+}
 
 /**
  * Build a class selection grid: Map<trialId, Map<element, GridCell>>
@@ -19,7 +35,7 @@ export function buildClassGrid(
     grid.set(trial.id, elementMap);
   }
 
-  for (const entry of entries) {
+  for (const entry of entries.filter(isActiveGridEntry)) {
     const elementMap = grid.get(entry.trialId);
     if (!elementMap) continue;
 

@@ -123,7 +123,7 @@ describe('derivePaidStrip', () => {
     const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen);
 
     expect(strip).toEqual({
-      orderIds: ['e1'],
+      paymentIds: ['c1'],
       dogNames: ['Rex'],
       amountCents: 4500,
       date: PAID_AT,
@@ -183,14 +183,14 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
-      orderIds: ['e1', 'e2', 'e3'],
+      paymentIds: ['c1', 'c2', 'c3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
       date: later,
     });
   });
 
-  it('drops a dismissed order out of the fold and retires the strip when none remain', () => {
+  it('drops a dismissed payment out of the fold and retires the strip when none remain', () => {
     const orders = groupEntriesByOrder(
       [
         makeRow({ id: 'e1', registrationId: 'r1', dogId: 'd1', dogName: 'Rex' }),
@@ -204,14 +204,14 @@ describe('derivePaidStrip', () => {
       ],
       NOW
     );
-    markPaidStripSeen('e1');
+    markPaidStripSeen('c1');
 
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
-      orderIds: ['e2'],
+      paymentIds: ['c2'],
       dogNames: ['Scout'],
     });
 
-    markPaidStripSeen('e2');
+    markPaidStripSeen('c2');
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toBeNull();
   });
 
@@ -232,8 +232,8 @@ describe('derivePaidStrip', () => {
 
     // The component's in-memory dismissal set still hides it for this load.
     const dismissed = new Set<string>();
-    markPaidStripSeen('e1');
-    dismissed.add('e1');
+    markPaidStripSeen('c1');
+    dismissed.add('c1');
     expect(
       derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))
     ).toBeNull();
@@ -326,5 +326,250 @@ describe('derivePaidStrip', () => {
     );
 
     expect(derivePaidStrip(orders, NOW, neverSeen)?.dogNames).toEqual(['Rex', 'Scout']);
+  });
+});
+
+// MYK9-804 round 2: `useMyEntriesData` folds a class row's own payment status
+// against its order's registration (`resolveEffectivePaymentStatus`), which
+// deliberately downgrades a truly paid row to PENDING whenever a sibling
+// entry on the SAME registration still owes money. That fold is correct for
+// the display badge, but it made a genuinely paid class disappear from this
+// banner. `rawPaymentStatus` carries the row's own, never-folded fact.
+describe('derivePaidStrip — reads the row-level ground truth, not the folded display status', () => {
+  it('counts a row whose folded display status was downgraded to PENDING by a pending sibling', () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          dogName: 'Ranger',
+          classes: [
+            makeClass({
+              id: 'c-ranger-paid',
+              fee: 30,
+              // The order/registration is PENDING overall (a sibling entry
+              // still owes), so `paymentStatus` was folded down — but the
+              // row's OWN entries.payment_status really is paid.
+              paymentStatus: PaymentStatus.PENDING,
+              rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+            }),
+          ],
+        }),
+      ],
+      NOW
+    );
+
+    expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
+      paymentIds: ['c-ranger-paid'],
+      dogNames: ['Ranger'],
+      amountCents: 3000,
+      date: PAID_AT,
+    });
+  });
+
+  it('excludes a row whose raw status is not paid, even if its folded display status is', () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          classes: [
+            makeClass({
+              paymentStatus: PaymentStatus.PAID_ONLINE,
+              rawPaymentStatus: PaymentStatus.PENDING,
+            }),
+          ],
+        }),
+      ],
+      NOW
+    );
+
+    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+  });
+
+  it('falls back to the display status when no raw status was carried (legacy/hand-built rows)', () => {
+    const orders = groupEntriesByOrder(
+      [makeRow({ classes: [makeClass({ paymentStatus: PaymentStatus.PAID_ONLINE })] })],
+      NOW
+    );
+
+    expect(derivePaidStrip(orders, NOW, neverSeen)).not.toBeNull();
+  });
+
+  it('counts only the paid class on a dog that also carries an unpaid sibling class in the same order', () => {
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          dogName: 'Ranger',
+          totalFee: 60,
+          classes: [
+            makeClass({
+              id: 'c-ranger-paid',
+              fee: 30,
+              paymentStatus: PaymentStatus.PENDING,
+              rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+            }),
+            makeClass({
+              id: 'c-ranger-unpaid',
+              fee: 30,
+              paymentStatus: PaymentStatus.PENDING,
+              rawPaymentStatus: PaymentStatus.PENDING,
+            }),
+          ],
+        }),
+      ],
+      NOW
+    );
+
+    const strip = derivePaidStrip(orders, NOW, neverSeen);
+    expect(strip?.paymentIds).toEqual(['c-ranger-paid']);
+    expect(strip?.dogNames).toEqual(['Ranger']);
+    expect(strip?.amountCents).toBe(3000);
+  });
+});
+
+// MYK9-804's exact reported scenario: 7 paid x $30 across Cooper, Scout,
+// Willow and Ranger; Ranger, Juni and Maple carry 3 unpaid $30 classes. The
+// account holds TWO registrations for the one show — one fully paid (Cooper,
+// Scout, Willow), one mixed (Ranger's paid class folds to PENDING behind its
+// own unpaid sibling and Juni/Maple's unpaid classes) — so this also exercises
+// the row-level ground truth across an order boundary, not just within one.
+describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
+  /** A $30 class row already paid, both in the fold and at the row level. */
+  function paidCls(id: string): EntryClass {
+    return makeClass({
+      id,
+      fee: 30,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+  }
+  /**
+   * A $30 class row genuinely unpaid at the row level — `paymentStatus` is
+   * also PENDING, matching what a truly-pending row's fold always produces.
+   */
+  function unpaidCls(id: string): EntryClass {
+    return makeClass({
+      id,
+      fee: 30,
+      paymentStatus: PaymentStatus.PENDING,
+      rawPaymentStatus: PaymentStatus.PENDING,
+    });
+  }
+  /**
+   * A $30 class row that IS paid at the row level, but whose registration is
+   * pending (a sibling entry still owes) — `resolveEffectivePaymentStatus`
+   * folds `paymentStatus` down to PENDING while `rawPaymentStatus` keeps the
+   * truth. This is Ranger's Interior Advanced Preliminary.
+   */
+  function paidButFoldedCls(id: string): EntryClass {
+    return makeClass({
+      id,
+      fee: 30,
+      paymentStatus: PaymentStatus.PENDING,
+      rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+  }
+
+  function scenarioOrders() {
+    return groupEntriesByOrder(
+      [
+        makeRow({
+          id: 'e-cooper',
+          registrationId: 'r-main',
+          dogId: 'd-cooper',
+          dogName: 'Cooper',
+          classes: [paidCls('c-cooper-hda')],
+        }),
+        makeRow({
+          id: 'e-scout-1',
+          registrationId: 'r-main',
+          dogId: 'd-scout',
+          dogName: 'Scout',
+          classes: [paidCls('c-scout-cna')],
+        }),
+        makeRow({
+          id: 'e-scout-2',
+          registrationId: 'r-main',
+          dogId: 'd-scout',
+          dogName: 'Scout',
+          classes: [paidCls('c-scout-inb')],
+        }),
+        makeRow({
+          id: 'e-willow-1',
+          registrationId: 'r-main',
+          dogId: 'd-willow',
+          dogName: 'Willow',
+          classes: [paidCls('c-willow-cna')],
+        }),
+        makeRow({
+          id: 'e-willow-2',
+          registrationId: 'r-main',
+          dogId: 'd-willow',
+          dogName: 'Willow',
+          classes: [paidCls('c-willow-ia')],
+        }),
+        makeRow({
+          id: 'e-willow-3',
+          registrationId: 'r-main',
+          dogId: 'd-willow',
+          dogName: 'Willow',
+          classes: [paidCls('c-willow-iap')],
+        }),
+        // Ranger's paid class: folded to PENDING by its own unpaid sibling
+        // below, on the SAME registration — the exact MYK9-495 direction that
+        // hid it from this banner (round 2).
+        makeRow({
+          id: 'e-ranger-1',
+          registrationId: 'r-mixed',
+          dogId: 'd-ranger',
+          dogName: 'Ranger',
+          classes: [paidButFoldedCls('c-ranger-iap')],
+        }),
+        makeRow({
+          id: 'e-ranger-2',
+          registrationId: 'r-mixed',
+          dogId: 'd-ranger',
+          dogName: 'Ranger',
+          classes: [unpaidCls('c-ranger-unpaid')],
+        }),
+        makeRow({
+          id: 'e-juni',
+          registrationId: 'r-mixed',
+          dogId: 'd-juni',
+          dogName: 'Juni',
+          classes: [unpaidCls('c-juni')],
+        }),
+        makeRow({
+          id: 'e-maple',
+          registrationId: 'r-mixed',
+          dogId: 'd-maple',
+          dogName: 'Maple',
+          classes: [unpaidCls('c-maple')],
+        }),
+      ],
+      NOW
+    );
+  }
+
+  it('states $210 across 7 paid classes, naming all four paid dogs', () => {
+    const strip = derivePaidStrip(scenarioOrders(), NOW, neverSeen);
+
+    expect(strip?.amountCents).toBe(21000);
+    expect(strip?.dogNames).toEqual(['Cooper', 'Scout', 'Willow', 'Ranger']);
+    expect(strip?.paymentIds).toHaveLength(7);
+  });
+
+  it('is unaffected by which subset of the show a filter hands it — same total either way', () => {
+    const fullOrders = scenarioOrders();
+    // A Status/When filter that narrowed the visible cards to only Ranger's
+    // registration must not change what the FULL order set says was paid.
+    const rangerOnly = fullOrders.filter(order => order.registrationId === 'r-mixed');
+
+    const full = derivePaidStrip(fullOrders, NOW, neverSeen);
+    const stillFull = derivePaidStrip(fullOrders, NOW, neverSeen);
+    expect(full).toEqual(stillFull);
+    expect(full?.amountCents).toBe(21000);
+
+    // Sanity: the narrowed subset alone would have under-counted, which is
+    // exactly why the caller must always pass the FULL set, never a filtered
+    // one — see `MyShowGroup.tsx`'s `allOrders` prop.
+    expect(derivePaidStrip(rangerOnly, NOW, neverSeen)?.amountCents).toBe(3000);
   });
 });

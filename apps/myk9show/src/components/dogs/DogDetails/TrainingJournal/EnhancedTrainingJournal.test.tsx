@@ -132,6 +132,33 @@ describe('EnhancedTrainingJournal accessibility', () => {
   });
 });
 
+describe('EnhancedTrainingJournal search via the shared list toolkit', () => {
+  const other: TrainingEntry = { ...entry, id: 'entry-2', title: 'Interior search' };
+
+  it('narrows entries with the search box', () => {
+    render(<EnhancedTrainingJournal entries={[entry, other]} />);
+
+    fireEvent.change(screen.getByLabelText(/search training sessions/i), {
+      target: { value: 'container' },
+    });
+
+    expect(screen.getByText('Container drill')).toBeInTheDocument();
+    expect(screen.queryByText('Interior search')).not.toBeInTheDocument();
+  });
+
+  it('clears the search with "Clear all"', () => {
+    render(<EnhancedTrainingJournal entries={[entry, other]} />);
+
+    fireEvent.change(screen.getByLabelText(/search training sessions/i), {
+      target: { value: 'container' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+
+    expect(screen.getByText('Container drill')).toBeInTheDocument();
+    expect(screen.getByText('Interior search')).toBeInTheDocument();
+  });
+});
+
 describe('EnhancedTrainingJournal deletion recovery', () => {
   it('requires confirmation and identifies the entry being deleted', () => {
     const onDeleteEntry = vi.fn().mockResolvedValue(undefined);

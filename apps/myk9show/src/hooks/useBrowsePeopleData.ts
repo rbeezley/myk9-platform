@@ -44,9 +44,7 @@ export function filterPeople(people: User[], filters: PeopleFilters): User[] {
     const query = filters.search.toLowerCase().trim();
     result = result.filter(person => {
       const { fullName } = extractPersonName(person);
-      return (
-        fullName.toLowerCase().includes(query) || person.email?.toLowerCase().includes(query)
-      );
+      return fullName.toLowerCase().includes(query) || person.email?.toLowerCase().includes(query);
     });
   }
 

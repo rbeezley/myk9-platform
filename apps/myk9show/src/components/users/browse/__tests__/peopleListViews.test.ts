@@ -48,9 +48,9 @@ describe('peopleViewFilterPatch', () => {
 
 describe('activePeopleViewId', () => {
   it('matches a view whose role/location/login exactly agree, ignoring search', () => {
-    expect(
-      activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, role: 'judge', search: 'ada' })
-    ).toBe('judges');
+    expect(activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, role: 'judge', search: 'ada' })).toBe(
+      'judges'
+    );
     expect(activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, login: 'none' })).toBe('no-login');
   });
 

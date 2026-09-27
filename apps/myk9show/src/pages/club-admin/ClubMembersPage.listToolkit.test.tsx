@@ -116,10 +116,7 @@ describe('ClubMembersPage list toolkit', () => {
     render(<ClubMembersPage />);
     await screen.findByText('Ada Lovelace');
 
-    await user.type(
-      screen.getByPlaceholderText('Search members by name or email...'),
-      'grace'
-    );
+    await user.type(screen.getByPlaceholderText('Search members by name or email...'), 'grace');
 
     await waitFor(() => {
       expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();

@@ -87,10 +87,7 @@ const columns: ColumnDef<User>[] = [
   },
 ];
 
-export const PeopleTableView: React.FC<PeopleTableViewProps> = ({
-  people,
-  onSelectionChange,
-}) => {
+export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people, onSelectionChange }) => {
   const navigate = useNavigate();
 
   return (

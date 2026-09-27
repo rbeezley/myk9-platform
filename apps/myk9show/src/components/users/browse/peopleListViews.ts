@@ -10,7 +10,11 @@
 
 import type { ListView } from '@/components/list-toolkit';
 import type { User } from '@/types/user-types';
-import { DEFAULT_PEOPLE_FILTERS, filterPeople, type PeopleFilters } from '@/hooks/useBrowsePeopleData';
+import {
+  DEFAULT_PEOPLE_FILTERS,
+  filterPeople,
+  type PeopleFilters,
+} from '@/hooks/useBrowsePeopleData';
 
 type PeopleViewFilterPatch = Pick<PeopleFilters, 'role' | 'location' | 'login'>;
 

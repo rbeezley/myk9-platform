@@ -51,7 +51,11 @@ import { useClubMembershipRequests } from './useClubMembershipRequests';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
-import { buildClubMemberViews, filterClubMembers, type MemberStatusFilter } from './clubMemberListViews';
+import {
+  buildClubMemberViews,
+  filterClubMembers,
+  type MemberStatusFilter,
+} from './clubMemberListViews';
 import {
   AlertDialog,
   AlertDialogAction,

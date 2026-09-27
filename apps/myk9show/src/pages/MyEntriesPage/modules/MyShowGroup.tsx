@@ -37,6 +37,14 @@ import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
 export interface MyShowGroupProps {
   group: MyShowGroupModel;
   /**
+   * The show's FULL, unfiltered order set — always at least `group.orders`.
+   * Read only by the paid confirmation strip below, so its total and dog
+   * names never shift under the When/Status filters (MYK9-804). Everything
+   * else on this card renders from `group`, which still reflects the active
+   * filters.
+   */
+  allOrders: MyEntry[];
+  /**
    * Where the rows came from. Handed straight to `deriveShowMoneyState` and
    * read for nothing else here: this component renders money from `money.kind`
    * alone, which is what stops a fourth strip growing its own gate
@@ -61,6 +69,7 @@ export interface MyShowGroupProps {
 
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
+  allOrders,
   source,
   now,
   selfCheckinByClassId,
@@ -89,9 +98,9 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const paidStrip = moneyUnknown
     ? null
     : derivePaidStrip(
-        group.orders,
+        allOrders,
         now,
-        orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
+        paymentId => hasSeenPaidStrip(paymentId) || dismissed.has(paymentId)
       );
 
   const orderStates = group.orders.map(order => ({
@@ -289,10 +298,10 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             type="button"
             variant="ghost"
             onClick={() => {
-              for (const orderId of paidStrip.orderIds) markPaidStripSeen(orderId);
+              for (const paymentId of paidStrip.paymentIds) markPaidStripSeen(paymentId);
               setDismissed(prev => {
                 const next = new Set(prev);
-                for (const orderId of paidStrip.orderIds) next.add(orderId);
+                for (const paymentId of paidStrip.paymentIds) next.add(paymentId);
                 return next;
               });
             }}

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import type { MyPayment } from '@/features/payments/useMyPayments';
@@ -152,17 +152,17 @@ describe('ExhibitorPaymentsPage payment queries', () => {
     it('offers no control when every payment is in the same year', () => {
       render(<ExhibitorPaymentsPage />);
       expect(
-        screen.queryByRole('combobox', { name: /filter payment history by year/i })
+        screen.queryByRole('navigation', { name: /filter payment history by year/i })
       ).not.toBeInTheDocument();
     });
 
-    it('offers the years the exhibitor actually has, newest first, plus all time', async () => {
+    it('offers the years the exhibitor actually has, newest first, plus all time', () => {
       paymentState.data = bothYears;
-      const { user } = render(<ExhibitorPaymentsPage />);
+      render(<ExhibitorPaymentsPage />);
 
-      await user.click(screen.getByRole('combobox', { name: /filter payment history by year/i }));
-      const options = await screen.findAllByRole('option');
-      expect(options.map(option => option.textContent)).toEqual(['All time', '2026', '2025']);
+      const nav = screen.getByRole('navigation', { name: /filter payment history by year/i });
+      const buttons = within(nav).getAllByRole('button');
+      expect(buttons.map(button => button.textContent)).toEqual(['All time', '2026', '2025']);
     });
 
     it('shows every year by default, so no payment is hidden on arrival', () => {
@@ -179,8 +179,8 @@ describe('ExhibitorPaymentsPage payment queries', () => {
       paymentState.data = bothYears;
       const { user } = render(<ExhibitorPaymentsPage />);
 
-      await user.click(screen.getByRole('combobox', { name: /filter payment history by year/i }));
-      await user.click(await screen.findByRole('option', { name: '2025' }));
+      const nav = screen.getByRole('navigation', { name: /filter payment history by year/i });
+      await user.click(within(nav).getByRole('button', { name: '2025' }));
 
       await waitFor(() => expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument());
       expect(screen.getByText('Autumn Trial')).toBeInTheDocument();
@@ -208,14 +208,18 @@ describe('ExhibitorPaymentsPage payment queries', () => {
         initialRoute: '/exhibitor/payments?year=2026',
       });
 
-      const picker = screen.getByRole('combobox', { name: /filter payment history by year/i });
-      await user.click(picker);
-      await user.click(await screen.findByRole('option', { name: '2025' }));
-      expect(picker).toHaveTextContent('2025');
+      const nav = screen.getByRole('navigation', { name: /filter payment history by year/i });
+      await user.click(within(nav).getByRole('button', { name: '2025' }));
+      expect(within(nav).getByRole('button', { name: '2025' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
 
-      await user.click(picker);
-      await user.click(await screen.findByRole('option', { name: '2026' }));
-      expect(picker).toHaveTextContent('2026');
+      await user.click(within(nav).getByRole('button', { name: '2026' }));
+      expect(within(nav).getByRole('button', { name: '2026' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
     });
 
     it('falls back to all time for a year the exhibitor has no payments in', () => {
@@ -242,7 +246,7 @@ describe('ExhibitorPaymentsPage payment queries', () => {
 
       expect(screen.queryByText('Undated Trial')).not.toBeInTheDocument();
       expect(
-        screen.getByRole('combobox', { name: /filter payment history by year/i })
+        screen.getByRole('navigation', { name: /filter payment history by year/i })
       ).toBeInTheDocument();
     });
 

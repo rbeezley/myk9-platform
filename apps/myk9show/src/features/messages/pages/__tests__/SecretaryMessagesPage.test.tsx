@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SecretaryMessagesPage from '../SecretaryMessagesPage';
@@ -200,10 +201,9 @@ describe('SecretaryMessagesPage — all-shows mode', () => {
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
   });
 
-  it('defaults the filter dropdown to "All shows"', () => {
+  it('defaults to no Show filter chip active (all shows)', () => {
     renderAtUrl('/secretary/messages');
-    const select = screen.getByLabelText(/filter by show/i) as HTMLSelectElement;
-    expect(select.value).toBe('all');
+    expect(screen.queryByRole('button', { name: /^Show:/ })).not.toBeInTheDocument();
   });
 
   it('frames the page as communication history', () => {
@@ -251,10 +251,11 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.getByRole('button', { name: /clear filter/i })).toBeInTheDocument();
   });
 
-  it('changing the filter updates the URL via ?showId=', () => {
+  it('changing the filter updates the URL via ?showId=', async () => {
     renderAtUrl('/secretary/messages');
-    const select = screen.getByLabelText(/filter by show/i) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'show-2' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await userEvent.click(screen.getByRole('button', { name: /Summer Trial/ }));
     // After change, only Bob's thread is visible
     expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
@@ -276,6 +277,18 @@ describe('SecretaryMessagesPage — filtered mode', () => {
       'true'
     );
     expect(screen.getByTestId('email-delivery-history')).toHaveTextContent('History for show-1');
+  });
+
+  it('search narrows the thread list by participant name', async () => {
+    renderAtUrl('/secretary/messages');
+    await userEvent.type(screen.getByPlaceholderText('Search conversations...'), 'Bob');
+    expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
+    expect(screen.getByText('Bob Handler')).toBeInTheDocument();
+  });
+
+  it('the Inbox view tab count matches the visible thread count', () => {
+    renderAtUrl('/secretary/messages?showId=show-1');
+    expect(screen.getByRole('button', { name: 'Inbox1' })).toBeInTheDocument();
   });
 });
 

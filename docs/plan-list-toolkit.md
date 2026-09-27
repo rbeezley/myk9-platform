@@ -25,15 +25,14 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 
 - `apps/myk9show/src/components/list-toolkit/` — `ListViewTabs`, `ListFilterBar`, `ListResultLine`, `FloatingBulkBar`.
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
-- `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New (last 7 days), Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
-- The floating bar's More menu holds Copy emails (read-only) and Export, plus bulk delete with confirmation. Bulk ACCOUNT actions (Suspend, Reinstate, Send invitation, Restore) are cut from this change — see Non-goals.
+- `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New, last 7 days, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
+- The floating bar hosts Change roles, the account actions (Suspend, Reinstate, Send invitation, Restore — MYK9-835, rebuilt on ids-only selection and the current roster), a More menu (Copy emails, read-only, and Export), and bulk delete with confirmation.
 - The bar gets a raised surface (accent wash, accent border, deep shadow) — in dark mode `--popover` equals the card colour, so it blended into the list.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.
 
 ## Non-goals
 
-- **Bulk role editing — deferred to MYK9-820.** The Add / Keep / Remove panel (canvas variant D) and its planner drew Codex P2s three rounds running, so per the convergence rule it is cut from this change and redone under MYK9-820; the code stays in this branch's history (4fb86ccee). This change has no bulk role action: `BulkRoleDialog` and its runner are removed, and roles change one person at a time from Manage roles, unchanged.
-- **Bulk account actions — deferred to MYK9-835.** Suspend, Reinstate, Send invitation and Restore (`useBulkAccountActions.ts`, `bulkAccountTargets.ts`'s `accountTargets`, `BulkAccountActions.tsx` and their tests) are cut from this change; the code stays in this branch's history. The floating bar keeps row selection and the read-only Copy emails action (plus Export), which needed no scope cut. MYK9-835 also owns the stale-selection Codex finding against the removed actions.
+- **Bulk role editing and bulk account actions were rebuilt under MYK9-820 / MYK9-835** (stacked on this change), after three Codex rounds on the original design found the same class of bug: a plan or a target list computed once and reused later, past the point where the underlying data had moved. The rebuild's rule is that the selection holds ids only, and every action — including a "Retry failed" that fires later, from a toast — resolves targets and eligibility from the CURRENT roster/assignments at the moment it runs, never from a snapshot. Bulk role editing adds one shared planner (`bulkRolePlanner.ts`) that both the "What will happen" summary and the runner consume, an Apply that re-reads assignments and refuses to run a plan that no longer matches what was shown, and a guard so the signed-in admin can never strip their own role. See `bulkAccountTargets.ts`, `useBulkAccountActions.ts`, `bulkRolePlanner.ts`, `bulkRoleEditPlan.ts`, `BulkRoleEditPanel.tsx`.
 - Change-notification emails and bulk messaging (no notification path; needs compose, audit and unsubscribe rules). Bulk password reset and duplicate merge.
 - Adopting the kit on Dogs and Entries — separate follow-ups.
 - Keyboard shortcuts on the bulk bar.
@@ -43,6 +42,6 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 - Unit tests for each kit component (render, chip removal, option pick, date range, bulk bar visibility and clear).
 - `userListParams` round-trip for `login`; `filterUsers` login buckets; view matching and counts.
 - `getColumnLayoutClasses` for `stickyRight`.
-- `BulkActionsBar`'s More menu: Copy emails writes the selected addresses to the clipboard; no account-action buttons render (MYK9-835).
+- `BulkActionsBar`'s More menu: Copy emails writes the selected addresses to the clipboard. Bulk account actions and role editing (MYK9-835, MYK9-820) have their own unit and stale-data test coverage.
 - Update the existing UserManagementPage and BulkActionsBar suites; run them and the shuffled app suite for touched files.
 - Typecheck, lint, format, `qa:code-quality-ratchet`.

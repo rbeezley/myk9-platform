@@ -271,6 +271,30 @@ describe('peopleRoster', () => {
     );
   });
 
+  // MYK9-842: a multi-day show with unchecked entries only on a FUTURE trial
+  // day must produce no "needs check-in" result on the roster -- not just a
+  // per-row ineligible flag, but zero rows surfaced by the roster's own
+  // "Needs check-in" filter and no "N due" badge.
+  it('surfaces no needs-check-in rows or badge when unchecked entries exist only on a future day', () => {
+    const roster = buildPeopleRoster({
+      entries: [entry()],
+      presence: [],
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          trialDate: '2026-07-09',
+          timezone: 'America/Chicago',
+        },
+      ],
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.badge).not.toBe('1 due');
+    expect(filterPeopleRoster(roster, '', 'needs-check-in')).toHaveLength(0);
+  });
+
   it('keeps rows ineligible when today is known but class date metadata is missing', () => {
     const roster = buildPeopleRoster({
       entries: [entry()],

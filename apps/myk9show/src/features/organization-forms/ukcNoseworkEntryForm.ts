@@ -12,6 +12,7 @@ import {
   normalizeUSPhoneDigits,
   type EntryFormGridMark,
 } from './ukcNoseworkEntryFormGrid';
+import { toWinAnsiSafeText } from './winAnsiText';
 
 export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillValues {
   const text: NonNullable<PdfFormFillValues['text']> = {};
@@ -136,7 +137,7 @@ async function fillAndMarkPage(
       ...computeUKCEntryFormDobMarks(input.dog.dateOfBirth),
       ...computeUKCEntryFormPhoneMarks(input.dog.owner.phone),
     ];
-    drawMarks(page, font, marks);
+    await drawMarks(page, font, marks);
   }
   return pagePdf;
 }
@@ -165,9 +166,10 @@ export async function buildUKCNoseworkEntryFormPacketPdfBytes(input: {
   return outputPdf.save();
 }
 
-function drawMarks(page: PDFPage, font: PDFFont, marks: EntryFormGridMark[]): void {
+async function drawMarks(page: PDFPage, font: PDFFont, marks: EntryFormGridMark[]): Promise<void> {
   for (const mark of marks) {
-    page.drawText(mark.text, { x: mark.x, y: mark.y, size: mark.size, font });
+    const text = await toWinAnsiSafeText(mark.text);
+    page.drawText(text, { x: mark.x, y: mark.y, size: mark.size, font });
   }
 }
 

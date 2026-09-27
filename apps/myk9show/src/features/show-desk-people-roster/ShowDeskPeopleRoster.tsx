@@ -16,10 +16,10 @@ import { cn } from '@/lib/utils';
 import {
   buildPeopleRoster,
   filterPeopleRoster,
-  formatTrialIdentity,
   type PeopleRosterFilter,
   type PeopleRosterPerson,
 } from './peopleRoster';
+import { buildTrialRingResolver } from './trialRingLabel';
 
 interface ShowDeskPeopleRosterProps {
   showId: string;
@@ -98,13 +98,15 @@ export function ShowDeskPeopleRoster({
     [checkedInEntryIds, sourceEntries]
   );
 
+  const resolveTrialRing = useMemo(() => buildTrialRingResolver(classes), [classes]);
+
   const roster = useMemo(
     () =>
       buildPeopleRoster({
         entries,
         presence: present,
         classes: classes.map(cls => {
-          const ring = formatTrialIdentity(cls.trialName, cls.trialNumber);
+          const ring = resolveTrialRing(cls);
           return {
             id: cls.id,
             name: cls.name,
@@ -120,7 +122,7 @@ export function ShowDeskPeopleRoster({
         }),
         currentDate: currentDate ?? now,
       }),
-    [classes, currentDate, entries, now, present]
+    [classes, currentDate, entries, now, present, resolveTrialRing]
   );
   const visibleRoster = useMemo(
     () => filterPeopleRoster(roster, search, filter),

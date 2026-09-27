@@ -691,7 +691,8 @@ async function postgrestGetEntriesByStatus(status: EntryStatus) {
 // `.is('deleted_at', null)` filter — otherwise a deleted dog's entries reappear
 // in rosters/scoring after sync. getEntryById is intentionally exempt (its
 // postgrest fallback also returns tombstones, for restore/detail lookups).
-const isLiveEntry = (entry: ReplicatedEntry): boolean => !entry.deletedAt && !entry.deleted_at;
+export const isLiveEntry = (entry: ReplicatedEntry): boolean =>
+  !entry.deletedAt && !entry.deleted_at;
 
 // Get all entries with related data
 export const getAllEntries = async () => {

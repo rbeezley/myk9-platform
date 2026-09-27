@@ -23,7 +23,7 @@ import {
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
 import { OverrideTree } from './OverrideTree';
-import { BulkOperationsBar } from './BulkOperationsBar';
+import { ResultsBulkBar } from './ResultsBulkBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
@@ -200,10 +200,8 @@ export default function ResultsControlPage() {
     );
   }, [showClasses, bulkOps.selectedIds, classHasManualReleaseTiming]);
 
-  // pb-44/sm:pb-28: extra bottom clearance for the fixed BulkOperationsBar,
-  // which wraps to several rows on narrow screens.
   return (
-    <div className="container mx-auto py-6 space-y-8 pb-44 sm:pb-28">
+    <div className="container mx-auto py-6 space-y-8">
       <ShowDeskReturnLink showId={showId} />
       <h1 className="text-3xl font-bold tracking-tight">Results</h1>
 
@@ -335,8 +333,8 @@ export default function ResultsControlPage() {
         </CardContent>
       </Card>
 
-      {/* Bulk Operations Bar */}
-      <BulkOperationsBar
+      {/* Bulk actions */}
+      <ResultsBulkBar
         showId={showId}
         selectedClasses={bulkOps.selectedIds}
         allClassIds={allClassIds}

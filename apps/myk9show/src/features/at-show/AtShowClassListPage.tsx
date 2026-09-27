@@ -27,6 +27,7 @@ import {
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
+import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
@@ -177,6 +178,15 @@ export const AtShowClassListPage: React.FC = () => {
     isLoading: ownershipLoading,
     isUnknown: ownershipUnknown,
   } = useMyAtShowEntries(showId);
+  // 'Your dogs today' must never offer Check In for a class the
+  // `self_checkin_entry` RPC will refuse (MYK9-800 follow-up) — the same
+  // resolved cascade My Shows' day check-in gate already uses, so the two
+  // surfaces can't disagree about which classes allow self-check-in.
+  const allClassIds = useMemo(
+    () => groups.flatMap(group => group.classes.map(cls => cls.id)),
+    [groups]
+  );
+  const selfCheckinByClassId = useSelfCheckinMap(allClassIds);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -189,18 +199,26 @@ export const AtShowClassListPage: React.FC = () => {
             ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
             : {}),
           isRevisedStart: Boolean(cls.revised_expected_start),
+          selfCheckinEnabled: selfCheckinByClassId[cls.id] ?? true,
         });
       }
     }
     return map;
-  }, [groups]);
+  }, [groups, selfCheckinByClassId]);
   // 'Your dogs today' filters an exhibitor's entries to today's trial in the
   // trial's own timezone (MYK9-800) — one summary per trial, keyed by trial
-  // id so an entry can resolve its day even before a class is posted.
+  // id so an entry can resolve its day even before a class is posted. `label`
+  // reuses the same "<trial label> · <date>" heading the trial sections below
+  // already render (MYK9-704), so the row picks up trial date + number
+  // without inventing a second format for it.
   const trialsById = useMemo(() => {
     const map = new Map<string, AtShowTrialSummary>();
     for (const group of groups) {
-      map.set(group.trial.id, { date: group.trial.date, timezone: getTrialTimezone(group.trial) });
+      map.set(group.trial.id, {
+        date: group.trial.date,
+        timezone: getTrialTimezone(group.trial),
+        label: formatAtShowTrialHeading(group.trial),
+      });
     }
     return map;
   }, [groups]);

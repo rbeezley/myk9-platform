@@ -40,6 +40,14 @@ export interface AtShowClassSummary {
   classStatus: string;
   expectedStartLabel?: string | undefined;
   isRevisedStart?: boolean | undefined;
+  /**
+   * The class/trial/show self-check-in cascade already resolved by the
+   * caller (`useSelfCheckinMap`, the same hook My Shows' day check-in gate
+   * uses). Missing/undefined defaults OPEN — matches `isSelfCheckinEnabled`
+   * in `dayCheckIn.ts` — so a class the map hasn't answered for yet never
+   * hides Check In on its own.
+   */
+  selfCheckinEnabled?: boolean | undefined;
 }
 
 export interface AtShowEntryDetail {
@@ -55,18 +63,25 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
+  /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
+  selfCheckinEnabled: boolean;
+  /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
+  trialLabel: string | null;
 }
 
 export type AtShowEntryNextAction =
   | { kind: 'check-in' }
   | { kind: 'wait-running-order' }
   | { kind: 'view-class' }
-  | { kind: 'scored' };
+  | { kind: 'scored' }
+  | { kind: 'self-checkin-disabled' };
 
 /** A trial's own calendar day + timezone, keyed by trial id (from `useAtShowClassList`'s groups). */
 export interface AtShowTrialSummary {
   date: string;
   timezone: string;
+  /** `formatAtShowTrialHeading`'s output for this trial — the same "<trial label> · <date>" string the class-picker's trial section headers already render (MYK9-704: reuse the existing label, never a fresh concatenation). */
+  label?: string | undefined;
 }
 
 /**
@@ -113,6 +128,8 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
+      selfCheckinEnabled: classSummary?.selfCheckinEnabled ?? true,
+      trialLabel: trial?.label ?? null,
     });
   }
 
@@ -123,13 +140,17 @@ export function buildMyAtShowEntryDetails(
  * The single primary next action for an entry row. Precedence: already
  * scored (nothing to do) > checked in already (nothing to do) > running
  * order not posted yet (don't invite a check-in tap that has nowhere to go)
- * > check in.
+ * > self-check-in disabled for this class (don't offer a tap the
+ * `self_checkin_entry` RPC will refuse — MYK9-800 follow-up) > check in.
  */
 export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNextAction {
   if (detail.isScored) return { kind: 'scored' };
   if (detail.checkInStatus !== 'no-status') return { kind: 'view-class' };
   if (!detail.classId || !detail.className || !detail.hasRunOrder) {
     return { kind: 'wait-running-order' };
+  }
+  if (!detail.selfCheckinEnabled) {
+    return { kind: 'self-checkin-disabled' };
   }
   return { kind: 'check-in' };
 }

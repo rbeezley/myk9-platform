@@ -64,6 +64,10 @@ const classesById = new Map<string, AtShowClassSummary>([
   ],
 ]);
 
+const trialWithLabel: ReadonlyMap<string, AtShowTrialSummary> = new Map([
+  ['trial-1', { date: '2026-09-27', timezone: 'America/Chicago', label: 'Trial 2 · Sun, Sep 27' }],
+]);
+
 describe('buildMyAtShowEntryDetails', () => {
   it('only includes owned entries, in entry order', () => {
     const details = buildMyAtShowEntryDetails(
@@ -86,7 +90,45 @@ describe('buildMyAtShowEntryDetails', () => {
       expectedStartLabel: '10:15 AM',
       isRevisedStart: true,
       hasRunOrder: true,
+      // A class summary with no `selfCheckinEnabled` answer yet defaults OPEN
+      // (matches `isSelfCheckinEnabled` in dayCheckIn.ts) rather than hiding
+      // Check In while the cascade is still loading.
+      selfCheckinEnabled: true,
     });
+  });
+
+  it("carries a class's resolved self-check-in cascade onto the entry detail (MYK9-800 follow-up)", () => {
+    const withDisabledCheckin = new Map<string, AtShowClassSummary>([
+      [
+        'class-1',
+        { className: 'Novice Container', classStatus: 'in_progress', selfCheckinEnabled: false },
+      ],
+    ]);
+
+    const details = buildMyAtShowEntryDetails(
+      entries,
+      new Set(['entry-1']),
+      withDisabledCheckin,
+      noTrials
+    );
+
+    expect(details[0]).toMatchObject({ selfCheckinEnabled: false });
+  });
+
+  it("carries the trial's rendered heading onto the entry detail so the row can show trial date + number (MYK9-800 walk finding #2)", () => {
+    const withTrialId: ReplicatedEntry[] = [
+      { id: 'entry-t1', showId: 'show-1', classId: 'class-1', trialId: 'trial-1', isScored: false },
+    ];
+
+    const details = buildMyAtShowEntryDetails(
+      withTrialId,
+      new Set(['entry-t1']),
+      classesById,
+      trialWithLabel,
+      new Date('2026-09-27T17:00:00Z') // midday Chicago on the trial's own date, well clear of the day-filter's midnight edge
+    );
+
+    expect(details[0]).toMatchObject({ trialLabel: 'Trial 2 · Sun, Sep 27' });
   });
 
   it('leaves className null when the class is not in the summary map yet (running order not posted)', () => {
@@ -229,6 +271,8 @@ describe('deriveAtShowNextAction', () => {
     isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
+    selfCheckinEnabled: true,
+    trialLabel: null,
   };
 
   it('recommends check-in when the class is posted and the exhibitor has not checked in', () => {
@@ -259,6 +303,33 @@ describe('deriveAtShowNextAction', () => {
     ).toEqual({
       kind: 'scored',
     });
+  });
+
+  // MYK9-800 follow-up: the owner's production walk hit "Check-in failed —
+  // ask the secretary to check you in" after tapping a Check In button the
+  // page had no business offering. `self_checkin_entry` (the RPC this button
+  // calls) refuses the write whenever the class/trial/show visibility
+  // cascade has self-check-in off, but `deriveAtShowNextAction` never
+  // consulted that cascade before this fix — it offered Check In on
+  // `hasRunOrder` alone. This pins the client and the server to the same
+  // rule so the button never promises a write the RPC will reject.
+  it('never offers a check-in tap the self_checkin_entry RPC would refuse', () => {
+    expect(deriveAtShowNextAction({ ...base, selfCheckinEnabled: false })).toEqual({
+      kind: 'self-checkin-disabled',
+    });
+  });
+
+  it('still waits for the running order before mentioning self-check-in at all', () => {
+    // No run order AND self-check-in disabled — the running-order message is
+    // the more actionable one (there is nothing to check into yet).
+    expect(
+      deriveAtShowNextAction({
+        ...base,
+        hasRunOrder: false,
+        className: null,
+        selfCheckinEnabled: false,
+      })
+    ).toEqual({ kind: 'wait-running-order' });
   });
 });
 

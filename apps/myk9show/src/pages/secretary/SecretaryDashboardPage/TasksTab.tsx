@@ -11,6 +11,8 @@ import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
+import type { ListView } from '@/components/list-toolkit';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
 import type { SecretaryTask } from './types';
@@ -31,6 +33,7 @@ interface TasksTabProps {
 export function TasksTab({ clubId }: TasksTabProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useTaskViewPreference();
 
   const { data: tasks = [], isLoading, isError, refetch } = useSecretaryTasks('general');
@@ -55,8 +58,16 @@ export function TasksTab({ clubId }: TasksTabProps) {
     return rank(a) - rank(b);
   });
 
-  const visible = showCompleted ? sorted : sorted.filter(t => t.status !== 'done');
-  const hasCompletedTasks = sorted.some(t => t.status === 'done');
+  const searched = search.trim()
+    ? sorted.filter(t => t.title.toLowerCase().includes(search.trim().toLowerCase()))
+    : sorted;
+
+  const visible = showCompleted ? searched : searched.filter(t => t.status !== 'done');
+
+  const views: ListView[] = [
+    { id: 'open', label: 'Open', count: searched.filter(t => t.status !== 'done').length },
+    { id: 'all', label: 'All', count: searched.length },
+  ];
 
   function handleToggleDone(id: string) {
     const task = tasks.find((t: SecretaryTask) => t.id === id);
@@ -74,18 +85,32 @@ export function TasksTab({ clubId }: TasksTabProps) {
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="ml-auto flex items-center gap-2">
-          <ViewToggle modes={TASK_VIEW_MODES} active={viewMode} onChange={setViewMode} />
-          {clubId && (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="min-h-11 rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
-            >
-              + Add Task
-            </button>
-          )}
+      <div className="mb-3 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ListViewTabs
+            label="Task views"
+            views={views}
+            activeId={showCompleted ? 'all' : 'open'}
+            onSelect={id => setShowCompleted(id === 'all')}
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <ViewToggle modes={TASK_VIEW_MODES} active={viewMode} onChange={setViewMode} />
+            {clubId && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="min-h-11 rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
+              >
+                + Add Task
+              </button>
+            )}
+          </div>
         </div>
+        <ListFilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search tasks..."
+          fields={[]}
+        />
       </div>
 
       {showAddForm && (
@@ -133,7 +158,7 @@ export function TasksTab({ clubId }: TasksTabProps) {
         </div>
       ) : viewMode === 'timeline' ? (
         <TaskTimelineView
-          tasks={sorted}
+          tasks={searched}
           shows={[]}
           showIdFilter="general"
           showCompleted={showCompleted}
@@ -145,7 +170,9 @@ export function TasksTab({ clubId }: TasksTabProps) {
         <div className="flex flex-col gap-2">
           {visible.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No personal tasks. Per-show tasks live in each show's Tools sheet.
+              {tasks.length === 0
+                ? "No personal tasks. Per-show tasks live in each show's Tools sheet."
+                : 'No tasks match your search.'}
             </p>
           ) : (
             visible.map(task => (
@@ -162,15 +189,6 @@ export function TasksTab({ clubId }: TasksTabProps) {
             ))
           )}
         </div>
-      )}
-
-      {hasCompletedTasks && (
-        <button
-          onClick={() => setShowCompleted(v => !v)}
-          className="mt-3 text-xs text-muted-foreground hover:text-foreground"
-        >
-          {showCompleted ? 'Hide completed' : 'Show completed'}
-        </button>
       )}
     </>
   );

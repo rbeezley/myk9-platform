@@ -174,6 +174,12 @@ const BrowseShowsPage: React.FC = () => {
   const bulkSelection = useBulkSelection({
     items: manageableShows,
     getItemId: getShowId,
+    // Search/discipline/club/month/radius narrow `manageableShows` (the
+    // currently-visible rows) without changing `resetKey` below, so a show
+    // selected then filtered out must drop out of the selection too —
+    // otherwise it stays selected invisibly and can resurface selected when
+    // the filter clears (Codex P2 on PR #2566).
+    pruneToItems: true,
     // A tab switch or a Managing-view change is a new "what am I looking at",
     // so a stale selection never rides along and becomes bulk-editable under
     // a filter that no longer describes it (Design Decision 4).

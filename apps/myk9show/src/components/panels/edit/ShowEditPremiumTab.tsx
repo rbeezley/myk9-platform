@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TabsContent } from '@/components/ui/tabs';
 import { usePublishedExperienceContent } from '@/features/experience/usePublishedExperienceContent';
 import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
+import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
+import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
@@ -31,6 +33,7 @@ export function ShowEditPremiumTab({
   handleValueChange,
 }: ShowEditPremiumTabProps) {
   const hasShowId = typeof data.id === 'string' && data.id.length > 0;
+  const showId = hasShowId ? (data.id as string) : undefined;
   const { data: fetchedPublishedContent, isLoading: publishedContentLoading } =
     usePublishedExperienceContent(hasShowId ? (data.id as string) : undefined);
   const publishedContent = data.experiencePublishedContent ?? fetchedPublishedContent ?? null;
@@ -68,7 +71,7 @@ export function ShowEditPremiumTab({
           </p>
         </CardHeader>
         <CardContent>
-          {hasShowId ? (
+          {showId ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 The current draft style is{' '}
@@ -77,7 +80,7 @@ export function ShowEditPremiumTab({
                 draft stay together.
               </p>
               <Link
-                to={`/shows/${data.id}?preview=public`}
+                to={getShowPreviewHref(showId, getShowEditHref(showId, 'premium'))}
                 className="inline-flex min-h-11 items-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Open show Preview

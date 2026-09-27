@@ -81,9 +81,9 @@ describe('resolveSignInHeading', () => {
     expect(resolveSignInHeading({ kind: 'passcode', step: 'passcode', passcodeOnly: true })).toBe(
       'Join the show'
     );
-    expect(
-      resolveSignInHeading({ kind: 'passcode', step: 'passcode', passcodeOnly: false })
-    ).toBe('Join the show');
+    expect(resolveSignInHeading({ kind: 'passcode', step: 'passcode', passcodeOnly: false })).toBe(
+      'Join the show'
+    );
   });
 
   it('prefers the show-entry heading over the generic one', () => {

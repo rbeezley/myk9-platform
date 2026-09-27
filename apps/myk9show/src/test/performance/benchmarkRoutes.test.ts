@@ -38,6 +38,22 @@ describe('MYK9-843 route matrix', () => {
     );
   });
 
+  it('waits for route content instead of a loading shell heading', () => {
+    const routes = benchmarkRoutesFor();
+    expect(routes.find(route => route.id === 'exhibitor-registration')?.readySelector).toContain(
+      'Search dogs by call name'
+    );
+    expect(routes.find(route => route.id === 'exhibitor-cart')?.readySelector).toContain(
+      'Your cart is empty'
+    );
+    expect(routes.find(route => route.id === 'admin-users')?.readySelector).toContain(
+      'tr:not(:has(.animate-pulse))'
+    );
+    expect(routes.find(route => route.id === 'public-show-detail')?.readySelector).toContain(
+      ':not([role="alert"] h1)'
+    );
+  });
+
   it('marks redirects as blocked and excludes blocked or incomplete rows from slow-route ranking', () => {
     expect(blockedRouteReason('/admin/users', '/sign-in', 'No authorized admin session')).toContain(
       'Redirected to /sign-in'

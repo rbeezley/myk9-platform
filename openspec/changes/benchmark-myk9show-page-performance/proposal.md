@@ -23,6 +23,6 @@ MYK9-843 establishes a single-user performance baseline before fall 2026 launch 
 
 ## Impact
 
-- Likely files: existing tooling under `apps/myk9show/src/test/performance/`, a root command in `package.json`, and `docs/qa/perf-baseline-2026-09-26.md`.
+- Likely files: existing tooling under `apps/myk9show/src/test/performance/`, the existing `performance:baseline` command, and a dated `docs/qa/perf-baseline-YYYY-MM-DD.md` report.
 - Reuse the existing Vite production build and bundle visualizer; no new application UI, dependency, or production configuration is intended.
 - Duplication check: a basic Playwright performance test and loader script already exist. The ticket needs route/role coverage, controlled cold/warm profiles, complete metrics, and committed evidence that those tools do not provide, so extend or replace them in place rather than creating a second harness. This is engineering evidence; a link to an app page cannot substitute for repeatable route measurements.

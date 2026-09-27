@@ -47,6 +47,9 @@ describe('MYK9-843 baseline report', () => {
       showId: 'show-id',
       buildRef: 'test',
       routeCount: 18,
+      reportDate: '2026-09-27',
+      runId: 'test-run',
+      timingBufferSize: 10_000,
     });
 
     expect(report).toContain('Sampled 3/18 configured route IDs');
@@ -57,6 +60,9 @@ describe('MYK9-843 baseline report', () => {
     expect(report).toContain('1. **/ (fast-4g-mobile, cold)**');
     expect(report).not.toContain('**/secretary/dashboard (secretary-desktop, cold)**');
     expect(report).toContain('access-denied state');
+    expect(report).toContain('2026-09-27');
+    expect(report).toContain('Resource timing buffer size was 10,000');
+    expect(report).not.toContain('250-entry browser default');
   });
 
   it('reports the median of repeated route measurements while preserving each run', () => {
@@ -77,6 +83,9 @@ describe('MYK9-843 baseline report', () => {
       showId: 'show-id',
       buildRef: 'test',
       routeCount: 18,
+      reportDate: '2026-09-27',
+      runId: 'test-run',
+      timingBufferSize: 10_000,
     });
 
     expect(report).toContain('| / | fast-4g-mobile | cold | 3 | 3600 | 3600 |');

@@ -31,12 +31,19 @@ interface ReportMetadata {
   buildRef: string;
   routeCount: number;
   readyTimeoutMs?: number;
-  resumedFromCrash?: boolean;
+  reportDate: string;
+  runId: string;
+  timingBufferSize: number;
 }
 
 function numericRange(values: number[], unit: string): string {
   if (values.length === 0) return 'unavailable';
   return `${Math.min(...values).toFixed(0)}–${Math.max(...values).toFixed(0)} ${unit}`;
+}
+
+function reportReason(reason: string | undefined): string {
+  if (!reason) return '';
+  return reason.split('; page:')[0].slice(0, 120).replaceAll('|', '\\|');
 }
 
 function median(values: number[]): number | undefined {
@@ -105,15 +112,38 @@ export function formatBenchmarkReport(
   const mobileCount = measured.filter(sample => sample.profile !== 'secretary-desktop').length;
   const mostJs = Math.max(0, ...measured.map(sample => sample.jsTransferBytes ?? 0));
   const largestChunk = chunks[0];
+  const coldMeasured = measured.filter(sample => sample.cache === 'cold');
+  const entryTransfers = largestChunk
+    ? coldMeasured.flatMap(sample =>
+        (sample.jsChunks ?? [])
+          .filter(chunk => chunk.file === largestChunk.file)
+          .map(chunk => chunk.bytes)
+      )
+    : [];
+  const mostRequests = [...measured].sort(
+    (a, b) => (b.requestCount ?? 0) - (a.requestCount ?? 0)
+  )[0];
+  const slowestLaunchRoute = sorted.find(
+    sample =>
+      (sample.role === 'secretary' || sample.role === 'judge') &&
+      sample.profile === 'slow-4g-mobile' &&
+      sample.cache === 'cold'
+  );
+  const whollyBlocked = blockedRoutes.filter(routeId =>
+    samples
+      .filter(sample => sample.routeId === routeId)
+      .every(sample => sample.status === 'blocked')
+  );
   const accessDenied = samples.some(sample => sample.reason?.includes('access denied state'));
   const lines = [
-    '# myK9Show page performance baseline — 2026-09-26',
+    `# myK9Show page performance baseline — ${metadata.reportDate}`,
     '',
     `Generated: ${new Date().toISOString()}`,
     ...(blockedCount
       ? [`Status: Provisional — ${blockedCount} blocked of ${samples.length} attempts.`]
       : []),
     `Build ref: ${metadata.buildRef}`,
+    `Run ID: ${metadata.runId}`,
     `App URL: ${metadata.origin}`,
     `Seed show: ${metadata.showId}`,
     '',
@@ -123,6 +153,7 @@ export function formatBenchmarkReport(
     ...(blockedRoutes.length
       ? [
           `- Blocked route IDs: ${blockedRoutes.join(', ')}. These attempts have no measured load time and are excluded from medians and rankings.`,
+          `- Blocked attempts by route: ${blockedRoutes.map(routeId => `${routeId} ${samples.filter(sample => sample.routeId === routeId && sample.status === 'blocked').length}`).join('; ')}.`,
         ]
       : []),
     ...(accessDenied
@@ -133,17 +164,6 @@ export function formatBenchmarkReport(
     '',
     '## Reproduce this selection',
     '',
-    ...(metadata.resumedFromCrash && blockedRoutes.includes('secretary-reports')
-      ? [
-          'This run captured Reports separately because it crashed Chromium, then resumed the other routes from the saved report:',
-          '',
-          '```sh',
-          'MYK9_PERF_ROUTES=secretary-reports MYK9_PERF_PROFILES=fast-4g-mobile MYK9_PERF_REPEATS=1 pnpm --dir apps/myk9show performance:baseline',
-          'MYK9_PERF_RESUME=1 MYK9_PERF_EXCLUDE_ROUTES=secretary-reports MYK9_PERF_SKIP_BUILD=1 pnpm --dir apps/myk9show performance:baseline',
-          '```',
-          '',
-        ]
-      : []),
     'A fresh full-matrix run uses:',
     '',
     '```sh',
@@ -153,16 +173,12 @@ export function formatBenchmarkReport(
     '## Run conditions',
     '',
     '- Production Vite build served locally with Playwright Chromium.',
-    ...(metadata.resumedFromCrash
-      ? [
-          '- This dated report combines saved samples from a prior run with a resumed run; the browser was restarted between them.',
-        ]
-      : []),
+    '- Each cold/warm pair used a separate Chromium process. Failed workers were recorded as blocked attempts; pair results were checked against the run manifest.',
     '- Mobile: 390×844 and 4× CPU; fast 4G is 40 ms / 5 Mbps down, slow 4G is 150 ms / 1.6 Mbps down. Secretary desktop: 1440×1000, 1× CPU and 25 Mbps down.',
     '- Cold uses a fresh browser context; warm revisits the route in the same context. Public routes use browser HTTP and service worker caches.',
     '- Authenticated routes block browser writes except token refresh and verified read-only RPCs. Playwright request routing disables HTTP cache for those routes, so authenticated warm samples only reflect service worker and local data caches.',
     '- Time-to-usable stops when the route-specific primary-content selector becomes visible. LCP, CLS, and TBT proxy are read after a further 500 ms observation window.',
-    '- Resource timing now allows 10,000 entries per navigation. This dated run used the earlier 250-entry browser default; rows with 250 requests are lower bounds and their JavaScript transfer may be understated.',
+    `- Resource timing buffer size was ${metadata.timingBufferSize.toLocaleString()} entries per navigation.`,
     `- A route is blocked if primary content is not visible within ${((metadata.readyTimeoutMs ?? 30000) / 1000).toFixed(0)} s after document navigation; blocked samples have no measured load time.`,
     '- INP requires an interaction and is not reported. LCP is null when Chromium provides no entry.',
     '- Official field targets at the 75th percentile: LCP ≤2.5 s, INP <200 ms, CLS ≤0.1. Lab TBT proxy target: <200 ms. Custom mobile time-to-usable triage targets: ≤3 s fast 4G, ≤5 s slow 4G.',
@@ -173,7 +189,7 @@ export function formatBenchmarkReport(
     '|---|---|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|',
     ...samples.map(
       sample =>
-        `| ${sample.path} | ${sample.role} | ${sample.profile} | ${sample.cache} | ${sample.repeat ?? 1} | ${sample.status}${sample.reason ? `: ${sample.reason.replaceAll('|', '\\|')}` : ''} | ${sample.timeToUsableMs?.toFixed(0) ?? '—'} | ${sample.ttfbMs?.toFixed(0) ?? '—'} | ${sample.lcpMs?.toFixed(0) ?? '—'} | ${sample.cls?.toFixed(3) ?? '—'} | ${sample.tbtProxyMs?.toFixed(0) ?? '—'} | ${sample.jsTransferBytes ?? '—'} | ${sample.requestCount ?? '—'} |`
+        `| ${sample.path} | ${sample.role} | ${sample.profile} | ${sample.cache} | ${sample.repeat ?? 1} | ${sample.status}${sample.reason ? `: ${reportReason(sample.reason)}` : ''} | ${sample.timeToUsableMs?.toFixed(0) ?? '—'} | ${sample.ttfbMs?.toFixed(0) ?? '—'} | ${sample.lcpMs?.toFixed(0) ?? '—'} | ${sample.cls?.toFixed(3) ?? '—'} | ${sample.tbtProxyMs?.toFixed(0) ?? '—'} | ${sample.jsTransferBytes ?? '—'} | ${sample.requestCount ?? '—'} |`
     ),
     '',
     '## Median by route and profile',
@@ -204,6 +220,26 @@ export function formatBenchmarkReport(
           `- ${overUsable}/${mobileCount} mobile samples exceeded the custom time-to-usable target for their profile.`,
           `- TBT proxy ranged ${numericRange(tbtValues, 'ms')}; the lab target is <200 ms. This sums observed long tasks through 500 ms after readiness.`,
           `- Maximum observed JavaScript transfer was ${(mostJs / 1_000_000).toFixed(2)} MB. The largest emitted minified chunk was ${largestChunk ? `${largestChunk.file} (${(largestChunk.bytes / 1_000_000).toFixed(2)} MB)` : 'unavailable'}. Initial JS delivery and parse are candidates for follow-up profiling, not established root causes.`,
+          ...(entryTransfers.length
+            ? [
+                `- The largest entry chunk transferred in ${entryTransfers.length}/${coldMeasured.length} measured cold attempts, at ${numericRange(entryTransfers, 'bytes')} over the wire. Its transfer is a shared cost across those routes.`,
+              ]
+            : []),
+          ...(slowestLaunchRoute
+            ? [
+                `- The slowest measured secretary or ringside cold route on slow 4G was ${slowestLaunchRoute.path}: ${slowestLaunchRoute.timeToUsableMs?.toFixed(0)} ms median across ${slowestLaunchRoute.runs} runs.`,
+              ]
+            : []),
+          ...(mostRequests?.requestCount
+            ? [
+                `- The largest observed resource request count was ${mostRequests.requestCount} on ${mostRequests.path} (${mostRequests.profile}, ${mostRequests.cache}); investigate the request mix before assigning a cause.`,
+              ]
+            : []),
+          ...(whollyBlocked.length
+            ? [
+                `- No usable measurement was obtained for ${whollyBlocked.join(', ')}. These routes need reliability investigation before they can be included in speed rankings.`,
+              ]
+            : []),
           `- Local preview TTFB ranged ${numericRange(ttfbValues, 'ms')}; this is not representative of production server response time.`,
         ]
       : [
@@ -223,7 +259,7 @@ export function formatBenchmarkReport(
     '- Vercel Analytics source is integrated, but its project dashboard was not connected; route-level field data and a time window could not be retrieved.',
     '- Vercel Speed Insights is not configured in the app dependency/source scan.',
     '- Sentry performance traces could not be retrieved. No local Sentry DSN was configured for this build.',
-    '- Blocked routes are never ranked as fast pages. Rerun once a read-only session and seeded data are available.',
+    '- Blocked routes are never ranked as fast pages. Diagnose the failed route or browser, then rerun the affected profile matrix.',
     '',
   ];
   return lines.join('\n');

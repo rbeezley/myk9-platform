@@ -10,10 +10,6 @@ export interface BenchmarkRoute {
 
 const defaultShowId = 'dededede-0000-0000-0000-000000000010';
 const defaultClassId = 'dec1a55e-0000-0000-0000-000000000032';
-// Route layouts vary: public pages use a guest shell, while authenticated pages
-// use the unified app layout. Waiting for a visible heading works across both.
-const mainHeading = 'h1, h2, [role="heading"]';
-
 export function benchmarkRoutesFor(
   showId = process.env.MYK9_PERF_SHOW_ID ?? defaultShowId,
   classId = process.env.MYK9_PERF_CLASS_ID ?? defaultClassId
@@ -30,21 +26,27 @@ export function benchmarkRoutesFor(
       id: 'public-show-detail',
       role: 'public',
       path: `/shows/${showId}`,
-      readySelector: mainHeading,
+      readySelector: 'h1:not(.sr-only):not([role="alert"] h1):not(:has-text("not found"))',
     },
     {
       id: 'exhibitor-entries',
       role: 'exhibitor',
       path: '/exhibitor/entries',
-      readySelector: mainHeading,
+      readySelector: 'h1:has-text("My Shows")',
     },
     {
       id: 'exhibitor-registration',
       role: 'exhibitor',
       path: `/shows/${showId}/register`,
-      readySelector: mainHeading,
+      readySelector:
+        'input[aria-label="Search dogs by call name"], :text("You don\'t have any dogs yet"), :text("No eligible dogs found")',
     },
-    { id: 'exhibitor-cart', role: 'exhibitor', path: '/cart', readySelector: mainHeading },
+    {
+      id: 'exhibitor-cart',
+      role: 'exhibitor',
+      path: '/cart',
+      readySelector: 'h1:has-text("Your Cart"), h1:has-text("Your cart is empty")',
+    },
     {
       id: 'secretary-overview',
       role: 'secretary',
@@ -100,7 +102,12 @@ export function benchmarkRoutesFor(
       path: `/at-show/${showId}/class/${classId}`,
       readySelector: '[data-loaded="true"]',
     },
-    { id: 'admin-users', role: 'admin', path: '/admin/users', readySelector: mainHeading },
+    {
+      id: 'admin-users',
+      role: 'admin',
+      path: '/admin/users',
+      readySelector: 'table tbody tr:not(:has(.animate-pulse)), :text("No users yet")',
+    },
     {
       id: 'admin-health',
       role: 'admin',

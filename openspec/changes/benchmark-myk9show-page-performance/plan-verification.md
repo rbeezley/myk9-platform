@@ -2,27 +2,27 @@
 
 ### Requirements Audit
 
-| Requirement                                                                                                    | Status      | Evidence                                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cover the specified public, exhibitor, secretary, judge/ringside, and admin route matrix                       | **Partial** | All 17 configured routes were attempted with existing role identities and seed data; Reports crashed Chromium, and other attempts timed out. The dated report labels 18/224 attempts blocked. |
-| Measure cold and warm loads; mobile 4x CPU with Fast 4G and Slow 4G; desktop secretary routes                  | **Covered** | `specs/page-performance-benchmarking/spec.md`, “Controlled cold and warm measurements”; `design.md`, Decision 2.                                                                                         |
-| Record Core Web Vitals or labeled TBT proxy, time-to-usable, JS, requests, slow backend calls, and chunk sizes | **Covered** | `specs/page-performance-benchmarking/spec.md`, “Metrics and evidence are clearly labeled”; `design.md`, Decision 3.                                                                                      |
-| Check Vercel/Sentry field data before adding services                                                          | **Covered** | `design.md`, Decision 5; spec, “Field data preflight”.                                                                                                                                                   |
-| Make the benchmark repeatable with the required wrapper and commit a dated table                               | **Partial** | The command, resume path, and dated report are present; the report is not yet committed.                                                                                                                  |
-| Rank bundle chunks, identify slow routes and evidence-supported causes, update MYK9-844                        | **Partial** | The report ranks routes and separates entry, admin preload, and data-readiness causes; the Linear issue update remains pending.                                                                          |
-| Avoid overlap with the incomplete existing performance harness and avoid product fixes                         | **Covered** | `proposal.md`, What Changes and duplication check; `design.md`, Goals/Non-Goals and Decision 1.                                                                                                          |
-| Handle missing auth/data, unavailable metrics, and inaccessible field data honestly without shared writes      | **Covered** | `design.md`, Decisions 4–5 and Risks; spec, “A route cannot be exercised”, “A browser metric is unavailable”, and “Benchmarking remains diagnostic and read-only”.                                       |
+| Requirement                                                                | Status      | Evidence                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Attempt the public, exhibitor, secretary, judge/ringside, and admin matrix | **Covered** | All 17 routes and 120 cold/warm pairs were attempted. The [dated report](../../../docs/qa/perf-baseline-2026-09-27.md) records 240 unique slots: 206 measured and 34 blocked.                                                              |
+| Measure mobile Fast/Slow 4G and secretary desktop profiles                 | **Covered** | The runner applied the specified CPU, network, and viewport settings; the report separates each profile and cache state.                                                                                                                   |
+| Record labeled lab metrics, requests, backend timings, and chunks          | **Covered** | Per-attempt rows and medians are in the report; `dist/stats.html` supplied the entry composition. The 10,000-entry timing buffer captured up to 2,753 resource requests on a cart attempt. INP remains unavailable without an interaction. |
+| Keep the benchmark repeatable and isolate browser failures                 | **Covered** | One command builds and runs the matrix through `qa:browser-session`. A run manifest and 120 pair JSON results match exactly; browser failures became blocked results without ending the matrix.                                            |
+| Check field data without adding services                                   | **Covered** | The report records Vercel/Sentry access or configuration limits.                                                                                                                                                                           |
+| Identify slow routes and update MYK9-844                                   | **Partial** | The report ranks measured routes and computes evidence-based findings. The Linear update awaits shared-system authorization.                                                                                                               |
+| Avoid product fixes and shared-data mutations                              | **Covered** | Changes are limited to the diagnostic harness, OpenSpec, and report; browser writes were blocked except auth refresh and verified read-only RPCs.                                                                                          |
 
-### Implementation verification
+### Interpretation
 
-The revised artifacts consolidate the existing performance tooling, distinguish lab proxies, and keep the benchmark read-only. Existing credentials and seed data exercised all five roles. The saved report is provisional: 206 attempts reached their readiness selectors, 18 were blocked, and some request counts hit Chromium's 250-entry resource timing limit. The runner now increases that limit for future runs.
-
-### Top Gaps
-
-1. Diagnose the Reports Chromium crash and the blocked secretary/ringside attempts before treating those profiles as measured baselines.
-2. Complete the Linear MYK9-844 update, PR, CI, review, merge, and archive gates after shared-system authorization.
+The report remains **provisional** because Reports had 18 blocked attempts and Admin Users had 12. Ringside class picker and scoring each had one failed cold pair, which also blocked the corresponding warm attempt. Show Day was the slowest measured launch-critical route on slow 4G at 19,147 ms median cold time. The 3.53 MB minified entry script transferred as 1,123,152 bytes in every measured cold attempt. `/cart` reached 2,753 resource requests in one cold run; the request mix still needs diagnosis. No blocked route is ranked as fast.
 
 ### Validation
 
-- `pnpm openspec validate benchmark-myk9show-page-performance --strict` — passed.
-- Focused Vitest: 7/7 passed. `typecheck:tests`, Prettier, and the code-quality ratchet passed.
+- Production build and full `performance:baseline` command completed; the browser session closed.
+- Focused Vitest: 11/11 passed. App typecheck, lint (11 existing warnings), code-quality ratchet, strict OpenSpec validation, and direct Prettier check of existing changed files passed.
+- The repo's `format:check:changed` helper fails because it passes intentionally deleted files to Prettier; checking the 50 existing changed files directly passed.
+- The required shuffled app suite produced no useful progress for 30 seconds and was stopped under the repository's hung-runner rule.
+
+### Remaining Gates
+
+Update MYK9-844, create the PR, complete CI/review/merge, and archive this OpenSpec change after shared-system authorization.

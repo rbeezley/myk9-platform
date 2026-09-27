@@ -30,12 +30,17 @@ MYK9Show already has performance files under `apps/myk9show/src/test/performance
 
 5. **Treat field data as a manual preflight.** Check available Vercel and Sentry views before building new instrumentation. Record what was available and the time window; if access/data is absent, say so in the baseline rather than fabricating or substituting lab data.
 
+6. **Isolate each cold/warm pair.** The first benchmark crashed Chromium on Reports, and its Markdown-based resume path could duplicate partial routes or mix builds. Remove that resume path. A parent process creates a run manifest (build identity, seed show, and expected route/profile/repeat pairs), then launches one browser worker per pair, sequentially to avoid CPU contention. Each worker writes one atomic JSON result; when a worker exits without one, the parent writes a blocked pair result. The parent validates each result against the manifest before rendering a dated report. A new run gets a new directory and report date; it never silently appends to an earlier baseline.
+
+7. **Require data-backed readiness.** A generic heading can render during loading or error states. Each route predicate must identify primary data or an intentional loaded empty state, exclude loading/error UI, and be exercised against representative pages before its timing is accepted. Keep these predicates in the diagnostic harness so the measurement work does not change product behavior.
+
 ## Risks / Trade-offs
 
 - [Role sessions or useful show data are unavailable] → Report blocked routes and exact prerequisites; do not create shared data or credentials as a side effect.
 - [Background sync and third-party calls add noise] → Use repeated runs, record raw values and network conditions, and identify outliers rather than asserting pass/fail budgets.
 - [Cross-origin Resource Timing omits transfer sizes] → Use browser protocol network events where available and label any remaining estimates.
 - [A failed route can look like a fast route] → Require a route-specific primary-content condition and distinguish unusable/error results from timings.
+- [A browser target crashes] → Isolate each pair in its own process and record the worker failure as blocked without losing the rest of the matrix.
 - [Field dashboards are inaccessible] → Record the unavailable source and continue with the controlled lab baseline.
 
 ## Migration Plan

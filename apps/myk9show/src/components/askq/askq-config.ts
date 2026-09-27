@@ -55,6 +55,8 @@ export const TOOL_LABELS: Record<string, string> = {
   summarize_operator_alerts: 'Operator alerts',
 };
 
+export const TERA_WORKING_COPY = 'Sniffing that out for you...';
+
 export const SOURCE_LABELS: Record<string, string> = {
   rules: 'Rules',
   classes: 'Classes',

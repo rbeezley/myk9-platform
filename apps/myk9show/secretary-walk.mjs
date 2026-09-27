@@ -49,15 +49,12 @@ async function signIn(page) {
       'Missing E2E_SECRETARY_PASSWORD (or legacy SECRETARY_PASS). Set it from apps/myk9show/.env.local before running the walk.'
     );
   }
-  // SmartSignInPage (Phase 1b) is a two-step flow: a single credential field +
-  // Continue, which reveals the password sub-form in place. Mirror the shared
+  // SmartSignInPage (MYK9-853) renders the credential field and the
+  // password field together in one form from the start. Mirror the shared
   // helper in src/test/e2e/helpers/testUsers.ts (this .mjs can't import the TS).
   await page.goto(`${BASE_URL}/sign-in`);
   await page.getByTestId('credential-input').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
-  await page.getByTestId('continue-button').click();
-
-  // The email branch reveals the password step; wait for it before filling.
   await page.getByTestId('password-input').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByTestId('password-input').fill(SECRETARY_PASS);
   await Promise.all([

@@ -70,27 +70,30 @@ export function classifyCredential(raw: string): CredentialKind {
   return parsePasscode(normalized).isValid ? 'passcode' : 'invalid';
 }
 
-export type SignInStep = 'input' | 'password' | 'passcode';
+export type SignInStep = 'input' | 'passcode';
 
 /**
- * Card heading for a step. The passcode step wins over every other case,
+ * Card heading. The committed passcode step wins over every other case,
  * including `passcodeOnly` — once the branch is committed, "Enter a show
  * passcode" describes the step the user just left.
  *
- * Account language on the password step is Phase 5 of
- * docs/plan-exhibitor-onboarding-remediation.md (Active), pinned by
- * SmartSignInPage.test.tsx — do not collapse it into the step-1 heading.
+ * Account language as soon as the credential classifies as an email is
+ * Phase 5 of docs/plan-exhibitor-onboarding-remediation.md (Active), pinned
+ * by SmartSignInPage.test.tsx — the email+password screen (MYK9-853) reads
+ * `kind` instead of a since-removed password step, but the copy contract is
+ * the same.
  */
 export function resolveSignInHeading(args: {
+  kind: CredentialKind;
   step: SignInStep;
   passcodeOnly: boolean;
   entryShowName?: string | undefined;
 }): string {
-  const { step, passcodeOnly, entryShowName } = args;
+  const { kind, step, passcodeOnly, entryShowName } = args;
   if (step === 'passcode') return 'Join the show';
   if (entryShowName) return `Sign in to enter ${entryShowName}`;
   if (passcodeOnly) return 'Enter a show passcode';
-  return step === 'password' ? 'Sign in to your account' : 'Sign in';
+  return kind === 'email' ? 'Sign in to your account' : 'Sign in';
 }
 
 /**
@@ -98,11 +101,13 @@ export function resolveSignInHeading(args: {
  * or empty, so the reserved row never announces a guess about a half-typed
  * value. This is text in an already-reserved box — it is the ONLY thing allowed
  * to react to a per-keystroke classification, because it shifts no layout.
+ *
+ * The email case is silent (MYK9-853): the password field sits right below
+ * the credential field from the start, so there is no "next step" left to
+ * announce. The passcode case still has one — committing the branch — so it
+ * keeps its hint.
  */
-export function resolveLiveHint(kind: CredentialKind, passcodeOnly: boolean): string {
-  if (kind === 'email') {
-    return passcodeOnly ? '' : "Looks like an email — we'll ask for your password next";
-  }
+export function resolveLiveHint(kind: CredentialKind): string {
   if (kind === 'passcode') return "Looks like a show passcode — you'll be signed in";
   return '';
 }

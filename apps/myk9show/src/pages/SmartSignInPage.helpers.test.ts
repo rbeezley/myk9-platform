@@ -78,22 +78,33 @@ describe('resolveSignInHeading', () => {
   it('names the committed passcode step even in passcode-only mode', () => {
     // passcodeOnly's "Enter a show passcode" describes the step just left, so
     // the committed step has to win over it.
-    expect(resolveSignInHeading({ step: 'passcode', passcodeOnly: true })).toBe('Join the show');
-    expect(resolveSignInHeading({ step: 'passcode', passcodeOnly: false })).toBe('Join the show');
+    expect(resolveSignInHeading({ kind: 'passcode', step: 'passcode', passcodeOnly: true })).toBe(
+      'Join the show'
+    );
+    expect(
+      resolveSignInHeading({ kind: 'passcode', step: 'passcode', passcodeOnly: false })
+    ).toBe('Join the show');
   });
 
   it('prefers the show-entry heading over the generic one', () => {
     expect(
-      resolveSignInHeading({ step: 'input', passcodeOnly: false, entryShowName: 'Cedar Valley' })
+      resolveSignInHeading({
+        kind: 'invalid',
+        step: 'input',
+        passcodeOnly: false,
+        entryShowName: 'Cedar Valley',
+      })
     ).toBe('Sign in to enter Cedar Valley');
   });
 
-  it('keeps account language on the password step', () => {
-    expect(resolveSignInHeading({ step: 'password', passcodeOnly: false })).toBe(
+  it('keeps account language as soon as the credential classifies as an email', () => {
+    expect(resolveSignInHeading({ kind: 'email', step: 'input', passcodeOnly: false })).toBe(
       'Sign in to your account'
     );
-    expect(resolveSignInHeading({ step: 'input', passcodeOnly: false })).toBe('Sign in');
-    expect(resolveSignInHeading({ step: 'input', passcodeOnly: true })).toBe(
+    expect(resolveSignInHeading({ kind: 'invalid', step: 'input', passcodeOnly: false })).toBe(
+      'Sign in'
+    );
+    expect(resolveSignInHeading({ kind: 'invalid', step: 'input', passcodeOnly: true })).toBe(
       'Enter a show passcode'
     );
   });
@@ -101,19 +112,14 @@ describe('resolveSignInHeading', () => {
 
 describe('resolveLiveHint', () => {
   it('stays silent for values that classify as neither branch', () => {
-    expect(resolveLiveHint('invalid', false)).toBe('');
+    expect(resolveLiveHint('invalid')).toBe('');
   });
 
-  it('names the branch a complete value would take', () => {
-    expect(resolveLiveHint('email', false)).toBe(
-      "Looks like an email — we'll ask for your password next"
-    );
-    expect(resolveLiveHint('passcode', false)).toBe(
-      "Looks like a show passcode — you'll be signed in"
-    );
+  it('names the branch a passcode would take', () => {
+    expect(resolveLiveHint('passcode')).toBe("Looks like a show passcode — you'll be signed in");
   });
 
-  it('says nothing about email in passcode-only mode', () => {
-    expect(resolveLiveHint('email', true)).toBe('');
+  it('stays silent for an email — the password field is already visible', () => {
+    expect(resolveLiveHint('email')).toBe('');
   });
 });

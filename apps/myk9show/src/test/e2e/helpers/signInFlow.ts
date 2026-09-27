@@ -71,11 +71,12 @@ async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
 
 /**
  * One pass over the real SmartSignInPage (Phase 1b "single email-or-passcode
- * front door") two-step flow:
- *   1. fill the single credential field (`credential-input`) with the email
- *   2. Continue — this reveals the password step *in place* (the password field
- *      does not exist in the DOM until this transition)
- *   3. fill `password-input` and submit (`sign-in-button`)
+ * front door") sign-in flow. The credential and password fields render
+ * together in one `<form>` from the start (MYK9-853), so this is a single
+ * pass:
+ *   1. fill the credential field (`credential-input`) with the email
+ *   2. fill `password-input` (already visible — no transition to wait for)
+ *   3. submit (`sign-in-button`)
  *   4. wait for navigation off `/sign-in`
  *
  * Returns `null` on success and the classified failure otherwise, so
@@ -125,8 +126,13 @@ export async function attemptSignIn(
       const params = new URLSearchParams({ returnTo });
       await gotoSignIn(page, `/sign-in?${params.toString()}`);
 
+      // The password field sits beside the credential field from the start
+      // (MYK9-853) — no Continue click or transition to wait for.
       await credentialInput(page).fill(email);
-      await continueButton(page).click();
+      await expect(page.getByTestId('password-input')).toBeVisible({
+        timeout: navigationTimeoutMs,
+      });
+      await page.getByTestId('password-input').fill(password);
     } catch (error) {
       return failureFrom(
         {
@@ -145,33 +151,6 @@ export async function attemptSignIn(
         Number.POSITIVE_INFINITY
       );
     }
-
-    // The email branch reveals the password sub-form ("we'll ask for your
-    // password next"); wait for it before filling.
-    const passwordStepStartedAt = performance.now();
-    try {
-      await expect(page.getByTestId('password-input')).toBeVisible({
-        timeout: navigationTimeoutMs,
-      });
-    } catch (error) {
-      return failureFrom(
-        {
-          email,
-          budgetMs: navigationTimeoutMs,
-          elapsedMs: Math.round(performance.now() - passwordStepStartedAt),
-          finalUrl: page.url(),
-          passwordStepReached: false,
-          authTokenPresent: await hasSupabaseSession(page),
-        },
-        error,
-        authResponses,
-        // Nothing was submitted, so no password grant can belong to this
-        // attempt; an infinite cutoff makes that explicit rather than relying
-        // on the recorded timestamps to happen to be earlier.
-        Number.POSITIVE_INFINITY
-      );
-    }
-    await page.getByTestId('password-input').fill(password);
 
     const submittedAt = performance.now();
     await page.getByTestId('sign-in-button').click();
@@ -257,12 +236,5 @@ function credentialInput(page: Page) {
   return page
     .getByTestId('credential-input')
     .or(page.getByRole('textbox', { name: /Email or show passcode/i }))
-    .first();
-}
-
-function continueButton(page: Page) {
-  return page
-    .getByTestId('continue-button')
-    .or(page.getByRole('button', { name: 'Continue', exact: true }))
     .first();
 }

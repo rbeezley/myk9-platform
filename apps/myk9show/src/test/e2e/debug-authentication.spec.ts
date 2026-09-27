@@ -20,23 +20,20 @@ test.describe('Debug Authentication', () => {
     // Take screenshot before
     await page.screenshot({ path: 'debug-before-login.png' });
 
-    // Check what elements are available. SmartSignInPage's first step shows
-    // only the single credential field + Continue.
+    // Check what elements are available. SmartSignInPage renders the
+    // credential field and the password field together from the start
+    // (MYK9-853).
     console.log('2. Checking form elements...');
     const credentialInput = page.locator('[data-testid="credential-input"]');
-    const continueButton = page.locator('[data-testid="continue-button"]');
-
-    await expect(credentialInput).toBeVisible({ timeout: 10000 });
-    await expect(continueButton).toBeVisible();
-
-    // Fill the credential (email) and continue to reveal the password step.
-    console.log('3. Filling credential and continuing to password step...');
-    await credentialInput.fill(TEST_USERS.SITE_ADMIN.email);
-    await continueButton.click();
-
     const passwordInput = page.locator('[data-testid="password-input"]');
     const signInButton = page.locator('[data-testid="sign-in-button"]');
-    await expect(passwordInput).toBeVisible({ timeout: 10000 });
+
+    await expect(credentialInput).toBeVisible({ timeout: 10000 });
+    await expect(passwordInput).toBeVisible();
+
+    // Fill the credential (email) and password — both are already on screen.
+    console.log('3. Filling credential and password...');
+    await credentialInput.fill(TEST_USERS.SITE_ADMIN.email);
     await passwordInput.fill(TEST_USERS.SITE_ADMIN.password);
 
     // Take screenshot after filling

@@ -156,6 +156,30 @@ fi
 #      FKs are unsupported by this script, so it must refuse rather than
 #      silently skip them the way the single-column survey's
 #      array_length(c.conkey, 1) = 1 filter otherwise would).
+#
+#      Self-contained: this is the ONLY case that needs a composite FK into a
+#      cleanup target table, and the script's refusal is a schema-wide
+#      pg_constraint survey, not scoped to a token's own rows -- if this table
+#      lived in the shared fixture every other case would inherit the same
+#      refusal instead of its own expected outcome. So it is created here,
+#      right before this one run, and dropped again right after, before any
+#      later case can see it. A composite FK needs a matching multi-column
+#      unique constraint on the parent side; (id, show_id) is unique on
+#      entries because id alone already is.
+q "ALTER TABLE public.entries ADD CONSTRAINT entries_id_show_id_key UNIQUE (id, show_id);
+CREATE TABLE public.some_composite_ledger (
+  id uuid PRIMARY KEY, entry_id uuid, show_id uuid,
+  CONSTRAINT some_composite_ledger_entry_fk
+    FOREIGN KEY (entry_id, show_id) REFERENCES public.entries(id, show_id) ON DELETE CASCADE);
+INSERT INTO public.dogs (id, name, owner_id) VALUES
+  ('00000000-0000-0000-0000-0000000000db', 'ZZ Walk Dog 2026-09-27 0305 #1', '00000000-0000-0000-0000-00000000e001');
+INSERT INTO public.entries VALUES
+  ('00000000-0000-0000-0000-0000000000ab', '00000000-0000-0000-0000-0000000000db',
+   '00000000-0000-0000-0000-000000000011', NULL, 'pending', 30);
+INSERT INTO public.some_composite_ledger VALUES
+  ('00000000-0000-0000-0000-0000000000fb', '00000000-0000-0000-0000-0000000000ab',
+   '00000000-0000-0000-0000-000000000011');" >/dev/null
+
 before_i="$(counts)"
 out="$(run -v token='2026-09-27 0305')"
 if grep -q 'composite (multi-column) foreign key' <<<"$out" && grep -q 'some_composite_ledger' <<<"$out" && [ "$(counts)" = "$before_i" ]; then
@@ -163,6 +187,11 @@ if grep -q 'composite (multi-column) foreign key' <<<"$out" && grep -q 'some_com
 else
   fail "composite foreign key refused"; printf '%s\n' "$out" | tail -3
 fi
+
+# Drop the composite-FK table (which also drops its own FK constraint) and the
+# supporting unique constraint on entries, so no later case ever sees them.
+q "DROP TABLE public.some_composite_ledger;
+ALTER TABLE public.entries DROP CONSTRAINT entries_id_show_id_key;" >/dev/null
 
 # 13. A token that matches nothing is refused.
 out="$(run -v token='2030-01-01 0000')"

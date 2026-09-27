@@ -126,6 +126,9 @@ describe('ShowPublicLanding style preview', () => {
     entitlement.canAuthorizePremium = true;
     const user = renderPreview().user;
 
+    // MYK9-856: the "Back to setup" exit link is now first in tab order.
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Back to setup' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('radio', { name: 'Monogram' })).toHaveFocus();
 

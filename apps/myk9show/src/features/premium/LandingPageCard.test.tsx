@@ -32,7 +32,7 @@ describe('LandingPageCard', () => {
 
     expect(screen.getByRole('link', { name: /Preview/i })).toHaveAttribute(
       'href',
-      '/shows/show-1?preview=public'
+      '/shows/show-1?preview=public&returnTo=%2Fshows%2Fshow-1'
     );
   });
 });

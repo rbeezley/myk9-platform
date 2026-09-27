@@ -25,6 +25,7 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
   return {
     showId: 'show-1',
     timeZone: 'America/Chicago',
+    registryId: 'AKC',
     now: NOW,
     trials: [
       { id: 'trial-1', date: '2026-07-20', name: 'Trial 1', number: 'Trial 1', order: 0 },

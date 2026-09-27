@@ -18,14 +18,14 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 ## Duplication check
 
 - `components/common/FilterChips.tsx` (browse pages) is a public-facing chip row with no counts, no date ranges and no search; the kit is the admin-table counterpart. Converging the two is a follow-up once Dogs/Entries adopt the kit.
-- `features/operational-views/SavedViewsControl.tsx` stores ONE device-local view for secretary surfaces; the kit's view tabs are built-in, URL-backed presets. No user-defined saved views in this change.
+- The legacy device-local `SavedViewsControl` was removed after its only mounted caller was retired; the kit's view tabs remain built-in, URL-backed presets. No user-defined saved views in this change.
 - `UserFilters.tsx` (the expandable filter panel) and `UserManagementStats.tsx` (stat cards) are **deleted** — the filter bar and view tabs replace them.
 
 ## Scope (this change: Users page)
 
 - `apps/myk9show/src/components/list-toolkit/` — `ListViewTabs`, `ListFilterBar`, `ListResultLine`, `FloatingBulkBar`.
 - `DataTable` column meta `stickyRight`, so the row-actions column is never clipped.
-- `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New this week, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
+- `/admin/users`: views (All, Signed in 30d, Dormant 90d+, Never signed in, New, last 7 days, Suspended) plus a Role requests link; new `login` filter (URL `login=`); roles collapse to the highest role plus "+N"; row actions pinned right; bulk bar floats; "Select all matching".
 - The floating bar hosts Change roles, the account actions (Suspend, Reinstate, Send invitation, Restore — MYK9-835, rebuilt on ids-only selection and the current roster), a More menu (Copy emails, read-only, and Export), and bulk delete with confirmation.
 - The bar gets a raised surface (accent wash, accent border, deep shadow) — in dark mode `--popover` equals the card colour, so it blended into the list.
 - 44px touch-target floor (docs/INTENT.md) holds for every toolbar and bulk-bar control.

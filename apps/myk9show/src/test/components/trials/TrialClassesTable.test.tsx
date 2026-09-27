@@ -272,6 +272,48 @@ describe('TrialClassesTable', () => {
     });
   });
 
+  // MYK9-811 rehearsal note: level order must come from the shared
+  // `compareLevels` helper the wizard uses, not an ad-hoc table — the old one
+  // had no Open/Utility entries and tied "Novice A" and "Novice B" apart
+  // instead of leaving them as sections of one level.
+  describe('Level sort (shared compareLevels helper)', () => {
+    it('sorts by the canonical progression when the Level column header is clicked', async () => {
+      const user = userEvent.setup();
+      const openLevel: TrialClass = {
+        id: 'class-open',
+        element: 'Interior',
+        level: 'Open',
+        section: '',
+        status: 'Upcoming',
+        judgeId: 'judge-1',
+        judgeName: 'John Smith',
+        startTime: '2024-06-15T12:00:00',
+        entries: 5,
+      };
+      const { container } = renderWithRouter(
+        <TrialClassesTable
+          classes={[...mockClasses, openLevel]}
+          onEditClass={mockHandlers.onEditClass}
+          onDeleteClass={mockHandlers.onDeleteClass}
+        />
+      );
+
+      // The sort click handler lives on `DataTableColumnHeader`'s inner
+      // button, not the outer <th role="columnheader">.
+      await user.click(screen.getByRole('button', { name: /^Level,/ }));
+
+      // DataTable's rows carry role="button" (row navigation), not role="row".
+      const levelCells = Array.from(container.querySelectorAll('tbody tr')).map(
+        row => row.querySelectorAll('td')[1]?.textContent
+      );
+      // Novice(s), then Advanced, then Open — the canonical progression order;
+      // the old ad-hoc table had no "Open" entry at all and would have sorted
+      // it last regardless. Advanced (section B) shows no section suffix
+      // (shouldShowSection: only Novice has sections).
+      expect(levelCells).toEqual(['Novice A', 'Novice A', 'Advanced', 'Open']);
+    });
+  });
+
   describe('Status Badges', () => {
     it('displays status badges for each class', () => {
       renderWithRouter(

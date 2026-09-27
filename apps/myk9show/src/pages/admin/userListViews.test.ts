@@ -4,7 +4,7 @@ import { UserRole } from '@/types/auth-types';
 import { filterUsers, matchesLoginFilter } from './UserManagementPage.helpers';
 import { DEFAULT_USER_FILTER } from './UserManagementPage.types';
 import { parseUserListParams, userListParamsToSearch } from './userListParams';
-import { activeUserViewId, buildUserViews, userViewFilters } from './userListViews';
+import { USER_VIEWS, activeUserViewId, buildUserViews, userViewFilters } from './userListViews';
 
 const NOW = new Date(2026, 8, 26, 12).getTime();
 const daysAgo = (days: number) => new Date(NOW - days * 86_400_000).toISOString();
@@ -113,6 +113,39 @@ describe('user views', () => {
       const back = parseUserListParams(search);
       expect(activeUserViewId(back.filters, NOW)).toBe(id);
     }
+  });
+
+  // MYK9-837: the view starts 7 days before "now", which on a Saturday spans
+  // the previous Saturday through Sunday — not the calendar week. The label
+  // must say what the filter actually does rather than claim "this week".
+  // Codex (PR #2537): the cutoff must be the exact instant 7×24h ago, not
+  // that day's midnight — rounding down would silently widen the window by
+  // up to a day when "now" isn't itself midnight.
+  it('labels the "new" view by its actual rolling window, not a calendar week', () => {
+    const view = USER_VIEWS.find(v => v.id === 'new');
+    expect(view?.label).toBe('New, last 7 days');
+
+    const { dateRange } = view!.filters(NOW);
+    expect(dateRange.end).toBeNull();
+    expect(dateRange.start?.getTime()).toBe(NOW - 7 * 86_400_000);
+  });
+
+  it('keeps the rolling cutoff when selecting the new view through the URL', () => {
+    const now = new Date(2026, 8, 26, 23).getTime();
+    const people = [
+      user('inside', { createdAt: new Date(now - 6 * 86_400_000) }),
+      user('outside', { createdAt: new Date(now - 7.5 * 86_400_000) }),
+    ];
+    expect(buildUserViews(people, now).find(view => view.id === 'new')?.count).toBe(1);
+
+    const search = userListParamsToSearch({
+      ...parseUserListParams(new URLSearchParams()),
+      filters: userViewFilters('new', now),
+    });
+    const selectedFilters = parseUserListParams(search).filters;
+    expect(filterUsers(people, '', selectedFilters, now).map(person => person.id)).toEqual([
+      'inside',
+    ]);
   });
 
   it('writes the login bucket as ?login= and ignores an unknown value', () => {

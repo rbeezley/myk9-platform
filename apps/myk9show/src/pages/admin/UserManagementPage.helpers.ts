@@ -12,13 +12,7 @@ import type { User } from '@/types/user-types';
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
-
-/** Start of the day, so "created after Jul 3" includes everything on Jul 3. */
-function startOfDay(date: Date): number {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
+import { getLeadRole } from '@/components/admin/users/UserTable/utils';
 
 /** End of the day, so "created before Jul 3" includes everything on Jul 3. */
 function endOfDay(date: Date): number {
@@ -111,10 +105,14 @@ export function filterUsers<T extends User>(
     );
   }
 
-  // Apply created-date range
+  // Apply created-date range. `start` is used exactly, not rounded down to
+  // its calendar day — the calendar-picker chip always hands back local
+  // midnight already, but a rolling window's cutoff (userListViews' "New,
+  // last 7 days") lands mid-day, and rounding it down would silently widen
+  // the window by up to a day (MYK9-837 Codex finding).
   const { start, end } = filters.dateRange;
   if (start) {
-    const from = startOfDay(start);
+    const from = start.getTime();
     filtered = filtered.filter(user => !!user.createdAt && user.createdAt.getTime() >= from);
   }
   if (end) {
@@ -137,7 +135,9 @@ function sortValue(user: AdminUser, columnId: string): string {
     case 'email':
       return user.email?.toLowerCase() ?? '';
     case 'role':
-      return user.roles?.[0] ?? '';
+      // Same lead-role calculation as the Roles badge (UserTable/columns.tsx),
+      // so sorting never orders a row by a role the admin can't see (MYK9-837).
+      return getLeadRole(user.roles) ?? '';
     case 'lastLogin':
       return user.lastSignInAt ?? '';
     case 'status':

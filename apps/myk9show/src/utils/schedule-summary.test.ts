@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeSchedule, type ScheduleClassRow } from './schedule-summary';
+import { compareLevels, summarizeSchedule, type ScheduleClassRow } from './schedule-summary';
+
+describe('compareLevels', () => {
+  it("treats the 'Masters' plural alias as the canonical 'Master' level (MYK9-811 Codex finding)", () => {
+    // A truly unknown level ('Elite') sorts alphabetically before 'Masters' —
+    // if 'Masters' is not aliased to 'Master' it falls back to the same
+    // unknown bucket and ties with 'Elite' on that alphabetical order.
+    const levels = ['Elite', 'Masters', 'Novice'];
+    expect([...levels].sort(compareLevels)).toEqual(['Novice', 'Masters', 'Elite']);
+  });
+
+  it('normalizes case before the progression lookup (MYK9-811 Codex finding)', () => {
+    // Lowercase/mixed-case levels must not fall into the unknown bucket and
+    // sort alphabetically — they need the same progression order as their
+    // canonically-cased equivalents (Novice=0, Advanced=1, Excellent=3).
+    const levels = ['advanced', 'novice', 'Excellent', 'NOVICE'];
+    const sorted = [...levels].sort(compareLevels);
+    expect(sorted.indexOf('novice')).toBeLessThan(sorted.indexOf('advanced'));
+    expect(sorted.indexOf('NOVICE')).toBeLessThan(sorted.indexOf('advanced'));
+    expect(sorted.indexOf('advanced')).toBeLessThan(sorted.indexOf('Excellent'));
+  });
+
+  it('trims surrounding whitespace before the progression lookup (MYK9-811 Codex finding)', () => {
+    const levels = [' Advanced ', 'Novice'];
+    expect([...levels].sort(compareLevels)).toEqual(['Novice', ' Advanced ']);
+  });
+});
 
 describe('summarizeSchedule', () => {
   it('groups classes by date and discipline', () => {

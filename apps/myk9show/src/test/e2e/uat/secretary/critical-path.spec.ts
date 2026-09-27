@@ -129,17 +129,22 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await page.keyboard.press('Escape');
 
     await expect(
-      page.getByRole('searchbox', { name: 'Search all show registrations' })
+      page.getByRole('textbox', {
+        name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+      })
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /Needs review/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /All registrations/ })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Registrations', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^All/ })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Entry views' })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Exceptions', exact: true }).click();
     await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
-    await page.getByRole('tab', { name: 'Registrations', exact: true }).click();
-    await expect(page.getByRole('button', { name: /All registrations/ })).toBeVisible();
+    await page.getByRole('button', { name: /^All/ }).click();
+    await expect(
+      page.getByRole('textbox', {
+        name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+      })
+    ).toBeVisible();
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {

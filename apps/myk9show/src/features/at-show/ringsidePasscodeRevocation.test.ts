@@ -8,6 +8,7 @@ import {
   revokeRingsidePasscodeAccess,
 } from './ringsidePasscodeRevocation';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { persistRingsideClaim, readPersistedRingsideClaim } from './ringsideClaimCache';
 
 const { toastErrorMock, getSessionMock, signOutMock } = vi.hoisted(() => ({
   toastErrorMock: vi.fn(),
@@ -37,6 +38,7 @@ describe('ringsidePasscodeRevocation', () => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({ data: { session: null } });
     useRingsideGrantStore.setState({ activeGrant: null, suppressRehydration: false });
+    window.localStorage.clear();
   });
 
   describe('isPasscodeRegeneratedError', () => {
@@ -86,6 +88,19 @@ describe('ringsidePasscodeRevocation', () => {
       expect(toastErrorMock).toHaveBeenCalledWith(PASSCODE_REVOKED_TOAST_MESSAGE);
       expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
       await vi.waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
+    });
+
+    // MYK9-834: a revoked passcode must not be resurrected by the
+    // offline-reload fallback cache the next time this device goes offline.
+    it('purges the offline-reload fallback cache so a later offline reload cannot resurrect it', () => {
+      persistRingsideClaim({ showId: 'show-1', role: 'judge' });
+      useRingsideGrantStore.setState({
+        activeGrant: { showId: 'show-1', role: 'judge', source: 'passcode' },
+      });
+
+      revokeRingsidePasscodeAccess();
+
+      expect(readPersistedRingsideClaim('show-1')).toBeNull();
     });
 
     // Closes the race where useRehydrateRingsideGrant could see "no grant,

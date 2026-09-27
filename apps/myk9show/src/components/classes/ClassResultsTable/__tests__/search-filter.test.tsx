@@ -212,21 +212,21 @@ describe('ClassResultsTable search/filter', () => {
 
   it('renders the search input', () => {
     renderTable();
-    expect(screen.getByLabelText('Search entries')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search by dog, handler, or armband...')).toBeInTheDocument();
   });
 
   it('shows placeholder text in the search input', () => {
     renderTable();
-    const input = screen.getByLabelText('Search entries');
+    const input = screen.getByLabelText('Search by dog, handler, or armband...');
     expect(input).toHaveAttribute('placeholder', 'Search by dog, handler, or armband...');
   });
 
   it('filters entries by dog name', async () => {
     const { user } = renderTable();
     // Switch to All tab so all entries are visible
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Rex');
 
     // Rex should remain, Buddy and Max should be filtered out
@@ -237,9 +237,9 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by handler name', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Bob');
 
     expect(screen.getByText('Bob Jones')).toBeInTheDocument();
@@ -248,9 +248,9 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by armband number', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, '202');
 
     expect(screen.getByText('Buddy')).toBeInTheDocument();
@@ -259,9 +259,9 @@ describe('ClassResultsTable search/filter', () => {
 
   it('search is case-insensitive', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'rex');
 
     expect(screen.getByText('Rex')).toBeInTheDocument();
@@ -269,7 +269,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('shows clear button when search has text', async () => {
     const { user } = renderTable();
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Rex');
 
     expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
@@ -282,9 +282,9 @@ describe('ClassResultsTable search/filter', () => {
 
   it('clears search when clear button is clicked', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Rex');
 
     // Only Rex visible
@@ -308,7 +308,7 @@ describe('ClassResultsTable search/filter', () => {
     expect(screen.getByText('Max')).toBeInTheDocument();
 
     // Search for Max on Pending tab
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Max');
 
     expect(screen.getByText('Max')).toBeInTheDocument();
@@ -319,9 +319,9 @@ describe('ClassResultsTable search/filter', () => {
 
   it('returns no results when search has no matches', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('tab', { name: /all/i }));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
 
-    const searchInput = screen.getByLabelText('Search entries');
+    const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'zzzznonexistent');
 
     expect(screen.queryByText('Rex')).not.toBeInTheDocument();

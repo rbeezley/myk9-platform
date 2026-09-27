@@ -238,6 +238,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         return;
       }
       const typedName = displayName.trim();
+      // `setGrant` itself persists the confirmed claim to the offline-reload
+      // fallback cache (ringsideGrantStore.ts) — the single choke point every
+      // successful passcode entry passes through, this call included (MYK9-834).
       setGrant({
         showId: result.showId,
         role: result.role,

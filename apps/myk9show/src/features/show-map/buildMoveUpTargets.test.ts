@@ -82,3 +82,63 @@ describe('buildMoveUpTargets — registry-aware (Phase 5b)', () => {
     expect(targets.map(t => t.id)).toEqual([ascaContainerOpen.id]);
   });
 });
+
+/**
+ * MYK9-825: a UKC show runs two same-day trials, each with its own full
+ * Vehicle A/B ladder. A dog in trial 1's "Vehicle Novice A" must never be
+ * offered trial 2's "Vehicle Advanced" as a move-up target, and the label
+ * shown must carry the section even when the stored name omits it.
+ */
+describe('buildMoveUpTargets — same trial only (MYK9-825)', () => {
+  const trial1NoviceA = makeClass({
+    id: 't1-novice-a',
+    trialId: 'trial-1',
+    name: 'Vehicle Novice',
+    element: 'Vehicle',
+    level: 'Novice',
+    section: 'A',
+  });
+  const trial1AdvancedA = makeClass({
+    id: 't1-advanced-a',
+    trialId: 'trial-1',
+    name: 'Vehicle Advanced',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'A',
+  });
+  const trial1AdvancedB = makeClass({
+    id: 't1-advanced-b',
+    trialId: 'trial-1',
+    name: 'Vehicle Advanced',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'B',
+  });
+  const trial2AdvancedA = makeClass({
+    id: 't2-advanced-a',
+    trialId: 'trial-2',
+    name: 'Vehicle Advanced',
+    element: 'Vehicle',
+    level: 'Advanced',
+    section: 'A',
+  });
+
+  it('excludes a same-element, higher-level class from a DIFFERENT trial', () => {
+    const targets = buildMoveUpTargets(
+      [trial1NoviceA, trial1AdvancedA, trial2AdvancedA],
+      trial1NoviceA.id,
+      'UKC'
+    );
+    expect(targets.map(t => t.id)).toEqual([trial1AdvancedA.id]);
+  });
+
+  it('labels each target with its section even when the stored name omits it', () => {
+    const targets = buildMoveUpTargets(
+      [trial1NoviceA, trial1AdvancedA, trial1AdvancedB],
+      trial1NoviceA.id,
+      'UKC'
+    );
+    const labels = targets.map(t => t.label).sort();
+    expect(labels).toEqual(['Vehicle Advanced A', 'Vehicle Advanced B']);
+  });
+});

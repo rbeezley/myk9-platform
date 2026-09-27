@@ -74,6 +74,11 @@ beforeEach(() => {
           level: 'Novice',
           section: 'A',
           judge: 'Test Judge',
+          // Every fixture in this file exercises an already-RELEASED
+          // canonical result (see the `released` row below); MYK9-805's
+          // release gate reads this field, so it must say so explicitly or
+          // every result here would default to withheld/preliminary.
+          results_released_at: '2020-08-01T00:00:00Z',
         },
       ],
     })

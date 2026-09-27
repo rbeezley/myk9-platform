@@ -81,7 +81,11 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       timeout: 15000,
     });
 
-    await page.getByRole('searchbox', { name: 'Search all show registrations' }).fill(seed.dogName);
+    await page
+      .getByRole('textbox', {
+        name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
+      })
+      .fill(seed.dogName);
     const registrationRow = page
       .getByRole('list', { name: 'Registration work queue' })
       .getByRole('listitem')

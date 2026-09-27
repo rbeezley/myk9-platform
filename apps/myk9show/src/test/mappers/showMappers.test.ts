@@ -312,6 +312,42 @@ describe('mapDatabaseToShow — branding fallback', () => {
 });
 
 /**
+ * MYK9-830: the show header's "Payment methods" tile showed only Card even
+ * though `shows.accept_check_payments` and `accept_cash_payments` were true.
+ * `QuickInfoCards` already reads `show.acceptCheckPayments` /
+ * `show.acceptCashPayments` correctly (its own tests render those props
+ * directly), and `mapReplicatedShowToDbRow` already puts
+ * `accept_check_payments` / `accept_cash_payments` on the row it hands back.
+ * The drop was here: `mapDatabaseToShow` never copied those two columns onto
+ * the `Show` object it builds, so every reader of the real row — the show
+ * page's fast loader, the guest public read, and the replicated show list —
+ * lost the flags on this last hop.
+ */
+describe('mapDatabaseToShow — payment methods (MYK9-830)', () => {
+  it('maps accept_check_payments and accept_cash_payments onto the Show object', () => {
+    const result = mapDatabaseToShow({
+      ...baseDbShow,
+      accept_check_payments: true,
+      accept_cash_payments: true,
+    } as never);
+
+    expect(result.acceptCheckPayments).toBe(true);
+    expect(result.acceptCashPayments).toBe(true);
+  });
+
+  it('maps false accept_check_payments and accept_cash_payments onto the Show object', () => {
+    const result = mapDatabaseToShow({
+      ...baseDbShow,
+      accept_check_payments: false,
+      accept_cash_payments: false,
+    } as never);
+
+    expect(result.acceptCheckPayments).toBe(false);
+    expect(result.acceptCashPayments).toBe(false);
+  });
+});
+
+/**
  * `show.events` is the ONLY input to the /shows discipline filter
  * (`useBrowseShowsFilters` maps a discipline chip to a show type and matches it
  * against `show.events`). The mapper originally read only `trial_type`, but the

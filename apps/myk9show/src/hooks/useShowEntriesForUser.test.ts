@@ -680,3 +680,92 @@ describe('useShowEntriesForUser', () => {
     });
   });
 });
+
+// MYK9-805: two exhibitor surfaces broke MYK9-263's rule (placement withheld
+// until release, unreleased result labelled preliminary) and MYK9-489's rule
+// (a class name distinguishing itself from a same-element/level sibling).
+// The show page's "My run schedule" is one of them.
+describe('useShowEntriesForUser — class-label disambiguation and result release (MYK9-805)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('adds the disambiguating word only to the class that collides with a same-trial sibling', () => {
+    setMocks({
+      entries: [
+        makeEntry({ id: 'entry-real', classId: 'class-real' }),
+        makeEntry({ id: 'entry-prelim', classId: 'class-prelim' }),
+      ],
+      classes: [
+        makeClass({
+          id: 'class-real',
+          className: 'Interior Advanced',
+          element: 'Interior',
+          level: 'Advanced',
+          section: undefined,
+        }),
+        makeClass({
+          id: 'class-prelim',
+          className: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+          section: undefined,
+        }),
+      ],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    const titleByClassId = new Map(result.current.allEntries.map(e => [e.classId, e.classTitle]));
+
+    expect(titleByClassId.get('class-real')).toBe('Interior Advanced');
+    expect(titleByClassId.get('class-prelim')).toBe('Interior Advanced Preliminary');
+  });
+
+  it('leaves an ordinary class name untouched when nothing in its trial collides', () => {
+    setMocks({
+      entries: [makeEntry({ id: 'entry-1', classId: CLASS_ID })],
+      classes: [makeClass()],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries[0].classTitle).toBe('Container Novice A');
+  });
+
+  it('labels an unreleased result preliminary', () => {
+    setMocks({
+      entries: [
+        makeEntry({
+          id: 'entry-prelim',
+          classId: 'class-prelim',
+          competitionData: { qualified: true, time: '0:52.40', placement: '1' },
+        }),
+      ],
+      classes: [
+        makeClass({
+          id: 'class-prelim',
+          className: 'Interior Advanced Preliminary',
+          results_released_at: null,
+        }),
+      ],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries[0].result?.isPreliminary).toBe(true);
+  });
+
+  it('does not label a released result preliminary', () => {
+    setMocks({
+      entries: [
+        makeEntry({
+          id: 'entry-released',
+          classId: CLASS_ID,
+          competitionData: { qualified: true, time: '0:38.50' },
+        }),
+      ],
+      classes: [makeClass({ id: CLASS_ID, results_released_at: '2026-10-24T15:00:00Z' })],
+    });
+
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries[0].result?.isPreliminary).toBe(false);
+  });
+});

@@ -8,7 +8,7 @@
  * Asserts rendered ARIA state, not source strings.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { ShowMapToolbar } from '../ShowMapToolbar';
 
 function renderToolbar(overrides: Record<string, unknown> = {}) {
@@ -52,14 +52,17 @@ describe('ShowMapToolbar pressed state', () => {
     );
   });
 
-  it('marks the active class-status filter', () => {
-    renderToolbar({ filter: 'in-progress' });
+  it('marks the active status view and changes it through the list toolkit', async () => {
+    const onFilterChange = vi.fn();
+    const { user } = renderToolbar({ filter: 'in-progress', onFilterChange });
 
     expect(screen.getByRole('button', { name: 'In progress' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByRole('button', { name: 'Attention' }));
+    expect(onFilterChange).toHaveBeenCalledWith('needs-attention');
   });
 
   it('exposes each filter set as a labelled group', () => {
@@ -67,6 +70,6 @@ describe('ShowMapToolbar pressed state', () => {
 
     expect(screen.getByRole('group', { name: 'Date range' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Class completion' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Class status' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Show Map filters' })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { describe, expect, it, vi, type Mock } from 'vitest';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
 import { ClubHeader } from '../ClubHeader';
@@ -8,6 +8,18 @@ import { ClubHeader } from '../ClubHeader';
 vi.mock('@/components/ui/cover-image-upload', () => ({
   CoverImageUpload: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+
+// MYK9-860: the club officials line reads through useClubOfficials, which
+// calls these two real service functions. Mocked here (default empty, like
+// the pre-existing tests below already got from the global Supabase mock) so
+// the "populated" test below proves the line actually renders when the real
+// data path resolves, not just when handed props by hand.
+vi.mock('@/services/database/club-memberships', () => ({
+  getClubAdmins: vi.fn().mockResolvedValue([]),
+  getClubShowManagers: vi.fn().mockResolvedValue([]),
+}));
+
+import { getClubAdmins, getClubShowManagers } from '@/services/database/club-memberships';
 
 const baseClub: Club = {
   id: 'club-1',
@@ -244,5 +256,36 @@ describe('club authorization control', () => {
 
     await user.click(screen.getByRole('button', { name: 'Club options' }));
     expect(await screen.findByText('Authorize Club')).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+// MYK9-860 — proves the real wiring (useClubOfficials -> getClubAdmins /
+// getClubShowManagers -> ClubOfficialsLine), not just the presentational
+// component in isolation (see ClubOfficialsLine.test.tsx for that).
+describe('club officials line', () => {
+  it('shows the admin and secretary names once the real data path resolves', async () => {
+    (getClubAdmins as Mock).mockResolvedValueOnce([{ personId: 'p1', personName: 'Jane Doe' }]);
+    (getClubShowManagers as Mock).mockResolvedValueOnce([
+      {
+        personId: 'p2',
+        personName: 'Pat Lee',
+        personEmail: null,
+        isClubMember: true,
+        membershipStatus: 'active',
+      },
+    ]);
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent('Admin: Jane Doe');
+    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
+  });
+
+  it('renders nothing when this viewer has no readable admins or secretaries', async () => {
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    await waitFor(() => expect(getClubAdmins).toHaveBeenCalledWith(baseClub.id));
+    expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-secretary-names')).not.toBeInTheDocument();
   });
 });

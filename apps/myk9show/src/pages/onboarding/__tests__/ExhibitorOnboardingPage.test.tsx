@@ -217,6 +217,86 @@ describe('ExhibitorOnboardingPage', () => {
     });
   });
 
+  // MYK9-858: the final step's "Account Profile" / "Account Notifications"
+  // links used to be bare react-router Links. `onboarding_completed_at` is
+  // only ever set inside `completeOnboarding()`, which only the Finish button
+  // called — so following either link left it null, and the
+  // ExhibitorOnboardingChecker guard on /account bounced the user straight
+  // back to /onboarding step 1.
+  it('completes onboarding and lands on the profile section when Account Profile is clicked from the final step', async () => {
+    const completeOnboarding = vi.fn().mockResolvedValue('2026-07-07T12:00:00.000Z');
+    setupAuth([UserRole.EXHIBITOR]);
+    mockUseExhibitorProfile.mockReturnValue({
+      profile: {
+        id: 'profile-id',
+        person_id: 'person-id',
+        auth_user_id: 'auth-user-id',
+        default_handler_id: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        stripe_customer_id: null,
+        onboarding_completed_at: null,
+        created_at: '2026-07-06T00:00:00.000Z',
+        updated_at: '2026-07-06T00:00:00.000Z',
+      },
+      isLoading: false,
+      error: null,
+      createProfileAsync: vi.fn(),
+      isCreatingProfile: false,
+      completeOnboarding,
+      isCompletingOnboarding: false,
+    } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+    render(<ExhibitorOnboardingPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('link', { name: /account profile/i }));
+
+    await waitFor(() => {
+      expect(completeOnboarding).toHaveBeenCalledOnce();
+    });
+    expect(navigateMock).toHaveBeenLastCalledWith('/account?section=profile', { replace: true });
+    expect(navigateMock).not.toHaveBeenCalledWith('/shows', { replace: true });
+  });
+
+  it('completes onboarding and lands on the notifications section when Account Notifications is clicked from the final step', async () => {
+    const completeOnboarding = vi.fn().mockResolvedValue('2026-07-07T12:00:00.000Z');
+    setupAuth([UserRole.EXHIBITOR]);
+    mockUseExhibitorProfile.mockReturnValue({
+      profile: {
+        id: 'profile-id',
+        person_id: 'person-id',
+        auth_user_id: 'auth-user-id',
+        default_handler_id: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        stripe_customer_id: null,
+        onboarding_completed_at: null,
+        created_at: '2026-07-06T00:00:00.000Z',
+        updated_at: '2026-07-06T00:00:00.000Z',
+      },
+      isLoading: false,
+      error: null,
+      createProfileAsync: vi.fn(),
+      isCreatingProfile: false,
+      completeOnboarding,
+      isCompletingOnboarding: false,
+    } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+    render(<ExhibitorOnboardingPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('link', { name: /account notifications/i }));
+
+    await waitFor(() => {
+      expect(completeOnboarding).toHaveBeenCalledOnce();
+    });
+    expect(navigateMock).toHaveBeenLastCalledWith('/account?section=notifications', {
+      replace: true,
+    });
+    expect(navigateMock).not.toHaveBeenCalledWith('/shows', { replace: true });
+  });
+
   it('redirects unauthenticated users to sign in instead of showing profile creation', async () => {
     setupUnauthenticated();
 

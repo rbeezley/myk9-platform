@@ -12639,6 +12639,10 @@ export type Database = {
         Args: { check_club_id: string }
         Returns: boolean
       }
+      count_blocking_entries_by_dog: {
+        Args: { p_dog_id: string }
+        Returns: number
+      }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string

@@ -273,11 +273,11 @@ const BrowseDogsPage: React.FC = () => {
       return (
         <EmptyState
           icon={PawPrint}
-          title="No dogs yet"
+          title={isExhibitorOnly ? 'No dogs yet' : 'No dogs visible to you yet'}
           description={
             isExhibitorOnly
               ? 'Add your first dog to start tracking titles, training, and health records.'
-              : 'Add your first dog to track health records, registrations, and competitions.'
+              : 'No dogs are visible to you yet. Dogs added by any exhibitor, or by you, will show up here.'
           }
           action={
             canCreateDogs

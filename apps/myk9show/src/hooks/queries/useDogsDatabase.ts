@@ -45,12 +45,20 @@ export const useDogsQuery = () => {
       // `enabled` keeps this query idle until identity resolves, but refetch()
       // bypasses `enabled` — without this guard a retry button could run the
       // roster read with an undefined person and report its result as fact.
-      if (!personId) throw new Error('Cannot load dogs before the signed-in person resolves');
-      const { data, error } = await getAllDogs(personId, showAll);
+      //
+      // `personId` comes from `exhibitor_profiles`, which a secretary or site
+      // admin may never have a row in — they are not exhibitors. `showAll`
+      // viewers never filter by owner (see below), so their read does not
+      // need a person id at all; gating it on one anyway left a staff-only
+      // account stuck at a permanent, false "0 dogs" (MYK9-854).
+      if (!showAll && !personId) {
+        throw new Error('Cannot load dogs before the signed-in person resolves');
+      }
+      const { data, error } = await getAllDogs(personId ?? '', showAll);
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!personId,
+    enabled: showAll || !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
 };

@@ -5,14 +5,21 @@ import type { ReactNode } from 'react';
 import { UserRole } from '@/types/auth-types';
 import { useDogsQuery, useDeleteDogMutation } from './useDogsDatabase';
 
-const { mockGetAllDogs, mockGetUserRoles, mockHasRole, mockDeleteDog, mockReplicaDelete } =
-  vi.hoisted(() => ({
-    mockGetAllDogs: vi.fn(),
-    mockGetUserRoles: vi.fn(),
-    mockHasRole: vi.fn(),
-    mockDeleteDog: vi.fn(),
-    mockReplicaDelete: vi.fn(),
-  }));
+const {
+  mockGetAllDogs,
+  mockGetUserRoles,
+  mockHasRole,
+  mockDeleteDog,
+  mockReplicaDelete,
+  mockUseCurrentPersonId,
+} = vi.hoisted(() => ({
+  mockGetAllDogs: vi.fn(),
+  mockGetUserRoles: vi.fn(),
+  mockHasRole: vi.fn(),
+  mockDeleteDog: vi.fn(),
+  mockReplicaDelete: vi.fn(),
+  mockUseCurrentPersonId: vi.fn(),
+}));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { delete: mockReplicaDelete },
@@ -31,7 +38,7 @@ vi.mock('@/services/database/dogs', () => ({
 }));
 
 vi.mock('@/hooks/useCurrentPersonId', () => ({
-  useCurrentPersonId: () => 'person-1',
+  useCurrentPersonId: mockUseCurrentPersonId,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -49,6 +56,7 @@ describe('useDogsQuery roster scope', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAllDogs.mockResolvedValue({ data: [], error: null });
+    mockUseCurrentPersonId.mockReturnValue('person-1');
   });
 
   it.each([
@@ -69,6 +77,52 @@ describe('useDogsQuery roster scope', () => {
       await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('person-1', expectedShowAll));
     }
   );
+});
+
+/**
+ * `personId` comes from `exhibitor_profiles`, which a secretary or site admin
+ * may never have a row in. MYK9-854: a site admin on production saw a
+ * permanent, false "0 dogs" because the query stayed disabled (and, on
+ * refetch, threw) whenever that id was missing — even though a full-roster
+ * read does not filter by owner and never needed it.
+ */
+describe('useDogsQuery personId resolution (MYK9-854)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAllDogs.mockResolvedValue({ data: [], error: null });
+    mockUseCurrentPersonId.mockReturnValue(undefined);
+  });
+
+  it.each([
+    ['site admin', [UserRole.SITE_ADMIN]],
+    ['secretary', [UserRole.SECRETARY]],
+    ['club admin', [UserRole.CLUB_ADMIN]],
+  ] as const)(
+    'runs the full-roster read for a %s with no exhibitor profile',
+    async (_label, roles) => {
+      mockGetUserRoles.mockReturnValue(roles);
+      mockHasRole.mockImplementation((role: UserRole) =>
+        (roles as readonly UserRole[]).includes(role)
+      );
+
+      renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('', true));
+    }
+  );
+
+  it('never runs the own-dogs read for an exhibitor before their person id resolves', async () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    mockHasRole.mockImplementation((role: UserRole) => role === UserRole.EXHIBITOR);
+
+    renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+
+    // No id ever resolves in this test, so there is nothing to await — the
+    // query must stay disabled for the whole tick rather than throw.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockGetAllDogs).not.toHaveBeenCalled();
+  });
 });
 
 /**

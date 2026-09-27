@@ -11,6 +11,8 @@ import {
   monthKeyOf,
 } from '@/components/shows/browse/monthScrubber.helpers';
 import { RADIUS_OPTIONS, showDistanceMiles, type LatLng } from '@/features/location/distance';
+import { MANAGING_VIEW_IDS, matchesManagingView } from '@/pages/showManagingViews';
+import { DISCIPLINE_MAP } from '@/pages/showBrowseDisciplineOptions';
 
 /**
  * Filter state interface for browse shows page
@@ -25,6 +27,11 @@ export interface ShowFilters {
   club: string;
   /** `'all'` or a miles radius from the visitor's location; inert without one. */
   radius: string;
+  /**
+   * Managing tab's built-in views (`showManagingViews.ts`, MYK9-798). Inert on
+   * every other tab — only the Managing tab's own status pill applies it.
+   */
+  status: string;
 }
 
 /**
@@ -38,16 +45,7 @@ const DEFAULT_FILTERS: ShowFilters = {
   organization: 'all',
   club: 'all',
   radius: 'all',
-};
-
-/**
- * Discipline to show type mapping
- */
-const DISCIPLINE_MAP: Record<string, string> = {
-  agility: 'Agility',
-  scent_work: 'Scent Work',
-  rally: 'Rally',
-  obedience: 'Obedience',
+  status: 'all',
 };
 
 /**
@@ -65,6 +63,7 @@ const ALLOWED_FILTER_VALUES = {
   discipline: Object.keys(DISCIPLINE_MAP),
   entryStatus: ['open', 'closing_soon', 'closed', 'waitlist'],
   radius: RADIUS_OPTIONS,
+  status: MANAGING_VIEW_IDS,
 } as const;
 
 /**
@@ -170,7 +169,8 @@ export function useBrowseShowsFilters({
       filters.month !== ALL_MONTHS_KEY ||
       filters.organization !== 'all' ||
       filters.club !== 'all' ||
-      (filters.radius !== 'all' && origin !== null)
+      (filters.radius !== 'all' && origin !== null) ||
+      filters.status !== 'all'
     );
   }, [filters, origin]);
 
@@ -193,6 +193,12 @@ export function useBrowseShowsFilters({
   const applyFilters = useCallback(() => {
     // First apply tab-based filtering
     let filtered = filterShowsForTab(selectedTab, shows, entries, userContext);
+
+    // Managing view (status): inert everywhere but the Managing tab, whose own
+    // view tabs are the only UI that ever sets it.
+    if (selectedTab === 'managing' && filters.status !== 'all') {
+      filtered = filtered.filter(show => matchesManagingView(show, entries, filters.status));
+    }
 
     // Search filter
     if (filters.search) {

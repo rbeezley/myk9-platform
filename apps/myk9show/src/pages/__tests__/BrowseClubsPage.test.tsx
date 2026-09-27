@@ -243,11 +243,11 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     expect(screen.getByTitle('Table view')).toBeInTheDocument();
   });
 
-  it('renders ResultsCount showing correct numbers', () => {
+  it('renders the result line showing correct numbers', () => {
     renderPage();
 
-    // 1 of 1 club
-    expect(screen.getByText('1 club')).toBeInTheDocument();
+    // 1 of 1 club, unfiltered
+    expect(screen.getByText(/1 club/)).toBeInTheDocument();
   });
 
   it('shows loading skeleton when isLoading and no clubs', () => {

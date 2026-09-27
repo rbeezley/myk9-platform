@@ -151,7 +151,8 @@ export function derivePaidStrip(
     dogNames,
     amountCents: fresh.reduce((sum, payment) => sum + Math.round(payment.cls.fee * 100), 0),
     date: fresh.reduce(
-      (latest, payment) => (payment.order.submittedAt > latest ? payment.order.submittedAt : latest),
+      (latest, payment) =>
+        payment.order.submittedAt > latest ? payment.order.submittedAt : latest,
       fresh[0].order.submittedAt
     ),
   };

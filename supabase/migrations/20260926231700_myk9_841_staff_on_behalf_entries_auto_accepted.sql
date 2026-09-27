@@ -13,19 +13,19 @@
 -- it was never meant to gate entry_status). This function already computes
 -- v_is_official -- the same site-admin/secretary/club-admin check every other
 -- staff-only branch in this function uses. "On behalf of someone else" is
--- decided by dog OWNERSHIP (owner_id or co_owner_id = the caller), not by
--- comparing the resolved handler to the caller: an official can key HER OWN
--- dog with a co-owner or an alternate handler as handler_id, and that is
--- still her own entry, not one she is reviewing for someone else.
+-- decided by dog OWNERSHIP (dogs.owner_id = the caller -- the SAME rule the
+-- self-service authorization check further down this function already uses,
+-- so the two can't disagree about what "own dog" means), not by comparing
+-- the resolved handler to the caller: an official can key HER OWN dog with
+-- an alternate handler as handler_id, and that is still her own entry, not
+-- one she is reviewing for someone else.
 --   - v_is_official = false                          -> exhibitor self-entry,
 --     unchanged ('submitted').
---   - v_is_official = true, caller owns or co-owns
---     the dog                                         -> staff entering
+--   - v_is_official = true, caller owns the dog       -> staff entering
 --     THEIR OWN dog, unchanged ('submitted') -- she is not reviewing
 --     herself, whoever the handler is.
---   - v_is_official = true, caller does not own or
---     co-own the dog (incl. a dog with no owner on
---     file)                                           -> on-behalf-of,
+--   - v_is_official = true, caller does not own the
+--     dog (incl. a dog with no owner on file)         -> on-behalf-of,
 --     auto-accepted ('confirmed').
 --
 -- STATUS VALUE. 'confirmed' is deliberately used, not 'accepted' or 'paid':
@@ -350,27 +350,30 @@ BEGIN
     -- review lane. Decided from v_is_official (the same caller-manages-the-
     -- show check every other staff-only branch above uses) plus dog
     -- OWNERSHIP -- not the resolved handler. A secretary can key HER OWN
-    -- dog with a co-owner or an alternate handler as the handler_id (e.g.
-    -- entering a dog she and a co-owner both show); that is still her own
-    -- entry, not one she is reviewing for someone else, so comparing
+    -- dog with an alternate handler as the handler_id (e.g. entering a dog
+    -- she shows for someone else on paper); that is still her own entry,
+    -- not one she is reviewing for someone else, so comparing
     -- v_handler_person_id to v_caller_person_id wrongly auto-accepted it.
-    -- "Own" mirrors the ownership test the non-official handler-assignment
-    -- guard above already uses (owner_id OR co_owner_id):
+    -- "Own" is dogs.owner_id = v_caller_person_id, the SAME rule the
+    -- self-service authorization check below this loop uses (there via a
+    -- people/auth.uid() join to the same owner_id column) -- deliberately
+    -- NOT co_owner_id (Codex round 2, P1: an earlier revision of this
+    -- classification counted co-owners too, so the two ownership rules in
+    -- this function disagreed about what "own dog" means):
     --   - v_is_official = false                          -> exhibitor
     --     self-entry, unchanged ('submitted').
-    --   - v_is_official = true, caller owns/co-owns the
-    --     dog                                             -> staff entering
+    --   - v_is_official = true, caller owns the dog       -> staff entering
     --     THEIR OWN dog, unchanged ('submitted') -- she is not reviewing
     --     herself, whoever the handler is.
-    --   - v_is_official = true, caller does not own/co-own
-    --     the dog                                         -> on-behalf-of,
+    --   - v_is_official = true, caller does not own the
+    --     dog                                             -> on-behalf-of,
     --     auto-accepted ('confirmed').
     -- Never derived from any client-supplied field.
     v_entry_status := CASE
       WHEN v_is_official AND NOT EXISTS (
         SELECT 1 FROM public.dogs d
         WHERE d.id = v_dog_id
-          AND v_caller_person_id IN (d.owner_id, d.co_owner_id)
+          AND d.owner_id = v_caller_person_id
       )
         THEN 'confirmed'
       ELSE 'submitted'

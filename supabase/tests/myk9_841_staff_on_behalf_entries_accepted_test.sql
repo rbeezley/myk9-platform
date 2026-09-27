@@ -19,12 +19,16 @@
 --      fix keys off "on behalf of someone else", not off "is staff" alone --
 --      a secretary reviewing her own entry is not reviewing anyone.
 --   4. THE SAME secretary submits for HER OWN dog again, but with an
---      explicit handler_id naming ANOTHER person (e.g. a co-owner or
---      alternate handler she shows the dog with): `entry_status` must
---      STILL be 'submitted'. This is the regression case -- deciding "own
---      entry" by comparing the resolved HANDLER to the caller (rather than
---      by dog OWNERSHIP) wrongly auto-accepted this as on-behalf-of, even
---      though the secretary owns the dog. Fails before the fix.
+--      explicit handler_id naming ANOTHER person (an alternate handler she
+--      shows the dog with): `entry_status` must STILL be 'submitted'. This
+--      is the regression case -- deciding "own entry" by comparing the
+--      resolved HANDLER to the caller (rather than by dog OWNERSHIP, i.e.
+--      dogs.owner_id) wrongly auto-accepted this as on-behalf-of, even
+--      though the secretary owns the dog. Fails before the fix. Ownership
+--      is dogs.owner_id only, the same rule the self-service authorization
+--      check in submit_show_entries uses -- not co_owner_id (Codex round 2,
+--      P1: an earlier revision counted co-owners too, so the two ownership
+--      rules in that function disagreed about what "own dog" means).
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -237,9 +241,9 @@ BEGIN
 
   ----------------------------------------------------------------------------
   -- 4. THE SAME secretary submits for HER OWN dog again, but names ANOTHER
-  --    person as the handler (co-owner / alternate handler). "Own entry" is
-  --    decided by dog OWNERSHIP, not by the resolved handler, so this must
-  --    ALSO stay 'submitted' -- the regression case for this fix.
+  --    person as the handler (an alternate handler). "Own entry" is decided
+  --    by dog OWNERSHIP (dogs.owner_id), not by the resolved handler, so
+  --    this must ALSO stay 'submitted' -- the regression case for this fix.
   ----------------------------------------------------------------------------
   result := public.submit_show_entries(
     show_id, secretary_reg_id,

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCw, ShieldCheck } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
+import { ListFilterBar, ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
@@ -18,6 +19,18 @@ import {
 import { getRoleRequestFilterLabel, ROLE_REQUEST_STATUS_FILTERS } from './adminStatusPresentation';
 import { RoleRequestCard, type ActionError } from './RoleRequestCard';
 import { getRoleLabel } from './roleRequestPresentation';
+
+type StatusFilter = RoleRequestStatus | 'all';
+
+const DEFAULT_STATUS_FILTER: StatusFilter = 'pending';
+
+function readStatusFilter(value: string | null): StatusFilter {
+  return (ROLE_REQUEST_STATUS_FILTERS as readonly string[]).includes(value ?? '')
+    ? (value as StatusFilter)
+    : DEFAULT_STATUS_FILTER;
+}
+
+const REQUEST_NOUN = ['request', 'requests'] as const;
 
 function getEmptyStateCopy(filter: RoleRequestStatus | 'all') {
   switch (filter) {
@@ -69,11 +82,12 @@ function LoadingState() {
 }
 
 export default function RoleRequestsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = readStatusFilter(searchParams.get('status'));
+  const searchTerm = searchParams.get('q') ?? '';
   const [requests, setRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<RoleRequestStatus | 'all'>('pending');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedClubs, setSelectedClubs] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [actionErrors, setActionErrors] = useState<Record<string, ActionError>>({});
@@ -125,7 +139,39 @@ export default function RoleRequestsPage() {
     return result;
   }, [requests]);
 
-  const pendingCount = counts.pending ?? 0;
+  const views: ListView[] = useMemo(
+    () =>
+      ROLE_REQUEST_STATUS_FILTERS.map(status => ({
+        id: status,
+        label: getRoleRequestFilterLabel(status),
+        count: status === 'all' ? requests.length : (counts[status] ?? 0),
+      })),
+    [counts, requests.length]
+  );
+
+  const setFilter = useCallback(
+    (next: StatusFilter) => {
+      setSearchParams(current => {
+        const nextParams = new URLSearchParams(current);
+        if (next === DEFAULT_STATUS_FILTER) nextParams.delete('status');
+        else nextParams.set('status', next);
+        return nextParams;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const setSearchTerm = useCallback(
+    (value: string) => {
+      setSearchParams(current => {
+        const nextParams = new URLSearchParams(current);
+        if (value) nextParams.set('q', value);
+        else nextParams.delete('q');
+        return nextParams;
+      });
+    },
+    [setSearchParams]
+  );
 
   const clearActionError = (requestId: string) => {
     setActionErrors(previous => {
@@ -276,88 +322,26 @@ export default function RoleRequestsPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Review queue</p>
-          {loading && <Skeleton className="mt-1 h-4 w-44" />}
-          {!loading && error && (
-            <p className="text-sm text-muted-foreground">We couldn&apos;t refresh this queue.</p>
-          )}
-          {!loading && !error && (
-            <p className="text-sm text-muted-foreground">
-              {pendingCount > 0
-                ? `${pendingCount} ${pendingCount === 1 ? 'request' : 'requests'} waiting for review`
-                : 'Nothing is waiting for review'}
-            </p>
-          )}
-        </div>
-        {loading && <Skeleton className="h-7 w-24 rounded-full" />}
-        {!loading && error && (
-          <span className="rounded-full bg-background px-3 py-1 text-sm font-medium text-muted-foreground">
-            Unavailable
-          </span>
-        )}
-        {!loading && !error && (
-          <span className="rounded-full bg-background px-3 py-1 text-sm font-medium text-foreground">
-            {pendingCount} pending
-          </span>
-        )}
-      </div>
+      <ListViewTabs
+        label="Filter role requests"
+        views={views}
+        activeId={filter}
+        onSelect={id => setFilter(id as StatusFilter)}
+      />
 
-      <div className="flex flex-wrap gap-2" aria-label="Filter role requests" role="group">
-        {ROLE_REQUEST_STATUS_FILTERS.map(status => (
-          <button
-            key={status}
-            type="button"
-            aria-pressed={filter === status}
-            onClick={() => setFilter(status)}
-            className={`min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-              filter === status
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-            }`}
-          >
-            {`${getRoleRequestFilterLabel(status)} (${
-              status === 'all' ? requests.length : (counts[status] ?? 0)
-            })`}
-          </button>
-        ))}
-      </div>
+      <ListFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by name, email, club, or role"
+        fields={[]}
+      />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <label htmlFor="role-request-search" className="sr-only">
-            Search role requests
-          </label>
-          <input
-            id="role-request-search"
-            type="search"
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            placeholder="Search by name, email, club, or role"
-            className="min-h-11 w-full rounded-lg border border-input bg-background py-2 pl-11 pr-11 text-base focus-visible:border-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label="Clear search"
-              onClick={() => setSearchTerm('')}
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {hasSearch
-            ? `${filteredRequests.length} matching ${filteredRequests.length === 1 ? 'request' : 'requests'}`
-            : `${filteredRequests.length} shown`}
-        </p>
-      </div>
+      <ListResultLine
+        shown={filteredRequests.length}
+        total={requests.length}
+        noun={REQUEST_NOUN}
+        filtered={hasSearch || filter !== DEFAULT_STATUS_FILTER}
+      />
 
       {error && (
         <div

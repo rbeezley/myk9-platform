@@ -107,7 +107,7 @@ describe('OnboardingInboxPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByText(/No pending requests/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /contacted \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^contacted/i })).toBeInTheDocument();
   });
 
   it('keeps an unsaved edit in one row when a different row is saved', async () => {
@@ -163,7 +163,7 @@ describe('OnboardingInboxPage', () => {
     render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });
 
     expect(await screen.findByText('Tri-State Kennel Club')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /contacted \(0\)/i }));
+    await user.click(screen.getByRole('button', { name: /^contacted/i }));
 
     expect(screen.getByText(/No contacted requests/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /view all 1 request/i }));

@@ -154,6 +154,23 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'is_site_admin() via ALTER POLICY; volunteer_roles_select is untouched. Same policy names, ' +
     'commands and roles throughout — predicates only, so the consolidation counts and overlap ' +
     'groups this test pins are unaffected.',
+  '20260927174500_dogs_directory_show_scoped_secretary.sql':
+    'MYK9-854. From this inventory it touches dogs (dogs_select) and people (people_select) ' +
+    'only. A SHOW-scoped secretary (club_id and show_id both set on her user_roles row) fell ' +
+    'through the is_show_manager() arm — is_trial_secretary() was narrowed to club-wide-only ' +
+    '(show_id IS NULL) by 20260830210000 — and could see only her own dogs, not the shared ' +
+    'directory a secretary needs to key in a mail-in entry. Adds a new, narrowly-named ' +
+    'can_read_dog_directory() = is_show_manager() OR is_any_secretary() (any granularity) and ' +
+    'swaps ONLY the is_show_manager() term for it in dogs_select and people_select — ' +
+    'is_show_manager() itself is untouched (not CREATE OR REPLACEd here), so every one of its ' +
+    '~30 other callers (entries, judge_assignments, people_private, user_roles_select, clubs, ' +
+    'achievements, armbands, and more) keeps its existing, narrower meaning. Same policy names, ' +
+    'same SELECT command, same TO authenticated role on both tables — predicate only, like the ' +
+    'MYK9-147 / MYK9-469 / MYK9-470 entries above. dog_registrations_select is not in this ' +
+    'inventory and is not edited: it delegates to dogs_select via an un-DEFINERed EXISTS with ' +
+    'no BYPASSRLS, so it widens transitively with no text change. user_roles, entries, ' +
+    'judge_assignments, and every other is_show_manager() caller are untouched, so the ' +
+    'consolidation counts and overlap groups this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

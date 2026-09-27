@@ -116,7 +116,12 @@ describe('showManagingViews', () => {
   it('buildManagingViews counts match matchesManagingView exactly', () => {
     const shows = [
       makeShow({ id: 'draft-1', status: 'draft' }),
-      makeShow({ id: 'open-1', status: 'published', entryOpenDate: localISODate(-5), entryCloseDate: localISODate(20) }),
+      makeShow({
+        id: 'open-1',
+        status: 'published',
+        entryOpenDate: localISODate(-5),
+        entryCloseDate: localISODate(20),
+      }),
       makeShow({
         id: 'closing-1',
         status: 'published',

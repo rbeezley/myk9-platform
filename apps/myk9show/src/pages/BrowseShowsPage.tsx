@@ -458,9 +458,7 @@ const BrowseShowsPage: React.FC = () => {
                 label="Show views"
                 views={managingViews}
                 activeId={activeManagingViewId(filters.status)}
-                onSelect={id =>
-                  setFilters(prev => ({ ...prev, status: managingViewFilters(id) }))
-                }
+                onSelect={id => setFilters(prev => ({ ...prev, status: managingViewFilters(id) }))}
               />
             )}
             <div className="flex flex-wrap items-center gap-2">

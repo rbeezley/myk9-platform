@@ -120,10 +120,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
-  const trialViews = useMemo(
-    () => buildTrialsTabViews(trials, trialStats),
-    [trials, trialStats]
-  );
+  const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
 
   const filteredTrials = useMemo(
     () => filterTrialsForTab(trials, trialStats, statusFilter),

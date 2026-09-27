@@ -76,7 +76,9 @@ describe('ShowBulkActionsBar', () => {
     // container rather than the destructive-click-picks-another-row trap
     // (docs/lessons/README.md#confirm-click-destructive).
     await user.click(within(bulkBar()).getByRole('button', { name: /mark completed/i }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /mark completed/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /mark completed/i })
+    );
 
     await waitFor(() => {
       expect(updateShow).toHaveBeenCalledWith('show-1', { status: 'completed' });
@@ -90,7 +92,9 @@ describe('ShowBulkActionsBar', () => {
     renderBar();
 
     await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
+    );
 
     await waitFor(() => {
       expect(deleteShow).toHaveBeenCalledWith('show-1');
@@ -112,7 +116,9 @@ describe('ShowBulkActionsBar', () => {
     renderBar();
 
     await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
+    );
 
     await waitFor(() => {
       expect(notifications.error).toHaveBeenCalledWith(

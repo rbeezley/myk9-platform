@@ -93,7 +93,12 @@ describe('OrdersReceiptsList — money under the one gate', () => {
     };
 
     render(
-      <OrdersReceiptsList orders={[mixed]} mode="receipt" moneyKind="balance-due" onSelect={vi.fn()} />
+      <OrdersReceiptsList
+        orders={[mixed]}
+        mode="receipt"
+        moneyKind="balance-due"
+        onSelect={vi.fn()}
+      />
     );
 
     expect(screen.getByText('$60.00')).toBeInTheDocument();

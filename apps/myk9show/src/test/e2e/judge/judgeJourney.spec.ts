@@ -11,7 +11,8 @@ import { signInAsJudge } from '../uat/shared/auth';
  *
  * MYK9-850: the mock-data check-in dashboard and gate steward screen were
  * deleted (no nav path ever reached them); `/judge/check-in` now redirects
- * to the real, replication-backed ringside surface at `/at-show`.
+ * to the judge's own assignments dashboard at `/judge/dashboard` (bare
+ * `/at-show` has no showId and isn't itself a registered route).
  *
  * NOT covered here — "assignment acceptance": judge_assignments supports an
  * 'invited' status (see assignmentStatus.ts ACTIVE_JUDGE_ASSIGNMENT_STATUSES), but
@@ -58,10 +59,12 @@ test.describe('Judge dashboard journey', () => {
     await expect(page.getByRole('heading', { name: 'Upcoming Assignments' })).toBeVisible();
   });
 
-  test('redirects the retired mock-data check-in bookmark to real ringside', async ({ page }) => {
+  test('redirects the retired mock-data check-in bookmark to the judge dashboard', async ({
+    page,
+  }) => {
     await signInAsJudge(page, '/judge/check-in');
     await expect(page).not.toHaveURL(/\/judge\/check-in/);
-    await expect(page).toHaveURL(/\/at-show/);
+    await expect(page).toHaveURL(/\/judge\/dashboard/);
   });
 
   test('redirects the retired shared results dashboard bookmark', async ({ page }) => {

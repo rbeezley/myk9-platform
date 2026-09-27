@@ -40,64 +40,56 @@ function renderTab(classes: ReturnType<typeof makeClass>[]) {
   );
 }
 
-describe('ClassesTab status filter', () => {
-  it('hides StatusFilter when all classes share the same status', () => {
+// The bespoke, self-hiding `StatusFilter` was replaced by the shared
+// list-toolkit `ListViewTabs` (MYK9-811): a fixed All/Pending/Completed/Mine
+// set, always shown, matching every other kit-rollout surface (Users,
+// Class Management) rather than hiding itself when every row shares a status.
+describe('ClassesTab views (list toolkit)', () => {
+  it('always shows the view tabs, even when every class shares a status', () => {
     renderTab([makeClass(), makeClass()]);
-    // StatusFilter hides itself when all items are same status
-    expect(screen.queryByRole('button', { name: /Pending/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
   });
 
-  it('shows StatusFilter when classes have mixed statuses', () => {
+  it('shows the view tabs when classes have mixed statuses', () => {
     renderTab([makeClass({ status: 'Scheduled' }), makeClass({ status: 'Completed' })]);
-    expect(screen.getByRole('button', { name: /All/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pending/ })).toBeInTheDocument();
-    // Match the toolbar filter button ("Completed (1)"), not the class-status
-    // chip, which reads "Completed" too now that the label triple is unified.
-    expect(screen.getByRole('button', { name: /Completed \(/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
   });
 
   it('filters to show only pending classes', async () => {
+    const user = userEvent.setup();
     renderTab([
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    // Click the Pending filter button
-    await userEvent.click(screen.getByRole('button', { name: /Pending/ }));
-    // Interior should still be visible, Exterior should be filtered out
-    // Use table cells to find class data
+    await user.click(screen.getByRole('button', { name: /^Pending/ }));
     expect(screen.getByText('Interior')).toBeInTheDocument();
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
   });
 
   it('filters to show only completed classes', async () => {
+    const user = userEvent.setup();
     renderTab([
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    // Click the Completed filter button (in the StatusFilter toolbar, not the table badge)
-    const filterButtons = screen.getAllByRole('button');
-    const completedFilterBtn = filterButtons.find(
-      btn => btn.textContent?.includes('Completed') && btn.textContent?.includes('(')
-    )!;
-    await userEvent.click(completedFilterBtn);
+    await user.click(screen.getByRole('button', { name: /^Completed/ }));
     expect(screen.queryByText('Interior')).not.toBeInTheDocument();
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
 
-  it('"All" filter re-shows everything', async () => {
+  it('"All" view re-shows everything', async () => {
+    const user = userEvent.setup();
     renderTab([
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    // First filter to pending
-    await userEvent.click(screen.getByRole('button', { name: /Pending/ }));
+    await user.click(screen.getByRole('button', { name: /^Pending/ }));
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
-    // Then click All to reset
-    const allButtons = screen.getAllByRole('button');
-    const allFilterBtn = allButtons.find(
-      btn => btn.textContent?.includes('All') && btn.textContent?.includes('(')
-    )!;
-    await userEvent.click(allFilterBtn);
+    await user.click(screen.getByRole('button', { name: /^All/ }));
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
 });

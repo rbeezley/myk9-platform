@@ -28,6 +28,11 @@ export interface ExhibitorResult {
   scoringCompletedAt: string | null;
   showName: string;
   showDate: string;
+  /** MYK9-263/MYK9-805: null/absent until the secretary releases the class —
+   *  placement stays withheld and the result reads "preliminary" until then.
+   *  Optional so hand-built fixtures that predate the release check keep
+   *  compiling; the mapper below always sets it on a real query result. */
+  resultsReleasedAt?: string | null;
 }
 
 const PAGE_SIZE = 1000;
@@ -57,7 +62,8 @@ async function fetchExhibitorResults(dogIds: string[]) {
       final_placement,
       scoring_completed_at,
       show_name,
-      show_start_date
+      show_start_date,
+      class_results_released_at
     `
       )
       .in('dog_id', dogIds)
@@ -90,6 +96,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     scoringCompletedAt: row.scoring_completed_at as string | null,
     showName: (row.show_name as string) || 'Unknown Show',
     showDate: (row.show_start_date as string) || '',
+    resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
 }
 

@@ -1,3 +1,5 @@
+import { matchesAny } from '@myk9/core';
+import { deriveClassLifecycleValue } from '@/lib/status/classLifecycle';
 import {
   CLASS_MANAGEMENT_STATUS_FILTER_VALUES,
   isClassManagementStatusFilter,
@@ -8,6 +10,43 @@ import {
 
 export { CLASS_MANAGEMENT_STATUS_FILTER_VALUES, isClassManagementStatusFilter };
 export type { ClassManagementStatusFilter, OperationalViewDensity };
+
+/** The minimal row shape `filterManagedClasses` needs — kept decoupled from `DbClassRow`. */
+export interface ClassManagementRowLike {
+  name: string | null;
+  element: string | null;
+  level: string | null;
+  status: string | null;
+}
+
+export interface ClassManagementFilterState {
+  status: ClassManagementStatusFilter;
+  element: string;
+  search: string;
+}
+
+/**
+ * The single source of truth for Class Management's visible rows AND every
+ * count shown on its views/filter chips (list-toolkit rollout, MYK9-811) —
+ * mirrors `filterUsers` (`pages/admin/UserManagementPage.helpers.ts`), one
+ * function reused for the main list and every count.
+ */
+export function filterManagedClasses<T extends ClassManagementRowLike>(
+  classes: T[],
+  searchTerm: string,
+  filters: Pick<ClassManagementFilterState, 'status' | 'element'>
+): T[] {
+  return classes.filter(cls => {
+    const matchesSearch = matchesAny(
+      [cls.name ?? '', cls.element ?? '', cls.level ?? ''],
+      searchTerm
+    );
+    const matchesStatus =
+      filters.status === 'all' || deriveClassLifecycleValue(cls.status) === filters.status;
+    const matchesElement = filters.element === 'all' || cls.element === filters.element;
+    return matchesSearch && matchesStatus && matchesElement;
+  });
+}
 
 /**
  * URL-backed filter state for `ClassManagementPage`, mirroring

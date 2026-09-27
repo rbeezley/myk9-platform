@@ -8,11 +8,9 @@ import {
 } from '@/hooks/queries/useClassesDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useClassManagementFilters } from '@/hooks/useClassManagementFilters';
-import type { ClassManagementStatusFilter } from '@/components/classes/classManagementFilters';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
-import { deriveClassLifecycleValue, type ClassLifecycleValue } from '@/lib/status/classLifecycle';
 import { ClassManagementRow, type DbClassRow } from '@/components/classes/ClassManagementRow';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
@@ -24,27 +22,27 @@ import {
 } from '@/services/show-day/classStatusMutations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrialStore } from '@/store/trialStore';
-import { matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ClassLifecyclePresetTiles } from '@/components/classes/ClassLifecyclePresetTiles';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Search, Filter, Settings, ListOrdered } from 'lucide-react';
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
-import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
+import { ArrowLeft, Plus, Settings, ListOrdered } from 'lucide-react';
+import {
+  filterManagedClasses,
+  getClassManagementHref,
+  type ClassManagementFilterState,
+} from '@/components/classes/classManagementFilters';
+import {
+  activeClassManagementViewId,
+  buildClassManagementViews,
+  classManagementViewState,
+} from '@/components/classes/classManagementViews';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import { ClassManagementViewControls } from '@/components/classes/ClassManagementViewControls';
-import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
-import { useAuthContext } from '@/hooks/useAuthContext';
+import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+
+const CLASS_NOUN = ['class', 'classes'] as const;
 
 export const ClassManagementPage: React.FC = () => {
   const {
@@ -88,18 +86,16 @@ export const ClassManagementPage: React.FC = () => {
     },
   });
 
-  const { user } = useAuthContext();
   const {
     search: searchTerm,
     setSearch: setSearchTerm,
     status: statusFilter,
-    setStatus: setStatusFilter,
     element: elementFilter,
     setElement: setElementFilter,
     density,
     focusClassId,
     setDensity,
-    applyView,
+    applyViewState,
     clearFilters,
   } = useClassManagementFilters();
 
@@ -124,21 +120,16 @@ export const ClassManagementPage: React.FC = () => {
     return counts;
   }, [showEntries, showEntriesIsError, showEntriesLoading, showId]);
 
-  // Status filtering reuses the same lifecycle derivation the summary tiles
-  // use (`deriveClassLifecycleValue`) — the URL `status` param is the
-  // lifecycle bucket (not_started/in_progress/completed/all), not the raw
-  // per-org class status string. No second status mapping is defined here.
+  // Status filtering reuses the same lifecycle derivation the views' counts
+  // use (`deriveClassLifecycleValue`, via `filterManagedClasses`) — the URL
+  // `status` param is the lifecycle bucket (not_started/in_progress/completed/
+  // all), not the raw per-org class status string. No second status mapping is
+  // defined here.
   const filteredClasses = useMemo(
     () =>
-      allClasses.filter(cls => {
-        const matchesSearch = matchesAny(
-          [cls.name ?? '', cls.element ?? '', cls.level ?? ''],
-          searchTerm
-        );
-        const matchesStatus =
-          statusFilter === 'all' || deriveClassLifecycleValue(cls.status) === statusFilter;
-        const matchesElement = elementFilter === 'all' || cls.element === elementFilter;
-        return matchesSearch && matchesStatus && matchesElement;
+      filterManagedClasses(allClasses, searchTerm, {
+        status: statusFilter,
+        element: elementFilter,
       }),
     [allClasses, searchTerm, statusFilter, elementFilter]
   );
@@ -148,23 +139,36 @@ export const ClassManagementPage: React.FC = () => {
       Array.from(new Set(allClasses.map(c => c.element).filter((e): e is string => !!e))).sort(),
     [allClasses]
   );
-  // Honest lifecycle counts: derive each class's canonical stage
-  // ("Not started" / "In Progress" / "Completed") so the summary tiles agree
-  // with the chip labels below (UX walk remediation 2.B) instead of matching
-  // only the single raw enum value they used to filter on.
-  const lifecycleCounts = useMemo(() => {
-    const tally: Record<ClassLifecycleValue, number> = {
-      not_started: 0,
-      in_progress: 0,
-      completed: 0,
-      cancelled: 0,
-      unknown: 0,
+
+  // "How many would picking this element show" — holds status current (search
+  // is always '', matching the view counts' convention) and varies element,
+  // mirroring `UserListToolbar`'s `optionBase` pattern.
+  const elementField = useMemo(() => {
+    const optionBase = { status: statusFilter, element: 'all' as const };
+    return {
+      kind: 'options' as const,
+      key: 'element',
+      label: 'Element',
+      value: elementFilter === 'all' ? null : elementFilter,
+      onChange: (value: string | null) => setElementFilter(value ?? 'all'),
+      options: elements.map(element => ({
+        value: element,
+        label: element,
+        count: filterManagedClasses(allClasses, '', { ...optionBase, element }).length,
+      })),
     };
-    for (const cls of allClasses) {
-      tally[deriveClassLifecycleValue(cls.status)] += 1;
-    }
-    return tally;
-  }, [allClasses]);
+  }, [allClasses, elements, statusFilter, elementFilter, setElementFilter]);
+
+  const classViewFilterState: ClassManagementFilterState = {
+    status: statusFilter,
+    element: elementFilter,
+    search: searchTerm,
+  };
+
+  const handleSelectView = (id: string) => {
+    selection.clearSelection();
+    applyViewState(classManagementViewState(id));
+  };
   // Scoped to the show's organization. This list used to test only that a
   // qualification was Active, so an AKC show offered UKC- and ASCA-only judges --
   // and because `show.assignedJudges` is derived from judge_assignments, assigning
@@ -217,11 +221,6 @@ export const ClassManagementPage: React.FC = () => {
 
   const handleJudgeChange = (classId: string, judgeId: string) => {
     assignJudgeMutation.mutate({ classId, judgeId });
-  };
-
-  const handleApplyView = (view: ClassManagementOperationalView) => {
-    selection.clearSelection();
-    applyView(view);
   };
 
   const handleDelete = (classId: string) => {
@@ -303,76 +302,30 @@ export const ClassManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <ClassLifecyclePresetTiles
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        totalClasses={allClasses.length}
-        lifecycleCounts={lifecycleCounts}
-      />
-
       <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search classes..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Select
-              value={statusFilter}
-              onValueChange={value => setStatusFilter(value as ClassManagementStatusFilter)}
-            >
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="not_started">Not started</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={elementFilter} onValueChange={setElementFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="All Elements" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Elements</SelectItem>
-                {elements.map(element => (
-                  <SelectItem key={element} value={element}>
-                    {element}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" onClick={clearFilters}>
-              <Filter className="h-4 w-4 mr-2" />
-              Clear
-            </Button>
-
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredClasses.length} of {allClasses.length} classes
-            </div>
-          </div>
-
-          {/* Display density + personal saved views (tasks.md 3.2/3.3) */}
-          <ClassManagementViewControls
-            density={density}
-            onDensityChange={setDensity}
-            userId={user?.id}
-            showId={showId}
-            trialId={trialId}
-            statusFilter={statusFilter}
-            searchTerm={searchTerm}
-            onApplyView={handleApplyView}
+        <CardContent className="flex flex-col gap-3 pt-6">
+          <ListViewTabs
+            label="Class views"
+            views={buildClassManagementViews(allClasses)}
+            activeId={activeClassManagementViewId(classViewFilterState)}
+            onSelect={handleSelectView}
           />
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search classes..."
+            fields={[elementField]}
+            onClearAll={clearFilters}
+          />
+          <ListResultLine
+            shown={filteredClasses.length}
+            total={allClasses.length}
+            noun={CLASS_NOUN}
+            filtered={statusFilter !== 'all' || elementFilter !== 'all' || searchTerm !== ''}
+          />
+
+          {/* Display density (tasks.md 3.2) */}
+          <ClassManagementViewControls density={density} onDensityChange={setDensity} />
         </CardContent>
       </Card>
 

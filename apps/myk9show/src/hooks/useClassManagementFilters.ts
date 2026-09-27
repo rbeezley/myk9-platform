@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   normalizeClassManagementSearchParams,
+  type ClassManagementFilterState,
   type ClassManagementStatusFilter,
   type OperationalViewDensity,
 } from '@/components/classes/classManagementFilters';
-import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
 
 interface UseClassManagementFiltersReturn {
   search: string;
@@ -17,8 +17,12 @@ interface UseClassManagementFiltersReturn {
   density: OperationalViewDensity;
   focusClassId: string | null;
   setDensity: (value: OperationalViewDensity) => void;
-  /** Apply a full restored/saved view in one URL update (Design Decision 1 adapter). */
-  applyView: (view: ClassManagementOperationalView) => void;
+  /**
+   * Applies a full list-toolkit view (status + element + search) in ONE URL
+   * update — three separate setters called in the same handler would each
+   * close over the same stale `searchParams`, so only the last would stick.
+   */
+  applyViewState: (state: ClassManagementFilterState) => void;
   clearFilters: () => void;
 }
 
@@ -101,19 +105,17 @@ export function useClassManagementFilters(): UseClassManagementFiltersReturn {
     [setSearchParams]
   );
 
-  const applyView = useCallback(
-    (view: ClassManagementOperationalView) => {
-      const { filters, display } = view;
+  const applyViewState = useCallback(
+    (state: ClassManagementFilterState) => {
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
-          if (filters.status === 'all') next.delete('status');
-          else next.set('status', filters.status);
-          if (filters.search === '') next.delete('search');
-          else next.set('search', filters.search);
-          const density = display?.density ?? 'comfortable';
-          if (density === 'comfortable') next.delete('density');
-          else next.set('density', density);
+          if (state.status === 'all') next.delete('status');
+          else next.set('status', state.status);
+          if (state.element === 'all' || state.element === '') next.delete('element');
+          else next.set('element', state.element);
+          if (state.search === '') next.delete('search');
+          else next.set('search', state.search);
           return next;
         },
         { replace: true }
@@ -145,7 +147,7 @@ export function useClassManagementFilters(): UseClassManagementFiltersReturn {
     density: normalized.density,
     focusClassId: normalized.focusClassId,
     setDensity,
-    applyView,
+    applyViewState,
     clearFilters,
   };
 }

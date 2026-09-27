@@ -197,6 +197,42 @@ describe('DogsBulkActionsBar', () => {
       expect(updateDogMutateAsync).toHaveBeenCalledTimes(3);
     });
   });
+
+  // The dogs and classes bulk actions share the same shared-hook retry
+  // mechanism useBulkAccountActions now relies on (MYK9-835): a toast retry
+  // re-checks the FRESH status through `selectedDogsRef`, not the status the
+  // batch was first dispatched with. Mirrors
+  // useClassBulkActions.test.ts's "retry skips a class whose fresh status no
+  // longer matches" — this bar had the ref+applicableWhen mechanism already,
+  // but no test proving it.
+  it('retry skips a dog whose fresh status no longer matches its status at first dispatch', async () => {
+    updateDogMutateAsync.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('boom'));
+    const { user, rerender } = setup([dog('1', 'active'), dog('2', 'active')]);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
+
+    await waitFor(() => expect(updateDogMutateAsync).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+
+    // Another actor already retired dog "2" before the retry fires.
+    rerender(
+      <DogsBulkActionsBar
+        selectedDogs={[dog('1', 'retired'), dog('2', 'retired')]}
+        onClear={vi.fn()}
+        canDelete
+      />
+    );
+
+    updateDogMutateAsync.mockClear();
+    const retryCall = vi.mocked(toast.error).mock.calls.at(-1);
+    const retry = (retryCall?.[1] as { action?: { onClick: () => void } } | undefined)?.action;
+    if (!retry) throw new Error('toast.error was not called with a retry action');
+    retry.onClick();
+
+    // "2" is no longer eligible (already retired) — skipped, not re-attempted.
+    await waitFor(() => expect(toast.info).toHaveBeenCalled());
+    expect(updateDogMutateAsync).not.toHaveBeenCalled();
+  });
 });
 
 /**

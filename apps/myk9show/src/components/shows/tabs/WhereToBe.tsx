@@ -139,17 +139,21 @@ function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
   const result = entry.result;
   if (!result) return null;
 
-  const { qualified, time } = result;
+  const { qualified, time, isPreliminary } = result;
+  // MYK9-263/MYK9-805: an unreleased result reads "preliminary" here exactly
+  // as it does on My Shows — the one result the schedule can still change.
+  const preliminarySuffix = isPreliminary ? ' · preliminary' : '';
   if (qualified) {
     return (
       <Chip color="green" size="sm" leadingIcon={<CheckCircle2 className="h-3 w-3" />}>
         Q{time ? ` · ${time}` : ''}
+        {preliminarySuffix}
       </Chip>
     );
   }
   return (
     <Chip color="red" size="sm" leadingIcon={<XCircle className="h-3 w-3" />}>
-      NQ
+      NQ{preliminarySuffix}
     </Chip>
   );
 }

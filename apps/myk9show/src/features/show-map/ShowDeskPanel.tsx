@@ -88,8 +88,16 @@ export default function ShowDeskPanel({
   } = executor;
 
   const pendingSignals = useMemo(
-    () => (canManageShow ? computeShowDeskPendingSignals({ showId: show.id, tree, entries }) : []),
-    [canManageShow, entries, show.id, tree]
+    () =>
+      canManageShow
+        ? computeShowDeskPendingSignals({
+            showId: show.id,
+            tree,
+            entries,
+            currentDate: effectiveScopeNow,
+          })
+        : [],
+    [canManageShow, effectiveScopeNow, entries, show.id, tree]
   );
   const returnTo = `${location.pathname}${location.search}`;
   const paperworkPrints = useShowPaperworkPrints(show.id);

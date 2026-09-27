@@ -35,6 +35,8 @@ export interface EntryFormClass {
   trialId: string;
   element: string;
   level: string;
+  /** `classes.section` ("A" / "B"), normalized through `resolveClassSection`. */
+  section?: string | null;
 }
 
 /** A single entry for a dog in one class */
@@ -44,6 +46,8 @@ export interface EntryFormEntry {
   classId: string;
   element: string;
   level: string;
+  /** `classes.section` ("A" / "B"), normalized through `resolveClassSection`. */
+  section?: string | null;
   armband: number | null;
   handler: string | null;
   /** MYK9-570: `entries.handler_id` — the person behind the printed handler name. */

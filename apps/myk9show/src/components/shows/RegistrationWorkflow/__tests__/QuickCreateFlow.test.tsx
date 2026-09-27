@@ -4,6 +4,7 @@ import { UserRole } from '@/types/auth-types';
 import type { AddDogPanelProps } from '@/components/panels/edit/AddDogPanel/types';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from '../QuickCreateFlow';
+import { shouldShowQuickCreateShell } from '../QuickCreateFlow.helpers';
 
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: vi.fn((props: AddDogPanelProps) =>
@@ -63,6 +64,24 @@ vi.mock('../CreateExhibitorDialog', () => ({
 describe('QuickCreateFlow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('shouldShowQuickCreateShell (MYK9-832 #4)', () => {
+    it('hides the shell while Create Exhibitor is open', () => {
+      expect(shouldShowQuickCreateShell(true, true, false)).toBe(false);
+    });
+
+    it('hides the shell while Add Dog is open', () => {
+      expect(shouldShowQuickCreateShell(true, false, true)).toBe(false);
+    });
+
+    it('shows the shell between child dialogs', () => {
+      expect(shouldShowQuickCreateShell(true, false, false)).toBe(true);
+    });
+
+    it('never shows the shell when the flow itself is closed', () => {
+      expect(shouldShowQuickCreateShell(false, false, false)).toBe(false);
+    });
   });
 
   it('opens AddDogPanel as secretary with the created exhibitor as owner', async () => {

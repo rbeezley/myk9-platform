@@ -27,6 +27,7 @@ export {
   getShowStyle,
   getTrialRegistry,
   getTrialTimezone,
+  resolveBrowserTrialTimezone,
   deriveRegistryId,
   resolveConfiguredRegistryId,
 } from './helpers';

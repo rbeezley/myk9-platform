@@ -38,9 +38,13 @@ export const DEFAULT_USER_LIST_PARAMS: UserListParams = {
   pageSize: DEFAULT_USER_PAGE_SIZE,
 };
 
-/** `yyyy-mm-dd` in, local midnight out. Anything else is treated as absent. */
+/** Calendar dates use local midnight; rolling cutoffs preserve their exact ISO instant. */
 function parseDate(raw: string | null): Date | null {
   if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(raw)) {
+    const instant = new Date(raw);
+    return !Number.isNaN(instant.getTime()) && instant.toISOString() === raw ? instant : null;
+  }
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (!match) return null;
   const [, year, month, day] = match;
@@ -56,6 +60,14 @@ function parseDate(raw: string | null): Date | null {
 }
 
 function formatDate(date: Date): string {
+  if (
+    date.getHours() !== 0 ||
+    date.getMinutes() !== 0 ||
+    date.getSeconds() !== 0 ||
+    date.getMilliseconds() !== 0
+  ) {
+    return date.toISOString();
+  }
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;

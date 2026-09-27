@@ -164,6 +164,9 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       // Registry (migration 192) — the write side of the registry column. Default to 'AKC'
       // (the DB default) when unset so this never writes NULL into the NOT-NULL column.
       registry_id: trial.registryId ?? 'AKC',
+      // Timezone (MYK9-831) — the write side of the offline-first sync path.
+      // Default to the column's own default when unset for the same reason.
+      timezone: trial.timezone ?? 'America/New_York',
       updated_at: new Date().toISOString(),
     };
   }

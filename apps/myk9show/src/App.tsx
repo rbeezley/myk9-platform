@@ -22,6 +22,7 @@ import {
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
+import { useAccountNotifications } from '@/hooks/useAccountNotifications';
 import { AudioSettingsProvider } from './context/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
@@ -183,6 +184,11 @@ function NotificationMonitorInitializer() {
   return null;
 }
 
+function AccountNotificationsInitializer() {
+  useAccountNotifications();
+  return null;
+}
+
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -217,6 +223,7 @@ function App() {
             <AnnouncementSubscriptionInitializer />
             <MessageSubscriptionInitializer />
             <NotificationMonitorInitializer />
+            <AccountNotificationsInitializer />
             <AudioSettingsProvider>
               <UnsavedChangesRouteGuardProvider>
                 <ExhibitorOnboardingChecker>

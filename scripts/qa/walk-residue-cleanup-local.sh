@@ -19,7 +19,7 @@ url="${WALK_RESIDUE_TEST_DB_URL:-}"
 # rather than trying to parse and out-guess libpq's own precedence rules.
 url_base="${url%%\?*}"
 url_query="${url#"$url_base"}"
-url_query_lower="${url_query,,}"
+url_query_lower="$(printf '%s' "$url_query" | tr '[:upper:]' '[:lower:]')"
 
 # libpq percent-decodes a query string BEFORE reading its keys, so
 # `?%68ost=remote` or `?host%61ddr=remote` decode to host=/hostaddr= at

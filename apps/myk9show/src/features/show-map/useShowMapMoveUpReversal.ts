@@ -59,6 +59,12 @@ export function useShowMapMoveUpReversal({
       // The RPC's own sentence — "This run has already started…", "The original
       // entry is no longer there to restore." — not a generic apology.
       toast.error(getMoveUpErrorMessage(error, 'That move-up could not be reversed.'));
+      // MYK9-821: a refused Move back (stale/superseded, client- or
+      // server-side) left the dialog open still offering Move back, because
+      // the cached reversal answer from when the dialog opened was never
+      // re-read. Close it, the same way a successful reversal does, instead
+      // of leaving a control on screen the server has already refused once.
+      onClose();
     },
   });
 

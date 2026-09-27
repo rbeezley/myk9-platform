@@ -432,6 +432,7 @@ const UserManagementPage: React.FC = () => {
           {/* Floats at the bottom of the viewport, in view wherever rows were ticked. */}
           <BulkActionsBar
             selectedUsers={visibleSelection}
+            users={users}
             onClearSelection={clearSelection}
             onBulkComplete={deletedUserIds => removeDeletedUsers(deletedUserIds ?? [])}
             onUsersDeleted={removeDeletedUsers}

@@ -15,6 +15,14 @@ import {
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
+import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+
+vi.mock('@/services/database/users', () => ({
+  restoreUser: vi.fn().mockResolvedValue({ error: null }),
+}));
+vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({
+  invokeAdminInvite: vi.fn().mockResolvedValue({ data: null }),
+}));
 
 // Mock the mutation hooks
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
@@ -96,8 +104,18 @@ function render(ui: React.ReactElement) {
   return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
+// The live roster (MYK9-835/MYK9-820): both people active, live, never signed
+// in, so account actions and role editing resolve the same eligibility the
+// old flattened SelectedUser snapshot used to assert.
+const mockAdminUsers: AdminUser[] = mockSelectedUsers.map(({ user }) => ({
+  ...user,
+  status: 'active',
+  lastSignInAt: null,
+}));
+
 const defaultProps = {
   selectedUsers: mockSelectedUsers,
+  users: mockAdminUsers,
   onClearSelection: vi.fn(),
   onBulkComplete: vi.fn(),
   onUsersDeleted: vi.fn(),
@@ -410,23 +428,21 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    // Bulk role editing is deferred (docs/plan-list-toolkit.md, MYK9-820); roles
-    // change one person at a time from Manage roles.
-    it('offers no bulk role action', () => {
+    it('offers a Change roles action (MYK9-820)', () => {
       render(<BulkActionsBar {...defaultProps} />);
-      expect(screen.queryByRole('button', { name: /roles/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change roles' })).toBeInTheDocument();
     });
 
-    // Bulk account actions (Suspend, Reinstate, Send invitation, Restore) are
-    // deferred (docs/plan-list-toolkit.md, MYK9-835); the bar hosts only the
-    // read-only More menu (Copy emails, Export CSV) alongside Delete.
-    it('has no account-action buttons, only the More menu', () => {
+    // Suspend/Reinstate need admin:manage (hasPermission returns false by
+    // default in this file); Send invitation does not, and both selected
+    // people are live and have never signed in, so it still shows (MYK9-835).
+    it('hides Suspend and Reinstate without admin:manage, but still offers eligible actions', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       expect(screen.queryByRole('button', { name: /suspend/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /send invitation/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /reinstate/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send invitation' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
     });
 

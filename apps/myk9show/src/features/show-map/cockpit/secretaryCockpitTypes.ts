@@ -208,6 +208,8 @@ export interface SecretaryCockpitModel {
     all: readonly SecretaryCockpitAttention[];
     overflowCount: number;
   };
+  /** Every Class scheduled today, unfiltered by `state.filter` (MYK9-812). */
+  daySchedule: readonly ScheduledClassModel[];
   trialGroups: readonly TrialScheduleGroupModel[];
   focusedClass: FocusedClassModel | null;
 }

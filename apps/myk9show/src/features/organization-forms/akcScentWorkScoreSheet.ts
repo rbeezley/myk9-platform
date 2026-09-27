@@ -8,6 +8,7 @@ import {
 } from '@/lib/reports/reportUtils';
 import type { ReportProps } from '@/lib/reports/types';
 import { trialEventNumber } from './reportValueHelpers';
+import { toWinAnsiSafeText } from './winAnsiText';
 
 export interface ScoreSheetValues {
   armNumber: string;
@@ -82,37 +83,37 @@ export async function buildAKCScentWorkScoreSheetPdfBytes(input: {
       throw new Error('Unable to load AKC Scent Work score sheet template page.');
     }
     outputPdf.addPage(templatePage);
-    drawScoreSheetSlot(templatePage, font, LEFT_SLOT, values[index]);
-    drawScoreSheetSlot(templatePage, font, RIGHT_SLOT, values[index + 1]);
+    await drawScoreSheetSlot(templatePage, font, LEFT_SLOT, values[index]);
+    await drawScoreSheetSlot(templatePage, font, RIGHT_SLOT, values[index + 1]);
   }
 
   return outputPdf.save();
 }
 
-function drawScoreSheetSlot(
+async function drawScoreSheetSlot(
   page: PDFPage,
   font: PDFFont,
   slot: DrawSlot,
   values: ScoreSheetValues | undefined
-): void {
+): Promise<void> {
   if (!values) return;
 
-  drawFitText(page, font, values.date, slot.date);
-  drawFitText(page, font, values.eventNumber, slot.eventNumber);
-  drawFitText(page, font, values.className, slot.className);
-  drawFitText(page, font, values.armNumber, slot.armNumber);
-  drawFitText(page, font, values.callName, slot.callName);
-  drawFitText(page, font, values.breed, slot.breed);
-  drawFitText(page, font, values.timeLimits, slot.timeLimits);
+  await drawFitText(page, font, values.date, slot.date);
+  await drawFitText(page, font, values.eventNumber, slot.eventNumber);
+  await drawFitText(page, font, values.className, slot.className);
+  await drawFitText(page, font, values.armNumber, slot.armNumber);
+  await drawFitText(page, font, values.callName, slot.callName);
+  await drawFitText(page, font, values.breed, slot.breed);
+  await drawFitText(page, font, values.timeLimits, slot.timeLimits);
 }
 
-function drawFitText(
+async function drawFitText(
   page: PDFPage,
   font: PDFFont,
   value: string,
   position: { x: number; y: number; maxWidth: number }
-): void {
-  const text = value.trim();
+): Promise<void> {
+  const text = (await toWinAnsiSafeText(value)).trim();
   if (!text) return;
 
   let size = 9;

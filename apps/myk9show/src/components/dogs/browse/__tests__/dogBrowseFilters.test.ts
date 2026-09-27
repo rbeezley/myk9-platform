@@ -44,19 +44,17 @@ describe('filterDogs', () => {
       dog({ id: 'b', status: 'retired' }),
       dog({ id: 'c' }),
     ];
-    expect(
-      filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, status: 'active' }).map(d => d.id)
-    ).toEqual(['a', 'c']);
+    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, status: 'active' }).map(d => d.id)).toEqual([
+      'a',
+      'c',
+    ]);
   });
 
   it('filters by owner', () => {
-    const dogs = [
-      dog({ id: 'a', ownerName: 'Jane Doe' }),
-      dog({ id: 'b', ownerName: 'Sam Reed' }),
-    ];
-    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, owner: 'Sam Reed' }).map(d => d.id)).toEqual(
-      ['b']
-    );
+    const dogs = [dog({ id: 'a', ownerName: 'Jane Doe' }), dog({ id: 'b', ownerName: 'Sam Reed' })];
+    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, owner: 'Sam Reed' }).map(d => d.id)).toEqual([
+      'b',
+    ]);
   });
 
   it('ANDs every active field together', () => {
@@ -83,11 +81,8 @@ describe('hasActiveDogFilters', () => {
     expect(hasActiveDogFilters(DEFAULT_DOG_FILTERS)).toBe(false);
   });
 
-  it.each(['search', 'breed', 'sex', 'status', 'owner'] as const)(
-    'is true once %s is set',
-    key => {
-      const value = key === 'search' ? 'rex' : key === 'status' ? 'active' : 'something';
-      expect(hasActiveDogFilters({ ...DEFAULT_DOG_FILTERS, [key]: value })).toBe(true);
-    }
-  );
+  it.each(['search', 'breed', 'sex', 'status', 'owner'] as const)('is true once %s is set', key => {
+    const value = key === 'search' ? 'rex' : key === 'status' ? 'active' : 'something';
+    expect(hasActiveDogFilters({ ...DEFAULT_DOG_FILTERS, [key]: value })).toBe(true);
+  });
 });

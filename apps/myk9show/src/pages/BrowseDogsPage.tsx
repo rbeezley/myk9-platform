@@ -11,7 +11,11 @@ import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
 import { BlockedDogDeleteDialog } from '@/components/dogs/browse/BlockedDogDeleteDialog';
 import { useBlockedDogDeletes } from '@/components/dogs/browse/useBlockedDogDeletes';
-import { activeDogViewId, buildDogViews, dogViewFilters } from '@/components/dogs/browse/dogBrowseViews';
+import {
+  activeDogViewId,
+  buildDogViews,
+  dogViewFilters,
+} from '@/components/dogs/browse/dogBrowseViews';
 import { buildDogFilterFields } from '@/components/dogs/browse/dogBrowseFilterFields';
 import type { DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';

@@ -52,7 +52,6 @@ describe('AskQAnswer', () => {
   it('shows Tera working while no answer has arrived yet', () => {
     render(<AskQAnswer query="test" answer="" toolsUsed={[]} isStreaming={true} />);
     expect(screen.getByRole('status', { name: TERA_WORKING_COPY })).toBeInTheDocument();
-    expect(screen.queryByTestId('answer-skeleton')).not.toBeInTheDocument();
   });
 
   it('shows nothing extra once idle with no answer', () => {

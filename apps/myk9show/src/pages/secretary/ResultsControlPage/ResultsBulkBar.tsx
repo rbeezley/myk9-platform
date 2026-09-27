@@ -1,5 +1,16 @@
 /**
- * BulkOperationsBar — sticky bottom bar with bulk actions for selected classes.
+ * ResultsBulkBar — Results Control's bulk actions on the shared list-toolkit
+ * `FloatingBulkBar` (MYK9-812 surface 4), replacing the page's former
+ * fixed-footer `BulkOperationsBar` 1:1: same count/noun/Clear (now the kit's),
+ * the same "Select All (M)" button (owner decision, matching Self check-in),
+ * the same "Apply Preset" `Select`, and the same AlertDialog-wrapped "Release
+ * Results" / "Hide Results" buttons with unchanged eligibility gating and
+ * unchanged toast/partial-failure wording.
+ *
+ * "Apply Preset" (via `useBulkUpdateClassOverrides`) still writes the online-only
+ * `show_visibility_settings`/`*_visibility_overrides` path — tracked, not fixed,
+ * by MYK9-849. "Release Results" / "Hide Results" are already replicated
+ * (`useReleaseResults`/`useUnreleaseResults`) and unaffected by this change.
  */
 
 import { Button } from '@/components/ui/button';
@@ -21,14 +32,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
-import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 
-interface BulkOperationsBarProps {
+const CLASS_NOUN = ['class', 'classes'] as const;
+
+interface ResultsBulkBarProps {
   showId: string;
   selectedClasses: Set<string>;
   allClassIds: string[];
@@ -47,7 +61,7 @@ function getValidClassIds(selectedClasses: Set<string>, allClassIds: string[]): 
   return Array.from(selectedClasses).filter(id => validSet.has(id));
 }
 
-export function BulkOperationsBar({
+export function ResultsBulkBar({
   showId,
   selectedClasses,
   allClassIds,
@@ -56,11 +70,10 @@ export function BulkOperationsBar({
   onDeselectClasses,
   hasManualReleaseClasses,
   hasReleasedClasses,
-}: BulkOperationsBarProps) {
+}: ResultsBulkBarProps) {
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
   const unreleaseResults = useUnreleaseResults();
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   if (selectedClasses.size === 0) return null;
 
@@ -174,102 +187,92 @@ export function BulkOperationsBar({
 
   // Surface why Release is disabled instead of leaving a silently greyed
   // primary action: nothing in the selection is held for manual review.
-  const showReleaseHint = !hasManualReleaseClasses;
+  const releaseHint = hasManualReleaseClasses
+    ? undefined
+    : 'Only classes set to hold for review can be released here.';
 
   return (
-    <div
-      ref={actionBarRef}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
-    >
-      <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-sm font-medium">
-            {count} class{count === 1 ? '' : 'es'} selected
-          </span>
-          {/* size="sm" keeps the dense bar compact; min-h-[44px] meets the touch floor. */}
-          <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onSelectAll}>
-            Select All ({allClassIds.length})
+    <FloatingBulkBar count={count} noun={CLASS_NOUN} onClear={onClearSelection}>
+      <BulkBarButton
+        onClick={onSelectAll}
+        icon={<ListChecks className="h-4 w-4" aria-hidden="true" />}
+      >
+        Select All ({allClassIds.length})
+      </BulkBarButton>
+      <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
+        <SelectTrigger className="h-11 w-36 shrink-0">
+          <SelectValue placeholder="Apply Preset" />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(p => (
+            <SelectItem key={p} value={p}>
+              {PRESET_INFO[p].title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            size="sm"
+            className="min-h-[44px] shrink-0"
+            disabled={!hasManualReleaseClasses || isPending}
+            title={releaseHint}
+          >
+            Release Results
           </Button>
-          <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={onClearSelection}>
-            Clear
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
-            <SelectTrigger className="min-h-[44px] w-36">
-              <SelectValue placeholder="Apply Preset" />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(p => (
-                <SelectItem key={p} value={p}>
-                  {PRESET_INFO[p].title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                size="sm"
-                className="min-h-[44px]"
-                disabled={!hasManualReleaseClasses || isPending}
-              >
-                Release Results
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  Release results for {count} class{count === 1 ? '' : 'es'}?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Results become visible to exhibitors and spectators right away. You can hide them
-                  again from here, but anyone who already viewed the page won&apos;t see it refresh
-                  on its own.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleReleaseResults} disabled={isPending}>
-                  Release Results
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          {hasReleasedClasses && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="min-h-[44px]" disabled={isPending}>
-                  Hide Results
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Hide results for {count} class{count === 1 ? '' : 'es'}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Exhibitors and spectators will no longer be able to see these results. Anyone
-                    who already viewed the results page won&apos;t see it retroactively refresh — it
-                    only affects new page loads.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleUnreleaseResults} disabled={isPending}>
-                    Hide Results
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      </div>
-      {showReleaseHint && (
-        <p className="container mx-auto mt-2 text-xs text-muted-foreground">
-          Only classes set to hold for review can be released here.
-        </p>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Release results for {count} class{count === 1 ? '' : 'es'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Results become visible to exhibitors and spectators right away. You can hide them
+              again from here, but anyone who already viewed the page won&apos;t see it refresh on
+              its own.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReleaseResults} disabled={isPending}>
+              Release Results
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {hasReleasedClasses && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[44px] shrink-0"
+              disabled={isPending}
+            >
+              Hide Results
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Hide results for {count} class{count === 1 ? '' : 'es'}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Exhibitors and spectators will no longer be able to see these results. Anyone who
+                already viewed the results page won&apos;t see it retroactively refresh — it only
+                affects new page loads.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleUnreleaseResults} disabled={isPending}>
+                Hide Results
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
-    </div>
+    </FloatingBulkBar>
   );
 }

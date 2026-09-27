@@ -62,7 +62,7 @@ export function useReleaseResults() {
         queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       }
 
-      // NO toast here. `BulkOperationsBar` is the only layer that toasts these
+      // NO toast here. `ResultsBulkBar` is the only layer that toasts these
       // results: it owns the selection outcome the message describes ("the
       // failed classes stayed selected so you can retry"), which this hook
       // cannot see. Both layers used to toast, so one release produced two

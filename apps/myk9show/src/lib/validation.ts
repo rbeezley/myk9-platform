@@ -1,5 +1,45 @@
 import { z } from 'zod';
 
+export interface NormalizedWebsiteUrl {
+  /** The trimmed input, or `https://`-prefixed when a bare domain normalized cleanly. */
+  value: string;
+  /** False when `value` is still not a valid URL after normalizing. */
+  valid: boolean;
+}
+
+/**
+ * Normalizes a website URL for saving: keeps `http://`/`https://` values as-is,
+ * prepends `https://` to a bare domain (e.g. `myclub.org`, `www.myclub.org`), and
+ * reports invalid otherwise. Empty input normalizes to an empty, valid value.
+ */
+export function normalizeWebsiteUrl(value: string | null | undefined): NormalizedWebsiteUrl {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return { value: '', valid: true };
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      new URL(trimmed);
+      return { value: trimmed, valid: true };
+    } catch {
+      return { value: trimmed, valid: false };
+    }
+  }
+
+  // A bare domain must contain a dot — otherwise `new URL('https://word')` would
+  // accept a single word as a valid (if useless) hostname.
+  if (trimmed.includes('.') && !trimmed.includes(' ')) {
+    const withProtocol = `https://${trimmed}`;
+    try {
+      new URL(withProtocol);
+      return { value: withProtocol, valid: true };
+    } catch {
+      return { value: trimmed, valid: false };
+    }
+  }
+
+  return { value: trimmed, valid: false };
+}
+
 // Common field validations
 export const commonValidations = {
   name: z.string().min(1, 'Please enter a name').max(100, 'Name must be less than 100 characters'),
@@ -22,38 +62,15 @@ export const commonValidations = {
     .optional()
     .or(z.literal(''))
     .transform(val => {
-      // If empty or not provided, return as is
       if (!val || val.trim() === '') return val;
 
-      const trimmed = val.trim();
-
-      // If it already has a protocol, validate as-is
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        try {
-          new URL(trimmed);
-          return trimmed;
-        } catch {
-          throw new Error('Please enter a valid URL');
-        }
+      const result = normalizeWebsiteUrl(val);
+      if (!result.valid) {
+        throw new Error(
+          'Please enter a valid website URL (e.g., example.com or https://example.com)'
+        );
       }
-
-      // If it looks like a domain (contains a dot), prepend https://
-      if (trimmed.includes('.') && !trimmed.includes(' ')) {
-        const withProtocol = `https://${trimmed}`;
-        try {
-          new URL(withProtocol);
-          return withProtocol;
-        } catch {
-          throw new Error(
-            'Please enter a valid website URL (e.g., example.com or https://example.com)'
-          );
-        }
-      }
-
-      // Otherwise, it's not a valid URL format
-      throw new Error(
-        'Please enter a valid website URL (e.g., example.com or https://example.com)'
-      );
+      return result.value;
     }),
 };
 

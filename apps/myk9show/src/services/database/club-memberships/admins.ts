@@ -26,7 +26,9 @@ interface DbClubAdminRow {
 export async function getClubAdmins(clubId: string): Promise<ClubAdminEntry[]> {
   const { data, error } = await supabase
     .from('user_roles')
-    .select('user_id, roles!inner(name), people!user_roles_user_id_fkey!inner(first_name, last_name)')
+    .select(
+      'user_id, roles!inner(name), people!user_roles_user_id_fkey!inner(first_name, last_name)'
+    )
     .eq('club_id', clubId)
     .is('show_id', null)
     .eq('is_active', true)
@@ -38,7 +40,6 @@ export async function getClubAdmins(clubId: string): Promise<ClubAdminEntry[]> {
 
   return ((data ?? []) as unknown as DbClubAdminRow[]).map(row => ({
     personId: row.user_id,
-    personName:
-      [row.people?.first_name, row.people?.last_name].filter(Boolean).join(' ') || null,
+    personName: [row.people?.first_name, row.people?.last_name].filter(Boolean).join(' ') || null,
   }));
 }

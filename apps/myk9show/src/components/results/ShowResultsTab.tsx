@@ -131,23 +131,35 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
 
   const hasActiveFilters = Boolean(filters.element || filters.level || search.trim());
 
+  // A field with a single possible value can never narrow anything, so it's
+  // omitted — same rule the old per-field <select>s followed. Search stays
+  // available regardless: unlike Element/Level it is never moot (Codex P2 on
+  // PR #2566 — the search box used to be hidden along with these).
   const filterFields: ListFilterField[] = [
-    {
-      kind: 'options',
-      key: 'element',
-      label: 'Element',
-      value: filters.element,
-      onChange: value => setFilters(f => ({ ...f, element: value })),
-      options: elements.map(element => ({ value: element, label: element })),
-    },
-    {
-      kind: 'options',
-      key: 'level',
-      label: 'Level',
-      value: filters.level,
-      onChange: value => setFilters(f => ({ ...f, level: value })),
-      options: levels.map(level => ({ value: level, label: level })),
-    },
+    ...(elements.length > 1
+      ? [
+          {
+            kind: 'options' as const,
+            key: 'element',
+            label: 'Element',
+            value: filters.element,
+            onChange: (value: string | null) => setFilters(f => ({ ...f, element: value })),
+            options: elements.map(element => ({ value: element, label: element })),
+          },
+        ]
+      : []),
+    ...(levels.length > 1
+      ? [
+          {
+            kind: 'options' as const,
+            key: 'level',
+            label: 'Level',
+            value: filters.level,
+            onChange: (value: string | null) => setFilters(f => ({ ...f, level: value })),
+            options: levels.map(level => ({ value: level, label: level })),
+          },
+        ]
+      : []),
   ];
 
   if (isLoading) {
@@ -179,26 +191,24 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
 
   return (
     <div className="space-y-4">
-      {(elements.length > 1 || levels.length > 1) && (
-        <div className="flex flex-col gap-2">
-          <ListFilterBar
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search by class name..."
-            fields={filterFields}
-            onClearAll={() => {
-              setFilters({ element: null, level: null });
-              setSearch('');
-            }}
-          />
-          <ListResultLine
-            shown={withPlacements.length}
-            total={results.filter(cls => cls.placements.length > 0).length}
-            noun={['class', 'classes']}
-            filtered={hasActiveFilters}
-          />
-        </div>
-      )}
+      <div className="flex flex-col gap-2">
+        <ListFilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search by class name..."
+          fields={filterFields}
+          onClearAll={() => {
+            setFilters({ element: null, level: null });
+            setSearch('');
+          }}
+        />
+        <ListResultLine
+          shown={withPlacements.length}
+          total={results.filter(cls => cls.placements.length > 0).length}
+          noun={['class', 'classes']}
+          filtered={hasActiveFilters}
+        />
+      </div>
 
       {withPlacements.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

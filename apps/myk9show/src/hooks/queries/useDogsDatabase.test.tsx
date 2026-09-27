@@ -41,8 +41,18 @@ vi.mock('@/hooks/useCurrentPersonId', () => ({
   useCurrentPersonId: mockUseCurrentPersonId,
 }));
 
+// Identity/RBAC resolution signal shared with `AuthContext.userWithRoles`. A
+// truthy object stands in for "resolved"; `null` is the unresolved case under
+// test below. A plain module-scope `let`, not `vi.hoisted`, matching the
+// existing pattern in BrowseDogsPage.test.tsx for the same field.
+let mockUserWithRoles: unknown = { id: 'user-1' };
+
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ getUserRoles: mockGetUserRoles, hasRole: mockHasRole }),
+  useAuthContext: () => ({
+    getUserRoles: mockGetUserRoles,
+    hasRole: mockHasRole,
+    userWithRoles: mockUserWithRoles,
+  }),
 }));
 
 function createWrapper() {
@@ -57,6 +67,7 @@ describe('useDogsQuery roster scope', () => {
     vi.clearAllMocks();
     mockGetAllDogs.mockResolvedValue({ data: [], error: null });
     mockUseCurrentPersonId.mockReturnValue('person-1');
+    mockUserWithRoles = { id: 'user-1' };
   });
 
   it.each([
@@ -91,6 +102,7 @@ describe('useDogsQuery personId resolution (MYK9-854)', () => {
     vi.clearAllMocks();
     mockGetAllDogs.mockResolvedValue({ data: [], error: null });
     mockUseCurrentPersonId.mockReturnValue(undefined);
+    mockUserWithRoles = { id: 'user-1' };
   });
 
   it.each([
@@ -126,6 +138,62 @@ describe('useDogsQuery personId resolution (MYK9-854)', () => {
 });
 
 /**
+ * Codex follow-up on MYK9-854 (P2): while auth/RBAC is still resolving,
+ * `hasRole` reports no roles for every role — a fact indistinguishable, on
+ * its own, from "confirmed exhibitor with no full-roster role". Left
+ * unguarded, that could fire a full-roster request before identity is known,
+ * or let an empty result cache under the same key a subsequently-resolved
+ * secretary reuses. The roster scope must be its own 'unresolved' state
+ * (LESSONS `offline-identity-pairing`) until `userWithRoles` resolves.
+ */
+describe('useDogsQuery identity resolution (MYK9-854 Codex follow-up)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAllDogs.mockResolvedValue({ data: [], error: null });
+    mockUseCurrentPersonId.mockReturnValue('person-1');
+  });
+
+  it('runs no query and reports loading, not an empty roster, while identity is unresolved', async () => {
+    mockUserWithRoles = null;
+    mockGetUserRoles.mockReturnValue([]);
+    mockHasRole.mockReturnValue(false);
+
+    const { result } = renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+
+    // Nothing ever resolves in this test, so there is nothing to await — the
+    // query must stay disabled for the whole tick rather than throw or fetch.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockGetAllDogs).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('fetches the full roster once identity resolves to a secretary', async () => {
+    mockUserWithRoles = { id: 'user-1' };
+    mockGetUserRoles.mockReturnValue([UserRole.SECRETARY]);
+    mockHasRole.mockImplementation((role: UserRole) => role === UserRole.SECRETARY);
+
+    const { result } = renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('person-1', true));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
+  it("fetches only the exhibitor's own dogs once identity resolves to an exhibitor", async () => {
+    mockUserWithRoles = { id: 'user-1' };
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    mockHasRole.mockImplementation((role: UserRole) => role === UserRole.EXHIBITOR);
+
+    const { result } = renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('person-1', false));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+});
+
+/**
  * A soft delete removes the row from RLS visibility, so replication polling
  * never learns about it — while the dogs list reads IndexedDB FIRST. Leave the
  * local row in place and `onSuccess`'s invalidate refetches the dog straight
@@ -140,6 +208,7 @@ describe('useDeleteDogMutation local-replica cleanup', () => {
     mockHasRole.mockReturnValue(false);
     mockDeleteDog.mockResolvedValue({ data: null, error: null });
     mockReplicaDelete.mockResolvedValue(undefined);
+    mockUserWithRoles = { id: 'user-1' };
   });
 
   it('removes the dog from the local replica as part of the mutation', async () => {

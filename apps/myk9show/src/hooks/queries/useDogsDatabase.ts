@@ -18,7 +18,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
+import { deriveDogRosterScope } from '@/utils/dogRosterScope';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
@@ -28,11 +28,22 @@ import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 // Role chrome (cards/table and management affordances) is a separate question.
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
-  const { hasRole } = useAuthContext();
-  const showAll = useMemo(() => !rosterIsOwnDogsOnly(hasRole), [hasRole]);
+  const { hasRole, userWithRoles } = useAuthContext();
+  // `userWithRoles` is null until identity/RBAC resolves (see AuthContext) —
+  // the same signal `BrowseDogsPage` already gates its own loading state on.
+  // While unresolved, `hasRole` reports false for every role, which is NOT
+  // the same fact as "confirmed exhibitor with no full-roster role"; treating
+  // it that way here previously let a full-roster request fire (or a
+  // subsequently-resolved secretary reuse an empty roster cached under the
+  // same key) before identity was known (MYK9-854 Codex follow-up).
+  const identityResolved = Boolean(userWithRoles);
+  const scope = useMemo(
+    () => deriveDogRosterScope(identityResolved, hasRole),
+    [identityResolved, hasRole]
+  );
 
-  return useQuery({
-    queryKey: [...queryKeys.dogs, personId, showAll],
+  const query = useQuery({
+    queryKey: [...queryKeys.dogs, personId, scope],
     queryFn: async () => {
       // `getAllDogs` already wraps `replicatedDogsTable.getAllDogs()` as its
       // primary path via `withReplicationFallback` (see
@@ -47,10 +58,11 @@ export const useDogsQuery = () => {
       // roster read with an undefined person and report its result as fact.
       //
       // `personId` comes from `exhibitor_profiles`, which a secretary or site
-      // admin may never have a row in — they are not exhibitors. `showAll`
-      // viewers never filter by owner (see below), so their read does not
+      // admin may never have a row in — they are not exhibitors. A resolved
+      // `'all'` scope never filters by owner (see below), so its read does not
       // need a person id at all; gating it on one anyway left a staff-only
       // account stuck at a permanent, false "0 dogs" (MYK9-854).
+      const showAll = scope === 'all';
       if (!showAll && !personId) {
         throw new Error('Cannot load dogs before the signed-in person resolves');
       }
@@ -58,9 +70,15 @@ export const useDogsQuery = () => {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: showAll || !!personId,
+    enabled: scope === 'all' || (scope === 'own' && !!personId),
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
+
+  // React Query reports `isLoading: false` for a disabled query with no data
+  // yet — indistinguishable from a confirmed empty roster. While the scope is
+  // unresolved, override it so callers render a loading state, not an empty
+  // one (MYK9-854 Codex follow-up).
+  return { ...query, isLoading: query.isLoading || scope === 'unresolved' };
 };
 
 // Get dog by ID with full details

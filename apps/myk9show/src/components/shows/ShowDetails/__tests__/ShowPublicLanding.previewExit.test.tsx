@@ -72,7 +72,9 @@ describe('show Preview exit (MYK9-856)', () => {
 
     await user.click(screen.getByRole('link', { name: 'Back to setup' }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?edit=true&editTab=premium');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1?edit=true&editTab=premium'
+    );
   });
 
   it('leaves preview for the setup step returnTo names when Escape is pressed', async () => {
@@ -82,7 +84,9 @@ describe('show Preview exit (MYK9-856)', () => {
 
     await user.keyboard('{Escape}');
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?edit=true&editTab=premium');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1?edit=true&editTab=premium'
+    );
   });
 
   it('falls back to the show overview when returnTo is missing or untrusted', async () => {

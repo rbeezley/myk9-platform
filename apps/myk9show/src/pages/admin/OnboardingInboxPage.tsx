@@ -138,12 +138,17 @@ export default function OnboardingInboxPage() {
 
   const setSearchTerm = useCallback(
     (value: string) => {
-      setSearchParams(current => {
-        const nextParams = new URLSearchParams(current);
-        if (value) nextParams.set('q', value);
-        else nextParams.delete('q');
-        return nextParams;
-      });
+      setSearchParams(
+        current => {
+          const nextParams = new URLSearchParams(current);
+          if (value) nextParams.set('q', value);
+          else nextParams.delete('q');
+          return nextParams;
+        },
+        // Replace, not push: a history entry per keystroke would make Back
+        // walk through search edits instead of leaving the page (Codex).
+        { replace: true }
+      );
     },
     [setSearchParams]
   );

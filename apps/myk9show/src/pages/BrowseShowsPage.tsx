@@ -181,11 +181,19 @@ const BrowseShowsPage: React.FC = () => {
   });
 
   // Managing tab's built-in views (list-toolkit, MYK9-798) — counted over the
-  // same set the tab currently shows (every OTHER active filter already
-  // applied), so a view's count always matches what selecting it reveals.
+  // manager's own shows for this tab BEFORE `filters.status` narrows them
+  // (from `tabShows`, not `manageableShows`/`enhancedShows`: those already
+  // have the selected view applied via `filteredShows` → `useBrowseShowsData`,
+  // which made every view's count read as the CURRENTLY selected view's count
+  // — Codex P2). Search/discipline/club/radius narrow WITHIN a view, same as
+  // the Users roster's views; they do not change what a view's own count is.
+  const managingTabShows = useMemo(
+    () => filterManagedShows(tabShows, managedClubIds({ isAdmin, userWithRoles: authUser })),
+    [authUser, isAdmin, tabShows]
+  );
   const managingViews = useMemo(
-    () => buildManagingViews(manageableShows, entries),
-    [manageableShows, entries]
+    () => buildManagingViews(managingTabShows, entries),
+    [managingTabShows, entries]
   );
 
   const handleBulkComplete = useCallback(() => {

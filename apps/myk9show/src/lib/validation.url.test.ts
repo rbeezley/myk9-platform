@@ -68,8 +68,14 @@ describe('commonValidations.url', () => {
     expect(commonValidations.url.parse('https://myclub.org')).toBe('https://myclub.org');
   });
 
-  it('throws for a value that is still not a valid URL after normalizing', () => {
-    expect(() => commonValidations.url.parse('myclub')).toThrow();
+  it('throws for a bare word that is still not a valid URL after normalizing', () => {
+    expect(() => commonValidations.url.parse('myclub')).toThrow(
+      'Please enter a valid website URL (e.g., example.com or https://example.com)'
+    );
+  });
+
+  it('throws a protocol-specific message for a malformed https:// value', () => {
+    expect(() => commonValidations.url.parse('https://')).toThrow('Please enter a valid URL');
   });
 
   it('passes empty string through unchanged', () => {

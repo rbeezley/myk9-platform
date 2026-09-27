@@ -66,6 +66,10 @@ export const commonValidations = {
 
       const result = normalizeWebsiteUrl(val);
       if (!result.valid) {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+          throw new Error('Please enter a valid URL');
+        }
         throw new Error(
           'Please enter a valid website URL (e.g., example.com or https://example.com)'
         );

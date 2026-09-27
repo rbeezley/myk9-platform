@@ -423,4 +423,28 @@ describe('buildTrialLabelCollisionDisambiguator', () => {
     expect(disambiguate('trial-1')).toBe('');
     expect(disambiguate('trial-2')).toBe('');
   });
+
+  it("skips a suffix that collides with another same-day trial's own rendered label (MYK9-842 follow-up)", () => {
+    // Two 'Trial 1's would ordinarily become 'Trial 1 #1' / 'Trial 1 #2', but
+    // a third trial on the same day is already literally named 'Trial 1 #1' --
+    // the suffix picker must skip that candidate so all three stay distinct.
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-3', trialDate: '2026-10-10', label: 'Trial 1 #1' },
+    ]);
+
+    const rendered = (trialId: string, label: string) => {
+      const suffix = disambiguate(trialId);
+      return suffix ? `${label} #${suffix}` : label;
+    };
+
+    const labels = [
+      rendered('trial-1', 'Trial 1'),
+      rendered('trial-2', 'Trial 1'),
+      rendered('trial-3', 'Trial 1 #1'),
+    ];
+
+    expect(new Set(labels).size).toBe(3);
+  });
 });

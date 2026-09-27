@@ -318,6 +318,7 @@ export function buildTrialLabelCollisionDisambiguator(
   trials: readonly TrialLabelIdentity[]
 ): (trialId: string) => string {
   const idsByKey = new Map<string, string[]>();
+  const labelsByDate = new Map<string, Set<string>>();
 
   for (const trial of trials) {
     const date = clean(trial.trialDate);
@@ -327,12 +328,31 @@ export function buildTrialLabelCollisionDisambiguator(
     const ids = idsByKey.get(key) ?? [];
     if (!ids.includes(trial.trialId)) ids.push(trial.trialId);
     idsByKey.set(key, ids);
+
+    const labels = labelsByDate.get(date) ?? new Set<string>();
+    labels.add(label);
+    labelsByDate.set(date, labels);
   }
 
+  // A suffixed candidate (e.g. "trial 1 #1") must not collide with another
+  // trial's own rendered label on the same day (MYK9-842 follow-up) -- so
+  // each candidate is checked against the full set of that day's labels,
+  // skipping any number already taken, rather than always using position + 1.
   const positionByTrialId = new Map<string, number>();
-  for (const ids of idsByKey.values()) {
+  for (const [key, ids] of idsByKey) {
     if (ids.length < 2) continue;
-    ids.forEach((id, index) => positionByTrialId.set(id, index + 1));
+    const separatorIndex = key.indexOf('\u0000');
+    const date = key.slice(0, separatorIndex);
+    const label = key.slice(separatorIndex + 1);
+    const takenLabels = labelsByDate.get(date) ?? new Set<string>();
+    for (const id of ids) {
+      let candidate = 1;
+      while (takenLabels.has(`${label} #${candidate}`)) {
+        candidate += 1;
+      }
+      positionByTrialId.set(id, candidate);
+      takenLabels.add(`${label} #${candidate}`);
+    }
   }
 
   return trialId => {

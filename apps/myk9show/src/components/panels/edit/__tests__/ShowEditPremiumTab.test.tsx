@@ -75,7 +75,7 @@ describe('ShowEditPremiumTab', () => {
 
     expect(screen.getByRole('link', { name: /open show preview/i })).toHaveAttribute(
       'href',
-      '/shows/show-1?preview=public'
+      '/shows/show-1?preview=public&returnTo=%2Fshows%2Fshow-1%3Fedit%3Dtrue%26editTab%3Dpremium'
     );
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });

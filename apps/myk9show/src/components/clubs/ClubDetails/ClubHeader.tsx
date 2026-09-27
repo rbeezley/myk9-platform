@@ -313,6 +313,20 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
               adminNames={officials?.adminNames ?? []}
               secretaryNames={officials?.secretaryNames ?? []}
             />
+            {/* MYK9-855: the badge alone only reads on hover (the `title`
+                above), which a touch device never shows. Say in visible text
+                what is pending and who acts on it next, instead of leaving
+                the requester with a bare "Unauthorized" word. */}
+            {isClubAuthorized === false && (
+              <p
+                data-testid="club-unauthorized-notice"
+                className="mb-2 max-w-2xl text-sm text-muted-foreground"
+              >
+                {canAuthorizeClub
+                  ? 'Pending myK9 authorization. Authorize this club from the ⋮ menu above to unlock show publishing and the public club directory.'
+                  : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
+              </p>
+            )}
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4" />

@@ -207,6 +207,59 @@ describe('club authorization control', () => {
     expect(screen.queryByText('Revoke Authorization')).not.toBeInTheDocument();
   });
 
+  // MYK9-855: the badge's explanation lived only in a hover `title`, invisible
+  // on touch devices and easy to miss. A non-site-admin requester must see,
+  // in plain visible text, what is pending and that a myK9 operator (not
+  // them) acts next — a site admin instead sees that THEY can act now.
+  it('shows a visible plain-words notice, not just the hover badge, for a non-site-admin viewer', () => {
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub={false}
+        isClubAuthorized={false}
+      />
+    );
+
+    const notice = screen.getByTestId('club-unauthorized-notice');
+    expect(notice).toHaveTextContent(/myk9 operator/i);
+    expect(notice).not.toHaveTextContent(/menu/i);
+  });
+
+  it('shows a visible notice pointing a site admin at the menu action, for an unauthorized club', () => {
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub
+        isClubAuthorized={false}
+      />
+    );
+
+    const notice = screen.getByTestId('club-unauthorized-notice');
+    expect(notice).toHaveTextContent(/authorize this club/i);
+    expect(notice).not.toHaveTextContent(/myk9 operator/i);
+  });
+
+  it('shows no unauthorized notice for an authorized club', () => {
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub={false}
+        isClubAuthorized
+      />
+    );
+
+    expect(screen.queryByTestId('club-unauthorized-notice')).not.toBeInTheDocument();
+  });
+
   it('shows no badge for an authorized club, regardless of viewer', () => {
     render(
       <ClubHeader

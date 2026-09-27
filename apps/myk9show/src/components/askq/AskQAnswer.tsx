@@ -1,4 +1,5 @@
-import { TOOL_LABELS } from './askq-config';
+import { TERA_WORKING_COPY, TOOL_LABELS } from './askq-config';
+import { TeraAvatar, TeraFace } from './TeraAvatar';
 
 interface AskQAnswerProps {
   query: string;
@@ -17,53 +18,50 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
       </div>
 
       {answer ? (
-        <div className="bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">
-            {answer}
-            {isStreaming && (
-              <span
-                data-testid="streaming-cursor"
-                className="inline-block w-1.5 h-4 bg-foreground/70 ml-0.5 animate-pulse align-text-bottom"
-              />
-            )}
-          </p>
-
-          {toolsUsed.length > 0 && (
-            <div className="flex gap-1.5 mt-3">
-              {toolsUsed.map(tool => (
+        <div className="flex items-start gap-2">
+          <TeraFace />
+          <div className="min-w-0 flex-1 bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              {answer}
+              {isStreaming && (
                 <span
-                  key={tool}
-                  className="px-2 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground"
-                >
-                  {TOOL_LABELS[tool] ?? tool}
-                </span>
-              ))}
-            </div>
-          )}
+                  data-testid="streaming-cursor"
+                  className="inline-block w-1.5 h-4 bg-foreground/70 ml-0.5 animate-pulse align-text-bottom"
+                />
+              )}
+            </p>
+
+            {toolsUsed.length > 0 && (
+              <div className="flex gap-1.5 mt-3">
+                {toolsUsed.map(tool => (
+                  <span
+                    key={tool}
+                    className="px-2 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground"
+                  >
+                    {TOOL_LABELS[tool] ?? tool}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : isStreaming ? (
-        <AskQAnswerSkeleton />
+        <TeraWorkingIndicator />
       ) : null}
     </div>
   );
 }
 
-export function AskQAnswerSkeleton() {
+/** Tera's working state, shared by every AskQ surface that shows a loading state. */
+export function TeraWorkingIndicator() {
   return (
     <div
       role="status"
-      aria-label="AskQ is answering"
-      data-testid="answer-skeleton"
-      className="rounded-xl rounded-tl-sm border border-border/60 bg-muted/45 px-3.5 py-3"
+      aria-label={TERA_WORKING_COPY}
+      className="flex items-center gap-3 rounded-xl rounded-tl-sm border border-border/60 bg-muted/45 px-3.5 py-3"
     >
-      <div className="space-y-2.5 animate-pulse">
-        <div className="h-3 w-24 rounded-full bg-muted-foreground/20" />
-        <div className="space-y-2">
-          <div className="h-3 w-full rounded bg-muted-foreground/15" />
-          <div className="h-3 w-5/6 rounded bg-muted-foreground/15" />
-          <div className="h-3 w-2/3 rounded bg-muted-foreground/15" />
-        </div>
-      </div>
+      <TeraAvatar state="working" />
+      <p className="text-sm text-muted-foreground">{TERA_WORKING_COPY}</p>
     </div>
   );
 }

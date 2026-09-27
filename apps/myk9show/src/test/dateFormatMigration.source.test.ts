@@ -19,7 +19,6 @@ const MIGRATED_FILES = [
   'components/shows/ShowInfoCard.tsx',
   'components/clubs/ClubDetails/UpcomingShowsTab.tsx',
   'components/clubs/ClubDetails/PastShowsTab.tsx',
-  'components/shows/ShowDetails/ShowGroupedSidebar.tsx',
   'components/shows/tabs/ClassesTab.tsx',
   'features/show-map/showMapTree.ts',
 ];

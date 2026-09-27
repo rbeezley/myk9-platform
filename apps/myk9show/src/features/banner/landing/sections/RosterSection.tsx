@@ -8,11 +8,20 @@ import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landi
 interface RosterSectionProps {
   entryCount: number | null;
   entryLimit: number | null;
+  /** Flag for rules and fills. */
   flag: string;
+  /** Flag as text on paper — see `BannerBrandColors.flagText`. */
+  flagText: string;
   flagBright: string;
 }
 
-export function RosterSection({ entryCount, entryLimit, flag, flagBright }: RosterSectionProps) {
+export function RosterSection({
+  entryCount,
+  entryLimit,
+  flag,
+  flagText,
+  flagBright,
+}: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const pct = entryCapacityPercent(entryCount, entryLimit);
   const pace =
@@ -28,8 +37,8 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
       }}
     >
       <div style={{ maxWidth: bannerSpacing.contentMax, margin: '0 auto' }}>
-        <BannerSectionHead number="04" label="Roster" flag={flag}>
-          Filling <span style={{ color: flag }}>{pace}</span>
+        <BannerSectionHead number="04" label="Roster" flagText={flagText}>
+          Filling <span style={{ color: flagText }}>{pace}</span>
         </BannerSectionHead>
 
         <div ref={ref} className={`bn-reveal bn-capacity ${revealed ? 'in' : ''}`}>

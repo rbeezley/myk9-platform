@@ -174,6 +174,31 @@ export interface ReportEntryFormData {
   isError: boolean;
 }
 
+/** A person the UKC Trial Report can print a contact block for (MYK9-828). */
+export interface UKCTrialReportOfficial {
+  name: string;
+  streetAddress: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/**
+ * Show/club/officials data the UKC Trial Report needs beyond what `ReportProps`
+ * otherwise carries — none of it is on the replicated `Show`/`DbTrial` shapes,
+ * so it is fetched separately (`useUKCTrialReportContext`) and merged in.
+ * Absent fields print blank rather than guessed (MYK9-828).
+ */
+export interface UKCTrialReportContext {
+  venueCity: string | null;
+  venueState: string | null;
+  clubNumber: string | null;
+  chairperson: UKCTrialReportOfficial | null;
+  secretary: UKCTrialReportOfficial | null;
+}
+
 export interface ReportProps {
   showId?: string;
   showName: string;
@@ -185,6 +210,19 @@ export interface ReportProps {
     judgeName: string;
     eventNumber?: string;
     registryId?: string;
+    /**
+     * `trials.actual_start_time` — a TEXT column holding an already-formatted
+     * display string ("9:00 AM"), never an ISO timestamp; print it as-is.
+     */
+    actualStartTime?: string;
+    /** `trials.actual_end_time` — same shape as `actualStartTime`. */
+    actualEndTime?: string;
+    /**
+     * This trial's 1-based ordinal among trials sharing its calendar day in
+     * this show, ordered by `trials.display_order`. Undefined when the day
+     * has only one trial (MYK9-827).
+     */
+    dayTrialNumber?: number;
   };
   classData?: {
     element: string;
@@ -206,6 +244,8 @@ export interface ReportProps {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
+  /** See `UKCTrialReportContext` — populated only for the UKC Trial Report. */
+  ukcTrialReportContext?: UKCTrialReportContext | null;
   organization?: string;
   activityType?: string;
   clubName?: string;

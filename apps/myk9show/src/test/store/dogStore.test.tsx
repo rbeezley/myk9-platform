@@ -71,6 +71,9 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     delete: vi.fn().mockResolvedValue(undefined),
     get: vi.fn().mockResolvedValue(null),
     getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getAllDogs: vi.fn().mockResolvedValue([]),
     getDogById: vi.fn().mockResolvedValue(null),
   },

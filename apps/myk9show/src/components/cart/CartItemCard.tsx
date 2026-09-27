@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { formatCartCurrency } from '@/store/cartStore.helpers';
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { CartItemFulfillment } from '@/features/payments/cartFulfillmentView';
+import type { CartFullReason } from '@/features/payments/cartCapacitySplit';
+import { describeCartFullReason } from '@/features/payments/cartFullReasonCopy';
 
 interface CartItemCardProps {
   item: CartItemWithDetails;
@@ -24,6 +26,10 @@ interface CartItemCardProps {
    * 'payable' so callers that have no capacity context are unchanged.
    */
   fulfillment?: CartItemFulfillment;
+  /** For a wait-list or blocked line: the class or judge day that is full (MYK9-753). */
+  fullReason?: CartFullReason | undefined;
+  /** Judge names by person id, so a full judge day can be named. */
+  judgeNameById?: ReadonlyMap<string, string>;
   className?: string;
 }
 
@@ -58,10 +64,13 @@ export function CartItemCard({
   onRemove,
   isRemoving = false,
   fulfillment = 'payable',
+  fullReason,
+  judgeNameById,
   className,
 }: CartItemCardProps) {
   const isWaitlist = fulfillment === 'waitlist';
   const isBlocked = fulfillment === 'blocked';
+  const fullReasonText = describeCartFullReason(fullReason, judgeNameById);
 
   const dogName = item.dog?.call_name || item.dog?.name || 'Unknown Dog';
   const dogBreed = getDogBreedLabel({ registrations: item.dog?.registrations });
@@ -101,7 +110,7 @@ export function CartItemCard({
               )}
               {isBlocked && (
                 <Badge variant="destructive" className="text-xs">
-                  Class full
+                  {fullReason?.kind === 'judge-day' ? 'Judge day full' : 'Class full'}
                 </Badge>
               )}
             </div>
@@ -111,14 +120,14 @@ export function CartItemCard({
                 itself — not only after the exhibitor commits to checkout. */}
             {isWaitlist && (
               <p className="mb-2 text-sm text-muted-foreground">
-                This class is full. We&apos;ll hold your place on the wait list. Availability is
+                {fullReasonText} We&apos;ll hold your place on the wait list. Availability is
                 confirmed before any payment is requested.
               </p>
             )}
             {isBlocked && (
               <p className="mb-2 text-sm text-destructive">
-                This class is full and is not accepting wait list entries. Remove it to continue to
-                payment.
+                {fullReasonText} This class is not accepting wait list entries. Remove it to
+                continue to payment.
               </p>
             )}
 

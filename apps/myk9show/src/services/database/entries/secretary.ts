@@ -100,6 +100,18 @@ export const getEntriesForShow = async (showId: string) => {
     }
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
+    // MYK9-774: a failed device read lands here too. The server list must not
+    // be served over a write this device has not uploaded, or the secretary
+    // sees it undone; when that cannot be ruled out, wait for the sync.
+    if (await unsavedWritesOrUnknown(showId)) {
+      logger.warn(
+        'Secretary entries replication read failed with unsaved local writes; waiting for sync',
+        'database',
+        { showId, operation: 'get_entries_for_show' },
+        replicationError
+      );
+      return secretaryEntriesReadFailure(replicationError, startTime);
+    }
     logger.warn(
       'Secretary entries replication read failed; falling back to PostGREST',
       'database',

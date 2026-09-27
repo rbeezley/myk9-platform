@@ -24,7 +24,9 @@ const pagedData: TestRow[] = Array.from({ length: 30 }, (_, index) => ({
 }));
 
 describe('DataTable default toolbar', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('renders the standard toolbar controls when tableId is provided and no toolbar prop', () => {
     render(<DataTable tableId="test" columns={columns} data={data} />);

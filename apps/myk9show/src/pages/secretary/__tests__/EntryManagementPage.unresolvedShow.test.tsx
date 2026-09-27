@@ -64,6 +64,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
+  useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -73,7 +77,6 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleAssignArmband: vi.fn(),
     handleNextArmband: vi.fn(),
     handleEnrollmentBulkStatusChange: vi.fn(),
-    handleEnrollmentPaymentChange: vi.fn(),
     handleCheckInStatusChange: vi.fn(),
     handleExportCSV: vi.fn(),
     handleCompEntry: vi.fn(),

@@ -3,25 +3,24 @@ import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogBreedLabel, getDogDisplayName, type Dog } from '@/types/dog-types';
+import {
+  buildDogSearchText,
+  DEFAULT_DOG_FILTERS,
+  filterDogs,
+  hasActiveDogFilters,
+  type DogFilters,
+} from '@/components/dogs/browse/dogBrowseFilters';
 
-export interface DogFilters {
-  search: string;
-  breed: string;
-  sex: string;
-}
-
-const INITIAL_FILTERS: DogFilters = {
-  search: '',
-  breed: 'all',
-  sex: 'all',
-};
+export type { DogFilters };
 
 // WARNING: a value missing from this list is ERASED, not ignored — the param is
 // stripped and the filter falls back to its default. Adding a chip option
 // without adding it here does not degrade the deep link, it DESTROYS it.
-// `breed` is derived from the roster, so it has no static list to check against.
+// `breed` and `owner` are derived from the roster, so they have no static
+// list to check against.
 const ALLOWED_FILTER_VALUES = {
   sex: ['male', 'female'],
+  status: ['active', 'retired', 'deceased'],
 } as const;
 
 export interface BrowseDogsData {
@@ -35,6 +34,7 @@ export interface BrowseDogsData {
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
   availableBreeds: string[];
+  availableOwners: string[];
 }
 
 export function useBrowseDogsData(): BrowseDogsData {
@@ -48,7 +48,7 @@ export function useBrowseDogsData(): BrowseDogsData {
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<DogFilters>(INITIAL_FILTERS, {
+  const [filters, setFilters] = useUrlFilters<DogFilters>(DEFAULT_DOG_FILTERS, {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
 
@@ -60,6 +60,17 @@ export function useBrowseDogsData(): BrowseDogsData {
       if (breed !== 'Breed not set') breeds.add(breed);
     }
     return [...breeds].sort((a, b) => a.localeCompare(b));
+  }, [dogs]);
+
+  // Staff-only filter field (`dogBrowseFilterFields.ts` gates its rendering);
+  // harmless to compute unconditionally since it's just names off the roster
+  // this call already has.
+  const availableOwners = useMemo(() => {
+    const owners = new Set<string>();
+    for (const dog of dogs) {
+      if (dog.ownerName) owners.add(dog.ownerName);
+    }
+    return [...owners].sort((a, b) => a.localeCompare(b));
   }, [dogs]);
 
   // Sorted once per data change, NOT per keystroke. The sort does not depend on
@@ -76,40 +87,17 @@ export function useBrowseDogsData(): BrowseDogsData {
   );
 
   // Lowercased once per roster change rather than once per dog per keystroke.
-  // Joined on an escaped NUL, which cannot appear in typed input, so a query
-  // still cannot match across a field boundary — preserving the original
-  // "any one field contains the query" semantics rather than widening them.
-  const searchIndex = useMemo(
-    () =>
-      sortedDogs.map(dog =>
-        [dog.callName, dog.name, getDogBreedLabel(dog), dog.ownerName]
-          .filter(Boolean)
-          .join('\u0000')
-          .toLowerCase()
-      ),
-    [sortedDogs]
+  const searchIndex = useMemo(() => sortedDogs.map(buildDogSearchText), [sortedDogs]);
+
+  const filteredDogs = useMemo(
+    () => filterDogs(sortedDogs, filters, searchIndex),
+    [sortedDogs, searchIndex, filters]
   );
 
-  // Filter by search, breed, and sex.
-  const filteredDogs = useMemo(() => {
-    const query = filters.search.trim().toLowerCase();
-    const byBreed = filters.breed !== 'all';
-    const bySex = filters.sex !== 'all';
-    if (!query && !byBreed && !bySex) return sortedDogs;
-
-    return sortedDogs.filter((dog, i) => {
-      if (query && !searchIndex[i]?.includes(query)) return false;
-      if (byBreed && getDogBreedLabel(dog) !== filters.breed) return false;
-      if (bySex && dog.sex !== filters.sex) return false;
-      return true;
-    });
-  }, [sortedDogs, searchIndex, filters]);
-
-  const hasActiveFilters =
-    filters.search.trim() !== '' || filters.breed !== 'all' || filters.sex !== 'all';
+  const hasActiveFilters = hasActiveDogFilters(filters);
 
   const clearAllFilters = useCallback(() => {
-    setFilters(INITIAL_FILTERS);
+    setFilters(DEFAULT_DOG_FILTERS);
   }, [setFilters]);
 
   return {
@@ -123,5 +111,6 @@ export function useBrowseDogsData(): BrowseDogsData {
     hasActiveFilters,
     clearAllFilters,
     availableBreeds,
+    availableOwners,
   };
 }

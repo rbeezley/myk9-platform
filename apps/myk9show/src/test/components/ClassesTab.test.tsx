@@ -100,27 +100,6 @@ const mockClasses: ClassInfo[] = [
   },
 ];
 
-// Mock a simple data source — the component will receive classes as props or via hook
-// For simplicity, we pass classes as a prop
-vi.mock('@/components/common/MineToggle', () => ({
-  MineToggle: ({
-    isMine,
-    onToggle,
-    allLabel,
-    mineLabel,
-  }: {
-    isMine: boolean;
-    onToggle: () => void;
-    allLabel: string;
-    mineLabel: string;
-  }) => (
-    <div data-testid="mine-toggle">
-      <button onClick={() => isMine && onToggle()}>{allLabel}</button>
-      <button onClick={() => !isMine && onToggle()}>{mineLabel}</button>
-    </div>
-  ),
-}));
-
 vi.mock('@/components/common/EmptyState', () => ({
   EmptyState: ({ title }: { title: string }) => <div data-testid="empty-state">{title}</div>,
 }));
@@ -140,19 +119,28 @@ describe('ClassesTab', () => {
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
   });
 
-  it('defaults to showing entered classes first when user has entries', () => {
+  // Oct 10 rehearsal (MYK9-811): the tab opened on "My Classes" for a
+  // secretary who also held entries in the show, hiding the rest of it. The
+  // default view must always be "All", whether or not the signed-in user has
+  // entries.
+  it('defaults to the whole show even when the signed-in user has entries', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
+    expect(screen.getByText('Containers')).toBeInTheDocument();
+    expect(screen.getByText('Interior')).toBeInTheDocument();
+    expect(screen.getByText('Exterior')).toBeInTheDocument();
+  });
+
+  it('scopes to entered classes only after explicitly selecting the Mine view', () => {
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Mine/ }));
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getByText('Interior')).toBeInTheDocument();
     expect(screen.queryByText('Exterior')).toBeNull();
   });
 
-  it('shows only user classes when toggled to My Classes', () => {
-    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
-    fireEvent.click(screen.getByText('My Classes'));
-    expect(screen.getByText('Containers')).toBeInTheDocument();
-    expect(screen.getByText('Interior')).toBeInTheDocument();
-    expect(screen.queryByText('Exterior')).toBeNull();
+  it('hides the Mine view when the signed-in user has no entries in the show', () => {
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
+    expect(screen.queryByRole('button', { name: /^Mine/ })).not.toBeInTheDocument();
   });
 
   it('shows empty state when no classes', () => {
@@ -178,11 +166,13 @@ describe('ClassesTab', () => {
     expect(screen.queryByText('Element')).not.toBeInTheDocument();
   });
 
-  it('MineToggle filters in card view', () => {
+  it('Mine view filters in card view', () => {
     mockViewMode = 'cards';
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
+    expect(screen.getAllByTestId('class-card')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: /^Mine/ }));
     expect(screen.getAllByTestId('class-card')).toHaveLength(2);
-    fireEvent.click(screen.getByText('All Classes'));
+    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
     expect(screen.getAllByTestId('class-card')).toHaveLength(3);
   });
 });

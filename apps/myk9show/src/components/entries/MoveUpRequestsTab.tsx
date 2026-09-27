@@ -9,8 +9,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ListFilterBar } from '@/components/list-toolkit';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import {
-  Search,
   ArrowUpCircle,
   Check,
   X,
@@ -299,17 +298,15 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Search — the list-toolkit's shared search field (MYK9-795), so this
+          view reads and behaves the same as the registration-queue views. */}
       {requests.length > 0 && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by dog, handler, or class..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <ListFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by dog, handler, or class..."
+          fields={[]}
+        />
       )}
 
       {/*

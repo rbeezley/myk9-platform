@@ -9,6 +9,7 @@ export type PremiumPublishFailureCode =
   | 'permission'
   | 'stale-attempt'
   | 'intent-conflict'
+  | 'judges-syncing'
   | 'unknown';
 
 export class PremiumPublishError extends Error {
@@ -157,6 +158,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'Another publish started for this show. Try publishing again to continue.';
     case 'intent-conflict':
       return 'A different premium list is already publishing for this show. Wait for it to finish, then try again.';
+    case 'judges-syncing':
+      return "Your judge changes haven't reached the server yet, so the premium list wasn't published. Wait for them to sync (the account menu shows unsynced changes), then publish again.";
     default:
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
   }

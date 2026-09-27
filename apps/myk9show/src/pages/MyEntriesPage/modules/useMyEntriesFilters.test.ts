@@ -771,6 +771,68 @@ describe('useMyEntriesFilters wait-list positions', () => {
 });
 
 /**
+ * MYK9-804 owner production walk (2026-09-27): `exhibitor@myk9t.com` read
+ * `All 8 / Upcoming 7 / Completed 1` on the When strip while the show list
+ * under All rendered only 7 rows, and read the gap as "the completed entry
+ * is missing from All". The real eighth thing was a live wait-list position:
+ * `tabCounts` folded it into the All/Upcoming badges even under the default
+ * `status=any`, but `filteredEntries` — what `MyShowsList` actually renders
+ * under those tabs — never contains a position row; it renders in its own
+ * section below the show list. The badge and the list it sits above must
+ * come from the same predicate, so a badge's number is always exactly the
+ * length of the list `MyShowsList` renders when that tab is selected.
+ */
+describe('When-tab counts equal the rows the list renders (MYK9-804)', () => {
+  // The suite's pinned clock (beforeEach above) is Jun 2 2026 noon local, so
+  // "upcoming" needs a June date and "completed" a date already past.
+  function upcomingAt(id: string, day: number) {
+    return makeEntry({ id, showId: `show-${id}`, showDate: new Date(2026, 5, day) });
+  }
+  const completedShow = makeEntry({
+    id: 'done',
+    showId: 'show-done',
+    showName: 'Heartland Scent Work Classic',
+    showDate: new Date(2026, 4, 14),
+    showEndDate: new Date(2026, 4, 16),
+  });
+
+  it('matches tabCounts to filteredEntries.length for every tab, with a live wait-list position present', () => {
+    // The exact reported shape: 6 upcoming + 1 completed + 1 active position.
+    const entries = [
+      ...[10, 11, 12, 13, 14, 15].map(day => upcomingAt(`up-${day}`, day)),
+      completedShow,
+    ];
+    const { result } = renderFilters({ entries, activeWaitlistPositionCount: 1 });
+
+    // The reported numbers, fixed: the position no longer inflates the badge
+    // past what the list under it holds.
+    expect(result.current.tabCounts).toEqual({ all: 7, upcoming: 6, completed: 1 });
+    expect(result.current.filteredEntries).toHaveLength(7);
+
+    for (const tab of ['all', 'upcoming', 'completed'] as const) {
+      act(() => result.current.setSelectedTab(tab));
+      expect(result.current.filteredEntries).toHaveLength(result.current.tabCounts[tab]);
+    }
+  });
+
+  it('shows every entry under All, including a completed one, with no wait-list position in play', () => {
+    const entries = [
+      ...[10, 11, 12, 13, 14, 15, 16].map(day => upcomingAt(`up-${day}`, day)),
+      completedShow,
+    ];
+    const { result } = renderFilters({ entries });
+
+    expect(result.current.tabCounts.all).toBe(8);
+    expect(result.current.filteredEntries).toHaveLength(8);
+    expect(result.current.filteredEntries.map(e => e.id)).toContain('done');
+
+    act(() => result.current.setSelectedTab('completed'));
+    expect(result.current.filteredEntries).toHaveLength(1);
+    expect(result.current.tabCounts.completed).toBe(1);
+  });
+});
+
+/**
  * The status filter narrows DOGS inside a show, because the filter runs on
  * orders and the show group is a render-time view over what survives (D2).
  *

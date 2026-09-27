@@ -412,3 +412,73 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
   });
 });
+
+// MYK9-785: a guest's class is the server's answer only, so each state of that
+// read renders on its own and never falls through to a store-driven state.
+describe('ClassDetailsPage for a signed-out guest', () => {
+  const retryGuestClassRead = vi.fn();
+
+  function mockGuestRead(guestClassState: 'loading' | 'offline' | 'error' | 'ready') {
+    mockUseClassDetailsData.mockReturnValue({
+      classId: 'class-1',
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classes: [],
+      currentClass: null,
+      trialClasses: [],
+      guestClassState,
+      retryGuestClassRead,
+      localRawEntries: [],
+      dbRawEntries: [],
+      classEntries: [],
+      entriesLoading: false,
+      entriesError: null,
+      manageScope: {
+        status: 'resolved',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: false,
+      },
+      parentTrial: undefined,
+      parentShow: undefined,
+      dogs: [],
+      updateClass: vi.fn(),
+      deleteClass: vi.fn(),
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuthContext.mockReturnValue({ user: null, hasRole: () => false, userWithRoles: null });
+    mockUseClassDetailsDialogs.mockReturnValue({});
+  });
+
+  it('shows the loading state while the server read runs', () => {
+    mockGuestRead('loading');
+    renderClassDetailsPage();
+
+    expect(screen.getByRole('status', { name: /loading class details/i })).toBeInTheDocument();
+    expect(screen.queryByText(/no classes available/i)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['offline', /you're offline/i],
+    ['error', /couldn't load this class/i],
+  ] as const)('shows a retryable %s state', async (state, message) => {
+    mockGuestRead(state);
+    const { user } = renderClassDetailsPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    expect(retryGuestClassRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows not found, with a way back to the show, when anon may not see the class', async () => {
+    mockGuestRead('ready');
+    const { user } = renderClassDetailsPage();
+
+    expect(screen.getByRole('heading', { name: /class not found/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /back to show/i }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1');
+  });
+});

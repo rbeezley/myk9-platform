@@ -55,7 +55,9 @@ function setMocks({ entries = [makeEntry()], dogs = [makeDog()], userId = USER_I
 }
 
 describe('useMyEntriesInClass', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('returns empty when classId is undefined', () => {
     setMocks();

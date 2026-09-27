@@ -2,14 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useSportTemplatesWithRulesQuery } from '@/hooks/queries/useSportTemplates';
 import type { SportTemplateRow, SportClassRuleRow } from '@/types/sport-template-types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ListFilterBar, type ListFilterField } from '@/components/list-toolkit';
 import { FileText, Info, ArrowLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import '@/styles/myk9-template-management.css';
 import { CardGridSkeleton } from '@/components/common/SkeletonLoaders';
@@ -168,6 +161,21 @@ const TemplateManagementPage: React.FC = () => {
   }, [templates, searchTerm, organization]);
 
   const hasFilters = searchTerm !== '' || organization !== ALL;
+  const clearFilters = () => {
+    setSearchTerm('');
+    setOrganization(ALL);
+  };
+
+  const filterFields: ListFilterField[] = [
+    {
+      kind: 'options',
+      key: 'organization',
+      label: 'Registry',
+      value: organization === ALL ? null : organization,
+      onChange: value => setOrganization(value ?? ALL),
+      options: organizations.map(org => ({ value: org, label: org })),
+    },
+  ];
   // Gate on !isError: TanStack Query retains the previous `data` when a background
   // refetch fails, so without this an admin could sit on a rule table that no longer
   // reflects the database while the failure went unreported.
@@ -248,42 +256,13 @@ const TemplateManagementPage: React.FC = () => {
         {!isError && (
           <div className="myk9-filter-section">
             <h2 className="myk9-filter-title">Filters</h2>
-            <div className="myk9-filter-grid">
-              <Input
-                className="myk9-filter-input"
-                placeholder="Search by sport, registry, or code"
-                aria-label="Search sport rules"
-                value={searchTerm}
-                onChange={event => setSearchTerm(event.target.value)}
-              />
-
-              <Select value={organization} onValueChange={setOrganization}>
-                <SelectTrigger aria-label="Filter by registry">
-                  <SelectValue placeholder="All registries" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>All registries</SelectItem>
-                  {organizations.map(org => (
-                    <SelectItem key={org} value={org}>
-                      {org}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {hasFilters && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setOrganization(ALL);
-                  }}
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
+            <ListFilterBar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search by sport, registry, or code"
+              fields={filterFields}
+              {...(hasFilters ? { onClearAll: clearFilters } : {})}
+            />
           </div>
         )}
 

@@ -2,8 +2,10 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
+import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
 import { groupEntriesByShowRegistration } from './showRegistrationProjection';
 import { EntryManagementCockpit } from './EntryManagementCockpit';
@@ -96,29 +98,40 @@ interface RenderCockpitOptions {
   trialId?: string | null;
 }
 
-function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockpitOptions = {}) {
+// MYK9-795: `EntryManagementCockpit` no longer computes its own cockpit state
+// (queue buttons, search, Trial/Class filters moved to the page-level
+// `EntryManagementViewToolbar`/`ListViewTabs`+`ListFilterBar` — covered by
+// `EntryManagementPage.tabs.test.tsx`). This harness calls the same
+// `useEntryManagementCockpit` hook the page calls, so these tests exercise
+// the real prop the page hands the component.
+function Harness({
+  onStatusChange,
+  options,
+}: {
+  onStatusChange: StatusChangeHandler;
+  options: RenderCockpitOptions;
+}) {
   const entries = options.entries ?? [makeEntry()];
   const registrationGroups = groupEntriesByShowRegistration(entries);
+  const state: EntryManagementCockpitState = {
+    tab: 'registrations',
+    exception: 'move-ups',
+    queue: 'needs-review',
+    search: options.search ?? '',
+    density: 'comfortable',
+    trialId: options.trialId ?? null,
+    classId: options.classId ?? null,
+    paymentStatus: null,
+    registrationKey: null,
+  };
+  const cockpit = useEntryManagementCockpit({ groups: registrationGroups, state });
 
-  return render(
+  return (
     <EntryManagementCockpit
       entries={entries}
-      registrationGroups={registrationGroups}
-      cockpitState={{
-        tab: 'registrations',
-        exception: 'move-ups',
-        queue: 'needs-review',
-        search: options.search ?? '',
-        density: 'comfortable',
-        trialId: options.trialId ?? null,
-        classId: options.classId ?? null,
-        registrationKey: null,
-      }}
-      trials={[]}
-      trialClasses={[]}
-      trialClassIds={[]}
-      isLoadingTrials={false}
-      isLoadingClasses={false}
+      cockpit={cockpit}
+      showHasNoRegistrations={registrationGroups.length === 0}
+      trialScopePending={false}
       showId="show-1"
       onStatusChange={onStatusChange}
       onCheckInStatusChange={vi.fn()}
@@ -127,12 +140,15 @@ function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockp
       onUncompEntry={vi.fn()}
       onRemoveEntry={vi.fn()}
       onBulkStatusChange={vi.fn()}
-      onPaymentStatusChange={vi.fn()}
-      paymentLedger={{ record: vi.fn(), todayInShowZone: '2026-09-17' }}
+      paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       onSendDecisionEmail={vi.fn().mockResolvedValue(undefined)}
       onRefresh={vi.fn()}
     />
   );
+}
+
+function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockpitOptions = {}) {
+  return render(<Harness onStatusChange={onStatusChange} options={options} />);
 }
 
 describe('EntryManagementCockpit status seam', () => {
@@ -148,30 +164,6 @@ describe('EntryManagementCockpit status seam', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
     expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED, undefined);
-  });
-});
-
-describe('EntryManagementCockpit queue chips (F19)', () => {
-  // The active queue was signalled by colour alone. A show with one entry lands on
-  // "Needs review", reads "No matching registrations", and shows "All registrations 1"
-  // beside it with nothing saying which filter is responsible. The Exceptions
-  // sub-tabs on this same page already exposed a pressed state.
-  it('marks the active queue and leaves the rest unpressed', () => {
-    renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
-
-    expect(screen.getByRole('button', { name: /Needs review/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    for (const label of [/Missing information/, /Payment due/, /All registrations/]) {
-      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false');
-    }
-  });
-
-  it('exposes the queue chips as a labelled group', () => {
-    renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
-
-    expect(screen.getByRole('group', { name: 'Registration queues' })).toBeInTheDocument();
   });
 });
 

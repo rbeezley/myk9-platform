@@ -12,119 +12,41 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
-  type ReplicatedReadResult,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
-import type { Database } from '@/types/supabase';
 
-type JudgeAssignmentRow = Database['public']['Tables']['judge_assignments']['Row'];
+import {
+  EMPTY_ENRICHMENT,
+  rowToJudgeAssignment,
+  type JudgeAssignmentEnrichment,
+  type JudgeAssignmentJoinedRow,
+  type ReplicatedJudgeAssignment,
+} from './ReplicatedJudgeAssignmentsTable.mapper';
+
+export { rowToJudgeAssignment };
+export type { JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment };
 
 /**
- * Denormalized class/trial snapshot embedded at sync time. judge_assignments
- * syncs globally while classes/trials sync per-show, so the assignment row must
- * carry its own class/trial detail to drive the judge dashboard offline across
- * shows the judge hasn't entered. These are read-only enrichment fields: they
- * are NOT written back in toSupabaseRow (no such columns exist on the table).
+ * The enriched select every judge_assignments read uses (sync and the MYK9-771
+ * single-row re-fetch): the assignment plus its class/trial snapshot. Named
+ * columns only: fee and notes are private (MYK9-146).
  */
-interface JudgeAssignmentEnrichment {
-  className: string | null;
-  classElement: string | null;
-  classLevel: string | null;
-  classStatus: string | null;
-  classStartTime: string | null;
-  classCheckedInCount: number | null;
-  classScoredCount: number | null;
-  classTotalEntries: number | null;
-  trialDate: string | null;
-  trialTimezone: string | null;
-}
+export const JUDGE_ASSIGNMENT_SELECT = `id, person_id, show_id, trial_id, class_id, status,
+               invited_at, confirmed_at, created_at, updated_at,
+               day_capacity_override, version,
+               classes (
+               name, element, level, status, start_time, checked_in_count, scored_count,
+               total_entries_count, trial_id,
+               trials ( date, timezone, show_id )
+             )`;
 
-export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
-  id: string;
-  personId: string;
-  showId: string | null;
-  trialId: string | null;
-  classId: string | null;
-  status: string | null;
-  invitedAt: string | null;
-  confirmedAt: string | null;
-  fee: number | null;
-  notes: string | null;
-  dayCapacityOverride?: number | null | undefined;
-  // Sync metadata
-  _version?: number | undefined;
-  _lastModified?: Date | undefined;
-  _lastModifiedBy?: string | undefined;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
-  _localOnly?: boolean | undefined;
-}
-
-/** Shape returned by the enriched sync select (judge_assignments + classes + trials). */
-export type JudgeAssignmentJoinedRow = JudgeAssignmentRow & {
-  classes?: {
-    name: string | null;
-    element: string | null;
-    level: string | null;
-    status: string | null;
-    start_time: string | null;
-    scored_count: number | null;
-    checked_in_count: number | null;
-    total_entries_count: number | null;
-    trial_id: string | null;
-    trials?: {
-      date: string | null;
-      timezone: string | null;
-      show_id: string | null;
-    } | null;
-  } | null;
-};
-
-const EMPTY_ENRICHMENT: JudgeAssignmentEnrichment = {
-  className: null,
-  classElement: null,
-  classLevel: null,
-  classStatus: null,
-  classStartTime: null,
-  classCheckedInCount: null,
-  classScoredCount: null,
-  classTotalEntries: null,
-  trialDate: null,
-  trialTimezone: null,
-};
-
-export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJudgeAssignment {
-  const cls = row.classes ?? null;
-  const trial = cls?.trials ?? null;
-  return {
-    id: String(row.id),
-    personId: row.person_id,
-    // Prefer the assignment's own show_id; fall back to the trial's so show-level
-    // navigation still works when the assignment row predates the show_id backfill.
-    showId: row.show_id ?? trial?.show_id ?? null,
-    trialId: row.trial_id ?? cls?.trial_id ?? null,
-    classId: row.class_id ?? null,
-    status: row.status ?? null,
-    invitedAt: row.invited_at ?? null,
-    confirmedAt: row.confirmed_at ?? null,
-    fee: row.fee ?? null,
-    notes: row.notes ?? null,
-    dayCapacityOverride: row.day_capacity_override ?? null,
-    className: cls?.name ?? null,
-    classElement: cls?.element ?? null,
-    classLevel: cls?.level ?? null,
-    classStatus: cls?.status ?? null,
-    classStartTime: cls?.start_time ?? null,
-    classCheckedInCount: cls?.checked_in_count ?? null,
-    classScoredCount: cls?.scored_count ?? null,
-    classTotalEntries: cls?.total_entries_count ?? null,
-    trialDate: trial?.date ?? null,
-    trialTimezone: trial?.timezone ?? null,
-  };
-}
+/** PostgREST's max_rows (supabase/config.toml): one page of the sync fetch. */
+export const JUDGE_ASSIGNMENTS_PAGE_SIZE = 1000;
 
 export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJudgeAssignment> {
   private _lastMutationId: string | null = null;
@@ -142,25 +64,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * IndexedDB rows may predate MYK9-146 and still contain fee/notes; redacting
    * at the public collection boundary prevents those stale values from
    * reaching ordinary show/judge views while the next sync replaces them.
+   * Every collection read applies this, the show read included (MYK9-788).
    * `get()` remains raw for mutation merge payloads so an office update cannot
    * accidentally overwrite a fee or note it did not edit.
    */
-  override async getAll(): Promise<ReplicatedJudgeAssignment[]> {
-    const rows = await super.getAll();
+  protected override presentRows(rows: ReplicatedJudgeAssignment[]): ReplicatedJudgeAssignment[] {
     return rows.map(row => ({ ...row, fee: null, notes: null }));
-  }
-
-  override async getAllWithStatus(
-    licenseKey?: string
-  ): Promise<ReplicatedReadResult<ReplicatedJudgeAssignment>> {
-    const result = await super.getAllWithStatus(licenseKey);
-    if (!result.ok) return result;
-
-    return {
-      ok: true,
-      rows: result.rows.map(row => ({ ...row, fee: null, notes: null })),
-      error: null,
-    };
   }
 
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
@@ -197,6 +106,29 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<
+    JudgeAssignmentJoinedRow,
+    ReplicatedJudgeAssignment
+  > {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('judge_assignments')
+          .select(JUDGE_ASSIGNMENT_SELECT)
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToJudgeAssignment,
+      rebuildUpdatePayload: assignment => this.toSupabaseRow(assignment),
+    };
+  }
+
+  /**
    * Sync judge assignments from Supabase.
    * No sync scope filter — syncs all rows (table is small).
    * No deleted_at filter — judge_assignments uses hard deletes (ON DELETE CASCADE).
@@ -206,6 +138,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> =
       {
+        ...this.getRowRefetchAdapter(),
         getRemoteRowCount: async () => {
           try {
             const { count, error } = await supabase
@@ -235,32 +168,51 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           // Embed the class/trial snapshot so the globally-synced assignment row
           // is self-sufficient for the offline judge dashboard. To-one embeds via
           // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
-          const { data, error } = await supabase
-            .from('judge_assignments')
-            .select(
-              `id, person_id, show_id, trial_id, class_id, status,
-               invited_at, confirmed_at, created_at, updated_at,
-               day_capacity_override, version,
-               classes (
-               name, element, level, status, start_time, checked_in_count, scored_count,
-               total_entries_count, trial_id,
-               trials ( date, timezone, show_id )
-             )`
-            )
-            .gt('updated_at', new Date(since).toISOString())
-            .order('updated_at', { ascending: true });
+          //
+          // Paged by keyset on (updated_at, id), as the entries sync is:
+          // PostgREST caps a response at max_rows, and the stale-row cleanup
+          // only runs after a fetch that returned the whole server count
+          // (MYK9-775, MYK9-776).
+          const rows: JudgeAssignmentJoinedRow[] = [];
+          let cursorUpdatedAt: string | null = null;
+          let cursorId: string | null = null;
+          for (;;) {
+            let query = supabase.from('judge_assignments').select(JUDGE_ASSIGNMENT_SELECT);
+            query =
+              cursorUpdatedAt && cursorId
+                ? query.or(
+                    `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+                  )
+                : query.gt('updated_at', new Date(since).toISOString());
+            const { data, error } = await query
+              .order('updated_at', { ascending: true })
+              .order('id', { ascending: true })
+              .range(0, JUDGE_ASSIGNMENTS_PAGE_SIZE - 1);
 
-          if (error) {
-            throw new Error(`Supabase query failed: ${error.message}`);
+            if (error) {
+              throw new Error(`Supabase query failed: ${error.message}`);
+            }
+
+            const page = (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
+            rows.push(...page);
+            if (page.length < JUDGE_ASSIGNMENTS_PAGE_SIZE) return rows;
+            const last = page[page.length - 1];
+            if (!last?.updated_at || !last.id) return rows;
+            cursorUpdatedAt = String(last.updated_at);
+            cursorId = String(last.id);
           }
-
-          return (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
         },
-        getRemoteId: remote => String(remote.id),
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-        toLocalRow: rowToJudgeAssignment,
-        rebuildUpdatePayload: assignment => this.toSupabaseRow(assignment),
         resolveConflict: (_local, remote) => remote,
+        // Assignments are HARD-deleted and the incremental fetch can never see a
+        // deletion, so a removed judge stayed on every other device forever
+        // (MYK9-775). The fetch above has no scope filter, so a complete full
+        // fetch returns every row THIS session may read, and a full sync
+        // removes what it no longer returns. On a device shared between
+        // accounts that includes rows only the previous account could read.
+        // The engine skips the cleanup unless the fetch returned the whole
+        // server count (the fetch is not paged; PostgREST caps it at max_rows).
+        cleanupStaleRowsOnFullSync: true,
       };
 
     const result = await syncReplicatedTable(
@@ -287,13 +239,13 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     return remote;
   }
 
+  /** One show's assignments, through the show index (MYK9-792); redacted by presentRows. */
   async getByShowId(showId: string): Promise<ReplicatedJudgeAssignment[]> {
-    const all = await this.getAll();
-    return all.filter(a => a.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   async getByPersonId(personId: string): Promise<ReplicatedJudgeAssignment[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(a => a.personId === personId);
   }
 

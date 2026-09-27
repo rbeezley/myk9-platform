@@ -10,8 +10,8 @@ import {
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { queryKeys } from '@/lib/queryClient';
 import { rbacService } from '@/services/rbac/RBACService';
-import type { BulkRoleSubmitConfig } from './BulkRoleDialog';
-import { applyBulkRoleChangeToUser } from './bulkRoleRunner';
+import { executePersonPlan } from './bulkRoleRunner';
+import type { BulkRolePlan } from './bulkRolePlanner';
 import type { DialogType, ErrorWithRelatedData } from './BulkActionsBar.types';
 
 interface UseBulkActionsOptions {
@@ -20,10 +20,6 @@ interface UseBulkActionsOptions {
   onUsersDeleted?: ((deletedUserIds: string[]) => void) | undefined;
   /** Clears the page's selection — invoked when a role batch fully succeeds. */
   onClearSelection?: (() => void) | undefined;
-}
-
-function labelForUser(user: SelectedUser): string {
-  return `${user.user.firstName} ${user.user.lastName}`.trim() || user.id;
 }
 
 export function useBulkActions({
@@ -40,19 +36,24 @@ export function useBulkActions({
   const [error, setError] = useState<string | null>(null);
   const [isRoleProcessing, setIsRoleProcessing] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
-  const [roleNotice, setRoleNotice] = useState<string | null>(null);
 
   // Toast-driven retries fire after later renders may have produced a fresher
   // selection — a closure over the `selectedUsers` prop would still read the
-  // dispatch-time list. The ref always points at the latest selection, which is
-  // the closest proxy this bar has to "the current admin users list" (mirrors
-  // useClassBulkActions' classesByIdRef pattern).
-  const selectedUsersRef = useRef(selectedUsers);
+  // dispatch-time list. The ref always points at the latest selection (mirrors
+  // useClassBulkActions' classesByIdRef / useBulkAccountActions' usersByIdRef).
+  const selectedIdsRef = useRef(new Set(selectedUsers.map(u => u.id)));
   useEffect(() => {
-    selectedUsersRef.current = selectedUsers;
+    selectedIdsRef.current = new Set(selectedUsers.map(u => u.id));
+  }, [selectedUsers]);
+
+  const roleDispatch = useBulkDispatch<string>({
+    getLabel: id => {
+      const found = selectedUsers.find(u => u.id === id);
+      if (!found) return id;
+      return `${found.user.firstName ?? ''} ${found.user.lastName ?? ''}`.trim() || id;
+    },
   });
 
-  const roleDispatch = useBulkDispatch<SelectedUser>({ getLabel: labelForUser });
   const [cascadeData, setCascadeData] = useState<{
     userIds: string[];
     entryCount: number;
@@ -64,8 +65,6 @@ export function useBulkActions({
     setCurrentDialog(null);
     setError(null);
     setCascadeData(null);
-    setRoleError(null);
-    setRoleNotice(null);
   }, []);
 
   const handleBulkDelete = useCallback(async () => {
@@ -306,90 +305,76 @@ export function useBulkActions({
     }
   }, [selectedUsers, permanentDeleteMutation, closeDialog, onBulkComplete, onUsersDeleted]);
 
-  const handleBulkRoleChange = useCallback(
-    async (config: BulkRoleSubmitConfig) => {
+  // Executes a plan from bulkRolePlanner — the exact plan BulkRoleEditPanel's
+  // "What will happen" showed AND already re-verified fresh (its own
+  // refetch-before-Apply). This hook does not re-derive or re-check the plan;
+  // it only runs it and reports the outcome, so the summary and the runner can
+  // never disagree (Codex convergence restructure).
+  const handleBulkRoleEdit = useCallback(
+    async (plan: BulkRolePlan) => {
       setRoleError(null);
-      setRoleNotice(null);
       setIsRoleProcessing(true);
       try {
-        // Pre-dispatch validation: the selected role names must all exist in the
-        // canonical `roles` table before any user is touched — an unknown role
-        // rejects the whole batch with a visible error instead of a per-item
-        // false/skip (design.md "Replace validates before it revokes" and the
-        // shared-vocabulary rationale in proposal.md).
+        // Pre-dispatch validation: an unknown role name rejects the whole batch
+        // with a visible error instead of a per-person skip (proposal.md's
+        // shared-vocabulary rationale).
         const allRoles = await rbacService.getAllRoles();
         const canonicalNames = new Set(allRoles.map(r => r.name));
-        const unknown = config.roleNames.filter(name => !canonicalNames.has(name));
+        const unknown = [
+          ...new Set(plan.people.flatMap(person => person.add.map(grant => grant.role))),
+        ].filter(name => !canonicalNames.has(name));
         if (unknown.length > 0) {
           setRoleError(`Unknown role(s): ${unknown.join(', ')}. No changes were made.`);
           return;
         }
 
-        // Snapshot the selection at dispatch time. A retry re-checks membership
-        // against the FRESH selection (read through the ref) — a user removed
-        // from the selection (e.g. deleted) between the initial attempt and a
-        // retry is reported as no-longer-eligible rather than re-attempted.
-        const usersAtDispatch = new Set(selectedUsers.map(u => u.id));
-        const protectedGrantUserIds = new Set<string>();
+        const planByUser = new Map(plan.people.map(person => [person.userId, person]));
+        const targetIds = plan.people.map(person => person.userId);
 
         const outcome = await roleDispatch.run(
-          selectedUsers,
-          async user => {
-            const result = await applyBulkRoleChangeToUser(user.id, config, {
-              onProtectedGrantSkipped: () => protectedGrantUserIds.add(user.id),
-            });
-            if (result.skippedProtectedGrant) {
-              protectedGrantUserIds.add(user.id);
-            }
-            await queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
+          targetIds,
+          async userId => {
+            const person = planByUser.get(userId);
+            if (person) await executePersonPlan(person);
+            await queryClient.invalidateQueries({ queryKey: ['user-roles', userId] });
             await queryClient.invalidateQueries({
-              queryKey: ['user-role-assignments', user.id],
+              queryKey: ['user-role-assignments', userId],
             });
           },
           {
             // Runs on initial full success AND when a toast-driven retry of the
-            // failed subset fully succeeds (useBulkDispatch calls it in both
-            // paths) — so the list refresh and selection clear live HERE, not in
-            // the dialog submit path. `onBulkComplete()` with no ids is a no-op
-            // on UserManagementPage (it only removes deleted ids), so the admin
-            // list is refreshed by invalidating the users query family and the
-            // stuck selection is cleared explicitly.
+            // failed subset fully succeeds, so the list refresh and selection
+            // clear live here, not in the panel's submit path.
             onFullSuccess: () => {
-              const protectedGrantNotice = getProtectedGrantNotice(
-                selectedUsers,
-                protectedGrantUserIds
-              );
-
-              if (protectedGrantNotice) {
-                // Keep the dialog open so the operator sees which selected
-                // people were left unchanged instead of hiding the note in a
-                // toast after closing the only relevant surface.
-                setRoleNotice(protectedGrantNotice);
-              } else {
-                setCurrentDialog(null);
-                onClearSelection?.();
-              }
+              setCurrentDialog(null);
+              onClearSelection?.();
               void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+              // MYK9-820 round-3 finding #1: a reselect of the SAME people must
+              // plan from fresh data, not this panel's now-stale cached read.
+              void queryClient.invalidateQueries({ queryKey: ['bulk-role-assignments'] });
               onBulkComplete();
             },
-            applicableWhen: user =>
-              usersAtDispatch.has(user.id) && selectedUsersRef.current.some(u => u.id === user.id),
+            // A retry fires later, from the toast — re-check membership against
+            // the FRESH selection (read through the ref), not the selection this
+            // batch was dispatched with. A user removed from the selection (e.g.
+            // deleted) in between is reported as no-longer-eligible, not re-run.
+            applicableWhen: userId => selectedIdsRef.current.has(userId),
           }
         );
 
         // null = a prior batch is still in flight (latched no-op) — nothing
-        // happened, so leave the dialog open and don't touch selection.
+        // happened, so leave the panel open and don't touch selection.
         if (outcome === null) return;
         if (outcome.failed.length > 0) {
-          setRoleNotice(getProtectedGrantNotice(selectedUsers, protectedGrantUserIds));
           // Partial success still changed the succeeded users' roles — refresh
           // the admin list so their role chips aren't stale while the failure
-          // stays visible for retry (full success refreshes via onFullSuccess).
+          // stays visible for retry.
           if (outcome.succeeded.length > 0) {
             void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+            void queryClient.invalidateQueries({ queryKey: ['bulk-role-assignments'] });
           }
           setRoleError(
-            `${outcome.succeeded.length} of ${selectedUsers.length} users updated — ${outcome.failed.length} failed.`
+            `${outcome.succeeded.length} of ${targetIds.length} users updated — ${outcome.failed.length} failed.`
           );
         }
       } catch (err) {
@@ -400,7 +385,7 @@ export function useBulkActions({
         setIsRoleProcessing(false);
       }
     },
-    [selectedUsers, roleDispatch, queryClient, onBulkComplete, onClearSelection]
+    [roleDispatch, queryClient, onBulkComplete, onClearSelection]
   );
 
   return {
@@ -413,21 +398,8 @@ export function useBulkActions({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-    handleBulkRoleChange,
+    handleBulkRoleEdit,
     isRoleProcessing,
     roleError,
-    roleNotice,
   };
-}
-
-function getProtectedGrantNotice(
-  users: SelectedUser[],
-  protectedGrantUserIds: Set<string>
-): string | null {
-  const labels = users.filter(user => protectedGrantUserIds.has(user.id)).map(labelForUser);
-  if (labels.length === 0) return null;
-  if (labels.length === 1) {
-    return `${labels[0]} has a role assignment limited to a show or with an expiration date; this bulk action left it unchanged.`;
-  }
-  return `${labels.length} selected people (${labels.join(', ')}) have role assignments limited to a show or with expiration dates; this bulk action left them unchanged.`;
 }

@@ -77,3 +77,20 @@ export async function recordEnrollmentPayment(
   if (!data) throw new Error('The payment was not recorded. Please try again.');
   return data;
 }
+
+/**
+ * MYK9-773: "Paid in Full: Online". Not a ledger action (online money never
+ * reaches the cash box), but the server runs the same entries cascade as
+ * `record_enrollment_payment` and answers in the same shape. Throws the
+ * server's message on failure.
+ */
+export async function markEnrollmentPaidOnline(
+  enrollmentId: string
+): Promise<RecordedEnrollmentPayment> {
+  const { data, error } = await supabase.rpc('mark_enrollment_paid_online', {
+    p_enrollment_id: enrollmentId,
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('The payment was not recorded. Please try again.');
+  return data as unknown as RecordedEnrollmentPayment;
+}

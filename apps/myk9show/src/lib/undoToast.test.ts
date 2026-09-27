@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 import { showUndoToast } from './undoToast';
 
 describe('showUndoToast', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders an Undo action that invokes onUndo', () => {
     const onUndo = vi.fn();

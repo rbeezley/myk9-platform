@@ -141,8 +141,24 @@ describe('showMapStatus', () => {
       { entry_status: 'accepted', check_in_status: 'in-ring', is_scored: true },
       'Complete',
     ],
+    [
+      // MYK9-825: the retired source record of a move-up. It still carries
+      // its old class_id, so it must read as something a secretary can tell
+      // apart from an ordinary pending entry — not fall through unclassified.
+      "'moved' (a move-up's retired source record) reads as Moved, not Pending",
+      { entry_status: 'moved' },
+      'Moved',
+    ],
   ])('applies precedence: %s', (_name, entry, expectedLabel) => {
     expect(classifyEntryRunStatus(entry)?.label).toBe(expectedLabel);
+  });
+
+  it("classifies 'moved' as muted, matching pulled/scratched (MYK9-825)", () => {
+    expect(classifyEntryRunStatus({ entry_status: 'moved' })).toEqual({
+      value: 'moved',
+      label: 'Moved',
+      kind: 'muted',
+    });
   });
 
   it('maps backed check-in gate states', () => {

@@ -17,6 +17,7 @@ const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
+const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
 const getClassByIdMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
 const deleteClassMock = vi.hoisted(() => vi.fn());
@@ -36,6 +37,12 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: useShowQueryMock,
+}));
+
+// MYK9-790: a real entries query leaves an un-awaited replication read and
+// logger.warn running past the test, which can land after the worker closes.
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: useSecretaryShowEntriesQueryMock,
 }));
 
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
@@ -124,6 +131,11 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     });
     useJudgesWithQualificationsMock.mockReturnValue({ data: [] });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
     getClassByIdMock.mockResolvedValue(null);
     updateClassMock.mockResolvedValue('mutation-1');
     deleteClassMock.mockResolvedValue('mutation-1');

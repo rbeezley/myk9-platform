@@ -3,7 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAutoDismiss } from './useAutoDismiss';
 
 describe('useAutoDismiss', () => {
-  beforeEach(() => vi.useFakeTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();

@@ -119,7 +119,9 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   function countOf(type: string): number {
     return mockDeliver.mock.calls.filter(([payload]) => (payload as { type: string }).type === type)

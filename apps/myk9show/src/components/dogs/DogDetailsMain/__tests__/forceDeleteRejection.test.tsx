@@ -87,7 +87,9 @@ const Harness: React.FC<{ onForceDelete: () => Promise<void> }> = ({ onForceDele
 };
 
 describe('DogDialogs force-delete rejection (MYK9-595)', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('keeps the dialog open, the acknowledgement ticked and the button usable after a refusal', async () => {
     let settle!: (reason: unknown) => void;

@@ -6,8 +6,13 @@ import { signInAsJudge } from '../uat/shared/auth';
  *
  * Judge dashboard journey (MYK9-42). Covers the judge-as-primary-actor surfaces
  * that exist today: the assignments dashboard (Today/Upcoming/Completed), the
- * personal stats page, check-in, and the shared results dashboard. Read-only —
- * no entry data is mutated.
+ * personal stats page, and the shared results dashboard. Read-only — no entry
+ * data is mutated.
+ *
+ * MYK9-850: the mock-data check-in dashboard and gate steward screen were
+ * deleted (no nav path ever reached them); `/judge/check-in` now redirects
+ * to `/`, the role-aware home, because the retired route also admitted
+ * stewards and `/judge/dashboard` is judge/admin only.
  *
  * NOT covered here — "assignment acceptance": judge_assignments supports an
  * 'invited' status (see assignmentStatus.ts ACTIVE_JUDGE_ASSIGNMENT_STATUSES), but
@@ -54,17 +59,12 @@ test.describe('Judge dashboard journey', () => {
     await expect(page.getByRole('heading', { name: 'Upcoming Assignments' })).toBeVisible();
   });
 
-  test('reaches the judge check-in dashboard', async ({ page }) => {
+  test('redirects the retired mock-data check-in bookmark to the judge dashboard', async ({
+    page,
+  }) => {
     await signInAsJudge(page, '/judge/check-in');
-    await expect(page).toHaveURL(/\/judge\/check-in/);
-
-    // The check-in dashboard is also used by stewards; assert the app shell
-    // rendered rather than a specific heading string, which is more likely to
-    // drift under redesign.
-    await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.locator('h1, h2, [role="heading"]').first()).toBeVisible();
+    await expect(page).not.toHaveURL(/\/judge\/check-in/);
+    await expect(page).toHaveURL(/\/judge\/dashboard/);
   });
 
   test('redirects the retired shared results dashboard bookmark', async ({ page }) => {

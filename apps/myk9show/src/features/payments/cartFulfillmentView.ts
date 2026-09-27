@@ -13,8 +13,12 @@
  */
 
 import type { CartItemWithDetails } from '@/store/cartStore';
-import type { JudgeDayCapacity } from '@/types/waitlist-types';
-import { splitCartItemsByJudgeDayCapacity } from './cartCapacitySplit';
+import {
+  splitCartItemsByJudgeDayCapacity,
+  type CartClassCapacity,
+  type CartFullReason,
+  type CartJudgeDayCapacity,
+} from './cartCapacitySplit';
 
 export type CartItemFulfillment =
   /** Will be charged and confirmed at checkout. */
@@ -39,11 +43,15 @@ export interface CartFulfillmentView {
   payableSubtotalCents: number;
   /** What the wait-list requests would cost if a spot is later offered. Never charged now. */
   waitlistSubtotalCents: number;
+  /** For each wait-list or blocked line: the class or judge day that is full. */
+  fullReasonByItemId: ReadonlyMap<string, CartFullReason>;
 }
 
 export function areAllCartItemsRecovered(items: CartItemWithDetails[]): boolean {
   return items.length > 0 && items.every(item => Boolean(item.entry_id));
 }
+
+const NO_REASONS: ReadonlyMap<string, CartFullReason> = new Map();
 
 const EMPTY_VIEW: Omit<CartFulfillmentView, 'capacityKnown'> = {
   fulfillmentByItemId: {},
@@ -52,6 +60,7 @@ const EMPTY_VIEW: Omit<CartFulfillmentView, 'capacityKnown'> = {
   blockedItems: [],
   payableSubtotalCents: 0,
   waitlistSubtotalCents: 0,
+  fullReasonByItemId: NO_REASONS,
 };
 
 function sumFees(items: CartItemWithDetails[]): number {
@@ -67,8 +76,8 @@ function sumFees(items: CartItemWithDetails[]): number {
  */
 export function buildCartFulfillmentView(
   items: CartItemWithDetails[],
-  judgeDays: JudgeDayCapacity[] | null,
-  fullClassIds: readonly string[] = []
+  judgeDays: readonly CartJudgeDayCapacity[] | null,
+  classSpots: readonly CartClassCapacity[] = []
 ): CartFulfillmentView {
   if (items.length === 0) {
     return { capacityKnown: judgeDays !== null, ...EMPTY_VIEW };
@@ -83,6 +92,7 @@ export function buildCartFulfillmentView(
       blockedItems: [],
       payableSubtotalCents: sumFees(items),
       waitlistSubtotalCents: 0,
+      fullReasonByItemId: NO_REASONS,
     };
   }
 
@@ -99,10 +109,11 @@ export function buildCartFulfillmentView(
       blockedItems: [],
       payableSubtotalCents: sumFees(items),
       waitlistSubtotalCents: 0,
+      fullReasonByItemId: NO_REASONS,
     };
   }
 
-  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
+  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays, classSpots);
   const blockedItemIds = new Set(decision.blockedItems.map(item => item.id));
 
   const fulfillmentByItemId: Record<string, CartItemFulfillment> = {};
@@ -129,5 +140,6 @@ export function buildCartFulfillmentView(
     blockedItems: decision.blockedItems,
     payableSubtotalCents: sumFees(payableItems),
     waitlistSubtotalCents: sumFees(waitlistItems),
+    fullReasonByItemId: decision.fullReasonByItemId,
   };
 }

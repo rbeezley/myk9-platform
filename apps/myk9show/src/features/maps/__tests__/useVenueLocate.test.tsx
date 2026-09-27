@@ -26,7 +26,9 @@ function setup(address = ADDRESS) {
 }
 
 describe('useVenueLocate', () => {
-  beforeEach(() => mockGeocode.mockReset());
+  beforeEach(() => {
+    mockGeocode.mockReset();
+  });
 
   it('places the pin for a located address and passes the address through unchanged', async () => {
     mockGeocode.mockResolvedValue({ status: 'found', lat: 39.7817213, lng: -89.6501481 });

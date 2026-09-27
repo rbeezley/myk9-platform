@@ -100,6 +100,22 @@ describe('deriveTabCounts — When counts scoped to the Status choice', () => {
       completed: 0,
     });
   });
+
+  // MYK9-804: a wait-list position has no `MyEntry` row and renders in its
+  // own section below the show list, so a non-zero positionCount may only
+  // fill an otherwise-EMPTY badge — never add on top of real orders the list
+  // underneath already accounts for.
+  it('does not add a wait-list position on top of real orders already in a tab', () => {
+    expect(deriveTabCounts(entries(), 'any', NOW, 2)).toEqual({
+      all: 2, // unchanged: both real orders already fill All
+      upcoming: 1, // unchanged: the pending order already fills Upcoming
+      completed: 1, // positions never reach Completed regardless
+    });
+  });
+
+  it('lets a wait-list position fill All/Upcoming when there are no real orders at all', () => {
+    expect(deriveTabCounts([], 'any', NOW, 2)).toEqual({ all: 2, upcoming: 2, completed: 0 });
+  });
 });
 
 describe('statusChipCountText — a narrowed 0 is not "none at all"', () => {

@@ -39,7 +39,9 @@ describe('useTVRealtime', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('subscribes through the shared show channel and invalidates on a signal', () => {
     const { Wrapper, qc } = makeWrapper();

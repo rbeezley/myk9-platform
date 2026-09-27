@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -199,10 +200,28 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     return this.toSupabaseRow(dog);
   }
 
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<DogRow, ReplicatedDog> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase.from('dogs').select('*').in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToDog,
+      rebuildUpdatePayload: dog => this.toSupabaseRow(dog),
+    };
+  }
+
   async sync(syncScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<DogRow, ReplicatedDog> = {
+      ...this.getRowRefetchAdapter(),
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('dogs')
@@ -222,10 +241,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
 
         return data ?? [];
       },
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToDog,
-      rebuildUpdatePayload: dog => this.toSupabaseRow(dog),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.ownerId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
@@ -348,7 +364,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get all dogs
    */
   async getAllDogs(): Promise<ReplicatedDog[]> {
-    return this.getAll();
+    return this.getAllOrThrow();
   }
 
   /**
@@ -378,7 +394,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get dogs by owner
    */
   async getDogsByOwner(ownerId: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     return selectOwnedDogs(allDogs, ownerId);
   }
 
@@ -386,7 +402,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Search dogs by name
    */
   async searchDogs(query: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     const lowerQuery = query.toLowerCase();
 
     return allDogs.filter(
@@ -401,7 +417,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Get dogs by breed
    */
   async getDogsByBreed(breed: string): Promise<ReplicatedDog[]> {
-    const allDogs = await this.getAll();
+    const allDogs = await this.getAllOrThrow();
     return allDogs.filter(dog => dog.breed.toLowerCase() === breed.toLowerCase());
   }
 

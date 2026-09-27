@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { buildPeopleRoster, filterPeopleRoster } from './peopleRoster';
+import {
+  buildPeopleRoster,
+  buildPeopleRosterViews,
+  filterPeopleRoster,
+  formatTrialIdentity,
+  type PeopleRosterFilter,
+} from './peopleRoster';
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -176,6 +182,58 @@ describe('peopleRoster', () => {
     ]);
   });
 
+  it('MYK9-812: builds view tabs whose counts match filterPeopleRoster for each view id', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry(),
+        entry({
+          id: 'entry-3',
+          registrationId: 'reg-3',
+          dogId: 'dog-3',
+          dogName: 'Cedar',
+          ownerName: 'Bob Chen',
+          handlerName: 'Bob Chen',
+          ownerId: 'person-2',
+          ownerAuthUserId: 'auth-2',
+          handlerId: 'person-2',
+          handlerAuthUserId: 'auth-2',
+          entryNumber: '208',
+          armbandNumber: '208',
+          classes: [
+            {
+              id: 'class-3',
+              name: 'Exterior Novice A',
+              number: '3',
+              fee: 25,
+              status: 'entered',
+              checkInStatus: 'checked-in',
+            },
+          ],
+        }),
+      ],
+      presence: [
+        {
+          userId: 'auth-2',
+          name: 'Bob Chen',
+          role: 'exhibitor',
+          location: { page: '/shows/show-1' },
+          activity: 'viewing',
+          ts: 1,
+        },
+      ],
+    });
+
+    const views = buildPeopleRosterViews(roster);
+
+    expect(views.map(view => view.id)).toEqual(['all', 'needs-check-in', 'online']);
+    for (const view of views) {
+      expect(view.count).toBe(filterPeopleRoster(roster, '', view.id as PeopleRosterFilter).length);
+    }
+    expect(views.find(view => view.id === 'all')?.count).toBe(2);
+    expect(views.find(view => view.id === 'needs-check-in')?.count).toBe(1);
+    expect(views.find(view => view.id === 'online')?.count).toBe(1);
+  });
+
   it('marks missing armbands and inactive rows without check-in eligibility', () => {
     const roster = buildPeopleRoster({
       entries: [
@@ -269,6 +327,30 @@ describe('peopleRoster', () => {
         statusLabel: 'Not today',
       })
     );
+  });
+
+  // MYK9-842: a multi-day show with unchecked entries only on a FUTURE trial
+  // day must produce no "needs check-in" result on the roster -- not just a
+  // per-row ineligible flag, but zero rows surfaced by the roster's own
+  // "Needs check-in" filter and no "N due" badge.
+  it('surfaces no needs-check-in rows or badge when unchecked entries exist only on a future day', () => {
+    const roster = buildPeopleRoster({
+      entries: [entry()],
+      presence: [],
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          trialDate: '2026-07-09',
+          timezone: 'America/Chicago',
+        },
+      ],
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.badge).not.toBe('1 due');
+    expect(filterPeopleRoster(roster, '', 'needs-check-in')).toHaveLength(0);
   });
 
   it('keeps rows ineligible when today is known but class date metadata is missing', () => {
@@ -389,6 +471,89 @@ describe('peopleRoster', () => {
     );
   });
 
+  // MYK9-824 round 3 (Codex, owner-approved). `handler_id` can fall back to
+  // the dog's owner for an unmatched mail-in typed handler. The roster keys
+  // and labels every handler row by the PERSON on `handler_id`
+  // (`handlerPersonName`) rather than the printed `handlerName`, so it never
+  // has to guess whether that id is a real handler or the fallback. Two
+  // typed handlers who share that fallback owner land in ONE row, under the
+  // owner's own name, with both printed names kept as `alternateNames`.
+  it('groups by the handler_id person, not the printed text, and keeps both printed names', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          id: 'entry-hana',
+          dogId: 'dog-a',
+          dogName: 'ZZRover',
+          handlerName: 'ZZ Rehearsal Handler Hana',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+        entry({
+          id: 'entry-fred',
+          dogId: 'dog-b',
+          dogName: 'ZZFido',
+          handlerName: 'ZZ Rehearsal Handler Fred',
+          handlerPersonName: 'ZZ Rehearsal Owner One',
+          handlerId: 'owner-1',
+          handlerAuthUserId: 'auth-owner',
+          ownerName: 'ZZ Rehearsal Owner One',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster).toHaveLength(1);
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'owner-1',
+        name: 'ZZ Rehearsal Owner One',
+        authUserId: 'auth-owner',
+        alternateNames: ['ZZ Rehearsal Handler Hana', 'ZZ Rehearsal Handler Fred'],
+      })
+    );
+    expect(filterPeopleRoster(roster, 'hana', 'all')).toHaveLength(1);
+    expect(filterPeopleRoster(roster, 'fred', 'all')).toHaveLength(1);
+  });
+
+  // MYK9-824 round 3. `handler_id` is trusted directly for whoever it names,
+  // even a stale FK unrelated to both the printed text and the dog's owner
+  // (e.g. left behind by a rename) -- there is no comparison against the
+  // printed text to decide whether the id is "real". The row labels with,
+  // and a Message reaches, that person alone.
+  it('trusts a stale handler_id pointing at an unrelated person over the printed text', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          handlerName: 'Jordan Typed',
+          handlerPersonName: 'Sam Secretary',
+          handlerId: 'secretary-1',
+          handlerAuthUserId: 'auth-secretary',
+          ownerName: 'Alice Owner',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'secretary-1',
+        name: 'Sam Secretary',
+        authUserId: 'auth-secretary',
+        alternateNames: ['Jordan Typed'],
+      })
+    );
+    expect(filterPeopleRoster(roster, 'jordan typed', 'all')).toHaveLength(1);
+  });
+
   it('ignores placeholder handler names for owner-only rows', () => {
     const roster = buildPeopleRoster({
       entries: [
@@ -411,5 +576,117 @@ describe('peopleRoster', () => {
         authUserId: 'auth-owner',
       })
     );
+  });
+
+  /**
+   * MYK9-825: a UKC dog entered in the same-shaped class ("Vehicle Novice")
+   * in two same-day trials rendered as two IDENTICAL rows -- no section, no
+   * trial -- so a secretary could not tell which "Check in" checked in which
+   * entry. The row must show both the section and the trial.
+   */
+  it('distinguishes two same-day trials entered by the same dog in the same class shape', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          id: 'entry-trial-1',
+          classes: [
+            {
+              id: 'class-t1',
+              name: 'Vehicle Novice',
+              number: '1',
+              fee: 30,
+              status: 'entered',
+              checkInStatus: 'no-status',
+            },
+          ],
+        }),
+        entry({
+          id: 'entry-trial-2',
+          classes: [
+            {
+              id: 'class-t2',
+              name: 'Vehicle Novice',
+              number: '1',
+              fee: 30,
+              status: 'entered',
+              checkInStatus: 'no-status',
+            },
+          ],
+        }),
+      ],
+      presence: [],
+      classes: [
+        {
+          id: 'class-t1',
+          name: 'Vehicle Novice',
+          trialId: 'trial-1',
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'A',
+          ring: 'Trial 1',
+        },
+        {
+          id: 'class-t2',
+          name: 'Vehicle Novice',
+          trialId: 'trial-2',
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'B',
+          ring: 'Trial 2',
+        },
+      ],
+    });
+
+    expect(roster[0]?.classRows).toHaveLength(2);
+    const [row1, row2] = roster[0]!.classRows;
+    expect(row1).not.toEqual(row2);
+    expect(row1?.className).toBe('Vehicle Novice A');
+    expect(row1?.ring).toBe('Trial 1');
+    expect(row2?.className).toBe('Vehicle Novice B');
+    expect(row2?.ring).toBe('Trial 2');
+  });
+});
+
+describe('formatTrialIdentity', () => {
+  /**
+   * MYK9-825: ShowDeskPeopleRoster built `ring` from `trialName || trialNumber`
+   * — whichever came first — so two same-day trials sharing a trial NAME
+   * (a real, common case: the show wizard's own default names trials
+   * "Trial 1", "Trial 2") produced identical, indistinguishable rows.
+   */
+  it('combines name and number when they differ, so same-named same-day trials stay distinguishable', () => {
+    expect(formatTrialIdentity('Saturday A', '1')).toBe('Saturday A (1)');
+    expect(formatTrialIdentity('Saturday A', '2')).toBe('Saturday A (2)');
+  });
+
+  it('does not repeat the number when the name already reads as that trial', () => {
+    // The common case: the wizard's own default trial name IS "Trial N".
+    expect(formatTrialIdentity('Trial 1', '1')).toBe('Trial 1');
+  });
+
+  /**
+   * `trial_number` is free text the show-creation wizard sometimes writes as
+   * an already-worded identity, not a bare ordinal (seed-demo.sql's real UKC
+   * demo trial — the exact fixture behind MYK9-819's dress rehearsal — has
+   * name='UKC Nosework Trial', trial_number='UKC-Nosework'). Prepending the
+   * literal word "Trial" to it reproduces the doubled/garbled label
+   * `trialLabel.ts` (MYK9-704) was written to prevent ("Trial Trial 1",
+   * "Trial Saturday T 2") — that file's rule is "never prefix or combine";
+   * this function combines by design, so it must at least never prefix.
+   */
+  it('never prepends the literal word "Trial" to a number that is already worded text', () => {
+    expect(formatTrialIdentity('UKC Nosework Trial', 'UKC-Nosework')).toBe(
+      'UKC Nosework Trial (UKC-Nosework)'
+    );
+  });
+
+  it('falls back to name-only or number-only when the other is missing', () => {
+    expect(formatTrialIdentity('Saturday A', '')).toBe('Saturday A');
+    expect(formatTrialIdentity('', '2')).toBe('2');
+  });
+
+  it('returns null when both are missing', () => {
+    expect(formatTrialIdentity('', '')).toBeNull();
+    expect(formatTrialIdentity(null, undefined)).toBeNull();
   });
 });

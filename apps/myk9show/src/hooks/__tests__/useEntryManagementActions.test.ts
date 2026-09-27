@@ -10,7 +10,6 @@ import {
   uncompEntry,
   updateCheckInStatus,
 } from '@/services/database/entries';
-import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -54,10 +53,6 @@ vi.mock('@/lib/undoToast', () => ({
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
   updateReplicatedCheckInStatus: vi.fn(),
-}));
-
-vi.mock('@/services/database/show-registrations', () => ({
-  updateEnrollmentPaymentStatus: vi.fn(),
 }));
 
 vi.mock('@/services/AuditService', () => ({
@@ -298,169 +293,6 @@ describe('useEntryManagementActions', () => {
     expect(updater([entry])).toEqual([]);
   });
 
-  it('marks matching enrollment entries paid locally when the enrollment payment changes', async () => {
-    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: {
-        id: 'registration-1',
-        payment_status: 'paid_by_check',
-        payment_reference: null,
-        paid_amount: 35,
-      },
-      error: null,
-    });
-    const entry = { ...makeEntry(), totalFee: 35 };
-    const otherEntry = {
-      ...makeEntry(),
-      id: 'entry-2',
-      registrationId: 'registration-2',
-      totalFee: 40,
-    };
-    const setEntries = vi.fn();
-    const setError = vi.fn();
-
-    const { result } = renderHook(() =>
-      useEntryManagementActions({
-        entries: [entry, otherEntry],
-        setEntries,
-        selectedShowId: 'show-1',
-        selectedShow: null,
-        setError,
-        user: { id: 'secretary-1', email: 'secretary@example.test' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleEnrollmentPaymentChange(
-        'registration-1',
-        PaymentStatus.PAID_BY_CHECK,
-        'check-100',
-        35
-      );
-    });
-
-    expect(updateEnrollmentPaymentStatus).toHaveBeenCalledWith(
-      'registration-1',
-      PaymentStatus.PAID_BY_CHECK,
-      'check-100',
-      35,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    const updater = setEntries.mock.calls[0]?.[0];
-    expect(typeof updater).toBe('function');
-    expect(updater([entry, otherEntry])).toEqual([
-      {
-        ...entry,
-        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
-        enrollmentPaymentReference: 'check-100',
-        enrollmentPaidAmount: 35,
-        paymentStatus: PaymentStatus.PAID_ONLINE,
-        paidAmount: 35,
-      },
-      otherEntry,
-    ]);
-  });
-
-  it('threads checkNumber through to updateEnrollmentPaymentStatus for check payments', async () => {
-    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: {
-        id: 'registration-1',
-        payment_status: 'paid_by_check',
-        payment_reference: null,
-        paid_amount: 35,
-      },
-      error: null,
-    });
-    const entry = { ...makeEntry(), totalFee: 35 };
-    const setEntries = vi.fn();
-    const setError = vi.fn();
-
-    const { result } = renderHook(() =>
-      useEntryManagementActions({
-        entries: [entry],
-        setEntries,
-        selectedShowId: 'show-1',
-        selectedShow: null,
-        setError,
-        user: { id: 'secretary-1', email: 'secretary@example.test' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleEnrollmentPaymentChange(
-        'registration-1',
-        PaymentStatus.PAID_BY_CHECK,
-        'check-100',
-        35,
-        undefined,
-        undefined,
-        '1234'
-      );
-    });
-
-    expect(updateEnrollmentPaymentStatus).toHaveBeenCalledWith(
-      'registration-1',
-      PaymentStatus.PAID_BY_CHECK,
-      'check-100',
-      35,
-      undefined,
-      undefined,
-      '1234'
-    );
-  });
-
-  it('keeps entry-level refunds when an enrollment payment changes later', async () => {
-    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: {
-        id: 'registration-1',
-        payment_status: 'paid_by_check',
-        payment_reference: null,
-        paid_amount: 35,
-      },
-      error: null,
-    });
-    const refundedEntry = {
-      ...makeEntry(),
-      totalFee: 50,
-      paymentStatus: PaymentStatus.REFUNDED,
-      refundAmount: 20,
-      paidAmount: 30,
-    };
-    const setEntries = vi.fn();
-    const setError = vi.fn();
-
-    const { result } = renderHook(() =>
-      useEntryManagementActions({
-        entries: [refundedEntry],
-        setEntries,
-        selectedShowId: 'show-1',
-        selectedShow: null,
-        setError,
-        user: { id: 'secretary-1', email: 'secretary@example.test' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleEnrollmentPaymentChange(
-        'registration-1',
-        PaymentStatus.PAID_BY_CHECK
-      );
-    });
-
-    const updater = setEntries.mock.calls[0]?.[0];
-    expect(typeof updater).toBe('function');
-    expect(updater([refundedEntry])).toEqual([
-      {
-        ...refundedEntry,
-        enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
-        paymentStatus: PaymentStatus.REFUNDED,
-        paidAmount: 30,
-      },
-    ]);
-  });
-
   it('updates inline class check-in through the replicated check-in writer', async () => {
     vi.mocked(updateCheckInStatus).mockResolvedValue(fromAny({ data: null, error: null }));
     const cls = {
@@ -564,5 +396,72 @@ describe('useEntryManagementActions', () => {
     });
 
     expect(uncompEntry).toHaveBeenCalledWith('source-1');
+  });
+
+  // MYK9-774: a failed device read of the show's armbands used to answer [],
+  // so "Next armband" suggested the show's starting number, which another dog
+  // may already wear. The read throws now; the dialog says so and suggests none.
+  it('shows an error in the armband dialog when the next armband cannot be worked out', async () => {
+    mocks.getNextArmbandForShow.mockRejectedValue(
+      new Error('Could not read armbands on this device')
+    );
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [makeEntry()],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+    act(() => {
+      result.current.setArmbandDialog({ open: true, entry: makeEntry(), value: '' });
+    });
+
+    await act(async () => {
+      await result.current.handleNextArmband();
+    });
+
+    expect(result.current.armbandDialog.value).toBe('');
+    expect(result.current.armbandDialog.error).toMatch(/Couldn't work out the next armband/);
+  });
+
+  it.each([
+    { label: 'drops an earlier suggestion', filledBy: 'next', expected: '' },
+    { label: 'keeps a number the secretary typed', filledBy: 'typing', expected: '205' },
+  ])('when the next armband cannot be worked out, it $label', async ({ filledBy, expected }) => {
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [makeEntry()],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+    act(() => {
+      result.current.setArmbandDialog({ open: true, entry: makeEntry(), value: '' });
+    });
+    if (filledBy === 'next') {
+      mocks.getNextArmbandForShow.mockResolvedValueOnce(105);
+      await act(async () => {
+        await result.current.handleNextArmband();
+      });
+      expect(result.current.armbandDialog.value).toBe('105');
+    } else {
+      act(() => {
+        result.current.setArmbandDialog(prev => ({ ...prev, value: '205', autoFilled: false }));
+      });
+    }
+
+    mocks.getNextArmbandForShow.mockRejectedValueOnce(new Error('device read failed'));
+    await act(async () => {
+      await result.current.handleNextArmband();
+    });
+
+    expect(result.current.armbandDialog.value).toBe(expected);
+    expect(result.current.armbandDialog.error).toMatch(/Couldn't work out the next armband/);
   });
 });

@@ -36,6 +36,7 @@ import {
   type EntryBalanceRawRow,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
+import { isShowClosedOut } from '@/features/show-workbench/showCloseOutShow';
 import { resolveTrialTimezone, type EntryRowTrial } from './entryRowTrial';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
@@ -230,6 +231,7 @@ export function useMyEntriesData({
       start_date: string;
       end_date?: string | null;
       deleted_at?: string | null;
+      status?: string | null;
       entry_close_date?: string | null;
       venue_name?: string;
       city?: string;
@@ -268,6 +270,12 @@ export function useMyEntriesData({
       rowRegistration?.payment_status,
       isShowCancelled
     );
+    // Ground truth for the paid strip (MYK9-804): this row's OWN
+    // `entries.payment_status`, never folded against the registration's. See
+    // `EntryClass.rawPaymentStatus`.
+    const rawEntryPaymentStatus = entry.payment_status
+      ? mapPaymentStatus(entry.payment_status as string)
+      : undefined;
     const entryStatusKind = getOwnEntryStatusKind(
       rawEntryStatus,
       entry.check_in_status as string | null | undefined,
@@ -308,6 +316,7 @@ export function useMyEntriesData({
         withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,
         handler: (entry.handler as string) || undefined,
         paymentStatus: rowPaymentStatus,
+        rawPaymentStatus: rawEntryPaymentStatus,
         paymentMethod: rowPaymentMethod,
         // Read the persisted check-in status instead of hardcoding undefined,
         // or the card always shows "Not Checked In" even after a check-in.
@@ -345,6 +354,9 @@ export function useMyEntriesData({
       showId: show?.id || entry.show_id || '',
       showName: show?.name || 'Unknown Show',
       isShowCancelled,
+      // MYK9-778: closeout ends the show for "Leave class", as the server's
+      // withdraw_own_entry does. Both read paths carry shows.status.
+      isShowClosedOut: isShowClosedOut(show?.status),
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
       // or a show ending today is misread as yesterday (see parseShowDate).
       showDate: parseShowDate(show?.start_date) ?? new Date(),

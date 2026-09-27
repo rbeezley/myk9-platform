@@ -1,6 +1,6 @@
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
-import type { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
@@ -25,16 +25,10 @@ export interface EnrollmentCardProps {
   /** Child Entries that matched the active whole-show search. */
   matchingEntryIds?: ReadonlySet<string> | undefined;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onPaymentStatusChange: (
-    enrollmentId: string,
-    status: PaymentStatus,
-    reference?: string | null,
-    paidAmount?: number | null,
-    refundAmount?: number | null,
-    refundNotes?: string | null,
-    checkNumber?: string | null
-  ) => void;
-  /** Cash/check payments, refunds and "Payment Due" resets (MYK9-677 ledger). */
+  /**
+   * Cash/check payments, refunds and "Payment Due" resets (MYK9-677 ledger),
+   * and "Paid in Full: Online" (MYK9-773), all written by the server.
+   */
   paymentLedger: EnrollmentLedgerControls;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;

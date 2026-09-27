@@ -63,7 +63,9 @@ function capturePrintedHtml() {
   return () => String(write.mock.calls[0]?.[0] ?? '');
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('EntryReceipt — the printed document escapes every interpolated value', () => {
   it('cannot be broken out of by a club-authored show name', async () => {

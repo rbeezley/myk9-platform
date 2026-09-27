@@ -1,6 +1,7 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
-import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
-import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
+import type { SyncOptions, SyncResult } from './types';
+import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
+import { countCoveredRows, staleCleanupKeepIds } from './replicaCoverage';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -29,11 +30,25 @@ export interface RemoteRowCountContext {
 export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string }> {
   fetchRemoteRows(context: RemoteFetchContext<TLocal>): Promise<TRemote[]>;
   /**
+   * Fetch exactly these rows, through the same client, source and column list
+   * as `fetchRemoteRows`. Used after a stale OCC rejection of a full-row UPDATE
+   * to reconcile that one row (`refetchDirtyRowsById`, MYK9-771). Omit it and
+   * such a write keeps its current behavior: it backs off until a download or
+   * the user reconciles it.
+   */
+  fetchRowsById?(ids: string[]): Promise<TRemote[]>;
+  /**
    * Return the server-side row count visible to this sync scope. This count is
    * persisted separately from the local cache count so quota eviction cannot
    * make a partial replica appear complete.
    */
   getRemoteRowCount?: (context: RemoteRowCountContext) => Promise<number | undefined>;
+  /**
+   * Ids of this scope's server rows the device deleted and has a DELETE queued
+   * for. Read after the row count and added back to the local side of the
+   * coverage check, so a pending delete never reads as a missing row (MYK9-762).
+   */
+  getPendingDeleteIds?: (context: RemoteRowCountContext) => Promise<ReadonlySet<string>>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
 
@@ -72,6 +87,18 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
 
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;
+  /**
+   * Remove clean local rows the server no longer has, but ONLY after a FULL
+   * fetch (an incremental fetch returns changed rows only, so its ids prove
+   * nothing about the rest). Also forces a full sync whenever this device holds
+   * more server-backed rows than the server counts, so a server-side hard
+   * delete leaves the device on its next sync rather than the 24h self-heal.
+   *
+   * Only for adapters whose full fetch returns every row `filterLocalRows`
+   * keeps for the scope; rows outside the scope are never removed (MYK9-762).
+   * MYK9-775 (judge_assignments).
+   */
+  cleanupStaleRowsOnFullSync?: boolean;
   afterSuccessfulSync?: (context: {
     scope: SyncScope;
     serverIds: Set<string>;
@@ -130,7 +157,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   let uploadError: string | undefined;
 
   const getLocalRowsForScope = async (): Promise<TLocal[]> => {
-    const rows = await table.getAll(adapter.filterLocalRows ? undefined : scope.value);
+    // MYK9-774: getAllOrThrow, not getAll. These rows decide full vs
+    // incremental, which rows stale cleanup keeps, and the totalRows recorded
+    // for the scope; a failed device read answered as [] would record an empty
+    // scope as synced. A throw fails this sync instead.
+    const rows = await table.getAllOrThrow(adapter.filterLocalRows ? undefined : scope.value);
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
 
@@ -169,6 +200,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       rawExpectedRemoteRows >= 0
         ? Math.floor(rawExpectedRemoteRows)
         : undefined;
+    // After the count: a DELETE that lands in between then reads short, never over.
+    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
 
     // Periodic self-heal. The server-authoritative watermark below removes the
     // systemic drop, but a *partially* stale replica (most rows present, a few
@@ -180,13 +213,23 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
-    // Compare the server count with SERVER-BACKED local rows only: a pending
-    // local create (`_localOnly`) is not on the server yet, so counting it would
-    // let it stand in for an evicted row and hide the gap (MYK9-752).
+    // Compare the server count with the rows this device accounts for: never a
+    // pending local create (MYK9-752), always a pending delete (MYK9-762).
     const partialReplica =
-      expectedRemoteRows !== undefined && countServerBackedRows(localRows) < expectedRemoteRows;
+      expectedRemoteRows !== undefined &&
+      countCoveredRows(localRows, pendingDeleteIds) < expectedRemoteRows;
+    // More server-backed rows here than on the server: something was deleted
+    // there. Only acted on when a full sync can clean it up (MYK9-775).
+    const overReplica =
+      adapter.cleanupStaleRowsOnFullSync === true &&
+      expectedRemoteRows !== undefined &&
+      countServerBackedRows(localRows) > expectedRemoteRows;
     const forceFullSync =
-      options.forceFullSync === true || localRows.length === 0 || partialReplica || fullSyncStale;
+      options.forceFullSync === true ||
+      localRows.length === 0 ||
+      partialReplica ||
+      overReplica ||
+      fullSyncStale;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
@@ -208,6 +251,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         ? rawSince - (options.incrementalBufferMs ?? 0)
         : 0;
 
+    const fetchStartedAt = Date.now();
     const remoteRows = await adapter.fetchRemoteRows({
       scope,
       since,
@@ -260,57 +304,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         // fields are reconciled below (merge untouched server fields + advance token).
         const surfaceConflicts = options.conflictSurfacingEnabled ?? isConflictSurfacingEnabled();
         if (surfaceConflicts && existing.baseData !== undefined) {
-          const detection = detectDirtyRowConflict({
-            base: existing.baseData,
-            local: existing.data,
-            remote: remoteLocal,
-            instantFields: instantFieldsFor(table.getTableName()),
-          });
-          if (detection.hasConflict) {
-            const snapshot: ReplicationConflictSnapshot<TLocal> = {
-              tableName: table.getTableName(),
-              rowId: id,
-              fields: detection.fields,
-              localData: existing.data,
-              remoteData: remoteLocal,
-              baseData: existing.baseData,
-              baseVersion: existing.baseVersion ?? 0,
-              localVersion: existing.version,
-              remoteServerVersion: remoteServerVersion ?? 0,
-              detectedAt: Date.now(),
-            };
-            const marked = await table.markConflict(id, snapshot);
-            if (marked) {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
-              }
-              conflictsResolved++;
-            }
-            rowsAffected++;
-            continue;
-          }
-
-          // No same-field conflict → reconcile server-authoritative fields the
-          // client never touched into the dirty row, and advance the OCC token so
-          // the next upload's precondition matches the server. Root-cause fix for
-          // the stale-token storm (docs/plan-replication-stale-occ-token-sync.md):
-          // previously the dirty row was skipped, pinning serverVersion stale until
-          // a server bump to an untouched field produced a false 40001. When an
-          // adapter defines mergeDirtyRow it owns the data merge; otherwise a generic
-          // 3-way merge adopts only the fields the client never changed.
-          const reconciled = await table.reconcileDirtyRow(id, {
-            base: existing.baseData,
-            remote: remoteLocal,
+          // Same-field collision → marked for the user; otherwise untouched server
+          // fields merge in and the OCC token (row and queue) advances.
+          const outcome = await reconcileDirtyRemoteRow(table, adapter, {
+            id,
+            existing: { ...existing, baseData: existing.baseData },
+            remoteLocal,
             remoteServerVersion,
-            mergedData: adapter.mergeDirtyRow
-              ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
-              : undefined,
-            rebuildPayload: adapter.rebuildUpdatePayload,
           });
-          if (reconciled) {
-            rowsAffected++;
-            conflictsResolved++;
-          }
+          if (outcome.conflict || outcome.changed) rowsAffected++;
+          if (outcome.changed) conflictsResolved++;
           continue;
         }
 
@@ -354,6 +357,19 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     if (adapter.shouldCleanupStaleRows) {
       rowsAffected += await table.removeStaleEntries(serverIds);
+    } else if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      forceFullSync &&
+      // Only a fetch known to be COMPLETE proves a row is gone: a capped or
+      // paged response (PostgREST max_rows) returns the oldest rows only, and
+      // cleaning up after it would delete the newest (MYK9-775 review P2). No
+      // server count, no cleanup.
+      expectedRemoteRows !== undefined &&
+      serverIds.size >= expectedRemoteRows
+    ) {
+      const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
+      if (keep)
+        rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
     }
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
@@ -384,6 +400,34 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       },
       { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );
+
+    // An incremental fetch can hide a deletion behind an equal count (one row
+    // deleted and one added since the last sync): the pre-fetch check saw the
+    // counts agree. After merging the new row the device holds MORE than the
+    // server counts, so run the full fetch and cleanup now, in this sync, rather
+    // than leave the deleted row until the next one (MYK9-775, Codex P2).
+    // Bounded: the re-run is already a full sync, so it cannot recurse.
+    if (
+      adapter.cleanupStaleRowsOnFullSync &&
+      !forceFullSync &&
+      expectedRemoteRows !== undefined &&
+      countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows
+    ) {
+      const full = await syncReplicatedTable(table, adapter, scope, {
+        ...options,
+        forceFullSync: true,
+        skipMutationUpload: true,
+      });
+      // One sync to the caller: keep this pass's work and any upload failure
+      // (the re-run skips the upload, so it cannot report one itself).
+      return {
+        ...full,
+        rowsAffected: rowsAffected + full.rowsAffected,
+        conflictsResolved: conflictsResolved + (full.conflictsResolved ?? 0),
+        duration: Date.now() - startedAt,
+        ...(uploadError ? { uploadError } : {}),
+      };
+    }
 
     return {
       tableName: table.getTableName(),

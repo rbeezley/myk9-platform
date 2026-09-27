@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BrowseShowsPage from '@/pages/BrowseShowsPage';
-import { UserRole, DEFAULT_ROLE_PERMISSIONS } from '@/types/auth-types';
+import { UserRole, ScopeType, DEFAULT_ROLE_PERMISSIONS } from '@/types/auth-types';
 import type { UserWithRoles } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { EnhancedShow, QuickStats } from '@/hooks/useBrowseShowsData';
@@ -224,6 +224,7 @@ const defaultFilters: ShowFilters = {
   radius: 'all',
   organization: 'all',
   club: 'all',
+  status: 'all',
 };
 
 /** Set up the mock hooks for a specific user scenario */
@@ -233,7 +234,11 @@ function setupMocks(options: {
   isLoading?: boolean;
   hasError?: boolean;
   showsError?: Error | null;
+  showsOffline?: boolean;
   enhancedShows?: EnhancedShow[];
+  /** Show ids `unified-shows-config`'s relationship tagging marks 'managing'. */
+  managedShowIds?: string[];
+  filters?: ShowFilters;
 }) {
   const {
     user = null,
@@ -241,7 +246,10 @@ function setupMocks(options: {
     isLoading = false,
     hasError = false,
     showsError = null,
+    showsOffline = false,
     enhancedShows,
+    managedShowIds = [],
+    filters = defaultFilters,
   } = options;
 
   // Set the auth user for useAuthContext mock
@@ -265,6 +273,7 @@ function setupMocks(options: {
     isLoading,
     hasError,
     showsError,
+    showsOffline,
     entriesError: null,
     shows,
     entries: [],
@@ -274,7 +283,7 @@ function setupMocks(options: {
           userId: user.id,
           roles: user.roles,
           permissions: user.permissions,
-          managedShows: [],
+          managedShows: managedShowIds,
           judgeAssignments: [],
           entries: [],
         }
@@ -286,7 +295,7 @@ function setupMocks(options: {
   });
 
   mockUseBrowseShowsFilters.mockReturnValue({
-    filters: defaultFilters,
+    filters,
     setFilters: vi.fn(),
     filteredShows: shows,
     monthScopedShows: shows,
@@ -802,6 +811,83 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByTestId('error-state')).toBeInTheDocument();
       });
+    });
+
+    // MYK9-780: a guest's list is online-only, so offline says so rather than
+    // "couldn't load" (or, before the fix, the device's cached shows).
+    it('says the shows need a connection when the guest read is offline', () => {
+      setupMocks({ user: null, shows: [], hasError: true, showsOffline: true });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      expect(screen.getByTestId('error-state')).toHaveTextContent(/offline/i);
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+  });
+
+  // Codex P2 on PR #2566: managingViews used to be built from `manageableShows`
+  // (derived from `enhancedShows`, which already has `filters.status` applied
+  // via `filteredShows` → `useBrowseShowsData`). Selecting a view therefore
+  // recomputed every OTHER view's count from just the selected view's rows,
+  // collapsing them to zero. Fixed by counting from `tabShows` (tab-scoped,
+  // before `filters.status`) instead.
+  describe('Managing view-tab counts (MYK9-798, Codex P2 regression)', () => {
+    it('keeps every view its own true count while another view is selected', async () => {
+      const secretary: UserWithRoles = {
+        ...createMockUser(UserRole.SECRETARY, 'secretary-1'),
+        // managedClubIds() reads scopes (not isAdmin, which this file's
+        // useAuthContext mock hardcodes false) to decide which clubs'
+        // shows filterManagedShows keeps.
+        scopes: [
+          {
+            userId: 'secretary-1',
+            roleId: UserRole.SECRETARY,
+            scopeType: ScopeType.CLUB,
+            scopeId: 'club-1',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      const managingShows: Show[] = [
+        { ...mockShows[0], id: 'draft-1', clubId: 'club-1', status: 'draft' },
+        { ...mockShows[0], id: 'completed-1', clubId: 'club-1', status: 'completed' },
+        { ...mockShows[0], id: 'completed-2', clubId: 'club-1', status: 'completed' },
+        { ...mockShows[0], id: 'cancelled-1', clubId: 'club-1', status: 'cancelled' },
+      ];
+
+      setupMocks({
+        user: secretary,
+        // `shows` is the RAW list `tabShows` is computed from — untouched by
+        // any filter. `enhancedShows` simulates what the real app's data hook
+        // actually hands the page once `filters.status: 'draft'` is already
+        // selected: `filteredShows` → `filteredShowsState` → `useBrowseShowsData`
+        // narrows it to just the draft show before this page ever sees it.
+        // Building view counts from that (the bug) can only ever see 'draft-1'.
+        shows: managingShows,
+        enhancedShows: [
+          {
+            ...managingShows[0],
+            relationship: ['managing'],
+            userCanManage: true,
+            userIsJudging: false,
+            userHasEntries: false,
+          },
+        ],
+        managedShowIds: managingShows.map(s => s.id),
+        // Simulates a view already selected — the exact state that used to
+        // zero out every other view's count.
+        filters: { ...defaultFilters, status: 'draft' },
+      });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
+      });
+      // Two completed shows exist regardless of the Draft view being selected.
+      expect(screen.getByRole('button', { name: /^Completed/ }).textContent).toContain('2');
+      expect(screen.getByRole('button', { name: /^Cancelled/ }).textContent).toContain('1');
+      expect(screen.getByRole('button', { name: /^All/ }).textContent).toContain('4');
     });
   });
 });

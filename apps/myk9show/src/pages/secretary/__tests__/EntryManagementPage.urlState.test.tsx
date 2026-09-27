@@ -56,6 +56,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
+  useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -65,7 +69,6 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleAssignArmband: vi.fn(),
     handleNextArmband: vi.fn(),
     handleEnrollmentBulkStatusChange: vi.fn(),
-    handleEnrollmentPaymentChange: vi.fn(),
     handleCheckInStatusChange: vi.fn(),
     handleExportCSV: vi.fn(),
     handleCompEntry: vi.fn(),
@@ -86,11 +89,11 @@ vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
 
 vi.mock('@/components/entries/management/EntryManagementCockpit', () => ({
   EntryManagementCockpit: ({
-    cockpitState,
+    cockpit,
   }: {
-    cockpitState: { registrationKey: string | null };
+    cockpit: { state: { registrationKey: string | null } };
   }) => (
-    <output data-testid="focused-registration">{cockpitState.registrationKey ?? 'none'}</output>
+    <output data-testid="focused-registration">{cockpit.state.registrationKey ?? 'none'}</output>
   ),
 }));
 vi.mock('@/components/entries/management', () => ({
@@ -102,9 +105,6 @@ vi.mock('@/components/entries/MoveUpRequestsTab', () => ({ MoveUpRequestsTab: ()
 vi.mock('@/components/entries/PullManagementTab', () => ({ PullManagementTab: () => null }));
 vi.mock('@/features/registration/SecretaryAddEntriesDecision', () => ({
   SecretaryAddEntriesDecision: () => null,
-}));
-vi.mock('@/features/operational-views/CopyViewLinkButton', () => ({
-  CopyViewLinkButton: () => null,
 }));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 

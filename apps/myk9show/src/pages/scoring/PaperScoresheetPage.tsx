@@ -9,6 +9,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
+import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -34,6 +35,13 @@ function getClassDetailsHref({
   return `/classes/${classId}`;
 }
 
+/** The next dog to score after `from`, in exhibitor order. */
+function nextUnscoredAfter(entries: ScoringEntry[], from: string): string | null {
+  return (
+    sortByExhibitorOrder(entries).find(e => !e.isScored && e.entryId !== from)?.entryId ?? null
+  );
+}
+
 export function PaperScoresheetPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
@@ -49,29 +57,46 @@ export function PaperScoresheetPage() {
   const [className, setClassName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
+  // Counts class loads that read successfully. A save-and-next whose refresh
+  // failed records the dog it left and the count it was waiting past; the next
+  // successful load completes the advance, however the page was opened
+  // (MYK9-774).
+  const [freshLoads, setFreshLoads] = useState(0);
+  const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
 
   useEffect(() => {
+    // A retry can overlap an earlier load; only the latest may write (MYK9-774).
+    let cancelled = false;
     async function load() {
       if (!classId) return;
       setIsLoading(true);
       setError(null);
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
+        if (cancelled) return;
         if (!cls) {
           setError('Class not found');
           return;
         }
         const scoringEntries = await loadEntriesWithDogs(classId);
+        if (cancelled) return;
         setEntries(calculatePlacements(scoringEntries));
+        setFreshLoads(count => count + 1);
         setClassName(cls.name);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
     load();
-  }, [classId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, loadAttempt]);
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
@@ -105,10 +130,20 @@ export function PaperScoresheetPage() {
     autoSelectedClassRef.current = classId;
   }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
 
-  const reloadEntries = async (): Promise<ScoringEntry[]> => {
+  useEffect(() => {
+    const pending = pendingAdvanceRef.current;
+    if (!pending || freshLoads <= pending.afterLoad) return;
+    pendingAdvanceRef.current = null;
+    scoring.selectEntry(nextUnscoredAfter(entries, pending.from));
+  }, [entries, freshLoads, scoring]);
+
+  // After a landed save: a list that cannot refresh pauses scoring rather than
+  // letting the judge act on stale rows (MYK9-774).
+  const reloadEntries = async (): Promise<ScoringEntry[] | null> => {
     if (!classId) return entries;
-    const fresh = calculatePlacements(await loadEntriesWithDogs(classId));
-    setEntries(fresh);
+    const fresh = await refreshEntriesAfterSave(classId);
+    if (fresh) setEntries(fresh);
+    else setError(REFRESH_FAILED_MESSAGE);
     return fresh;
   };
 
@@ -119,7 +154,8 @@ export function PaperScoresheetPage() {
     reason?: string
   ) => {
     if (!scoring.selectedEntryId) return;
-    await scoring.saveEntry(scoring.selectedEntryId, result, timeDigits, faults, reason);
+    const entryId = scoring.selectedEntryId;
+    await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
     await reloadEntries();
   };
 
@@ -133,13 +169,17 @@ export function PaperScoresheetPage() {
     const currentEntryId = scoring.selectedEntryId;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
     const fresh = await reloadEntries();
-    const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
-    scoring.selectEntry(next?.entryId ?? null);
+    if (!fresh) {
+      pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
+      return;
+    }
+    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId));
   };
 
   const handleClearResult = async () => {
     if (!scoring.selectedEntryId) return;
-    await scoring.clearEntry(scoring.selectedEntryId);
+    const entryId = scoring.selectedEntryId;
+    await scoring.clearEntry(entryId);
     await reloadEntries();
   };
 
@@ -159,9 +199,14 @@ export function PaperScoresheetPage() {
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          Go Back
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={retryLoad}>
+            Try again
+          </Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }

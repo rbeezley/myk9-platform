@@ -644,8 +644,8 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Bella', callName: 'Belle', breed: 'Retriever' }),
         ];
 
-        // Mock getAll to return all dogs (searchDogs calls getAll internally)
-        const getAllSpy = vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        // Mock getAllOrThrow to return all dogs (searchDogs reads through it)
+        const getAllSpy = vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('max');
 
@@ -661,7 +661,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', callName: 'Chuck' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('bear');
 
@@ -676,7 +676,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', breed: 'German Shepherd' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('shepherd');
 
@@ -690,7 +690,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '2', name: 'Bella' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs('nonexistent');
 
@@ -700,7 +700,7 @@ describe('ReplicatedDogsTable', () => {
       it('should handle search with special characters', async () => {
         const dogs = [createMockDog({ id: '1', name: "Max's Dog" })];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.searchDogs("max's");
 
@@ -716,7 +716,7 @@ describe('ReplicatedDogsTable', () => {
           createMockDog({ id: '3', name: 'Charlie', breed: 'german shepherd' }),
         ];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.getDogsByBreed('German Shepherd');
 
@@ -727,7 +727,7 @@ describe('ReplicatedDogsTable', () => {
       it('should return empty array when no dogs of breed', async () => {
         const dogs = [createMockDog({ id: '1', name: 'Max', breed: 'German Shepherd' })];
 
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue(dogs);
 
         const result = await dogsTable.getDogsByBreed('Poodle');
 
@@ -754,8 +754,8 @@ describe('ReplicatedDogsTable', () => {
         // Mock getSyncMetadata
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
 
-        // Mock getAll to return existing cached data (non-empty → incremental-sync)
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([createMockDog()]);
+        // Mock getAllOrThrow to return existing cached data (non-empty → incremental-sync)
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([createMockDog()]);
 
         // syncReplicatedTable uses getReplicatedRow (not get) to check existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
@@ -807,7 +807,7 @@ describe('ReplicatedDogsTable', () => {
         };
 
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
 
         const mockQuery = {
           select: vi.fn().mockReturnThis(),
@@ -831,7 +831,7 @@ describe('ReplicatedDogsTable', () => {
 
       it('should perform full sync when cache is empty', async () => {
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
 
         const mockRemoteDogs = [createMockRow(createMockDog({ id: '1', name: 'Max' }))];
 
@@ -862,7 +862,7 @@ describe('ReplicatedDogsTable', () => {
           lastFullSyncAt: 0,
           lastIncrementalSyncAt: 0,
         });
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
 
         const mockQuery = {
           select: vi.fn().mockReturnThis(),
@@ -883,7 +883,7 @@ describe('ReplicatedDogsTable', () => {
 
       it('should handle Supabase query errors', async () => {
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         const mockQuery = {
@@ -934,7 +934,7 @@ describe('ReplicatedDogsTable', () => {
         };
 
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([localDog]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([localDog]);
         // syncReplicatedTable uses getReplicatedRow to detect existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
@@ -985,7 +985,7 @@ describe('ReplicatedDogsTable', () => {
         };
 
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([localDog]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
         const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
@@ -1029,7 +1029,7 @@ describe('ReplicatedDogsTable', () => {
         };
 
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-        vi.spyOn(dogsTable, 'getAll').mockResolvedValue([localDog]);
+        vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
         const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
@@ -1181,7 +1181,7 @@ describe('ReplicatedDogsTable', () => {
 
     it('sync() invokes reconcileDeleted after a successful download', async () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
       vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
@@ -1206,7 +1206,7 @@ describe('ReplicatedDogsTable', () => {
 
     it('a throwing reconcileDeleted does not fail the sync', async () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
       vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
@@ -1286,7 +1286,7 @@ describe('ReplicatedDogsTable', () => {
       };
 
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
       const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
@@ -1346,7 +1346,7 @@ describe('ReplicatedDogsTable', () => {
       };
 
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(mockSyncMetadata);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
       const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
@@ -1380,7 +1380,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockRejectedValue(
         new Error('Database connection failed')
       );
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       const result = await dogsTable.sync('owner-123');
@@ -1392,7 +1392,7 @@ describe('ReplicatedDogsTable', () => {
 
     it('should log sync duration on success', async () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
 
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
@@ -1413,7 +1413,7 @@ describe('ReplicatedDogsTable', () => {
 
     it('should log sync duration on failure', async () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
+      vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       const mockQuery = {

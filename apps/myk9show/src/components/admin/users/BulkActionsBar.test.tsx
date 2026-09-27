@@ -15,11 +15,20 @@ import {
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
+import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+
+vi.mock('@/services/database/users', () => ({
+  restoreUser: vi.fn().mockResolvedValue({ error: null }),
+}));
+vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({
+  invokeAdminInvite: vi.fn().mockResolvedValue({ data: null }),
+}));
 
 // Mock the mutation hooks
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeleteUserMutation: vi.fn(),
   usePermanentDeleteUserMutation: vi.fn(),
+  useUpdateUserMutation: vi.fn(() => ({ mutateAsync: vi.fn() })),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -33,8 +42,8 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
 }));
 
-// BulkRoleDialog's clubs-list query — resolve empty so opening the dialog doesn't
-// hit a real client. Role-change behavior itself is covered in useBulkActions.test.ts.
+// A clubs-list query — resolve empty so opening a dialog doesn't
+// hit a real client.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({
@@ -87,16 +96,26 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// BulkRoleDialog (rendered by this component) reads via useQuery/useQueryClient
-// (clubs-list + role change cache invalidation) — wrap every render in a
-// QueryClientProvider so those hooks don't throw outside a provider.
+// Components rendered by this bar (AdminDeleteUserDialog) read via useQuery —
+// wrap every render in a QueryClientProvider so those hooks don't throw
+// outside a provider.
 function render(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
+// The live roster (MYK9-835/MYK9-820): both people active, live, never signed
+// in, so account actions and role editing resolve the same eligibility the
+// old flattened SelectedUser snapshot used to assert.
+const mockAdminUsers: AdminUser[] = mockSelectedUsers.map(({ user }) => ({
+  ...user,
+  status: 'active',
+  lastSignInAt: null,
+}));
+
 const defaultProps = {
   selectedUsers: mockSelectedUsers,
+  users: mockAdminUsers,
   onClearSelection: vi.fn(),
   onBulkComplete: vi.fn(),
   onUsersDeleted: vi.fn(),
@@ -200,7 +219,7 @@ describe('BulkActionsBar', () => {
   it('renders when users are selected', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -213,7 +232,7 @@ describe('BulkActionsBar', () => {
   it('shows correct user count and names', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
-    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
@@ -248,7 +267,7 @@ describe('BulkActionsBar', () => {
 
     render(<BulkActionsBar {...defaultProps} selectedUsers={manyUsers} />);
 
-    expect(screen.getByText('4 selected')).toBeInTheDocument();
+    expect(screen.getByText('4 users selected')).toBeInTheDocument();
     expect(selectedUsersText()).toBe(
       'Selected users: John Doe, Jane Smith, Bob Johnson and 1 more'
     );
@@ -409,19 +428,35 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders a "Change roles" action opening BulkRoleDialog (MYK9-58 rebuild)', () => {
+    it('offers a Change roles action (MYK9-820)', () => {
       render(<BulkActionsBar {...defaultProps} />);
-
-      const rolesButton = screen.getByRole('button', { name: /change roles/i });
-      fireEvent.click(rolesButton);
-
-      expect(screen.getByText('Change Roles')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change roles' })).toBeInTheDocument();
     });
 
-    it('does not render a status action (no real per-user status mutation exists)', () => {
+    // Suspend/Reinstate need admin:manage (hasPermission returns false by
+    // default in this file); Send invitation does not, and both selected
+    // people are live and have never signed in, so it still shows (MYK9-835).
+    it('hides Suspend and Reinstate without admin:manage, but still offers eligible actions', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.queryByRole('button', { name: /^status$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /suspend/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /reinstate/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send invitation' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
+    });
+
+    it('copies the selected emails from the More menu', async () => {
+      render(<BulkActionsBar {...defaultProps} />);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy emails' }));
+
+      await waitFor(() =>
+        expect(writeText).toHaveBeenCalledWith('john.doe@example.com, jane.smith@example.com')
+      );
     });
   });
 

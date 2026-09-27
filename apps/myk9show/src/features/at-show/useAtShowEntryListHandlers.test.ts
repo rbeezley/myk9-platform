@@ -96,7 +96,9 @@ describe('useAtShowEntryListHandlers — setDogInRingStatus exclusivity', () => 
   beforeEach(() => {
     actions = makeActions();
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('clears every other in-ring dog (→ no-status) before marking the target', async () => {
     const entries = [
@@ -316,7 +318,9 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     actions = makeActions();
     mirror = [makeEntry({ id: 'e1', status: 'no-status' as EntryStatus })];
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('shows the new status before the write resolves', async () => {
     const { result } = renderHandlers(mirror, actions, applyToMirror);

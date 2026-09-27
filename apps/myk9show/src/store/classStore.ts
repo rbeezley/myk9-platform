@@ -294,8 +294,8 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
       } else {
         // Load from replicated tables
         const [replicatedClasses, replicatedEntries] = await Promise.all([
-          replicatedClassesTable.getAll(),
-          replicatedEntriesTable.getAll(),
+          replicatedClassesTable.getAllOrThrow(),
+          replicatedEntriesTable.getAllOrThrow(),
         ]);
 
         const currentClasses = get().classes;

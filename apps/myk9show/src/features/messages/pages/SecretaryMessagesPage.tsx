@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -15,6 +15,8 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
 import { ScheduledLifecycleEmailsPanel } from '@/features/lifecycle-emails';
 import { EmailDeliveryHistory } from '@/features/email-delivery-history';
+import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
+import type { ListFilterField, ListView } from '@/components/list-toolkit';
 
 const ALL_SHOWS = 'all';
 
@@ -28,6 +30,7 @@ export default function SecretaryMessagesPage() {
 
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const threads = useMessageStore(s => s.threads);
   const messagesByThread = useMessageStore(s => s.messagesByThread);
@@ -75,10 +78,20 @@ export default function SecretaryMessagesPage() {
 
   const showNameMap = useMemo(() => Object.fromEntries(shows.map(s => [s.id, s.name])), [shows]);
 
-  const visibleThreads = useMemo(
-    () => (selectedShowId ? threads.filter(t => t.show_id === selectedShowId) : threads),
-    [threads, selectedShowId]
-  );
+  const visibleThreads = useMemo(() => {
+    let result = selectedShowId ? threads.filter(t => t.show_id === selectedShowId) : threads;
+    const q = searchTerm.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        t =>
+          (t.participant_name ?? '').toLowerCase().includes(q) ||
+          (t.last_message_preview ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [threads, selectedShowId, searchTerm]);
+
+  const hasActiveFilters = Boolean(selectedShowId) || searchTerm.trim() !== '';
 
   // Treat the active thread as "selected" only while it remains in the visible
   // list. When the filter narrows the list (or the thread disappears), the
@@ -142,10 +155,29 @@ export default function SecretaryMessagesPage() {
     );
   }
 
+  function clearFilters() {
+    setSearchTerm('');
+    handleFilterChange(ALL_SHOWS);
+  }
+
   const handleSend = async (body: string) => {
     if (!activeThread) return;
     await sendMessage(activeThread.id, activeThread.show_id, body);
   };
+
+  const showField: ListFilterField = {
+    kind: 'options',
+    key: 'show',
+    label: 'Show',
+    value: selectedShowId,
+    onChange: value => handleFilterChange(value ?? ALL_SHOWS),
+    options: shows.map(s => ({ value: s.id, label: s.name })),
+  };
+
+  const views: ListView[] = [
+    { id: 'messages', label: 'Inbox', count: visibleThreads.length },
+    { id: 'email', label: 'Email delivery' },
+  ];
 
   if (error) {
     return (
@@ -186,49 +218,20 @@ export default function SecretaryMessagesPage() {
         <div className="p-4 border-b flex items-center justify-between gap-2">
           <h1 className="text-lg font-semibold">Communication History</h1>
         </div>
-        <div className="border-b px-4 py-2">
-          <label className="sr-only" htmlFor="messages-show-filter">
-            Filter by show
-          </label>
-          <select
-            id="messages-show-filter"
-            value={filterShowId}
-            onChange={e => handleFilterChange(e.target.value)}
-            className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-          >
-            <option value={ALL_SHOWS}>All shows</option>
-            {shows.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="border-b px-4 py-2" role="group" aria-label="Communication view">
-          <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
-            <button
-              type="button"
-              aria-pressed={!isEmailView}
-              className={cn(
-                'min-h-11 rounded px-2 text-sm font-medium',
-                !isEmailView && 'bg-background shadow-sm'
-              )}
-              onClick={() => handleViewChange('messages')}
-            >
-              Messages
-            </button>
-            <button
-              type="button"
-              aria-pressed={isEmailView}
-              className={cn(
-                'min-h-11 rounded px-2 text-sm font-medium',
-                isEmailView && 'bg-background shadow-sm'
-              )}
-              onClick={() => handleViewChange('email')}
-            >
-              Email delivery
-            </button>
-          </div>
+        <div className="border-b px-4 py-3 flex flex-col gap-2">
+          <ListViewTabs
+            label="Communication view"
+            views={views}
+            activeId={isEmailView ? 'email' : 'messages'}
+            onSelect={id => handleViewChange(id as 'messages' | 'email')}
+          />
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search conversations..."
+            fields={[showField]}
+            onClearAll={clearFilters}
+          />
         </div>
         {isEmailView ? (
           <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
@@ -239,14 +242,16 @@ export default function SecretaryMessagesPage() {
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-muted-foreground">
             <MessageSquare className="h-8 w-8 opacity-40" />
             <p className="text-sm">
-              {selectedShowId
+              {selectedShowId && !searchTerm.trim()
                 ? `No messages in ${showNameMap[selectedShowId] ?? 'this show'} yet.`
-                : 'No messages yet.'}
+                : hasActiveFilters
+                  ? 'No conversations match your filters.'
+                  : 'No messages yet.'}
             </p>
-            {selectedShowId && (
+            {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => handleFilterChange(ALL_SHOWS)}
+                onClick={clearFilters}
                 className="text-xs font-medium text-primary hover:underline"
               >
                 Clear filter

@@ -31,7 +31,9 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 }
 
 describe('getShowCardStatus', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('returns "completed" when show end date is in the past', () => {
     vi.setSystemTime(new Date('2026-06-10'));

@@ -1,23 +1,24 @@
 /**
- * DogsBulkActionsBar — sticky bottom bar for the dogs browse table multi-select
- * (design.md decision D2/D3, tasks.md slice 3.4). Follows the
- * compact bulk-action pattern: a count + Clear on the left, a `RowActionMenu`
- * resolved from `dogActions` on the right. Status-change actions dispatch
+ * DogsBulkActionsBar — the dogs browse table's multi-select bulk bar
+ * (design.md decision D2/D3, tasks.md slice 3.4), on the shared list-toolkit
+ * `FloatingBulkBar` shell (MYK9-796) with a `RowActionMenu` resolved from
+ * `dogActions` as its one action trigger. Status-change actions dispatch
  * directly through `useUpdateDogMutation`; delete opens a confirmation dialog
  * (destructive, so it keeps the extra step) before dispatching
  * `useDeleteDogMutation` for the confirmed subset.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useRef, useState, useEffect } from 'react';
 import { DeleteConfirmationDialog } from '@/components/base';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
+import { FloatingBulkBar } from '@/components/list-toolkit';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useUpdateDogMutation, useDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 import { dogActions } from '@/components/dogs/common/dogActions';
-import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { isBlockedByPaidOrScoredEntries } from '@/components/dogs/common/blockedDogDelete';
+
+const DOG_NOUN = ['dog', 'dogs'] as const;
 
 interface DogsBulkActionsBarProps {
   selectedDogs: Dog[];
@@ -47,12 +48,6 @@ export function DogsBulkActionsBar({
   const updateDogMutation = useUpdateDogMutation();
   const deleteDogMutation = useDeleteDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
-  // The bar is `fixed`, so it takes no room in flow and lands on top of the
-  // last thing on the page — the pagination controls. Reserve its measured
-  // height back in normal flow instead of hard-coding a `pb-*`: the bar wraps
-  // to two rows at narrow widths, which is exactly when a constant is wrong.
-  const [barHeight, setBarHeight] = useState(0);
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
 
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
   const deleteDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
@@ -142,26 +137,9 @@ export function DogsBulkActionsBar({
 
   return (
     <>
-      <div aria-hidden="true" style={{ height: barHeight }} />
-
-      <div
-        ref={actionBarRef}
-        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
-        role="region"
-        aria-label="Bulk dog actions"
-      >
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-sm font-medium">
-              {count} dog{count === 1 ? '' : 's'} selected
-            </span>
-            <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
-              Clear
-            </Button>
-          </div>
-          <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
-        </div>
-      </div>
+      <FloatingBulkBar count={count} noun={DOG_NOUN} onClear={onClear} busy={isBusy}>
+        <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
+      </FloatingBulkBar>
 
       <DeleteConfirmationDialog
         open={pendingDelete !== null}

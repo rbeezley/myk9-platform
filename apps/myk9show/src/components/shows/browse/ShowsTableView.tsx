@@ -15,8 +15,6 @@ interface ShowsTableViewProps {
   canManageShow: (show: EnhancedShow) => boolean;
   isSelected?: (item: EnhancedShow) => boolean;
   onToggleSelect?: (item: EnhancedShow) => void;
-  isAllSelected?: boolean;
-  onToggleAll?: () => void;
 }
 
 function getStatusBadge(status: string) {
@@ -186,8 +184,6 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   canManageShow,
   isSelected,
   onToggleSelect,
-  isAllSelected,
-  onToggleAll,
 }) => {
   const navigate = useNavigate();
   const entryDogLink = useEntryDogLink();
@@ -213,31 +209,19 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
     return [selectCol, ...DATA_COLUMNS];
   }, [canManageShow, hasSelection, isSelected, onToggleSelect]);
 
-  const selectAllHeader = hasSelection ? (
-    <div className="px-4 py-2 border-b border-border/30 bg-muted/20 flex items-center gap-2">
-      <Checkbox
-        checked={isAllSelected ?? false}
-        onCheckedChange={() => onToggleAll?.()}
-        aria-label="Select all you manage"
-      />
-      <span className="text-xs text-muted-foreground">Select all you manage</span>
-    </div>
-  ) : null;
-
   return (
-    <div>
-      {selectAllHeader}
-      <DataTable<EnhancedShow>
-        tableId="showsBrowse"
-        data={shows}
-        columns={columns}
-        defaultColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-        // Page-level ListControls owns search; table keeps only its Columns control.
-        showSearch={false}
-        getRowId={show => show.id}
-        onRowClick={show => navigate(entryDogLink(`/shows/${show.id}`))}
-      />
-    </div>
+    <DataTable<EnhancedShow>
+      tableId="showsBrowse"
+      data={shows}
+      columns={columns}
+      defaultColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+      // The page-level ListFilterBar owns search, and ListResultLine owns
+      // "select all matching" (list-toolkit, MYK9-798) — the table keeps only
+      // its own Columns control and per-row checkboxes.
+      showSearch={false}
+      getRowId={show => show.id}
+      onRowClick={show => navigate(entryDogLink(`/shows/${show.id}`))}
+    />
   );
 };
 

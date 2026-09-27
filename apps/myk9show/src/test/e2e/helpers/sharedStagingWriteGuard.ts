@@ -123,10 +123,11 @@ export function classifySharedStagingWrite(request: RequestLike): GuardedWrite |
  * all read as STABLE to a scanner, and a guard that fails open is worse than
  * none — MYK9-545 round 3 deleted exactly such a test).
  *
- * All ten below were read this way: every one is declared STABLE, and no
- * migration alters or overloads it. The first nine were also cross-checked
- * against the live catalog (`pg_proc.provolatile`); `manageable_show_ids`
- * (MYK9-730) was read from its migrations only.
+ * All twelve below were read this way: every one is declared STABLE, and no
+ * migration alters or overloads it. All but `manageable_show_ids` (MYK9-730),
+ * which was read from its migrations only, were also cross-checked against the
+ * live catalog (`pg_proc.provolatile`); the two class-availability reads were
+ * checked there on 2026-09-25 (MYK9-757).
  */
 export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   // 20260905090000_exhibitor_online_payment_readiness.sql — `select exists
@@ -142,6 +143,17 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   'get_effective_permissions',
   // 20260724120000_subscription_entitlement_grants.sql
   'get_own_entitlement_context',
+  // 20260925004700_myk9_705_656_class_entry_availability.sql — counts and
+  // flags over `class_entry_availability`, itself STABLE as last replaced in
+  // 20260925201300_myk9_753_class_judge_day_availability.sql. The wizard prices
+  // every class line from it (`useClassAvailability`); blocked, the payment
+  // step read "Entry fees Not confirmed" and the self-registration walk never
+  // reached /cart (MYK9-757).
+  'get_show_class_availability',
+  // 20260925201300_myk9_753_class_judge_day_availability.sql — the /cart
+  // pay/wait-list split's capacity read (`useCartCapacity`); blocked, the cart
+  // total read "Pending" and Pay stayed disabled (MYK9-757).
+  'get_show_class_judge_day_availability',
   // 20260830240000_show_officials_separates_label_from_permission.sql
   'get_show_class_hide_counts',
   // 20260912211500_get_show_judges_for_public_surfaces.sql — a pure read of

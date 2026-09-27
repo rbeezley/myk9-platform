@@ -228,6 +228,28 @@ describe('withdrawErrorMessage', () => {
     );
   });
 
+  // MYK9-778: the RPC refuses an owner once the show has finished, with its own
+  // SQLSTATE. That is a settled fact about the show, so the sentence must be
+  // definite — never the 42501 "ask the show secretary" fallback, which reads as
+  // if the entry might still be removable, nor the generic retry line.
+  it('reads a finished-show refusal as definite, in the verb of the act', () => {
+    const raw = {
+      code: 'MK006',
+      message:
+        'Entry 22eb47a9-0000-0000-0000-000000000000 cannot be withdrawn: the show has finished',
+    };
+    expect(withdrawErrorMessage(raw, 'withdraw')).toBe(
+      'This show has finished, so this entry can no longer be withdrawn.'
+    );
+    expect(withdrawErrorMessage(raw, 'pull')).toBe(
+      'This show has finished, so this entry can no longer be pulled.'
+    );
+    for (const kind of ['withdraw', 'pull'] as const) {
+      const text = withdrawErrorMessage(raw, kind);
+      expect(text).not.toMatch(/22eb47a9|secretary|try again/i);
+    }
+  });
+
   it('carries the verb onto the typed errors the replication layer throws', () => {
     expect(new WithdrawUnavailableError('pull').message).toMatch(/try pulling again/i);
     expect(new WithdrawUnavailableError('withdraw').message).toMatch(/try withdrawing again/i);

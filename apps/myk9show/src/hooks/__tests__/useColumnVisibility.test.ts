@@ -2,7 +2,9 @@ import { renderHook, act } from '@testing-library/react';
 import { useColumnVisibility } from '../useColumnVisibility';
 
 describe('useColumnVisibility', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('returns empty object when no stored state', () => {
     const { result } = renderHook(() => useColumnVisibility('test-table'));

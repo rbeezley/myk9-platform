@@ -30,6 +30,7 @@ function snapshotWithCounts(
   return {
     showId: 'show-1',
     timeZone: 'America/Chicago',
+    registryId: 'AKC',
     now: new Date('2026-08-28T19:00:00Z'),
     trials: [{ id: 'trial-1', date: '2026-08-28', number: '1', order: 0 }],
     classes: [

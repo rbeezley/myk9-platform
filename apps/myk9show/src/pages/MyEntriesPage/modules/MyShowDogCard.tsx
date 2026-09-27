@@ -95,13 +95,21 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />
           {targets.classes.length > 0 && (
+            // MYK9-809: every Button carries `whitespace-nowrap` (base variant),
+            // and this label's day name makes it the longest button text on the
+            // card. At a phone width the unwrapped line was wider than the card
+            // itself, so the row scrolled sideways instead of wrapping (2026-
+            // 09-26 exhibitor walk, E53). `size="touch"` drops the fixed `h-11`
+            // for a `min-h-11` floor, so a two-line label can grow the button
+            // instead of being clipped by it.
             <Button
               type="button"
+              size="touch"
               onClick={() => onCheckInDay(dog, targets.classes)}
               aria-label={`Check in ${dog.dogName} for ${targets.weekday}`}
-              className="min-h-[44px]"
+              className="whitespace-normal text-center"
             >
-              <ClipboardCheck className="mr-1.5 h-5 w-5" />
+              <ClipboardCheck className="mr-1.5 h-5 w-5 shrink-0" />
               Check in for {targets.weekday}
             </Button>
           )}

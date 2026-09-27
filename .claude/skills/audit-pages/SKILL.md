@@ -137,7 +137,7 @@ If a generated route inventory exists at `docs/qa/generated/route-inventory.md`,
 ### Judge (login as judge)
 
 ```
-/judge/dashboard    /judge/check-in    /judge/stats    /results/dashboard
+/judge/dashboard    /judge/stats    /results/dashboard
 ```
 
 ### Club Admin (login as club admin)

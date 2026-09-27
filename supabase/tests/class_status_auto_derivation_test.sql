@@ -13,7 +13,7 @@ BEGIN;
 
 -- Silence the push webhooks for the test transaction (rolled back with the txn).
 ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push;
-ALTER TABLE public.entries DISABLE TRIGGER trg_notify_entry_scoring_push;
+ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_results_push;
 
 DO $$
 DECLARE

@@ -81,7 +81,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.read.mockResolvedValue({ data: cachedEntries, error: null });
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('MYK9-424 authorized warm secretary report replay', () => {
   it.each(['error', 'throw', 'stall'])(

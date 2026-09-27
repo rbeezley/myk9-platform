@@ -30,10 +30,18 @@ const PAYMENT_OPTIONS = [
   { key: 'online', label: 'Online (separate)' },
 ] as const;
 
-export function FeesSection({ fees, flag }: { fees: EntryBlankFees; flag: string }) {
+export function FeesSection({
+  fees,
+  flag,
+  flagText,
+}: {
+  fees: EntryBlankFees;
+  flag: string;
+  flagText: string;
+}) {
   return (
     <View>
-      <SectionHeader number="04" title="Fees tendered" flag={flag} />
+      <SectionHeader number="04" title="Fees tendered" flagText={flagText} />
 
       <View
         style={{
@@ -94,7 +102,7 @@ export function FeesSection({ fees, flag }: { fees: EntryBlankFees; flag: string
               fontWeight: 900,
               fontSize: 22,
               letterSpacing: -0.5,
-              color: fees.totalAmount ? flag : INK,
+              color: fees.totalAmount ? flagText : INK,
               borderBottomWidth: 0.5,
               borderBottomColor: INK,
               minWidth: 80,
@@ -121,7 +129,7 @@ export function FeesSection({ fees, flag }: { fees: EntryBlankFees; flag: string
         </Text>
         {PAYMENT_OPTIONS.map(opt => (
           <View key={opt.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Checkbox checked={fees.paymentMethod === opt.key} flag={flag} />
+            <Checkbox checked={fees.paymentMethod === opt.key} flagText={flagText} />
             <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{opt.label}</Text>
           </View>
         ))}

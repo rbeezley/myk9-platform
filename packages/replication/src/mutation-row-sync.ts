@@ -24,8 +24,26 @@ export async function markReplicatedRowSynced(
   const hasAnotherPendingMutation = pendingMutations.some(
     pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
   );
+  // An uploaded INSERT is on the server now. Its `_localOnly` flag used to
+  // stay until a later fetch returned the row, so counts of server-backed rows
+  // skipped it and a create deleted elsewhere before that fetch was never
+  // noticed; ReplicatedClassesTable.repairUnsynced would even re-insert it
+  // (MYK9-775).
+  const data = existingRow.data as Record<string, unknown> | null;
+  const clearLocalOnly =
+    mutation.operation === 'INSERT' &&
+    data !== null &&
+    typeof data === 'object' &&
+    '_localOnly' in data;
+  let nextData = existingRow.data;
+  if (clearLocalOnly) {
+    const uploaded = { ...(data as Record<string, unknown>) };
+    delete uploaded._localOnly;
+    nextData = uploaded;
+  }
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
+    data: nextData,
     isDirty: existingRow.isDirty && hasAnotherPendingMutation,
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),

@@ -135,6 +135,12 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites, se
 
     await route.abort();
   });
+  // The cart's load-time closed-class drop (MYK9-656) is a VOLATILE write on
+  // the mocked cart, so answer it here like the other cart writes: nothing to
+  // drop, which is what the real RPC returns for a class that is still open.
+  await page.route('**/rest/v1/rpc/reconcile_cart_closed_classes', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  );
   await page.route('**/rest/v1/rpc/submit_show_entries', route => route.abort());
   await page.route('**/rest/v1/rpc/assign_armband', route => route.abort());
   await page.route('**/functions/v1/send-registration-email', route => route.abort());

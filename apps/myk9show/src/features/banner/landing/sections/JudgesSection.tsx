@@ -7,10 +7,10 @@ import type { BannerJudge } from '../types';
 interface JudgesSectionProps {
   judges: BannerJudge[];
   trialsCount: number;
-  flag: string;
+  flagText: string;
 }
 
-export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps) {
+export function JudgesSection({ judges, trialsCount, flagText }: JudgesSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (!judges.length) return null;
 
@@ -29,8 +29,8 @@ export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps)
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="03" label="Judges" flag={flag}>
-        {judgeNumeral}, <span style={{ color: flag }}>{trialsAccent}</span>
+      <BannerSectionHead number="03" label="Judges" flagText={flagText}>
+        {judgeNumeral}, <span style={{ color: flagText }}>{trialsAccent}</span>
       </BannerSectionHead>
 
       <div
@@ -72,7 +72,7 @@ export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps)
                     fontSize: 10,
                     letterSpacing: '0.28em',
                     textTransform: 'uppercase',
-                    color: flag,
+                    color: flagText,
                     marginBottom: 12,
                   }}
                 >

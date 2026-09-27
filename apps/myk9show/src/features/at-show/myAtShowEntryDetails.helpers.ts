@@ -12,6 +12,9 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
+import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
+import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -38,6 +41,14 @@ export interface AtShowClassSummary {
   classStatus: string;
   expectedStartLabel?: string | undefined;
   isRevisedStart?: boolean | undefined;
+  /**
+   * The class/trial/show self-check-in cascade already resolved by the
+   * caller (`useSelfCheckinStateMap`). Missing/undefined is treated as
+   * 'unknown' — a class the map hasn't answered for yet (still loading, or
+   * the read failed, including offline) must never expose Check In as if it
+   * were known-allowed (MYK9-800 follow-up).
+   */
+  selfCheckinState?: SelfCheckinState | undefined;
 }
 
 export interface AtShowEntryDetail {
@@ -53,28 +64,58 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
+  /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
+  selfCheckinState: SelfCheckinState;
+  /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
+  trialLabel: string | null;
 }
 
 export type AtShowEntryNextAction =
   | { kind: 'check-in' }
   | { kind: 'wait-running-order' }
   | { kind: 'view-class' }
-  | { kind: 'scored' };
+  | { kind: 'scored' }
+  | { kind: 'self-checkin-disabled' }
+  | { kind: 'self-checkin-unknown' };
+
+/** A trial's own calendar day + timezone, keyed by trial id (from `useAtShowClassList`'s groups). */
+export interface AtShowTrialSummary {
+  date: string;
+  timezone: string;
+  /** `formatAtShowTrialHeading`'s output for this trial — the same "<trial label> · <date>" string the class-picker's trial section headers already render (MYK9-704: reuse the existing label, never a fresh concatenation). */
+  label?: string | undefined;
+}
 
 /**
  * Build the exhibitor's "today" entry list for one show from the entries the
  * account owns (already resolved by `useMyAtShowEntries`) plus the class
  * summaries the class-picker view already has in memory.
+ *
+ * A multi-day show has one trial per day, and an exhibitor's entries span
+ * every day of the show — so this filters to the entries whose OWN trial's
+ * calendar day is today, in that trial's timezone (never the device's or
+ * UTC's), reusing the same rule My Shows' day check-in gate uses
+ * (`isTrialDayToday`). When a trial can't be resolved yet (`trialsById` has
+ * no row — the class/trial replica hasn't hydrated), the entry is kept: it's
+ * indistinguishable from every other day and dropping it would hide a valid
+ * entry rather than a wrong one, and `hasRunOrder`/`className` still gate
+ * check-in normally in that case (MYK9-800).
  */
 export function buildMyAtShowEntryDetails(
   entries: ReplicatedEntry[],
   ownEntryIds: ReadonlySet<string>,
-  classesById: ReadonlyMap<string, AtShowClassSummary>
+  classesById: ReadonlyMap<string, AtShowClassSummary>,
+  trialsById: ReadonlyMap<string, AtShowTrialSummary>,
+  now: Date = new Date()
 ): AtShowEntryDetail[] {
   const details: AtShowEntryDetail[] = [];
 
   for (const entry of entries) {
     if (!ownEntryIds.has(entry.id)) continue;
+
+    const trialId = entry.trialId ?? entry.trial_id;
+    const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
+    if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
 
@@ -89,6 +130,8 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
+      selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
+      trialLabel: trial?.label ?? null,
     });
   }
 
@@ -99,13 +142,22 @@ export function buildMyAtShowEntryDetails(
  * The single primary next action for an entry row. Precedence: already
  * scored (nothing to do) > checked in already (nothing to do) > running
  * order not posted yet (don't invite a check-in tap that has nowhere to go)
- * > check in.
+ * > self-check-in not resolved as allowed for this class (don't offer a tap
+ * the `self_checkin_entry` RPC will refuse — MYK9-800 follow-up; this
+ * includes 'unknown', since an unresolved cascade is exactly as unsafe to
+ * act on as a known-off one) > check in.
  */
 export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNextAction {
   if (detail.isScored) return { kind: 'scored' };
   if (detail.checkInStatus !== 'no-status') return { kind: 'view-class' };
   if (!detail.classId || !detail.className || !detail.hasRunOrder) {
     return { kind: 'wait-running-order' };
+  }
+  if (detail.selfCheckinState === 'unknown') {
+    return { kind: 'self-checkin-unknown' };
+  }
+  if (detail.selfCheckinState === 'not-allowed') {
+    return { kind: 'self-checkin-disabled' };
   }
   return { kind: 'check-in' };
 }

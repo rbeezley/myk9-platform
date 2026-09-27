@@ -46,7 +46,9 @@ function dogCard(name: string): HTMLElement {
 }
 
 describe('MyShowsList — a multi-order show renders once, dog-first', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('renders one show header and one card per dog', () => {
     renderList();
@@ -130,7 +132,9 @@ describe('MyShowsList — a multi-order show renders once, dog-first', () => {
 });
 
 describe('MyShowsList — check-in controls', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it("checks in exactly today's untouched classes from the day button", async () => {
     const user = userEvent.setup();
@@ -184,7 +188,9 @@ describe('MyShowsList — check-in controls', () => {
 });
 
 describe('MyShowsList — the self-check-in cascade and settled classes (task 3.3)', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   /** One dog, two classes on the fixture's Saturday, distinct class ids. */
   function twoClassesTodayRows() {
@@ -275,7 +281,9 @@ describe('MyShowsList — the self-check-in cascade and settled classes (task 3.
 });
 
 describe('MyShowsList — a scoped ?entryIds= link narrows the group (task 4.3)', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   const orders = toOrders(heartlandRows());
   /** The scope My Payments' Receipt link builds for Scout's order. */
@@ -311,7 +319,9 @@ describe('MyShowsList — a scoped ?entryIds= link narrows the group (task 4.3)'
 });
 
 describe('MyShowsList — the status filter narrows DOGS, not just orders (Codex, PR #2198)', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   /** ONE order holding a pending dog and an accepted dog. */
   function mixedOrderRows(): MyEntry[] {

@@ -22,6 +22,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getAll: (...args: unknown[]) => replicationMocks.getAllEntries(...args),
+    getAllOrThrow: (...args: unknown[]) => replicationMocks.getAllEntries(...args),
   },
   replicatedDogsTable: {
     getDogById: (...args: unknown[]) => replicationMocks.getDogById(...args),

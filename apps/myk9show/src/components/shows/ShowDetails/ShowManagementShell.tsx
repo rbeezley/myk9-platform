@@ -31,7 +31,8 @@ import {
   PremiumPublishError,
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
-import { saveShowJudgeChanges } from '@/services/database/judges';
+import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -58,7 +59,8 @@ function parseOptionalCurrency(value: string | number | undefined): number | und
 
 function applyShowFormDataToPremium(
   premium: GeneratedPremium,
-  formData: Partial<ShowInput>
+  formData: Partial<ShowInput>,
+  judges: ShowJudgeAssignment[]
 ): GeneratedPremium {
   const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
@@ -81,11 +83,10 @@ function applyShowFormDataToPremium(
     },
     trials: premium.trials.map(trial => ({
       ...trial,
-      judges:
-        formData.assignedJudges?.map(judge => ({
-          name: judge.judgeName,
-          elements: judge.assignedClasses ?? [],
-        })) ?? trial.judges,
+      judges: judges.map(judge => ({
+        name: judge.judgeName,
+        elements: judge.assignedClasses ?? [],
+      })),
     })),
   };
 }
@@ -433,9 +434,14 @@ function AuthorizedShowManagementShell({
               // none of those may discard what the secretary just typed.
               await persistShowChanges();
               try {
+                // The form's judge list is a device read and is empty when that
+                // read failed; the published premium lists the server's judges,
+                // and only when this device agrees with them (MYK9-774).
+                const judges = await fetchShowJudgesForPublish(id);
                 const premium = applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>
+                  showData as Partial<ShowInput>,
+                  judges
                 );
                 await runPremiumPublishOperation({
                   showId: id,

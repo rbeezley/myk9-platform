@@ -2,7 +2,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { router } from './router';
 
 describe('app router', () => {
-  afterAll(() => router.dispose());
+  afterAll(() => {
+    router.dispose();
+  });
 
   it('is backed by a data router with the app shell as its root route', () => {
     expect(router.state.location.pathname).toBe('/');

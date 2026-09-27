@@ -22,7 +22,9 @@ vi.mock('node:os', () => ({
 }));
 
 beforeEach(resetHost);
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function probeBrowser() {
   const page = {

@@ -8,8 +8,8 @@
  * action — ahead of the full ringside class-administration list.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, Info, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
@@ -27,6 +27,9 @@ export interface AtShowMyEntriesTodayProps {
   isLoading: boolean;
   /** From `useMyAtShowEntryDetails` — changes only when a fresh fetch lands. */
   dataUpdatedAt: number;
+  /** The device could not read this show's entries (MYK9-774). */
+  loadFailed: boolean;
+  onRetry: () => void;
   onSeeAllClasses: () => void;
 }
 
@@ -70,6 +73,7 @@ function EntryRow({
           )}
         </div>
         <div className="mt-0.5 truncate text-sm text-muted-foreground">
+          {detail.trialLabel ? `${detail.trialLabel} · ` : ''}
           {detail.className ?? 'Running order not posted yet'}
         </div>
         {detail.expectedStartLabel && (
@@ -84,6 +88,18 @@ function EntryRow({
           label={getExhibitorStatusLabel(detail)}
           className="mt-1 text-xs"
         />
+        {action.kind === 'self-checkin-disabled' && (
+          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            Self check-in is off for this class. Please check in at the secretary table.
+          </div>
+        )}
+        {action.kind === 'self-checkin-unknown' && (
+          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            Check-in isn't available right now. Ask at the show desk.
+          </div>
+        )}
       </div>
 
       {action.kind === 'check-in' && (
@@ -140,6 +156,8 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   entries,
   isLoading,
   dataUpdatedAt,
+  loadFailed,
+  onRetry,
   onSeeAllClasses,
 }) => {
   const navigate = useNavigate();
@@ -221,10 +239,34 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
       className="ringside-root mx-auto max-w-2xl px-4 py-4"
       data-testid="at-show-my-entries-today"
     >
+      {/* This page is mounted inside the chromeless ringside surface (no app
+          sidebar), so — like `RingsideHome`'s own "Back to dashboard" link —
+          it needs its own way out. `/` resolves per-role via `HomeRedirect`,
+          landing an exhibitor-only account on `/exhibitor/entries` (My
+          Shows), never back into this same show (MYK9-800 walk finding #3). */}
+      <Link
+        to="/"
+        className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to dashboard
+      </Link>
       <h1 className="mb-1 text-center text-lg font-semibold">Your dogs today</h1>
 
       {isLoading ? (
         <AtShowMyEntriesTodaySkeleton />
+      ) : loadFailed && displayEntries.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center"
+          role="alert"
+        >
+          <p className="text-sm text-muted-foreground">
+            We couldn't read your entries on this device.
+          </p>
+          <Button variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
       ) : displayEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
           <p className="text-sm text-muted-foreground">
@@ -232,17 +274,34 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           </p>
         </div>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {displayEntries.map(detail => (
-            <EntryRow
-              key={detail.entryId}
-              detail={detail}
-              onOpenClass={handleOpenClass}
-              onCheckIn={handleCheckIn}
-              checkInPending={pendingEntryId === detail.entryId}
-            />
-          ))}
-        </ul>
+        <>
+          {loadFailed && (
+            // The last list read is still shown, since stale is better than
+            // nothing at the ring, but it is marked as not current (MYK9-774).
+            <div
+              className="mt-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+              role="status"
+            >
+              <p className="text-sm text-muted-foreground">
+                Couldn't refresh your entries on this device. This may be out of date.
+              </p>
+              <Button variant="outline" onClick={onRetry}>
+                Try again
+              </Button>
+            </div>
+          )}
+          <ul className="mt-3 space-y-2">
+            {displayEntries.map(detail => (
+              <EntryRow
+                key={detail.entryId}
+                detail={detail}
+                onOpenClass={handleOpenClass}
+                onCheckIn={handleCheckIn}
+                checkInPending={pendingEntryId === detail.entryId}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       <Button

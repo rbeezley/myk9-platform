@@ -103,10 +103,14 @@ let mockShow: Record<string, unknown> | null = {
   status: 'Upcoming',
 };
 let mockLoading = false;
+// What `useShowsQuery` (the replica-backed show list) holds; null = [mockShow].
+let mockReplicaShows: Array<Record<string, unknown>> | null = null;
+let mockOffline = false;
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
     show: mockLoading ? null : mockShow,
     isLoading: mockLoading,
+    isOffline: mockOffline,
     hasData: !mockLoading && !!mockShow,
     showId: mockShow?.id,
     isFromCache: false,
@@ -161,7 +165,7 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
+  useShowsQuery: () => ({ data: mockReplicaShows ?? (mockShow ? [mockShow] : []) }),
   useShowQuery: () => ({
     data: undefined,
     isLoading: false,
@@ -197,6 +201,15 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
   saveShowJudgeChanges: vi.fn(async () => undefined),
+  // The server's judges once this save's edits have uploaded.
+  fetchShowJudgesForPublish: vi.fn(async () => [
+    {
+      judgeId: 'judge-1',
+      judgeName: 'Fresh Judge',
+      assignedDate: '2026-01-01',
+      assignedClasses: ['Container', 'Interior'],
+    },
+  ]),
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({
@@ -439,6 +452,8 @@ describe('ShowDetailsPage', () => {
       entryCloseDate: '2027-12-31',
     };
     mockLoading = false;
+    mockReplicaShows = null;
+    mockOffline = false;
     mockShowEntries = [];
     mockShowEntriesLoading = false;
     mockShowEntriesError = false;
@@ -660,6 +675,80 @@ describe('ShowDetailsPage', () => {
     mockShow = null;
     renderPage('nonexistent');
     expect(screen.getByText(/Not Found/)).toBeInTheDocument();
+  });
+
+  // MYK9-779: the page fell back to the replica-backed show list whenever the
+  // detail read had no row, so a guest saw a draft (or a show deleted on the
+  // server since it was cached) that anon RLS never returns.
+  it("a guest gets Not Found, not the replica's copy, when the server has no such show", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow, status: 'draft' }];
+    mockShow = null;
+    renderPage();
+    expect(screen.getByTestId('not-found')).toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  // MYK9-783: the trial and class lists came from the device's trial store for
+  // a guest too, so trials and classes an earlier signed-in session cached (a
+  // draft's, or since deleted on the server) reached the guest's tabs.
+  it("a guest's trials and classes are the server's, never the device trial store", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockTrials = [{ id: 'trial-stale', showId: 'show-1', trialDate: '2026-03-22', name: 'T' }];
+    mockTrialClasses = {
+      'trial-stale': [{ id: 'class-stale', element: 'Container', level: 'Novice' }],
+    };
+    // A management URL is the one place a guest meets the tabbed body (the
+    // route then sends them back); the server returns this show no classes.
+    renderPage('show-1', '/entries');
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
+  });
+
+  it("offline, a guest is told the show needs a connection, not shown the replica's copy", () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow }];
+    mockShow = null;
+    mockOffline = true;
+    renderPage();
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  // Owner decision: a ringside passcode session (an anonymous auth user) is a
+  // guest on this public page. It used to keep the replica path, so on a
+  // shared device it saw a previous secretary's draft.
+  it("a passcode session gets Not Found, not the replica's copy, when the server has no such show", () => {
+    mockAuthContext.user = { id: 'anon-1', is_anonymous: true };
+    mockAuthContext.userWithRoles = null;
+    mockReplicaShows = [{ ...mockShow, status: 'draft' }];
+    mockShow = null;
+    renderPage();
+    expect(screen.getByTestId('not-found')).toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).not.toBeInTheDocument();
+  });
+
+  it("a passcode session's trials and classes are the server's, never the device trial store", () => {
+    mockAuthContext.user = { id: 'anon-1', is_anonymous: true };
+    mockAuthContext.userWithRoles = null;
+    mockTrials = [{ id: 'trial-stale', showId: 'show-1', trialDate: '2026-03-22', name: 'T' }];
+    mockTrialClasses = {
+      'trial-stale': [{ id: 'class-stale', element: 'Container', level: 'Novice' }],
+    };
+    renderPage('show-1', '/entries');
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
+  });
+
+  it('a signed-in viewer still falls back to the replica-backed show list', () => {
+    mockReplicaShows = [{ ...mockShow }];
+    mockShow = null;
+    renderPage();
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
   });
 
   it('renders loading skeleton while loading', () => {

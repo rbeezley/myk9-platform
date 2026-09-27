@@ -449,6 +449,35 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries[1]?.handlerName).toBe('Jane Mailin');
   });
 
+  it('MYK9-824: shows the typed mail-in handler, not the person a stale handler_id names', () => {
+    // Exact wizard payload shape from the MYK9-819 rehearsal: a secretary
+    // types a handler with no person match, and `entries.handler_id` lands on
+    // the SIGNED-IN SECRETARY (the submit_show_entries bug this issue fixes),
+    // not the typed handler and not the dog's owner. Entry Management must
+    // still print what the paperwork prints — the typed name — never the
+    // secretary's, however handler_id resolves server-side.
+    const entry = mapSecretaryEntryToEntryManagementEntry({
+      id: 'e1',
+      show_id: 'show-1',
+      handler: 'ZZ Rehearsal Handler Hana',
+      handler_id: 'secretary-person-1',
+      handler_person: { id: 'secretary-person-1', first_name: 'Test', last_name: 'Secretary' },
+      dog: {
+        id: 'dog-1',
+        name: 'ZZRover',
+        call_name: 'ZZRover',
+        breed: 'Mixed Breed',
+        owner: { id: 'owner-1', first_name: 'ZZ Rehearsal', last_name: 'Owner One' },
+      },
+      class: null,
+      registration: null,
+      trial: null,
+    } as never);
+
+    expect(entry.handlerName).toBe('ZZ Rehearsal Handler Hana');
+    expect(entry.handlerName).not.toBe('Test Secretary');
+  });
+
   it('maps waived entry and enrollment payment state without turning it into payment due', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [

@@ -12,7 +12,9 @@ vi.mock('../supabaseClient', async importOriginal => {
 import { permanentDeleteUser } from './reads';
 
 describe('permanentDeleteUser — edge error code propagation', () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    invoke.mockReset();
+  });
 
   it('preserves the MK001 guard code from a 409 FunctionsHttpError body', async () => {
     invoke.mockResolvedValue({

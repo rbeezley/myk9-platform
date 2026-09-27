@@ -69,10 +69,38 @@ describe('user_roles → people recipient queries name the holder FK', () => {
 
     expect(ids).toEqual(['sec-auth']);
     const userRoleSelects = fake.selects.filter(s => s.table === 'user_roles');
-    expect(userRoleSelects).toHaveLength(2);
+    expect(userRoleSelects).toHaveLength(1);
     for (const { select } of userRoleSelects) {
       expect(select).toContain(USER_ROLE_HOLDER_EMBED);
     }
+  });
+
+  // MYK9-759 (owner decision 2026-09-26): an exhibitor's show message pushes to
+  // the club's secretaries only. Site admins are deliberately not an audience.
+  it('chat-message staff audience is the club secretaries and no other role', async () => {
+    const calls: Array<{ table: string; method: string; args: unknown[] }> = [];
+    const recording = {
+      from: (table: string) => {
+        const builder: Record<string, unknown> = {};
+        for (const method of ['select', 'eq', 'in', 'not', 'or', 'is', 'gt']) {
+          builder[method] = (...args: unknown[]) => {
+            calls.push({ table, method, args });
+            return builder;
+          };
+        }
+        builder.then = (onFulfilled: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(onFulfilled);
+        return builder;
+      },
+    };
+
+    await getShowStaffRecipientIds(recording as unknown as SupabaseClient, 'club-1');
+
+    const roleFilters = calls.filter(c => c.args[0] === 'roles.name');
+    expect(roleFilters).toEqual([
+      { table: 'user_roles', method: 'in', args: ['roles.name', ['secretary', 'trial_secretary']] },
+    ]);
+    expect(calls.filter(c => c.method === 'select')).toHaveLength(1);
   });
 
   it('a failed user_roles query still aborts the fanout (fail closed)', async () => {

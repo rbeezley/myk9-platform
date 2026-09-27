@@ -2,15 +2,18 @@
  * BulkActionsBar Component - Toolbar for bulk user operations
  *
  * Features:
- * - Bulk delete with confirmation (soft/permanent for admins, cascade for related data)
- * - Selection management
+ * - Floats at the bottom of the viewport (list toolkit's FloatingBulkBar), so it
+ *   is in view wherever the rows were ticked
+ * - Change roles (BulkRoleEditPanel), account actions (BulkAccountActions:
+ *   suspend, reinstate, invite, restore), a More menu (Copy emails, read-only;
+ *   Export CSV) and bulk delete with confirmation (soft/permanent for admins,
+ *   cascade for related data).
  */
 
-import React from 'react';
-import { Users, Trash2, AlertCircle, X, Shield } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Trash2, AlertCircle, ChevronUp, Copy, Download, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -21,15 +24,47 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
+import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 import { getUserFullName } from './UserTable/utils';
-import { BulkRoleDialog } from './BulkRoleDialog';
+import { selectedEmails } from './bulkAccountTargets';
+import { exportUsersCSV } from '@/pages/admin/UserManagementPage.helpers';
+import { BulkAccountActions } from './BulkAccountActions';
+import { BulkRoleEditPanel } from './BulkRoleEditPanel';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
+const USER_NOUN = ['user', 'users'] as const;
+const ICON = 'h-4 w-4';
+
+async function copyEmails(selectedUsers: BulkActionsBarProps['selectedUsers']) {
+  const emails = selectedEmails(selectedUsers);
+  const missing = selectedUsers.length - emails.length;
+  if (emails.length === 0) {
+    toast.error('None of the selected people has an email address.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(emails.join(', '));
+    toast.success(
+      `Copied ${emails.length} email ${emails.length === 1 ? 'address' : 'addresses'}`,
+      missing > 0 ? { description: `${missing} selected without an email.` } : undefined
+    );
+  } catch {
+    toast.error('Could not copy to the clipboard. Try Export instead.');
+  }
+}
+
 export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   selectedUsers,
+  users,
   onClearSelection,
   onBulkComplete,
   onUsersDeleted,
@@ -44,11 +79,16 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-    handleBulkRoleChange,
+    handleBulkRoleEdit,
     isRoleProcessing,
     roleError,
-    roleNotice,
   } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
+
+  // The live roster, keyed by id — the single source bulk account actions and
+  // role editing resolve targets and eligibility from at dispatch time and on
+  // every retry (MYK9-835, MYK9-820), never from the selection snapshot.
+  const usersById = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const selectedIds = useMemo(() => selectedUsers.map(u => u.id), [selectedUsers]);
 
   if (selectedUsers.length === 0) {
     return null;
@@ -56,68 +96,63 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
   return (
     <>
-      {/* Bulk Actions Bar */}
-      <Card
-        className="border-primary/30 bg-primary/5 rounded-xl"
-        role="region"
-        aria-label="Bulk actions"
+      <FloatingBulkBar
+        count={selectedUsers.length}
+        noun={USER_NOUN}
+        onClear={onClearSelection}
+        busy={isProcessing}
       >
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3 min-w-0">
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="default"
-                  className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary border-0 text-sm"
-                >
-                  <Users className="h-4 w-4" />
-                  {selectedUsers.length} selected
-                </Badge>
-                <Button
-                  variant="ghost"
-                  onClick={onClearSelection}
-                  aria-label="Clear selection"
-                  className="h-11 w-11 p-0 rounded-xl hover:bg-primary/20"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <p className="text-sm text-muted-foreground truncate max-w-full sm:max-w-md">
-                <span className="sr-only">Selected users: </span>
-                {selectedUsers
-                  .slice(0, 3)
-                  .map(u => getUserFullName(u.user))
-                  .join(', ')}
-                {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Change roles */}
-              <Button
-                variant="outline"
-                onClick={() => setCurrentDialog('role')}
-                className="h-11 px-4 rounded-xl"
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Change roles
-              </Button>
-
-              {/* Delete */}
-              <Button
-                variant="outline"
-                onClick={() => setCurrentDialog('delete')}
-                className="h-11 px-4 rounded-xl border-destructive/30 bg-destructive/10 text-destructive
-                           hover:bg-destructive/20 hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <p className="sr-only">
+          Selected users:{' '}
+          {selectedUsers
+            .slice(0, 3)
+            .map(u => getUserFullName(u.user))
+            .join(', ')}
+          {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
+        </p>
+        <BulkBarButton
+          onClick={() => setCurrentDialog('role')}
+          icon={<Shield className="h-4 w-4" aria-hidden="true" />}
+        >
+          Change roles
+        </BulkBarButton>
+        <BulkAccountActions
+          selectedIds={selectedIds}
+          usersById={usersById}
+          onClearSelection={onClearSelection}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              More
+              <ChevronUp className={ICON} aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            <DropdownMenuItem className="min-h-11" onClick={() => void copyEmails(selectedUsers)}>
+              <Copy className={`${ICON} mr-2`} aria-hidden="true" />
+              Copy emails
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11"
+              onClick={() => exportUsersCSV(selectedUsers.map(item => item.user))}
+            >
+              <Download className={`${ICON} mr-2`} aria-hidden="true" />
+              Export CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <BulkBarButton
+          tone="destructive"
+          onClick={() => setCurrentDialog('delete')}
+          icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+        >
+          Delete
+        </BulkBarButton>
+      </FloatingBulkBar>
 
       {/* Delete dialog — offers the reversible removal and the permanent one,
           and describes each accurately. (A second, non-admin dialog used to sit
@@ -236,14 +271,14 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       </Dialog>
 
       {/* Change Roles Dialog */}
-      <BulkRoleDialog
+      <BulkRoleEditPanel
         open={currentDialog === 'role'}
-        onOpenChange={() => closeDialog()}
-        selectedUsers={selectedUsers}
+        onClose={closeDialog}
+        selectedIds={selectedIds}
+        usersById={usersById}
         isProcessing={isRoleProcessing}
         error={roleError}
-        notice={roleNotice}
-        onSubmit={handleBulkRoleChange}
+        onSubmit={handleBulkRoleEdit}
       />
     </>
   );

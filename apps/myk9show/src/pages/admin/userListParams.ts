@@ -14,6 +14,7 @@ import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
 import {
   DEFAULT_USER_FILTER,
+  USER_LOGIN_FILTER_VALUES,
   USER_ROLE_FILTER_VALUES,
   USER_STATUS_FILTER_VALUES,
 } from './UserManagementPage.types';
@@ -37,9 +38,13 @@ export const DEFAULT_USER_LIST_PARAMS: UserListParams = {
   pageSize: DEFAULT_USER_PAGE_SIZE,
 };
 
-/** `yyyy-mm-dd` in, local midnight out. Anything else is treated as absent. */
+/** Calendar dates use local midnight; rolling cutoffs preserve their exact ISO instant. */
 function parseDate(raw: string | null): Date | null {
   if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(raw)) {
+    const instant = new Date(raw);
+    return !Number.isNaN(instant.getTime()) && instant.toISOString() === raw ? instant : null;
+  }
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (!match) return null;
   const [, year, month, day] = match;
@@ -55,6 +60,14 @@ function parseDate(raw: string | null): Date | null {
 }
 
 function formatDate(date: Date): string {
+  if (
+    date.getHours() !== 0 ||
+    date.getMinutes() !== 0 ||
+    date.getSeconds() !== 0 ||
+    date.getMilliseconds() !== 0
+  ) {
+    return date.toISOString();
+  }
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
@@ -73,6 +86,7 @@ function parsePositiveInt(raw: string | null, fallback: number): number {
 export function parseUserListParams(params: URLSearchParams): UserListParams {
   const role = params.get('role');
   const status = params.get('status');
+  const login = params.get('login');
   const sortId = params.get('sort');
 
   return {
@@ -83,6 +97,9 @@ export function parseUserListParams(params: URLSearchParams): UserListParams {
         : 'all',
       status: (USER_STATUS_FILTER_VALUES as readonly string[]).includes(status ?? '')
         ? (status as UserFilter['status'])
+        : 'all',
+      login: (USER_LOGIN_FILTER_VALUES as readonly string[]).includes(login ?? '')
+        ? (login as UserFilter['login'])
         : 'all',
       showDeleted: params.get('deleted') === '1',
       dateRange: {
@@ -103,6 +120,7 @@ const LIST_PARAM_KEYS = new Set([
   'q',
   'role',
   'status',
+  'login',
   'deleted',
   'from',
   'to',
@@ -138,6 +156,7 @@ export function userListParamsToSearch(
   if (searchTerm.trim()) params.set('q', searchTerm);
   if (filters.role !== 'all') params.set('role', filters.role);
   if (filters.status !== 'all') params.set('status', filters.status);
+  if (filters.login !== 'all') params.set('login', filters.login);
   if (filters.showDeleted) params.set('deleted', '1');
   if (filters.dateRange.start) params.set('from', formatDate(filters.dateRange.start));
   if (filters.dateRange.end) params.set('to', formatDate(filters.dateRange.end));

@@ -10,9 +10,9 @@ const {
 } = vi.hoisted(() => ({
   mockShowsTable: { getShowById: vi.fn(), getAllShows: vi.fn() },
   mockClubsTable: { getClubById: vi.fn() },
-  mockTrialsTable: { getTrialsByShow: vi.fn() },
-  mockClassesTable: { getAll: vi.fn() },
-  mockJudgeAssignmentsTable: { getByShowId: vi.fn() },
+  mockTrialsTable: { getAllWithStatus: vi.fn() },
+  mockClassesTable: { getAllWithStatus: vi.fn() },
+  mockJudgeAssignmentsTable: { getAllWithStatus: vi.fn() },
   mockPostgrestGetShowById: vi.fn(),
 }));
 
@@ -37,6 +37,9 @@ vi.mock('./reads.postgrest', async importOriginal => {
 });
 
 import { getShowById } from './reads';
+
+/** A device read that succeeded with these rows. */
+const ok = <T>(rows: T[]) => ({ ok: true as const, rows, error: null });
 
 /**
  * Classes replicate scoped BY TRIAL and only for authenticated sessions, while
@@ -83,12 +86,12 @@ describe('getShowById — classes missing from the replication store', () => {
     vi.clearAllMocks();
     mockShowsTable.getShowById.mockResolvedValue(CACHED_SHOW);
     mockClubsTable.getClubById.mockResolvedValue(null);
-    mockTrialsTable.getTrialsByShow.mockResolvedValue([CACHED_TRIAL]);
-    mockJudgeAssignmentsTable.getByShowId.mockResolvedValue([]);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([CACHED_TRIAL]));
+    mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok([]));
   });
 
   it('takes the trials from the server when the store has none of their classes', async () => {
-    mockClassesTable.getAll.mockResolvedValue([]);
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetShowById.mockResolvedValue(REMOTE_WITH_CLASSES);
 
     const result = await getShowById('show-1');
@@ -102,9 +105,9 @@ describe('getShowById — classes missing from the replication store', () => {
 
   it('keeps the replicated trials when the store already has classes', async () => {
     // Offline-first: a warm store must not be overwritten by the network.
-    mockClassesTable.getAll.mockResolvedValue([
-      { id: 'local-1', trialId: 'trial-1', name: 'Local Interior', element: 'Interior' },
-    ]);
+    mockClassesTable.getAllWithStatus.mockResolvedValue(
+      ok([{ id: 'local-1', trialId: 'trial-1', name: 'Local Interior', element: 'Interior' }])
+    );
     mockPostgrestGetShowById.mockResolvedValue(REMOTE_WITH_CLASSES);
 
     const result = await getShowById('show-1');
@@ -114,7 +117,7 @@ describe('getShowById — classes missing from the replication store', () => {
   });
 
   it('leaves a genuinely class-less show empty rather than flip-flopping', async () => {
-    mockClassesTable.getAll.mockResolvedValue([]);
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetShowById.mockResolvedValue({
       data: { id: 'show-1', name: 'Cached Show', trials: [{ id: 'trial-1', class: [] }] },
       error: null,
@@ -134,11 +137,11 @@ describe('getShowById — classes missing from the replication store', () => {
    * nothing at all.
    */
   it('fills only the trials that are missing classes, leaving warm ones alone', async () => {
-    mockTrialsTable.getTrialsByShow.mockResolvedValue([CACHED_TRIAL, CACHED_TRIAL_2]);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([CACHED_TRIAL, CACHED_TRIAL_2]));
     // Saturday's classes are in the store; Sunday's are not.
-    mockClassesTable.getAll.mockResolvedValue([
-      { id: 'local-sat', trialId: 'trial-1', name: 'Local Interior', element: 'Interior' },
-    ]);
+    mockClassesTable.getAllWithStatus.mockResolvedValue(
+      ok([{ id: 'local-sat', trialId: 'trial-1', name: 'Local Interior', element: 'Interior' }])
+    );
     mockPostgrestGetShowById.mockResolvedValue({
       data: {
         id: 'show-1',
@@ -165,8 +168,8 @@ describe('getShowById — classes missing from the replication store', () => {
   });
 
   it('leaves a trial empty when the server has nothing for it either', async () => {
-    mockTrialsTable.getTrialsByShow.mockResolvedValue([CACHED_TRIAL, CACHED_TRIAL_2]);
-    mockClassesTable.getAll.mockResolvedValue([]);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([CACHED_TRIAL, CACHED_TRIAL_2]));
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetShowById.mockResolvedValue({
       data: {
         id: 'show-1',
@@ -188,8 +191,8 @@ describe('getShowById — classes missing from the replication store', () => {
   });
 
   it('leaves a trial alone when the server does not report it at all', async () => {
-    mockTrialsTable.getTrialsByShow.mockResolvedValue([CACHED_TRIAL, CACHED_TRIAL_2]);
-    mockClassesTable.getAll.mockResolvedValue([]);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([CACHED_TRIAL, CACHED_TRIAL_2]));
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetShowById.mockResolvedValue({
       data: {
         id: 'show-1',
@@ -210,11 +213,51 @@ describe('getShowById — classes missing from the replication store', () => {
   it('keeps the replicated row when the network read fails', async () => {
     // Offline: there is nothing better to fall back to, and throwing would
     // lose the cached show entirely.
-    mockClassesTable.getAll.mockResolvedValue([]);
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetShowById.mockRejectedValue(new Error('offline'));
 
     const result = await getShowById('show-1');
 
     expect((result.data as { id: string }).id).toBe('show-1');
+  });
+});
+
+/**
+ * MYK9-774: offline, a failed device read of trials, classes or judge
+ * assignments built a show detail row with that join empty: "no judges" on a
+ * show that has them. It is now an error, which the show pages already render.
+ */
+describe('getShowById — a failed device read offline', () => {
+  const failed = { ok: false as const, rows: [] as never[], error: new Error('IDB timeout') };
+  const TABLES = {
+    trials: mockTrialsTable,
+    classes: mockClassesTable,
+    'judge assignments': mockJudgeAssignmentsTable,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockShowsTable.getShowById.mockResolvedValue({ id: 'show-1', name: 'Cached', clubId: null });
+    mockClubsTable.getClubById.mockResolvedValue(null);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([]));
+    mockClassesTable.getAllWithStatus.mockResolvedValue(ok([]));
+    mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok([]));
+    mockPostgrestGetShowById.mockRejectedValue(new Error('Failed to fetch'));
+  });
+
+  it.each(Object.keys(TABLES))('reports an error when %s cannot be read', async name => {
+    TABLES[name as keyof typeof TABLES].getAllWithStatus.mockResolvedValue(failed);
+
+    const result = await getShowById('show-1');
+
+    expect(result.error).not.toBeNull();
+    expect(result.data).toBeNull();
+  });
+
+  it('still answers from the device when every read succeeds', async () => {
+    const result = await getShowById('show-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toMatchObject({ id: 'show-1' });
   });
 });

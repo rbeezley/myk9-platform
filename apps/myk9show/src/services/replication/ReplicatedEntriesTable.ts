@@ -17,7 +17,9 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type ColdInsertGuardMode,
+  type MutationManager,
   type ReplicatedSetResult,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -27,6 +29,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { deletePayload, PendingDeletes } from './pendingDeletes';
 import {
   entryToSupabaseRow,
   rowToEntry,
@@ -149,8 +152,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   private _deletedIds: Set<string> = new Set();
 
+  /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
+  readonly pendingDeletes = new PendingDeletes('entries');
+
   constructor() {
     super('entries', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.pendingDeletes.attach(manager);
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -197,6 +208,33 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return false;
   }
 
+  /**
+   * Reads rows by id the way `sync` does (the same authenticated result view),
+   * so a full-row UPDATE rejected for a stale OCC token can re-fetch its row and
+   * rebase or surface (MYK9-771). Ringside scoring goes through the
+   * ringside_update_entry RPC and never takes this path.
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<EntryRow, ReplicatedEntry> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('view_authenticated_entry_results_replication')
+          .select('*')
+          .in('id', ids);
+        if (error) throw new Error(`Entries refresh failed: ${error.message}`);
+        return (data ?? []) as unknown as EntryRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToEntry,
+      // After a non-conflicting dirty sync-down reconciles a row, a queued full-row
+      // direct UPDATE (updateStatus/updateEntry) must be refreshed to the merged
+      // payload so advancing its OCC token doesn't clobber server-changed untouched
+      // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
+      // a delta and don't need this.
+      rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
+    };
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     return this.syncForPrincipal(syncScopeId, 'anonymous', options);
   }
@@ -241,6 +279,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
+    // MYK9-774: getAll() on purpose — maintenance: [] refreshes nothing this
+    // pass; receipts keep their current references until the next refresh.
     const localRows = await this.getAll();
     const showIds = new Set(
       localRows.map(row => row.showId).filter((showId): showId is string => Boolean(showId))
@@ -264,6 +304,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     let receiptReferenceColumnObserved = false;
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
+      ...this.getRowRefetchAdapter(),
+      // The server counts a deleted entry until its queued DELETE uploads; it
+      // is not a missing row, and must not force every sync full (MYK9-762).
+      getPendingDeleteIds: () => this.pendingDeletes.coveredIds(showScopeId),
       getRemoteRowCount: async () => {
         try {
           const { count, error } = await supabase
@@ -344,17 +388,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           cursorId = String(lastRow.id);
         }
       },
-      getRemoteId: remote => {
-        return String(remote.id);
-      },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToEntry,
-      // After a non-conflicting dirty sync-down reconciles a row, a queued full-row
-      // direct UPDATE (updateStatus/updateEntry) must be refreshed to the merged
-      // payload so advancing its OCC token doesn't clobber server-changed untouched
-      // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
-      // a delta and don't need this.
-      rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(row => row.showId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
@@ -427,23 +461,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Get entries by class ID
    */
   async getEntriesByClass(classId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.classId === classId);
   }
 
   /**
-   * Get entries by show ID
+   * Get entries by show ID, through the show index (MYK9-792)
    */
   async getEntriesByShow(showId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
-    return all.filter(e => e.showId === showId);
+    return this.getByShowOrThrow(showId);
   }
 
   /**
    * Get entries by armband number
    */
   async getEntriesByArmband(armband: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAll();
+    const all = await this.getAllOrThrow();
     return all.filter(e => e.armband === armband);
   }
 
@@ -1526,8 +1559,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async deleteEntry(entryId: string): Promise<string | null> {
     this._deletedIds.add(entryId);
+    // Read before removing: the payload records the entry's show when it was
+    // already on the server, so readiness can count the pending delete.
+    const entry = await this.get(entryId);
     await this.delete(entryId);
-    const mutationId = await this.queueMutation('DELETE', entryId, { id: entryId });
+    const mutationId = await this.queueMutation('DELETE', entryId, deletePayload(entryId, entry));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
     return mutationId;

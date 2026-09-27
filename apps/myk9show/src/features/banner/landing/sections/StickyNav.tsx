@@ -135,8 +135,9 @@ export function StickyNav({
           fontSize: 12,
           letterSpacing: '0.04em',
           // The club's flag, not the default teal token: BannerLandingPage sets
-          // --bn-flag per show (MYK9-751, a #2329 regression).
-          color: 'var(--bn-flag)',
+          // --bn-flag-text per show (MYK9-751, a #2329 regression) — the
+          // text-safe flag, since a light flag is unreadable on paper (MYK9-765).
+          color: 'var(--bn-flag-text)',
         }}
       >
         <span className="bn-status-dot" aria-hidden style={{ flexShrink: 0 }} />

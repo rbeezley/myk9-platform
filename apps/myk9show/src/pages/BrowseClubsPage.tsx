@@ -12,15 +12,15 @@ import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ListControls } from '@/components/common/ListControls';
-import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -64,30 +64,22 @@ const BrowseClubsPage: React.FC = () => {
     clubShowCounts,
   } = useBrowseClubsData();
 
-  // FilterChips definitions
-  const chipFilters: ChipFilterDefinition[] = useMemo(
+  const filterFields: ListFilterField[] = useMemo(
     () => [
       {
+        kind: 'options',
         key: 'clubType',
         label: 'Club Type',
-        options: CLUB_TYPES.map(type => ({ label: type.label, value: type.value })),
+        value: filters.clubType === 'all' ? null : filters.clubType,
+        onChange: value => setFilters(prev => ({ ...prev, clubType: value ?? 'all' })),
+        options: CLUB_TYPES.map(type => ({
+          value: type.value,
+          label: type.label,
+          count: clubs.filter(club => club.clubType === type.value).length,
+        })),
       },
     ],
-    []
-  );
-
-  // Bridge chip filter values from existing filters state
-  const chipFilterValues = useMemo(() => {
-    const values: Record<string, string> = {};
-    if (filters.clubType !== 'all') values.clubType = filters.clubType;
-    return values;
-  }, [filters.clubType]);
-
-  const handleChipFilterChange = useCallback(
-    (key: string, value: string | null) => {
-      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
-    },
-    [setFilters]
+    [clubs, filters.clubType, setFilters]
   );
 
   // Breadcrumbs for PageHeader
@@ -231,20 +223,23 @@ const BrowseClubsPage: React.FC = () => {
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
 
-          <ListControls
-            search={filters.search}
-            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-            searchPlaceholder="Search clubs by name, city, or state..."
-            filters={chipFilters}
-            filterValues={chipFilterValues}
-            onFilterChange={handleChipFilterChange}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            resultsShowing={filteredClubs.length}
-            resultsTotal={clubs.length}
-            filtered={hasActiveFilters}
-            entityName={clubs.length === 1 ? 'club' : 'clubs'}
-          />
+          <div className="flex flex-col gap-3">
+            <ListFilterBar
+              searchValue={filters.search}
+              onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+              searchPlaceholder="Search clubs by name, city, or state..."
+              fields={filterFields}
+              onClearAll={clearAllFilters}
+            />
+            <ListResultLine
+              shown={filteredClubs.length}
+              total={clubs.length}
+              noun={['club', 'clubs']}
+              filtered={hasActiveFilters}
+            >
+              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+            </ListResultLine>
+          </div>
 
           {/* Club Cards / Table */}
           {renderContent()}

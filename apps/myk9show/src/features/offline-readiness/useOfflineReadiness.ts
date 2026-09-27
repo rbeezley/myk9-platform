@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { countServerBackedRows } from '@myk9/replication';
+import { countCoveredRows } from '@myk9/replication';
 import {
-  replicatedClassesTable,
   replicatedEntriesTable,
   replicatedJudgeAssignmentsTable,
   replicatedShowsTable,
-  replicatedTrialsTable,
 } from '@/services/replication';
 import {
   getActiveJudgeAssignmentsForShow,
@@ -14,7 +12,7 @@ import {
 } from '@/services/database/judges/assignmentReads';
 import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
+import { subscribeAtShowSyncSettled, syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
@@ -23,30 +21,12 @@ import {
   type OfflineReadiness,
   type ScopeReadiness,
 } from './computeOfflineReadiness';
-
-interface ScopedMeta {
-  totalRows?: number;
-  expectedRemoteRows?: number;
-  lastIncrementalSyncAt?: number;
-}
-
-/**
- * A scope counts as hydrated only when its server-derived expected row count is
- * known and every expected row is present locally. The older local-only
- * `totalRows` value is intentionally not sufficient: quota eviction can
- * rewrite it downward and make a partial replica look complete. Callers pass
- * SERVER-BACKED rows only (`countServerBackedRows`): a pending local create is
- * not on the server, and counting it would hide an evicted row (MYK9-752).
- */
-function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
-  const hydrated =
-    meta?.expectedRemoteRows !== undefined && localRowCount >= meta.expectedRemoteRows;
-  return {
-    label,
-    hydrated,
-    lastSyncAt: hydrated ? meta?.lastIncrementalSyncAt || null : null,
-  };
-}
+import {
+  gatherShowStructureScopes,
+  isJudgeAssignmentsTableHydrated,
+  toScope,
+  type ScopedMeta,
+} from './showStructureScopes';
 
 async function gatherReadiness(
   showId: string,
@@ -56,49 +36,22 @@ async function gatherReadiness(
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
 
-  const [trialsMeta, entriesMeta, trialRows, entryRows, showRow] = await Promise.all([
-    replicatedTrialsTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
+  // The async helper goes last: if an earlier read throws while this array is
+  // built, it never starts, so no rejection is left unhandled.
+  const [entriesMeta, entryRows, structure] = await Promise.all([
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
-    replicatedTrialsTable.getTrialsByShow(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
-    replicatedShowsTable.getShowById(showId),
+    gatherShowStructureScopes(showId),
   ]);
+  // Read after the rows, so a delete landing in between is still counted once.
+  const entryDeletes = await replicatedEntriesTable.pendingDeletes.coveredIds(showId);
 
-  const trialsScope = toScope('trials', trialsMeta, countServerBackedRows(trialRows));
   const scopes: ScopeReadiness[] = [
-    // The show row itself is load-bearing offline — /at-show/:showId reads
-    // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
-    // row presence directly rather than a per-show watermark.
-    { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
-    trialsScope,
-    toScope('entries', entriesMeta, countServerBackedRows(entryRows)),
+    structure.show,
+    structure.trials,
+    toScope('entries', entriesMeta, countCoveredRows(entryRows, entryDeletes)),
+    structure.classes,
   ];
-
-  // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
-  // over the show's trials — every trial's classes must be hydrated. Until the
-  // trials scope itself is hydrated the fan-out is unknowable: report cold.
-  if (trialsScope.hydrated) {
-    const perTrial = await Promise.all(
-      trialRows.map(async trial => {
-        const [classMeta, classRows] = await Promise.all([
-          replicatedClassesTable.getSyncMetadata(trial.id) as Promise<ScopedMeta | null>,
-          replicatedClassesTable.getClassesByTrial(trial.id),
-        ]);
-        return toScope('classes', classMeta, countServerBackedRows(classRows));
-      })
-    );
-    const allHydrated = perTrial.every(scope => scope.hydrated);
-    const watermarks = perTrial
-      .map(scope => scope.lastSyncAt)
-      .filter((t): t is number => t !== null);
-    scopes.push({
-      label: 'classes',
-      hydrated: allHydrated,
-      lastSyncAt: allHydrated && watermarks.length > 0 ? Math.min(...watermarks) : null,
-    });
-  } else {
-    scopes.push({ label: 'classes', hydrated: false, lastSyncAt: null });
-  }
 
   // A judge's at-show surface is driven by useMyAtShowJudgeAssignments; with
   // no cached assignments they see "No classes assigned yet" offline even
@@ -134,8 +87,7 @@ async function gatherReadiness(
       hydrated:
         readable &&
         Boolean(judge.personId) &&
-        assignmentsMeta?.expectedRemoteRows !== undefined &&
-        countServerBackedRows(assignmentRows ?? []) >= assignmentsMeta.expectedRemoteRows,
+        isJudgeAssignmentsTableHydrated(assignmentsMeta, assignmentRows),
       lastSyncAt: null,
     });
   }
@@ -211,12 +163,17 @@ export function useOfflineReadiness(showId: string | undefined) {
     const handleRecheck = () => void check();
     window.addEventListener('online', handleRecheck);
     window.addEventListener('focus', handleRecheck);
+    // The at-show page hydrates this show through syncAtShowData, which never
+    // advances lastSyncAt. Without this, a check that ran before those rows
+    // landed left a ready device reading "Not offline ready" (MYK9-766).
+    const unsubscribeSettled = showId ? subscribeAtShowSyncSettled(showId, handleRecheck) : null;
     return () => {
       generationRef.current += 1;
       window.removeEventListener('online', handleRecheck);
       window.removeEventListener('focus', handleRecheck);
+      unsubscribeSettled?.();
     };
-  }, [check]);
+  }, [check, showId]);
 
   const prime = useCallback(async () => {
     if (!showId || isAnonymous) return;

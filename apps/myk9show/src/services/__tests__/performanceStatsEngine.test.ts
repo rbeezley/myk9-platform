@@ -25,6 +25,7 @@ const makePlatformResult = (overrides: Partial<ExhibitorResult> = {}): Exhibitor
   scoringCompletedAt: '2024-06-15T10:00:00Z',
   showName: 'Fun Trial',
   showDate: '2024-06-15',
+  resultsReleasedAt: '2024-06-15T10:00:00Z',
   ...overrides,
 });
 

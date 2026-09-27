@@ -25,6 +25,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
+  useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -34,7 +38,6 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleAssignArmband: vi.fn(),
     handleNextArmband: vi.fn(),
     handleEnrollmentBulkStatusChange: vi.fn(),
-    handleEnrollmentPaymentChange: vi.fn(),
     handleCheckInStatusChange: vi.fn(),
     handleExportCSV: vi.fn(),
     handleCompEntry: vi.fn(),
@@ -91,15 +94,19 @@ vi.mock('@/hooks/queries/useTrialEntries', () => ({
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 describe('EntryManagementPage legacy roster links', () => {
+  // MYK9-795: the search input and the Trial/Class `<select>`s were replaced
+  // by the shared `ListFilterBar` (a text search field plus removable
+  // filter chips) — this still proves the legacy `?trial=&class=` scope
+  // survives normalization onto that toolbar.
   it('normalizes the retired roster presentation into the scoped registration cockpit', () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=entries&trial=t1&roster=1&class=c1',
     });
 
     expect(
-      screen.getByRole('searchbox', { name: 'Search all show registrations' })
+      screen.getByPlaceholderText('Search exhibitor, dog, handler, armband, confirmation, class…')
     ).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Trial filter' })).toHaveValue('t1');
-    expect(screen.getByRole('combobox', { name: 'Class filter' })).toHaveValue('c1');
+    expect(screen.getByRole('button', { name: /^Trial:/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Class:/ })).toBeInTheDocument();
   });
 });

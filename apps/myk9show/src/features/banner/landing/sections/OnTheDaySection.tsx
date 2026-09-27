@@ -10,7 +10,7 @@ interface OnTheDaySectionProps {
   hospitalityNotes: string | null;
   awardsDescription: string | null;
   houseRulesNotes: string | null;
-  flag: string;
+  flagText: string;
 }
 
 export function OnTheDaySection({
@@ -18,7 +18,7 @@ export function OnTheDaySection({
   hospitalityNotes,
   awardsDescription,
   houseRulesNotes,
-  flag,
+  flagText,
 }: OnTheDaySectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
@@ -41,8 +41,8 @@ export function OnTheDaySection({
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="06" label="On the day" flag={flag}>
-        Doors <span style={{ color: flag }}>open.</span>
+      <BannerSectionHead number="06" label="On the day" flagText={flagText}>
+        Doors <span style={{ color: flagText }}>open.</span>
       </BannerSectionHead>
 
       <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>

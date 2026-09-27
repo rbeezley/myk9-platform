@@ -130,8 +130,8 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
 
     // Batch-load all entries and waitlist entries once, count per class in JS
     const [allEntries, allWaitlist] = await Promise.all([
-      replicatedEntriesTable.getAll(),
-      replicatedWaitlistEntriesTable.getAll(),
+      replicatedEntriesTable.getAllOrThrow(),
+      replicatedWaitlistEntriesTable.getAllOrThrow(),
     ]);
 
     const classesWithCounts = classes.map(cls => {

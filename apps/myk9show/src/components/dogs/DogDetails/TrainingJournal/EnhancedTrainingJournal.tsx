@@ -4,15 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ListFilterBar } from '@/components/list-toolkit';
 import TrainingDeleteConfirmDialog from './TrainingDeleteConfirmDialog';
 import { TrainingEntryForm } from './TrainingEntryForm';
 import { progressLabels } from './TrainingJournal.constants';
 import {
   BookOpen,
   Plus,
-  Search,
   Calendar,
   Clock,
   Star,
@@ -172,20 +171,13 @@ export function EnhancedTrainingJournal({
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  aria-label="Search training sessions"
-                  placeholder="Search training sessions..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10 min-h-11"
-                />
-              </div>
-            </div>
-          </div>
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search training sessions..."
+            fields={[]}
+            {...(searchTerm ? { onClearAll: () => setSearchTerm('') } : {})}
+          />
         </CardContent>
       </Card>
 

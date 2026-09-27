@@ -20,17 +20,10 @@ import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
 import { MutationUploadRunner } from './MutationUploadRunner';
+import { RowRefetchRegistry } from './mutation-row-refetch';
 import { type PendingMutation, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
-
-// ============================================
-// TYPES
-// ============================================
-
-// ============================================
-// MUTATION MANAGER
-// ============================================
 
 /**
  * MutationManager - handles all mutation queue concerns
@@ -50,6 +43,8 @@ export class MutationManager {
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
+  /** Tables that re-fetch a row after a stale full-row OCC rejection (MYK9-771). */
+  readonly rowRefetchers: RowRefetchRegistry;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -60,6 +55,9 @@ export class MutationManager {
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
     this.queueStore = new MutationQueueStore(this.logger);
     this.backupStore = new MutationBackupStore(this.logger);
+    this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>
+      this.uploadRunner.runExclusive(work)
+    );
     this.uploadRunner = new MutationUploadRunner(
       this.logger,
       options.maxRetries ?? 3,
@@ -67,7 +65,8 @@ export class MutationManager {
       options.maxOccAttempts ?? 50,
       this.queueStore,
       () => this.backupStore.writeCurrent(),
-      () => this.requireCurrentUploadContext()
+      () => this.requireCurrentUploadContext(),
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
     );
   }
 
@@ -214,24 +213,27 @@ export class MutationManager {
     this.scheduleUpload();
   }
 
-  /**
-   * Get the count of pending mutations in the queue
-   */
   async getPendingCount(): Promise<number> {
     return this.queueStore.getPendingCount();
   }
 
-  /**
-   * List queued mutations for a specific table row.
-   *
-   * This is intentionally narrow: callers can depend on a local row's pending
-   * mutation without reaching into the queue store directly.
-   */
+  /** This user's queued mutations for one row, or (ForTable, MYK9-762) a whole table. */
   async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
+    return this.readAsCurrentUser(id =>
+      this.queueStore.getPendingMutationsForRow(tableName, rowId, id)
+    );
+  }
+
+  async getPendingMutationsForTable(tableName: string): Promise<PendingMutation[]> {
+    return this.readAsCurrentUser(id => this.queueStore.getPendingMutationsForTable(tableName, id));
+  }
+
+  /** An owner-scoped queue read, refused if the signed-in user changed during it. */
+  private async readAsCurrentUser<R>(read: (authUserId: string) => Promise<R>): Promise<R> {
     const authUserId = await this.requireCurrentUserId();
-    const pending = await this.queueStore.getPendingMutationsForRow(tableName, rowId, authUserId);
+    const result = await read(authUserId);
     await this.requireSameCurrentUserId(authUserId);
-    return pending;
+    return result;
   }
 
   // ========================================
@@ -246,10 +248,7 @@ export class MutationManager {
    * never deleted automatically — the user must retry or discard them.
    */
   async getFailedMutations(): Promise<PendingMutation[]> {
-    const authUserId = await this.requireCurrentUserId();
-    const failed = await this.queueStore.getFailedMutations(authUserId);
-    await this.requireSameCurrentUserId(authUserId);
-    return failed;
+    return this.readAsCurrentUser(id => this.queueStore.getFailedMutations(id));
   }
 
   /**

@@ -13,17 +13,32 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   },
 }));
 
+// Structure coverage has its own tests (offlineCapacityOverride.structure.test.ts);
+// here the show's structure is whole on the device.
+vi.mock('@/features/offline-readiness/showStructureScopes', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/offline-readiness/showStructureScopes')>()),
+  showStructureCoverage: async () => ({
+    show: true,
+    trials: true,
+    classes: true,
+    assignments: true,
+  }),
+}));
+
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: mocks.createEntry,
     getEntriesByShow: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    getByShowWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
   },
   replicatedDogsTable: { getPendingMutationIdsForRow: mocks.dogPending },
   replicatedDogRegistrationsTable: { getPendingMutationIdsForDog: vi.fn().mockResolvedValue([]) },
   replicatedShowsTable: { getShowById: vi.fn().mockResolvedValue({ id: 'show-1' }) },
   replicatedClassesTable: {
     getAll: vi.fn().mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getAllWithStatus: vi.fn().mockResolvedValue({
       ok: true,
       rows: [{ id: 'class-1', trialId: 'trial-1', maxEntries: 10 }],
@@ -32,11 +47,17 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    // The selected class's trial is on the device: a cold trials replica now
+    // refuses the capacity check (MYK9-788).
+    getByShowWithStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      rows: [{ id: 'trial-1', date: '2026-10-10', showId: 'show-1' }],
+      error: null,
+    }),
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn().mockResolvedValue([]),
-    getAllWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
+    getByShowWithStatus: vi.fn().mockResolvedValue({ ok: true, rows: [], error: null }),
   },
   replicatedArmbandsTable: {
     getByShow: vi.fn().mockResolvedValue([]),
@@ -63,7 +84,9 @@ describe('submitOfflineLateEntry across show-time midnight', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('charges the fee of the bucket it records', async () => {
     await submitOfflineLateEntry({

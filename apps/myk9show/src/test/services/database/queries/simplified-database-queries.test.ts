@@ -27,6 +27,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
   },
 }));
 
@@ -40,6 +43,9 @@ vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
     getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getTrialsByShow: vi.fn().mockRejectedValue(new Error('no replication in test')),
   },
 }));
@@ -47,6 +53,9 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
   replicatedJudgeAssignmentsTable: {
     getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
     getByShowId: vi.fn().mockRejectedValue(new Error('no replication in test')),
   },
 }));

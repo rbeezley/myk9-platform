@@ -12,7 +12,9 @@ import { classifyAskQFailure } from './askqFailure.ts';
 import { ClaudeApiError, callClaude } from './promptBuilder.ts';
 
 describe('callClaude', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('throws a ClaudeApiError carrying the upstream status and error type', async () => {
     vi.stubGlobal(

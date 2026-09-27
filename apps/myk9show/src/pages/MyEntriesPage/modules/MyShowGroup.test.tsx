@@ -48,7 +48,9 @@ function futureShowRow(overrides: Partial<MyEntry> = {}): MyEntry {
   });
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 const FLINT = 'Flint Hills Fall Classic';
 

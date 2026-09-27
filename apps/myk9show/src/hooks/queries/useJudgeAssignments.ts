@@ -230,7 +230,7 @@ async function fetchFromPostgrest(personId: string): Promise<JudgeClass[]> {
 export async function fetchJudgeAssignments(personId: string): Promise<JudgeClass[]> {
   return withReplicationFallback(
     async () => {
-      const all = await replicatedJudgeAssignmentsTable.getAll();
+      const all = await replicatedJudgeAssignmentsTable.getAllOrThrow();
       // Cold store (initial sync hasn't landed) — defer to the live query so a
       // judge with assignments never sees a false empty state on first load.
       if (all.length === 0) return fetchFromPostgrest(personId);
@@ -240,7 +240,10 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
       // fields from the classes store (re-synced per-show on its own cursor) so
       // the active ring shows current status/progress; fall back to the snapshot
       // for shows the judge hasn't entered (class not yet replicated).
-      const liveClasses = await replicatedClassesTable.getAll();
+      // Fails open on purpose: the assignment rows carry their own class
+      // snapshot, so an unreadable classes store only loses the live overlay
+      // and the judge still sees their classes offline (MYK9-774).
+      const liveClasses = await replicatedClassesTable.getAllOrThrow().catch(() => []);
       const liveByClassId = new Map(liveClasses.map(c => [c.id, c]));
 
       const mine = all

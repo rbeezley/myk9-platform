@@ -77,8 +77,11 @@ const defaultProps = {
   onOpenArmbandDialog: vi.fn(),
   onRemoveEntry: vi.fn(),
   onBulkStatusChange: vi.fn(),
-  onPaymentStatusChange: vi.fn(),
-  paymentLedger: { record: vi.fn().mockResolvedValue(true), todayInShowZone: '2026-09-17' },
+  paymentLedger: {
+    record: vi.fn().mockResolvedValue(true),
+    markPaidOnline: vi.fn().mockResolvedValue(true),
+    todayInShowZone: '2026-09-17',
+  },
 };
 
 describe('EnrollmentCard', () => {
@@ -215,33 +218,33 @@ describe('EnrollmentCard', () => {
     expect(screen.getByText('Reset')).toBeTruthy();
   });
 
-  it('still fires onPaymentStatusChange for Paid in Full: Online', () => {
-    // Online money is not the desk's, so it keeps the plain status write.
-    const onPaymentStatusChange = vi.fn();
+  it('Paid in Full: Online goes to the server, never as a ledger payment (MYK9-773)', () => {
+    // Online money is not the desk's (no ledger row), but the server still runs
+    // the entries cascade, so an entry the enrollment refunded follows it.
+    const record = vi.fn().mockResolvedValue(true);
+    const markPaidOnline = vi.fn().mockResolvedValue(true);
     render(
       <EnrollmentCard
         {...defaultProps}
         group={makeGroup({ enrollmentId: 'enroll-1' })}
-        onPaymentStatusChange={onPaymentStatusChange}
+        paymentLedger={{ record, markPaidOnline, todayInShowZone: '2026-09-17' }}
       />
     );
     fireEvent.click(screen.getByText('Paid'));
     fireEvent.click(screen.getByText('Paid in Full: Online'));
 
-    expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
-    const [enrollmentId, status] = onPaymentStatusChange.mock.calls[0];
-    expect(enrollmentId).toBe('enroll-1');
-    expect(status).toBe(PaymentStatus.PAID_ONLINE);
+    expect(markPaidOnline).toHaveBeenCalledTimes(1);
+    expect(markPaidOnline).toHaveBeenCalledWith('enroll-1');
+    expect(record).not.toHaveBeenCalled();
   });
 
   describe('cash and check money goes through the payments ledger (MYK9-677)', () => {
     function renderPending(record = vi.fn().mockResolvedValue(true), paidAmount = 0) {
-      const onPaymentStatusChange = vi.fn();
+      const markPaidOnline = vi.fn().mockResolvedValue(true);
       render(
         <EnrollmentCard
           {...defaultProps}
-          onPaymentStatusChange={onPaymentStatusChange}
-          paymentLedger={{ record, todayInShowZone: '2026-09-17' }}
+          paymentLedger={{ record, markPaidOnline, todayInShowZone: '2026-09-17' }}
           group={makeGroup({
             enrollmentId: 'enroll-1',
             paymentStatus: PaymentStatus.PENDING,
@@ -250,11 +253,11 @@ describe('EnrollmentCard', () => {
         />
       );
       fireEvent.click(screen.getByText('Payment Due'));
-      return { record, onPaymentStatusChange };
+      return { record, markPaidOnline };
     }
 
     it('Paid in Full: Cash records the balance, received today on the show calendar', () => {
-      const { record, onPaymentStatusChange } = renderPending();
+      const { record, markPaidOnline } = renderPending();
       fireEvent.click(screen.getByText('Paid in Full: Cash…'));
       expect((screen.getByLabelText('Received on') as HTMLInputElement).value).toBe('2026-09-17');
       fireEvent.click(screen.getByText('Confirm'));
@@ -266,7 +269,7 @@ describe('EnrollmentCard', () => {
         receivedOn: '2026-09-17',
         reference: null,
       });
-      expect(onPaymentStatusChange).not.toHaveBeenCalled();
+      expect(markPaidOnline).not.toHaveBeenCalled();
     });
 
     it('Paid in Full: Check keeps the day a check was actually received', () => {
@@ -310,7 +313,7 @@ describe('EnrollmentCard', () => {
       render(
         <EnrollmentCard
           {...defaultProps}
-          paymentLedger={{ record, todayInShowZone: '2026-09-17' }}
+          paymentLedger={{ record, markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
           group={makeGroup({
             enrollmentId: 'enroll-1',
             paymentStatus: PaymentStatus.PARTIAL_REFUND,
@@ -326,11 +329,11 @@ describe('EnrollmentCard', () => {
     });
 
     it('Payment Due records a reversal, not a blind zero', () => {
-      const { record, onPaymentStatusChange } = renderPending(vi.fn().mockResolvedValue(true), 35);
+      const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue(true), 35);
       fireEvent.click(screen.getAllByText('Payment Due').at(-1)!);
 
       expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });
-      expect(onPaymentStatusChange).not.toHaveBeenCalled();
+      expect(markPaidOnline).not.toHaveBeenCalled();
     });
   });
 

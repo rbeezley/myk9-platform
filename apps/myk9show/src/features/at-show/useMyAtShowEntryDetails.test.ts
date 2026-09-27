@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { replicatedEntriesTable } from '@/services/replication';
-import type { AtShowClassSummary } from './myAtShowEntryDetails.helpers';
+import type { AtShowClassSummary, AtShowTrialSummary } from './myAtShowEntryDetails.helpers';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 vi.mock('@/services/replication', () => ({
@@ -15,6 +15,7 @@ vi.mock('@/services/replication', () => ({
 }));
 
 const emptyClasses: ReadonlyMap<string, AtShowClassSummary> = new Map();
+const emptyTrials: ReadonlyMap<string, AtShowTrialSummary> = new Map();
 
 describe('useMyAtShowEntryDetails — reconciles via table subscription, not a specific mutation', () => {
   beforeEach(() => {
@@ -36,9 +37,11 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
     });
     vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([]);
 
-    renderHook(() => useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses), {
-      wrapper,
-    });
+    renderHook(
+      () =>
+        useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses, emptyTrials),
+      { wrapper }
+    );
 
     await waitFor(() => {
       expect(replicatedEntriesTable.getEntriesByShow).toHaveBeenCalledTimes(1);
@@ -61,7 +64,8 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
     vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([]);
 
     const { unmount } = renderHook(
-      () => useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses),
+      () =>
+        useMyAtShowEntryDetails('show-1', new Set(['entry-1']), false, emptyClasses, emptyTrials),
       { wrapper }
     );
 

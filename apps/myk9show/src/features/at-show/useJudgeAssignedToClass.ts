@@ -91,7 +91,7 @@ export function useJudgeAssignedToClass({
       // with no sync round-trip and never blocks.
       let local;
       try {
-        local = await replicatedJudgeAssignmentsTable.getAll();
+        local = await replicatedJudgeAssignmentsTable.getAllOrThrow();
       } catch {
         if (!cancelled) setResolved({ key: lookupKey, value: 'assigned' });
         return;
@@ -119,7 +119,7 @@ export function useJudgeAssignedToClass({
 
       let fresh;
       try {
-        fresh = await replicatedJudgeAssignmentsTable.getAll();
+        fresh = await replicatedJudgeAssignmentsTable.getAllOrThrow();
       } catch {
         if (!cancelled) setResolved({ key: lookupKey, value: 'assigned' });
         return;

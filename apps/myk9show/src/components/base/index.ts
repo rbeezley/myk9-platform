@@ -4,18 +4,11 @@ export type { BaseEntityDialogProps } from './BaseEntityDialog';
 export { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 export type { DeleteConfirmationDialogProps } from './DeleteConfirmationDialog';
 
-export { EntitySidebar } from './EntitySidebar';
-export type { EntitySidebarProps, EntitySidebarItem } from './EntitySidebar';
-
 export { EntityCard } from './EntityCard';
 export type { EntityCardProps } from './EntityCard';
 
 export { Chip } from './Chip';
 export type { ChipProps, ChipColor, ChipSize } from './Chip';
-
-// Bulk operations
-export { BulkActionsBar, BulkSelectCheckbox, BulkSelectRow } from './BulkActionsBar';
-export type { BulkAction } from '@/utils/bulkActions';
 
 // Form validation
 export {

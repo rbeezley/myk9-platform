@@ -40,6 +40,9 @@ export async function fetchHydratedAccountTodayEntries(): Promise<HydratedAccoun
   const accountEntryIds = await fetchAccountTodayEntryIds();
   if (accountEntryIds.length === 0) return [];
 
+  // MYK9-774: getAll() on purpose — the server RPC already named every entry,
+  // and hydrateAccountTodayEntriesFromReplicatedRows falls back to the RPC row's
+  // own fields for anything the device cannot supply, so [] only loses detail.
   const [entries, classes, trials, shows] = await Promise.all([
     replicatedEntriesTable.getAll(),
     replicatedClassesTable.getAll(),

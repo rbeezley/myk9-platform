@@ -22,6 +22,7 @@ import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
+  deriveResultReleaseDisplay,
   type ResultCardModel,
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
@@ -120,12 +121,13 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       : null,
   ].filter((part): part is string => Boolean(part));
 
-  // All four terms live in `leaveClassRow.ts` so the rule is drivable without a
+  // All five terms live in `leaveClassRow.ts` so the rule is drivable without a
   // render. Deliberately NOT gated on the entry-close deadline — see that
   // module and `docs/plan-exhibitor-show-actions.md` §4 Q9.
   const canLeave = canLeaveClass({
     kind: state.kind,
     isPastShow: checkInContext.isPastShow,
+    isShowClosedOut: Boolean(order?.isShowClosedOut),
     unresolved: Boolean(cls.unresolved),
     hasShowId: showId !== '',
   });
@@ -259,16 +261,19 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       );
     }
 
+    const release = deriveResultReleaseDisplay({
+      resultsReleasedAt: cls.resultsReleasedAt,
+      resultStatus: cls.resultStatus,
+      finalPlacement: cls.finalPlacement,
+    });
+
     return (
       <>
         {cls.resultStatus && <ResultBadge resultStatus={cls.resultStatus} />}
-        {cls.resultsReleasedAt &&
-        cls.resultStatus === 'qualified' &&
-        cls.finalPlacement != null &&
-        cls.finalPlacement >= 1 ? (
-          <PlacementPill placement={cls.finalPlacement} size="sm" />
+        {release.placement != null ? (
+          <PlacementPill placement={release.placement} size="sm" />
         ) : null}
-        {!cls.resultsReleasedAt && <span className="text-muted-foreground">preliminary</span>}
+        {release.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
         {cls.searchTimeSeconds != null && (
           <span className="tabular-nums text-muted-foreground">
             {cls.searchTimeSeconds.toFixed(1)}s

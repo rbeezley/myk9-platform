@@ -41,6 +41,27 @@ import {
 /** The operation running per show, and whether it re-fetches every row. */
 const atShowSyncsInFlight = new Map<string, { operation: Promise<void>; forced: boolean }>();
 
+const syncSettledListeners = new Map<string, Set<() => void>>();
+
+/**
+ * Run `listener` each time a `syncAtShowData` operation for `showId` settles,
+ * after every scope's rows are written, and on failure too: a partial sync
+ * still changed local rows. This sync never advances the replication
+ * provider's `lastSyncAt`, so the offline readiness badge needs this to notice
+ * the page's own hydration (MYK9-766). Returns the unsubscribe.
+ */
+export function subscribeAtShowSyncSettled(showId: string, listener: () => void): () => void {
+  const listeners = syncSettledListeners.get(showId) ?? new Set<() => void>();
+  listeners.add(listener);
+  syncSettledListeners.set(showId, listeners);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && syncSettledListeners.get(showId) === listeners) {
+      syncSettledListeners.delete(showId);
+    }
+  };
+}
+
 /**
  * Sync the show's trials, their classes and its entries. Concurrent callers
  * share one operation. `forceFullSync` re-fetches every row instead of the
@@ -64,18 +85,24 @@ export function syncAtShowData(
     if (existing) await existing.then(noop, noop);
     await replicatedTrialsTable.sync(showId, ...syncArgs);
     const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-    await Promise.all([
+    // allSettled, then rethrow: a scope that fails early must not settle the
+    // operation (and fire the readiness signal) while another scope is still
+    // writing rows (MYK9-766).
+    const results = await Promise.allSettled([
       // Classes are scoped by trial_id, so hydrate only the trials that belong
       // to this show. An empty scope would fetch every visible changed class.
       ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
       replicatedEntriesTable.sync(showId, ...syncArgs),
     ]);
+    const failed = results.find(result => result.status === 'rejected');
+    if (failed) throw failed.reason;
   })();
   atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {
     if (atShowSyncsInFlight.get(showId)?.operation === operation) {
       atShowSyncsInFlight.delete(showId);
     }
+    for (const listener of [...(syncSettledListeners.get(showId) ?? [])]) listener();
   };
   void operation.then(release, release);
   return operation;

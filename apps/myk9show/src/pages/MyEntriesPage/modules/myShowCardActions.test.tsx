@@ -71,7 +71,9 @@ function aheadClass(overrides: Partial<EntryClass> = {}): EntryClass {
   });
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
   it('replaces the four-link row with a labelled Actions button', () => {
@@ -375,6 +377,18 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
         showEndDate: day('2026-08-02'),
       }),
     ]);
+
+    expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+    ).not.toBeInTheDocument();
+  });
+
+  // MYK9-778: the secretary's closeout ends the show too, even before its last
+  // calendar day is behind us — and the server refuses an owner from then on.
+  // The positive control is `liveRow([aheadClass()])` above, which offers it.
+  it('withholds it once the secretary has closed the show out', () => {
+    renderRows([liveRow([aheadClass()], { isShowClosedOut: true })]);
 
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
     expect(

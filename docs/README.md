@@ -61,6 +61,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)           |
 | [plan-admin-users-ux-fixes-2026-08-18.md](plan-admin-users-ux-fixes-2026-08-18.md)                               | Active    | Admin Users UX Fixes                                                               |
 | [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md)                                         | Active    | AI Natural-Language Access Plan                                                    |
+| [plan-list-toolkit.md](plan-list-toolkit.md)                                                                     | Active    | List Toolkit — shared search, filter and bulk actions                              |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Active    | MYK9-110 cross-project recovery rehearsal — execution plan                         |
 | [plan-myk9-110-backup-activation.md](plan-myk9-110-backup-activation.md)                                         | Active    | MYK9-110 independent backup activation                                             |
 | [plan-docs-site.md](plan-docs-site.md)                                                                           | Active    | Plan: myK9Show Guides — public docs site                                           |
@@ -70,7 +71,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md)                                   | Active    | Plan: Fix nightly review findings                                                  |
 | [plan-backlog-batches-2026-09-24.md](plan-backlog-batches-2026-09-24.md)                                         | Active    | Linear backlog in batches 2026-09-24 — overnight, 38 issues into 12 PRs            |
 | [plan-hermetic-e2e-fixtures.md](plan-hermetic-e2e-fixtures.md)                                                   | Active    | Hermetic E2E fixtures for the PR-smoke UI specs                                    |
-| [plan-linear-backlog-burndown-2026-09.md](plan-linear-backlog-burndown-2026-09.md)                               | Active    | Linear backlog burndown 2026-09 — orchestrated clearance of Todo/In Progress       |
 | [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md)                                                 | Active    | Current Linear Todo implementation plan — 2026-09-05                               |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Complete  | MYK9-110 — cross-project recovery rehearsal                                        |
 | [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md)                                 | Active    | Plan: MYK9-17 Role-Journey Visual QA Matrix                                        |

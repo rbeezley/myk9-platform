@@ -14,7 +14,10 @@ interface ParticularsSectionProps {
   fees: BannerFee[];
   trialsCount: number;
   timezone: string;
+  /** Flag for rules and fills. */
   flag: string;
+  /** Flag as text on paper — see `BannerBrandColors.flagText`. */
+  flagText: string;
 }
 
 interface Row {
@@ -32,6 +35,7 @@ export function ParticularsSection({
   trialsCount,
   timezone,
   flag,
+  flagText,
 }: ParticularsSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const fmt = (iso: string | null) => (iso ? formatDateInTimezone(iso, timezone, 'short') : null);
@@ -58,8 +62,8 @@ export function ParticularsSection({
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="02" label="Particulars" flag={flag}>
-        The <span style={{ color: flag }}>facts.</span>
+      <BannerSectionHead number="02" label="Particulars" flagText={flagText}>
+        The <span style={{ color: flagText }}>facts.</span>
       </BannerSectionHead>
 
       <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>

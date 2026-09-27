@@ -48,7 +48,9 @@ function mockTables(rows: { show?: unknown; trial?: unknown; classRows?: unknown
 }
 
 describe('resolveVisibilityForClassRows', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('resolves a batch of rows, skipping rows without a trial_id', async () => {
     mockTables({ show: { preset: 'standard', self_checkin_enabled: true }, classRows: [] });

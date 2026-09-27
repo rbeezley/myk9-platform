@@ -5,10 +5,14 @@ import {
   buildMyAtShowEntryDetails,
   type AtShowClassSummary,
   type AtShowEntryDetail,
+  type AtShowTrialSummary,
 } from './myAtShowEntryDetails.helpers';
 
 export interface UseMyAtShowEntryDetailsResult {
   entries: AtShowEntryDetail[];
+  /** The latest read of this show's entries failed; any list shown is the last good one (MYK9-774). */
+  loadFailed: boolean;
+  onRetry: () => void;
   /** True while the ownership set or the entry rows are still resolving. */
   isLoading: boolean;
   /**
@@ -43,7 +47,8 @@ export function useMyAtShowEntryDetails(
   showId: string | undefined,
   ownEntryIds: ReadonlySet<string>,
   ownershipLoading: boolean,
-  classesById: ReadonlyMap<string, AtShowClassSummary>
+  classesById: ReadonlyMap<string, AtShowClassSummary>,
+  trialsById: ReadonlyMap<string, AtShowTrialSummary>
 ): UseMyAtShowEntryDetailsResult {
   const queryClient = useQueryClient();
 
@@ -65,12 +70,14 @@ export function useMyAtShowEntryDetails(
 
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];
-    return buildMyAtShowEntryDetails(entriesQuery.data, ownEntryIds, classesById);
-  }, [entriesQuery.data, ownEntryIds, classesById]);
+    return buildMyAtShowEntryDetails(entriesQuery.data, ownEntryIds, classesById, trialsById);
+  }, [entriesQuery.data, ownEntryIds, classesById, trialsById]);
 
   return {
     entries,
     isLoading: ownershipLoading || (ownEntryIds.size > 0 && entriesQuery.isLoading),
     dataUpdatedAt: entriesQuery.dataUpdatedAt,
+    loadFailed: entriesQuery.isError,
+    onRetry: () => void entriesQuery.refetch(),
   };
 }

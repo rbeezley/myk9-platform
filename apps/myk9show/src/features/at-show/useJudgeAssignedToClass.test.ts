@@ -20,7 +20,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: { databaseUserId: authIdentity.databaseUserId } }),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedJudgeAssignmentsTable: { getAll, sync },
+  replicatedJudgeAssignmentsTable: { getAll, getAllOrThrow: getAll, sync },
 }));
 
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';

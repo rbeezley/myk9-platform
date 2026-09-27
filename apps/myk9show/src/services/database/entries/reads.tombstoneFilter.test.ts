@@ -23,6 +23,7 @@ vi.mock('../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getAll: mocks.getAll,
+    getAllOrThrow: mocks.getAll,
     getEntriesByShow: mocks.getEntriesByShow,
     getEntriesByClass: mocks.getEntriesByClass,
     // Every show here has completed a scoped sync (MYK9-746).
@@ -33,13 +34,23 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+  replicatedClassesTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  replicatedTrialsTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
 }));
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
   replicatedArmbandsTable: { getByShow: vi.fn().mockResolvedValue([]) },
@@ -69,7 +80,9 @@ const tombstoneCamel = entry('camel', { deletedAt: '2026-06-16T00:00:00Z' });
 const tombstoneSnake = entry('snake', { deleted_at: '2026-06-16T00:00:00Z' });
 
 describe('replication-backed entry reads exclude tombstones', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('getEntriesByShow drops entries tombstoned via deletedAt and deleted_at', async () => {
     mocks.getEntriesByShow.mockResolvedValue([live, tombstoneCamel, tombstoneSnake]);

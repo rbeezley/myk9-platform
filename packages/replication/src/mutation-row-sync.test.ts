@@ -157,3 +157,59 @@ describe('markReplicatedRowSynced — own upload step (MYK9-770)', () => {
     expect(stored.lastOwnUpload).toBeUndefined();
   });
 });
+
+describe('markReplicatedRowSynced — an uploaded create is server-backed (MYK9-775)', () => {
+  beforeEach(async () => {
+    await databaseManager.reset();
+  });
+
+  afterEach(async () => {
+    await databaseManager.reset();
+  });
+
+  const created: ReplicatedRow<{ id: string; _localOnly?: boolean }> = {
+    tableName: 'judge_assignments',
+    id: 'ja-1',
+    data: { id: 'ja-1', _localOnly: true },
+    version: 1,
+    lastSyncedAt: 1,
+    lastAccessedAt: 1,
+    isDirty: true,
+    syncStatus: 'pending',
+  };
+  const mutation = (operation: PendingMutation['operation']): PendingMutation => ({
+    id: `m-${operation}`,
+    tableName: 'judge_assignments',
+    operation,
+    rowId: 'ja-1',
+    data: { id: 'ja-1' },
+    timestamp: 1,
+    sequenceNumber: 1,
+    retries: 0,
+    status: 'pending',
+    authUserId: 'user-1',
+  });
+
+  async function stored() {
+    const db = await databaseManager.getDatabase('row-sync-local-only');
+    return (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'judge_assignments',
+      'ja-1',
+    ])) as ReplicatedRow<{ _localOnly?: boolean }>;
+  }
+
+  it('clears _localOnly once the INSERT uploads', async () => {
+    const db = await databaseManager.getDatabase('row-sync-local-only');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, created);
+    await markReplicatedRowSynced(db, mutation('INSERT'));
+    expect((await stored()).data._localOnly).toBeUndefined();
+    expect((await stored()).isDirty).toBe(false);
+  });
+
+  it('leaves the data alone for an UPDATE', async () => {
+    const db = await databaseManager.getDatabase('row-sync-local-only');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, created);
+    await markReplicatedRowSynced(db, mutation('UPDATE'));
+    expect((await stored()).data._localOnly).toBe(true);
+  });
+});

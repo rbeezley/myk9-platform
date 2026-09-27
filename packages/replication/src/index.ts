@@ -112,9 +112,14 @@ export {
   DatabaseManager,
   databaseManager,
   REPLICATION_STORES,
+  REPLICATION_SCHEMA,
   trackTransaction,
   getActiveTransactionCount,
   waitForActiveTransactions,
+} from './core/DatabaseManager';
+export type {
+  ReplicationIndexDefinition,
+  ReplicationStoreDefinition,
 } from './core/DatabaseManager';
 
 export {
@@ -141,6 +146,9 @@ export {
   configureConflictSurfacing,
   countServerBackedRows,
 } from './syncReplicatedTable';
+export { countCoveredRows } from './replicaCoverage';
+export { refetchDirtyRowsById } from './refetchDirtyRowsById';
+export type { RowRefetchAdapter } from './refetchDirtyRowsById';
 export type {
   RemoteFetchContext,
   RemoteRowCountContext,

@@ -7,14 +7,14 @@ import type { BannerAccommodation } from '../types';
 
 interface PlanSectionProps {
   accommodations: BannerAccommodation[];
-  flag: string;
+  flagText: string;
 }
 
 function formatLine(acc: BannerAccommodation): string {
   return [acc.type, acc.address, acc.phone].filter(Boolean).join(' · ');
 }
 
-export function PlanSection({ accommodations, flag }: PlanSectionProps) {
+export function PlanSection({ accommodations, flagText }: PlanSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (!accommodations.length) return null;
 
@@ -28,8 +28,8 @@ export function PlanSection({ accommodations, flag }: PlanSectionProps) {
         margin: '0 auto',
       }}
     >
-      <BannerSectionHead number="05" label="Plan" flag={flag}>
-        Where <span style={{ color: flag }}>to stay.</span>
+      <BannerSectionHead number="05" label="Plan" flagText={flagText}>
+        Where <span style={{ color: flagText }}>to stay.</span>
       </BannerSectionHead>
 
       <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>

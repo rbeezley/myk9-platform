@@ -24,7 +24,9 @@ const resetStore = () =>
   });
 
 describe('store byId sync with registrations[]', () => {
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+  });
 
   it('sets registrationsById (without entries) after createRegistration', () => {
     const reg = useShowRegistrationStore

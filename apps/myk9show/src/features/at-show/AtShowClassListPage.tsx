@@ -19,10 +19,15 @@ import { useAtShowClassList } from './useAtShowClassList';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
-import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
+import {
+  isExhibitorOnlyForAtShow,
+  type AtShowClassSummary,
+  type AtShowTrialSummary,
+} from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
+import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
@@ -173,6 +178,17 @@ export const AtShowClassListPage: React.FC = () => {
     isLoading: ownershipLoading,
     isUnknown: ownershipUnknown,
   } = useMyAtShowEntries(showId);
+  // 'Your dogs today' must never offer Check In for a class the
+  // `self_checkin_entry` RPC will refuse, or for one the cascade hasn't
+  // resolved yet (MYK9-800 follow-up) — the tri-state map shares its
+  // underlying queries/cache with My Shows' day check-in gate
+  // (`useSelfCheckinMap`), so the two surfaces can't disagree about which
+  // classes allow self-check-in.
+  const allClassIds = useMemo(
+    () => groups.flatMap(group => group.classes.map(cls => cls.id)),
+    [groups]
+  );
+  const selfCheckinByClassId = useSelfCheckinStateMap(allClassIds);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -185,16 +201,36 @@ export const AtShowClassListPage: React.FC = () => {
             ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
             : {}),
           isRevisedStart: Boolean(cls.revised_expected_start),
+          selfCheckinState: selfCheckinByClassId[cls.id] ?? 'unknown',
         });
       }
     }
     return map;
+  }, [groups, selfCheckinByClassId]);
+  // 'Your dogs today' filters an exhibitor's entries to today's trial in the
+  // trial's own timezone (MYK9-800) — one summary per trial, keyed by trial
+  // id so an entry can resolve its day even before a class is posted. `label`
+  // reuses the same "<trial label> · <date>" heading the trial sections below
+  // already render (MYK9-704), so the row picks up trial date + number
+  // without inventing a second format for it.
+  const trialsById = useMemo(() => {
+    const map = new Map<string, AtShowTrialSummary>();
+    for (const group of groups) {
+      map.set(group.trial.id, {
+        date: group.trial.date,
+        timezone: getTrialTimezone(group.trial),
+        label: formatAtShowTrialHeading(group.trial),
+      });
+    }
+    return map;
   }, [groups]);
-  const {
-    entries: myEntries,
-    isLoading: myEntriesLoading,
-    dataUpdatedAt: myEntriesUpdatedAt,
-  } = useMyAtShowEntryDetails(showId, ownEntryIds, ownershipLoading, classesById);
+  const myEntryDetails = useMyAtShowEntryDetails(
+    showId,
+    ownEntryIds,
+    ownershipLoading,
+    classesById,
+    trialsById
+  );
 
   // `null` = no manual override yet, so the view tracks ownership as it
   // resolves (starts 'all' while ownEntryIds is still loading, flips to
@@ -340,9 +376,7 @@ export const AtShowClassListPage: React.FC = () => {
     return (
       <AtShowMyEntriesToday
         showId={showId as string}
-        entries={myEntries}
-        isLoading={myEntriesLoading}
-        dataUpdatedAt={myEntriesUpdatedAt}
+        {...myEntryDetails}
         onSeeAllClasses={() => setManualView('all')}
       />
     );

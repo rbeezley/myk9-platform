@@ -119,7 +119,7 @@ export function BannerEntryReceived({
             fontWeight: 900,
             fontSize: 12,
             letterSpacing: '0.2em',
-            color: colors.flag,
+            color: colors.flagText,
           }}
         >
           01 / THE DOG
@@ -189,7 +189,7 @@ export function BannerEntryReceived({
               fontWeight: 900,
               fontSize: 30,
               letterSpacing: '-0.035em',
-              color: colors.flag,
+              color: colors.flagText,
             }}
           >
             {totalFeesFormatted}

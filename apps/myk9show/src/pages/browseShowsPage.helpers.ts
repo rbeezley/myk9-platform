@@ -1,6 +1,4 @@
-import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import type { ViewMode } from './browseShowsViewModes';
-import { RADIUS_OPTIONS } from '@/features/location/distance';
 
 /**
  * Cards for everyone except the secretary/admin Managing tab, whose working
@@ -11,49 +9,6 @@ export function getDefaultViewMode(selectedTab: string): ViewMode {
   return selectedTab === 'managing' ? 'table' : 'cards';
 }
 
-export interface ChipFilterOption {
-  label: string;
-  value: string;
-}
-
-/**
- * The chip row above the list. Dates are the month scrubber's job, not a chip;
- * the Distance chip appears only once a location is known, since without one
- * it could filter nothing.
- */
-export function buildChipFilters(
-  clubOptions: ChipFilterOption[],
-  { hasLocation = false }: { hasLocation?: boolean } = {}
-): ChipFilterDefinition[] {
-  const chips: ChipFilterDefinition[] = [
-    {
-      key: 'discipline',
-      label: 'Discipline',
-      options: [
-        { label: 'Agility', value: 'agility' },
-        { label: 'Scent Work', value: 'scent_work' },
-        { label: 'Rally', value: 'rally' },
-        { label: 'Obedience', value: 'obedience' },
-      ],
-    },
-    {
-      key: 'entryStatus',
-      label: 'Entry Status',
-      options: [
-        { label: 'Open', value: 'open' },
-        { label: 'Closing Soon', value: 'closing_soon' },
-        { label: 'Waitlist', value: 'waitlist' },
-        { label: 'Closed', value: 'closed' },
-      ],
-    },
-    { key: 'club', label: 'Club', options: clubOptions },
-  ];
-  if (hasLocation) {
-    chips.push({
-      key: 'radius',
-      label: 'Distance',
-      options: RADIUS_OPTIONS.map(miles => ({ label: `Within ${miles} mi`, value: miles })),
-    });
-  }
-  return chips;
-}
+export const SHOWS_UNAVAILABLE = "We couldn't load the shows.";
+/** A signed-out guest's list is online-only (MYK9-780), so offline says so. */
+export const SHOWS_OFFLINE = "You're offline. Connect to the internet to see shows.";

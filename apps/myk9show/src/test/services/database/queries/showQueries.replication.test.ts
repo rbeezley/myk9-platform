@@ -17,20 +17,18 @@ const { mockShowsTable, mockClubsTable, mockTrialsTable, mockJudgeAssignmentsTab
       getShowById: vi.fn(),
       getUpcomingShows: vi.fn(),
       getShowsByClub: vi.fn(),
-      getAll: vi.fn(),
+      getAllWithStatus: vi.fn(),
     },
     mockClubsTable: {
       getAllClubs: vi.fn(),
       getClubById: vi.fn(),
-      getAll: vi.fn(),
+      getAllWithStatus: vi.fn(),
     },
     mockTrialsTable: {
-      getTrialsByShow: vi.fn(),
-      getAll: vi.fn(),
+      getAllWithStatus: vi.fn(),
     },
     mockJudgeAssignmentsTable: {
-      getByShowId: vi.fn(),
-      getAll: vi.fn(),
+      getAllWithStatus: vi.fn(),
     },
   })
 );
@@ -153,6 +151,9 @@ function makeJudgeAssignment(
   });
 }
 
+/** A device read that succeeded with these rows. */
+const ok = <T>(rows: T[]) => ({ ok: true as const, rows, error: null });
+
 // ---------------------------------------------------------------------------
 // Helpers to set up default mocks for list queries
 // ---------------------------------------------------------------------------
@@ -163,12 +164,12 @@ function setupListMocks(
   trials: ReplicatedTrial[] = [makeTrial()],
   assignments: ReplicatedJudgeAssignment[] = [makeJudgeAssignment()]
 ) {
-  mockShowsTable.getAllShows.mockResolvedValue(shows);
+  mockShowsTable.getAllWithStatus.mockResolvedValue(ok(shows));
   mockShowsTable.getUpcomingShows.mockResolvedValue(shows);
   mockShowsTable.getShowsByClub.mockResolvedValue(shows);
-  mockClubsTable.getAllClubs.mockResolvedValue(clubs);
-  mockTrialsTable.getAll.mockResolvedValue(trials);
-  mockJudgeAssignmentsTable.getAll.mockResolvedValue(assignments);
+  mockClubsTable.getAllWithStatus.mockResolvedValue(ok(clubs));
+  mockTrialsTable.getAllWithStatus.mockResolvedValue(ok(trials));
+  mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok(assignments));
 }
 
 // ---------------------------------------------------------------------------
@@ -240,13 +241,12 @@ describe('showQueries (replication)', () => {
         makeShow({ id: 'show-b', startDate: '2026-06-01' }),
         makeShow({ id: 'show-a', startDate: '2026-04-01' }),
       ];
-      // getAllShows from the replicated table already sorts ascending
       setupListMocks(shows);
 
       const result = await getAllShows();
 
       expect(result.data).toHaveLength(2);
-      expect((result.data[0] as Record<string, unknown>).id).toBe('show-b');
+      expect((result.data[0] as Record<string, unknown>).id).toBe('show-a');
     });
 
     it('sets club to null when show has no clubId', async () => {
@@ -265,8 +265,8 @@ describe('showQueries (replication)', () => {
     it('returns correct snake_case shape with detail club', async () => {
       mockShowsTable.getShowById.mockResolvedValue(makeShow());
       mockClubsTable.getClubById.mockResolvedValue(makeClub());
-      mockTrialsTable.getTrialsByShow.mockResolvedValue([makeTrial()]);
-      mockJudgeAssignmentsTable.getByShowId.mockResolvedValue([makeJudgeAssignment()]);
+      mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([makeTrial()]));
+      mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok([makeJudgeAssignment()]));
 
       const result = await getShowById('show-1');
 
@@ -362,9 +362,9 @@ describe('showQueries (replication)', () => {
         makeShow({ id: 'show-new', startDate: '2026-06-01' }),
       ];
       mockShowsTable.getShowsByClub.mockResolvedValue(shows);
-      mockClubsTable.getAllClubs.mockResolvedValue([makeClub()]);
-      mockTrialsTable.getAll.mockResolvedValue([]);
-      mockJudgeAssignmentsTable.getAll.mockResolvedValue([]);
+      mockClubsTable.getAllWithStatus.mockResolvedValue(ok([makeClub()]));
+      mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([]));
+      mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok([]));
 
       const result = await getShowsByClub('club-1');
 

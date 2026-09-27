@@ -12,19 +12,32 @@ import type { User } from '@/types/user-types';
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import type { UserFilter, UserSort } from './UserManagementPage.types';
-
-/** Start of the day, so "created after Jul 3" includes everything on Jul 3. */
-function startOfDay(date: Date): number {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
+import { getLeadRole } from '@/components/admin/users/UserTable/utils';
 
 /** End of the day, so "created before Jul 3" includes everything on Jul 3. */
 function endOfDay(date: Date): number {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d.getTime();
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Does this sign-in timestamp fall in the login bucket? `lastSignInAt` exists
+ * only on the admin roster rows (AdminUser); a plain User reads as never.
+ */
+export function matchesLoginFilter(
+  lastSignInAt: string | null | undefined,
+  login: UserFilter['login'],
+  now: number
+): boolean {
+  if (login === 'all') return true;
+  const signedIn = lastSignInAt ? new Date(lastSignInAt).getTime() : NaN;
+  if (login === 'never') return Number.isNaN(signedIn);
+  if (Number.isNaN(signedIn)) return false;
+  const ageDays = (now - signedIn) / DAY_MS;
+  return login === 'recent30' ? ageDays <= 30 : ageDays >= 90;
 }
 
 /**
@@ -57,9 +70,14 @@ function searchHaystack(user: User): string {
 export function filterUsers<T extends User>(
   users: T[],
   searchTerm: string,
-  filters: UserFilter
+  filters: UserFilter,
+  now: number = Date.now()
 ): T[] {
-  let filtered = users;
+  // Removed people only with "Removed users" on. The roster query already
+  // drops them otherwise, but the view and option counts reuse this function
+  // over a roster that may include them — pressing a view turns the option off,
+  // so its count must too (Codex P2).
+  let filtered = filters.showDeleted ? users : users.filter(user => !user.deletedAt);
 
   // Apply search filter
   const tokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
@@ -80,10 +98,21 @@ export function filterUsers<T extends User>(
     filtered = filtered.filter(user => user.status === filters.status);
   }
 
-  // Apply created-date range
+  // Apply sign-in recency
+  if (filters.login !== 'all') {
+    filtered = filtered.filter(user =>
+      matchesLoginFilter((user as Partial<AdminUser>).lastSignInAt, filters.login, now)
+    );
+  }
+
+  // Apply created-date range. `start` is used exactly, not rounded down to
+  // its calendar day — the calendar-picker chip always hands back local
+  // midnight already, but a rolling window's cutoff (userListViews' "New,
+  // last 7 days") lands mid-day, and rounding it down would silently widen
+  // the window by up to a day (MYK9-837 Codex finding).
   const { start, end } = filters.dateRange;
   if (start) {
-    const from = startOfDay(start);
+    const from = start.getTime();
     filtered = filtered.filter(user => !!user.createdAt && user.createdAt.getTime() >= from);
   }
   if (end) {
@@ -106,7 +135,9 @@ function sortValue(user: AdminUser, columnId: string): string {
     case 'email':
       return user.email?.toLowerCase() ?? '';
     case 'role':
-      return user.roles?.[0] ?? '';
+      // Same lead-role calculation as the Roles badge (UserTable/columns.tsx),
+      // so sorting never orders a row by a role the admin can't see (MYK9-837).
+      return getLeadRole(user.roles) ?? '';
     case 'lastLogin':
       return user.lastSignInAt ?? '';
     case 'status':
@@ -148,15 +179,6 @@ export function calculateRoleStats(users: User[]): Record<string, number> {
     });
   });
   return stats;
-}
-
-/**
- * Count users whose account is actually usable — active status, not deleted.
- * (Previously counted "has an email and a first name", which measured profile
- * completeness, not account state.)
- */
-export function countActiveUsers(users: User[]): number {
-  return users.filter(user => (user.status ?? 'active') === 'active' && !user.deletedAt).length;
 }
 
 /**

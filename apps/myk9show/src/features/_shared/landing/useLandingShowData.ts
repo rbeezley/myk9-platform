@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isAccountSession } from '@/hooks/guestServerRead';
 import { fetchPublicEntryCountsByShow } from '@/services/database/_shared/entryCounts';
 import type { Show } from '@/types/show-types';
 import { buildLandingData, type LandingData } from './landingData';
@@ -14,7 +15,7 @@ export function useLandingShowData(
 ): LandingData {
   const showId = show?.id ?? '';
   const { user, loading: authLoading } = useAuthContext();
-  const isAuthenticatedUser = Boolean(user && user.is_anonymous !== true);
+  const isAuthenticatedUser = isAccountSession(user);
   const entriesQuery = useEntriesByShowQuery(
     showId,
     !!showId && isAuthenticatedUser && !authLoading

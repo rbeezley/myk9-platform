@@ -47,6 +47,16 @@ export default tseslint.config(
           message:
             'Hand-paired dark: status classes are banned. Use semantic tokens: text-destructive / text-info / text-warning / text-success (and bg-*/10, border-*/30 variants).',
         },
+        // MYK9-787: Vitest registers a function returned from a hook as that
+        // test's cleanup and calls it. `mockReset()`/`mockClear()` return the
+        // mock, so `beforeEach(() => load.mockReset())` re-invokes `load` after
+        // every test and fails any test that made it reject. Braced bodies only.
+        {
+          selector:
+            'CallExpression[callee.name=/^(beforeEach|afterEach|beforeAll|afterAll)$/] > ArrowFunctionExpression.arguments:first-child[body.type!="BlockStatement"]',
+          message:
+            'Give test hooks a braced body: `beforeEach(() => { x(); })`. Vitest calls a function returned from a hook as cleanup, and mock setters return the mock (MYK9-787).',
+        },
       ],
     },
   }

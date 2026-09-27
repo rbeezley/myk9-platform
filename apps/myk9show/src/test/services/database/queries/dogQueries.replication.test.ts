@@ -17,9 +17,15 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
       getDogsByOwner: vi.fn(),
       searchDogs: vi.fn(),
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockEntriesTable: {
       getAll: vi.fn(),
+      get getAllOrThrow() {
+        return this.getAll;
+      },
     },
     mockDogRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),

@@ -9,17 +9,17 @@ const {
   mockPostgrestGetShowById,
 } = vi.hoisted(() => ({
   mockShowsTable: {
-    getAllShows: vi.fn(),
+    getAllWithStatus: vi.fn(),
     getShowById: vi.fn(),
   },
   mockClubsTable: {
     getClubById: vi.fn(),
   },
   mockTrialsTable: {
-    getTrialsByShow: vi.fn(),
+    getAllWithStatus: vi.fn(),
   },
   mockJudgeAssignmentsTable: {
-    getByShowId: vi.fn(),
+    getAllWithStatus: vi.fn(),
   },
   mockPostgrestGetSecretaryShows: vi.fn(),
   mockPostgrestGetShowById: vi.fn(),
@@ -52,16 +52,19 @@ vi.mock('./reads.postgrest', async importOriginal => {
 
 import { getSecretaryShows, getShowById } from './reads';
 
+/** A device read that succeeded with these rows. */
+const ok = <T>(rows: T[]) => ({ ok: true as const, rows, error: null });
+
 describe('getSecretaryShows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClubsTable.getClubById.mockResolvedValue(null);
-    mockTrialsTable.getTrialsByShow.mockResolvedValue([]);
-    mockJudgeAssignmentsTable.getByShowId.mockResolvedValue([]);
+    mockTrialsTable.getAllWithStatus.mockResolvedValue(ok([]));
+    mockJudgeAssignmentsTable.getAllWithStatus.mockResolvedValue(ok([]));
   });
 
   it('falls back to PostgREST when the replicated show cache is empty', async () => {
-    mockShowsTable.getAllShows.mockResolvedValue([]);
+    mockShowsTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetSecretaryShows.mockResolvedValue({
       data: [
         {

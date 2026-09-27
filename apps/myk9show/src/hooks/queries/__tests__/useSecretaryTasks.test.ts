@@ -50,7 +50,9 @@ const mockTask = {
 };
 
 describe('useSecretaryTasks', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('fetches tasks and returns them', async () => {
     mockFrom.mockReturnValue({

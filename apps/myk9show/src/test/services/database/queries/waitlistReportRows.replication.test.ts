@@ -19,11 +19,22 @@ const {
   mockFrom,
   mockOnlineCount,
 } = vi.hoisted(() => ({
-  mockWaitlistTable: { getByClass: vi.fn(), getAll: vi.fn() },
+  mockWaitlistTable: {
+    getByClass: vi.fn(),
+    getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
   mockTrialsTable: { getTrialsByShow: vi.fn() },
   mockClassesTable: { getClassesByTrial: vi.fn(), getClassById: vi.fn() },
   mockDogsTable: { getDogById: vi.fn() },
-  mockEntriesTable: { getAll: vi.fn() },
+  mockEntriesTable: {
+    getAll: vi.fn(),
+    get getAllOrThrow() {
+      return this.getAll;
+    },
+  },
   mockLoadHandlerPeople: vi.fn(),
   mockFrom: vi.fn(),
   mockOnlineCount: vi.fn(),

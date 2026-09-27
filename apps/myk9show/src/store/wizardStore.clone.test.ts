@@ -125,6 +125,21 @@ describe('wizard store clone hydration', () => {
     });
   });
 
+  // MYK9-830/831 second review round: buildCloneSnapshot now sets
+  // snapshot.show.timezone from the source show's trials; this pins that the
+  // store's completeCloneHydration merge (`{...initialState.show,
+  // ...snapshot.show}`) actually carries it through rather than falling back
+  // to initialState's browser-default timezone.
+  it('adopts the timezone carried on the completed clone snapshot', () => {
+    const generation = useWizardStore.getState().beginCloneHydration('source-1', 'Cloned show');
+    const withTimezone = snapshot('source-1', 'Cloned show');
+    withTimezone.show = { ...withTimezone.show, timezone: 'America/Denver' };
+
+    useWizardStore.getState().completeCloneHydration(generation, withTimezone);
+
+    expect(useWizardStore.getState().show.timezone).toBe('America/Denver');
+  });
+
   it("defaults a cloned trial's missing trial type from the cloned organization, as addTrial does", () => {
     const generation = useWizardStore.getState().beginCloneHydration('source-1', 'Cloned show');
     const legacy = snapshot('source-1', 'Cloned show');

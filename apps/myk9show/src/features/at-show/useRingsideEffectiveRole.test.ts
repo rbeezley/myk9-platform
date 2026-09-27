@@ -32,7 +32,9 @@ describe('useRingsideEffectiveRole', () => {
     mockRoles = [];
     useRingsideGrantStore.getState().clearGrant();
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('account RBAC mapping (no grant)', () => {
     it('maps a steward to canScore=false but canCheckInDogs=true', () => {

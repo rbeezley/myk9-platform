@@ -23,7 +23,7 @@ describe('shared supplemental facts in formerly divergent landing styles', () =>
         hospitalityNotes={null}
         awardsDescription={awards}
         houseRulesNotes={houseRules}
-        flag="#123456"
+        flagText="#123456"
       />
     );
     expectFacts();

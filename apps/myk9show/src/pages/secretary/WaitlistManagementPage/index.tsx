@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
+import { ListFilterBar } from '@/components/list-toolkit';
 import { useWaitlistManagementData } from './useWaitlistManagementData';
 import { WaitlistPageHeader } from './WaitlistPageHeader';
 import { ShowClassSelection } from './ShowClassSelection';
@@ -107,14 +108,22 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
       {selectedClass && <ClassStatsCards selectedClass={selectedClass} />}
 
       {selectedClassId && (
-        <WaitlistTable
-          entries={filteredEntries}
-          selectedClass={selectedClass}
-          isLoading={isLoadingWaitlist}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onSetActionDialog={setActionDialog}
-        />
+        <>
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by dog..."
+            fields={[]}
+          />
+          <WaitlistTable
+            entries={filteredEntries}
+            selectedClass={selectedClass}
+            isLoading={isLoadingWaitlist}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onSetActionDialog={setActionDialog}
+          />
+        </>
       )}
 
       {!selectedShowId && !isLoadingShows && <NoShowSelectedState />}

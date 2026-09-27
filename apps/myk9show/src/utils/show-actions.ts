@@ -87,7 +87,7 @@ export function getTabQuickActions(
       }
 
       // No "Bulk Actions" button, for the same reason as Bulk Register above.
-      // The only bulk affordance in the app is CheckinBulkActions inside the
+      // The only bulk affordance in the app is SelfCheckinBulkBar inside the
       // Show Workbench, which is a different feature entirely.
 
       // Analytics is offered only when the feature is actually on. The route

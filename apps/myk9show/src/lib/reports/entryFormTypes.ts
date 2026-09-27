@@ -35,6 +35,8 @@ export interface EntryFormClass {
   trialId: string;
   element: string;
   level: string;
+  /** `classes.section` ("A" / "B"), normalized through `resolveClassSection`. */
+  section?: string | null;
 }
 
 /** A single entry for a dog in one class */
@@ -44,11 +46,20 @@ export interface EntryFormEntry {
   classId: string;
   element: string;
   level: string;
+  /** `classes.section` ("A" / "B"), normalized through `resolveClassSection`. */
+  section?: string | null;
   armband: number | null;
   handler: string | null;
   /** MYK9-570: `entries.handler_id` — the person behind the printed handler name. */
   handlerId: string | null;
   submittedAt: string | null;
+  /**
+   * MYK9-845: raw `entries.entry_status`, needed to skip withdrawn / scratched /
+   * not-accepted entries and the superseded half of a move-up (`'moved'`) when
+   * marking which classes a dog is entered in. Optional so existing fixtures
+   * that predate this field keep compiling.
+   */
+  entryStatus?: string | null;
 }
 
 /** Dog registration info from dog_registrations table */

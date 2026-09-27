@@ -34,7 +34,13 @@ import {
 import { useClassReleasedResults } from '@/hooks/queries/useClassReleasedResults';
 import { useClassDetailsData } from './useClassDetailsData';
 import { useClassDetailsDialogs } from './useClassDetailsDialogs';
-import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassStates';
+import {
+  ClassNotFoundState,
+  EmptyClassState,
+  GuestClassNotFoundState,
+  GuestClassUnavailableState,
+  LoadingClassState,
+} from './ClassStates';
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
@@ -58,10 +64,13 @@ const ClassDetailsPage: React.FC = () => {
   // Data hook
   const {
     classId,
+    showId,
     trialId,
     classes,
     currentClass,
     trialClasses,
+    guestClassState,
+    retryGuestClassRead,
     localRawEntries,
     dbRawEntries,
     staffShowRawEntries,
@@ -308,7 +317,21 @@ const ClassDetailsPage: React.FC = () => {
     classId,
   ]);
 
-  // Early returns for different states
+  // Early returns for different states. A guest's class is the server's
+  // answer only (MYK9-785), so its states never fall through to the ones below.
+  if (guestClassState === 'loading') return <LoadingClassState />;
+  if (guestClassState === 'offline' || guestClassState === 'error') {
+    return (
+      <GuestClassUnavailableState
+        offline={guestClassState === 'offline'}
+        onRetry={retryGuestClassRead}
+      />
+    );
+  }
+  if (guestClassState === 'ready' && !currentClass) {
+    return <GuestClassNotFoundState showId={showId} />;
+  }
+
   if (classId && !currentClass && trialClasses.length > 0) {
     return <ClassNotFoundState />;
   }

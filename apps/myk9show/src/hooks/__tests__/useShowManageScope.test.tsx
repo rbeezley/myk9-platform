@@ -64,7 +64,9 @@ function setup(args: {
 }
 
 describe('useShowManageScope', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('site admin — global, so ownership never gates them', () => {
     it('grants immediately while the show read is still in flight', () => {

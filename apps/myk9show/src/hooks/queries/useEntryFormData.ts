@@ -13,6 +13,7 @@ import {
   type PersonPrivateDetails,
 } from '@/services/database/users/personPrivate';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -147,7 +148,7 @@ async function fetchEntryFormData(
   // 2. Fetch classes
   const { data: classesRaw, error: classesError } = await supabase
     .from('classes')
-    .select('id, trial_id, element, level')
+    .select('id, trial_id, element, level, section')
     .in('trial_id', trialIds);
   throwIfUnread(classesError);
 
@@ -156,6 +157,7 @@ async function fetchEntryFormData(
     trialId: c.trial_id,
     element: c.element ?? '',
     level: c.level ?? '',
+    section: resolveClassSection(c.section) || null,
   }));
 
   // 3. Fetch entries
@@ -164,7 +166,10 @@ async function fetchEntryFormData(
     // MYK9-570: `handler_id` resolves the handler to a person, which is the only
     // way to reach their date of birth and AKC Junior Handler number. The
     // denormalized `handler` text stays the printed NAME.
-    .select('id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at')
+    // MYK9-845: `entry_status` lets the UKC grid skip withdrawn/scratched/moved entries.
+    .select(
+      'id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at, entry_status'
+    )
     .eq('show_id', showId)
     .is('deleted_at', null);
 
@@ -189,10 +194,12 @@ async function fetchEntryFormData(
       classId: e.class_id ?? '',
       element: cls?.element ?? '',
       level: cls?.level ?? '',
+      section: cls?.section ?? null,
       armband: e.armband != null ? Number(e.armband) : null,
       handler: e.handler,
       handlerId: e.handler_id ?? null,
       submittedAt: e.submitted_at,
+      entryStatus: e.entry_status ?? null,
     };
   });
 

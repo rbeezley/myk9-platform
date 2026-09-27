@@ -12,6 +12,7 @@ const saveHarness = vi.hoisted(() => ({
   updateShow: vi.fn(),
   runPublish: vi.fn(),
   persistJudges: vi.fn(),
+  publishJudges: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
@@ -21,6 +22,7 @@ vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
 }));
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
+  fetchShowJudgesForPublish: saveHarness.publishJudges,
 }));
 
 const manageScope = vi.hoisted(() => ({
@@ -461,6 +463,7 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
   it('persists the form changes even when the publish reservation fails', async () => {
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
     // Reservation fails (e.g. the RPC is not deployed yet), so the operation
     // rejects before it would ever call createPremium.
     saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
@@ -522,5 +525,58 @@ describe('Edit Show saves judges as a change from the loaded list', () => {
     await waitFor(() =>
       expect(saveHarness.persistJudges).toHaveBeenCalledWith('show-1', [], [judge('j3')])
     );
+  });
+});
+
+// MYK9-774: the form's judge list is a device read, empty when that read
+// failed, and publishing it put out a premium with no judges. The premium lists
+// the server's judges (fetchShowJudgesForPublish, tested in publishJudges.test.ts).
+describe('Save & Publish lists the server judges on the premium', () => {
+  it('publishes the judges the server returns, not the empty form list', async () => {
+    const loaded: unknown[] = [];
+    const saved: unknown[] = [];
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges
+      .mockReset()
+      .mockResolvedValue([
+        { judgeId: 'j1', judgeName: 'Pat Judge', assignedDate: '', assignedClasses: [] },
+      ]);
+    let published: { trials: { judges: { name: string }[] }[] } | undefined;
+    saveHarness.runPublish
+      .mockReset()
+      .mockImplementation(async (op: { createPremium: () => Promise<typeof published> }) => {
+        published = await op.createPremium();
+      });
+    saveHarness.payload = {
+      assignedJudges: saved,
+      publishExperience: true,
+      generatedPremium: {
+        ...generatedPremium(),
+        trials: [
+          {
+            name: 'Saturday',
+            date: '2026-05-01',
+            startTime: null,
+            eventNumber: null,
+            type: 'Scent Work',
+            judges: [],
+            classes: [],
+          },
+        ],
+      },
+    };
+
+    renderShell(
+      { show: { ...makeShow(), assignedJudges: loaded } as unknown as Show },
+      '/shows/show-1?edit=true'
+    );
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(published).toBeDefined());
+    expect(saveHarness.publishJudges).toHaveBeenCalledWith('show-1');
+    expect(published?.trials.map(trial => trial.judges.map(judge => judge.name))).toEqual([
+      ['Pat Judge'],
+    ]);
   });
 });

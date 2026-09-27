@@ -9,6 +9,8 @@ import { USER_ROLE_HIERARCHY } from '@/types/auth-types';
 export interface UserFilter {
   role: UserRoleType | 'all';
   status: 'active' | 'suspended' | 'all';
+  /** Sign-in recency bucket — see USER_LOGIN_FILTER_VALUES. */
+  login: UserLoginFilter;
   showDeleted: boolean;
   dateRange: {
     start: Date | null;
@@ -39,9 +41,18 @@ export const USER_ROLE_FILTER_VALUES = ['all', ...USER_ROLE_HIERARCHY] as const;
 
 export const USER_STATUS_FILTER_VALUES = ['all', 'active', 'suspended'] as const;
 
+/**
+ * Sign-in recency. `recent30`: signed in within 30 days. `dormant90`: has
+ * signed in, but not for 90+ days. `never`: no sign-in on record (invited or
+ * created by an admin and never used).
+ */
+export const USER_LOGIN_FILTER_VALUES = ['all', 'recent30', 'dormant90', 'never'] as const;
+export type UserLoginFilter = (typeof USER_LOGIN_FILTER_VALUES)[number];
+
 export const DEFAULT_USER_FILTER: UserFilter = {
   role: 'all',
   status: 'all',
+  login: 'all',
   showDeleted: false,
   dateRange: { start: null, end: null },
 };
@@ -57,19 +68,9 @@ export function hasActiveUserFilters(filters: UserFilter, searchTerm: string): b
     searchTerm.trim() !== '' ||
     filters.role !== 'all' ||
     filters.status !== 'all' ||
+    filters.login !== 'all' ||
     filters.showDeleted ||
     filters.dateRange.start !== null ||
     filters.dateRange.end !== null
   );
-}
-
-/** How many filter dimensions are active — shown on the Filters button. */
-export function countActiveUserFilters(filters: UserFilter): number {
-  let count = 0;
-  if (filters.role !== 'all') count += 1;
-  if (filters.status !== 'all') count += 1;
-  if (filters.showDeleted) count += 1;
-  if (filters.dateRange.start !== null) count += 1;
-  if (filters.dateRange.end !== null) count += 1;
-  return count;
 }

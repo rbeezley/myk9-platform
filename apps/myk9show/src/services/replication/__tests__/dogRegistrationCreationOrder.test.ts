@@ -42,7 +42,9 @@ describe('locally created registrations carry a usable creation order', () => {
     );
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('assigns createdAt through the real creation path', async () => {
     const saved = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog('dog-1', [

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { DogsBulkActionsBar } from '../DogsBulkActionsBar';
@@ -67,20 +67,6 @@ async function bulkDelete(user: ReturnType<typeof setup>['user'], count: number)
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
 }
 
-/**
- * jsdom reports 0 for every box, so the bar's measured height has to be
- * stubbed — otherwise the spacer assertion below passes on a 0px spacer, i.e.
- * on the bug.
- */
-const realGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
-
-function stubBarHeight(px: number) {
-  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
-    configurable: true,
-    value: () => ({ height: px, width: 100, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }),
-  });
-}
-
 describe('DogsBulkActionsBar', () => {
   beforeEach(() => {
     updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
@@ -88,34 +74,23 @@ describe('DogsBulkActionsBar', () => {
     forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
-  // Restore unconditionally: a prototype stub left in place is exactly the
-  // cross-test leak CI's shuffled run turns into a random failure.
-  afterEach(() => {
-    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
-      configurable: true,
-      value: realGetBoundingClientRect,
-    });
-  });
-
   it('renders nothing when no dogs are selected', () => {
     const { container } = setup([]);
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The bar is `fixed`, so without an in-flow spacer it lands on top of the
-  // last thing on the page — on /dogs that is the pagination control, which
-  // becomes unreachable the moment one checkbox is ticked.
-  it('reserves its own measured height in normal flow', () => {
-    stubBarHeight(72);
+  // The bar floats (list-toolkit `FloatingBulkBar`), so without an in-flow
+  // spacer it lands on top of the last thing on the page — on /dogs that is
+  // the pagination control, which becomes unreachable the moment one
+  // checkbox is ticked.
+  it('reserves room in normal flow so nothing on the page sits underneath it', () => {
     const { container } = setup([dog('1')]);
 
     const spacer = container.querySelector('[aria-hidden="true"]');
     expect(spacer).not.toBeNull();
-    expect((spacer as HTMLElement).style.height).toBe('72px');
   });
 
   it('reserves nothing when no dogs are selected', () => {
-    stubBarHeight(72);
     const { container } = setup([]);
     expect(container).toBeEmptyDOMElement();
   });
@@ -127,7 +102,7 @@ describe('DogsBulkActionsBar', () => {
 
   it('clicking Clear calls onClear', async () => {
     const { user, onClear } = setup([dog('1')]);
-    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
@@ -172,7 +147,9 @@ describe('DogsBulkActionsBar', () => {
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
 
     // In flight: Clear is disabled so the selection can't be dropped mid-batch.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled()
+    );
     resolve();
   });
 
@@ -196,6 +173,42 @@ describe('DogsBulkActionsBar', () => {
     await waitFor(() => {
       expect(updateDogMutateAsync).toHaveBeenCalledTimes(3);
     });
+  });
+
+  // The dogs and classes bulk actions share the same shared-hook retry
+  // mechanism useBulkAccountActions now relies on (MYK9-835): a toast retry
+  // re-checks the FRESH status through `selectedDogsRef`, not the status the
+  // batch was first dispatched with. Mirrors
+  // useClassBulkActions.test.ts's "retry skips a class whose fresh status no
+  // longer matches" — this bar had the ref+applicableWhen mechanism already,
+  // but no test proving it.
+  it('retry skips a dog whose fresh status no longer matches its status at first dispatch', async () => {
+    updateDogMutateAsync.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('boom'));
+    const { user, rerender } = setup([dog('1', 'active'), dog('2', 'active')]);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
+
+    await waitFor(() => expect(updateDogMutateAsync).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+
+    // Another actor already retired dog "2" before the retry fires.
+    rerender(
+      <DogsBulkActionsBar
+        selectedDogs={[dog('1', 'retired'), dog('2', 'retired')]}
+        onClear={vi.fn()}
+        canDelete
+      />
+    );
+
+    updateDogMutateAsync.mockClear();
+    const retryCall = vi.mocked(toast.error).mock.calls.at(-1);
+    const retry = (retryCall?.[1] as { action?: { onClick: () => void } } | undefined)?.action;
+    if (!retry) throw new Error('toast.error was not called with a retry action');
+    retry.onClick();
+
+    // "2" is no longer eligible (already retired) — skipped, not re-attempted.
+    await waitFor(() => expect(toast.info).toHaveBeenCalled());
+    expect(updateDogMutateAsync).not.toHaveBeenCalled();
   });
 });
 

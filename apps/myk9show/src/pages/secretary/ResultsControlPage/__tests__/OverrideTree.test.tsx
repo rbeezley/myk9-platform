@@ -69,7 +69,9 @@ function renderTree(opts?: {
 }
 
 describe('OverrideTree', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders only visibility controls in visibility mode', () => {
     renderTree();

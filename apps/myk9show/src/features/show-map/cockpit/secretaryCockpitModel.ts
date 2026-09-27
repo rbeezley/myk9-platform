@@ -1,4 +1,10 @@
 import { formatTrialLabel } from '@myk9/core';
+import type { RegistryId } from '@/features/registries';
+import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
+import {
+  buildCockpitClassLabelResolver,
+  compareCockpitClasses,
+} from './secretaryCockpitClassLabel';
 import type {
   CockpitAttentionKind,
   CockpitFilter,
@@ -21,7 +27,6 @@ import type {
 
 const ATTENTION_LIMIT = 3;
 const PREPARATION_WINDOW_MINUTES = 30;
-const MINUTES_PER_DAY = 24 * 60;
 const PRE_CLASS_PAPERWORK = new Set(['check-in-sheet', 'scoresheet', 'armband-labels']);
 
 const ATTENTION_PRIORITY: Record<CockpitAttentionKind, number> = {
@@ -180,6 +185,7 @@ function primaryActionFor(cls: SecretaryCockpitClass): SecretaryCockpitAction | 
 
 function toScheduledClass(
   cls: SecretaryCockpitClass,
+  label: string,
   timeZone: string,
   derivedAttentionCount = cls.attention.length
 ): ScheduledClassModel {
@@ -187,7 +193,7 @@ function toScheduledClass(
   return {
     id: cls.id,
     trialId: cls.trialId,
-    name: cls.name,
+    name: label,
     timeLabel:
       formatClock(cls.revisedExpectedStart, timeZone) ??
       formatClock(scheduledStart, timeZone) ??
@@ -204,12 +210,13 @@ function toScheduledClass(
   };
 }
 
-function sortClasses(classes: readonly SecretaryCockpitClass[]): SecretaryCockpitClass[] {
-  return [...classes].sort((a, b) => {
-    const aTime = parseTime(a.scheduledStart) ?? MINUTES_PER_DAY;
-    const bTime = parseTime(b.scheduledStart) ?? MINUTES_PER_DAY;
-    return aTime - bTime || a.classOrder - b.classOrder || a.name.localeCompare(b.name);
-  });
+function sortClasses(
+  classes: readonly SecretaryCockpitClass[],
+  registryId: RegistryId
+): SecretaryCockpitClass[] {
+  return [...classes].sort((a, b) =>
+    compareCockpitClasses(a, b, cls => parseTime(cls.scheduledStart), registryId)
+  );
 }
 
 function classesForDay(
@@ -219,24 +226,12 @@ function classesForDay(
 ): SecretaryCockpitClass[] {
   return trials
     .filter(trial => trial.date === selectedDay)
-    .flatMap(trial => sortClasses(snapshot.classes.filter(cls => cls.trialId === trial.id)));
-}
-
-function matchesFilter(
-  cls: SecretaryCockpitClass,
-  filter: CockpitFilter,
-  derivedAttentionCount: number
-): boolean {
-  switch (filter) {
-    case 'in-progress':
-      return cls.lifecycle === 'in-progress';
-    case 'needs-attention':
-      return derivedAttentionCount > 0;
-    case 'needs-closeout':
-      return cls.closeout === 'needs-closeout';
-    case 'all':
-      return true;
-  }
+    .flatMap(trial =>
+      sortClasses(
+        snapshot.classes.filter(cls => cls.trialId === trial.id),
+        snapshot.registryId
+      )
+    );
 }
 
 function nowMarkerIndex(
@@ -364,10 +359,11 @@ function paperworkEvidence(state: SecretaryCockpitPaperwork['state']): EvidenceK
 
 function toFocusedClass(
   cls: SecretaryCockpitClass,
+  label: string,
   timeZone: string,
   derivedAttentionCount: number
 ): FocusedClassModel {
-  const scheduled = toScheduledClass(cls, timeZone, derivedAttentionCount);
+  const scheduled = toScheduledClass(cls, label, timeZone, derivedAttentionCount);
   const actionsFor = (group: SecretaryCockpitAction['group']) =>
     cls.actions.filter(action => action.group === group);
   return {
@@ -389,19 +385,18 @@ function buildTrialGroups(
   focusedClassId: string | undefined,
   filter: CockpitFilter,
   trials: readonly SecretaryCockpitTrial[],
-  attention: readonly SecretaryCockpitAttention[]
+  attentionCountByClass: ReadonlyMap<string, number>,
+  labelOf: (cls: SecretaryCockpitClass) => string
 ): TrialScheduleGroupModel[] {
-  const attentionCountByClass = new Map<string, number>();
-  for (const item of attention) {
-    if (!item.classId) continue;
-    attentionCountByClass.set(item.classId, (attentionCountByClass.get(item.classId) ?? 0) + 1);
-  }
   return trials
     .filter(trial => trial.date === selectedDay)
     .map(trial => {
-      const allClasses = sortClasses(snapshot.classes.filter(cls => cls.trialId === trial.id));
+      const allClasses = sortClasses(
+        snapshot.classes.filter(cls => cls.trialId === trial.id),
+        snapshot.registryId
+      );
       const visibleClasses = allClasses.filter(cls =>
-        matchesFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
+        matchesCockpitFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
       );
       return {
         trialId: trial.id,
@@ -409,7 +404,12 @@ function buildTrialGroups(
         date: trial.date,
         label: `${formatTrialIdentity(trial)} · ${formatTrialDate(trial.date)}`,
         classes: visibleClasses.map(cls =>
-          toScheduledClass(cls, snapshot.timeZone, attentionCountByClass.get(cls.id) ?? 0)
+          toScheduledClass(
+            cls,
+            labelOf(cls),
+            snapshot.timeZone,
+            attentionCountByClass.get(cls.id) ?? 0
+          )
         ),
         nowMarkerIndex: nowMarkerIndex(visibleClasses, selectedDay, snapshot),
         summary: {
@@ -439,6 +439,8 @@ export function buildSecretaryCockpitModel(
   const dayClasses = classesForDay(snapshot, trials, selectedDay);
   const focused = focusClass(dayClasses, state.focusedClassId);
   const allAttention = buildAttention(snapshot, selectedDay, trials);
+  const attentionCountByClass = buildAttentionCountByClass(allAttention);
+  const labelOf = buildCockpitClassLabelResolver(snapshot.classes);
 
   return {
     day: {
@@ -451,17 +453,27 @@ export function buildSecretaryCockpitModel(
       all: allAttention,
       overflowCount: Math.max(0, allAttention.length - ATTENTION_LIMIT),
     },
+    // Every Class scheduled today, unfiltered by `state.filter` -- `trialGroups`
+    // below is a `state.filter`-scoped slice of these same annotated rows. The
+    // view-tab counts in `secretaryCockpitViews.ts` filter this array directly
+    // with `matchesCockpitFilter`, so a tab's count can't diverge from what
+    // the schedule renders (MYK9-812).
+    daySchedule: dayClasses.map(cls =>
+      toScheduledClass(cls, labelOf(cls), snapshot.timeZone, attentionCountByClass.get(cls.id) ?? 0)
+    ),
     trialGroups: buildTrialGroups(
       snapshot,
       selectedDay,
       focused?.id,
       state.filter,
       trials,
-      allAttention
+      attentionCountByClass,
+      labelOf
     ),
     focusedClass: focused
       ? toFocusedClass(
           focused,
+          labelOf(focused),
           snapshot.timeZone,
           allAttention.filter(item => item.classId === focused.id).length
         )

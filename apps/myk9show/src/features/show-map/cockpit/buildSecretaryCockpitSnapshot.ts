@@ -1,4 +1,4 @@
-import { getTrialTimezone } from '@/features/registries';
+import { getTrialTimezone, resolveConfiguredRegistryId } from '@/features/registries';
 
 import {
   getAttentionActions,
@@ -229,10 +229,14 @@ export function buildSecretaryCockpitSnapshot({
   paperworkByClassId,
 }: BuildSecretaryCockpitSnapshotInput): SecretaryCockpitSnapshot {
   const timeZone = getTrialTimezone(trials[0]);
+  // A show is single-registry by rule (MYK9-490), so the first trial's
+  // registry speaks for all of them — same convention as getTrialTimezone above.
+  const registryId = resolveConfiguredRegistryId(trials[0]?.registryId) ?? 'AKC';
 
   return {
     showId,
     timeZone,
+    registryId,
     now,
     trials: trials.map((trial, index) => ({
       id: trial.id,
@@ -268,6 +272,9 @@ export function buildSecretaryCockpitSnapshot({
         id: classItem.id,
         trialId: classItem.trialId,
         name: classItem.name,
+        element: classItem.element ?? null,
+        level: classItem.level ?? null,
+        section: classItem.section ?? null,
         classOrder: classItem.displayOrder ?? index,
         scheduledStart: classItem.time ?? null,
         revisedExpectedStart: classItem.revisedExpectedStart ?? null,

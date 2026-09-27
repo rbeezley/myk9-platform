@@ -89,7 +89,7 @@ export async function getWaitlistReportRows(
   classIds: readonly string[]
 ): Promise<ReportWaitlistRow[]> {
   if (classIds.length === 0) return [];
-  const allWaitlist = await replicatedWaitlistEntriesTable.getAll();
+  const allWaitlist = await replicatedWaitlistEntriesTable.getAllOrThrow();
 
   const inScope = new Set(classIds);
   const localWaiting = filterQueuedWaitlistEntries(allWaitlist).filter(row =>

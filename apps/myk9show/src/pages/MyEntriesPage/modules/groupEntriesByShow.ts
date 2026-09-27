@@ -239,6 +239,31 @@ export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
   });
 }
 
+/**
+ * Index every key a FILTERED grouping run could resolve a show to, onto the
+ * group built from this (unfiltered) order set — so money that must ignore
+ * the When/Status filters (the paid confirmation strip, MYK9-804) can look up
+ * a show's complete orders from whatever key the filtered run produced,
+ * including the degraded name+date fallback.
+ *
+ * A filtered subset and the full set can genuinely disagree on which key form
+ * `resolveShowKey` picks (a filtered run missing every resolved-showId order
+ * for a show falls back to name+date even though the full run resolved a real
+ * showId), so every order's OWN showId and name+date are indexed, not just
+ * the group's own settled `key`.
+ */
+export function buildShowGroupIndex(orders: MyEntry[]): Map<string, MyShowGroup> {
+  const index = new Map<string, MyShowGroup>();
+  for (const group of groupEntriesByShow(orders)) {
+    index.set(group.key, group);
+    for (const order of group.orders) {
+      if (order.showId) index.set(order.showId, group);
+      index.set(nameDateKey(order), group);
+    }
+  }
+  return index;
+}
+
 /** Index a group's orders by id — the lookup `dayCheckIn` needs per class row. */
 export function indexOrdersById(group: MyShowGroup): Record<string, MyEntry> {
   return group.orders.reduce<Record<string, MyEntry>>((byId, order) => {

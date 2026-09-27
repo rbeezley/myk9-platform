@@ -69,8 +69,23 @@ export interface EntryClass {
    * mix paid and pending class rows, and collapsing them to the first row's
    * status is what produced the My Shows vs My Payments contradiction
    * (exhibitor-money-clarity). See `buildOrderBalance`.
+   *
+   * This is the DISPLAY status: `resolveEffectivePaymentStatus` folds it
+   * against the order's registration, which deliberately downgrades a truly
+   * paid row to PENDING when a sibling entry on the same registration still
+   * owes (MYK9-495's secretary-attention direction). That fold is wrong for a
+   * "did this row's money arrive" question — see `rawPaymentStatus`.
    */
   paymentStatus?: PaymentStatus | undefined;
+  /**
+   * This ROW's own `entries.payment_status` column, mapped but never folded
+   * against the order/registration status. Ground truth for whether THIS
+   * row's money arrived, independent of a sibling entry's balance — the paid
+   * confirmation strip (`derivePaidStrip`) reads this instead of
+   * `paymentStatus`, or a paid row disappears from the banner whenever a
+   * sibling on the same registration is still unpaid (MYK9-804).
+   */
+  rawPaymentStatus?: PaymentStatus | undefined;
   /** This ROW's own raw `entries.payment_method` (DB vocabulary). */
   paymentMethod?: string | null | undefined;
   checkInStatus?: CheckInStatus | undefined;

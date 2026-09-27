@@ -240,8 +240,41 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
 
     expect(screen.queryByText('Old task')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Show completed'));
+    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
     expect(screen.getByText('Old task')).toBeInTheDocument();
+  });
+
+  it('search narrows the task list by title', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [makeTask({ id: 't-1', title: 'Call vet' }), makeTask({ id: 't-2', title: 'Print armbands' })],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    fireEvent.change(screen.getByPlaceholderText('Search tasks...'), {
+      target: { value: 'armbands' },
+    });
+
+    expect(screen.queryByText('Call vet')).not.toBeInTheDocument();
+    expect(screen.getByText('Print armbands')).toBeInTheDocument();
+  });
+
+  it('the Open/All view tabs count open tasks and every task respectively', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [
+        makeTask({ id: 't-1', title: 'Open task', status: 'todo' }),
+        makeTask({ id: 't-2', title: 'Done task', status: 'done', dueDate: undefined }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.getByRole('button', { name: 'Open1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All2' })).toBeInTheDocument();
   });
 
   it('reserves min-height in the loading skeleton to prevent CLS', () => {

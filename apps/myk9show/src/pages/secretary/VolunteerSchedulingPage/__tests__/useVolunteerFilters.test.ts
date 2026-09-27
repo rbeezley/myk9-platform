@@ -143,4 +143,34 @@ describe('useVolunteerFilters', () => {
     });
     expect(result.current.filteredClasses).toHaveLength(1);
   });
+
+  it('computes allCount/unfilledCount for the view tabs, independent of the unfilledOnly toggle', () => {
+    const { result } = renderHook(() =>
+      useVolunteerFilters({ classes, classAssignments, generalAssignments })
+    );
+    // allCount ignores unfilled state entirely: both classes + every duty role.
+    expect(result.current.allCount).toBe(classes.length + GENERAL_DUTY_ROLES.length);
+    // c-1 (Gate Steward filled, others open) and c-2 (nothing filled) both count
+    // as unfilled; Hospitality has an assignment so it alone drops from duties.
+    expect(result.current.unfilledCount).toBe(classes.length + GENERAL_DUTY_ROLES.length - 1);
+  });
+
+  it('scopes allCount/unfilledCount by search and trial like the list itself', () => {
+    const { result } = renderHook(() =>
+      useVolunteerFilters({ classes, classAssignments, generalAssignments })
+    );
+    act(() => result.current.setTrialFilter('t-1'));
+    expect(result.current.allCount).toBe(1 + GENERAL_DUTY_ROLES.length);
+    expect(result.current.unfilledCount).toBe(1 + GENERAL_DUTY_ROLES.length - 1);
+  });
+
+  it('toggling unfilledOnly does not change the view-tab counts themselves', () => {
+    const { result } = renderHook(() =>
+      useVolunteerFilters({ classes, classAssignments, generalAssignments })
+    );
+    const before = { all: result.current.allCount, unfilled: result.current.unfilledCount };
+    act(() => result.current.setUnfilledOnly(true));
+    expect(result.current.allCount).toBe(before.all);
+    expect(result.current.unfilledCount).toBe(before.unfilled);
+  });
 });

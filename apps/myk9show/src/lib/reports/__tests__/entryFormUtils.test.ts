@@ -110,6 +110,82 @@ describe('buildClassGrid', () => {
     expect(cell?.checkedLevels.size).toBe(0);
     expect(cell?.noviceClass).toBeNull();
   });
+
+  it('checks an active entry', () => {
+    const entries: EntryFormEntry[] = [
+      {
+        id: 'e1',
+        trialId: 'trial-1',
+        classId: 'c1',
+        element: 'Container',
+        level: 'Excellent',
+        armband: 101,
+        handler: null,
+        handlerId: null,
+        submittedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ];
+    const grid = buildClassGrid(entries, trials);
+    const cell = grid.get('trial-1')?.get('Container');
+    expect(cell?.checkedLevels.has('Excellent')).toBe(true);
+  });
+
+  it('does not check a withdrawn entry', () => {
+    const entries: EntryFormEntry[] = [
+      {
+        id: 'e1',
+        trialId: 'trial-1',
+        classId: 'c1',
+        element: 'Container',
+        level: 'Excellent',
+        armband: 101,
+        handler: null,
+        handlerId: null,
+        submittedAt: null,
+        entryStatus: 'withdrawn',
+      },
+    ];
+    const grid = buildClassGrid(entries, trials);
+    const cell = grid.get('trial-1')?.get('Container');
+    expect(cell?.checkedLevels.has('Excellent')).toBe(false);
+  });
+
+  it('shows only the current class for a dog with a superseded move-up pair', () => {
+    // The Novice run was moved up to Advanced Container: the superseded
+    // source entry carries entry_status = 'moved' and must not be checked,
+    // only the live Advanced destination should be checked.
+    const entries: EntryFormEntry[] = [
+      {
+        id: 'e-novice-superseded',
+        trialId: 'trial-1',
+        classId: 'c1',
+        element: 'Container',
+        level: 'Novice',
+        armband: 101,
+        handler: null,
+        handlerId: null,
+        submittedAt: null,
+        entryStatus: 'moved',
+      },
+      {
+        id: 'e-advanced-current',
+        trialId: 'trial-1',
+        classId: 'c2',
+        element: 'Container',
+        level: 'Advanced',
+        armband: 101,
+        handler: null,
+        handlerId: null,
+        submittedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ];
+    const grid = buildClassGrid(entries, trials);
+    const cell = grid.get('trial-1')?.get('Container');
+    expect(cell?.checkedLevels.has('Novice')).toBe(false);
+    expect(cell?.checkedLevels.has('Advanced')).toBe(true);
+  });
 });
 
 describe('groupEntriesByDog', () => {

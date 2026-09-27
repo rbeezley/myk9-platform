@@ -1,0 +1,54 @@
+## 0. Gate — owner approval and sequencing
+
+- [ ] 0.1 Owner reviews `proposal.md`, `design.md`, and the three `specs/` deltas, and resolves every `OWNER DECISION` line in `design.md` (edit this change or record the decisions on the MYK9-812 Linear issue) — verify by confirming no `OWNER DECISION` line remains unresolved before task 1.1 starts.
+- [ ] 0.2 Confirm MYK9-842 has merged to `main` before starting Section 1 (People roster) — verify with `git log origin/main --grep=MYK9-842 --oneline` returning a commit, or the Linear issue's status showing Done.
+- [ ] 0.3 Re-read `ShowDeskPeopleRoster.tsx`, `peopleRoster.ts`, and `showDeskPendingSignals.ts` off the merged `main` (not off this document's snapshot) before writing task 1.2, since MYK9-842 changes check-in-eligibility and trial-identity formatting in this same area — verify by diffing the re-read files against the versions quoted in `design.md` §1 and updating the mapping in this change if anything shifted.
+
+## 1. Surface A — People roster (own PR, branch `claude/myk9-812a-people-roster-list-toolkit`)
+
+- [ ] 1.1 Add `usePeopleRosterUrlState` (mirrors `useSecretaryCockpitUrlState`'s shape) reading/writing a normalized `?view=` param, replacing the one-way `rosterFilter` read — verify with a unit test round-tripping all three view ids plus an invalid value normalizing to `all`.
+- [ ] 1.2 Replace the bespoke search `<Input>`/`<Search>` block with `ListFilterBar` (`fields=[]`) and the bespoke `FILTERS` pill row with `ListViewTabs`, wiring counts from `filterPeopleRoster` run per view over the in-memory `roster` — verify with a component test asserting each tab's count matches `filterPeopleRoster(roster, '', viewId).length`.
+- [ ] 1.3 Per resolved OWNER DECISION: add `ListResultLine` and/or move `search` into the URL, or explicitly skip — verify by matching whatever the resolved decision says, with a test for whichever path was taken.
+- [ ] 1.4 Delete the local `search`/`filter` `useState`s and the deleted markup blocks named in `design.md` §1.3 — verify with a diff review showing no dead state remains and `pnpm qa:code-quality-ratchet` passing (this file loses lines; ratchet should not regress).
+- [ ] 1.5 Update `ShowDeskPeopleRoster.test.tsx` in the style of its existing tests (`render` from `@/test/utils/testUtils`, `describe('ShowDeskPeopleRoster', ...)`) to cover: default view is `all exhibitors`, switching views narrows rows and updates the URL, a deep link with `?view=needs-check-in` still opens pre-filtered (replacing the `?rosterFilter=` assertion), and search still matches name/dog/armband — verify by running `pnpm vitest run src/features/show-desk-people-roster/ShowDeskPeopleRoster.test.tsx` green.
+- [ ] 1.6 Offline test: with the device network disabled (Playwright `context.setOffline(true)` or the existing offline-test harness this app's other show-day suites use), verify the roster still renders from replicated `entries`/`classes`, view-tab counts still compute, and `Check in all eligible` still succeeds through the replicated path — verify by a passing offline-marked test alongside the existing `'checks in an eligible class row through the replicated path'` test.
+- [ ] 1.7 Confirm the added `show-desk-people-roster` spec requirement ("does not gain cross-exhibitor bulk selection") holds — verify with a test asserting no checkbox or multi-select control renders anywhere in the roster.
+- [ ] 1.8 `pnpm typecheck`, `pnpm lint`, `pnpm format:check:changed`, shuffled run of touched test files (`pnpm vitest run <files> --sequence.shuffle`, six times if this batch adds module-scope mutable state, once otherwise) — verify all green.
+- [ ] 1.9 Open the PR, run `pnpm qa:review-tier --base origin/main` for the review floor, get it reviewed and merged per `docs/PLAYBOOK.md` §4 before starting Section 2, 3, or 4's PR review (they may start their own implementation in parallel worktrees, but each still merges through its own gate) — verify with `bash scripts/qa/watch-pr-checks.sh <pr>` reporting green.
+
+## 2. Surface B — Cockpit schedule (own PR, branch `claude/myk9-812b-cockpit-schedule-list-toolkit`)
+
+- [ ] 2.1 Replace the bespoke `FILTERS` pill row in `SecretaryCockpitSchedule.tsx` with `ListViewTabs`, keeping the existing `filter`/`onFilterChange` prop contract (already URL-backed by `useSecretaryCockpitUrlState`) unchanged, and wiring each view's count from the same `model`/`sourceClasses` this component already receives — verify with a component test asserting tab counts match the number of classes each filter currently shows.
+- [ ] 2.2 Delete the bespoke `FILTERS` array and its rendering block — verify with a diff review and `pnpm qa:code-quality-ratchet`.
+- [ ] 2.3 Update `SecretaryCockpitSchedule.test.tsx` to assert the same filter behavior through `ListViewTabs` (all four views still narrow without reordering remaining classes, per `secretary-class-operations-cockpit`'s stable-schedule requirement) — verify by running `pnpm vitest run src/features/show-map/cockpit/SecretaryCockpitSchedule.test.tsx` green.
+- [ ] 2.4 Offline test: with the device offline, verify the schedule still renders from the replicated `useTrialStore` data traced in `design.md` §2.4, filter switching still works, and per-row `ClassStatusControl`/`ExpectedStartControl` mutations still queue — verify by a passing offline-marked test.
+- [ ] 2.5 `pnpm typecheck`, `pnpm lint`, `pnpm format:check:changed`, shuffled run of touched test files — verify all green.
+- [ ] 2.6 Open the PR, review, merge per `docs/PLAYBOOK.md` §4 — verify with `bash scripts/qa/watch-pr-checks.sh <pr>` reporting green.
+
+## 3. Surface C — Self check-in tool (own PR, branch `claude/myk9-812c-self-checkin-list-toolkit`)
+
+- [ ] 3.1 Replace `CheckinBulkActions`'s inline bar with `FloatingBulkBar`, keeping the same `useBulkSelection` instance and the same `useBulkUpdateClassOverrides().mutate` call for Enable/Disable — verify with a component test asserting the bar is floating (not in normal document flow) and both mutation calls fire with the same payload shape as before.
+- [ ] 3.2 Apply the resolved OWNER DECISION on the "Select all (M)" button's fate inside the new bar — verify with a test matching whichever was decided.
+- [ ] 3.3 Delete the `CheckinBulkActions` function and its inline-bar JSX — verify with a diff review and `pnpm qa:code-quality-ratchet`.
+- [ ] 3.4 Update `SelfCheckinTool.test.tsx` to assert bulk selection and the floating bar behave identically to the removed inline bar (select classes, Enable/Disable, Clear, per-trial select-all) — verify by running `pnpm vitest run src/features/show-workbench/SelfCheckinTool.test.tsx` green.
+- [ ] 3.5 Offline test: with the device offline, verify the tree still renders from replicated schedule data, and separately assert (do not silently pass) that the Enable/Disable mutation is the pre-existing online-only path named in `design.md` §3.4 — this task documents current behavior, it does not add offline support — verify with a test that asserts the mutation surfaces a clear retry-oriented error when offline, matching whatever error handling exists today (add one if none exists, per the resolved OWNER DECISION on filing a follow-up issue).
+- [ ] 3.6 `pnpm typecheck`, `pnpm lint`, `pnpm format:check:changed`, shuffled run of touched test files — verify all green.
+- [ ] 3.7 Open the PR, review, merge per `docs/PLAYBOOK.md` §4 — verify with `bash scripts/qa/watch-pr-checks.sh <pr>` reporting green.
+
+## 4. Surface D — Results Control (own PR, branch `claude/myk9-812d-results-control-list-toolkit`)
+
+- [ ] 4.1 Replace `BulkOperationsBar`'s fixed full-width footer with `FloatingBulkBar`, keeping the same `useBulkSelection` instance, the same "Apply Preset" `Select`, and the same two `AlertDialog`-confirmed Release/Hide actions with unchanged eligibility gating and toast wording — verify with component tests asserting each action's dispatch, eligibility gating, and toast copy are byte-identical to today's.
+- [ ] 4.2 Delete `BulkOperationsBar.tsx`; move its JSX inline (or into a small page-owned "bar contents" component) as the `FloatingBulkBar`'s children — verify with a diff review, `pnpm qa:code-quality-ratchet`, and confirming no import of the deleted file remains.
+- [ ] 4.3 Re-check the page's `pb-44 sm:pb-28` bottom-padding spacer against the kit's floating (bottom-centre) bar shape and adjust to whatever spacing convention Entry Management's adoption established — verify visually (or with a snapshot/measurement test) that no content is obscured at mobile, tablet, and desktop widths.
+- [ ] 4.4 Apply the resolved OWNER DECISION on the "Select All (M)" button's fate, matching Surface C's decision — verify with a test matching whichever was decided.
+- [ ] 4.5 Update `BulkOperationsBar.test.tsx`/`OverrideTree.test.tsx` (both existing suites, per `pages/secretary/ResultsControlPage/__tests__/` and `pages/secretary/__tests__/`) to assert the same behavior through `FloatingBulkBar` — verify by running both suites green.
+- [ ] 4.6 Offline test: with the device offline, verify Release Results / Hide Results still queue through `replicatedClassesTable.updateClass` and succeed, and separately assert (do not silently pass) that "Apply Preset" is the pre-existing online-only path named in `design.md` §4.4, adding the same clear-error test as Surface C if none exists — verify with passing offline-marked tests distinguishing the two behaviors.
+- [ ] 4.7 `pnpm typecheck`, `pnpm lint`, `pnpm format:check:changed`, shuffled run of touched test files — verify all green.
+- [ ] 4.8 Open the PR, review, merge per `docs/PLAYBOOK.md` §4 — verify with `bash scripts/qa/watch-pr-checks.sh <pr>` reporting green.
+
+## 5. Batch close-out
+
+- [ ] 5.1 After all four PRs have merged, run `opsx:verify` against the integrated `main` tree to confirm the implementation matches this change's specs and design — verify by resolving any CRITICAL findings before archiving.
+- [ ] 5.2 If either "Select all (M)" OWNER DECISION resulted in filing a follow-up Linear issue for the online-only override paths, confirm it was filed and link it from both surface PRs' descriptions — verify with the issue link present in each PR.
+- [ ] 5.3 `opsx:archive` this change, flipping any tracking doc reference to `Complete` per `docs/README.md`'s plan lifecycle rules — verify the change moves to `openspec/changes/archive/` and `docs/README.md` no longer lists it as in-flight.
+- [ ] 5.4 Post a closing comment on MYK9-812 summarizing the four merged PRs, and move MYK9-812 to Done only after re-reading its full acceptance criteria with `get_issue` — verify each criterion against the merged code, not this plan.

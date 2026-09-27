@@ -36,13 +36,13 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 
 ## Risks / Trade-offs
 
-- [Self check-in / Results-visibility overrides are online-only today, and this batch reskins their bulk bar without changing that] → Each surface section below states the fact plainly and each carries its own OWNER DECISION on whether to file a follow-up now. Not fixing it silently is the important part — the risk is someone reading a future PR's green "offline" test for the _schedule_ half of the page and assuming the _settings_ half is covered too.
+- [Self check-in / Results-visibility overrides are online-only today, and this batch reskins their bulk bar without changing that] → Each surface section below states the fact plainly; the owner decided (2026-09-27) to file one follow-up, MYK9-849, covering both surfaces rather than filing twice. Not fixing it silently is the important part — the risk is someone reading a future PR's green "offline" test for the _schedule_ half of the page and assuming the _settings_ half is covered too.
 - [Four sequential PRs against a kit that Entry Management is the only other adopter of] → If Entry Management's own kit adoption needs a follow-up fix mid-batch, re-check each surface's mapping against the fixed kit before starting that surface's PR.
 - [MYK9-842 lands in the same file the People roster PR touches] → Sequencing below; re-read `ShowDeskPeopleRoster.tsx`/`peopleRoster.ts` off `main` right before starting that PR, not off this document's snapshot.
 
 ## Migration Plan
 
-1. Owner reviews this change (proposal.md, design.md, the three spec deltas) and resolves every `OWNER DECISION` line below, either inline on the Linear issue or by editing this change before it is applied.
+1. Owner reviewed this change (proposal.md, design.md, the three spec deltas) and resolved every decision below (owner, 2026-09-27 — recorded in each surface's `DECIDED` block and on the MYK9-812 Linear issue).
 2. **Wait for MYK9-842 to merge** before starting the People roster PR. MYK9-842 (in progress at proposal time) changes `apps/myk9show/src/features/show-map/showDeskPendingSignals.ts`'s check-in-eligibility signal and, per its "also deferred" section, touches same-day-trial-name disambiguation in `packages/core/src/utils/trialLabel.ts` — the same trial-identity formatting `ShowDeskPeopleRoster.tsx` imports (`formatTrialIdentity`) and the same eligibility semantics its view-tab counts must reflect. Building the People roster PR against pre-842 code would need a rebase that re-touches the same eligibility logic this kit change must not alter.
 3. Build order for the remaining three surfaces (Cockpit schedule, Self check-in, Results Control) has no cross-dependency on MYK9-842 or on each other; they may proceed in any order once this proposal is approved, each as its own PR per `tasks.md`.
 4. Each PR: `opsx:apply` against this change's tasks for that surface, focused + shuffled tests, `pnpm qa:review-tier`, merge, then the next surface starts from the merged `main`.
@@ -80,11 +80,11 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 - Check-in mutation ← `updateReplicatedCheckInStatus` (replicated path), dispatched through the existing bounded `dispatchBulk` pool. Untouched by this change.
 - View-tab counts must be pure client-side re-filters of the already-loaded `roster` array (per the added "count derivation remains covered" spec scenario) — no new query, no new loading state.
 
-**5. OWNER DECISION:**
+**5. DECIDED (owner, 2026-09-27):**
 
-- Add a `ListResultLine` ("N of M exhibitors") below the tabs? Not requested by the issue text; recommend yes for consistency with the rest of the kit, but it's new information this surface has never shown.
-- Make the `view` URL param two-way as proposed (recommended, matches `operational-views`), or leave the deep-link one-way as today?
-- Leave free-text `search` local-only (recommended — a bookmarked/refreshed show-day search string is lower-value here than on Entry Management, and the issue doesn't ask for it), or also move it into the URL to match Entry Management's precedent?
+- Add a `ListResultLine` ("N of M exhibitors") below the tabs, for consistency with the rest of the kit.
+- Make the `view` URL param two-way, matching the `operational-views` extension in this proposal.
+- Leave free-text `search` local-only — not moved into the URL.
 
 ### 2. Cockpit schedule — `features/show-map/cockpit/SecretaryCockpitSchedule.tsx` + `useSecretaryCockpitUrlState.ts`
 
@@ -114,9 +114,9 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 - Per-row mutations (`ClassStatusControl`, `ExpectedStartControl`) already flow through the canonical replicated class-status-override mutation (`bulk-selection-actions` spec, "Class status changes use one canonical manual-override mutation") — untouched by this change; `ListViewTabs` only changes which rows are visible, never their data.
 - View-tab counts must be derived from the same in-memory `model.trialGroups`/`sourceClasses` this component already receives — no new fetch.
 
-**5. OWNER DECISION:**
+**5. DECIDED (owner, 2026-09-27):**
 
-- Confirm no `ListResultLine` is wanted here (recommended omission, see Decisions) — if the owner wants one anyway, it needs a definition of "N" against grouped rows first (total classes across all trial groups, ignoring the group headers).
+- No `ListResultLine` on this surface, per the recommended omission in Decisions.
 
 ### 3. Self check-in tool — `features/show-workbench/SelfCheckinTool.tsx`
 
@@ -129,7 +129,7 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 **2. Proposed kit views, filters, search, bulk actions:**
 
 - No `ListViewTabs`/`ListFilterBar` (no filter/search concept exists today; not requested — same reasoning as the Cockpit schedule).
-- `FloatingBulkBar` replaces `CheckinBulkActions`'s inline bar 1:1: `count={selection.selectedIds.size}`, `noun={['class', 'classes']}`, `onClear={selection.clearSelection}`, children = the same "Enable self check-in" / "Disable self check-in" buttons wired to the same `updateClasses.mutate` call. The "Select all (M)" button becomes the bar's first child (kept — see OWNER DECISION).
+- `FloatingBulkBar` replaces `CheckinBulkActions`'s inline bar 1:1: `count={selection.selectedIds.size}`, `noun={['class', 'classes']}`, `onClear={selection.clearSelection}`, children = the same "Enable self check-in" / "Disable self check-in" buttons wired to the same `updateClasses.mutate` call. The "Select all (M)" button becomes the bar's first child (kept — see DECIDED below).
 - `OverrideTree`'s per-trial "select all" checkbox and per-class checkboxes are unchanged (Decisions: already on the shared `useBulkSelection` contract; not replaced by a single global header checkbox).
 
 **3. What gets deleted:**
@@ -141,10 +141,10 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 - `classes`/`trials` props trace to the same `ShowWorkbenchShowDeskPage.tsx` → `useShowDeskScheduleRead()` replicated schedule as the People roster and Cockpit schedule. Unchanged.
 - `settingsQuery`/`trialOverridesQuery`/`classOverridesQuery` (`useShowSettings`/`useTrialOverrides`/`useClassOverrides`) and the bulk mutation `useBulkUpdateClassOverrides` read/write `show_visibility_settings` / `trial_visibility_overrides` / `class_visibility_overrides` **directly via `untypedSupabase`** (`hooks/queries/useShowSettingsDatabase.ts`, `hooks/mutations/useShowSettingsMutations.ts`) — **online-only today, not replication-backed.** This predates this change and this batch does not fix it; the kit adoption only changes the bar's presentation (inline → floating), never this data path. **Do not let a reviewer read "offline and replication unchanged" as "this action works offline" — it doesn't, today, either.**
 
-**5. OWNER DECISION:**
+**5. DECIDED (owner, 2026-09-27):**
 
-- File a follow-up Linear issue now for the self-check-in-override online-only gap (recommended, since MYK9-812's own "Must hold" language about offline is easy to over-read against this surface), or accept it as a known, undocumented-elsewhere gap for now?
-- Keep the "Select all (M)" button inside the new floating bar (recommended — no behavior loss, matches the count-and-actions grouping `FloatingBulkBar`'s own doc comment describes), or drop it since `OverrideTree`'s per-trial "select all" already reaches every class trial-by-trial?
+- The self-check-in-override online-only gap is filed as MYK9-849, shared with Results Control (surface 4) rather than filed twice.
+- Keep the "Select all (M)" button inside the new `FloatingBulkBar`.
 
 ### 4. Results Control — `pages/secretary/ResultsControlPage/{index.tsx,OverrideTree.tsx,BulkOperationsBar.tsx}`
 
@@ -156,7 +156,7 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 **2. Proposed kit views, filters, search, bulk actions:**
 
 - No `ListViewTabs`/`ListFilterBar` (same reasoning as Self check-in — no filter/view concept today, not requested).
-- `FloatingBulkBar` replaces `BulkOperationsBar`'s fixed full-width footer 1:1: same `count`/`noun`/`onClear`, same "Select All (M)" button (or dropped — same OWNER DECISION as surface 3, for consistency across the two bars), same "Apply Preset" `Select`, and the same two `AlertDialog`-wrapped `Release Results` / `Hide Results` buttons with unchanged eligibility gating (`hasManualReleaseClasses`, `hasReleasedClasses`) and unchanged toast/partial-failure wording.
+- `FloatingBulkBar` replaces `BulkOperationsBar`'s fixed full-width footer 1:1: same `count`/`noun`/`onClear`, same "Select All (M)" button (kept — matching surface 3's DECIDED block, for consistency across the two bars), same "Apply Preset" `Select`, and the same two `AlertDialog`-wrapped `Release Results` / `Hide Results` buttons with unchanged eligibility gating (`hasManualReleaseClasses`, `hasReleasedClasses`) and unchanged toast/partial-failure wording.
 - The page's `pb-44 sm:pb-28` spacer needs re-checking against whatever spacing convention Entry Management's `FloatingBulkBar` adoption already settled (its bar floats bottom-_centre_, not full-width, so the clearance a page needs is different) — a layout detail for the build PR, not a behavior change here.
 
 **3. What gets deleted:**
@@ -170,7 +170,7 @@ Everything below was read from the four files on `origin/main` at `05e74fdb8` (t
 - `settings`/`trialOverrides`/`classOverrides` (the visibility cascade) and their bulk mutation (`useBulkUpdateClassOverrides`, used by "Apply Preset") are the **same online-only `show_visibility_settings`/`*_visibility_overrides` path** as Self check-in — pre-existing, unchanged by this batch.
 - `Release Results` / `Hide Results` (`useReleaseResults`/`useUnreleaseResults`) are, by contrast, **already replicated** (`replicatedClassesTable.updateClass`, per each hook's own header comment) — these two actions genuinely work offline today and must keep doing so; only "Apply Preset" carries the online-only caveat above. Get this distinction right in the build PR — the three actions in one floating bar do not share one offline story.
 
-**5. OWNER DECISION:**
+**5. DECIDED (owner, 2026-09-27):**
 
-- Same follow-up-issue question as Self check-in, for the shared online-only override path (recommend filing once, referenced from both surfaces, rather than twice).
-- Confirm the "Select All (M)" button's fate (kept or dropped) matches whatever the owner decided for Self check-in, so the two adopting PRs read the same way.
+- References MYK9-849 — the same shared online-only override-path follow-up as Self check-in, filed once rather than twice.
+- Keep the "Select All (M)" button, matching Self check-in, so the two adopting PRs read the same way.

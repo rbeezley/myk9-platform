@@ -25,6 +25,16 @@ interface SelfCheckinResult {
 }
 
 /**
+ * Tri-state resolution of the self-check-in cascade for one class: whether
+ * the server-side `self_checkin_entry` RPC will accept or refuse the write,
+ * or whether that isn't known yet (still loading, or the read failed —
+ * including offline, since this is a live Supabase read with no replicated
+ * fallback). A caller that offers a check-in action must treat 'unknown' the
+ * same as 'not-allowed' — never fall back to 'allowed' (MYK9-800 follow-up).
+ */
+export type SelfCheckinState = 'allowed' | 'not-allowed' | 'unknown';
+
+/**
  * Fetch the cascade values and resolve locally.
  * Queries the class's trial and show to get IDs, then fetches all three settings rows.
  */
@@ -78,12 +88,12 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
 }
 
 /**
- * Batch version: resolves self-check-in cascade for multiple classes.
- * Uses useQueries so each class gets its own cached query (shared with useSelfCheckinEnabled).
+ * Shared query layer behind both batch hooks below — each class gets its own
+ * cached query (also shared with the single-class `useSelfCheckinEnabled`).
  */
-export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
-  const loadSettings = useMemo(createSelfCheckinBatchLoader, []);
-  const results = useQueries({
+function useSelfCheckinQueries(classIds: string[]) {
+  const loadSettings = useMemo(() => createSelfCheckinBatchLoader(), []);
+  return useQueries({
     queries: classIds.map(classId => ({
       queryKey: ['classes', classId, 'selfCheckin'],
       queryFn: () => loadSettings(classId),
@@ -91,6 +101,14 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
       gcTime: 10 * 60 * 1000,
     })),
   });
+}
+
+/**
+ * Batch version: resolves self-check-in cascade for multiple classes.
+ * Uses useQueries so each class gets its own cached query (shared with useSelfCheckinEnabled).
+ */
+export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
+  const results = useSelfCheckinQueries(classIds);
 
   // `useQueries` hands back a fresh array on every render, so building the map
   // inline produced a new object identity every time. My Shows passes this map
@@ -113,6 +131,33 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
     // `classIds` is memoised by the caller; `signature` collapses the query
     // results to a value-equal key so the map is rebuilt only when an answer
     // actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classIds, signature]);
+}
+
+/**
+ * Tri-state batch version for callers that must never treat "no answer yet"
+ * as "allowed" — an exhibitor-facing check-in action shows only on
+ * 'allowed'; 'unknown' (still loading, or the read failed — including
+ * offline) and 'not-allowed' both suppress it (MYK9-800 follow-up).
+ * Shares the same underlying queries/cache as `useSelfCheckinMap`.
+ */
+export function useSelfCheckinStateMap(classIds: string[]): Record<string, SelfCheckinState> {
+  const results = useSelfCheckinQueries(classIds);
+
+  const resolved = results.map((r): SelfCheckinState => {
+    if (r.isError) return 'unknown';
+    if (r.data === undefined) return 'unknown';
+    return r.data ? 'allowed' : 'not-allowed';
+  });
+  const signature = resolved.join(',');
+
+  return useMemo(() => {
+    const map: Record<string, SelfCheckinState> = {};
+    classIds.forEach((id, i) => {
+      map[id] = resolved[i] ?? 'unknown';
+    });
+    return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classIds, signature]);
 }

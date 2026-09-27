@@ -30,7 +30,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 // Import after mocks
-import { useSelfCheckinEnabled, useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
+import {
+  useSelfCheckinEnabled,
+  useSelfCheckinMap,
+  useSelfCheckinStateMap,
+} from '@/hooks/queries/useSelfCheckinEnabled';
 
 // --- Helpers ---
 
@@ -404,5 +408,108 @@ describe('useSelfCheckinEnabled', () => {
         onlineManager.setOnline(wasOnline);
       }
     });
+  });
+});
+
+// MYK9-800 follow-up P1 (Codex): `useSelfCheckinMap` intentionally fails
+// open while loading (My Shows' day check-in gate), but the exhibitor
+// self-check-in gate on `AtShowClassListPage` must never fall open on an
+// unresolved answer — not while loading, not on a batch-query error, and not
+// offline (a server RPC has no replicated fallback). `useSelfCheckinStateMap`
+// exists for that caller: 'unknown' replaces every case that would otherwise
+// need a `?? true`/`?? false` guess.
+describe('useSelfCheckinStateMap', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('resolves to "allowed" when the cascade is open', async () => {
+    setupMockFrom({
+      classRow: CLASS_ROW,
+      showCheckin: null,
+      trialCheckin: null,
+      classCheckin: null,
+    });
+    const { queryClient, Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useSelfCheckinStateMap(['class-1']), { wrapper: Wrapper });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+
+    expect(result.current['class-1']).toBe('allowed');
+  });
+
+  it('resolves to "not-allowed" when the cascade reports the class closed', async () => {
+    setupMockFrom({
+      classRow: CLASS_ROW,
+      showCheckin: false,
+      trialCheckin: null,
+      classCheckin: null,
+    });
+    const { queryClient, Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useSelfCheckinStateMap(['class-1']), { wrapper: Wrapper });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+
+    expect(result.current['class-1']).toBe('not-allowed');
+  });
+
+  it('resolves to "unknown", never "allowed", when the batch query errors', async () => {
+    mockFrom.mockReturnValue(makeQueryChain({ data: null, error: { message: 'not found' } }));
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useSelfCheckinStateMap(['class-1']), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current['class-1']).toBe('unknown'));
+  });
+
+  it('resolves to "unknown" while the initial request is still loading', () => {
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({ single: () => new Promise(() => undefined) }),
+      }),
+    });
+    const { queryClient, Wrapper } = makeWrapper();
+    const { result, unmount } = renderHook(() => useSelfCheckinStateMap(['class-1']), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current['class-1']).toBe('unknown');
+    unmount();
+    queryClient.clear();
+  });
+
+  it('resolves to "unknown", never "allowed", for a cold offline query (server RPC has no replicated fallback)', () => {
+    const wasOnline = onlineManager.isOnline();
+    const { queryClient, Wrapper } = makeWrapper();
+    onlineManager.setOnline(false);
+    try {
+      const { result, unmount } = renderHook(() => useSelfCheckinStateMap(['class-1']), {
+        wrapper: Wrapper,
+      });
+
+      expect(result.current['class-1']).toBe('unknown');
+      expect(mockFrom).not.toHaveBeenCalled();
+      unmount();
+    } finally {
+      queryClient.clear();
+      onlineManager.setOnline(wasOnline);
+    }
+  });
+
+  it('recovers to "allowed" once a failed refresh succeeds', async () => {
+    mockFrom.mockReturnValue(makeQueryChain({ data: null, error: { message: 'not found' } }));
+    const { queryClient, Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useSelfCheckinStateMap(['class-1']), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current['class-1']).toBe('unknown'));
+
+    setupMockFrom({
+      classRow: CLASS_ROW,
+      showCheckin: null,
+      trialCheckin: null,
+      classCheckin: null,
+    });
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['classes', 'class-1', 'selfCheckin'] });
+    });
+
+    await waitFor(() => expect(result.current['class-1']).toBe('allowed'));
   });
 });

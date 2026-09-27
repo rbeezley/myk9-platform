@@ -14,15 +14,19 @@ import {
   writeCockpitDensity,
   writeCockpitException,
   writeCockpitFocus,
+  writeCockpitPaymentStatus,
   writeCockpitQueue,
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitTab,
+  writeCockpitView,
   type EntryManagementCockpitTab,
   type EntryManagementCockpitState,
   type EntryManagementException,
+  type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
+import type { PaymentStatus } from '@/types/show-registration-types';
 
 interface UseEntryManagementCockpitOptions {
   groups: ShowRegistrationGroup[];
@@ -40,7 +44,7 @@ export function useEntryManagementCockpit({
   canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
-  const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
+  const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}|${state.paymentStatus ?? ''}`;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {
     setPageState({ viewKey, pageIndex: 0 });
@@ -59,9 +63,19 @@ export function useEntryManagementCockpit({
         // fact. Omitting the key leaves the groups unscoped, and the cockpit
         // renders an explicit "scope unavailable" notice instead.
         ...(state.trialId && trialClassIds ? { trialClassIds } : {}),
+        paymentStatus: state.paymentStatus,
         pageIndex,
       }),
-    [groups, pageIndex, state.classId, state.queue, state.search, state.trialId, trialClassIds]
+    [
+      groups,
+      pageIndex,
+      state.classId,
+      state.paymentStatus,
+      state.queue,
+      state.search,
+      state.trialId,
+      trialClassIds,
+    ]
   );
   const selection = useBulkSelection({
     items: builtPage.effectiveGroups,
@@ -84,9 +98,10 @@ export function useEntryManagementCockpit({
         : getScopedShowRegistrationQueueCounts(
             groups,
             state.classId,
-            state.trialId && trialClassIds ? trialClassIds : undefined
+            state.trialId && trialClassIds ? trialClassIds : undefined,
+            state.paymentStatus
           ),
-    [groups, state.classId, state.search, state.trialId, trialClassIds]
+    [groups, state.classId, state.paymentStatus, state.search, state.trialId, trialClassIds]
   );
   // WHOLE-SHOW totals, and said so only when they are true of what is on
   // screen (MYK9-635). A scope cannot be applied to them honestly: the class
@@ -99,7 +114,8 @@ export function useEntryManagementCockpit({
   // withheld while a scope or a search is active. The chips and the queue's own
   // "Showing X-Y of N" describe the filtered view.
   const queueTotals = useMemo(() => summarizeShowRegistrationTotals(groups), [groups]);
-  const queueTotalsDescribeWholeShow = !state.search && !state.classId && !state.trialId;
+  const queueTotalsDescribeWholeShow =
+    !state.search && !state.classId && !state.trialId && !state.paymentStatus;
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??
@@ -151,11 +167,16 @@ export function useEntryManagementCockpit({
       }),
     setScope: (trialId: string | null, classId: string | null = null) =>
       updateParams(previous => writeCockpitScope(previous, trialId, classId)),
+    setPaymentStatus: (paymentStatus: PaymentStatus | null) =>
+      updateParams(previous => writeCockpitPaymentStatus(previous, paymentStatus)),
     setTab: (tab: EntryManagementCockpitTab) =>
       updateParams(previous => writeCockpitTab(previous, tab)),
     setException: (exception: EntryManagementException) =>
       updateParams(previous => writeCockpitException(previous, exception)),
     setDensity: (density: OperationalViewDensity) =>
       updateParams(previous => writeCockpitDensity(previous, density)),
+    /** Selects one of the seven unified `ListViewTabs` entries (MYK9-795). */
+    setView: (viewId: EntryManagementViewId) =>
+      updateParams(previous => writeCockpitView(previous, viewId)),
   };
 }

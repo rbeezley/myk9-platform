@@ -1,6 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
-import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
-import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
+import type { SyncOptions, SyncResult } from './types';
+import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { countCoveredRows, staleCleanupKeepIds } from './replicaCoverage';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
@@ -29,6 +29,14 @@ export interface RemoteRowCountContext {
 
 export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string }> {
   fetchRemoteRows(context: RemoteFetchContext<TLocal>): Promise<TRemote[]>;
+  /**
+   * Fetch exactly these rows, through the same client, source and column list
+   * as `fetchRemoteRows`. Used after a stale OCC rejection of a full-row UPDATE
+   * to reconcile that one row (`refetchDirtyRowsById`, MYK9-771). Omit it and
+   * such a write keeps its current behavior: it backs off until a download or
+   * the user reconciles it.
+   */
+  fetchRowsById?(ids: string[]): Promise<TRemote[]>;
   /**
    * Return the server-side row count visible to this sync scope. This count is
    * persisted separately from the local cache count so quota eviction cannot
@@ -296,57 +304,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         // fields are reconciled below (merge untouched server fields + advance token).
         const surfaceConflicts = options.conflictSurfacingEnabled ?? isConflictSurfacingEnabled();
         if (surfaceConflicts && existing.baseData !== undefined) {
-          const detection = detectDirtyRowConflict({
-            base: existing.baseData,
-            local: existing.data,
-            remote: remoteLocal,
-            instantFields: instantFieldsFor(table.getTableName()),
-          });
-          if (detection.hasConflict) {
-            const snapshot: ReplicationConflictSnapshot<TLocal> = {
-              tableName: table.getTableName(),
-              rowId: id,
-              fields: detection.fields,
-              localData: existing.data,
-              remoteData: remoteLocal,
-              baseData: existing.baseData,
-              baseVersion: existing.baseVersion ?? 0,
-              localVersion: existing.version,
-              remoteServerVersion: remoteServerVersion ?? 0,
-              detectedAt: Date.now(),
-            };
-            const marked = await table.markConflict(id, snapshot);
-            if (marked) {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
-              }
-              conflictsResolved++;
-            }
-            rowsAffected++;
-            continue;
-          }
-
-          // No same-field conflict → reconcile server-authoritative fields the
-          // client never touched into the dirty row, and advance the OCC token so
-          // the next upload's precondition matches the server. Root-cause fix for
-          // the stale-token storm (docs/plan-replication-stale-occ-token-sync.md):
-          // previously the dirty row was skipped, pinning serverVersion stale until
-          // a server bump to an untouched field produced a false 40001. When an
-          // adapter defines mergeDirtyRow it owns the data merge; otherwise a generic
-          // 3-way merge adopts only the fields the client never changed.
-          const reconciled = await table.reconcileDirtyRow(id, {
-            base: existing.baseData,
-            remote: remoteLocal,
+          // Same-field collision → marked for the user; otherwise untouched server
+          // fields merge in and the OCC token (row and queue) advances.
+          const outcome = await reconcileDirtyRemoteRow(table, adapter, {
+            id,
+            existing: { ...existing, baseData: existing.baseData },
+            remoteLocal,
             remoteServerVersion,
-            mergedData: adapter.mergeDirtyRow
-              ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
-              : undefined,
-            rebuildPayload: adapter.rebuildUpdatePayload,
           });
-          if (reconciled) {
-            rowsAffected++;
-            conflictsResolved++;
-          }
+          if (outcome.conflict || outcome.changed) rowsAffected++;
+          if (outcome.changed) conflictsResolved++;
           continue;
         }
 

@@ -147,6 +147,8 @@ describe('useBrowseDogsData URL filters', () => {
       search: 'bell',
       breed: 'Border Collie',
       sex: 'female',
+      status: 'all',
+      owner: 'all',
     });
   });
 
@@ -211,7 +213,12 @@ describe('useBrowsePeopleData URL filters', () => {
     const { wrapper } = setupWrapper('/people?search=ada&role=judge');
     const { result } = renderHook(() => useBrowsePeopleData(), { wrapper });
 
-    expect(result.current.filters).toEqual({ search: 'ada', role: 'judge' });
+    expect(result.current.filters).toEqual({
+      search: 'ada',
+      role: 'judge',
+      location: 'all',
+      login: 'all',
+    });
     expect(result.current.filteredPeople.map(p => p.id)).toEqual(['p-1']);
   });
 
@@ -226,6 +233,31 @@ describe('useBrowsePeopleData URL filters', () => {
     const params = new URLSearchParams(probe.search);
     expect(params.get('role')).toBe('exhibitor');
     expect(params.get('add')).toBe('true');
+  });
+
+  it('accepts the "none" login value but falls back for anything else', () => {
+    const { wrapper: noneWrapper } = setupWrapper('/people?login=none');
+    const { result: noneResult } = renderHook(() => useBrowsePeopleData(), {
+      wrapper: noneWrapper,
+    });
+    expect(noneResult.current.filters.login).toBe('none');
+
+    const { wrapper: garbageWrapper } = setupWrapper('/people?login=garbage');
+    const { result: garbageResult } = renderHook(() => useBrowsePeopleData(), {
+      wrapper: garbageWrapper,
+    });
+    expect(garbageResult.current.filters.login).toBe('all');
+  });
+
+  it('writes the location filter to the URL', () => {
+    const { wrapper, probe } = setupWrapper('/people');
+    const { result } = renderHook(() => useBrowsePeopleData(), { wrapper });
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, location: 'CA' }));
+    });
+
+    expect(new URLSearchParams(probe.search).get('location')).toBe('CA');
   });
 });
 

@@ -16,6 +16,7 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { TrialClassesCards } from './TrialClassesCards';
 import { StatusBadge } from '@/components/status';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
+import { compareLevels } from '@/utils/schedule-summary';
 
 type ViewMode = 'table' | 'cards';
 
@@ -24,28 +25,13 @@ const TRIAL_CLASSES_VIEW_MODES = [
   { key: 'cards', label: 'Cards', icon: 'grid' as const },
 ] as const;
 
-// Scent work uses different level names than the standard progression (Advanced/Excellent vs Intermediate/Senior)
-const LEVEL_PROGRESSION: Record<string, number> = {
-  novice: 0,
-  'novice a': 0,
-  'novice b': 1,
-  advanced: 2,
-  excellent: 3,
-  master: 4,
-  masters: 4,
-};
-
-function levelOrder(level: string, section?: string): number {
-  const key = level.toLowerCase();
-  const withSection = section ? `${key} ${section.toLowerCase()}` : key;
-  return LEVEL_PROGRESSION[withSection] ?? LEVEL_PROGRESSION[key] ?? 99;
-}
-
-const trialLevelSort: SortingFn<TrialClass> = (rowA, rowB) => {
-  const a = levelOrder(rowA.original.level, rowA.original.section);
-  const b = levelOrder(rowB.original.level, rowB.original.section);
-  return a - b;
-};
+// The canonical progression (`compareLevels`, `@/utils/schedule-summary`) is
+// the same one the show wizard and `ClassesTab` use — an ad-hoc table here
+// previously had its own, disagreeing vocabulary (no Open/Utility, and A/B
+// treated as separate progression steps rather than sections of one level;
+// MYK9-811 rehearsal note).
+const trialLevelSort: SortingFn<TrialClass> = (rowA, rowB) =>
+  compareLevels(rowA.original.level, rowB.original.level);
 
 interface TrialClassesTableProps {
   classes: TrialClass[];

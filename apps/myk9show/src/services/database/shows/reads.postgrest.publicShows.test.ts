@@ -80,7 +80,11 @@ describe('postgrestGetPublicShows', () => {
     const { data } = await postgrestGetPublicShows();
     const show = mapDatabaseToShow(data[0] as Parameters<typeof mapDatabaseToShow>[0]);
 
-    expect(show.events).toEqual(['scent_work']);
+    // MYK9-807: `events` now runs through `formatTrialTypeLabel`, so a raw
+    // trial_type token like 'scent_work' surfaces as its display label
+    // ('Scent Work') rather than passing through verbatim — the same fix that
+    // stops a raw 'SCENT_WORK' key reaching a signed-out /shows card.
+    expect(show.events).toEqual(['Scent Work']);
     expect(show.events).not.toEqual(['AKC']);
   });
 });

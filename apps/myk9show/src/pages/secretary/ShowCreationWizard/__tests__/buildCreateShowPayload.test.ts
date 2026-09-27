@@ -233,6 +233,43 @@ describe('buildCreateShowPayload', () => {
     expect(localEntities.trials[0]!.registryId).toBe('AKC');
   });
 
+  it('stamps every trial with the show timezone for the atomic RPC payload (MYK9-831)', () => {
+    // Without this, trials.timezone falls to the column's 'America/New_York'
+    // default regardless of where the show actually is (e.g. a Tulsa, OK show).
+    const tulsaShow: WizardShowData = { ...baseShow, timezone: 'America/Chicago' };
+    const secondTrial: WizardTrial = { ...baseTrial, id: 'wizard-trial-2' };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      tulsaShow,
+      [baseTrial, secondTrial],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_trials.map(trial => trial.timezone)).toEqual([
+      'America/Chicago',
+      'America/Chicago',
+    ]);
+    // Local IndexedDB cache written after the RPC must agree.
+    expect(localEntities.trials.map(trial => trial.timezone)).toEqual([
+      'America/Chicago',
+      'America/Chicago',
+    ]);
+  });
+
+  it('falls back to the browser timezone when the wizard draft has none set', () => {
+    const showWithoutTimezone: WizardShowData = { ...baseShow, timezone: undefined };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      showWithoutTimezone,
+      [baseTrial],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(rpcInput.p_trials[0]!.timezone).toBe(browserZone);
+    expect(localEntities.trials[0]!.timezone).toBe(browserZone);
+  });
+
   it('localEntities.trials have _syncStatus synced and _localOnly false', () => {
     const { localEntities } = buildCreateShowPayload(
       baseShow,

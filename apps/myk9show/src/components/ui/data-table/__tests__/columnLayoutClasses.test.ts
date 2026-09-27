@@ -14,6 +14,8 @@ import {
   STICKY_LEFT_LEAD_WIDTH_CLASS,
   STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES,
   STICKY_LEFT_AFTER_LEAD_BODY_CLASSES,
+  STICKY_RIGHT_HEADER_CLASSES,
+  STICKY_RIGHT_BODY_CLASSES,
 } from '../types';
 
 describe('getColumnLayoutClasses', () => {
@@ -135,6 +137,21 @@ describe('getColumnLayoutClasses', () => {
         getColumnLayoutClasses({ stickyLeftLead: true, stickyLeft: { afterLead: true } }, 'body')
       ).toThrow(/mutually exclusive/);
     });
+  });
+
+  it('pins a stickyRight column to the right edge, opaque, with its hairline on the left', () => {
+    const header = getColumnLayoutClasses({ stickyRight: true }, 'header');
+    const body = getColumnLayoutClasses({ stickyRight: true }, 'body');
+    expect(header).toBe(STICKY_RIGHT_HEADER_CLASSES);
+    expect(body).toBe(STICKY_RIGHT_BODY_CLASSES);
+    for (const classes of [header, body]) {
+      expect(classes.split(' ')).toEqual(expect.arrayContaining(['sticky', 'right-0', 'bg-card']));
+      expect(classes).toContain('before:left-0');
+      expect(classes.split(' ')).not.toContain('left-0');
+    }
+    // Header above body, as for the left pin, so a scrolled header covers the cell.
+    expect(header).toContain('z-20');
+    expect(body).toContain('z-10');
   });
 });
 

@@ -106,6 +106,60 @@ describe('CreateExhibitorDialog', () => {
     });
   });
 
+  it('MYK9-832: persists a mail-in exhibitor with only a postal address, no email or phone', async () => {
+    createUserMock.mockResolvedValue(
+      fromAny({
+        data: {
+          id: 'person-address-only-1',
+          first_name: 'Pat',
+          last_name: 'Paperform',
+          email: null,
+          phone: null,
+          street_address: '9 Rural Route',
+          city: 'Envelope',
+          state: 'TX',
+          zip_code: '75001',
+        },
+        error: null,
+      })
+    );
+
+    const onExhibitorCreated = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
+    );
+
+    await user.type(screen.getByLabelText(/First Name/i), 'Pat');
+    await user.type(screen.getByLabelText(/Last Name/i), 'Paperform');
+    await user.type(screen.getByLabelText(/Street Address/i), '9 Rural Route');
+    await user.type(screen.getByLabelText(/City/i), 'Envelope');
+    await user.type(screen.getByLabelText(/State/i), 'TX');
+    await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
+
+    await user.click(screen.getByRole('button', { name: 'Create Exhibitor' }));
+
+    // A paper form with no email or phone must not be blocked by validation
+    // that invents contact data the secretary was never given (MYK9-832 #5).
+    await waitFor(() => {
+      expect(createUserMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          first_name: 'Pat',
+          last_name: 'Paperform',
+          email: null,
+          phone: null,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(onExhibitorCreated).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'person-address-only-1' })
+      );
+    });
+  });
+
   it('offers a real loaded person as a duplicate instead of using mock data', async () => {
     useUserStore.setState({
       people: [

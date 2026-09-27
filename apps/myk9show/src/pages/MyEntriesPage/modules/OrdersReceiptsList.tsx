@@ -32,7 +32,35 @@ import { formatShortCalendarDate } from '@/lib/format/dates';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import type { ShowMoneyKind } from './showMoneyState';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
+
+/** Statuses that mean the money for a row actually arrived (mirrors `myEntryOrderBalance`'s). */
+const PAID_STATUSES: PaymentStatus[] = [
+  PaymentStatus.PAID_ONLINE,
+  PaymentStatus.PAID_BY_CHECK,
+  PaymentStatus.PAID_BY_CASH,
+];
+
+/**
+ * This class row's ground-truth payment status — see `EntryClass.rawPaymentStatus`.
+ * Never folded against a sibling's balance (MYK9-495), so a genuinely paid row
+ * stays paid even when another row on the same order still owes.
+ */
+function isPaidClass(cls: EntryClass): boolean {
+  const status = cls.rawPaymentStatus ?? cls.paymentStatus;
+  return status != null && PAID_STATUSES.includes(status);
+}
+
+/**
+ * What has actually cleared on this order, summed from the ROWS whose own
+ * payment status says so — never `order.totalFee - dueCents`. A class can be
+ * excluded from `dueCents` for reasons that have nothing to do with payment
+ * (withdrawn, moved, rejected), and that subtraction silently relabeled such a
+ * row's fee as paid (Codex review on MYK9-804, PR #2578).
+ */
+function paidCentsForOrder(order: MyEntry): number {
+  return order.classes.filter(isPaidClass).reduce((sum, cls) => sum + Math.round(cls.fee * 100), 0);
+}
 
 /**
  * The amount a Stripe order charged, for the per-payment chooser below.
@@ -63,13 +91,30 @@ function orderDogNames(order: MyEntry): string[] {
  * The amount owed is read from the same balance the cart quotes — never
  * re-summed from class fees, which is how My Shows and My Payments start
  * stating two different numbers (exhibitor-money-clarity).
+ *
+ * A mixed order — one class already paid, a sibling still due — used to read
+ * as a bare "$X due", the order's whole total, with no word for the part
+ * that already cleared (MYK9-804 findability walk, 2026-09-27). Receipts is
+ * the one place a payment stays confirmable once the show's own "paid"
+ * banner has retired (past show, dismissed, or past its 14-day window —
+ * `derivePaidStrip`), so silently folding a paid class into "due" here left
+ * no reachable surface stating it was ever paid at all. The paid portion is
+ * `paidCentsForOrder`, summed from the rows that actually cleared — never
+ * `order.totalFee - dueCents`, which mislabels a withdrawn/moved class
+ * excluded from `dueCents` for reasons unrelated to payment as "paid"
+ * (Codex review on MYK9-804, PR #2578, discriminator-branches).
  */
 function describeOrderMoney(order: MyEntry): string {
   const dueCents =
     getOrderOnlinePrompt(order).kind === 'finish-online'
       ? (order.balance?.onlineDueCents ?? Math.round(order.totalFee * 100))
       : 0;
-  if (dueCents > 0) return `${formatPaymentCents(dueCents, 'USD')} due`;
+  if (dueCents > 0) {
+    const paidCents = paidCentsForOrder(order);
+    return paidCents > 0
+      ? `${formatPaymentCents(paidCents, 'USD')} paid · ${formatPaymentCents(dueCents, 'USD')} due`
+      : `${formatPaymentCents(dueCents, 'USD')} due`;
+  }
   if (order.paymentStatus === PaymentStatus.REFUNDED) return 'Refunded';
   return 'Paid';
 }

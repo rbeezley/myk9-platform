@@ -20,17 +20,10 @@ import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
 import { MutationUploadRunner } from './MutationUploadRunner';
+import { RowRefetchRegistry } from './mutation-row-refetch';
 import { type PendingMutation, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
-
-// ============================================
-// TYPES
-// ============================================
-
-// ============================================
-// MUTATION MANAGER
-// ============================================
 
 /**
  * MutationManager - handles all mutation queue concerns
@@ -50,6 +43,8 @@ export class MutationManager {
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
+  /** Tables that re-fetch a row after a stale full-row OCC rejection (MYK9-771). */
+  readonly rowRefetchers: RowRefetchRegistry;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -60,6 +55,9 @@ export class MutationManager {
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
     this.queueStore = new MutationQueueStore(this.logger);
     this.backupStore = new MutationBackupStore(this.logger);
+    this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>
+      this.uploadRunner.runExclusive(work)
+    );
     this.uploadRunner = new MutationUploadRunner(
       this.logger,
       options.maxRetries ?? 3,
@@ -67,7 +65,8 @@ export class MutationManager {
       options.maxOccAttempts ?? 50,
       this.queueStore,
       () => this.backupStore.writeCurrent(),
-      () => this.requireCurrentUploadContext()
+      () => this.requireCurrentUploadContext(),
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
     );
   }
 

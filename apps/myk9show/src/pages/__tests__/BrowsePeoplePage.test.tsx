@@ -26,11 +26,12 @@ let mockBrowsePeopleReturn = {
   ],
   isLoading: false,
   error: null,
-  filters: { search: '', role: 'all' },
+  filters: { search: '', role: 'all', location: 'all', login: 'all' },
   setFilters: vi.fn(),
   hasActiveFilters: false,
   clearAllFilters: vi.fn(),
   availableRoles: ['exhibitor'],
+  availableLocations: [],
 };
 
 vi.mock('@/hooks/useRBAC', () => ({
@@ -53,6 +54,8 @@ vi.mock('@/store/userStore', () => ({
 vi.mock('@/components/users/browse', () => ({
   PeopleGridView: () => <div data-testid="people-grid">People grid</div>,
   PeopleTableView: () => <div data-testid="people-table">People table</div>,
+  PeopleListToolbar: () => <div data-testid="people-list-toolbar">People list toolbar</div>,
+  PeopleBulkBar: () => <div data-testid="people-bulk-bar">People bulk bar</div>,
 }));
 
 vi.mock('@/components/panels/edit', () => ({
@@ -115,11 +118,12 @@ describe('BrowsePeoplePage', () => {
       ],
       isLoading: false,
       error: null,
-      filters: { search: '', role: 'all' },
+      filters: { search: '', role: 'all', location: 'all', login: 'all' },
       setFilters: vi.fn(),
       hasActiveFilters: false,
       clearAllFilters: vi.fn(),
       availableRoles: ['exhibitor'],
+      availableLocations: [],
     };
   });
 

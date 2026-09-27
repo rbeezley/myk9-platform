@@ -1,13 +1,101 @@
+import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DogSelectionStep } from '@/components/shows/RegistrationWorkflow/DogSelectionStep';
+import { UserRole } from '@/types/auth-types';
 import type { Dog } from '@/types/dog-types';
 import { fromPartial } from '@total-typescript/shoehorn';
 
 // Mock the dog store compat hook
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: vi.fn(),
+}));
+
+vi.mock('@/hooks/useAuthContext', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useAuthContext: () => ({ getUserRoles: () => [UserRole.EXHIBITOR] }),
+  };
+});
+
+vi.mock('@/hooks/useRoleBasedData', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useCurrentUserPersonId: () => 'person-1',
+  };
+});
+
+// Counts mounts, not just presence: a remount would silently wipe an
+// in-progress Add Dog form (the stability contract this step now shares with
+// `DogSelectionStepEnhanced`, see the INTENT comment on `renderBody`).
+const addDogPanelMounts = vi.fn();
+
+vi.mock('@/components/panels/edit', () => ({
+  AddDogPanel: ({
+    open,
+    onClose,
+    onDogCreated,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    onDogCreated: (dog: Dog) => void;
+  }) => {
+    useEffect(() => {
+      addDogPanelMounts();
+    }, []);
+    if (!open) return null;
+    return (
+      <div data-testid="add-dog-panel">
+        Add dog panel
+        <button type="button" onClick={onClose}>
+          Close dog panel
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onDogCreated({
+              id: 'dog-new',
+              name: 'Rex',
+              callName: 'Rex',
+              breed: 'Border Collie',
+              sex: 'male',
+              gender: 'Male',
+              ownerId: 'owner-1',
+              dateOfBirth: '2020-01-01',
+              registrations: [],
+              status: 'active',
+            })
+          }
+        >
+          Simulate eligible dog created
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const twoMonthsAgo = new Date();
+            twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+            onDogCreated({
+              id: 'dog-new-ineligible',
+              name: 'Pup',
+              callName: 'Pup',
+              breed: 'Border Collie',
+              sex: 'male',
+              gender: 'Male',
+              ownerId: 'owner-1',
+              dateOfBirth: twoMonthsAgo.toISOString(),
+              registrations: [],
+              status: 'active',
+            });
+          }}
+        >
+          Simulate ineligible dog created
+        </button>
+      </div>
+    );
+  },
 }));
 
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -393,7 +481,31 @@ describe('DogSelectionStep', () => {
     expect(screen.getByRole('status', { name: /loading your dogs/i })).toBeInTheDocument();
   });
 
-  it('shows empty state when no eligible dogs exist', () => {
+  // MYK9-803 round 2: this used to be the one branch with no way to add a
+  // dog — round 1 only offered the link on a genuinely empty roster. The
+  // 2026-09-27 production walk found an exhibitor whose dogs were all
+  // ineligible had no route out either.
+  it('shows empty state when dogs exist but none are eligible, and offers to add a new one', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({
+        dogs: [mockDog({ status: 'retired' })],
+        isLoading: false,
+      })
+    );
+
+    const { user } = render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+
+    expect(screen.getByText(/no eligible dogs found/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /add a new dog/i }));
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
+  });
+
+  // MYK9-803 round 1: a first-time exhibitor with zero dogs used to land on
+  // the same "No eligible dogs found" dead end as an exhibitor whose dogs are
+  // simply too young/inactive, with no way out of the wizard (2026-09-26
+  // exhibitor walk, E47). She gets her own message and an Add a dog button.
+  it('offers to add a dog when the exhibitor has no dogs at all', async () => {
     vi.mocked(useDogStoreCompat).mockReturnValue(
       fromPartial({
         dogs: [],
@@ -401,8 +513,94 @@ describe('DogSelectionStep', () => {
       })
     );
 
+    const { user } = render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+
+    expect(screen.queryByText(/no eligible dogs found/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/don't have any dogs yet/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /add a dog/i }));
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
+  });
+
+  // MYK9-803 round 2 (owner production walk, 2026-09-27): "I do not see a way
+  // to add a dog that is not already listed... is this because the account
+  // already has dogs? If so we should offer it to accounts with dogs too."
+  // Round 1 only offered the affordance on a zero-dog account.
+  it('offers Add a new dog even when the account already has an eligible dog', () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+
     render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 
+    expect(screen.getByRole('button', { name: /add a new dog/i })).toBeInTheDocument();
+  });
+
+  it('opens the reused Add Dog panel in place, without navigating away from the wizard', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+
+    const { user } = render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /add a new dog/i }));
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
+    // Still on the dog step — this is a panel opened in place, not a route change.
+    expect(screen.getByText('Select Dogs to Register')).toBeInTheDocument();
+  });
+
+  it('returns to the wizard with a newly created eligible dog selected, keeping prior selections', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /add a new dog/i }));
+    await user.click(screen.getByRole('button', { name: /simulate eligible dog created/i }));
+
+    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', 'dog-new']);
+  });
+
+  // Acceptance: an ineligible new dog still appears (subject to the existing
+  // eligibility rules) but is never silently added to the cart — the wizard
+  // says why via the same disabled-checkbox/issue text every other dog uses.
+  it('does not auto-select a newly created dog that fails eligibility', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={onSelectionChange} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /add a new dog/i }));
+    await user.click(screen.getByRole('button', { name: /simulate ineligible dog created/i }));
+
+    expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  // Mirrors `DogSelectionStepEnhanced dialog persistence`: the panel must hold
+  // a stable position outside the swappable body, or a state change unrelated
+  // to the dialog (dogs finishing a reload) would remount it mid-fill.
+  it('keeps the Add Dog panel mounted exactly once across a body-state change', () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const { rerender } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />
+    );
+    expect(addDogPanelMounts).toHaveBeenCalledTimes(1);
+
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog({ status: 'retired' })], isLoading: false })
+    );
+    rerender(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+
     expect(screen.getByText(/no eligible dogs found/i)).toBeInTheDocument();
+    expect(addDogPanelMounts).toHaveBeenCalledTimes(1);
   });
 });

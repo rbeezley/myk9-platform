@@ -33,6 +33,8 @@ export interface WizardShowData {
   judgeIds: string[];
   acceptCheckPayments: boolean;
   acceptCashPayments: boolean;
+  /** IANA zone applied to every trial this show creates (MYK9-831). */
+  timezone?: string | undefined;
   style?: PremiumStyle | undefined;
 }
 

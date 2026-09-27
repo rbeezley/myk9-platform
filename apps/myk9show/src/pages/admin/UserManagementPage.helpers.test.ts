@@ -1,18 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
-import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
-import {
-  countActiveUsers,
-  escapeCsvCell,
-  filterUsers,
-  sortUsers,
-} from './UserManagementPage.helpers';
-import {
-  DEFAULT_USER_FILTER,
-  countActiveUserFilters,
-  hasActiveUserFilters,
-} from './UserManagementPage.types';
+import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+import { escapeCsvCell, filterUsers, sortUsers } from './UserManagementPage.helpers';
+import { DEFAULT_USER_FILTER, hasActiveUserFilters } from './UserManagementPage.types';
 
 describe('filterUsers status filter', () => {
   const users = [
@@ -199,6 +190,27 @@ describe('filterUsers created-date range', () => {
     const result = filterUsers(users, '', range(localDate(2020, 0, 1), null));
     expect(result.map(u => u.id)).not.toContain('none');
   });
+
+  // MYK9-837 (Codex): a rolling window's cutoff (e.g. "last 7 days" = now
+  // minus 7×24h) can land mid-day. Rounding `start` down to that day's
+  // midnight would silently widen the window by up to a day — a user created
+  // an hour before the exact cutoff must still be excluded.
+  it('honors a start time precisely rather than rounding it down to midnight', () => {
+    const precise = [
+      {
+        id: 'before-cutoff',
+        firstName: 'Before',
+        createdAt: new Date(2026, 5, 15, 10, 0, 0),
+      },
+      {
+        id: 'after-cutoff',
+        firstName: 'After',
+        createdAt: new Date(2026, 5, 15, 12, 0, 0),
+      },
+    ] as User[];
+    const cutoff = new Date(2026, 5, 15, 11, 0, 0);
+    expect(filterUsers(precise, '', range(cutoff, null)).map(u => u.id)).toEqual(['after-cutoff']);
+  });
 });
 
 // Sorting used to happen inside the table, which only ever held the current
@@ -242,42 +254,39 @@ describe('sortUsers', () => {
   });
 });
 
-// "Active Users" used to count `email && firstName` — profile completeness, not
-// account state — and was the headline number on an oversight page.
-describe('countActiveUsers', () => {
-  it('counts by account status, not by how complete the profile is', () => {
-    const users = [
-      { id: '1', status: 'active', email: undefined, firstName: '' },
-      { id: '2', status: 'suspended', email: 'b@example.com', firstName: 'Bob' },
-      { id: '3', status: 'active', deletedAt: '2026-07-01', email: 'c@example.com' },
-      { id: '4', email: 'd@example.com', firstName: 'Dana' },
-    ] as User[];
+// The Roles column's badge (UserTable/columns.tsx) shows the highest-priority
+// role, not roles[0] — sorting on roles[0] can order a row by a role the
+// admin never sees on the badge (MYK9-837).
+describe('sortUsers by role — sorts by the badge lead role, not roles[0]', () => {
+  const roleUsers = [
+    // roles[0] is 'exhibitor', but the badge (and the sort) shows 'judge'.
+    { id: 'multi', firstName: 'Multi', roles: [UserRole.EXHIBITOR, UserRole.JUDGE] },
+    { id: 'admin', firstName: 'Admin', roles: [UserRole.SITE_ADMIN] },
+    { id: 'exhibitor', firstName: 'Exhibitor', roles: [UserRole.EXHIBITOR] },
+  ] as AdminUser[];
 
-    // 1 (active, sparse profile) and 4 (status defaults to active) count;
-    // 2 is suspended and 3 is removed.
-    expect(countActiveUsers(users)).toBe(2);
+  it('sorts by the lead role string ("judge"), not roles[0] ("exhibitor")', () => {
+    // Sorting by roles[0] would tie "multi" with "exhibitor" (both read
+    // "exhibitor") and land it ahead of "admin" ("site_admin"): ['multi',
+    // 'exhibitor', 'admin']. Sorting by the badge's lead role puts "multi" at
+    // "judge", which alphabetically falls between "exhibitor" and
+    // "site_admin".
+    expect(sortUsers(roleUsers, { id: 'role', desc: false }).map(u => u.id)).toEqual([
+      'exhibitor',
+      'multi',
+      'admin',
+    ]);
   });
 });
 
-// The Filters badge and the panel's Reset button read from one predicate now —
-// they drifted before, so the badge could be absent while Reset was enabled.
+// The result line, the empty state and "Clear all" read from one predicate.
 describe('active-filter predicates', () => {
-  it('counts every filter dimension, including showDeleted and dates', () => {
-    expect(countActiveUserFilters(DEFAULT_USER_FILTER)).toBe(0);
-    expect(
-      countActiveUserFilters({
-        ...DEFAULT_USER_FILTER,
-        role: UserRole.JUDGE,
-        showDeleted: true,
-        dateRange: { start: new Date('2026-01-01'), end: null },
-      })
-    ).toBe(3);
-  });
-
-  it('treats a search term as an active filter, but not as a filter chip', () => {
+  it('treats a search term, the login bucket and removed users as active filters', () => {
+    expect(hasActiveUserFilters(DEFAULT_USER_FILTER, '')).toBe(false);
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, 'ann')).toBe(true);
-    expect(countActiveUserFilters(DEFAULT_USER_FILTER)).toBe(0);
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, '   ')).toBe(false);
+    expect(hasActiveUserFilters({ ...DEFAULT_USER_FILTER, login: 'never' }, '')).toBe(true);
+    expect(hasActiveUserFilters({ ...DEFAULT_USER_FILTER, showDeleted: true }, '')).toBe(true);
   });
 });
 

@@ -22,6 +22,7 @@ import {
   projectHandlerIdentity,
   resolveHandlerPerson,
 } from '@/features/registries/handlerIdentity';
+import { computeDayTrialNumber } from './dayTrialNumber';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -242,6 +243,8 @@ export function mapReportTrialFields(
     ...(trial.event_number ? { eventNumber: trial.event_number } : {}),
     registryId: readTrialRegistryId(trial),
     trialNumber: String(trial.trial_number ?? ''),
+    ...(trial.actual_start_time ? { actualStartTime: trial.actual_start_time } : {}),
+    ...(trial.actual_end_time ? { actualEndTime: trial.actual_end_time } : {}),
   };
 }
 
@@ -254,10 +257,11 @@ export function buildTrialReportProps(input: {
   sortOrder: string;
 }): ReportProps[] {
   const { show, trials, classes, entries, scope, sortOrder } = input;
+  const allShowTrials = trials ?? [];
   const targetTrials =
     scope.kind === 'show'
-      ? (trials ?? [])
-      : (trials ?? []).filter(trial => trial.id === scope.trialId);
+      ? allShowTrials
+      : allShowTrials.filter(trial => trial.id === scope.trialId);
 
   const allClasses = (classes ?? []).map(c => ({
     id: c.id,
@@ -278,12 +282,15 @@ export function buildTrialReportProps(input: {
       return mapReportEntry(e, trial, cls, show.assignedJudges ?? []);
     });
 
+    const dayTrialNumber = computeDayTrialNumber(trial, allShowTrials);
+
     return {
       showId: show.id,
       showName: show.name ?? '',
       trial: {
         ...mapReportTrialFields(trial),
         judgeName: resolveTrialJudgeName(trialClasses, show.assignedJudges ?? []),
+        ...(dayTrialNumber !== undefined ? { dayTrialNumber } : {}),
       },
       allClasses: allClasses.filter(c => c.trialId === trial.id),
       entries: enriched,

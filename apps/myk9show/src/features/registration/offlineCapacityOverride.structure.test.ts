@@ -86,6 +86,11 @@ vi.mock('@/services/replication', () => {
       getTrialsByShow: vi.fn(async (showId: string) =>
         state.device.trials.filter(trial => trial.showId === showId)
       ),
+      getByShowWithStatus: vi.fn(async (showId: string) => ({
+        ok: true,
+        rows: state.device.trials.filter(trial => trial.showId === showId),
+        error: null,
+      })),
       getSyncMetadata: vi.fn(async () => meta(state.device.trialsExpected)),
       pendingDeletes: { coveredIds: vi.fn(async () => new Set<string>()) },
       sync: syncing('trials'),
@@ -99,11 +104,16 @@ vi.mock('@/services/replication', () => {
       sync: syncing('classes'),
     },
     replicatedJudgeAssignmentsTable: {
+      getByShowWithStatus: vi.fn(async (showId: string) => ({
+        ok: true,
+        rows: state.device.assignments.filter(row => row.showId === showId),
+        error: null,
+      })),
       getSyncMetadata: vi.fn(async () => meta(state.device.assignmentsExpected)),
       sync: syncing('assignments'),
     },
     replicatedEntriesTable: {
-      getAllWithStatus: vi.fn(async () => ({
+      getByShowWithStatus: vi.fn(async () => ({
         ok: true,
         // The judge-day's one spot is taken by an entry in the class NOT selected.
         rows: [{ showId: SHOW_ID, classId: 'class-2', entryStatus: 'confirmed' }],

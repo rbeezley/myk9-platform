@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, MessageSquare, Search } from 'lucide-react';
+import { ClipboardCheck, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
@@ -13,12 +13,10 @@ import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagem
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
 import { cn } from '@/lib/utils';
-import {
-  buildPeopleRoster,
-  filterPeopleRoster,
-  type PeopleRosterFilter,
-  type PeopleRosterPerson,
-} from './peopleRoster';
+import { buildPeopleRoster, buildPeopleRosterViews, filterPeopleRoster } from './peopleRoster';
+import type { PeopleRosterFilter, PeopleRosterPerson } from './peopleRoster';
+import { buildTrialRingResolver } from './trialRingLabel';
+import { usePeopleRosterUrlState } from './usePeopleRosterUrlState';
 
 interface ShowDeskPeopleRosterProps {
   showId: string;
@@ -30,11 +28,7 @@ interface ShowDeskPeopleRosterProps {
   currentDate?: Date | null;
 }
 
-const FILTERS: Array<{ id: PeopleRosterFilter; label: string }> = [
-  { id: 'all', label: 'All exhibitors' },
-  { id: 'needs-check-in', label: 'Needs check-in' },
-  { id: 'online', label: 'Online' },
-];
+const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
 
 export function ShowDeskPeopleRoster({
   showId,
@@ -52,7 +46,11 @@ export function ShowDeskPeopleRoster({
   const [checkedInEntryIds, setCheckedInEntryIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<PeopleRosterFilter>('all');
+  // MYK9-826: the Show Desk "Check in N entries" card deep-links here with
+  // `?view=needs-check-in` so it lands pre-filtered, not just pre-opened.
+  // MYK9-812 made this two-way (`usePeopleRosterUrlState`) so switching views
+  // in the tabs below now writes back too, not just the initial deep link.
+  const { view, setView } = usePeopleRosterUrlState();
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -82,27 +80,38 @@ export function ShowDeskPeopleRoster({
     [checkedInEntryIds, sourceEntries]
   );
 
+  const resolveTrialRing = useMemo(() => buildTrialRingResolver(classes), [classes]);
+
   const roster = useMemo(
     () =>
       buildPeopleRoster({
         entries,
         presence: present,
-        classes: classes.map(cls => ({
-          id: cls.id,
-          name: cls.name,
-          time: cls.time,
-          ring: cls.trialName || cls.trialNumber,
-          trialDate: cls.trialDate,
-          timezone: cls.timezone ?? null,
-        })),
+        classes: classes.map(cls => {
+          const ring = resolveTrialRing(cls);
+          return {
+            id: cls.id,
+            name: cls.name,
+            time: cls.time,
+            ...(ring ? { ring } : {}),
+            trialId: cls.trialId,
+            element: cls.element,
+            level: cls.level,
+            section: cls.section,
+            trialDate: cls.trialDate,
+            timezone: cls.timezone ?? null,
+          };
+        }),
         currentDate: currentDate ?? now,
       }),
-    [classes, currentDate, entries, now, present]
+    [classes, currentDate, entries, now, present, resolveTrialRing]
   );
   const visibleRoster = useMemo(
-    () => filterPeopleRoster(roster, search, filter),
-    [filter, roster, search]
+    () => filterPeopleRoster(roster, search, view),
+    [roster, search, view]
   );
+  const views = useMemo(() => buildPeopleRosterViews(roster), [roster]);
+  const isFiltered = view !== 'all' || search.trim() !== '';
 
   async function checkInRows(person: PeopleRosterPerson, entryIds: string[]) {
     if (entryIds.length === 0) return;
@@ -186,39 +195,32 @@ export function ShowDeskPeopleRoster({
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          value={search}
-          onChange={event => {
-            setSearch(event.target.value);
-            setExpandedId(null);
-          }}
-          placeholder="Search name, dog, armband"
-          className="min-h-11 pl-9"
-          aria-label="Search exhibitors"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map(option => (
-          <Button
-            key={option.id}
-            type="button"
-            variant={filter === option.id ? 'default' : 'outline'}
-            size="sm"
-            className="min-h-11 rounded-full"
-            onClick={() => {
-              setFilter(option.id);
-              setExpandedId(null);
-            }}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
+      <ListViewTabs
+        label="People roster views"
+        views={views}
+        activeId={view}
+        onSelect={id => {
+          // `views` only ever contains this feature's own 3 ids
+          // (`buildPeopleRosterViews`), so this cast is always sound.
+          setView(id as PeopleRosterFilter);
+          setExpandedId(null);
+        }}
+      />
+      <ListFilterBar
+        searchValue={search}
+        onSearchChange={value => {
+          setSearch(value);
+          setExpandedId(null);
+        }}
+        searchPlaceholder="Search name, dog, armband"
+        fields={[]}
+      />
+      <ListResultLine
+        shown={visibleRoster.length}
+        total={roster.length}
+        noun={EXHIBITOR_NOUN}
+        filtered={isFiltered}
+      />
 
       {actionError && (
         <div
@@ -272,6 +274,11 @@ export function ShowDeskPeopleRoster({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{person.name}</span>
+                    {person.alternateNames.length > 0 && (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        Also entered as {person.alternateNames.join(', ')}
+                      </span>
+                    )}
                     <span className="mt-1 block truncate text-sm text-muted-foreground">
                       {person.summary}
                     </span>
@@ -340,6 +347,7 @@ export function ShowDeskPeopleRoster({
                               <p className="truncate font-medium">{row.dogName}</p>
                               <p className="text-sm text-muted-foreground">
                                 {row.className}
+                                {row.ring ? ` · ${row.ring}` : ''}
                                 {row.time ? ` - ${row.time}` : ''}
                               </p>
                               <StatusBadge

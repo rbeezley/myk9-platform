@@ -44,6 +44,13 @@ export interface DataTableColumnMeta {
    * both lead the pin and pin after itself.
    */
   stickyLeftLead?: boolean;
+  /**
+   * Pin this column to the RIGHT edge of the scroll area. For the row-actions
+   * column: once a table is wider than its container, the "⋯" menu — often the
+   * only route to edit or delete a row — otherwise sits half-clipped at the
+   * scroll edge (admin users roster, 2026-09).
+   */
+  stickyRight?: boolean;
   /** Label to use when exporting this column to CSV. */
   exportHeader?: string;
   /** Return a plain export value for this column. Defaults to the column value. */
@@ -197,6 +204,16 @@ export const STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES = `sticky ${STICKY_LEFT_AFTER
 /** Left-pin classes for a body cell pinned after a `stickyLeftLead` column. */
 export const STICKY_LEFT_AFTER_LEAD_BODY_CLASSES = `sticky ${STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS} bg-card z-10 group-data-[state=selected]/row:bg-muted ${STICKY_LEFT_HAIRLINE}`;
 
+/** Mirror of the left pin for the trailing column; its hairline sits on the LEFT edge. */
+const STICKY_RIGHT_BASE =
+  "sticky right-0 bg-card before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:content-['']";
+
+/** Right-pin classes for a header cell. */
+export const STICKY_RIGHT_HEADER_CLASSES = `${STICKY_RIGHT_BASE} z-20`;
+
+/** Right-pin classes for a body cell. */
+export const STICKY_RIGHT_BODY_CLASSES = `${STICKY_RIGHT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;
+
 /**
  * Resolve the layout utilities a DataTable cell gets from its column meta.
  * Pure so the mapping can be asserted without a DOM.
@@ -227,6 +244,9 @@ export function getColumnLayoutClasses(
         ? STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES
         : STICKY_LEFT_AFTER_LEAD_BODY_CLASSES
     );
+  }
+  if (meta?.stickyRight) {
+    classes.push(cell === 'header' ? STICKY_RIGHT_HEADER_CLASSES : STICKY_RIGHT_BODY_CLASSES);
   }
   return classes.join(' ');
 }

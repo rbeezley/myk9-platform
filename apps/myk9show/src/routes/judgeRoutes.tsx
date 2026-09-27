@@ -12,10 +12,10 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ResultsDashboardRedirect } from './ResultsDashboardRedirect';
+import { JudgeCheckInRedirect } from './JudgeCheckInRedirect';
 
 // Judge page lazy imports
 const JudgeDashboard = lazy(() => import('@/pages/JudgeDashboard'));
-const JudgeCheckInDashboard = lazy(() => import('@/pages/judge/JudgeCheckInDashboard'));
 
 const JudgeStatsPage = lazy(() => import('@/pages/judge/JudgeStatsPage'));
 
@@ -46,15 +46,12 @@ export const JudgeSidebarRoutes = () => (
         </ProtectedRoute>
       }
     />
+    {/* MYK9-850: retired mock-data screen, kept as a bookmark redirect */}
     <Route
       path="/judge/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.STEWARD, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <JudgeCheckInDashboard />
-            </PageTransition>
-          </SuspenseWrapper>
+          <JudgeCheckInRedirect />
         </ProtectedRoute>
       }
     />

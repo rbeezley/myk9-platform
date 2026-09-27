@@ -2,11 +2,11 @@ import { onlineManager } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
+  replicatedJudgeAssignmentsTable,
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
 import { requireShowEntriesSynced } from '@/services/database/entries/requireShowEntriesSynced';
-import { readJudgeAssignmentsOrThrow } from '@/services/database/judges/assignmentReads';
 import { rowsOrThrow } from '@/services/database/_shared/readRows';
 import { showStructureCoverage } from '@/features/offline-readiness/showStructureScopes';
 import { refreshShowStructureForRead } from './refreshShowStructureForRead';
@@ -157,23 +157,18 @@ async function readCapacityInputs(showId: string) {
   // entry be recorded as within capacity, a fact the server keeps (MYK9-772,
   // MYK9-774). A failed read stops the entry with a message the desk can act
   // on instead.
+  // MYK9-788: the show-scoped reads go through the show index. Scanning every
+  // show's entries on a tablet holding many shows could hit the read timeout
+  // on every retry. Classes carry no showId and stay a whole-table read; that
+  // table is a fraction of entries' size.
   const [show, classes, trials, assignments, entries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     rowsOrThrow(replicatedClassesTable.getAllWithStatus(), CAPACITY_UNREADABLE),
-    rowsOrThrow(replicatedTrialsTable.getAllWithStatus(), CAPACITY_UNREADABLE).then(rows =>
-      rows
-        .filter(trial => trial.showId === showId)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    rowsOrThrow(replicatedTrialsTable.getByShowWithStatus(showId), CAPACITY_UNREADABLE).then(rows =>
+      rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     ),
-    readJudgeAssignmentsOrThrow().then(
-      rows => rows.filter(a => a.showId === showId),
-      () => {
-        throw new Error(CAPACITY_UNREADABLE);
-      }
-    ),
-    rowsOrThrow(replicatedEntriesTable.getAllWithStatus(), CAPACITY_UNREADABLE).then(rows =>
-      rows.filter(entry => entry.showId === showId)
-    ),
+    rowsOrThrow(replicatedJudgeAssignmentsTable.getByShowWithStatus(showId), CAPACITY_UNREADABLE),
+    rowsOrThrow(replicatedEntriesTable.getByShowWithStatus(showId), CAPACITY_UNREADABLE),
   ]);
   return { show, classes, trials, assignments, entries };
 }

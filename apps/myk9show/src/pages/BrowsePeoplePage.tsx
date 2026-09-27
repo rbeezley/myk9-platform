@@ -4,16 +4,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { ListControls } from '@/components/common/ListControls';
-import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
-import { PeopleGridView, PeopleTableView } from '@/components/users/browse';
+import {
+  PeopleGridView,
+  PeopleTableView,
+  PeopleListToolbar,
+  PeopleBulkBar,
+} from '@/components/users/browse';
 import { BrowsePeopleSkeleton } from '@/components/common/SkeletonLoaders';
 import { UserEditPanel } from '@/components/panels/edit';
 import { useUserStore, PersonInput } from '@/store/userStore';
@@ -45,7 +49,23 @@ const BrowsePeoplePage: React.FC = () => {
     hasActiveFilters,
     clearAllFilters,
     availableRoles,
+    availableLocations,
   } = useBrowsePeopleData();
+
+  // Selection only applies in the table view (the grid/card view has no
+  // checkboxes — see the PR body's "Scoped down" note). `selectionEpoch`
+  // remounts the table on Clear: DataTable's own row-selection state is
+  // uncontrolled, so a fresh mount is the only way to un-check its boxes.
+  const [selectedPeople, setSelectedPeople] = useState<User[]>([]);
+  const [selectionEpoch, setSelectionEpoch] = useState(0);
+  const visibleSelection = useMemo(
+    () => selectedPeople.filter(person => filteredPeople.some(p => p.id === person.id)),
+    [selectedPeople, filteredPeople]
+  );
+  const clearSelection = useCallback(() => {
+    setSelectedPeople([]);
+    setSelectionEpoch(epoch => epoch + 1);
+  }, []);
 
   const canCreatePeople = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
 
@@ -120,34 +140,6 @@ const BrowsePeoplePage: React.FC = () => {
     [addUser, closeCreatePersonDialog, navigate, queryClient]
   );
 
-  // FilterChips definitions
-  const chipFilters: ChipFilterDefinition[] = useMemo(
-    () => [
-      {
-        key: 'role',
-        label: 'Role',
-        options: availableRoles.map(role => ({
-          label: role.charAt(0).toUpperCase() + role.slice(1),
-          value: role,
-        })),
-      },
-    ],
-    [availableRoles]
-  );
-
-  const chipFilterValues = useMemo(() => {
-    const values: Record<string, string> = {};
-    if (filters.role !== 'all') values.role = filters.role;
-    return values;
-  }, [filters.role]);
-
-  const handleChipFilterChange = useCallback(
-    (key: string, value: string | null) => {
-      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
-    },
-    [setFilters]
-  );
-
   // Render view content
   const renderContent = () => {
     if (filteredPeople.length === 0 && !hasActiveFilters) {
@@ -192,7 +184,11 @@ const BrowsePeoplePage: React.FC = () => {
         return isMobileViewport ? (
           <PeopleGridView people={filteredPeople} />
         ) : (
-          <PeopleTableView people={filteredPeople} />
+          <PeopleTableView
+            key={selectionEpoch}
+            people={filteredPeople}
+            onSelectionChange={setSelectedPeople}
+          />
         );
       case 'cards':
       default:
@@ -231,19 +227,18 @@ const BrowsePeoplePage: React.FC = () => {
                 )}
               </div>
 
-              <ListControls
-                search={filters.search}
-                onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-                searchPlaceholder="Search people by name or email..."
-                filters={chipFilters}
-                filterValues={chipFilterValues}
-                onFilterChange={handleChipFilterChange}
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                resultsShowing={filteredPeople.length}
-                resultsTotal={people.length}
-                filtered={hasActiveFilters}
-                entityName={people.length !== 1 ? 'people' : 'person'}
+              <PeopleListToolbar
+                people={people}
+                matchCount={filteredPeople.length}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearAll={clearAllFilters}
+                hasActiveFilters={hasActiveFilters}
+                availableRoles={availableRoles}
+                availableLocations={availableLocations}
+                resultLineExtra={
+                  <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+                }
               />
 
               {/* People Cards */}
@@ -264,6 +259,9 @@ const BrowsePeoplePage: React.FC = () => {
         enableAutoSave={false}
         showAdvancedFields={true}
       />
+
+      {/* Floats at the bottom of the viewport, in view wherever rows were ticked. */}
+      <PeopleBulkBar selectedPeople={visibleSelection} onClearSelection={clearSelection} />
     </div>
   );
 };

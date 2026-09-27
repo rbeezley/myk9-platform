@@ -45,6 +45,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
     table = new ReplicatedEntriesTable();
     table.setMutationManager(
       fromAny<MutationManager, unknown>({
+        rowRefetchers: { register: () => () => undefined },
         queueMutation: async (
           tableName: string,
           operation: PendingMutation['operation'],

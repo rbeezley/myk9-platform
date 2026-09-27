@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildClassDisambiguator, classNameExtra } from '../classLabel';
+import {
+  buildClassDisambiguator,
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+  buildTrialDayDisambiguator,
+  buildTrialDisambiguators,
+  buildTrialLabelCollisionDisambiguator,
+  classNameExtra,
+} from '../classLabel';
 
 /**
  * The rule both the show premium and the registration wizard build their class
@@ -140,5 +148,303 @@ describe('buildClassDisambiguator', () => {
         section: 'B',
       })
     ).toBe('');
+  });
+});
+
+// MYK9-805 (Codex review on PR #2548): a collision is a question about
+// classes offered in the SAME trial, never the whole show.
+describe('buildTrialDisambiguators', () => {
+  it('disambiguates within a trial that has a real collision', () => {
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-1',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('Preliminary');
+  });
+
+  it('never lets a collision in one trial add a suffix in a different trial', () => {
+    // Same element/level/section pair, but each trial only ever offers ONE
+    // of the two names — no exhibitor in either trial can confuse them.
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-2',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1', 'trial-2'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('');
+    expect(
+      byTrialId.get('trial-2')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('');
+  });
+
+  it('does not mask a real within-trial collision behind a third trial sharing the identity', () => {
+    // trial-1 genuinely collides (two names); trial-2 merely shares the same
+    // element/level with a THIRD name. Grouping every trial together would
+    // make trial-1's key see 3 distinct names and still disambiguate
+    // correctly here, but must not do so by accident — each trial's group is
+    // built from ONLY its own classes.
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-1',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+        {
+          trialId: 'trial-2',
+          name: 'Interior Advanced Excellent',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1', 'trial-2'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('Preliminary');
+    // trial-2's only class has nothing in its OWN trial to collide with.
+    expect(
+      byTrialId.get('trial-2')?.({
+        name: 'Interior Advanced Excellent',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('');
+  });
+});
+
+/**
+ * MYK9-825: a UKC show splits every level into A/B, giving 20 Vehicle classes
+ * across 2 trials. A stored class name that omits the section (created
+ * outside `generateScentWorkClasses`) must not collapse "Vehicle Novice A"
+ * and "Vehicle Novice B" into the same label.
+ */
+describe('buildFullClassLabel', () => {
+  it('composes element, level and section, ignoring a section-less stored name', () => {
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'A' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice A');
+    expect(
+      buildFullClassLabel(
+        { element: 'Vehicle', level: 'Novice', section: 'B' },
+        '',
+        'Vehicle Novice'
+      )
+    ).toBe('Vehicle Novice B');
+  });
+
+  it('appends the disambiguator extra when the caller supplies one', () => {
+    expect(
+      buildFullClassLabel(
+        { element: 'Container', level: 'Advanced', section: null },
+        'Preliminary',
+        'Container Advanced Preliminary'
+      )
+    ).toBe('Container Advanced Preliminary');
+  });
+
+  it('falls back to the stored name only when element and level are both unresolvable', () => {
+    expect(buildFullClassLabel({}, '', 'Handler Discrimination')).toBe('Handler Discrimination');
+    expect(buildFullClassLabel({}, '', null)).toBe('Class');
+  });
+});
+
+describe('buildClassDisambiguatorsByGroup', () => {
+  it('scopes the collision test to each class own group, not across groups', () => {
+    const trial1 = {
+      trialId: 't1',
+      name: 'Interior Advanced',
+      element: 'Interior',
+      level: 'Advanced',
+      section: null,
+    };
+    const trial2 = {
+      trialId: 't2',
+      name: 'Interior Advanced Preliminary',
+      element: 'Interior',
+      level: 'Advanced',
+      section: null,
+    };
+    const lookup = buildClassDisambiguatorsByGroup([trial1, trial2], cls => cls.trialId);
+
+    // Each trial has only ONE "Interior Advanced"-shaped class, so within its
+    // own group there is no collision even though the two groups together
+    // would look identical to `buildClassDisambiguator` run over both at once.
+    expect(lookup('t1')(trial1)).toBe('');
+    expect(lookup('t2')(trial2)).toBe('');
+  });
+
+  it('returns a no-op disambiguator for an unknown group key', () => {
+    const lookup = buildClassDisambiguatorsByGroup([], () => 'x');
+    expect(lookup('missing')({ name: 'Anything', element: 'E', level: 'L', section: null })).toBe(
+      ''
+    );
+  });
+});
+
+/**
+ * MYK9-832 #10: a two-trial Saturday show entering a dog in both trials'
+ * "Vehicle Novice B" showed the identical row twice, told apart only by a day
+ * label ("Sat ·") that read the same for both trials.
+ */
+describe('buildTrialDayDisambiguator', () => {
+  it('returns the trial name when two trials share a date', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', trialName: 'Saturday Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('Saturday Trial 1');
+    expect(disambiguate('trial-2')).toBe('Saturday Trial 2');
+  });
+
+  it('returns nothing for the ordinary one-trial-per-day case', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-11', trialName: 'Sunday Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for a trial with no date on record', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: null, trialName: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: null, trialName: 'Trial 2' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+  });
+
+  it('returns nothing for a trial id absent from the set', () => {
+    const disambiguate = buildTrialDayDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', trialName: 'Saturday Trial 1' },
+    ]);
+
+    expect(disambiguate('unknown-trial')).toBe('');
+  });
+});
+
+/**
+ * MYK9-842: `buildTrialDayDisambiguator` above assumes a same-day trial's
+ * own name already tells it apart from its sibling. Two trials with the
+ * literal same rendered label (a data duplicate, not the ordinary case) are
+ * a residual gap this closes.
+ */
+describe('buildTrialLabelCollisionDisambiguator', () => {
+  it('assigns a positional suffix to two same-day trials with an identical label', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('1');
+    expect(disambiguate('trial-2')).toBe('2');
+  });
+
+  it('returns nothing when same-day trials already render distinct labels', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Saturday A (1)' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Saturday A (2)' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for the ordinary one-trial-per-day case', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+  });
+
+  it('does not collide two identically-labeled trials on DIFFERENT days', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-11', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for a trial with no date or no label on record', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: null, label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: null },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it("skips a suffix that collides with another same-day trial's own rendered label (MYK9-842 follow-up)", () => {
+    // Two 'Trial 1's would ordinarily become 'Trial 1 #1' / 'Trial 1 #2', but
+    // a third trial on the same day is already literally named 'Trial 1 #1' --
+    // the suffix picker must skip that candidate so all three stay distinct.
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-3', trialDate: '2026-10-10', label: 'Trial 1 #1' },
+    ]);
+
+    const rendered = (trialId: string, label: string) => {
+      const suffix = disambiguate(trialId);
+      return suffix ? `${label} #${suffix}` : label;
+    };
+
+    const labels = [
+      rendered('trial-1', 'Trial 1'),
+      rendered('trial-2', 'Trial 1'),
+      rendered('trial-3', 'Trial 1 #1'),
+    ];
+
+    expect(new Set(labels).size).toBe(3);
   });
 });

@@ -7,10 +7,9 @@ import {
   useShowSettings,
   useTrialOverrides,
 } from '@/hooks/queries/useShowSettingsDatabase';
-import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { OverrideTree } from '@/pages/secretary/ResultsControlPage/OverrideTree';
 import { ShowCheckinToggle } from '@/pages/secretary/ResultsControlPage/ShowCheckinToggle';
-import { toast } from 'sonner';
+import { SelfCheckinBulkBar } from './SelfCheckinBulkBar';
 
 export interface SelfCheckinToolClass {
   id: string;
@@ -29,87 +28,6 @@ interface SelfCheckinToolProps {
 }
 
 const getClassId = (item: SelfCheckinToolClass) => item.id;
-
-interface CheckinBulkActionsProps {
-  showId: string;
-  selectedClasses: Set<string>;
-  allClassIds: string[];
-  onSelectAll: () => void;
-  onClearSelection: () => void;
-}
-
-function CheckinBulkActions({
-  showId,
-  selectedClasses,
-  allClassIds,
-  onSelectAll,
-  onClearSelection,
-}: CheckinBulkActionsProps) {
-  const updateClasses = useBulkUpdateClassOverrides();
-
-  if (selectedClasses.size === 0) return null;
-
-  function updateCheckin(enabled: boolean) {
-    const validIds = new Set(allClassIds);
-    const classIds = Array.from(selectedClasses).filter(id => validIds.has(id));
-    if (classIds.length === 0) {
-      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
-      onClearSelection();
-      return;
-    }
-
-    updateClasses.mutate(
-      { classIds, showId, selfCheckinEnabled: enabled },
-      {
-        onSuccess: () => {
-          toast.success(
-            `Self check-in ${enabled ? 'enabled' : 'disabled'} for ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`
-          );
-          onClearSelection();
-        },
-        onError: () => toast.error('Failed to update self check-in'),
-      }
-    );
-  }
-
-  const count = selectedClasses.size;
-
-  return (
-    <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">
-          {count} class{count === 1 ? '' : 'es'} selected
-        </span>
-        <Button type="button" variant="ghost" className="min-h-11" onClick={onSelectAll}>
-          Select all ({allClassIds.length})
-        </Button>
-        <Button type="button" variant="ghost" className="min-h-11" onClick={onClearSelection}>
-          Clear
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={updateClasses.isPending}
-          onClick={() => updateCheckin(true)}
-        >
-          Enable self check-in
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={updateClasses.isPending}
-          onClick={() => updateCheckin(false)}
-        >
-          Disable self check-in
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProps) {
   const settingsQuery = useShowSettings(showId);
@@ -189,7 +107,7 @@ export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProp
         the setting above them.
       </p>
       <ShowCheckinToggle showId={showId} enabled={settingsQuery.data.selfCheckinEnabled} />
-      <CheckinBulkActions
+      <SelfCheckinBulkBar
         showId={showId}
         selectedClasses={selection.selectedIds}
         allClassIds={allClassIds}

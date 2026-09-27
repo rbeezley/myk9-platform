@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../ClassResultsTable';
@@ -117,8 +117,12 @@ describe('ClassResultsTable header buttons', () => {
 
   it('shows entry count badge in the header', () => {
     renderTable(makeProps());
-    // Badge shows "0" for empty entries
-    expect(screen.getByText('0')).toBeInTheDocument();
+    // Badge shows "0" for empty entries. Scoped to the title row: the
+    // Pending/Completed list-toolkit view tabs also read "0" with no entries
+    // (MYK9-811), so an unscoped query is now ambiguous.
+    const titleRow = screen.getByText('Entries & Results').parentElement;
+    expect(titleRow).not.toBeNull();
+    expect(within(titleRow as HTMLElement).getByText('0')).toBeInTheDocument();
   });
 });
 

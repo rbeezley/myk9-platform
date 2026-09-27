@@ -55,6 +55,19 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthState,
 }));
 
+// The self-check-in cascade is a live Supabase read (@/hooks/queries/useSelfCheckinEnabled),
+// not a replicated table — mocked at the hook boundary, same as MyEntriesPage.test.tsx,
+// rather than deep-mocking the show_visibility_settings/trial_visibility_overrides/
+// class_visibility_overrides query chain. Defaults every class 'allowed' so these tests'
+// existing assertions (dog name, class name) are unaffected by MYK9-800's new gate;
+// overridden per-test below to prove the gate actually wires through.
+const mockSelfCheckinStateMap = vi.hoisted(() =>
+  vi.fn((classIds: string[]) => Object.fromEntries(classIds.map(classId => [classId, 'allowed'])))
+);
+vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
+  useSelfCheckinStateMap: mockSelfCheckinStateMap,
+}));
+
 import { AtShowClassListPage } from './AtShowClassListPage';
 import {
   replicatedShowsTable,
@@ -137,6 +150,9 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     mockAuthState.hasRole = () => false;
     mockAuthState.userWithRoles = null;
     mockAuthState.user = null;
+    mockSelfCheckinStateMap.mockImplementation((classIds: string[]) =>
+      Object.fromEntries(classIds.map(classId => [classId, 'allowed']))
+    );
   });
 
   it('defaults an exhibitor-only account with owned entries to "Your dogs today"', async () => {
@@ -209,5 +225,42 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
       await screen.findByText(/The class list could not be read on this device/)
     ).toBeInTheDocument();
     expect(screen.queryByText(/haven't loaded yet/)).not.toBeInTheDocument();
+  });
+
+  // MYK9-800 follow-up: proves the resolved self-check-in cascade actually
+  // reaches this page, end to end — not just the pure helper in isolation.
+  it('hides Check In and explains why when the self-check-in cascade reports the class closed', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+    mockSelfCheckinStateMap.mockImplementation((classIds: string[]) =>
+      Object.fromEntries(classIds.map(classId => [classId, 'not-allowed']))
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Self check-in is off for this class/)).toBeInTheDocument();
+  });
+
+  // MYK9-800 follow-up P1 (Codex): the batch cascade query errors (or the
+  // device is offline) must never fall open. Red on 73dec6f89, where the
+  // page defaulted a missing map entry to `true` (open).
+  it('hides Check In and shows the calm unknown-state message when the cascade cannot be resolved', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+    mockSelfCheckinStateMap.mockImplementation((classIds: string[]) =>
+      Object.fromEntries(classIds.map(classId => [classId, 'unknown']))
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Check-in isn't available right now\. Ask at the show desk\./)
+    ).toBeInTheDocument();
   });
 });

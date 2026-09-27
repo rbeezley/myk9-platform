@@ -343,7 +343,15 @@ export function useMyEntriesFilters({
         : 0;
     // Every badge counts with the exact predicate its tab filters by, so a
     // count can no longer describe a list the panel would refuse to produce.
-    // Active wait-list positions belong to All and Upcoming, never Completed.
+    // Active wait-list positions belong to All and Upcoming, never Completed
+    // — and, within those two, only when they are the exhibitor's ONLY
+    // standing there (`deriveTabCounts`): a position has no `MyEntry` row and
+    // renders in its own section below the show list, so folding it into a
+    // badge that ALSO has real orders under it would inflate the badge past
+    // the rows `MyShowsList` renders — reported 2026-09-27 on the exhibitor's
+    // production walk as "All 8" above a 7-row list, read as a missing
+    // completed entry when the eighth thing was a live position elsewhere on
+    // the page (MYK9-804).
     return deriveTabCounts(scopedEntries, selectedStatus, new Date(), positionCount);
   }, [scopedEntries, selectedStatus, scopeMatch.kind, activeWaitlistPositionCount]);
 

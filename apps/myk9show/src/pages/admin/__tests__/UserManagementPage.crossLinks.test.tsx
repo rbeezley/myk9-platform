@@ -31,7 +31,6 @@ vi.mock('@/components/admin/users/UserFilters', () => ({ UserFilters: () => null
 vi.mock('@/components/admin/users/CreateUserDialog', () => ({ CreateUserDialog: () => null }));
 vi.mock('@/components/admin/users/BulkActionsBar', () => ({ BulkActionsBar: () => null }));
 vi.mock('@/components/panels/edit/UserEditPanel', () => ({ UserEditPanel: () => null }));
-vi.mock('../UserManagementStats', () => ({ UserManagementStats: () => null }));
 vi.mock('@/components/admin/permissions/ManageUserRolesDialog', () => ({
   ManageUserRolesDialog: () => null,
 }));
@@ -39,7 +38,6 @@ vi.mock('../UserManagementPage.helpers', () => ({
   filterUsers: (users: User[]) => users,
   sortUsers: (users: User[]) => users,
   calculateRoleStats: () => ({}),
-  countActiveUsers: (users: User[]) => users.length,
   exportUsersCSV: vi.fn(),
 }));
 

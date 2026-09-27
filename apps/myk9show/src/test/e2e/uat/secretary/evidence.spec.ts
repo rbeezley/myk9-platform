@@ -51,7 +51,6 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-entry-management');
 
-    await page.getByRole('tab', { name: 'Exceptions', exact: true }).click();
     await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');

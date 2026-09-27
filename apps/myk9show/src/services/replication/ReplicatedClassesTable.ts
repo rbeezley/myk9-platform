@@ -12,6 +12,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type ReplicatedRow,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -304,6 +305,24 @@ export function stripUnsetServerOwnedKeys(
   return next;
 }
 
+// Carry visibility enrichment fields through fetchRemoteRows → toLocalRow.
+// toLocalRow is synchronous so the async resolveVisibilityForClassRows call
+// must happen inside fetchRemoteRows, which returns an enriched row type.
+type EnrichedClassRow = ClassRow & {
+  _selfCheckinEnabled?: boolean | undefined;
+  _visibilityPreset?: string | undefined;
+  _judge?: JudgeNameParts | null | undefined;
+  _judgeResolved?: boolean | undefined;
+};
+
+// Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a star
+// select fails 42501 for every user. Safe public fixed counts and authorized
+// official counts are enriched by enrichClassRows. A function, not a constant:
+// classes/reads sits in an import cycle with this module, so its export is still
+// undefined while this module first evaluates.
+const classReplicationSelect = () =>
+  `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
+
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
@@ -478,20 +497,87 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS;
   }
 
+  /**
+   * Reads rows by id the way `sync` does (same column list, same enrichment),
+   * so a full-row UPDATE rejected for a stale OCC token can re-fetch its row
+   * and rebase or surface (MYK9-771). Without the enrichment the re-fetched
+   * row would read as a server change to the judge and hide counts.
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<EnrichedClassRow, ReplicatedClass> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: remote => ({
+        ...rowToClass(remote),
+        selfCheckinEnabled: remote._selfCheckinEnabled,
+        visibilityPreset: remote._visibilityPreset,
+      }),
+      rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
+    };
+  }
+
+  /** Server-derived values a class row carries offline (visibility, hides, judge). */
+  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
+    // Phase 1h: resolve visibility-cascade values so the at-show
+    // ClassDetailsPopover + SortableEntryCard self-check-in gate work offline.
+    // Keyed by the row's own trial_id (not the scope arg) so it runs for
+    // scoped and unscoped syncs alike. Best-effort: failure must not break
+    // class replication.
+    const visibilityByClassId = await resolveVisibilityForClassRows(rows).catch(() => {
+      logger.warn(
+        `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
+        'replication'
+      );
+      return new Map<string, ResolvedClassVisibility>();
+    });
+
+    // num_hides is no longer on the class row (20260731160000). Public fixed
+    // totals are derived from registry rules; protected judge-set totals are
+    // returned only by the show-scoped official RPC. Both are merged here so
+    // the caller keeps the count they are entitled to while offline.
+    const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
+      logger.warn(
+        `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
+        'replication'
+      );
+      return new Map<string, number>();
+    });
+
+    // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
+    // another person's row, so the embed (or `people!inner`) yields nothing and every
+    // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
+    const judgeByClassId = await resolveJudgeNamesForClassRows(rows).catch(() => {
+      logger.warn(
+        `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
+        'replication'
+      );
+      return new Map<string, JudgeNameParts | null>();
+    });
+
+    return rows.map(row => ({
+      ...row,
+      // `has` vs `get`: an absent key means the enrichment never ran for this row, which
+      // must NOT be committed over a good cached name (MYK9-494 review, P1).
+      _judge: judgeByClassId.get(String(row.id)) ?? null,
+      _judgeResolved: judgeByClassId.has(String(row.id)),
+      num_hides: hideCountByClassId.get(String(row.id)) ?? null,
+      _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
+      _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
+    }));
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
-    // Carry visibility enrichment fields through fetchRemoteRows → toLocalRow.
-    // toLocalRow is synchronous so the async resolveVisibilityForClassRows call
-    // must happen inside fetchRemoteRows, which returns an enriched row type.
-    type EnrichedClassRow = ClassRow & {
-      _selfCheckinEnabled?: boolean | undefined;
-      _visibilityPreset?: string | undefined;
-      _judge?: JudgeNameParts | null | undefined;
-      _judgeResolved?: boolean | undefined;
-    };
-
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
+      ...this.getRowRefetchAdapter(),
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase.from('classes').select('id', { count: 'exact', head: true });
@@ -523,12 +609,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('classes')
-          // Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a
-          // star select now fails 42501 for every user. Safe public fixed counts and
-          // authorized official counts are enriched below.
-          .select(
-            `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`
-          )
+          .select(classReplicationSelect())
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 
@@ -542,63 +623,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        const rows = (data ?? []) as unknown as ClassRow[];
-
-        // Phase 1h: resolve visibility-cascade values so the at-show
-        // ClassDetailsPopover + SortableEntryCard self-check-in gate work offline.
-        // Keyed by the row's own trial_id (not the scope arg) so it runs for
-        // scoped and unscoped syncs alike. Best-effort: failure must not break
-        // class replication.
-        const visibilityByClassId = await resolveVisibilityForClassRows(rows).catch(() => {
-          logger.warn(
-            `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
-            'replication'
-          );
-          return new Map<string, ResolvedClassVisibility>();
-        });
-
-        // num_hides is no longer on the class row (20260731160000). Public fixed
-        // totals are derived from registry rules; protected judge-set totals are
-        // returned only by the show-scoped official RPC. Both are merged here so
-        // the caller keeps the count they are entitled to while offline.
-        const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
-          logger.warn(
-            `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
-            'replication'
-          );
-          return new Map<string, number>();
-        });
-
-        // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
-        // another person's row, so the embed (or `people!inner`) yields nothing and every
-        // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
-        const judgeByClassId = await resolveJudgeNamesForClassRows(rows).catch(() => {
-          logger.warn(
-            `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
-            'replication'
-          );
-          return new Map<string, JudgeNameParts | null>();
-        });
-
-        return rows.map(row => ({
-          ...row,
-          // `has` vs `get`: an absent key means the enrichment never ran for this row, which
-          // must NOT be committed over a good cached name (MYK9-494 review, P1).
-          _judge: judgeByClassId.get(String(row.id)) ?? null,
-          _judgeResolved: judgeByClassId.has(String(row.id)),
-          num_hides: hideCountByClassId.get(String(row.id)) ?? null,
-          _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
-          _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
-        }));
+        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
       },
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: remote => ({
-        ...rowToClass(remote),
-        selfCheckinEnabled: remote._selfCheckinEnabled,
-        visibilityPreset: remote._visibilityPreset,
-      }),
-      rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),

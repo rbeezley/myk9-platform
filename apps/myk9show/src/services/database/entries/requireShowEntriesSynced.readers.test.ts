@@ -67,10 +67,19 @@ vi.mock('@/services/replication', () => ({
       ],
       error: null,
     })),
+    // The show index: only the named show's rows.
+    getByShowWithStatus: vi.fn(async (showId: string) => ({
+      ok: true,
+      rows: [
+        ...state.entries.map(entry => ({ showId: SHOW_ID, ...entry })),
+        ...state.otherShowEntries,
+      ].filter(row => row.showId === showId),
+      error: null,
+    })),
   },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(async () => [{ id: 'trial-1', date: '2026-10-10' }]),
-    getAllWithStatus: vi.fn(async () => ({
+    getByShowWithStatus: vi.fn(async () => ({
       ok: true,
       rows: [{ id: 'trial-1', date: '2026-10-10', showId: SHOW_ID }],
       error: null,
@@ -102,7 +111,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     getByShowId: vi.fn(async () => []),
-    getAllWithStatus: vi.fn(async () =>
+    getByShowWithStatus: vi.fn(async () =>
       state.judgeReadFails
         ? { ok: false, rows: [], error: new Error('IndexedDB read timed out') }
         : { ok: true, rows: [], error: null }
@@ -236,8 +245,8 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
     // counted as empty, so a full class or judge-day read as open and the
     // entry was recorded as within capacity.
     it.each([
-      ['entries', () => replicatedEntriesTable.getAllWithStatus],
-      ['trials', () => replicatedTrialsTable.getAllWithStatus],
+      ['entries', () => replicatedEntriesTable.getByShowWithStatus],
+      ['trials', () => replicatedTrialsTable.getByShowWithStatus],
       ['classes', () => replicatedClassesTable.getAllWithStatus],
     ])(
       'the offline capacity override refuses to count on a failed %s read',

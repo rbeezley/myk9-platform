@@ -44,23 +44,28 @@ describe('ClassesTab table view', () => {
     localStorage.clear();
   });
 
-  it('defaults entered exhibitors to their classes in card view', () => {
+  // Oct 10 rehearsal (MYK9-811): the tab used to default an exhibitor with
+  // entries to "My Classes", hiding the rest of the show behind a banner. The
+  // default view is always "All" now — "Mine" is one pressable tab, not a
+  // silent default — so both classes show and there is no banner.
+  it('defaults to the whole show, even for an exhibitor who holds entries', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
-    expect(screen.getByText(/showing your entered classes first/i)).toBeInTheDocument();
+    expect(screen.queryByText(/showing your entered classes first/i)).not.toBeInTheDocument();
     expect(screen.getByText('My entry')).toBeInTheDocument();
     expect(screen.getByText('Detective')).toBeInTheDocument();
-    expect(screen.queryByText('Handler Discrimination')).not.toBeInTheDocument();
+    expect(screen.getByText('Handler Discrimination')).toBeInTheDocument();
   });
 
-  it('switches to card view when entry ownership resolves after mount', () => {
+  it('switches to card view when entry ownership resolves after mount, still showing the whole show', () => {
     const { rerender } = render(
       <ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />
     );
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
 
     rerender(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
-    expect(screen.getByText(/showing your entered classes first/i)).toBeInTheDocument();
+    expect(screen.queryByText(/showing your entered classes first/i)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Handler Discrimination')).toBeInTheDocument();
   });
 
   it('honors stored table preference for entered exhibitors', () => {

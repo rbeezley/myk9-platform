@@ -166,6 +166,7 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
       const queueMutation = vi.fn(async () => 'mutation-1');
       table.setMutationManager({
         queueMutation,
+        rowRefetchers: { register: () => () => undefined },
         acquireMutationWriteLock: vi.fn(async () => vi.fn()),
         getPendingCount: vi.fn(async () => 0),
       } as unknown as MutationManager);

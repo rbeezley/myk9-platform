@@ -7,6 +7,8 @@ import { DataTable } from '@/components/ui/data-table';
 
 interface PeopleTableViewProps {
   people: User[];
+  /** Lifts row selection to the page for the list toolkit's bulk bar. */
+  onSelectionChange?: (selected: User[]) => void;
 }
 
 function getFullName(user: User): string {
@@ -85,7 +87,7 @@ const columns: ColumnDef<User>[] = [
   },
 ];
 
-export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
+export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people, onSelectionChange }) => {
   const navigate = useNavigate();
 
   return (
@@ -100,10 +102,12 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
           tableId="peopleBrowse"
           columns={columns}
           data={people}
-          // Page-level ListControls owns search; table keeps only its Columns control.
+          // The page's list-toolkit filter bar owns search; table keeps only
+          // its Columns control.
           showSearch={false}
           onRowClick={person => navigate(`/people/${person.id}`)}
           getRowId={person => person.id}
+          {...(onSelectionChange ? { selectable: 'multi' as const, onSelectionChange } : {})}
         />
       </div>
     </div>

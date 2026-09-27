@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   cartItemsFromFeeBreakdown,
+  computePaymentTotals,
   countPanelLines,
+  formatAmountDue,
   groupCartByDogAndDay,
   sumPanelFeeCents,
   type PanelClass,
@@ -9,6 +11,7 @@ import {
   type PanelTrial,
 } from './EntriesPanel.helpers';
 import type { CartItemWithDetails } from '@/store/cartStore';
+import type { FeeCalculationResult } from '../PaymentStep/types';
 
 /**
  * Fixtures use the EXACT shapes the app emits, not invented ones
@@ -435,5 +438,137 @@ describe('groupCartByDogAndDay class labels', () => {
       'Interior Advanced',
       'Interior Advanced',
     ]);
+  });
+});
+
+/**
+ * MYK9-832 #10: a two-trial Saturday UKC Nosework show entering a dog in both
+ * trials' identical "Vehicle Novice B" class showed the same row twice, told
+ * apart only by a day label ("Sat ·") that read the same for both.
+ */
+describe('groupCartByDogAndDay same-day trials', () => {
+  const sameDayTrials = new Map<string, PanelTrial>([
+    ['trial-1', { id: 'trial-1', name: 'Saturday Trial 1', trialDate: '2026-10-10' }],
+    ['trial-2', { id: 'trial-2', name: 'Saturday Trial 2', trialDate: '2026-10-10' }],
+  ]);
+  const twinClasses = new Map<string, PanelClass>([
+    [
+      'class-t1',
+      {
+        id: 'class-t1',
+        trialId: 'trial-1',
+        element: 'Vehicle',
+        level: 'Novice',
+        section: 'B',
+        className: 'Vehicle Novice B',
+      },
+    ],
+    [
+      'class-t2',
+      {
+        id: 'class-t2',
+        trialId: 'trial-2',
+        element: 'Vehicle',
+        level: 'Novice',
+        section: 'B',
+        className: 'Vehicle Novice B',
+      },
+    ],
+  ]);
+
+  it('names the trial when two trials on the same day both hold the identical class', () => {
+    const groups = groupCartByDogAndDay(
+      [
+        cartItem({ dog_id: 'dog-1', class_id: 'class-t1' }),
+        cartItem({ dog_id: 'dog-1', class_id: 'class-t2' }),
+      ],
+      dogs,
+      twinClasses,
+      sameDayTrials,
+      ['dog-1']
+    );
+
+    const lines = groups[0]!.lines;
+    expect(lines.map(line => line.label)).toEqual(['Vehicle Novice B', 'Vehicle Novice B']);
+    // Same label, but no longer the same line — the day label alone was
+    // "Sat" for both before this fix.
+    expect(lines.map(line => line.dayLabel)).toEqual([
+      'Sat · Saturday Trial 1',
+      'Sat · Saturday Trial 2',
+    ]);
+    expect(new Set(lines.map(line => line.dayLabel)).size).toBe(2);
+  });
+
+  it('adds no trial suffix for the ordinary one-trial-per-day case', () => {
+    const groups = groupCartByDogAndDay(
+      [cartItem({ dog_id: 'dog-1', class_id: 'class-a' })],
+      dogs,
+      classes,
+      trials,
+      ['dog-1']
+    );
+
+    expect(groups[0]!.lines[0]!.dayLabel).toBe('Sat');
+  });
+});
+
+/**
+ * MYK9-832 #11: "Total due $70.00" stayed on screen after the secretary chose
+ * "Secretary Payment (Already Received)" — the fee was already in hand, not
+ * still owed, and nothing said so.
+ */
+describe('computePaymentTotals / formatAmountDue secretary_paid', () => {
+  const feeCalculation: FeeCalculationResult = {
+    subtotal: 70,
+    discounts: [],
+    taxes: 0,
+    total: 70,
+    breakdown: [],
+  };
+  const rates = { percent: 7, flatCents: 0, minCents: 0 };
+
+  it('marks the totals as received, not owed, for secretary_paid', () => {
+    const totals = computePaymentTotals({
+      paymentMethod: 'secretary_paid',
+      feeCalculation,
+      capacityReady: true,
+      waiveFees: false,
+      feeOverride: null,
+      rates,
+    });
+
+    expect(totals.isSecretaryReceived).toBe(true);
+    expect(totals.amountDueCents).toBe(7000);
+  });
+
+  it('labels the headline amount "(Received)" instead of leaving it as an outstanding total', () => {
+    const totals = computePaymentTotals({
+      paymentMethod: 'secretary_paid',
+      feeCalculation,
+      capacityReady: true,
+      waiveFees: false,
+      feeOverride: null,
+      rates,
+    });
+
+    expect(
+      formatAmountDue({ capacityReady: true, totals, entryFeeCents: 7000, classCount: 1 })
+    ).toBe('$70.00 (Received)');
+  });
+
+  it('leaves the ordinary check/cash "pay at show" total unlabeled', () => {
+    const totals = computePaymentTotals({
+      paymentMethod: 'check',
+      feeCalculation,
+      capacityReady: true,
+      waiveFees: false,
+      feeOverride: null,
+      rates,
+    });
+
+    expect(totals.isSecretaryReceived).toBe(false);
+    expect(
+      formatAmountDue({ capacityReady: true, totals, entryFeeCents: 7000, classCount: 1 })
+    ).toBe('$70.00');
   });
 });

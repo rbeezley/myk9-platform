@@ -35,29 +35,27 @@ import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/util
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ListControls } from '@/components/common/ListControls';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
 // Extracted hooks and components
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { getTabsForUser } from '@/utils/unified-shows-config';
+import { getTabsForUser, filterShowsForTab } from '@/utils/unified-shows-config';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
-import { ShowSearchBar } from '@/components/shows/browse/ShowSearchBar';
+import { ShowLocationField } from '@/components/shows/browse/ShowLocationField';
 import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
-import {
-  buildChipFilters,
-  getDefaultViewMode,
-  SHOWS_OFFLINE,
-  SHOWS_UNAVAILABLE,
-} from './browseShowsPage.helpers';
+import { getDefaultViewMode, SHOWS_OFFLINE, SHOWS_UNAVAILABLE } from './browseShowsPage.helpers';
+import { buildShowBrowseFilterFields } from './showBrowseFilterFields';
+import { activeManagingViewId, buildManagingViews, managingViewFilters } from './showManagingViews';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -84,6 +82,10 @@ const BrowseShowsPage: React.FC = () => {
   const tabConfig = useMemo(() => getTabsForUser(authUser), [authUser]);
   const allowedTabIds = useMemo(() => tabConfig.tabs.map(t => t.id), [tabConfig.tabs]);
   const [selectedTab, setSelectedTab] = useUrlTab(allowedTabIds, tabConfig.defaultTab);
+  // Bulk selection and the Managing views only ever apply on the secretary/
+  // admin's own-shows tab — every other tab is public or exhibitor-facing
+  // (MYK9-798: "Public pages: no bulk bar").
+  const isManagingTab = selectedTab === 'managing';
 
   // View mode state (still URL-synced manually — useUrlTab only manages ?tab=)
   const defaultViewMode = getDefaultViewMode(selectedTab);
@@ -137,26 +139,22 @@ const BrowseShowsPage: React.FC = () => {
       .map(([id, name]) => ({ label: name, value: id }));
   }, [shows]);
 
-  const chipFilters = useMemo(
-    () => buildChipFilters(clubFilterOptions, { hasLocation: origin !== null }),
-    [clubFilterOptions, origin]
+  const filterFields = useMemo(
+    () =>
+      buildShowBrowseFilterFields({
+        filters,
+        onFiltersChange: setFilters,
+        clubOptions: clubFilterOptions,
+        hasLocation: origin !== null,
+      }),
+    [filters, setFilters, clubFilterOptions, origin]
   );
 
-  // Bridge chip filter values from existing filters state
-  const chipFilterValues = useMemo(() => {
-    const values: Record<string, string> = {};
-    if (filters.discipline !== 'all') values.discipline = filters.discipline;
-    if (filters.entryStatus !== 'all') values.entryStatus = filters.entryStatus;
-    if (filters.club !== 'all') values.club = filters.club;
-    if (filters.radius !== 'all' && origin !== null) values.radius = filters.radius;
-    return values;
-  }, [filters.discipline, filters.entryStatus, filters.club, filters.radius, origin]);
-
-  const handleChipFilterChange = useCallback(
-    (key: string, value: string | null) => {
-      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
-    },
-    [setFilters]
+  // The tab's own total, before search/discipline/club/radius/status narrow it
+  // further — what the result line's "of N" names (list-toolkit, MYK9-798).
+  const tabShows = useMemo(
+    () => filterShowsForTab(selectedTab, shows, entries, userContext),
+    [selectedTab, shows, entries, userContext]
   );
 
   const handleMonthChange = useCallback(
@@ -176,7 +174,33 @@ const BrowseShowsPage: React.FC = () => {
   const bulkSelection = useBulkSelection({
     items: manageableShows,
     getItemId: getShowId,
+    // Search/discipline/club/month/radius narrow `manageableShows` (the
+    // currently-visible rows) without changing `resetKey` below, so a show
+    // selected then filtered out must drop out of the selection too —
+    // otherwise it stays selected invisibly and can resurface selected when
+    // the filter clears (Codex P2 on PR #2566).
+    pruneToItems: true,
+    // A tab switch or a Managing-view change is a new "what am I looking at",
+    // so a stale selection never rides along and becomes bulk-editable under
+    // a filter that no longer describes it (Design Decision 4).
+    resetKey: `${selectedTab}:${filters.status}`,
   });
+
+  // Managing tab's built-in views (list-toolkit, MYK9-798) — counted over the
+  // manager's own shows for this tab BEFORE `filters.status` narrows them
+  // (from `tabShows`, not `manageableShows`/`enhancedShows`: those already
+  // have the selected view applied via `filteredShows` → `useBrowseShowsData`,
+  // which made every view's count read as the CURRENTLY selected view's count
+  // — Codex P2). Search/discipline/club/radius narrow WITHIN a view, same as
+  // the Users roster's views; they do not change what a view's own count is.
+  const managingTabShows = useMemo(
+    () => filterManagedShows(tabShows, managedClubIds({ isAdmin, userWithRoles: authUser })),
+    [authUser, isAdmin, tabShows]
+  );
+  const managingViews = useMemo(
+    () => buildManagingViews(managingTabShows, entries),
+    [managingTabShows, entries]
+  );
 
   const handleBulkComplete = useCallback(() => {
     bulkSelection.clearSelection();
@@ -393,10 +417,11 @@ const BrowseShowsPage: React.FC = () => {
           <ShowsTableView
             shows={enhancedShows}
             canManageShow={canManageShow}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
-            isAllSelected={bulkSelection.isAllSelected}
-            onToggleAll={bulkSelection.toggleAll}
+            // Selection (and the floating bulk bar) is Managing-only — a
+            // public/exhibitor tab never offers a bulk bar (MYK9-798).
+            {...(isManagingTab
+              ? { isSelected: bulkSelection.isSelected, onToggleSelect: bulkSelection.toggleItem }
+              : {})}
           />
         );
 
@@ -410,8 +435,9 @@ const BrowseShowsPage: React.FC = () => {
             selectedTab={selectedTab}
             user={user}
             origin={origin}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
+            {...(isManagingTab
+              ? { isSelected: bulkSelection.isSelected, onToggleSelect: bulkSelection.toggleItem }
+              : {})}
           />
         );
     }
@@ -440,41 +466,63 @@ const BrowseShowsPage: React.FC = () => {
             already entered. */}
           <PageHeader breadcrumbs={breadcrumbs} title="Find Shows" actions={actionButtons} />
 
-          <ListControls
-            search={filters.search}
-            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-            searchPlaceholder="Search shows or locations"
-            searchSlot={
-              <ShowSearchBar
-                search={filters.search}
+          <div className="flex flex-col gap-3">
+            {isManagingTab && managingViews.length > 0 && (
+              <ListViewTabs
+                label="Show views"
+                views={managingViews}
+                activeId={activeManagingViewId(filters.status)}
+                onSelect={id => setFilters(prev => ({ ...prev, status: managingViewFilters(id) }))}
+              />
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <ListFilterBar
+                searchValue={filters.search}
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
                 searchPlaceholder="Search shows or locations"
+                fields={filterFields}
+                onClearAll={clearAllFilters}
+                className="flex-1"
+              />
+              <ShowLocationField
                 location={viewer.location}
                 isResolvingLocation={viewer.isResolving}
                 onChooseTyped={viewer.chooseTyped}
                 onUseDeviceLocation={viewer.useDeviceLocation}
                 onChooseAnywhere={viewer.chooseAnywhere}
               />
-            }
-            filters={chipFilters}
-            filterValues={chipFilterValues}
-            onFilterChange={handleChipFilterChange}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            viewModes={VIEW_MODES}
-            showViewLabels
-            resultsShowing={allEnhancedShows.length}
-            resultsTotal={allEnhancedShows.length}
-            filtered={hasActiveFilters}
-            entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}
-          />
+            </div>
+            <ListResultLine
+              shown={allEnhancedShows.length}
+              total={tabShows.length}
+              noun={['show', 'shows']}
+              filtered={hasActiveFilters}
+              {...(isManagingTab
+                ? {
+                    selectAll: {
+                      selectedCount: bulkSelection.selectedCount,
+                      onSelectAll: bulkSelection.selectAll,
+                    },
+                  }
+                : {})}
+            >
+              <ViewToggle
+                modes={VIEW_MODES}
+                active={viewMode}
+                onChange={handleViewModeChange}
+                showLabels
+              />
+            </ListResultLine>
+          </div>
 
-          {/* Bulk Actions Bar — secretary/admin only */}
-          <ShowBulkActionsBar
-            selectedShows={bulkSelection.selectedItems}
-            onClearSelection={bulkSelection.clearSelection}
-            onBulkComplete={handleBulkComplete}
-          />
+          {/* Floating bulk bar — Managing tab only (MYK9-798) */}
+          {isManagingTab && (
+            <ShowBulkActionsBar
+              selectedShows={bulkSelection.selectedItems}
+              onClearSelection={bulkSelection.clearSelection}
+              onBulkComplete={handleBulkComplete}
+            />
+          )}
 
           {/* Month scrubber — counts reflect every filter except the month, so
               the tiles answer "when?" for the list the visitor is looking at. */}

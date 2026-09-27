@@ -34,6 +34,8 @@ const { mockArmbandsTable, mockDogsTable, mockEntriesTable, mockClassesTable } =
     get getAllOrThrow() {
       return this.getAll;
     },
+    // The show-index read (MYK9-792), modelled over the same fixture rows.
+    getEntriesByShow: vi.fn(),
     getEntryById: vi.fn(),
     updateArmbandForDogInShow: vi.fn(),
   },
@@ -76,6 +78,16 @@ vi.mock('@/services/database/supabaseClient', () => ({
   logQuery: vi.fn(),
   createDatabaseError,
 }));
+
+const { hasPendingLocalWritesOrUnknown } = vi.hoisted(() => ({
+  hasPendingLocalWritesOrUnknown: vi.fn(),
+}));
+
+vi.mock('@/services/database/_shared/pendingWrites', () => ({
+  hasPendingLocalWritesOrUnknown,
+}));
+
+import { UNSYNCED_UNREADABLE_MESSAGE } from '@/services/database/_shared/replication-fallback';
 
 // Now import the functions under test
 import {
@@ -176,6 +188,11 @@ describe('armbandQueries (replication)', () => {
     // --sequence.shuffle a leaked rejection (e.g. upsertAssignedArmband from
     // the "replicated armband sync fails" case) surfaces in the wrong test.
     vi.resetAllMocks();
+    mockEntriesTable.getEntriesByShow.mockImplementation(async (showId: string) =>
+      ((await mockEntriesTable.getAll()) ?? []).filter(
+        (entry: ReplicatedEntry) => entry.showId === showId
+      )
+    );
   });
 
   describe('setEntryArmband', () => {
@@ -446,6 +463,37 @@ describe('armbandQueries (replication)', () => {
 
       expect(result.data!.entries).toHaveLength(1);
       expect(result.data!.entries[0].id).toBe('e1');
+    });
+
+    it("reads the show's entries through the show-scoped read, not the whole table (MYK9-792)", async () => {
+      mockArmbandsTable.lookupByArmbandNumber.mockResolvedValue(makeArmband());
+      mockDogsTable.getDogById.mockResolvedValue(makeDog());
+      setupOwnerQuery({ first_name: 'John', last_name: 'Smith' });
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([makeEntry()]);
+      mockClassesTable.getClassById.mockResolvedValue(makeClass());
+
+      const result = await lookupDogByArmband('show-1', '101');
+
+      expect(result.data!.entries.map(entry => entry.id)).toEqual(['entry-1']);
+      expect(mockEntriesTable.getEntriesByShow).toHaveBeenCalledWith('show-1');
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
+    });
+
+    it('a failed device read of the entries still reaches the fallback as a ReplicaReadError', async () => {
+      mockArmbandsTable.lookupByArmbandNumber.mockResolvedValue(makeArmband());
+      mockDogsTable.getDogById.mockResolvedValue(makeDog());
+      setupOwnerQuery({ first_name: 'John', last_name: 'Smith' });
+      mockEntriesTable.getEntriesByShow.mockRejectedValue(
+        Object.assign(new Error("This device couldn't read its saved show data. Try again."), {
+          name: 'ReplicaReadError',
+        })
+      );
+      hasPendingLocalWritesOrUnknown.mockResolvedValue(true);
+
+      const result = await lookupDogByArmband('show-1', '101');
+
+      expect(result.data).toBeNull();
+      expect(result.error?.message).toBe(UNSYNCED_UNREADABLE_MESSAGE);
     });
 
     it('handles entries with no class gracefully', async () => {

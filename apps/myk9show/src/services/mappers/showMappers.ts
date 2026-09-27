@@ -9,6 +9,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { getTrialTimezone } from '@/features/registries';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -120,6 +121,11 @@ export const mapDatabaseToShow = (
         timezone: trialObj.timezone as string | null | undefined,
       }),
       registryId: (trialObj.registry_id ?? trialObj.registryId ?? null) as string | null,
+      // MYK9-827: the same ordinal `computeDayTrialNumber` reads off the warm
+      // `trials.display_order` column, carried here so a fallback report built
+      // from a cached show detail (useReportData) sorts same-day trials the
+      // same way instead of falling back to UUID order.
+      displayOrder: (trialObj.display_order ?? trialObj.displayOrder ?? null) as number | null,
       // `undefined` when the read did not embed classes (the guest Browse
       // query leaves them out), `[]` only when it did and found none. Reading
       // "not fetched" as "none" labelled every open show "Classes Not Ready"
@@ -231,12 +237,18 @@ export const mapDatabaseToShow = (
     // and the browse list is fed by replication. Reading only the snake_case
     // key silently yielded `[organization]` for every show, which made every
     // discipline filter on /shows return zero results.
+    // MYK9-807: some rows store the raw trial-type key ('SCENT_WORK') rather
+    // than its display label ('Scent Work') — signed-out /shows cards render
+    // this array directly, so an unformatted key surfaced verbatim (2026-09-26
+    // exhibitor walk, E51). `formatTrialTypeLabel` is idempotent on an
+    // already-correct label, so this is a no-op everywhere else.
     events: (() => {
       const trialTypes = [
         ...new Set(
           (rawTrials as Array<Record<string, unknown>>)
             .map(t => (t.trial_type ?? t.trialType) as string | null)
             .filter((s): s is string => !!s)
+            .map(formatTrialTypeLabel)
         ),
       ];
       return trialTypes.length > 0 ? trialTypes : [dbShow.organization];
@@ -292,6 +304,11 @@ export const mapDatabaseToShow = (
     maxTotalEntries: dbShow.max_total_entries || undefined,
     allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
     isNationals: dbShow.is_nationals ?? false,
+    // MYK9-830: the header's "Payment methods" tile reads these off the Show
+    // object; dropping them here silently hid Check/Cash even when the
+    // wizard set both flags on the row.
+    acceptCheckPayments: dbShow.accept_check_payments ?? undefined,
+    acceptCashPayments: dbShow.accept_cash_payments ?? undefined,
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
@@ -552,6 +569,7 @@ export const mapReplicatedTrialToRow = (
     max_entries_per_dog: 'maxEntriesPerDog',
     max_total_entries: 'maxTotalEntries',
     max_entries_per_handler: 'maxEntriesPerHandler',
+    display_order: 'displayOrder',
   }),
   class: classes.map(mapReplicatedClassToRow),
 });

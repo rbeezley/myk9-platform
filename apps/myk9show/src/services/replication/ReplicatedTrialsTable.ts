@@ -11,6 +11,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type MutationManager,
+  type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -163,12 +164,32 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       // Registry (migration 192) — the write side of the registry column. Default to 'AKC'
       // (the DB default) when unset so this never writes NULL into the NOT-NULL column.
       registry_id: trial.registryId ?? 'AKC',
+      // Timezone (MYK9-831) — the write side of the offline-first sync path.
+      // Default to the column's own default when unset for the same reason.
+      timezone: trial.timezone ?? 'America/New_York',
       updated_at: new Date().toISOString(),
     };
   }
 
   protected override rebuildUpdatePayload(trial: ReplicatedTrial): Record<string, unknown> {
     return this.toSupabaseRow(trial);
+  }
+
+  /**
+   * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
+   * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<TrialRow, ReplicatedTrial> {
+    return {
+      fetchRowsById: async ids => {
+        const { data, error } = await supabase.from('trials').select('*').in('id', ids);
+        if (error) throw new Error(`Supabase query failed: ${error.message}`);
+        return data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToTrial,
+      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
+    };
   }
 
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
@@ -179,6 +200,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     let queuedDeleteIds = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
+      ...this.getRowRefetchAdapter(),
       // A trial deleted here but not yet uploaded is still on the server; it
       // must not read as a missing row (MYK9-762).
       getPendingDeleteIds: ({ scope }) => this.pendingDeletes.coveredIds(scope.value),
@@ -231,10 +253,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
         return data ?? [];
       },
       shouldSkipRemoteRow: remote => queuedDeleteIds.has(String(remote.id)),
-      getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-      toLocalRow: rowToTrial,
-      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.showId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
@@ -270,13 +289,12 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   }
 
   /**
-   * Get trials by show ID
+   * Get trials by show ID, through the show index (MYK9-792)
    */
   async getTrialsByShow(showId: string): Promise<ReplicatedTrial[]> {
-    const allTrials = await this.getAllOrThrow();
-    return allTrials
-      .filter(trial => trial.showId === showId)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return (await this.getByShowOrThrow(showId)).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
   }
 
   /**

@@ -38,6 +38,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
+  useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -75,11 +79,24 @@ vi.mock('@/services/AuditService', () => ({
 }));
 
 describe('EntryManagementPage tab consolidation', () => {
-  it('shows Registrations and Exceptions as the only primary tabs', () => {
+  // MYK9-795: the Registrations/Exceptions `PrimaryTabs`, the queue
+  // buttons-with-counts, and the Exceptions sub-tab buttons are unified into
+  // one `ListViewTabs` row with seven entries.
+  it('shows the seven unified views and no separate Registrations/Exceptions tabs', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
-    expect(screen.getByRole('tab', { name: 'Registrations' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Exceptions' })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(screen.getByRole('navigation', { name: 'Entry views' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    for (const label of [
+      'Needs review',
+      'Missing info',
+      'Payment due',
+      'All',
+      'Waitlist',
+      'Pulls',
+      'Move-ups',
+    ]) {
+      expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument();
+    }
   });
 
   it('shows Waitlist content when ?tab=waitlist', () => {
@@ -89,11 +106,7 @@ describe('EntryManagementPage tab consolidation', () => {
 
   it('normalizes a legacy Move-ups tab to the Exceptions workspace', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
-    expect(screen.getByRole('tab', { name: 'Exceptions' })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    );
-    expect(screen.getByRole('button', { name: 'Move-ups' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /Move-ups/ })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
@@ -103,7 +116,7 @@ describe('EntryManagementPage tab consolidation', () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('button', { name: 'Pulls' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: /Pulls/ })).toHaveAttribute(
       'aria-pressed',
       'true'
     );

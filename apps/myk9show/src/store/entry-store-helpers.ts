@@ -49,6 +49,8 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     classId: replicated.classId || '',
     dogId: replicated.dogId || '',
     dogCallName: replicated.dogCallName ?? replicated.dog_call_name,
+    deletedAt: replicated.deletedAt ?? replicated.deleted_at,
+    deleted_at: replicated.deletedAt ?? replicated.deleted_at,
     status,
     ...(competitionData ? { competitionData } : {}),
     registrationData: {

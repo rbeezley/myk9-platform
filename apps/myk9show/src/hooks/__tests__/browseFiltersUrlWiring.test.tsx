@@ -147,6 +147,8 @@ describe('useBrowseDogsData URL filters', () => {
       search: 'bell',
       breed: 'Border Collie',
       sex: 'female',
+      status: 'all',
+      owner: 'all',
     });
   });
 

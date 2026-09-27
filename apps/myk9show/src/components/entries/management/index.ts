@@ -6,4 +6,3 @@
 export { ArmbandDialog } from './ArmbandDialog';
 export { EntryListCard } from './EntryListCard';
 export { CompEntryDialog } from './CompEntryDialog';
-export { TrialClassFilters } from './TrialClassFilters';

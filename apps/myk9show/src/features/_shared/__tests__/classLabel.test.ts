@@ -5,6 +5,7 @@ import {
   buildFullClassLabel,
   buildTrialDayDisambiguator,
   buildTrialDisambiguators,
+  buildTrialLabelCollisionDisambiguator,
   classNameExtra,
 } from '../classLabel';
 
@@ -365,5 +366,61 @@ describe('buildTrialDayDisambiguator', () => {
     ]);
 
     expect(disambiguate('unknown-trial')).toBe('');
+  });
+});
+
+/**
+ * MYK9-842: `buildTrialDayDisambiguator` above assumes a same-day trial's
+ * own name already tells it apart from its sibling. Two trials with the
+ * literal same rendered label (a data duplicate, not the ordinary case) are
+ * a residual gap this closes.
+ */
+describe('buildTrialLabelCollisionDisambiguator', () => {
+  it('assigns a positional suffix to two same-day trials with an identical label', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('1');
+    expect(disambiguate('trial-2')).toBe('2');
+  });
+
+  it('returns nothing when same-day trials already render distinct labels', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Saturday A (1)' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: 'Saturday A (2)' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for the ordinary one-trial-per-day case', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+  });
+
+  it('does not collide two identically-labeled trials on DIFFERENT days', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: '2026-10-10', label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-11', label: 'Trial 1' },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
+  });
+
+  it('returns nothing for a trial with no date or no label on record', () => {
+    const disambiguate = buildTrialLabelCollisionDisambiguator([
+      { trialId: 'trial-1', trialDate: null, label: 'Trial 1' },
+      { trialId: 'trial-2', trialDate: '2026-10-10', label: null },
+    ]);
+
+    expect(disambiguate('trial-1')).toBe('');
+    expect(disambiguate('trial-2')).toBe('');
   });
 });

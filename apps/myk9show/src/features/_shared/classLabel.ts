@@ -285,3 +285,58 @@ export function buildTrialDayDisambiguator(
     return clean(trial?.trialName);
   };
 }
+
+/** A trial as far as identical-rendered-label disambiguation is concerned. */
+export interface TrialLabelIdentity {
+  trialId: string;
+  trialDate?: string | null | undefined;
+  /** The trial's own already-rendered label (e.g. `formatTrialIdentity`'s
+   *  output) -- the exact string shown to the secretary, not just its bare
+   *  name. */
+  label?: string | null | undefined;
+}
+
+/**
+ * Disambiguates trials whose RENDERED label collides with another trial's on
+ * the same calendar day (MYK9-842) -- a narrower, later case than
+ * `buildTrialDayDisambiguator` above.
+ *
+ * The People-at-show roster's own trial identity (`formatTrialIdentity`,
+ * MYK9-825) already combines a trial's name and number so two same-day
+ * trials sharing a NAME stay distinguishable ("Saturday A (1)" vs
+ * "Saturday A (2)"). That combination still collides when two trials ALSO
+ * share a number, or neither has one -- a real data duplicate, not the
+ * ordinary case. This is gated on that actual label collision, so the
+ * common case (same day, distinct labels) is never touched, and nothing is
+ * concatenated onto a label unconditionally (MYK9-704).
+ *
+ * The suffix is each colliding trial's 1-based position among the group, in
+ * the order the caller passed them in -- callers already sort trials for
+ * display, so this reuses that ordering rather than inventing a second one.
+ */
+export function buildTrialLabelCollisionDisambiguator(
+  trials: readonly TrialLabelIdentity[]
+): (trialId: string) => string {
+  const idsByKey = new Map<string, string[]>();
+
+  for (const trial of trials) {
+    const date = clean(trial.trialDate);
+    const label = clean(trial.label).toLowerCase();
+    if (!date || !label) continue;
+    const key = `${date}\u0000${label}`;
+    const ids = idsByKey.get(key) ?? [];
+    if (!ids.includes(trial.trialId)) ids.push(trial.trialId);
+    idsByKey.set(key, ids);
+  }
+
+  const positionByTrialId = new Map<string, number>();
+  for (const ids of idsByKey.values()) {
+    if (ids.length < 2) continue;
+    ids.forEach((id, index) => positionByTrialId.set(id, index + 1));
+  }
+
+  return trialId => {
+    const position = positionByTrialId.get(trialId);
+    return position === undefined ? '' : String(position);
+  };
+}

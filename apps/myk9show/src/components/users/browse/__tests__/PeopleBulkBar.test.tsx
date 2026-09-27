@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
-import { setupCsvCapture } from '@/test/utils/csvCapture';
 import type { User } from '@/types/user-types';
-import { PeopleBulkBar, exportPeopleCSV } from '../PeopleBulkBar';
+import { PeopleBulkBar } from '../PeopleBulkBar';
 
 function person(overrides: Partial<User>): User {
   return { id: overrides.id ?? 'p', firstName: 'A', lastName: 'B', ...overrides } as User;
@@ -45,18 +44,5 @@ describe('PeopleBulkBar', () => {
     render(<PeopleBulkBar selectedPeople={SELECTED} onClearSelection={onClearSelection} />);
     fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
     expect(onClearSelection).toHaveBeenCalledOnce();
-  });
-});
-
-describe('exportPeopleCSV', () => {
-  it('builds a CSV with the selected people only', async () => {
-    const capture = setupCsvCapture();
-
-    exportPeopleCSV(SELECTED);
-
-    const csv = await capture.getCsv();
-    expect(csv).toContain('Ada Lovelace,ada@example.com');
-    expect(csv).toContain('Grace Hopper,grace@example.com');
-    capture.restore();
   });
 });

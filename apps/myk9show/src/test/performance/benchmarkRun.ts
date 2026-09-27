@@ -29,7 +29,7 @@ export function blockedPair(
     status: 'blocked',
     reason,
   };
-  return [cold, { ...cold, cache: 'warm', reason: `Warm run not attempted: ${reason}` }];
+  return [cold, { ...cold, cache: 'warm', reason: `Second pass not attempted: ${reason}` }];
 }
 
 export function failedWorkerResult(

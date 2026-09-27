@@ -24,19 +24,19 @@ The repository SHALL provide one documented command that measures representative
 - **WHEN** a result has a different build, seed show, route, profile, repeat, or run identifier, or duplicates an expected pair
 - **THEN** report generation rejects it rather than combining incomparable samples
 
-### Requirement: Controlled cold and warm measurements
+### Requirement: Controlled cold and same-context measurements
 
-The benchmark SHALL distinguish cold from warm browser state and apply the requested mobile and secretary desktop profiles.
+The benchmark SHALL distinguish a fresh browser context from a second navigation in the same context, state that HTTP and service-worker caches are disabled, and apply the requested mobile and secretary desktop profiles. It SHALL not present the second navigation as a cached warm load.
 
 #### Scenario: Cold mobile measurement
 
 - **WHEN** a mobile route is measured cold
-- **THEN** the browser context starts without service-worker, local-storage, or IndexedDB state and applies 4x CPU slowdown with Fast 4G or Slow 4G network throttling
+- **THEN** the browser context starts with only the role's auth state, blocks service workers, and applies 4x CPU slowdown with Fast 4G or Slow 4G network throttling
 
-#### Scenario: Warm mobile measurement
+#### Scenario: Same-context mobile measurement
 
-- **WHEN** a mobile route is measured warm
-- **THEN** the same context has been primed with the service worker and available replication cache before measurement and the throttle profile is recorded
+- **WHEN** a mobile route is measured for a second time
+- **THEN** the same context retains available app and local data state, service workers and HTTP caching remain disabled, and the result is labeled same-context uncached with the throttle profile recorded
 
 #### Scenario: A loading shell exposes a heading
 
@@ -69,7 +69,7 @@ The benchmark SHALL use the existing browser-session wrapper and shall not creat
 #### Scenario: Run with existing role sessions
 
 - **WHEN** the benchmark runs using local role session state
-- **THEN** it performs route reads and measurements without provisioning accounts, changing passwords, submitting entries, or recording scores
+- **THEN** it performs route reads and measurements without provisioning accounts, changing passwords, submitting entries, or recording scores; telemetry writes are acknowledged locally and Realtime WebSocket connections are blocked without reaching staging
 
 #### Scenario: Field data preflight
 

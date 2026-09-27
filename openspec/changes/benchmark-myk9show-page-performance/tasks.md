@@ -2,7 +2,7 @@
 
 - [x] 1.1 Inspect and either repair or replace the existing `apps/myk9show/src/test/performance/` tests/scripts; document which files were reused and remove any superseded duplicate implementation.
 - [x] 1.2 Replace generic-heading readiness with route-specific data or intentional loaded-empty states; ensure loading/errors and unavailable sessions/data are blocked rather than counted as usable.
-- [x] 1.3 Run controlled cold/warm mobile and secretary desktop pairs in isolated browser workers; record LCP, INP or labeled TBT proxy, CLS, TTFB, time-to-usable, JavaScript transfer, full request count, slowest Supabase/PostgREST calls, and route chunks.
+- [x] 1.3 Run controlled cold and same-context uncached mobile and secretary desktop pairs in isolated browser workers; record LCP, INP or labeled TBT proxy, CLS, TTFB, time-to-usable, JavaScript transfer, full request count, slowest Supabase/PostgREST calls, and route chunks. Document that warm-cache performance remains unmeasured under the read-only guard.
 - [x] 1.4 Add or update the single-command entry point and run browser automation through `pnpm qa:browser-session`; keep secrets/session state in local gitignored files and avoid shared-data mutations.
 - [x] 1.5 Delete Markdown resume parsing; add a run manifest, atomic per-pair JSON results, exact matrix validation, and a dated output path.
 

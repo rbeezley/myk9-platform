@@ -43,6 +43,15 @@ describe('MYK9-843 route matrix', () => {
     expect(routes.find(route => route.id === 'exhibitor-registration')?.readySelector).toContain(
       'Search dogs by call name'
     );
+    expect(routes.find(route => route.id === 'exhibitor-entries')?.readySelector).toContain(
+      'entry-filter-strip'
+    );
+    expect(routes.find(route => route.id === 'secretary-setup')?.readySelector).toContain(
+      '[role="button"] h3'
+    );
+    expect(routes.find(route => route.id === 'secretary-results')?.readySelector).toContain(
+      ':not(:has-text("No entries are loaded"))'
+    );
     expect(routes.find(route => route.id === 'exhibitor-cart')?.readySelector).toContain(
       'Your cart is empty'
     );

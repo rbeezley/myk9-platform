@@ -63,6 +63,8 @@ describe('MYK9-843 baseline report', () => {
     expect(report).toContain('2026-09-27');
     expect(report).toContain('Resource timing buffer size was 10,000');
     expect(report).not.toContain('250-entry browser default');
+    expect(report).toContain('same-context uncached');
+    expect(report).toContain('Warm-cache performance remains unmeasured');
   });
 
   it('reports the median of repeated route measurements while preserving each run', () => {
@@ -91,5 +93,33 @@ describe('MYK9-843 baseline report', () => {
     expect(report).toContain('| / | fast-4g-mobile | cold | 3 | 3600 | 3600 |');
     expect(report).toContain('3600 ms median usable across 3 run(s)');
     expect(report).toContain('MYK9_PERF_REPEATS=3');
+  });
+
+  it('retains the observed UI state when a route is blocked', () => {
+    const report = formatBenchmarkReport(
+      [
+        {
+          routeId: 'admin-users',
+          role: 'admin',
+          path: '/admin/users',
+          profile: 'fast-4g-mobile',
+          cache: 'cold',
+          status: 'blocked',
+          reason:
+            'Primary content did not reach a stable ready state within 30000 ms; page: myK9Show · Dog show management built for scent work / Failed to load users.Check your connection and try again.Try Again / document 58119 chars, complete',
+        },
+      ],
+      [],
+      {
+        origin: 'http://127.0.0.1:4173',
+        showId: 'show-id',
+        buildRef: 'test',
+        routeCount: 1,
+        reportDate: '2026-09-27',
+        runId: 'test-run',
+        timingBufferSize: 10_000,
+      }
+    );
+    expect(report).toContain('[page: Failed to load users.');
   });
 });

@@ -4,7 +4,8 @@ import { loadEnv } from 'vite';
 import { type BenchmarkRole, type BenchmarkRoute } from './benchmarkRoutes';
 import { blockedRouteReason } from './benchmarkMetrics';
 import { readBrowserMetrics } from './browserMetrics';
-import { AUDIT_READ_ONLY_RPCS } from '../e2e/helpers/sharedStagingWriteGuard';
+import { waitForRouteReady } from './benchmarkReadiness';
+import { benchmarkRequestDisposition } from './benchmarkNetworkPolicy';
 import { type BenchmarkSample, type NetworkProfile } from './benchmarkReport';
 
 type Sample = BenchmarkSample;
@@ -16,8 +17,6 @@ const supabaseUrl = env.VITE_SUPABASE_URL;
 const anonKey = env.VITE_SUPABASE_ANON_KEY;
 const maxNavigationMs = Number(process.env.MYK9_PERF_NAVIGATION_TIMEOUT_MS ?? 25_000);
 const maxReadyMs = Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 30_000);
-// The additional admin checks are STABLE in migrations 156 and 124.
-const readOnlyRpcNames = new Set([...AUDIT_READ_ONLY_RPCS, 'is_site_admin', 'is_platform_admin']);
 
 const credentials: Partial<Record<BenchmarkRole, { email?: string; password?: string }>> = {
   secretary: { email: env.E2E_SECRETARY_EMAIL, password: env.E2E_SECRETARY_PASSWORD },
@@ -66,11 +65,7 @@ function storageFor(session: Session | null):
   };
 }
 
-async function configureContext(
-  context: BrowserContext,
-  profile: NetworkProfile,
-  role: BenchmarkRole
-): Promise<Page> {
+async function configureContext(context: BrowserContext, profile: NetworkProfile): Promise<Page> {
   const page = await context.newPage();
   await page.addInitScript(() => {
     performance.setResourceTimingBufferSize(10_000);
@@ -119,24 +114,13 @@ async function configureContext(
       (window as Window & { __benchCls?: number | null }).__benchCls = null;
     }
   });
-  if (role !== 'public')
-    await page.route('**/*', async route => {
-      const request = route.request();
-      const method = request.method();
-      const url = request.url();
-      const isSafe = ['GET', 'HEAD', 'OPTIONS'].includes(method);
-      const isAuthRefresh = Boolean(
-        supabaseUrl && url.startsWith(supabaseUrl) && url.includes('/auth/v1/token')
-      );
-      const isReadOnlyRoleRpc = Boolean(
-        method === 'POST' &&
-        supabaseUrl &&
-        url.startsWith(`${supabaseUrl}/rest/v1/rpc/`) &&
-        readOnlyRpcNames.has(new URL(url).pathname.split('/').at(-1) ?? '')
-      );
-      if (isSafe || isAuthRefresh || isReadOnlyRoleRpc) await route.continue();
-      else await route.abort('blockedbyclient');
-    });
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const disposition = benchmarkRequestDisposition(request.method(), request.url(), supabaseUrl);
+    if (disposition === 'continue') await route.continue();
+    else if (disposition === 'acknowledge') await route.fulfill({ status: 204 });
+    else await route.abort('blockedbyclient');
+  });
 
   if (profile !== 'secretary-desktop') {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -184,7 +168,7 @@ export async function measure(
   cache: 'cold' | 'warm',
   repeat: number
 ): Promise<Sample> {
-  const page = await configureContext(context, profile, route.role);
+  const page = await configureContext(context, profile);
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
   page.on('pageerror', error => {
@@ -213,11 +197,7 @@ export async function measure(
   let usableAt = start;
   try {
     await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: maxNavigationMs });
-    await page
-      .locator(route.readySelector)
-      .first()
-      .waitFor({ state: 'visible', timeout: maxReadyMs });
-    usableAt = performance.now();
+    usableAt = await waitForRouteReady(page, route, maxReadyMs);
     await page.waitForTimeout(500);
   } catch (error) {
     const pageState = await page
@@ -337,7 +317,7 @@ export async function measurePair(
     };
     return [
       blocked,
-      { ...blocked, cache: 'warm', reason: `Warm run not attempted: ${blocked.reason}` },
+      { ...blocked, cache: 'warm', reason: `Second pass not attempted: ${blocked.reason}` },
     ];
   }
   return runWithSession(route, profile, repeat, session);
@@ -351,13 +331,22 @@ async function runWithSession(
 ): Promise<[Sample, Sample]> {
   const browser = await chromium.launch({ headless: true });
   try {
-    const context = await browser.newContext({ storageState: storageFor(session) });
+    const context = await browser.newContext({
+      storageState: storageFor(session),
+      serviceWorkers: 'block',
+    });
     try {
+      // Presence and live-sync channels can send writes outside Playwright's HTTP route.
+      await context.routeWebSocket('**/*', webSocket => webSocket.close());
       const cold = await measure(context, route, profile, 'cold', repeat);
       const warm =
         cold.status === 'measured'
           ? await measure(context, route, profile, 'warm', repeat)
-          : { ...cold, cache: 'warm' as const, reason: `Warm run not attempted: ${cold.reason}` };
+          : {
+              ...cold,
+              cache: 'warm' as const,
+              reason: `Second pass not attempted: ${cold.reason}`,
+            };
       return [cold, warm];
     } finally {
       await context.close().catch(() => undefined);

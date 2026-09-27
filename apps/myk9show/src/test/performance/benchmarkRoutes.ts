@@ -6,6 +6,7 @@ export interface BenchmarkRoute {
   role: BenchmarkRole;
   path: string;
   readySelector: string;
+  unavailableSelectors?: readonly string[];
 }
 
 const defaultShowId = 'dededede-0000-0000-0000-000000000010';
@@ -32,7 +33,8 @@ export function benchmarkRoutesFor(
       id: 'exhibitor-entries',
       role: 'exhibitor',
       path: '/exhibitor/entries',
-      readySelector: 'h1:has-text("My Shows")',
+      readySelector:
+        '[data-testid="entry-filter-strip"], h2:has-text("Welcome!"), h2:has-text("Your dogs are ready"), h2:has-text("Find your next show")',
     },
     {
       id: 'exhibitor-registration',
@@ -57,7 +59,12 @@ export function benchmarkRoutesFor(
       id: 'secretary-setup',
       role: 'secretary',
       path: `/shows/${showId}/setup`,
-      readySelector: '[role="group"][aria-label="Setup section"]',
+      readySelector:
+        'div.space-y-4:has(button[aria-label="Cards view"]) > div.grid [role="button"] h3',
+      unavailableSelectors: [
+        ':text("Entry counts are loading.")',
+        ':text("Couldn\'t load entry counts.")',
+      ],
     },
     {
       id: 'secretary-entries',
@@ -75,7 +82,9 @@ export function benchmarkRoutesFor(
       id: 'secretary-results',
       role: 'secretary',
       path: `/shows/${showId}/results`,
-      readySelector: '[data-testid="results-readiness-verdict"]',
+      readySelector:
+        '[data-testid="results-readiness-verdict"]:not(:has-text("No entries are loaded"))',
+      unavailableSelectors: [':text("No entries are loaded for this show")'],
     },
     {
       id: 'secretary-reports',

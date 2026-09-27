@@ -50,6 +50,6 @@ describe('performance pair manifest validation', () => {
       expect.objectContaining({ cache: 'warm', status: 'blocked' }),
     ]);
     expect(samples[0].timeToUsableMs).toBeUndefined();
-    expect(samples[1].reason).toContain('Warm run not attempted');
+    expect(samples[1].reason).toContain('Second pass not attempted');
   });
 });

@@ -114,7 +114,11 @@ async function main(): Promise<void> {
           .samples
       );
     } catch (error) {
-      const reason = `Isolated worker failed: ${error instanceof Error ? error.message : String(error)}`;
+      const stderr = worker.stderr?.trim() ?? '';
+      const stdout = worker.stdout?.trim() ?? '';
+      writeFileSync(`${output}.worker.log`, [stderr, stdout].filter(Boolean).join('\n'));
+      const detail = stderr.split('\n')[0].slice(0, 120);
+      const reason = `Isolated worker failed: ${error instanceof Error ? error.message : String(error)}${detail ? `; ${detail}` : ''}`;
       console.error(reason);
       if (existsSync(output)) renameSync(output, `${output}.invalid.json`);
       const failed = failedWorkerResult(route, spec, reason);

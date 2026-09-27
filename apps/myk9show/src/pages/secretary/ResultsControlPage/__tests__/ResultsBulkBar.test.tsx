@@ -113,7 +113,10 @@ describe('ResultsBulkBar', () => {
       await user.click(getDialogConfirmButton());
 
       await waitFor(() => expect(mockReleaseMutate).toHaveBeenCalledTimes(1));
-      expect(mockReleaseMutate.mock.calls[0][0]).toEqual({ classIds: ['a', 'b'], showId: 'show-1' });
+      expect(mockReleaseMutate.mock.calls[0][0]).toEqual({
+        classIds: ['a', 'b'],
+        showId: 'show-1',
+      });
     });
 
     it('cancelling the dialog does not release', async () => {
@@ -173,7 +176,9 @@ describe('ResultsBulkBar', () => {
       await user.click(getDialogConfirmButton());
 
       expect(onClearSelection).toHaveBeenCalledTimes(1);
-      expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/Released results for 2/i));
+      expect(mockToast.success).toHaveBeenCalledWith(
+        expect.stringMatching(/Released results for 2/i)
+      );
     });
 
     it('errors when the release mutation rejects', async () => {

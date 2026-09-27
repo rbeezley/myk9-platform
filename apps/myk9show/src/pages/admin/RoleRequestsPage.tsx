@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
-import { ListFilterBar, ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  type ListView,
+} from '@/components/list-toolkit';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';

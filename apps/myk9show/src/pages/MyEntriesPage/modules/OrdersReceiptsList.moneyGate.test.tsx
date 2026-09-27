@@ -77,10 +77,41 @@ describe('OrdersReceiptsList — money under the one gate', () => {
   // names as reachable once the once-only paid strip retires (past show,
   // dismissed, or past its 14-day window), so an exhibitor re-verifying a
   // past payment through it saw only the due half.
-  it('states both halves of a mixed order: what already paid, and what is still due', () => {
+  //
+  // Codex review on PR #2578 (P1): the first fix derived "paid" as
+  // `order.totalFee - dueCents`. A class can be excluded from `dueCents` for
+  // reasons that have nothing to do with payment — withdrawn, moved — and
+  // that subtraction mislabeled such a row's fee as "paid". This fixture adds
+  // exactly that third row: withdrawn, excluded from `dueEntryIds`, never
+  // marked paid. The naive subtraction would read $35.00 paid (65 - 30); the
+  // correct figure is $20.00, the paid row alone.
+  it('states both halves of a mixed order, never counting a withdrawn class as paid', () => {
     const mixed: MyEntry = {
       ...order('ranger'),
-      totalFee: 60,
+      totalFee: 65,
+      classes: [
+        {
+          id: 'c-ranger-paid',
+          name: 'Interior Advanced',
+          fee: 20,
+          status: 'entered',
+          rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+        } as MyEntry['classes'][number],
+        {
+          id: 'c-ranger-due',
+          name: 'Exterior Excellent',
+          fee: 30,
+          status: 'entered',
+          rawPaymentStatus: PaymentStatus.PENDING,
+        } as MyEntry['classes'][number],
+        {
+          id: 'c-ranger-withdrawn',
+          name: 'Container Novice',
+          fee: 15,
+          status: 'withdrawn',
+          rawPaymentStatus: PaymentStatus.PENDING,
+        } as MyEntry['classes'][number],
+      ],
       balance: {
         paymentStatus: PaymentStatus.PENDING,
         paymentMethod: 'credit_card',
@@ -88,7 +119,7 @@ describe('OrdersReceiptsList — money under the one gate', () => {
         onlineDueCents: 3000,
         payAtShowDueCents: 0,
         payAtShowMethod: null,
-        dueEntryIds: ['c-ranger'],
+        dueEntryIds: ['c-ranger-due'],
       },
     };
 
@@ -101,8 +132,11 @@ describe('OrdersReceiptsList — money under the one gate', () => {
       />
     );
 
-    expect(screen.getByText('$60.00')).toBeInTheDocument();
-    expect(screen.getByText('$30.00 paid · $30.00 due')).toBeInTheDocument();
+    expect(screen.getByText('$65.00')).toBeInTheDocument();
+    expect(screen.getByText('$20.00 paid · $30.00 due')).toBeInTheDocument();
+    // The naive `totalFee - dueCents` derivation this replaces would have
+    // read $35.00 paid (65 - 30), folding the withdrawn class's $15 fee in.
+    expect(screen.queryByText(/\$35\.00 paid/)).not.toBeInTheDocument();
   });
 
   it('still states a bare "due" for an order with no balance recorded (fully-due fallback)', () => {

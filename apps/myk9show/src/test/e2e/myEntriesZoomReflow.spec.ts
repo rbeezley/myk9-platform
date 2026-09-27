@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
+import { boxesIntersect, isInsideViewport, type Box } from '../e2e-helpers/geometryOverlap';
 
 /**
  * MYK9-124 / EUX-2026-07-30-04 — My Shows must reflow, not clip, under browser
@@ -256,149 +257,144 @@ registerZoomReflowChecks(
  * reserved no clearance for a notched phone's home-indicator overlay — at
  * 563px tall, its ~34px safe-area inset is a much bigger fraction of the
  * viewport than at the phone's native 844px height, which is why this was
- * invisible at desktop width.
+ * invisible at desktop width. The fix reserves
+ * `env(safe-area-inset-bottom)` on top of the existing padding
+ * (`MyEntriesPage/index.tsx`'s container).
  *
- * Chromium (headless, no real device) always resolves
- * `env(safe-area-inset-bottom)` to 0 on its own, so a bare run of this test
- * could never tell `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` (the
- * fix, on `MyEntriesPage/index.tsx`'s container) apart from the pre-fix bare
- * `py-6`: both resolve to the same 24px when the env() term is zero (Codex
- * review on PR #2574, P2). The CDP call below overrides
- * `safe-area-inset-bottom` to a real, nonzero 34px (the standard iOS
- * home-indicator height this bug report is about) before the page loads, so
- * `env()` actually contributes and the two variants produce different,
- * checkable numbers: pre-fix stays flush at 24px (env() ignored, nothing to
- * revert), post-fix reserves 1.5rem + 34px = 58px. The threshold below sits
- * strictly between those two values, so this fails on the reverted source and
- * passes on the fix — see the PR/commit for a local revert-and-rerun proof.
+ * RESTRUCTURED (round 2 of Codex review on PR #2574). Round 1 [P2] found that
+ * headless Chromium always resolves `env(safe-area-inset-bottom)` to 0, so
+ * the pre-fix `py-6` and the post-fix `calc(1.5rem + env(...))` produced an
+ * identical 24px and the original test could never fail. The round-1 fix
+ * used CDP's `Emulation.setSafeAreaInsetsOverride` with a `bottomMax` field
+ * to force a nonzero inset. Round 2 [P1] found that call itself unsound:
+ * `bottomMax` is not part of every Chromium build's `Insets` type, and this
+ * project pins `@playwright/test@1.63.0`, which expects Chromium revision
+ * 1243 (Chrome 153) — a different, newer build than whichever one a given
+ * sandbox happens to have preinstalled. The call can succeed on one revision
+ * and fail before any assertion runs on another, which makes the whole test
+ * file's pass/fail depend on which exact Chromium binary happens to be on
+ * disk rather than on the source fix. That is not a foundation to build a
+ * regression guard on, so both CDP-based tests (this one and the
+ * `MYK9-809 mechanism` test that used the same call) were deleted rather
+ * than patched again.
+ *
+ * WHAT THIS TESTS INSTEAD, HONESTLY. Without CDP, `env(safe-area-inset-
+ * bottom)` is 0 in every headless Chromium build, so this suite cannot
+ * reproduce the actual home-indicator overlay or distinguish the fixed
+ * container's clearance from the unfixed one by measuring `env()`'s
+ * contribution — that is a real gap, not papered over here. What CAN be
+ * asserted honestly, and would catch a real class of regression, is the
+ * general contract the owner's symptom depends on holding at this viewport:
+ * the Decline button's box stays fully inside the viewport once scrolled to
+ * the end of the page, and nothing rendered `position: fixed` or `sticky`
+ * (a bottom nav, a toast, an install banner) overlaps it. That fails if a
+ * future change removes the container's bottom padding entirely or adds
+ * overlapping fixed-position chrome; it does not prove the safe-area-inset
+ * portion of the fix specifically. If the real-device overlap turns out to
+ * be caused only by a nonzero safe-area inset — which this environment
+ * cannot faithfully emulate — that is the part only the owner or the E2E job
+ * can confirm on a real notched device (see the PR's Test plan).
  *
  * Data-dependent: only the seeded exhibitor account currently holding an
  * active ("offered") wait-list position renders a Decline button at all, so
- * this skips rather than false-passes when none is active. It must be run by
- * the owner or the E2E job with real credentials — PR CI does not run it.
+ * this skips rather than false-passes when none is active.
+ *
+ * The overlap/containment judgment itself lives in `../e2e-helpers/
+ * geometryOverlap.ts` as plain, DOM-free functions, not inline in the
+ * `page.evaluate` callback below. That file's own vitest suite
+ * (`geometryOverlap.test.ts`) gives it a real, credential-free red/green
+ * proof — including the exact "button half covered by a fixed bottom bar"
+ * shape this spec exists to catch — that runs in `pnpm test` and in PR CI,
+ * unlike this authenticated spec.
  */
 test.describe('My Shows wait-list Decline row clears the bottom of the viewport', () => {
   test.setTimeout(120_000);
 
-  const SAFE_AREA_INSET_BOTTOM_PX = 34;
-  // Strictly between the pre-fix 24px (bare py-6, env() ignored) and the
-  // post-fix 58px (1.5rem + the 34px override) — see the doc comment above.
-  const MIN_BOTTOM_CLEARANCE_PX = 40;
+  const ZOOM_VIEWPORT = cssViewportFor(PHONE_PHYSICAL, PHONE_ZOOM_LEVELS[0]);
+  const DECLINE_VIEWPORTS = [
+    {
+      label: `${PHONE_PHYSICAL.width}x${PHONE_PHYSICAL.height} (native phone)`,
+      viewport: PHONE_PHYSICAL,
+    },
+    {
+      label: `${ZOOM_VIEWPORT.width}x${ZOOM_VIEWPORT.height} (150% zoom)`,
+      viewport: ZOOM_VIEWPORT,
+    },
+  ] as const;
 
-  test('Decline button has real clearance below it when scrolled to the end of the page', async ({
-    page,
-  }, testInfo) => {
-    const viewport = cssViewportFor(PHONE_PHYSICAL, PHONE_ZOOM_LEVELS[0]);
-    await page.setViewportSize(viewport);
+  for (const { label, viewport } of DECLINE_VIEWPORTS) {
+    test(`Decline button stays inside the viewport and clear of fixed/sticky chrome at ${label}`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize(viewport);
 
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
-      insets: {
-        bottom: SAFE_AREA_INSET_BOTTOM_PX,
-        bottomMax: SAFE_AREA_INSET_BOTTOM_PX,
-      },
+      await signInAsExhibitor(page, '/exhibitor/entries');
+      await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
+      await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+        timeout: 15_000,
+      });
+
+      const declineButton = page.getByRole('button', { name: 'Decline' });
+      if ((await declineButton.count()) === 0) {
+        test.skip(true, 'Seeded exhibitor has no active wait-list offer — nothing to measure');
+        return;
+      }
+
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+      const declineHandle = await declineButton.first().elementHandle();
+      expect(declineHandle, 'Decline button did not resolve to an element handle').not.toBeNull();
+
+      // Collect raw geometry in the browser only; the actual overlap/
+      // containment judgment runs in Node via `geometryOverlap`, the same
+      // pure functions `geometryOverlap.test.ts` gives a real red/green proof
+      // — so a bug in that judgment shows up as a vitest failure too, not
+      // just as a change to what this spec happens to pass.
+      const geometry = await page.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        const candidates: { name: string; box: Box }[] = [];
+        document.querySelectorAll('body *').forEach(el => {
+          if (el === button || el.contains(button) || button.contains(el)) return;
+          const style = getComputedStyle(el);
+          if (style.position !== 'fixed' && style.position !== 'sticky') return;
+          const elBox = el.getBoundingClientRect();
+          if (elBox.width === 0 || elBox.height === 0) return;
+          const name = el.tagName.toLowerCase() + (el.className ? `.${el.className}` : '');
+          candidates.push({
+            name,
+            box: { top: elBox.top, bottom: elBox.bottom, left: elBox.left, right: elBox.right },
+          });
+        });
+        return {
+          button: { top: box.top, bottom: box.bottom, left: box.left, right: box.right } as Box,
+          candidates,
+        };
+      }, declineHandle!);
+
+      expect(
+        isInsideViewport(geometry.button, viewport),
+        `${label}: Decline button (${JSON.stringify(geometry.button)}) is not fully inside the ` +
+          `${viewport.width}x${viewport.height} viewport`
+      ).toBe(true);
+
+      const overlaps = geometry.candidates
+        .filter(candidate => boxesIntersect(geometry.button, candidate.box))
+        .map(
+          candidate =>
+            `${candidate.name} (${Math.round(candidate.box.left)},${Math.round(candidate.box.top)})-` +
+            `(${Math.round(candidate.box.right)},${Math.round(candidate.box.bottom)})`
+        );
+      expect(
+        overlaps,
+        `${label}: Decline button overlaps fixed/sticky chrome: ${overlaps.join('; ')}`
+      ).toEqual([]);
+
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `my-shows-decline-clearance-${viewport.width}x${viewport.height}.png`
+        ),
+        fullPage: true,
+      });
     });
-
-    await signInAsExhibitor(page, '/exhibitor/entries');
-    await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
-      timeout: 15_000,
-    });
-
-    const declineButton = page.getByRole('button', { name: 'Decline' });
-    if ((await declineButton.count()) === 0) {
-      test.skip(true, 'Seeded exhibitor has no active wait-list offer — nothing to measure');
-      return;
-    }
-
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-
-    const box = await declineButton.first().evaluate(button => {
-      const rect = button.getBoundingClientRect();
-      return { top: rect.top, bottom: rect.bottom, right: rect.right };
-    });
-
-    expect(box.right, 'Decline button sits outside the viewport width').toBeLessThanOrEqual(
-      viewport.width + 1
-    );
-    expect(
-      box.bottom,
-      'Decline button bottom edge sits below the viewport when scrolled to the end'
-    ).toBeLessThanOrEqual(viewport.height + 1);
-    expect(
-      viewport.height - box.bottom,
-      'Decline button has no real clearance before the bottom of the viewport once the ' +
-        `${SAFE_AREA_INSET_BOTTOM_PX}px safe-area inset is accounted for`
-    ).toBeGreaterThanOrEqual(MIN_BOTTOM_CLEARANCE_PX);
-
-    await page.screenshot({
-      path: testInfo.outputPath('my-shows-decline-clearance.png'),
-      fullPage: true,
-    });
-  });
-});
-
-/**
- * Mechanism proof for the assertion above, and its own regression guard:
- * requires no sign-in, no seed data, and no dev/preview server, so it CAN and
- * does run in this environment (and in PR CI) even though the authenticated
- * spec above cannot.
- *
- * It isolates exactly the two facts the MYK9-809 fix depends on: (1) CDP's
- * `Emulation.setSafeAreaInsetsOverride` really does make Chromium resolve
- * `env(safe-area-inset-bottom)` to a nonzero value — confirmed locally against
- * this project's bundled Chromium (24px -> 58px on the identical calc()) — and
- * (2) `calc(1.5rem + env(safe-area-inset-bottom, 0px))` (the exact value
- * `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` on
- * `MyEntriesPage/index.tsx`'s container compiles to per this project's own
- * `tailwind.config.js` — verified with
- * `pnpm exec tailwindcss -c tailwind.config.js -i <empty> -o out.css --content <snippet with the class>`)
- * genuinely differs from a bare `1.5rem` once that override is in effect.
- * Plain CSS, not the Tailwind class name, so it does not depend on the build
- * pipeline and is not a source-text check — every value is read back from
- * `getComputedStyle` after real layout.
- */
-test.describe('MYK9-809 mechanism: CDP safe-area override changes real geometry', () => {
-  test('calc(1.5rem + env(safe-area-inset-bottom)) grows under a nonzero override; bare 1.5rem does not', async ({
-    page,
-  }) => {
-    const SAFE_AREA_INSET_BOTTOM_PX = 34;
-    const REM_PX = 16; // this file's target pages never override the root font-size
-
-    await page.setContent(`
-      <div id="pre-fix" style="padding-bottom: ${1.5 * REM_PX}px;"></div>
-      <div id="post-fix" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));"></div>
-    `);
-
-    const read = () =>
-      page.evaluate(() => ({
-        pre: parseFloat(getComputedStyle(document.getElementById('pre-fix')!).paddingBottom),
-        post: parseFloat(getComputedStyle(document.getElementById('post-fix')!).paddingBottom),
-      }));
-
-    const before = await read();
-    expect(before.pre, 'pre-fix padding before any override').toBeCloseTo(1.5 * REM_PX, 1);
-    expect(before.post, 'post-fix padding before any override (env() -> 0 by default)').toBeCloseTo(
-      1.5 * REM_PX,
-      1
-    );
-
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
-      insets: {
-        bottom: SAFE_AREA_INSET_BOTTOM_PX,
-        bottomMax: SAFE_AREA_INSET_BOTTOM_PX,
-      },
-    });
-
-    const after = await read();
-    expect(after.pre, 'bare 1.5rem must not react to the safe-area override').toBeCloseTo(
-      1.5 * REM_PX,
-      1
-    );
-    expect(
-      after.post,
-      'calc(1.5rem + env(safe-area-inset-bottom)) must grow by the override amount'
-    ).toBeCloseTo(1.5 * REM_PX + SAFE_AREA_INSET_BOTTOM_PX, 1);
-  });
+  }
 });

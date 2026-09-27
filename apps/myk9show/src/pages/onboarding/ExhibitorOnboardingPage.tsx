@@ -7,7 +7,7 @@
  * Step 3 – Welcome        (sets onboarding_completed_at, navigates to /shows)
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
@@ -161,8 +161,17 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
   });
   const visibleStep = visibleSteps.includes(step) ? step : firstAvailableStep;
 
+  // MYK9-858: `finishOnboarding` below also navigates once `completeOnboarding`
+  // resolves, and that resolve updates `exhibitorProfile.onboarding_completed_at`
+  // via the query cache — which would otherwise re-trigger this effect and bounce
+  // a link click (e.g. to /account) back to /shows. This ref distinguishes "just
+  // completed it myself, already navigating" from "arrived here already complete"
+  // (the case this effect exists for).
+  const hasNavigatedAwayRef = useRef(false);
+
   useEffect(() => {
     if (profileLoading || !exhibitorProfile?.onboarding_completed_at) return;
+    if (hasNavigatedAwayRef.current) return;
     navigate('/shows', { replace: true });
   }, [exhibitorProfile?.onboarding_completed_at, navigate, profileLoading]);
 
@@ -223,16 +232,26 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
     setStep(WELCOME_STEP);
   };
 
-  // ── Step 3: complete onboarding ───────────────────────────────────────────────
-  const handleFinish = async () => {
+  // ── Step 3: complete onboarding, then leave via the Finish button or a
+  // final-step link — either way onboarding must be marked complete BEFORE
+  // navigating, so the ExhibitorOnboardingChecker guard the destination page
+  // renders under does not bounce the user back to /onboarding (MYK9-858).
+  const finishOnboarding = async (destination: string) => {
+    if (isCompletingOnboarding) return;
     setStepError('');
     try {
-      await completeOnboarding();
-      navigate('/shows', { replace: true });
+      if (!exhibitorProfile?.onboarding_completed_at) {
+        await completeOnboarding();
+      }
+      hasNavigatedAwayRef.current = true;
+      navigate(destination, { replace: true });
     } catch (err) {
       setStepError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }
   };
+
+  const handleFinish = () => finishOnboarding('/shows');
+  const handleNavigateAway = (destination: string) => finishOnboarding(destination);
 
   const goBack = () => {
     setStepError('');
@@ -277,6 +296,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
           {visibleStep === WELCOME_STEP && (
             <StepWelcome
               onFinish={handleFinish}
+              onNavigateAway={handleNavigateAway}
               onBack={goBack}
               isSubmitting={isCompletingOnboarding}
               error={stepError}

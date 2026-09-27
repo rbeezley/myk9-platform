@@ -2,6 +2,7 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { ShowPresence } from '@/features/show-presence/types';
+import type { ListView } from '@/components/list-toolkit';
 import { getStatusDescriptor } from '@/components/status';
 import {
   buildClassDisambiguatorsByGroup,
@@ -387,4 +388,25 @@ export function filterPeopleRoster(
     if (filter === 'online' && !person.presence) return false;
     return !query || person.searchText.includes(query);
   });
+}
+
+const PEOPLE_ROSTER_VIEW_DEFS: ReadonlyArray<{ id: PeopleRosterFilter; label: string }> = [
+  { id: 'all', label: 'All exhibitors' },
+  { id: 'needs-check-in', label: 'Needs check-in' },
+  { id: 'online', label: 'Online' },
+];
+
+/**
+ * The list-toolkit view tabs, each carrying a live count. Every count re-runs
+ * `filterPeopleRoster` with an EMPTY search over the same in-memory roster the
+ * tabs sit above (no new fetch) — never the current search box value, so
+ * switching views doesn't make counts jump while someone is mid-search
+ * (matches `buildDogViews`'s `{ search: '' }` convention).
+ */
+export function buildPeopleRosterViews(roster: PeopleRosterPerson[]): ListView[] {
+  return PEOPLE_ROSTER_VIEW_DEFS.map(view => ({
+    id: view.id,
+    label: view.label,
+    count: filterPeopleRoster(roster, '', view.id).length,
+  }));
 }

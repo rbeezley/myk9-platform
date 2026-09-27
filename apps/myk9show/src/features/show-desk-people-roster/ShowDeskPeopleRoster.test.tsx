@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import type { ShowPresence } from '@/features/show-presence/types';
 import type { SecretaryEntry } from '@/services/database/entries';
@@ -102,6 +103,48 @@ function LocationProbe() {
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
 }
 
+/** A genuinely different person from Alice, already checked in — for the
+ *  "Needs check-in" view/count tests below (distinct handler_id, MYK9-824). */
+function checkedInBeaEntry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
+  return entry({
+    id: 'entry-2',
+    dog_id: 'dog-2',
+    armband: '115',
+    handler_id: 'person-2',
+    handler_identity: {
+      name: 'Bea Handler',
+      person: { id: 'person-2', first_name: 'Bea', last_name: 'Handler' },
+      source: 'assigned-person',
+    },
+    handler_person: {
+      id: 'person-2',
+      first_name: 'Bea',
+      last_name: 'Handler',
+      auth_user_id: 'auth-2',
+    },
+    check_in_status: 'checked-in',
+    ...overrides,
+  });
+}
+
+/**
+ * Going offline moves TWO things independently: react-query's `onlineManager`
+ * and `navigator.onLine` (`AtShowClassListPage.offline.test.tsx`'s pattern).
+ * This component reads neither directly — it is fed already-loaded props —
+ * but the offline test below still flips both, so it exercises the same
+ * "device is offline" state a real show floor produces, not a state no
+ * browser would.
+ */
+function goOffline() {
+  Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+  onlineManager.setOnline(false);
+}
+
+function goOnline() {
+  Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+  onlineManager.setOnline(true);
+}
+
 function renderRoster(
   entries: SecretaryEntry[] = [entry()],
   options: {
@@ -163,6 +206,11 @@ describe('ShowDeskPeopleRoster', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     h.presence = [];
+  });
+
+  afterEach(() => {
+    // Global to react-query: leaking it offline fails every later suite.
+    goOnline();
   });
 
   it('renders all exhibitors by default and expands/collapses one person row', async () => {
@@ -259,11 +307,12 @@ describe('ShowDeskPeopleRoster', () => {
 
   /**
    * MYK9-826: the Show Desk "Check in N entries" card links here via
-   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&rosterFilter=needs-check-in`).
+   * `getShowDeskPeopleAtShowHref` (`?tool=people-at-show&view=needs-check-in`,
+   * renamed from `rosterFilter` by MYK9-812 when the view became two-way).
    * Landing pre-filtered must still surface a working Check in control for an
    * accepted, not-yet-checked-in entry — not just open the roster.
    */
-  it('MYK9-826: a rosterFilter=needs-check-in deep link pre-selects the filter and still exposes Check in', async () => {
+  it('MYK9-826: a view=needs-check-in deep link pre-selects the view and still exposes Check in', async () => {
     const alreadyCheckedIn = entry({
       id: 'entry-2',
       // A genuinely different person from Alice: distinct handler_id, not just
@@ -284,7 +333,7 @@ describe('ShowDeskPeopleRoster', () => {
       check_in_status: 'checked-in',
     });
     const { user } = renderRoster([entry(), alreadyCheckedIn], {
-      initialRoute: '/shows/show-1/show-day?tool=people-at-show&rosterFilter=needs-check-in',
+      initialRoute: '/shows/show-1/show-day?tool=people-at-show&view=needs-check-in',
     });
 
     // Pre-filtered to "Needs check-in": the already-checked-in exhibitor is
@@ -627,7 +676,7 @@ describe('ShowDeskPeopleRoster', () => {
   it('shows a no-results state inside the tool', async () => {
     const { user } = renderRoster();
     expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
-    await user.type(screen.getByRole('textbox', { name: /search exhibitors/i }), 'zzz');
+    await user.type(screen.getByRole('textbox', { name: /search name, dog, armband/i }), 'zzz');
 
     expect(screen.getByText(/No exhibitors match this view/i)).toBeInTheDocument();
   });
@@ -650,12 +699,89 @@ describe('ShowDeskPeopleRoster', () => {
     await user.click(await screen.findByRole('button', { name: /alice martin/i }));
     expect(screen.getByText('Poppy')).toBeInTheDocument();
 
-    const search = screen.getByRole('textbox', { name: /search exhibitors/i });
+    const search = screen.getByRole('textbox', { name: /search name, dog, armband/i });
     await user.type(search, 'zzz');
     expect(screen.getByText(/No exhibitors match this view/i)).toBeInTheDocument();
 
     await user.clear(search);
     expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  it('MYK9-812: switching views narrows the roster and writes the view back onto the URL', async () => {
+    const { user } = renderRoster([entry(), checkedInBeaEntry()]);
+
+    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
+
+    await user.click(screen.getByRole('button', { name: /needs check-in/i }));
+
+    expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1/show-day?view=needs-check-in'
+    );
+
+    // Selecting "All exhibitors" (the default) removes the param entirely,
+    // matching a fresh URL rather than an explicit `?view=all`.
+    await user.click(screen.getByRole('button', { name: /all exhibitors/i }));
+    expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
+  });
+
+  it('MYK9-812: view tabs show live counts derived from the roster, not a separate query', async () => {
+    renderRoster([entry(), checkedInBeaEntry()]);
+
+    const allTab = await screen.findByRole('button', { name: /all exhibitors/i });
+    const needsCheckInTab = screen.getByRole('button', { name: /needs check-in/i });
+    const onlineTab = screen.getByRole('button', { name: /^online/i });
+
+    expect(allTab).toHaveTextContent('2');
+    expect(needsCheckInTab).toHaveTextContent('1');
+    expect(onlineTab).toHaveTextContent('0');
+  });
+
+  it('MYK9-812: adds a ListResultLine total below the tabs (owner decision)', async () => {
+    const { container } = renderRoster([entry(), checkedInBeaEntry()]);
+
+    await screen.findByRole('button', { name: /alice martin/i });
+    expect(container.textContent).toContain('2 exhibitors in view');
+  });
+
+  it('MYK9-812: the ListResultLine narrows under search while keeping the unfiltered total', async () => {
+    const { user, container } = renderRoster([entry(), checkedInBeaEntry()]);
+
+    await screen.findByRole('button', { name: /alice martin/i });
+    // Search by Alice's own armband (114) — Bea's dog shares the same `dog`
+    // fixture object as Alice's, so a name-based query would match both rows.
+    await user.type(screen.getByRole('textbox', { name: /search name, dog, armband/i }), '114');
+
+    expect(container.textContent).toContain('1 exhibitor');
+    expect(container.textContent).toContain('of 2');
+  });
+
+  it('MYK9-812: never renders a cross-exhibitor selection control', async () => {
+    renderRoster([entry(), checkedInBeaEntry()]);
+
+    await screen.findByRole('button', { name: /alice martin/i });
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /select all/i })).not.toBeInTheDocument();
+  });
+
+  it('MYK9-812: offline — the roster, its view counts, and Check in all eligible still succeed through the replicated path', async () => {
+    goOffline();
+    const { user } = renderRoster([entry(), checkedInBeaEntry()]);
+
+    const needsCheckInTab = await screen.findByRole('button', { name: /needs check-in/i });
+    expect(needsCheckInTab).toHaveTextContent('1');
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    await user.click(screen.getByRole('button', { name: /check in all eligible/i }));
+
+    await waitFor(() => {
+      expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    });
+    expect(await screen.findByText('Checked-in')).toBeInTheDocument();
   });
 });

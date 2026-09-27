@@ -81,7 +81,7 @@ export function SecretaryCockpitSchedule({
           )}
         </div>
         <ListViewTabs
-          views={buildCockpitScheduleViews(model, sourceClasses, sourceTrials)}
+          views={buildCockpitScheduleViews(model)}
           activeId={filter}
           onSelect={id => onFilterChange(id as CockpitFilter)}
           label="Schedule filters"

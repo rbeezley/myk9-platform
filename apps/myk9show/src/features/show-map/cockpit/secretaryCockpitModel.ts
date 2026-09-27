@@ -1,5 +1,6 @@
 import { formatTrialLabel } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
+import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
@@ -233,23 +234,6 @@ function classesForDay(
     );
 }
 
-function matchesFilter(
-  cls: SecretaryCockpitClass,
-  filter: CockpitFilter,
-  derivedAttentionCount: number
-): boolean {
-  switch (filter) {
-    case 'in-progress':
-      return cls.lifecycle === 'in-progress';
-    case 'needs-attention':
-      return derivedAttentionCount > 0;
-    case 'needs-closeout':
-      return cls.closeout === 'needs-closeout';
-    case 'all':
-      return true;
-  }
-}
-
 function nowMarkerIndex(
   classes: readonly SecretaryCockpitClass[],
   selectedDay: string | null,
@@ -401,14 +385,9 @@ function buildTrialGroups(
   focusedClassId: string | undefined,
   filter: CockpitFilter,
   trials: readonly SecretaryCockpitTrial[],
-  attention: readonly SecretaryCockpitAttention[],
+  attentionCountByClass: ReadonlyMap<string, number>,
   labelOf: (cls: SecretaryCockpitClass) => string
 ): TrialScheduleGroupModel[] {
-  const attentionCountByClass = new Map<string, number>();
-  for (const item of attention) {
-    if (!item.classId) continue;
-    attentionCountByClass.set(item.classId, (attentionCountByClass.get(item.classId) ?? 0) + 1);
-  }
   return trials
     .filter(trial => trial.date === selectedDay)
     .map(trial => {
@@ -417,7 +396,7 @@ function buildTrialGroups(
         snapshot.registryId
       );
       const visibleClasses = allClasses.filter(cls =>
-        matchesFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
+        matchesCockpitFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
       );
       return {
         trialId: trial.id,
@@ -460,6 +439,7 @@ export function buildSecretaryCockpitModel(
   const dayClasses = classesForDay(snapshot, trials, selectedDay);
   const focused = focusClass(dayClasses, state.focusedClassId);
   const allAttention = buildAttention(snapshot, selectedDay, trials);
+  const attentionCountByClass = buildAttentionCountByClass(allAttention);
   const labelOf = buildCockpitClassLabelResolver(snapshot.classes);
 
   return {
@@ -473,13 +453,21 @@ export function buildSecretaryCockpitModel(
       all: allAttention,
       overflowCount: Math.max(0, allAttention.length - ATTENTION_LIMIT),
     },
+    // Every Class scheduled today, unfiltered by `state.filter` -- `trialGroups`
+    // below is a `state.filter`-scoped slice of these same annotated rows. The
+    // view-tab counts in `secretaryCockpitViews.ts` filter this array directly
+    // with `matchesCockpitFilter`, so a tab's count can't diverge from what
+    // the schedule renders (MYK9-812).
+    daySchedule: dayClasses.map(cls =>
+      toScheduledClass(cls, labelOf(cls), snapshot.timeZone, attentionCountByClass.get(cls.id) ?? 0)
+    ),
     trialGroups: buildTrialGroups(
       snapshot,
       selectedDay,
       focused?.id,
       state.filter,
       trials,
-      allAttention,
+      attentionCountByClass,
       labelOf
     ),
     focusedClass: focused

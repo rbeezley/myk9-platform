@@ -18,6 +18,13 @@
 --      own person id): `entry_status` must remain 'submitted'. Proves the
 --      fix keys off "on behalf of someone else", not off "is staff" alone --
 --      a secretary reviewing her own entry is not reviewing anyone.
+--   4. THE SAME secretary submits for HER OWN dog again, but with an
+--      explicit handler_id naming ANOTHER person (e.g. a co-owner or
+--      alternate handler she shows the dog with): `entry_status` must
+--      STILL be 'submitted'. This is the regression case -- deciding "own
+--      entry" by comparing the resolved HANDLER to the caller (rather than
+--      by dog OWNERSHIP) wrongly auto-accepted this as on-behalf-of, even
+--      though the secretary owns the dog. Fails before the fix.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -52,7 +59,9 @@ VALUES
   ('00000000-0000-0000-0000-000000841302', '00000000-0000-0000-0000-000000841200',
    'Novice B Interior', 'Interior', 'Novice B', 'upcoming', 'manual', 30),
   ('00000000-0000-0000-0000-000000841303', '00000000-0000-0000-0000-000000841200',
-   'Novice B Exterior', 'Exterior', 'Novice B', 'upcoming', 'manual', 30);
+   'Novice B Exterior', 'Exterior', 'Novice B', 'upcoming', 'manual', 30),
+  ('00000000-0000-0000-0000-000000841304', '00000000-0000-0000-0000-000000841200',
+   'Novice B Buried', 'Buried', 'Novice B', 'upcoming', 'manual', 30);
 
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
@@ -134,6 +143,8 @@ DECLARE
   class_a          CONSTANT uuid := '00000000-0000-0000-0000-000000841301';
   class_b          CONSTANT uuid := '00000000-0000-0000-0000-000000841302';
   class_c          CONSTANT uuid := '00000000-0000-0000-0000-000000841303';
+  class_d          CONSTANT uuid := '00000000-0000-0000-0000-000000841304';
+  alt_handler      CONSTANT uuid := '00000000-0000-0000-0000-000000841003';
   result           jsonb;
   written_entry_id uuid;
   written_status   text;
@@ -221,6 +232,32 @@ BEGIN
   IF written_status IS DISTINCT FROM 'submitted' THEN
     RAISE EXCEPTION
       'FAIL staff entering their OWN dog was auto-accepted (should stay in her own review lane): entry_status = % (expected submitted)',
+      written_status;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- 4. THE SAME secretary submits for HER OWN dog again, but names ANOTHER
+  --    person as the handler (co-owner / alternate handler). "Own entry" is
+  --    decided by dog OWNERSHIP, not by the resolved handler, so this must
+  --    ALSO stay 'submitted' -- the regression case for this fix.
+  ----------------------------------------------------------------------------
+  result := public.submit_show_entries(
+    show_id, secretary_reg_id,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', secretary_dog, 'class_id', class_d,
+      'handler_id', alt_handler, 'handler_name', 'MYK9-841 Exhibitor', 'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000841904'::uuid, 'check');
+
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL staff self-entry (own dog, other handler) was not created: %', result;
+  END IF;
+
+  written_entry_id := (result->'entries'->0->>'entry_id')::uuid;
+  SELECT entry_status INTO written_status FROM public.entries WHERE id = written_entry_id;
+
+  IF written_status IS DISTINCT FROM 'submitted' THEN
+    RAISE EXCEPTION
+      'FAIL staff entering their OWN dog with another handler was auto-accepted (ownership, not handler, decides "own"): entry_status = % (expected submitted)',
       written_status;
   END IF;
 

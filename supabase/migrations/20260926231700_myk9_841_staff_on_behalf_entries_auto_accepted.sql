@@ -12,17 +12,20 @@
 -- client-supplied and already gets clamped to what v_is_official allows, but
 -- it was never meant to gate entry_status). This function already computes
 -- v_is_official -- the same site-admin/secretary/club-admin check every other
--- staff-only branch in this function uses -- and, a few lines above the
--- insert, resolves v_handler_person_id to the FINAL person the entry is
--- FOR (explicit handler_id, or -- since MYK9-824 -- the dog's owner when a
--- typed handler had no match). Comparing the two tells us whether this
--- official is entering somebody ELSE'S dog:
---   - v_is_official = false                         -> exhibitor self-entry,
+-- staff-only branch in this function uses. "On behalf of someone else" is
+-- decided by dog OWNERSHIP (owner_id or co_owner_id = the caller), not by
+-- comparing the resolved handler to the caller: an official can key HER OWN
+-- dog with a co-owner or an alternate handler as handler_id, and that is
+-- still her own entry, not one she is reviewing for someone else.
+--   - v_is_official = false                          -> exhibitor self-entry,
 --     unchanged ('submitted').
---   - v_is_official = true, handler = caller         -> staff entering THEIR
---     OWN dog, unchanged ('submitted') -- she is not reviewing herself.
---   - v_is_official = true, handler <> caller (incl.
---     handler NULL, i.e. dog has no owner on file)   -> on-behalf-of,
+--   - v_is_official = true, caller owns or co-owns
+--     the dog                                         -> staff entering
+--     THEIR OWN dog, unchanged ('submitted') -- she is not reviewing
+--     herself, whoever the handler is.
+--   - v_is_official = true, caller does not own or
+--     co-own the dog (incl. a dog with no owner on
+--     file)                                           -> on-behalf-of,
 --     auto-accepted ('confirmed').
 --
 -- STATUS VALUE. 'confirmed' is deliberately used, not 'accepted' or 'paid':
@@ -345,13 +348,30 @@ BEGIN
     -- MYK9-841: staff keying an entry ON BEHALF of someone else is the
     -- reviewer, so the entry is accepted here instead of landing in her own
     -- review lane. Decided from v_is_official (the same caller-manages-the-
-    -- show check every other staff-only branch above uses) plus the FINAL
-    -- v_handler_person_id resolved just above -- so a secretary entering her
-    -- OWN dog (handler = caller) is unaffected, matching an exhibitor
-    -- self-entry. See the migration header for the full status-value
-    -- reasoning; never derived from any client-supplied field.
+    -- show check every other staff-only branch above uses) plus dog
+    -- OWNERSHIP -- not the resolved handler. A secretary can key HER OWN
+    -- dog with a co-owner or an alternate handler as the handler_id (e.g.
+    -- entering a dog she and a co-owner both show); that is still her own
+    -- entry, not one she is reviewing for someone else, so comparing
+    -- v_handler_person_id to v_caller_person_id wrongly auto-accepted it.
+    -- "Own" mirrors the ownership test the non-official handler-assignment
+    -- guard above already uses (owner_id OR co_owner_id):
+    --   - v_is_official = false                          -> exhibitor
+    --     self-entry, unchanged ('submitted').
+    --   - v_is_official = true, caller owns/co-owns the
+    --     dog                                             -> staff entering
+    --     THEIR OWN dog, unchanged ('submitted') -- she is not reviewing
+    --     herself, whoever the handler is.
+    --   - v_is_official = true, caller does not own/co-own
+    --     the dog                                         -> on-behalf-of,
+    --     auto-accepted ('confirmed').
+    -- Never derived from any client-supplied field.
     v_entry_status := CASE
-      WHEN v_is_official AND v_handler_person_id IS DISTINCT FROM v_caller_person_id
+      WHEN v_is_official AND NOT EXISTS (
+        SELECT 1 FROM public.dogs d
+        WHERE d.id = v_dog_id
+          AND v_caller_person_id IN (d.owner_id, d.co_owner_id)
+      )
         THEN 'confirmed'
       ELSE 'submitted'
     END;

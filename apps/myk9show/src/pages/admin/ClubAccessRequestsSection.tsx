@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Inbox, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, Inbox, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
@@ -27,10 +28,12 @@ function ReviewCard({
   request,
   clubs,
   onReviewed,
+  onApproved,
 }: {
   request: ClubAccessRequest;
   clubs: { id: string; name: string }[];
   onReviewed: () => Promise<void>;
+  onApproved: (clubId: string, clubName: string) => void;
 }) {
   const [clubChoice, setClubChoice] = useState('new');
   const [clubName, setClubName] = useState(request.requestedClubName);
@@ -41,7 +44,7 @@ function ReviewCard({
   const handleReview = async (decision: 'approved' | 'denied') => {
     try {
       setBusy(true);
-      await reviewClubAccessRequest({
+      const clubId = await reviewClubAccessRequest({
         requestId: request.id,
         decision,
         existingClubId: decision === 'approved' && clubChoice !== 'new' ? clubChoice : null,
@@ -51,6 +54,12 @@ function ReviewCard({
       notifications.success(
         decision === 'approved' ? 'Club request approved' : 'Club request denied'
       );
+      // MYK9-855: approval never sets clubs.authorized_at (MYK9-572 made that
+      // a deliberate, separate site-admin step on /clubs/:id) — hand the
+      // admin straight to that action instead of leaving them to find it.
+      if (decision === 'approved' && clubId) {
+        onApproved(clubId, clubName.trim() || request.requestedClubName);
+      }
       await onReviewed();
     } catch (error) {
       logger.error(
@@ -159,11 +168,24 @@ function ReviewCard({
   );
 }
 
+interface ApprovedClub {
+  clubId: string;
+  clubName: string;
+}
+
 export function ClubAccessRequestsSection() {
   const [requests, setRequests] = useState<ClubAccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const { data: clubs = [] } = useClubsQuery();
+  // MYK9-855: an approved request drops out of `pendingRequests` below, so
+  // this is the only place left to hand the admin the authorize-club step —
+  // keyed by clubId so re-approving the same club (idempotent retry) never
+  // duplicates the row.
+  const [justApproved, setJustApproved] = useState<Record<string, ApprovedClub>>({});
+  const handleApproved = useCallback((clubId: string, clubName: string) => {
+    setJustApproved(prev => ({ ...prev, [clubId]: { clubId, clubName } }));
+  }, []);
 
   const loadRequests = useCallback(async () => {
     try {
@@ -213,6 +235,28 @@ export function ClubAccessRequestsSection() {
         </Button>
       </div>
 
+      {Object.values(justApproved).length > 0 && (
+        <div className="space-y-2">
+          {Object.values(justApproved).map(({ clubId, clubName }) => (
+            <div
+              key={clubId}
+              className="flex flex-col gap-2 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span>
+                <strong>{clubName}</strong> is approved but still pending myK9 authorization — shows
+                can be built now, but publishing needs the club authorized first.
+              </span>
+              <Button variant="outline" size="sm" className="min-h-11 gap-2 shrink-0" asChild>
+                <Link to={`/clubs/${clubId}`}>
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                  Authorize this club
+                </Link>
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading && (
         <p role="status" className="text-base text-muted-foreground">
           Loading new club requests…
@@ -248,6 +292,7 @@ export function ClubAccessRequestsSection() {
               request={request}
               clubs={clubs}
               onReviewed={loadRequests}
+              onApproved={handleApproved}
             />
           ))}
         </div>

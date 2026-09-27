@@ -91,6 +91,17 @@ describe('SelfCheckinTool', () => {
     expect(screen.queryByRole('combobox', { name: /Results visibility/ })).not.toBeInTheDocument();
   });
 
+  it('shows the floating bulk bar once a class is selected', async () => {
+    const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
+    expect(screen.queryByRole('toolbar', { name: 'Bulk actions' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice A' }));
+
+    expect(screen.getByRole('toolbar', { name: 'Bulk actions' })).toBeInTheDocument();
+    expect(screen.getByText('1 class selected')).toBeInTheDocument();
+  });
+
   it('bulk-enables self check-in for selected valid classes', async () => {
     const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
     await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
@@ -99,6 +110,34 @@ describe('SelfCheckinTool', () => {
 
     expect(bulkMutate).toHaveBeenCalledWith(
       { classIds: ['class-1'], showId: 'show-1', selfCheckinEnabled: true },
+      expect.any(Object)
+    );
+  });
+
+  it('bulk-disables self check-in for selected valid classes', async () => {
+    const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice A' }));
+    await user.click(screen.getByRole('button', { name: 'Disable self check-in' }));
+
+    expect(bulkMutate).toHaveBeenCalledWith(
+      { classIds: ['class-1'], showId: 'show-1', selfCheckinEnabled: false },
+      expect.any(Object)
+    );
+  });
+
+  it('selects every class with "Select all" and enables check-in for all of them', async () => {
+    const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice A' }));
+
+    await user.click(screen.getByRole('button', { name: 'Select all (2)' }));
+    expect(screen.getByText('2 classes selected')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Enable self check-in' }));
+
+    expect(bulkMutate).toHaveBeenCalledWith(
+      { classIds: ['class-1', 'class-2'], showId: 'show-1', selfCheckinEnabled: true },
       expect.any(Object)
     );
   });

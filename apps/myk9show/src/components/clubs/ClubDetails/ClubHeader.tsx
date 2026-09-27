@@ -37,6 +37,8 @@ import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
 import { normalizeContactDestinations } from './contactDestinations';
 import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import { useClubOfficials } from './useClubOfficials';
+import { ClubOfficialsLine } from './ClubOfficialsLine';
 
 interface ClubHeaderProps {
   club: Club;
@@ -90,6 +92,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     [club.accentColor]
   );
   const contact = useMemo(() => normalizeContactDestinations(club), [club]);
+  const { data: officials } = useClubOfficials(club.id);
   const hasMenuActions =
     canEditBranding ||
     canDeleteClub ||
@@ -306,6 +309,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 </span>
               )}
             </div>
+            <ClubOfficialsLine
+              adminNames={officials?.adminNames ?? []}
+              secretaryNames={officials?.secretaryNames ?? []}
+            />
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4" />

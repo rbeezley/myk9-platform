@@ -130,6 +130,24 @@ describe('user views', () => {
     expect(dateRange.start?.getTime()).toBe(NOW - 7 * 86_400_000);
   });
 
+  it('keeps the rolling cutoff when selecting the new view through the URL', () => {
+    const now = new Date(2026, 8, 26, 23).getTime();
+    const people = [
+      user('inside', { createdAt: new Date(now - 6 * 86_400_000) }),
+      user('outside', { createdAt: new Date(now - 7.5 * 86_400_000) }),
+    ];
+    expect(buildUserViews(people, now).find(view => view.id === 'new')?.count).toBe(1);
+
+    const search = userListParamsToSearch({
+      ...parseUserListParams(new URLSearchParams()),
+      filters: userViewFilters('new', now),
+    });
+    const selectedFilters = parseUserListParams(search).filters;
+    expect(filterUsers(people, '', selectedFilters, now).map(person => person.id)).toEqual([
+      'inside',
+    ]);
+  });
+
   it('writes the login bucket as ?login= and ignores an unknown value', () => {
     const search = userListParamsToSearch({
       ...parseUserListParams(new URLSearchParams()),

@@ -22,6 +22,7 @@ import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
+  deriveResultReleaseDisplay,
   type ResultCardModel,
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
@@ -260,16 +261,19 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       );
     }
 
+    const release = deriveResultReleaseDisplay({
+      resultsReleasedAt: cls.resultsReleasedAt,
+      resultStatus: cls.resultStatus,
+      finalPlacement: cls.finalPlacement,
+    });
+
     return (
       <>
         {cls.resultStatus && <ResultBadge resultStatus={cls.resultStatus} />}
-        {cls.resultsReleasedAt &&
-        cls.resultStatus === 'qualified' &&
-        cls.finalPlacement != null &&
-        cls.finalPlacement >= 1 ? (
-          <PlacementPill placement={cls.finalPlacement} size="sm" />
+        {release.placement != null ? (
+          <PlacementPill placement={release.placement} size="sm" />
         ) : null}
-        {!cls.resultsReleasedAt && <span className="text-muted-foreground">preliminary</span>}
+        {release.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
         {cls.searchTimeSeconds != null && (
           <span className="tabular-nums text-muted-foreground">
             {cls.searchTimeSeconds.toFixed(1)}s

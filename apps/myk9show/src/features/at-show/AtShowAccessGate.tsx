@@ -3,7 +3,6 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, KeyRound, ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
-import { selectGrantRoleForShow, useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
@@ -18,9 +17,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
   const { user, loading, hasRole } = useAuthContext();
-  useRehydrateRingsideGrant(showId);
-  const activeGrant = useRingsideGrantStore(state => state.activeGrant);
-  const grantRole = selectGrantRoleForShow(activeGrant, showId);
+  const grantRole = useRehydrateRingsideGrant(showId);
   const hasAccountStaffRole = hasRingsideStaffRole(hasRole);
   const accountToday = useAccountTodayAutoFavorites(
     user && !grantRole && !hasAccountStaffRole ? showId : undefined

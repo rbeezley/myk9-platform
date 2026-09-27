@@ -28,6 +28,9 @@ const trial = fromAny<DbTrial, unknown>({
   registry_id: 'UKC',
   // `trials.trial_number` is a TEXT column; matches the real shape (MYK9-827).
   trial_number: '2026123401',
+  timezone: 'America/Chicago',
+  actual_start_time: '9:00 AM',
+  actual_end_time: '3:30 PM',
 });
 
 const classData = {
@@ -97,6 +100,8 @@ describe('buildTrialReportProps', () => {
         registryId: 'UKC',
         trialNumber: '2026123401',
         judgeName: 'Pat Judge',
+        actualStartTime: '9:00 AM',
+        actualEndTime: '3:30 PM',
       },
       entries: [
         {

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useResetSavedViewsOnAccountChange } from './useResetSavedViewsOnAccountChange';
-import { saveLocalView, restoreLocalView, type KeyValueStorage } from './localViewPreferences';
-import { ENTRY_MANAGEMENT_PRESETS, type EntryManagementOperationalView } from './operationalViews';
+import type { KeyValueStorage } from './localViewPreferences';
 
 function createMemoryStorage(): KeyValueStorage {
   const store = new Map<string, string>();
@@ -21,16 +20,15 @@ function createMemoryStorage(): KeyValueStorage {
   };
 }
 
-const view = ENTRY_MANAGEMENT_PRESETS['needs-review'].build() as EntryManagementOperationalView;
-const showScope = { showId: 'show-1' };
+const priorUserKey = 'operational-views:v1:user-a:entry-management';
 
 describe('useResetSavedViewsOnAccountChange', () => {
   it("clears the PRIOR user's saved views when the authenticated user id changes", () => {
     const storage = createMemoryStorage();
     Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
 
-    saveLocalView(storage, 'user-a', showScope, view);
-    expect(restoreLocalView(storage, 'user-a', 'entry-management', showScope)).not.toBeNull();
+    storage.setItem(priorUserKey, 'saved');
+    expect(storage.getItem(priorUserKey)).toBe('saved');
 
     const { rerender } = renderHook(
       ({ userId }: { userId: string | undefined }) => useResetSavedViewsOnAccountChange(userId),
@@ -40,16 +38,16 @@ describe('useResetSavedViewsOnAccountChange', () => {
     // Sign-in as a different user on the same device.
     rerender({ userId: 'user-b' });
 
-    expect(restoreLocalView(storage, 'user-a', 'entry-management', showScope)).toBeNull();
+    expect(storage.getItem(priorUserKey)).toBeNull();
   });
 
   it('does not clear anything on first mount (no prior user to reset)', () => {
     const storage = createMemoryStorage();
     Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
-    saveLocalView(storage, 'user-a', showScope, view);
+    storage.setItem(priorUserKey, 'saved');
 
     renderHook(() => useResetSavedViewsOnAccountChange('user-a'));
 
-    expect(restoreLocalView(storage, 'user-a', 'entry-management', showScope)).not.toBeNull();
+    expect(storage.getItem(priorUserKey)).toBe('saved');
   });
 });

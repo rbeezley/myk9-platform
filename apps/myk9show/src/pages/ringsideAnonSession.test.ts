@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { startAnonymousRingsideSession, endAnonymousRingsideSession } from './ringsideAnonSession';
+import { startAnonymousRingsideSession } from './ringsideAnonSession';
 
 const getSession = vi.fn();
 const signInAnonymously = vi.fn();
@@ -241,24 +241,5 @@ describe('startAnonymousRingsideSession', () => {
     if (!result.ok) {
       expect(result.message).toBe("Couldn't connect. Check your signal and try again.");
     }
-  });
-});
-
-describe('endAnonymousRingsideSession', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    signOut.mockResolvedValue({ error: null });
-  });
-
-  it('signs out an anonymous session', async () => {
-    getSession.mockResolvedValue(anonSession);
-    await endAnonymousRingsideSession();
-    expect(signOut).toHaveBeenCalledTimes(1);
-  });
-
-  it('never signs out a real account session', async () => {
-    getSession.mockResolvedValue(accountSession);
-    await endAnonymousRingsideSession();
-    expect(signOut).not.toHaveBeenCalled();
   });
 });

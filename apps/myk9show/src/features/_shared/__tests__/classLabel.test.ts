@@ -4,6 +4,7 @@ import {
   buildClassDisambiguatorsByGroup,
   buildFullClassLabel,
   buildTrialDayDisambiguator,
+  buildTrialDisambiguators,
   classNameExtra,
 } from '../classLabel';
 
@@ -144,6 +145,107 @@ describe('buildClassDisambiguator', () => {
         element: 'Interior',
         level: 'Novice',
         section: 'B',
+      })
+    ).toBe('');
+  });
+});
+
+// MYK9-805 (Codex review on PR #2548): a collision is a question about
+// classes offered in the SAME trial, never the whole show.
+describe('buildTrialDisambiguators', () => {
+  it('disambiguates within a trial that has a real collision', () => {
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-1',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('Preliminary');
+  });
+
+  it('never lets a collision in one trial add a suffix in a different trial', () => {
+    // Same element/level/section pair, but each trial only ever offers ONE
+    // of the two names — no exhibitor in either trial can confuse them.
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-2',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1', 'trial-2'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('');
+    expect(
+      byTrialId.get('trial-2')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('');
+  });
+
+  it('does not mask a real within-trial collision behind a third trial sharing the identity', () => {
+    // trial-1 genuinely collides (two names); trial-2 merely shares the same
+    // element/level with a THIRD name. Grouping every trial together would
+    // make trial-1's key see 3 distinct names and still disambiguate
+    // correctly here, but must not do so by accident — each trial's group is
+    // built from ONLY its own classes.
+    const byTrialId = buildTrialDisambiguators(
+      [
+        { trialId: 'trial-1', name: 'Interior Advanced', element: 'Interior', level: 'Advanced' },
+        {
+          trialId: 'trial-1',
+          name: 'Interior Advanced Preliminary',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+        {
+          trialId: 'trial-2',
+          name: 'Interior Advanced Excellent',
+          element: 'Interior',
+          level: 'Advanced',
+        },
+      ],
+      new Set(['trial-1', 'trial-2'])
+    );
+
+    expect(
+      byTrialId.get('trial-1')?.({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    ).toBe('Preliminary');
+    // trial-2's only class has nothing in its OWN trial to collide with.
+    expect(
+      byTrialId.get('trial-2')?.({
+        name: 'Interior Advanced Excellent',
+        element: 'Interior',
+        level: 'Advanced',
       })
     ).toBe('');
   });

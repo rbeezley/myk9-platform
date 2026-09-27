@@ -13,6 +13,7 @@ import {
   type PersonPrivateDetails,
 } from '@/services/database/users/personPrivate';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -147,7 +148,7 @@ async function fetchEntryFormData(
   // 2. Fetch classes
   const { data: classesRaw, error: classesError } = await supabase
     .from('classes')
-    .select('id, trial_id, element, level')
+    .select('id, trial_id, element, level, section')
     .in('trial_id', trialIds);
   throwIfUnread(classesError);
 
@@ -156,6 +157,7 @@ async function fetchEntryFormData(
     trialId: c.trial_id,
     element: c.element ?? '',
     level: c.level ?? '',
+    section: resolveClassSection(c.section) || null,
   }));
 
   // 3. Fetch entries
@@ -189,6 +191,7 @@ async function fetchEntryFormData(
       classId: e.class_id ?? '',
       element: cls?.element ?? '',
       level: cls?.level ?? '',
+      section: cls?.section ?? null,
       armband: e.armband != null ? Number(e.armband) : null,
       handler: e.handler,
       handlerId: e.handler_id ?? null,

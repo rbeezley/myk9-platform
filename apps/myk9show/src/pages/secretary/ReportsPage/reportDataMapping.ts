@@ -243,6 +243,8 @@ export function mapReportTrialFields(
     ...(trial.event_number ? { eventNumber: trial.event_number } : {}),
     registryId: readTrialRegistryId(trial),
     trialNumber: String(trial.trial_number ?? ''),
+    ...(trial.actual_start_time ? { actualStartTime: trial.actual_start_time } : {}),
+    ...(trial.actual_end_time ? { actualEndTime: trial.actual_end_time } : {}),
   };
 }
 

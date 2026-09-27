@@ -129,6 +129,38 @@ describe('useBrowseDogsData', () => {
     expect(result.current.availableBreeds).toEqual(['Border Collie', 'Papillon']);
   });
 
+  it('derives the available owner list from the roster, sorted and deduplicated', () => {
+    state.dogs = [
+      dog({ id: 'Willow', ownerName: 'Sam Reed' }),
+      dog({ id: 'Archie', ownerName: 'Jane Doe' }),
+      dog({ id: 'Juniper', ownerName: 'Jane Doe' }),
+    ];
+    const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
+    expect(result.current.availableOwners).toEqual(['Jane Doe', 'Sam Reed']);
+  });
+
+  it('filters by status, defaulting an unset status to active', () => {
+    state.dogs = [
+      dog({ id: 'Willow', status: 'retired' }),
+      dog({ id: 'Archie' }),
+      dog({ id: 'Juniper', status: 'deceased' }),
+    ];
+    const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
+    act(() => result.current.setFilters(f => ({ ...f, status: 'active' })));
+    expect(result.current.filteredDogs.map(d => d.callName)).toEqual(['Archie']);
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it('filters by owner', () => {
+    state.dogs = [
+      dog({ id: 'Willow', ownerName: 'Sam Reed' }),
+      dog({ id: 'Archie', ownerName: 'Jane Doe' }),
+    ];
+    const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
+    act(() => result.current.setFilters(f => ({ ...f, owner: 'Jane Doe' })));
+    expect(result.current.filteredDogs.map(d => d.callName)).toEqual(['Archie']);
+  });
+
   it('clearAllFilters restores the full roster', () => {
     state.dogs = [dog({ id: 'Willow' }), dog({ id: 'Archie' })];
     const { result } = renderHook(() => useBrowseDogsData(), { wrapper });

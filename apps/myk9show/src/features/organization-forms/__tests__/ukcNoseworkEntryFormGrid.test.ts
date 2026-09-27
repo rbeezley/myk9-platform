@@ -7,7 +7,9 @@ const TRIALS: EntryFormTrial[] = [
   { id: 'trial-2', date: '2026-10-10', trialNumber: 'Trial 2' },
 ];
 
-function entry(overrides: Partial<EntryFormDog['entries'][number]>): EntryFormDog['entries'][number] {
+function entry(
+  overrides: Partial<EntryFormDog['entries'][number]>
+): EntryFormDog['entries'][number] {
   return {
     id: 'entry-1',
     trialId: 'trial-1',

@@ -259,13 +259,18 @@ registerZoomReflowChecks(
  * invisible at desktop width.
  *
  * Chromium (headless, no real device) always resolves
- * `env(safe-area-inset-bottom)` to 0, so this cannot reproduce the actual
- * home-indicator overlay. What it CAN and does assert is the contract that
- * overlay depends on: a real, positive gap between the Decline button and the
- * visual viewport's bottom edge once the page is scrolled all the way down —
- * exactly what `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` on the page
- * container (MyEntriesPage/index.tsx) restores. Pre-fix, that gap was ~0px;
- * a regression back to bare `py-6` reproduces it.
+ * `env(safe-area-inset-bottom)` to 0 on its own, so a bare run of this test
+ * could never tell `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` (the
+ * fix, on `MyEntriesPage/index.tsx`'s container) apart from the pre-fix bare
+ * `py-6`: both resolve to the same 24px when the env() term is zero (Codex
+ * review on PR #2574, P2). The CDP call below overrides
+ * `safe-area-inset-bottom` to a real, nonzero 34px (the standard iOS
+ * home-indicator height this bug report is about) before the page loads, so
+ * `env()` actually contributes and the two variants produce different,
+ * checkable numbers: pre-fix stays flush at 24px (env() ignored, nothing to
+ * revert), post-fix reserves 1.5rem + 34px = 58px. The threshold below sits
+ * strictly between those two values, so this fails on the reverted source and
+ * passes on the fix — see the PR/commit for a local revert-and-rerun proof.
  *
  * Data-dependent: only the seeded exhibitor account currently holding an
  * active ("offered") wait-list position renders a Decline button at all, so
@@ -275,13 +280,24 @@ registerZoomReflowChecks(
 test.describe('My Shows wait-list Decline row clears the bottom of the viewport', () => {
   test.setTimeout(120_000);
 
-  const MIN_BOTTOM_CLEARANCE_PX = 16;
+  const SAFE_AREA_INSET_BOTTOM_PX = 34;
+  // Strictly between the pre-fix 24px (bare py-6, env() ignored) and the
+  // post-fix 58px (1.5rem + the 34px override) — see the doc comment above.
+  const MIN_BOTTOM_CLEARANCE_PX = 40;
 
   test('Decline button has real clearance below it when scrolled to the end of the page', async ({
     page,
   }, testInfo) => {
     const viewport = cssViewportFor(PHONE_PHYSICAL, PHONE_ZOOM_LEVELS[0]);
     await page.setViewportSize(viewport);
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: {
+        bottom: SAFE_AREA_INSET_BOTTOM_PX,
+        bottomMax: SAFE_AREA_INSET_BOTTOM_PX,
+      },
+    });
 
     await signInAsExhibitor(page, '/exhibitor/entries');
     await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
@@ -311,12 +327,78 @@ test.describe('My Shows wait-list Decline row clears the bottom of the viewport'
     ).toBeLessThanOrEqual(viewport.height + 1);
     expect(
       viewport.height - box.bottom,
-      'Decline button has no real clearance before the bottom of the viewport'
+      'Decline button has no real clearance before the bottom of the viewport once the ' +
+        `${SAFE_AREA_INSET_BOTTOM_PX}px safe-area inset is accounted for`
     ).toBeGreaterThanOrEqual(MIN_BOTTOM_CLEARANCE_PX);
 
     await page.screenshot({
       path: testInfo.outputPath('my-shows-decline-clearance.png'),
       fullPage: true,
     });
+  });
+});
+
+/**
+ * Mechanism proof for the assertion above, and its own regression guard:
+ * requires no sign-in, no seed data, and no dev/preview server, so it CAN and
+ * does run in this environment (and in PR CI) even though the authenticated
+ * spec above cannot.
+ *
+ * It isolates exactly the two facts the MYK9-809 fix depends on: (1) CDP's
+ * `Emulation.setSafeAreaInsetsOverride` really does make Chromium resolve
+ * `env(safe-area-inset-bottom)` to a nonzero value — confirmed locally against
+ * this project's bundled Chromium (24px -> 58px on the identical calc()) — and
+ * (2) `calc(1.5rem + env(safe-area-inset-bottom, 0px))` (the exact value
+ * `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` on
+ * `MyEntriesPage/index.tsx`'s container compiles to per this project's own
+ * `tailwind.config.js` — verified with
+ * `pnpm exec tailwindcss -c tailwind.config.js -i <empty> -o out.css --content <snippet with the class>`)
+ * genuinely differs from a bare `1.5rem` once that override is in effect.
+ * Plain CSS, not the Tailwind class name, so it does not depend on the build
+ * pipeline and is not a source-text check — every value is read back from
+ * `getComputedStyle` after real layout.
+ */
+test.describe('MYK9-809 mechanism: CDP safe-area override changes real geometry', () => {
+  test('calc(1.5rem + env(safe-area-inset-bottom)) grows under a nonzero override; bare 1.5rem does not', async ({
+    page,
+  }) => {
+    const SAFE_AREA_INSET_BOTTOM_PX = 34;
+    const REM_PX = 16; // this file's target pages never override the root font-size
+
+    await page.setContent(`
+      <div id="pre-fix" style="padding-bottom: ${1.5 * REM_PX}px;"></div>
+      <div id="post-fix" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));"></div>
+    `);
+
+    const read = () =>
+      page.evaluate(() => ({
+        pre: parseFloat(getComputedStyle(document.getElementById('pre-fix')!).paddingBottom),
+        post: parseFloat(getComputedStyle(document.getElementById('post-fix')!).paddingBottom),
+      }));
+
+    const before = await read();
+    expect(before.pre, 'pre-fix padding before any override').toBeCloseTo(1.5 * REM_PX, 1);
+    expect(before.post, 'post-fix padding before any override (env() -> 0 by default)').toBeCloseTo(
+      1.5 * REM_PX,
+      1
+    );
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: {
+        bottom: SAFE_AREA_INSET_BOTTOM_PX,
+        bottomMax: SAFE_AREA_INSET_BOTTOM_PX,
+      },
+    });
+
+    const after = await read();
+    expect(after.pre, 'bare 1.5rem must not react to the safe-area override').toBeCloseTo(
+      1.5 * REM_PX,
+      1
+    );
+    expect(
+      after.post,
+      'calc(1.5rem + env(safe-area-inset-bottom)) must grow by the override amount'
+    ).toBeCloseTo(1.5 * REM_PX + SAFE_AREA_INSET_BOTTOM_PX, 1);
   });
 });

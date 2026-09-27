@@ -61,7 +61,7 @@ evidence; see "Phase 1 Results" for confirmed gaps.
 | J6.1 | Assignment + workload (secretary-owned).                  | Verified covered                        | S1.3 remediation confirmed in code (`ReplicatedJudgeAssignmentsTable` + tests, #1242).                                                                                                                                                                                                                      |
 | J6.2 | Judge schedule report adequacy.                           | Inventory complete (Evidence partial)   | Reports render (grouped by trial; Class/Judge/Entries/Est. Time — no per-ring grouping or wall-clock times). Judge-reader adequacy pass pending.                                                                                                                                                            |
 | J6.3 | Credentials/qualifications records.                       | Inventory complete (Evidence partial)   | `judge_qualifications` (migration 049) + creation panel exist; importer built but CSV header-only pending real data. `JUDGE_ORGANIZATIONS` omits ASCA (AKC/UKC/FCI/Other only) — confirm intentional.                                                                                                       |
-| J6.4 | Self-service judge experience.                            | Evidence partial (un-deferred)          | Owner decision 2026-07-10: shipped dashboard (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) is owned, in scope. Judge-persona verification walk pending (Phase 2). Notifications/history stay post-fall.                                                                                           |
+| J6.4 | Self-service judge experience.                            | Evidence partial (un-deferred)          | Owner decision 2026-07-10: shipped dashboard (`/judge/dashboard`, `/judge/stats`) is owned, in scope. `/judge/check-in` was deleted 2026-09-27 (MYK9-850): mock-data-only, no nav path in. Judge-persona verification walk pending (Phase 2) for the two remaining pages. Notifications/history stay post-fall. |
 
 ## Phase 1 Results (2026-07-10)
 
@@ -89,6 +89,10 @@ rough severity order:
    shipped despite the documented deferral. Owner decided to **un-defer and
    own the shipped surface** (no new features; verification walk added to
    Phase 2). `judge.md` and the coverage matrix updated accordingly.
+   **Revised 2026-09-27 (MYK9-850):** `/judge/check-in` turned out not to be
+   nav-registered and ran entirely on hard-coded mock data, contrary to this
+   entry's premise; it was deleted rather than owned. `/judge/dashboard` and
+   `/judge/stats` are unaffected.
 6. **Minor:** J2.1 page tests are AKC-only; J6.3 `JUDGE_ORGANIZATIONS` omits
    ASCA (confirm intentional); J3.1 rulebook cross-check still outstanding.
 

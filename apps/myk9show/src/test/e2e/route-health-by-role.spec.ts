@@ -98,7 +98,6 @@ const SECRETARY_ROUTES: RouteSpec[] = [
 const JUDGE_ROUTES: RouteSpec[] = [
   { label: 'dashboard', path: '/judge/dashboard' },
   { label: 'stats', path: '/judge/stats' },
-  { label: 'check-in', path: '/judge/check-in' },
 ];
 
 const CLUB_ADMIN_ROUTES: RouteSpec[] = [{ label: 'members', path: '/club-admin/members' }];

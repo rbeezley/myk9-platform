@@ -25,8 +25,9 @@ experience (passcode access, no judge login) plus the judge-adjacent artifacts
 the secretary produces (assignments, schedules, judge books, certification).
 
 **Also in scope (un-deferred 2026-07-10):** the already-shipped judge
-self-service dashboard (`/judge/dashboard`, `/judge/stats`,
-`/judge/check-in`) — see J6.4 and `judge.md`.
+self-service dashboard (`/judge/dashboard`, `/judge/stats`) — see J6.4 and
+`judge.md`. (`/judge/check-in` was found to be mock-data-only with no nav
+path in and was deleted, MYK9-850.)
 
 **Out of scope (deferred post-fall):** schedule-update notifications,
 cross-club judging history, self-service assignment management beyond the
@@ -88,7 +89,7 @@ Implementation partial, Potential gap, Gap, Deferred.
 | Be assigned to classes with workload visible to the secretary.                         | Required                          | Wizard/setup judge assignment; `JudgesList` counts                                                          | Covered          | Verified + remediated 2026-07-09 (S1.3): assignment writes replicated, tests green. Post-save workload counts verified.                                                                                                                            |
 | Know their schedule (via the secretary-published Judge's Schedule).                    | Required                          | Judge Schedule / Judge Entry Counts reports                                                                 | Evidence partial | Reports render per S4.3; judge-facing adequacy (est. times, per-ring grouping) needs one review pass with a real judge or proxy.                                                                                                                   |
 | Have judging credentials/qualifications on record where required.                      | Required                          | Judge records + `judge_qualifications`; import tooling (#833)                                               | Evidence partial | Importer done; real AKC/UKC directory data still not loaded (open OPEN-TODOS item). ASCA judge creation absent from JudgesPicker by design.                                                                                                        |
-| View own assignments via the shipped dashboard (notifications/history stay post-fall). | Required (un-deferred 2026-07-10) | `/judge/dashboard`, `/judge/stats`, `/judge/check-in` (shipped, routed, nav-registered, role-gated, tested) | Evidence partial | Owner decision 2026-07-10: own the shipped surface, don't delete. Needs a judge-persona verification walk (data correctness, nav reachability, UX adequacy) before Covered. Schedule-change notifications and cross-club history remain post-fall. |
+| View own assignments via the shipped dashboard (notifications/history stay post-fall). | Required (un-deferred 2026-07-10) | `/judge/dashboard`, `/judge/stats` (shipped, routed, role-gated, tested) | Evidence partial | Owner decision 2026-07-10: own the shipped surface, don't delete. MYK9-850 (2026-09-27) found the "nav-registered" label was wrong for `/judge/check-in` — no nav path ever reached it, and it ran on hard-coded mock data, not real assignments — so it was deleted; `/judge/check-in` now redirects to `/at-show`. `/judge/dashboard` and `/judge/stats` still need a judge-persona verification walk (data correctness, nav reachability, UX adequacy) before Covered. Schedule-change notifications and cross-club history remain post-fall. |
 
 ## Launch-Risk Summary
 

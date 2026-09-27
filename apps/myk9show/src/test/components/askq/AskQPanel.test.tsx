@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AskQPanel } from '@/components/askq/AskQPanel';
+import { TERA_WORKING_COPY } from '@/components/askq/askq-config';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { act } from '@testing-library/react';
 import * as askqService from '@/services/askqService';
@@ -269,10 +270,10 @@ describe('AskQPanel', () => {
     });
   });
 
-  it('shows an answer skeleton while waiting for the first AskQ response token', async () => {
+  it('shows Tera working while waiting for the first AskQ response token, then idle', async () => {
     // Deferred: the test decides when the first response arrives, so the
-    // skeleton assertion cannot race the stream under load. parseSSEStream is
-    // module-mocked to a no-op, so deliver events through its mock directly.
+    // working-dock assertion cannot race the stream under load. parseSSEStream
+    // is module-mocked to a no-op, so deliver events through its mock directly.
     let releaseResponse!: (stream: ReadableStream<Uint8Array>) => void;
     vi.mocked(askqService.sendAskQQuery).mockReturnValue(
       new Promise<ReadableStream<Uint8Array>>(resolve => {
@@ -295,18 +296,19 @@ describe('AskQPanel', () => {
     fireEvent.change(input, { target: { value: 'Max time?' } });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
-    // The deferred is still pending, so the skeleton must already be in the
-    // DOM — synchronous assertion, no waitFor needed.
-    expect(screen.getByRole('status', { name: 'AskQ is answering' })).toBeInTheDocument();
+    // The deferred is still pending, so Tera's working dock must already be
+    // in the DOM — synchronous assertion, no waitFor needed.
+    expect(screen.getByRole('status', { name: TERA_WORKING_COPY })).toBeInTheDocument();
 
     await act(async () => {
       releaseResponse(createMockStream('Max time is 3 minutes.'));
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('status', { name: 'AskQ is answering' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('status', { name: TERA_WORKING_COPY })).not.toBeInTheDocument();
     });
     expect(screen.getByText('Max time is 3 minutes.')).toBeInTheDocument();
+    expect(screen.getByTestId('tera-face')).toBeInTheDocument();
   });
 
   it('keeps route-default mode out of the payload until the user chooses it', async () => {

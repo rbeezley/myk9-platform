@@ -387,6 +387,34 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
     });
+
+    // Codex review, PR #2561: a stale ?owner= from a shared link or an
+    // earlier staff view must not keep silently narrowing an own-dogs-only
+    // roster once the field that set it is gone from the menu.
+    it('clears a stale owner filter once the Owner field is hidden', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
+      };
+
+      renderPage();
+
+      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
+      const updater = mockBrowseDogsReturn.setFilters.mock.calls[0][0];
+      expect(updater(mockBrowseDogsReturn.filters)).toMatchObject({ owner: 'all' });
+    });
+
+    it('leaves an active owner filter alone when the field is offered', () => {
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
+      };
+
+      renderPage();
+
+      expect(mockBrowseDogsReturn.setFilters).not.toHaveBeenCalled();
+    });
   });
 
   it('opens the add dog panel from the add query parameter', () => {

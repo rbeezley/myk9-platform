@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, PawPrint } from 'lucide-react';
@@ -148,6 +148,17 @@ const BrowseDogsPage: React.FC = () => {
   // column does — an own-dogs-only roster (exhibitor, judge, steward,
   // chairman) has one owner: the viewer (MYK9-219).
   const showOwnerField = !ownDogsOnly;
+
+  // `showOwnerField` can flip false mid-session (identity resolving after a
+  // cold/offline boot, or a role change) while an Owner filter from a shared
+  // link or an earlier staff view is still active. Without this, the field
+  // simply disappears from the menu while `filters.owner` keeps narrowing the
+  // roster, and "Clear all" is the only way out (Codex review, PR #2561).
+  useEffect(() => {
+    if (!showOwnerField && filters.owner !== 'all') {
+      setFilters(prev => ({ ...prev, owner: 'all' }));
+    }
+  }, [showOwnerField, filters.owner, setFilters]);
 
   const dogViews = useMemo(() => buildDogViews(dogs), [dogs]);
   const activeViewId = activeDogViewId(filters);

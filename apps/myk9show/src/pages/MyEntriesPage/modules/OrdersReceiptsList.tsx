@@ -63,13 +63,28 @@ function orderDogNames(order: MyEntry): string[] {
  * The amount owed is read from the same balance the cart quotes — never
  * re-summed from class fees, which is how My Shows and My Payments start
  * stating two different numbers (exhibitor-money-clarity).
+ *
+ * A mixed order — one class already paid, a sibling still due — used to read
+ * as a bare "$X due", the order's whole total, with no word for the part
+ * that already cleared (MYK9-804 findability walk, 2026-09-27). Receipts is
+ * the one place a payment stays confirmable once the show's own "paid"
+ * banner has retired (past show, dismissed, or past its 14-day window —
+ * `derivePaidStrip`), so silently folding a paid class into "due" here left
+ * no reachable surface stating it was ever paid at all. The paid portion is
+ * `order.totalFee - dueCents`, both already read from the SAME balance the
+ * cart quotes, so this states nothing the due figure did not already imply.
  */
 function describeOrderMoney(order: MyEntry): string {
   const dueCents =
     getOrderOnlinePrompt(order).kind === 'finish-online'
       ? (order.balance?.onlineDueCents ?? Math.round(order.totalFee * 100))
       : 0;
-  if (dueCents > 0) return `${formatPaymentCents(dueCents, 'USD')} due`;
+  if (dueCents > 0) {
+    const paidCents = Math.max(0, Math.round(order.totalFee * 100) - dueCents);
+    return paidCents > 0
+      ? `${formatPaymentCents(paidCents, 'USD')} paid · ${formatPaymentCents(dueCents, 'USD')} due`
+      : `${formatPaymentCents(dueCents, 'USD')} due`;
+  }
   if (order.paymentStatus === PaymentStatus.REFUNDED) return 'Refunded';
   return 'Paid';
 }

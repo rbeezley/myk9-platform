@@ -69,6 +69,53 @@ describe('OrdersReceiptsList — money under the one gate', () => {
     expect(screen.getByText(/\$45\.00 due/)).toBeInTheDocument();
   });
 
+  // MYK9-804 findability walk (2026-09-27): a mixed order — one class paid
+  // online, a sibling class still due, both on the same registration, exactly
+  // Ranger's Heartland order in the reported walk — read as a bare "$X due"
+  // for the WHOLE order, with no word anywhere that part of it had already
+  // cleared. Receipts is the one surface `MyShowGroupCard`'s INTENT comment
+  // names as reachable once the once-only paid strip retires (past show,
+  // dismissed, or past its 14-day window), so an exhibitor re-verifying a
+  // past payment through it saw only the due half.
+  it('states both halves of a mixed order: what already paid, and what is still due', () => {
+    const mixed: MyEntry = {
+      ...order('ranger'),
+      totalFee: 60,
+      balance: {
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'credit_card',
+        amountDueCents: 3000,
+        onlineDueCents: 3000,
+        payAtShowDueCents: 0,
+        payAtShowMethod: null,
+        dueEntryIds: ['c-ranger'],
+      },
+    };
+
+    render(
+      <OrdersReceiptsList orders={[mixed]} mode="receipt" moneyKind="balance-due" onSelect={vi.fn()} />
+    );
+
+    expect(screen.getByText('$60.00')).toBeInTheDocument();
+    expect(screen.getByText('$30.00 paid · $30.00 due')).toBeInTheDocument();
+  });
+
+  it('still states a bare "due" for an order with no balance recorded (fully-due fallback)', () => {
+    render(
+      <OrdersReceiptsList
+        orders={[order('a')]}
+        mode="receipt"
+        moneyKind="balance-due"
+        onSelect={vi.fn()}
+      />
+    );
+
+    // No `balance`, so `dueCents` falls back to the full order total — nothing
+    // paid, and the wording must not claim otherwise.
+    expect(screen.queryByText(/paid ·/)).not.toBeInTheDocument();
+    expect(screen.getByText('$45.00 due')).toBeInTheDocument();
+  });
+
   // A caller that forgets the prop must withhold, not leak. This is the whole
   // reason the default is `'unknown'` rather than `'settled'`.
   it('defaults to withholding when no money kind is passed', () => {

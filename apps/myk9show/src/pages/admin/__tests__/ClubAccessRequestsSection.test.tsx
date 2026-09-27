@@ -87,6 +87,27 @@ describe('ClubAccessRequestsSection', () => {
     );
   });
 
+  // MYK9-855: approval never authorizes the club (that's the separate,
+  // deliberate MYK9-572 site-admin step on /clubs/:id) — the admin screen
+  // must hand off to it as a link, not leave the admin to find it themselves.
+  it('offers a link to authorize the club after approving a request', async () => {
+    const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+    await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
+
+    const authorizeLink = await screen.findByRole('link', { name: /authorize this club/i });
+    expect(authorizeLink).toHaveAttribute('href', '/clubs/club-1');
+    expect(screen.getByText(/pending myk9 authorization/i)).toBeInTheDocument();
+  });
+
+  it('does not offer an authorize link after a denial', async () => {
+    vi.mocked(reviewClubAccessRequest).mockResolvedValue(null);
+    const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+    await user.click(await screen.findByRole('button', { name: /deny request/i }));
+
+    await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
+    expect(screen.queryByRole('link', { name: /authorize this club/i })).not.toBeInTheDocument();
+  });
+
   it('denies a request with an optional review note', async () => {
     const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
     await user.type(await screen.findByLabelText('Review note'), 'Please contact support first.');

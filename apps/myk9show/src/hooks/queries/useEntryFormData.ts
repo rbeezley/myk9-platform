@@ -166,7 +166,10 @@ async function fetchEntryFormData(
     // MYK9-570: `handler_id` resolves the handler to a person, which is the only
     // way to reach their date of birth and AKC Junior Handler number. The
     // denormalized `handler` text stays the printed NAME.
-    .select('id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at')
+    // MYK9-845: `entry_status` lets the UKC grid skip withdrawn/scratched/moved entries.
+    .select(
+      'id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at, entry_status'
+    )
     .eq('show_id', showId)
     .is('deleted_at', null);
 
@@ -196,6 +199,7 @@ async function fetchEntryFormData(
       handler: e.handler,
       handlerId: e.handler_id ?? null,
       submittedAt: e.submitted_at,
+      entryStatus: e.entry_status ?? null,
     };
   });
 

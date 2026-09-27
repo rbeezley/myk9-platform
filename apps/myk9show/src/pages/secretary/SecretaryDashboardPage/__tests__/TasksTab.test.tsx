@@ -246,7 +246,10 @@ describe('TasksTab — personal-only', () => {
 
   it('search narrows the task list by title', () => {
     vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ id: 't-1', title: 'Call vet' }), makeTask({ id: 't-2', title: 'Print armbands' })],
+      data: [
+        makeTask({ id: 't-1', title: 'Call vet' }),
+        makeTask({ id: 't-2', title: 'Print armbands' }),
+      ],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),

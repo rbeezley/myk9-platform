@@ -164,6 +164,17 @@ describe('AccountPage', () => {
     expect(screen.getByText('Personal information')).toBeInTheDocument();
   });
 
+  // MYK9-862 removed the sidebar's "Request additional access" shortcut in
+  // favor of this Account settings entry point — it is now the only path to
+  // /request-access, so it needs its own coverage.
+  it('links to /request-access from the Profile section', () => {
+    render();
+    expect(screen.getByRole('link', { name: 'Request additional access' })).toHaveAttribute(
+      'href',
+      '/request-access'
+    );
+  });
+
   it('shows the signed-in user roles as read-only information', () => {
     render();
 

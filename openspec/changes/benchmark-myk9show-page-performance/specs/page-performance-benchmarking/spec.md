@@ -1,0 +1,49 @@
+## ADDED Requirements
+
+### Requirement: Repeatable production-build route benchmark
+The repository SHALL provide one documented command that measures representative myK9Show routes against a production build and records the build reference, browser, viewport, throttle profile, run date, and route role with the results.
+
+#### Scenario: Run the complete route matrix
+- **WHEN** the command runs with the required local role sessions and show data available
+- **THEN** it measures landing, show discovery, show detail, exhibitor dashboard, registration wizard, cart, My Shows, secretary workbench, Entries Management, reports, `/at-show` scoring and run order, `/admin/users`, and `/admin/health`
+
+#### Scenario: A route cannot be exercised
+- **WHEN** a route lacks its required session, data, or primary-content readiness condition
+- **THEN** the report marks that route blocked or failed with the reason and does not count it as a successful measurement
+
+### Requirement: Controlled cold and warm measurements
+The benchmark SHALL distinguish cold from warm browser state and apply the requested mobile and secretary desktop profiles.
+
+#### Scenario: Cold mobile measurement
+- **WHEN** a mobile route is measured cold
+- **THEN** the browser context starts without service-worker, local-storage, or IndexedDB state and applies 4x CPU slowdown with Fast 4G or Slow 4G network throttling
+
+#### Scenario: Warm mobile measurement
+- **WHEN** a mobile route is measured warm
+- **THEN** the same context has been primed with the service worker and available replication cache before measurement and the throttle profile is recorded
+
+#### Scenario: Secretary desktop measurement
+- **WHEN** a secretary workbench, Entries Management, or reports route is benchmarked on desktop
+- **THEN** the result records an unthrottled desktop profile separately from the mobile results
+
+### Requirement: Metrics and evidence are clearly labeled
+The benchmark SHALL record time-to-usable, LCP, INP when available or TBT as a labeled lab proxy, CLS, TTFB, JavaScript transferred, request count, slowest Supabase/PostgREST calls, and route chunk sizes. It SHALL preserve per-run observations and summarize repeated runs with medians.
+
+#### Scenario: A browser metric is unavailable
+- **WHEN** a metric cannot be measured reliably, including cross-origin transfer size or INP in a lab run
+- **THEN** the output labels it unavailable or identifies the TBT proxy and never substitutes zero as a measured value
+
+#### Scenario: Results identify likely bottlenecks
+- **WHEN** the route matrix completes
+- **THEN** the dated baseline ranks the slowest usable routes, describes evidence-supported likely causes, and identifies the routes for MYK9-844
+
+### Requirement: Benchmarking remains diagnostic and read-only
+The benchmark SHALL use the existing browser-session wrapper and shall not create or modify shared users, shows, entries, scores, or credentials.
+
+#### Scenario: Run with existing role sessions
+- **WHEN** the benchmark runs using local role session state
+- **THEN** it performs route reads and measurements without provisioning accounts, changing passwords, submitting entries, or recording scores
+
+#### Scenario: Field data preflight
+- **WHEN** Vercel Speed Insights/Analytics or Sentry traces are checked
+- **THEN** the baseline records the source and time window when available, or clearly states that access/data was unavailable, without adding new telemetry services

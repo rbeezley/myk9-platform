@@ -23,10 +23,5 @@
     "src/**/*.spec.tsx",
     "src/test/**/*"
   ],
-  "exclude": [
-    "src/test/e2e/**/*",
-    "src/test/config/test-config.ts",
-    "src/test/performance/measure-loading-performance.ts",
-    "src/test/performance/performance.spec.ts"
-  ]
+  "exclude": ["src/test/e2e/**/*", "src/test/config/test-config.ts"]
 }

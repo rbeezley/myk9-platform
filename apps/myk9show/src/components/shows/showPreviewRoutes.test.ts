@@ -41,6 +41,10 @@ describe('resolvePreviewReturnHref', () => {
     expect(resolvePreviewReturnHref('/shows/show-1?preview=public', 'show-1')).toBeNull();
   });
 
+  it('rejects a malformed percent escape instead of throwing', () => {
+    expect(resolvePreviewReturnHref('/shows/%ZZ', 'show-1')).toBeNull();
+  });
+
   it('rejects a nested path outside the show overview page', () => {
     expect(resolvePreviewReturnHref('/shows/show-1/setup', 'show-1')).toBeNull();
   });

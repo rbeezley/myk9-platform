@@ -37,6 +37,13 @@ export function resolvePreviewReturnHref(
   if (url.searchParams.get('preview') === 'public') return null;
   const match = url.pathname.match(/^\/shows\/([^/]+)$/);
   if (!match?.[1]) return null;
-  if (decodeURIComponent(match[1]) !== expectedShowId) return null;
+  let showId: string;
+  try {
+    showId = decodeURIComponent(match[1]);
+  } catch {
+    // A malformed escape (`/shows/%ZZ`) throws; reject it like any other bad candidate.
+    return null;
+  }
+  if (showId !== expectedShowId) return null;
   return `${url.pathname}${url.search}`;
 }

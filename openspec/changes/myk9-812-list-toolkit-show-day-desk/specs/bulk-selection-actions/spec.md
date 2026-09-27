@@ -2,7 +2,7 @@
 
 ### Requirement: Scoped multi-selection is uniform across management surfaces
 
-The system SHALL provide multi-selection on Entry Management, Class Management, admin Users, dogs, people management surfaces, the Self check-in tool's class list, and the Results Control page's class list, with: a header checkbox or equivalent select-all-visible control (a per-trial "select all" control where the surface's rows are grouped by trial, as on the Self check-in tool and Results Control page), per-row checkboxes, and automatic pruning of selections that leave the current filtered scope. Entry Management selection SHALL use its visible Show Registration row unit and SHALL expand selected groups to their child Entry mutation targets only when an action is dispatched. Selection SHALL NOT span entity types.
+The system SHALL provide multi-selection on Entry Management, Class Management, admin Users, dogs, people management surfaces, the Self check-in tool's class list, and the Results Control page's class list, with: a header checkbox supporting select-all-visible and indeterminate state — or, where the surface's rows are grouped by trial (the Self check-in tool and Results Control page), an equivalent per-trial "select all" control with the same select-all-visible and indeterminate behavior scoped to that trial's rows — per-row checkboxes, and automatic pruning of selections that leave the current filtered scope. Entry Management selection SHALL use its visible Show Registration row unit and SHALL expand selected groups to their child Entry mutation targets only when an action is dispatched. Selection SHALL NOT span entity types.
 
 #### Scenario: Select all visible
 

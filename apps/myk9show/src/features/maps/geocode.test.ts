@@ -88,8 +88,24 @@ describe('geocodeAddress', () => {
     expect(await geocodeAddress('1 Nowhere Rd, Nowhere, ZZ')).toEqual({ status: 'not_found' });
   });
 
-  it.each([429, 500, 503])('reports unavailable on HTTP %i', async status => {
+  it.each([403, 429, 500, 503])('reports unavailable on HTTP %i', async status => {
     vi.mocked(fetch).mockResolvedValue(new Response('error', { status }));
+    expect(await geocodeAddress('1024 S Oak Ln, Springfield, IL')).toEqual({
+      status: 'unavailable',
+    });
+  });
+
+  // MYK9-857: a 200 response whose body is not valid JSON (a proxy or CDN
+  // returning an HTML interstitial with a 200 status) must not throw out of
+  // geocodeAddress — `response.json()`'s SyntaxError has to land in the same
+  // catch block as a network failure.
+  it('reports unavailable when an HTTP-ok response body is not JSON', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('<html>not json</html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+    );
     expect(await geocodeAddress('1024 S Oak Ln, Springfield, IL')).toEqual({
       status: 'unavailable',
     });

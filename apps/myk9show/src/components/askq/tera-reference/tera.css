@@ -1,0 +1,47 @@
+/* Tera avatar. Map these to your theme tokens. */
+.tera {
+  --tera-radius: 22%;              /* rounded square keeps the laptop in frame */
+  --tera-ring: transparent;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--tera-radius);
+  background: #fff;                /* loops are shot on white */
+  box-shadow: 0 0 0 2px var(--tera-ring);
+  transition: box-shadow 200ms ease;
+}
+.tera[data-state="working"] { --tera-ring: var(--askq-accent, #2f6fdb); }
+
+.tera img,
+.tera__loop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tera__loop { opacity: 0; transition: opacity 180ms linear; }
+.tera__loop[data-visible="true"] { opacity: 1; }
+.tera__loop--working { object-position: 35% 50%; } /* favor her face over the laptop */
+
+.tera-face {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+}
+
+/* Dock */
+.askq__dock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.askq__status { margin: 0; font-size: 0.95rem; }
+.askq__dock[data-status="found"] .askq__status { font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tera, .tera__loop { transition: none; }
+}

@@ -245,3 +245,78 @@ registerZoomReflowChecks(
   PHONE_PHYSICAL,
   PHONE_ZOOM_LEVELS
 );
+
+/**
+ * MYK9-809 (decline overlap) — production walk, 2026-09-27: at 390px physical
+ * width / 150% zoom (260x563 CSS px, same viewport as the sideways-scroll
+ * report above), the wait-list "offered" row's Decline button is half covered
+ * at the bottom of the page. That row is the LAST thing `MyEntriesPage`
+ * renders (`WaitListSection`, order-4 in the mobile flex stack), and the
+ * page's own container (`min-h-screen bg-background` > `container ... py-6`)
+ * reserved no clearance for a notched phone's home-indicator overlay — at
+ * 563px tall, its ~34px safe-area inset is a much bigger fraction of the
+ * viewport than at the phone's native 844px height, which is why this was
+ * invisible at desktop width.
+ *
+ * Chromium (headless, no real device) always resolves
+ * `env(safe-area-inset-bottom)` to 0, so this cannot reproduce the actual
+ * home-indicator overlay. What it CAN and does assert is the contract that
+ * overlay depends on: a real, positive gap between the Decline button and the
+ * visual viewport's bottom edge once the page is scrolled all the way down —
+ * exactly what `pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]` on the page
+ * container (MyEntriesPage/index.tsx) restores. Pre-fix, that gap was ~0px;
+ * a regression back to bare `py-6` reproduces it.
+ *
+ * Data-dependent: only the seeded exhibitor account currently holding an
+ * active ("offered") wait-list position renders a Decline button at all, so
+ * this skips rather than false-passes when none is active. It must be run by
+ * the owner or the E2E job with real credentials — PR CI does not run it.
+ */
+test.describe('My Shows wait-list Decline row clears the bottom of the viewport', () => {
+  test.setTimeout(120_000);
+
+  const MIN_BOTTOM_CLEARANCE_PX = 16;
+
+  test('Decline button has real clearance below it when scrolled to the end of the page', async ({
+    page,
+  }, testInfo) => {
+    const viewport = cssViewportFor(PHONE_PHYSICAL, PHONE_ZOOM_LEVELS[0]);
+    await page.setViewportSize(viewport);
+
+    await signInAsExhibitor(page, '/exhibitor/entries');
+    await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const declineButton = page.getByRole('button', { name: 'Decline' });
+    if ((await declineButton.count()) === 0) {
+      test.skip(true, 'Seeded exhibitor has no active wait-list offer — nothing to measure');
+      return;
+    }
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    const box = await declineButton.first().evaluate(button => {
+      const rect = button.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, right: rect.right };
+    });
+
+    expect(box.right, 'Decline button sits outside the viewport width').toBeLessThanOrEqual(
+      viewport.width + 1
+    );
+    expect(
+      box.bottom,
+      'Decline button bottom edge sits below the viewport when scrolled to the end'
+    ).toBeLessThanOrEqual(viewport.height + 1);
+    expect(
+      viewport.height - box.bottom,
+      'Decline button has no real clearance before the bottom of the viewport'
+    ).toBeGreaterThanOrEqual(MIN_BOTTOM_CLEARANCE_PX);
+
+    await page.screenshot({
+      path: testInfo.outputPath('my-shows-decline-clearance.png'),
+      fullPage: true,
+    });
+  });
+});

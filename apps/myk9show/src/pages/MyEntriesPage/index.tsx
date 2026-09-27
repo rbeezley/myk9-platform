@@ -276,7 +276,13 @@ const MyEntriesPage: React.FC = () => {
 
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 py-6 max-w-7xl">
+        {/* pb reserves the home-indicator safe area (MYK9-809): the wait-list
+          section below is the last thing on the page, and `py-6` alone left
+          its bordered "offered" row and Decline button sitting flush with the
+          bottom of the visual viewport — half covered by a notched phone's
+          home-indicator overlay, worst at 150% zoom where the ~34px inset is
+          a large fraction of the ~563px CSS viewport. */}
+        <div className="container mx-auto px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] max-w-7xl">
           {/* Flex stack (not space-y) so the dog strip and the entries section can
             swap order on phones. On mobile the schedule (entries) sits directly
             under the collapsed stats; the dog strip drops below the first fold.

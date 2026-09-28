@@ -88,8 +88,6 @@ const HOOKS: Array<[string, () => AnyMutation, unknown]> = [
   ['useResetOverride', useResetOverride, { entityId: 't1', showId: 's1', level: 'trial' }],
 ];
 
-const SHOW_LEVEL_HOOKS = new Set(['useUpdateShowVisibility', 'useUpdateShowCheckin']);
-
 function renderMutation(useHook: () => AnyMutation) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
@@ -120,15 +118,15 @@ describe('settings writes and server reachability (MYK9-864)', () => {
 
   it.each(HOOKS)(
     '%s marks the server unreachable on a transport failure',
-    async (name, useHook, vars) => {
+    async (_, useHook, vars) => {
       upsertResult.mockReturnValue(transportFailure);
       const { result, invalidate } = renderMutation(useHook);
 
       expect(await run(result, vars)).toMatchObject({ message: 'AbortError: signal timed out' });
       expect(result.current.reachable).toBe(false);
       // No refetch over the same dead link: it would replace the settings card with its
-      // error state. The two show-level hooks already refetched in onSettled on main.
-      if (!SHOW_LEVEL_HOOKS.has(name)) expect(invalidate).not.toHaveBeenCalled();
+      // error state (MYK9-865).
+      expect(invalidate).not.toHaveBeenCalled();
     }
   );
 
@@ -163,4 +161,15 @@ describe('settings writes and server reachability (MYK9-864)', () => {
     expect(upsertCalls).not.toHaveBeenCalled();
     expect(result.current.reachable).toBe(false);
   });
+
+  it.each(HOOKS.slice(0, 2))(
+    '%s still refetches when the server answered with an error',
+    async (_, useHook, vars) => {
+      upsertResult.mockReturnValue(rlsRejection);
+      const { result, invalidate } = renderMutation(useHook);
+
+      expect(await run(result, vars)).toMatchObject({ code: '42501' });
+      expect(invalidate).toHaveBeenCalled();
+    }
+  );
 });

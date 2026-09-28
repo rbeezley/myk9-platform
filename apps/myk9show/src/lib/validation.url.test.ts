@@ -30,6 +30,17 @@ describe('normalizeWebsiteUrl', () => {
     });
   });
 
+  it('keeps an uppercase or mixed-case scheme instead of prepending another', () => {
+    expect(normalizeWebsiteUrl('HTTP://myclub.org')).toEqual({
+      value: 'HTTP://myclub.org',
+      valid: true,
+    });
+    expect(normalizeWebsiteUrl('Https://myclub.org')).toEqual({
+      value: 'Https://myclub.org',
+      valid: true,
+    });
+  });
+
   it('trims surrounding whitespace before normalizing', () => {
     expect(normalizeWebsiteUrl('  myclub.org  ')).toEqual({
       value: 'https://myclub.org',

@@ -12,11 +12,15 @@ export interface NormalizedWebsiteUrl {
  * prepends `https://` to a bare domain (e.g. `myclub.org`, `www.myclub.org`), and
  * reports invalid otherwise. Empty input normalizes to an empty, valid value.
  */
+// Schemes are case-insensitive (`HTTP://x.org`); a case-sensitive check would
+// prepend a second scheme and save `https://HTTP://x.org` as valid.
+const HAS_HTTP_SCHEME = /^https?:\/\//i;
+
 export function normalizeWebsiteUrl(value: string | null | undefined): NormalizedWebsiteUrl {
   const trimmed = (value ?? '').trim();
   if (!trimmed) return { value: '', valid: true };
 
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+  if (HAS_HTTP_SCHEME.test(trimmed)) {
     try {
       new URL(trimmed);
       return { value: trimmed, valid: true };
@@ -67,7 +71,7 @@ export const commonValidations = {
       const result = normalizeWebsiteUrl(val);
       if (!result.valid) {
         const trimmed = val.trim();
-        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        if (HAS_HTTP_SCHEME.test(trimmed)) {
           throw new Error('Please enter a valid URL');
         }
         throw new Error(

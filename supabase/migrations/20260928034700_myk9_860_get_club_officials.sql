@@ -35,7 +35,17 @@ AS $$
 BEGIN
   IF NOT (
     public.is_site_admin()
-    OR public.is_club_admin(p_club_id)
+    OR EXISTS (
+      SELECT 1
+      FROM public.user_roles admin_role
+      JOIN public.roles admin_name ON admin_name.id = admin_role.role_id
+      WHERE admin_role.auth_user_id = (SELECT auth.uid())
+        AND admin_role.club_id = p_club_id
+        AND admin_role.show_id IS NULL
+        AND admin_role.is_active = true
+        AND (admin_role.expires_at IS NULL OR admin_role.expires_at > NOW())
+        AND admin_name.name = 'club_admin'
+    )
     OR public.is_trial_secretary(p_club_id)
     OR public.is_club_member(p_club_id)
   ) THEN

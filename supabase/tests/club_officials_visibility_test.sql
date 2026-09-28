@@ -14,6 +14,11 @@ VALUES
   ('00000000-0000-0000-0000-000000860001', 'Officials Test Club'),
   ('00000000-0000-0000-0000-000000860002', 'Officials Other Club');
 
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
+VALUES ('00000000-0000-0000-0000-000000860003', 'Officials Scoped Show',
+        'Officials Test Club', CURRENT_DATE, CURRENT_DATE + 1,
+        '00000000-0000-0000-0000-000000860001');
+
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000860011', 'Officials', 'Admin One', '00000000-0000-0000-0000-000000860101'),
@@ -22,7 +27,8 @@ VALUES
   ('00000000-0000-0000-0000-000000860014', 'Officials', 'Member', '00000000-0000-0000-0000-000000860104'),
   ('00000000-0000-0000-0000-000000860015', 'Officials', 'Suspended', '00000000-0000-0000-0000-000000860105'),
   ('00000000-0000-0000-0000-000000860016', 'Officials', 'Other Admin', '00000000-0000-0000-0000-000000860106'),
-  ('00000000-0000-0000-0000-000000860017', 'Officials', 'Bystander', '00000000-0000-0000-0000-000000860107');
+  ('00000000-0000-0000-0000-000000860017', 'Officials', 'Bystander', '00000000-0000-0000-0000-000000860107'),
+  ('00000000-0000-0000-0000-000000860018', 'Officials', 'Scoped Admin', '00000000-0000-0000-0000-000000860108');
 
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES
@@ -43,6 +49,13 @@ FROM (
      '00000000-0000-0000-0000-000000860002'::uuid, 'club_admin')
 ) AS fixture(person_id, auth_id, club_id, role_name)
 JOIN public.roles r ON r.name = fixture.role_name;
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000860018', r.id,
+       '00000000-0000-0000-0000-000000860001',
+       '00000000-0000-0000-0000-000000860003', true,
+       '00000000-0000-0000-0000-000000860108'
+FROM public.roles r WHERE r.name = 'club_admin';
 
 SET LOCAL ROLE authenticated;
 
@@ -85,12 +98,13 @@ BEGIN
     RAISE EXCEPTION 'FAIL a club admin could not see their co-admin by name';
   END IF;
 
-  -- 3. Zero rows, not 42501, for a suspended member, another club's admin, and an
-  --    unrelated signed-in user.
+  -- 3. Zero rows, not 42501, for a suspended member, another club's admin, a
+  --    show-pinned admin, and an unrelated signed-in user.
   FOR viewer IN
     SELECT * FROM (VALUES
       ('00000000-0000-0000-0000-000000860105', 'suspended member'),
       ('00000000-0000-0000-0000-000000860106', 'another club''s admin'),
+      ('00000000-0000-0000-0000-000000860108', 'show-pinned admin'),
       ('00000000-0000-0000-0000-000000860107', 'unrelated user')
     ) AS v(auth_id, label)
   LOOP

@@ -405,16 +405,6 @@ BEGIN
           '00000000-0000-0000-0000-000000662405',
           '', 'myk9', 'confirmed', 'pending', 'cash', NULL, false);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM public.entries
-    WHERE id = '00000000-0000-0000-0000-000000662903'
-      AND entry_fee = 15
-      AND handler_id = '00000000-0000-0000-0000-000000662001'
-      AND handler_is_junior IS TRUE
-  ) THEN
-    RAISE EXCEPTION 'FAIL case 10: offline owner fallback fee, handler, or junior flag';
-  END IF;
-
   IF (SELECT entry_fee FROM public.entries
       WHERE id = '00000000-0000-0000-0000-000000662901') <> 15 THEN
     RAISE EXCEPTION 'FAIL case 8: offline junior fee was not filled at 15';
@@ -424,6 +414,23 @@ BEGIN
     RAISE EXCEPTION 'FAIL case 9: offline adult fee was not filled at 30';
   END IF;
 
+END;
+$$;
+
+-- The secretary role can see entry_fee but not handler_is_junior, which is a
+-- private derived fact. Verify trigger ordering as the fixture owner instead.
+RESET ROLE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-000000662903'
+      AND entry_fee = 15
+      AND handler_id = '00000000-0000-0000-0000-000000662001'
+      AND handler_is_junior IS TRUE
+  ) THEN
+    RAISE EXCEPTION 'FAIL case 10: offline owner fallback fee, handler, or junior flag';
+  END IF;
   RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test';
 END;
 $$;

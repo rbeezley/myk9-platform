@@ -30,6 +30,7 @@ interface RegistrationManagementPanelProps {
   selectedDogs: string[];
   classSelectionsCount: number;
   totalFees: number;
+  feePending?: boolean;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: string;
@@ -45,6 +46,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
   selectedDogs,
   classSelectionsCount,
   totalFees,
+  feePending = false,
   entryStatus,
   paymentStatus,
   paymentMethod,
@@ -89,7 +91,9 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                     <div className="text-xs text-muted-foreground">Total Classes</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-success">${totalFees.toFixed(0)}</div>
+                    <div className="text-2xl font-bold text-success">
+                      {feePending ? 'Pending sync' : `$${totalFees.toFixed(0)}`}
+                    </div>
                     <div className="text-xs text-success">Total Fees</div>
                   </div>
                 </div>

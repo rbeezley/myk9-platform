@@ -23,12 +23,12 @@ import type { SubmitShowRegistrationParams } from '@/features/registration/submi
 import type { SelectedDogsOwnerResult } from '@/features/registration/selectedDogsOwner';
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type {
   ClassSelectionData,
   HandlerInfo,
   PaymentMethod,
   PaymentDetails,
-  PaymentStatus,
   ShowRegistration,
 } from '@/types/show-registration-types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
@@ -48,6 +48,7 @@ export interface PaymentStepCartDeps {
 export interface PaymentStepShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  juniorHandlerFee?: string | undefined;
   startDate: string;
   entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
@@ -85,6 +86,7 @@ export interface SubmitPaymentStepContext {
   setRegistrationNumber: (value: string | undefined) => void;
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
   setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
+  setPaymentStatus?: ((value: PaymentStatus) => void) | undefined;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -129,6 +131,21 @@ function handledClasses(
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
+    const deferJuniorPayment =
+      ctx.currentWorkflowMode !== 'exhibitor' &&
+      ctx.paymentMethod !== 'waived' &&
+      Number(ctx.showFeeInfo.juniorHandlerFee) > 0;
+    if (
+      deferJuniorPayment &&
+      (ctx.paymentMethod === 'secretary_paid' || ctx.paymentMethod === 'group_payment')
+    ) {
+      throw new Error(
+        'Save this entry unpaid first. The confirmed junior fee will appear on the receipt; record cash or check in Entries Management afterward.'
+      );
+    }
+    if (deferJuniorPayment && ctx.paymentStatus !== PaymentStatus.PENDING) {
+      ctx.setPaymentStatus?.(PaymentStatus.PENDING);
+    }
     const entryWindowBlocker = getEntrySubmitBlocker({
       startDate: ctx.showFeeInfo.startDate,
       entryOpenDate: ctx.showFeeInfo.entryOpenDate,
@@ -180,7 +197,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         handlerAssignments: ctx.handlerAssignments,
         classes: ctx.classes,
         paymentMethod: ctx.paymentMethod,
-        paymentStatus: ctx.paymentStatus,
+        paymentStatus: deferJuniorPayment ? PaymentStatus.PENDING : ctx.paymentStatus,
         paymentDetails: ctx.paymentDetails,
         showFeeInfo: ctx.showFeeInfo,
       });

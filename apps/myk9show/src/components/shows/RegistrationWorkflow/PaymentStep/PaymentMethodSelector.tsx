@@ -94,6 +94,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   onPaymentDetailsChange,
   acceptedMethods,
   allowCardCheckout = true,
+  allowReceivedPayment = true,
   cardCheckoutUnavailableReason,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
@@ -247,21 +248,23 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PermissionGuard
-              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
-            >
-              <PaymentOptionCard
-                value="secretary_paid"
-                selected={paymentMethod === 'secretary_paid'}
-                icon={Receipt}
-                title="Secretary Payment (Already Received)"
-                description="Payment received outside of online system"
-                onSelect={handleSelect}
-              />
-            </PermissionGuard>
+            {allowReceivedPayment && (
+              <PermissionGuard
+                permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
+                role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+              >
+                <PaymentOptionCard
+                  value="secretary_paid"
+                  selected={paymentMethod === 'secretary_paid'}
+                  icon={Receipt}
+                  title="Secretary Payment (Already Received)"
+                  description="Payment received outside of online system"
+                  onSelect={handleSelect}
+                />
+              </PermissionGuard>
+            )}
 
-            {paymentMethod === 'secretary_paid' && (
+            {allowReceivedPayment && paymentMethod === 'secretary_paid' && (
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
@@ -325,21 +328,23 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PermissionGuard
-              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
-            >
-              <PaymentOptionCard
-                value="group_payment"
-                selected={paymentMethod === 'group_payment'}
-                icon={Users}
-                title="Group/Club Payment"
-                description="Payment handled by club or group organizer"
-                onSelect={handleSelect}
-              />
-            </PermissionGuard>
+            {allowReceivedPayment && (
+              <PermissionGuard
+                permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
+                role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+              >
+                <PaymentOptionCard
+                  value="group_payment"
+                  selected={paymentMethod === 'group_payment'}
+                  icon={Users}
+                  title="Group/Club Payment"
+                  description="Payment handled by club or group organizer"
+                  onSelect={handleSelect}
+                />
+              </PermissionGuard>
+            )}
 
-            {paymentMethod === 'group_payment' && (
+            {allowReceivedPayment && paymentMethod === 'group_payment' && (
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>

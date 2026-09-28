@@ -61,6 +61,43 @@ function makeParams(
 }
 
 describe('submitShowRegistration', () => {
+  it('lets the RPC price a staff entry with a junior fee and returns the recorded amount', async () => {
+    const params = makeParams({
+      showFeeInfo: {
+        preEntryFee: '30',
+        juniorHandlerFee: '15',
+        startDate: '2026-05-01',
+      },
+    });
+
+    const submitShowEntries = params.deps.submitShowEntries as ReturnType<typeof vi.fn>;
+    submitShowEntries.mockImplementation(async () => ({
+      entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
+      outcomes: [
+        {
+          dogId: 'dog-1',
+          classId: 'class-1',
+          outcome: 'created',
+          entryId: 'entry-1',
+          waitlistEntryId: null,
+          feeCents: 1500,
+          capacityOverride: false,
+        },
+      ],
+      registrationId: 'db-reg-1',
+      submissionId: 'submission-1',
+    }));
+    const result = await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [expect.objectContaining({ clientFeeCents: undefined })],
+      })
+    );
+    expect(result).toMatchObject({
+      entryOutcomes: [expect.objectContaining({ feeCents: 1500 })],
+    });
+  });
   // MYK9-567: the handler name the exhibitor typed is printed on the check-in
   // sheet, the running order, the catalog and the registry entry form. Pin the
   // value at the RPC boundary so a future "normalise the name" helper cannot

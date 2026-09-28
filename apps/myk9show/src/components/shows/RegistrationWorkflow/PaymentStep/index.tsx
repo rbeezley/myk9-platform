@@ -17,6 +17,7 @@ import type { PaymentStepProps } from './types';
  * registration fee summary, payment method selection, secretary management, and payment summary.
  */
 export const PaymentStep: React.FC<PaymentStepProps> = ({
+  deferJuniorPayment = false,
   selectedDogs,
   classSelections,
   paymentMethod,
@@ -76,6 +77,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   // submission records what was really agreed. It is now driven by the lifted
   // value rather than by a second, private derivation.
   useEffect(() => {
+    if (
+      deferJuniorPayment &&
+      (paymentMethod === 'secretary_paid' || paymentMethod === 'group_payment')
+    ) {
+      onPaymentMethodClear?.();
+      return;
+    }
     if (cardCheckoutAvailable && pendingCardSelection.current) {
       pendingCardSelection.current = false;
       onPaymentMethodChange('credit_card');
@@ -93,6 +101,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       onPaymentMethodClear?.();
     }
   }, [
+    deferJuniorPayment,
     accountCheckPending,
     cardCheckoutAvailable,
     effectivePaymentMethod,
@@ -196,6 +205,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         </Alert>
       )}
 
+      {deferJuniorPayment && (
+        <Alert role="status">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Save the entry first to confirm its fee. Then collect cash or check and
+            record the payment in Entries Management. Until then, the entry stays unpaid.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Payment Method Selection */}
       <PaymentMethodSelector
         paymentMethod={effectivePaymentMethod}
@@ -203,11 +222,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         onPaymentDetailsChange={onPaymentDetailsChange}
         acceptedMethods={acceptedMethods}
         allowCardCheckout={cardCheckoutAvailable}
+        allowReceivedPayment={!deferJuniorPayment}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
       />
 
       {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}
-      {entryWindowTimezoneReady && (
+      {entryWindowTimezoneReady && !deferJuniorPayment && (
         <SecretaryPaymentManagement
           paymentStatus={paymentStatus}
           entryStatus={entryStatus}

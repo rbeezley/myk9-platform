@@ -125,6 +125,12 @@ beforeEach(() => {
  * expected value is independently recomputed from `calculatePlatformFeeCents`
  * so the pin is arithmetic, not a screenshot of the old component.
  */
+it('keeps availability visible while waiting for the server to confirm the junior fee', () => {
+  renderPanel({ feeUnconfirmed: true });
+  expect(aside().getAllByText('Confirmed after saving')).toHaveLength(2);
+  expect(aside().queryByText('$30.00')).not.toBeInTheDocument();
+});
+
 describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard', () => {
   it.each([
     { rates: { percent: 7, flatCents: 0, minCents: 0 }, classCount: 1 },

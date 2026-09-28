@@ -346,6 +346,8 @@ export interface EntrySubmissionOutcome {
   waitlistEntryId: string | null;
   waitlistPosition?: number | null;
   feeCents: number;
+  /** A local offline entry has no authoritative fee until its insert syncs. */
+  feePending?: boolean;
   capacityOverride: boolean;
   denialReason?: string | null;
 }
@@ -386,7 +388,7 @@ export async function submitShowEntries(params: {
     handlerId?: string | undefined;
     handlerName: string;
     paymentMethod: string;
-    clientFeeCents: number;
+    clientFeeCents?: number | undefined;
   }>;
   submissionId: string;
   paymentMethod: string;
@@ -414,7 +416,7 @@ export async function submitShowEntries(params: {
     handler_id: e.handlerId ?? null,
     handler_name: e.handlerName,
     payment_method: e.paymentMethod,
-    client_fee_cents: e.clientFeeCents,
+    ...(e.clientFeeCents !== undefined ? { client_fee_cents: e.clientFeeCents } : {}),
     submission_source: submissionSource,
   }));
 
@@ -469,6 +471,7 @@ export async function submitShowEntries(params: {
         waitlistEntryId: null,
         waitlistPosition: null,
         feeCents: entries[index]?.clientFeeCents ?? 0,
+        ...(entries[index]?.clientFeeCents === undefined ? { feePending: true } : {}),
         capacityOverride: false,
         denialReason: null,
       }));

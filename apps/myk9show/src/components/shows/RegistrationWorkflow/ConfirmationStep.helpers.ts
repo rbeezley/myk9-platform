@@ -16,6 +16,7 @@ export interface ReceiptData {
     classes: DogClassDetails[];
   }>;
   totalFees: number;
+  feePending?: boolean;
   paymentMethod: string;
   paymentStatus: PaymentStatus;
   entryStatus: EntryStatus;
@@ -108,7 +109,9 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(thinDivider);
   lines.push('PAYMENT');
   lines.push(thinDivider);
-  lines.push(`Total Fees:     $${data.totalFees.toFixed(2)}`);
+  lines.push(
+    `Total Fees:     ${data.feePending ? 'Confirm after sync' : `$${data.totalFees.toFixed(2)}`}`
+  );
   lines.push(`Method:         ${getPaymentMethodDisplay(data.paymentMethod)}`);
   lines.push(`Payment Status: ${getPaymentStatusDisplay(data.paymentStatus)}`);
   lines.push(`Entry Status:   ${getStatusDescriptor('entry', data.entryStatus).label}`);
@@ -210,7 +213,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
     <h2 style="font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">Payment</h2>
     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
       <span>Total Fees</span>
-      <strong style="font-family: 'Courier New', monospace; font-size: 18px;">$${data.totalFees.toFixed(2)}</strong>
+      <strong style="font-family: 'Courier New', monospace; font-size: 18px;">${data.feePending ? 'Confirm after sync' : `$${data.totalFees.toFixed(2)}`}</strong>
     </div>
     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
       <span>Payment Method</span>

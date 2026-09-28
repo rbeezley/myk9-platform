@@ -117,6 +117,20 @@ describe('submitPaymentStep', () => {
     });
   });
 
+  it('rejects a stale paid choice before creating a junior-priced entry', async () => {
+    const { ctx } = makeContextAndOrder({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+      showFeeInfo: { preEntryFee: '30', juniorHandlerFee: '15', startDate: '2026-08-01' },
+    });
+    await submitPaymentStep(ctx);
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(submitOfflineLateEntryMock).not.toHaveBeenCalled();
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Save this entry unpaid first')
+    );
+  });
+
   it('leaves the wizard draft alone on the card path — the cart hand-off is not a filing', async () => {
     // MYK9-509: discarding here retired the exhibitor's selections before
     // Stripe had even loaded, so a cancelled checkout had nothing to resume.

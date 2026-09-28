@@ -74,6 +74,21 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
   });
 
+  it('hides received-payment controls until a junior fee is confirmed', () => {
+    render(
+      <PaymentMethodSelector
+        {...baseProps}
+        paymentMethod="secretary_paid"
+        allowCardCheckout={false}
+        allowReceivedPayment={false}
+      />
+    );
+    expect(screen.queryByText('Secretary Payment (Already Received)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Group/Club Payment')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mark this registration as paid/)).not.toBeInTheDocument();
+    expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
+  });
+
   it('hides the secure-checkout redirect notice when allowCardCheckout is false', () => {
     render(
       <PaymentMethodSelector {...baseProps} paymentMethod="credit_card" allowCardCheckout={false} />

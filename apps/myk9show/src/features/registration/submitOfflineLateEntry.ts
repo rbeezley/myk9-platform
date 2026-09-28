@@ -118,6 +118,10 @@ export async function submitOfflineLateEntry({
   if (paymentMethod === 'credit_card') {
     throw new Error('Offline late entries cannot use card checkout');
   }
+  const feePending = Number(showFeeInfo.juniorHandlerFee) > 0 && paymentMethod !== 'waived';
+  if (feePending && (paymentMethod === 'secretary_paid' || paymentMethod === 'group_payment')) {
+    throw new Error('Save the entry unpaid and record the payment after its fee syncs.');
+  }
 
   // ONE rule, shared with the fee tier and restated by `submit_show_entries`
   // (MYK9-642). This used to be a hardcoded `true`: the dialog is normally used
@@ -144,7 +148,9 @@ export async function submitOfflineLateEntry({
     )
   );
   const receivedMethod = secretaryReceivedMethod(paymentMethod, paymentDetails);
-  const entryPaymentStatus = paymentStatusFor(paymentMethod, paymentStatus);
+  const entryPaymentStatus = feePending
+    ? 'pending'
+    : paymentStatusFor(paymentMethod, paymentStatus);
   const paymentReceivedOn = lateEntryPaymentReceivedOn(
     entryPaymentStatus,
     paymentDetails,
@@ -213,8 +219,9 @@ export async function submitOfflineLateEntry({
 
     for (const selectedClass of selection.selectedClasses) {
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
-      const entryFee = feeFor(selectedClass.classId);
-      const entryPaymentMethod = receivedMethod && entryFee > 0 ? receivedMethod : paymentMethod;
+      const entryFee = feePending ? undefined : feeFor(selectedClass.classId);
+      const entryPaymentMethod =
+        receivedMethod && (entryFee ?? 0) > 0 ? receivedMethod : paymentMethod;
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
@@ -262,7 +269,8 @@ export async function submitOfflineLateEntry({
         entryId: createdEntry.id,
         waitlistEntryId: null,
         waitlistPosition: null,
-        feeCents: Math.round(entryFee * 100),
+        feeCents: Math.round((entryFee ?? 0) * 100),
+        feePending,
         capacityOverride,
       });
     }

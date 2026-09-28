@@ -212,6 +212,12 @@ SELECT
   '00000000-0000-0000-0000-000000662001'
 FROM (VALUES ('01'), ('02'), ('03')) AS e(suffix);
 
+-- Separate class for direct offline-sync inserts (the RPC cases above use 301).
+INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+VALUES ('00000000-0000-0000-0000-000000662304',
+        '00000000-0000-0000-0000-000000662201',
+        'Exterior Novice A', 'Exterior', 'Novice', 'upcoming', 'manual', 30);
+
 SET LOCAL ROLE authenticated;
 
 DO $$
@@ -365,6 +371,57 @@ BEGIN
   FROM public.entries e WHERE e.id = (result->'entries'->0->>'entry_id')::uuid;
   IF got_fee <> 15 THEN
     RAISE EXCEPTION 'FAIL case 7 (owner-default handler): entry_fee = % (expected 15)', got_fee;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- Cases 8-9: offline desk writes a pending entry with no fee. The BEFORE
+  -- INSERT trigger prices it before it becomes visible, using private DOB.
+  ----------------------------------------------------------------------------
+  INSERT INTO public.entries (id, show_id, class_id, dog_id, handler_id,
+                              entry_source, entry_status, payment_status,
+                              payment_method, entry_fee, is_day_of_show)
+  VALUES
+    ('00000000-0000-0000-0000-000000662901',
+     '00000000-0000-0000-0000-000000662101',
+     '00000000-0000-0000-0000-000000662304',
+     '00000000-0000-0000-0000-000000662401',
+     '00000000-0000-0000-0000-000000662001',
+     'myk9', 'confirmed', 'pending', 'cash', NULL, false),
+    ('00000000-0000-0000-0000-000000662902',
+     '00000000-0000-0000-0000-000000662101',
+     '00000000-0000-0000-0000-000000662304',
+     '00000000-0000-0000-0000-000000662402',
+     '00000000-0000-0000-0000-000000662002',
+     'myk9', 'confirmed', 'pending', 'cash', NULL, false);
+
+  -- No chosen handler: offline insert resolves the dog owner before the
+  -- existing junior-flag trigger runs, just like the online RPC does.
+  INSERT INTO public.entries (id, show_id, class_id, dog_id, handler,
+                              entry_source, entry_status, payment_status,
+                              payment_method, entry_fee, is_day_of_show)
+  VALUES ('00000000-0000-0000-0000-000000662903',
+          '00000000-0000-0000-0000-000000662101',
+          '00000000-0000-0000-0000-000000662304',
+          '00000000-0000-0000-0000-000000662405',
+          '', 'myk9', 'confirmed', 'pending', 'cash', NULL, false);
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-000000662903'
+      AND entry_fee = 15
+      AND handler_id = '00000000-0000-0000-0000-000000662001'
+      AND handler_is_junior IS TRUE
+  ) THEN
+    RAISE EXCEPTION 'FAIL case 10: offline owner fallback fee, handler, or junior flag';
+  END IF;
+
+  IF (SELECT entry_fee FROM public.entries
+      WHERE id = '00000000-0000-0000-0000-000000662901') <> 15 THEN
+    RAISE EXCEPTION 'FAIL case 8: offline junior fee was not filled at 15';
+  END IF;
+  IF (SELECT entry_fee FROM public.entries
+      WHERE id = '00000000-0000-0000-0000-000000662902') <> 30 THEN
+    RAISE EXCEPTION 'FAIL case 9: offline adult fee was not filled at 30';
   END IF;
 
   RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test';

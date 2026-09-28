@@ -30,6 +30,7 @@ type NonPayableClassIds = ReadonlySet<string>;
 export interface ShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  juniorHandlerFee?: string | undefined;
   startDate: string;
   /** `shows.entry_close_date`. The pre-entry deadline; absent on older callers. */
   entryCloseDate?: string | undefined;

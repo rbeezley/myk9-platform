@@ -32,6 +32,7 @@ export interface ConfirmationStepProps {
   confirmedEntryCount?: number | undefined;
   /** Capacity outcomes returned by non-card server submission. */
   entryOutcomes?: EntrySubmissionOutcome[] | undefined;
+  deferJuniorPayment?: boolean | undefined;
   onDownloadReceipt?: (() => void) | undefined;
   onSendEmail?: (() => void) | undefined;
   onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;

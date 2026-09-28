@@ -41,6 +41,7 @@ import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
+import { JuniorPaymentNotice } from './JuniorPaymentNotice';
 import {
   filterClassSelectionsToCreatedOutcomes,
   getCreatedOutcomeTotalFees,
@@ -66,6 +67,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   waitlistEntries,
   confirmedEntryCount,
   entryOutcomes,
+  deferJuniorPayment = false,
   onDownloadReceipt,
   onSendEmail,
   onStatusChange,
@@ -83,6 +85,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, totalFees);
+  const feePending =
+    entryOutcomes?.some(outcome => outcome.outcome === 'created' && outcome.feePending) ?? false;
 
   // Idempotency guards for the "Email Confirmation" action. `sendInFlightRef`
   // blocks a second send while the first request is still pending (the React
@@ -140,6 +144,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       showLocation: show?.location || 'TBD',
       dogs: receiptDogs,
       totalFees: receiptTotalFees,
+      feePending,
       paymentMethod,
       paymentStatus,
       entryStatus,
@@ -154,6 +159,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     trials,
     show,
     receiptTotalFees,
+    feePending,
     paymentMethod,
     paymentStatus,
     entryStatus,
@@ -361,7 +367,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Total Fees:</span>
-              <span className="font-semibold">${receiptTotalFees.toFixed(2)}</span>
+              <span className="font-semibold">
+                {feePending ? 'Confirm after sync' : `$${receiptTotalFees.toFixed(2)}`}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Payment Method:</span>
@@ -376,6 +384,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 {getPaymentStatusDisplay(paymentStatus)}
               </Badge>
             </div>
+            {deferJuniorPayment && paymentStatus === PaymentStatus.PENDING && hasCreatedOutcome && (
+              <JuniorPaymentNotice showId={showId} feePending={feePending} />
+            )}
             {(paymentStatus === PaymentStatus.PENDING ||
               paymentStatus === PaymentStatus.REFUNDED) &&
               hasCreatedOutcome &&
@@ -398,6 +409,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         selectedDogs={receiptSelectedDogs}
         classSelectionsCount={classSelectionsCount}
         totalFees={receiptTotalFees}
+        feePending={feePending}
         entryStatus={entryStatus}
         paymentStatus={paymentStatus}
         paymentMethod={paymentMethod}

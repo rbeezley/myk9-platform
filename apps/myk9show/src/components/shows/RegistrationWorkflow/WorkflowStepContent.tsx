@@ -33,6 +33,7 @@ import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
+import { JuniorPaymentNotice } from './JuniorPaymentNotice';
 import {
   filterClassSelectionsToCreatedOutcomes,
   getCreatedOutcomeTotalFees,
@@ -58,6 +59,7 @@ interface WorkflowStepContentProps {
   currentStepId: string;
   currentWorkflowConfig: WorkflowConfig;
   currentWorkflowMode: WorkflowMode;
+  deferJuniorPayment?: boolean;
   registrationData: RegistrationFormData;
   optimisticState: OptimisticRegistrationState;
   showId: string;
@@ -108,6 +110,7 @@ export function WorkflowStepContent({
   currentStepId,
   currentWorkflowConfig,
   currentWorkflowMode,
+  deferJuniorPayment = false,
   registrationData,
   optimisticState,
   showId,
@@ -151,8 +154,7 @@ export function WorkflowStepContent({
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
 
-  // Styled receipt branch — hooks must be top-level (Rules of Hooks);
-  // expensive .find() lookups are memoized and only compute during confirmation step.
+  // Styled receipt hooks run at the top level; data is read only for confirmation.
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
   const trialsReadStatus = useTrialStore(s => s.trialsReadStatus);
@@ -182,12 +184,6 @@ export function WorkflowStepContent({
 
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
-    // getShowStyle always narrows to a known ShowStyle value, and the
-    // STYLED_RECEIPT_BY_STYLE registry is exhaustive over that union
-    // (typecheck-enforced) — every show resolves to a renderer. The
-    // earlier per-style allow-list was tautological once the registry
-    // landed; dropping it removes a class of "added a style but forgot
-    // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
 
     const firstTrial = allTrials.find(t => t.showId === showId);
@@ -359,7 +355,6 @@ export function WorkflowStepContent({
       {currentStepId === 'class-selection' &&
         (!hasDogSelectionStep && optimisticState.formData.selectedDogs.length === 0 ? (
           dogsLoading ? (
-            // Loading skeleton while dogs are being auto-selected
             <div className="space-y-4">
               <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
               <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
@@ -370,7 +365,6 @@ export function WorkflowStepContent({
               </div>
             </div>
           ) : (
-            // Exhibitor has 0 registered dogs
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
@@ -408,6 +402,7 @@ export function WorkflowStepContent({
       {currentStepId === 'payment' && (
         <PaymentErrorBoundary>
           <PaymentStep
+            deferJuniorPayment={deferJuniorPayment}
             paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
@@ -456,9 +451,15 @@ export function WorkflowStepContent({
       )}
 
       {currentStepId === 'confirmation' &&
-        (styledReceipt && styledReceiptProps && hasCreatedCapacityOutcome ? (
+        (styledReceipt &&
+        styledReceiptProps &&
+        hasCreatedCapacityOutcome &&
+        !entryOutcomes?.some(outcome => outcome.feePending) ? (
           <div className="space-y-6">
             <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
+            {deferJuniorPayment && optimisticState.paymentStatus === PaymentStatus.PENDING && (
+              <JuniorPaymentNotice showId={showId} feePending={false} />
+            )}
             {STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
               brandColor: styledReceipt.brandColor,
             })}
@@ -478,8 +479,7 @@ export function WorkflowStepContent({
             showId={showId}
             armbandAssignments={armbandAssignments}
             entryOutcomes={entryOutcomes}
-            onDownloadReceipt={undefined}
-            onSendEmail={undefined}
+            deferJuniorPayment={deferJuniorPayment}
             onStatusChange={async (_dogId: string, status: EntryStatus) => {
               setEntryStatus(status);
               if (registrationId) {

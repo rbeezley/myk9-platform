@@ -13,6 +13,7 @@ export interface EntriesPanelLinesProps {
   /** Selected classes that are wait-list requests, so they are not charged now. */
   waitlistClassIds?: ReadonlySet<string> | undefined;
   capacityReady?: boolean | undefined;
+  availabilityReady?: boolean | undefined;
   capacityUnavailable?: boolean | undefined;
   /** Overrides the availability copy when another read is the reason. */
   placeholder?: string | undefined;
@@ -30,6 +31,7 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
   removingLineKey,
   waitlistClassIds,
   capacityReady = true,
+  availabilityReady = capacityReady,
   capacityUnavailable,
   placeholder,
 }) => (
@@ -55,16 +57,16 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
                     <span className="text-muted-foreground">{line.dayLabel} · </span>
                   )}
                   {line.label}
-                  {capacityReady && isWaitlist && (
+                  {availabilityReady && isWaitlist && (
                     <span className="ml-2 font-medium text-warning">(Wait list request)</span>
                   )}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
                   <span className="tabular-nums">
-                    {!capacityReady
-                      ? (placeholder ?? availabilityPlaceholder(capacityUnavailable))
-                      : isWaitlist
-                        ? 'No payment due'
+                    {availabilityReady && isWaitlist
+                      ? 'No payment due'
+                      : !capacityReady
+                        ? (placeholder ?? availabilityPlaceholder(capacityUnavailable))
                         : formatCartCurrency(line.feeCents)}
                   </span>
                   {onRemoveLine && (

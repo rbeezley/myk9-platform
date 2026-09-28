@@ -137,6 +137,37 @@ describe('submitOfflineLateEntry', () => {
     );
   });
 
+  it('queues a junior-priced desk entry unpaid with its fee unset until sync', async () => {
+    const result = await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      paymentStatus: PaymentStatus.PAID_BY_CASH,
+      showFeeInfo: {
+        preEntryFee: '30',
+        dayOfShowFee: '35',
+        juniorHandlerFee: '15',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entryFee: undefined,
+        paymentStatus: 'pending',
+        paymentReceivedOn: null,
+      }),
+      expect.anything()
+    );
+    expect(result.entryOutcomes).toEqual([
+      expect.objectContaining({ feeCents: 0, feePending: true }),
+    ]);
+  });
+
   it('creates confirmed replicated day-of entries with payment and dog dependency metadata', async () => {
     getAllClassesMock.mockResolvedValue([
       { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },

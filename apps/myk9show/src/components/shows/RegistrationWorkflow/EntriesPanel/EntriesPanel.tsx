@@ -41,6 +41,8 @@ export interface EntriesPanelProps {
    * failed-read copy over the still-reading one.
    */
   feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
+  /** Staff must save a junior-priced entry before its private-data fee is known. */
+  feeUnconfirmed?: boolean | undefined;
   waiveFees?: boolean | undefined;
   feeOverride?: number | null | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
@@ -70,6 +72,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   capacityReady: capacityReadyProp = true,
   capacityUnavailable: capacityUnavailableProp,
   feeTier,
+  feeUnconfirmed = false,
   waiveFees = false,
   feeOverride = null,
   waitlistClassIds,
@@ -82,16 +85,19 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   // they are combined once here rather than at each of the six call sites.
   const feeTierReady = feeTier?.isReady ?? true;
   const feeTierUnavailable = feeTier?.isUnavailable ?? false;
-  const capacityReady = capacityReadyProp && feeTierReady;
+  const availabilityReady = capacityReadyProp && feeTierReady;
+  const capacityReady = availabilityReady && !feeUnconfirmed;
   const capacityUnavailable = capacityUnavailableProp || feeTierUnavailable;
   // Which read is the reason decides the copy: "Checking availability" beside a
   // "Loading show details" alert names the wrong thing. Availability wins when
   // both are unresolved, because it is the one with a retry affordance.
-  const moneyPlaceholder = capacityReadyProp
-    ? feeTierUnavailable
-      ? 'Not available'
-      : 'Checking fees'
-    : undefined;
+  const moneyPlaceholder = feeUnconfirmed
+    ? 'Confirmed after saving'
+    : capacityReadyProp
+      ? feeTierUnavailable
+        ? 'Not available'
+        : 'Checking fees'
+      : undefined;
 
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
@@ -136,6 +142,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
     <EntriesPanelLines
       groups={groups}
       capacityReady={capacityReady}
+      availabilityReady={availabilityReady}
       capacityUnavailable={capacityUnavailable}
       placeholder={moneyPlaceholder}
       waitlistClassIds={waitlistClassIds}

@@ -128,6 +128,10 @@ function RegistrationWizardContent() {
   // except the Receipt, which has nothing left to total and keeps its own
   // ReceiptExits footer at every width.
   const isPaymentStep = currentStepId === 'payment';
+  const deferJuniorPayment =
+    currentWorkflowMode !== 'exhibitor' &&
+    registrationData.paymentMethod !== 'waived' &&
+    Number(currentShow?.juniorHandlerFee) > 0;
   const panelGroups = useEntriesPanelGroups({
     selectedDogIds: registrationData.selectedDogs,
     feeCalculation: liveFeeCalculation,
@@ -195,6 +199,7 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
+        feeUnconfirmed={deferJuniorPayment}
         waitlistClassIds={waitlistClassIds}
         {...(isPaymentStep
           ? {
@@ -410,6 +415,7 @@ function RegistrationWizardContent() {
               currentStepId={currentStepId}
               currentWorkflowConfig={currentWorkflowConfig}
               currentWorkflowMode={currentWorkflowMode}
+              deferJuniorPayment={deferJuniorPayment}
               registrationData={registrationData}
               optimisticState={optimisticState}
               showId={showId}

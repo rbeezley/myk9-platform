@@ -9,6 +9,8 @@ import type {
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
+  /** Staff collects payment after the server has recorded a junior-priced entry. */
+  deferJuniorPayment?: boolean;
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   paymentMethod: PaymentMethod | '';
@@ -91,6 +93,7 @@ export interface FeeCalculationResult {
 
 /** Props for the PaymentMethodSelector sub-component. */
 export interface PaymentMethodSelectorProps {
+  allowReceivedPayment?: boolean;
   paymentMethod: PaymentMethod | '';
   onPaymentMethodChange: (method: PaymentMethod) => void;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */

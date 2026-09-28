@@ -161,7 +161,13 @@ export async function submitShowRegistration({
         handlerId: entry.registrationData.handlerId,
         handlerName: entry.registrationData.handler,
         paymentMethod: submitMethod,
-        clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),
+        // The server alone knows the handler's private birth date. For a show
+        // with junior pricing, let the submission RPC decide the fee and show
+        // its returned amount on the receipt.
+        clientFeeCents:
+          Number(showFeeInfo.juniorHandlerFee) > 0
+            ? undefined
+            : Math.round((entry.registrationData.entryFee ?? 0) * 100),
       })),
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod: submitMethod,
@@ -219,11 +225,11 @@ export async function submitShowRegistration({
     }
   }
 
-  const surfacedOutcomes = submissionOutcomes?.some(
-    outcome => outcome.outcome !== 'created' || outcome.capacityOverride
-  )
-    ? submissionOutcomes
-    : undefined;
+  const surfacedOutcomes =
+    Number(showFeeInfo.juniorHandlerFee) > 0 ||
+    submissionOutcomes?.some(outcome => outcome.outcome !== 'created' || outcome.capacityOverride)
+      ? submissionOutcomes
+      : undefined;
 
   return {
     aborted: false,

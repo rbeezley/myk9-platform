@@ -26,6 +26,8 @@ export interface DogActivityEntry {
   is_scored?: boolean | null;
   search_time_seconds?: number | null;
   final_placement?: string | number | null;
+  class_results_released_at?: string | null;
+  trial_id?: string | null;
   show_id?: string | null;
   show?: {
     name?: string | null;

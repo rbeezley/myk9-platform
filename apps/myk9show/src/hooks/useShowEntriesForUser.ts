@@ -38,6 +38,7 @@ export interface EnrichedShowEntry {
   dogName: string;
   armband: string;
   runOrder: number;
+  checkInStatus?: CheckInStatus;
   element: string;
   level: string;
   section: string;
@@ -381,6 +382,9 @@ export function useShowEntriesForUser(
         'Unknown Dog';
 
       const runOrder = entry.registrationData.runOrder ?? 0;
+      const checkInStatus = canonicalCheckInStatus(
+        entry.checkInStatus ?? canonicalRow?.check_in_status
+      );
       // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
@@ -417,6 +421,7 @@ export function useShowEntriesForUser(
         dogName: dogNameMap.get(entry.dogId) ?? fallbackDogName,
         armband: entry.registrationData.armband ?? '',
         runOrder,
+        ...(checkInStatus ? { checkInStatus } : {}),
         element,
         level,
         section,

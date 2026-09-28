@@ -9,6 +9,7 @@ import {
   UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE,
 } from './entryResultDisplay';
 import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import { getStatusDescriptor } from '@/components/status';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
 interface WhereToBeProps {
@@ -64,12 +65,19 @@ interface TimelineRowProps {
 function TimelineRow({ entry, showId }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
+  const positionLabel =
+    entry.runOrder > 0 ? `Run position ${entry.runOrder}` : 'Run position pending';
+  const checkInLabel = entry.checkInStatus
+    ? entry.checkInStatus === 'no-status'
+      ? 'Not checked in'
+      : getStatusDescriptor('entry', entry.checkInStatus).label
+    : 'Check-in pending';
 
   return (
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel}`}
+      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${positionLabel} — ${checkInLabel}`}
     >
       {(entry.startTime || entry.armband) && (
         <span className="flex w-28 shrink-0 flex-col gap-1">
@@ -107,6 +115,10 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
               .join(' · ')}
           </p>
         )}
+        <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+          <span>{positionLabel}</span>
+          <span>{checkInLabel}</span>
+        </p>
       </div>
 
       <ResultChip entry={entry} />

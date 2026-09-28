@@ -649,6 +649,7 @@ describe('secretary entry read replication', () => {
 
   it('falls back to PostgREST when replication store is cold (returns empty)', async () => {
     // Cold store — entries not yet synced for this show (secretary never entered at-show context)
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries' });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -736,6 +737,9 @@ describe('secretary entry read replication', () => {
   });
 
   it('hydrates a cold show-scoped replica before using PostgREST', async () => {
+    mocks.getEntriesSyncMetadata
+      .mockResolvedValueOnce({ tableName: 'entries' })
+      .mockResolvedValue({ tableName: 'entries', totalRows: 1 });
     mocks.getEntriesByShow.mockResolvedValueOnce([]).mockResolvedValue([
       {
         id: 'entry-after-hydration',
@@ -774,6 +778,21 @@ describe('secretary entry read replication', () => {
         trial: { trial_type: 'Scent Work', timezone: 'America/New_York' },
       }),
     ]);
+  });
+
+  it('trusts a synced empty scope after its last entry was removed', async () => {
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([]);
+    expect(mocks.syncEntries).not.toHaveBeenCalled();
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
   });
 
   it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {

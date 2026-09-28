@@ -36,6 +36,47 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
     expect(screen.queryByText('submitted')).toBeNull();
   });
 
+  it('shows a same-day score as preliminary with a class link and no unreleased placement', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-28T16:00:00Z'));
+    useEntriesByDogQueryMock.mockReturnValue({
+      data: {
+        rows: [
+          {
+            id: 'entry-1',
+            entry_status: 'confirmed',
+            is_scored: true,
+            result_status: 'qualified',
+            search_time_seconds: 43.21,
+            final_placement: 1,
+            class_results_released_at: null,
+            trial_id: 'trial-1',
+            trial: { date: '2026-09-28', timezone: 'America/Chicago' },
+            show: { id: 'show-1', name: 'Today Show', start_date: '2026-09-28' },
+            class: { id: 'class-1', name: 'Container Novice A' },
+          },
+        ],
+        verified: true,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    try {
+      render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
+      expect(screen.getByText('Recent results')).toBeInTheDocument();
+      expect(screen.getByText('0:43.21')).toBeInTheDocument();
+      expect(screen.getByText('preliminary')).toBeInTheDocument();
+      expect(screen.queryByText('1')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Today Show' })).toHaveAttribute(
+        'href',
+        '/shows/show-1/trials/trial-1/classes/class-1'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('speaks the secretary voice for the same entry', () => {
     render(<ActivityTab dogId="dog-1" dogName="Buddy" role="secretary" />);
     expect(screen.getByText('Needs review')).toBeVisible();

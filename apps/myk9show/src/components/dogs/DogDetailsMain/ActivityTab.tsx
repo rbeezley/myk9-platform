@@ -11,6 +11,7 @@ import {
 } from '@/features/_shared/dogActivity';
 import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
+import { deriveResultReleaseDisplay } from '@/features/result-card';
 
 interface ActivityTabProps {
   dogId: string;
@@ -79,10 +80,20 @@ function UpcomingRow({
 function ResultRow({ entry }: { entry: DogActivityEntry }) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
-  const showDate = entry.show?.start_date;
-  const formattedDate = formatActivityDate(showDate);
+  const formattedDate = formatActivityDate(getEntryDisplayDate(entry));
   const qualified = entry.result_status === 'qualified';
-  const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
+  const showHref = entry.show?.id
+    ? entry.trial_id && entry.class?.id
+      ? `/shows/${entry.show.id}/trials/${entry.trial_id}/classes/${entry.class.id}`
+      : `/shows/${entry.show.id}`
+    : undefined;
+  const placementValue = entry.final_placement == null ? null : Number(entry.final_placement);
+  const release = deriveResultReleaseDisplay({
+    resultsReleasedAt: entry.class_results_released_at,
+    resultStatus: entry.result_status,
+    finalPlacement:
+      placementValue != null && Number.isFinite(placementValue) ? placementValue : null,
+  });
 
   return (
     <div className="flex items-start gap-4 py-3 border-t border-border first:border-t-0">
@@ -113,13 +124,14 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
         {entry.search_time_seconds != null && (
           <div className="font-mono text-xs text-muted-foreground mt-0.5">
             {formatTime(entry.search_time_seconds)}
-            {entry.final_placement && (
+            {release.placement != null && (
               <span className="ml-2 font-sans font-medium text-amber-600">
-                {entry.final_placement}
+                #{release.placement}
               </span>
             )}
           </div>
         )}
+        {release.isPreliminary && <div className="text-xs text-muted-foreground">preliminary</div>}
       </div>
       <div className="flex-shrink-0">
         {qualified ? (

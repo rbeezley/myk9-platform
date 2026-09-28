@@ -69,21 +69,31 @@ const defaultOnlineRow = {
 // Mutable so individual tests can model what the SERVER still returns (e.g. a
 // row whose delete has not yet synced is still live server-side).
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
+let resultRows: Array<Record<string, unknown>> = [];
 // Set to model the online read being unavailable — offline, or a failed query.
 let onlineError: { message: string } | null = null;
+let resultError: { message: string } | null = null;
 let onlineCallCount = 0;
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
           is: () => ({
             order: () => {
               onlineCallCount += 1;
               return Promise.resolve({
-                data: onlineError ? null : onlineRows,
-                error: onlineError,
+                data:
+                  onlineError || (table === 'view_authenticated_entry_results' && resultError)
+                    ? null
+                    : table === 'view_authenticated_entry_results'
+                      ? resultRows
+                      : onlineRows,
+                error:
+                  table === 'view_authenticated_entry_results'
+                    ? (resultError ?? onlineError)
+                    : onlineError,
               });
             },
           }),
@@ -112,9 +122,41 @@ function localRow(overrides: Record<string, unknown> = {}) {
 describe('getEntriesByDog — online-first with a replica fallback', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
+    resultRows = [];
     onlineError = null;
+    resultError = null;
     onlineCallCount = 0;
     mockEntriesTable.getAll.mockResolvedValue([]);
+  });
+
+  it('retains the verified online entry list when the scored view fails', async () => {
+    resultError = { message: 'result view unavailable' };
+    const result = await getEntriesByDog('dog-1');
+    expect(result.verified).toBe(true);
+    expect(result.data).toMatchObject([{ id: 'entry-online-1' }]);
+  });
+
+  it('joins own scored facts from the authorized result view onto the trial-dated row', async () => {
+    onlineRows = [{ ...defaultOnlineRow, is_scored: true, trial: { date: '2026-09-28' } }];
+    resultRows = [
+      {
+        id: 'entry-online-1',
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 43.21,
+        final_placement: 1,
+        class_results_released_at: null,
+      },
+    ];
+
+    const result = await getEntriesByDog('dog-1');
+
+    expect(result.data[0]).toMatchObject({
+      trial: { date: '2026-09-28' },
+      result_status: 'qualified',
+      search_time_seconds: 43.21,
+      class_results_released_at: null,
+    });
   });
 
   describe('the online read is authoritative', () => {
@@ -133,7 +175,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
 
       const result = await getEntriesByDog('dog-1');
 
-      expect(onlineCallCount).toBe(1);
+      expect(onlineCallCount).toBe(2);
       expect(result.data).toHaveLength(1);
       expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
       expect(result.verified).toBe(true);
@@ -205,6 +247,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
         localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
       ]);
       onlineRows = [defaultOnlineRow];
+      resultRows = [];
 
       const result = await getEntriesByDog('dog-1');
 
@@ -225,6 +268,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
         new Error("This device couldn't read its saved show data. Try again.")
       );
       onlineRows = [defaultOnlineRow];
+      resultRows = [];
 
       const result = await getEntriesByDog('dog-1');
 
@@ -242,6 +286,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
         new Error("This device couldn't read its saved show data. Try again.")
       );
       onlineRows = [defaultOnlineRow];
+      resultRows = [];
 
       const result = await getEntriesByDog('dog-1');
 

@@ -344,11 +344,10 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     replicatedEntriesTable.getEntriesByShow(showId),
     hasShowEntriesSynced(showId),
   ]);
-  // isColdStore: this show's scope has never completed a sync, or holds no rows.
-  // Rows alone prove nothing: a check-in or lifecycle edit on a fresh device
-  // stores its one row, which is not the show (MYK9-746). A synced store with
-  // every entry deleted is NOT cold (allEntries.length > 0).
-  const isColdStore = allEntries.length === 0 || !scopeSynced;
+  // Scope metadata, not row count, establishes whether a full show download
+  // completed. An empty synced scope is valid after its last entry is removed;
+  // a single locally written row in an unsynced scope is still incomplete.
+  const isColdStore = !scopeSynced;
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     // Joins that label the entries (see joinRowsOrEmpty): throwing would drop

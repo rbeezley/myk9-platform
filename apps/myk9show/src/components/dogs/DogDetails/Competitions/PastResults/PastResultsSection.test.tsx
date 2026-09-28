@@ -10,7 +10,7 @@ import type { ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
 import PastResultsSection from './PastResultsSection';
 
 const { mockExhibitorResults } = vi.hoisted(() => ({
-  mockExhibitorResults: vi.fn<() => { data: ExhibitorResult[] }>(),
+  mockExhibitorResults: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useExhibitorResults', () => ({
@@ -34,6 +34,7 @@ function platformResult(overrides: Partial<ExhibitorResult> = {}): ExhibitorResu
     dogCallName: 'Willow',
     showId: 'show-1',
     classId: 'class-1',
+    trialId: 'trial-1',
     className: 'Interior Advanced Preliminary',
     classLevel: 'Advanced',
     classElement: 'Interior',
@@ -63,6 +64,34 @@ function renderSection(results: ExhibitorResult[]) {
 }
 
 describe('PastResultsSection — platform results release gate', () => {
+  it('shows retry instead of a false no-results claim when the result read fails', () => {
+    mockExhibitorResults.mockReturnValue({
+      data: [],
+      isError: true,
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <PastResultsSection
+        dogId="dog-willow"
+        isPremium={false}
+        addDialogOpen={false}
+        setAddDialogOpen={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Results could not be loaded/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByText(/No results yet/)).not.toBeInTheDocument();
+  });
+
+  it("links today's platform result to its class detail", () => {
+    renderSection([platformResult({ showDate: '2026-09-28' })]);
+    expect(screen.getByRole('link', { name: 'Heartland Scent Work Classic' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/trial-1/classes/class-1'
+    );
+  });
+
   it('withholds the placement and labels the result preliminary before release', () => {
     renderSection([platformResult()]);
 

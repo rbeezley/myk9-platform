@@ -17,6 +17,7 @@ export interface ExhibitorResult {
   dogCallName: string;
   showId: string;
   classId: string;
+  trialId?: string | null;
   className: string;
   classLevel: string | null;
   classElement: string | null;
@@ -52,6 +53,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
       dog_call_name,
       show_id,
       class_id,
+      trial_id,
       class_name,
       class_level,
       class_element,
@@ -85,6 +87,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     dogCallName: (row.dog_call_name as string) || (row.dog_name as string),
     showId: row.show_id as string,
     classId: row.class_id as string,
+    trialId: row.trial_id as string | null,
     className: (row.class_name as string) || 'Unknown Class',
     classLevel: row.class_level as string | null,
     classElement: row.class_element as string | null,
@@ -125,5 +128,6 @@ export function useExhibitorResults(dogId?: string) {
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,
+    ...(dogId ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}),
   });
 }

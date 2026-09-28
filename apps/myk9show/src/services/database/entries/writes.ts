@@ -6,6 +6,7 @@
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { removeEntryAsManager, setEntryLifecycleStatus } from './lifecycle';
@@ -101,6 +102,18 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
 
     if (error) {
       throw createDatabaseError(error, 'entries', 'delete');
+    }
+
+    // The authenticated result view hides a secretary's soft-deleted row.
+    // Incremental sync therefore cannot replace the clean cached copy with a
+    // tombstone; drop it here after the server has accepted the removal.
+    try {
+      await replicatedEntriesTable.delete(id);
+    } catch (cacheError) {
+      logger.warn('Entry removed on server but local cache eviction failed', 'database', {
+        entryId: id,
+        error: String(cacheError),
+      });
     }
 
     return { data: null, error: null };

@@ -391,6 +391,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(row => row.showId === scope.value) : rows,
+      // A successful full show download is authoritative about missing rows;
+      // the result view can hide secretary-deleted entries entirely. Scope the
+      // cleanup above so entries cached for other shows survive this pass.
+      cleanupStaleRowsOnFullSync: true,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       shouldSkipRemoteRow: remote => {
         const entryId = String(remote.id);

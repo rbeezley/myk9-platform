@@ -94,7 +94,7 @@ export interface ClaudeContentBlock {
 export interface UserContext {
   userId: string;
   displayName: string | null;
-  dogs: Array<{ id: string; name: string; callName: string | null; breed: string }>;
+  dogs: Array<{ id: string; callName: string; breed: string }>;
   showId: string | null;
   showName: string | null;
 }

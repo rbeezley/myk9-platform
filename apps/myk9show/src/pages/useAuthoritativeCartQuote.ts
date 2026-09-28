@@ -28,7 +28,7 @@ export function useAuthoritativeCartQuote({
   const recoveryIdsKey = recoveryEntryIds.join(',');
   const loadKey = `${profileId ?? ''}:${recoveryShowId ?? ''}:${recoveryIdsKey}`;
   const feeKey =
-    cart?.id && items.length > 0
+    cart?.id && items.length > 0 && Number(cart.show?.junior_handler_fee) > 0
       ? `${cart.id}:${items.map(item => `${item.id}:${item.entry_id ?? ''}:${item.handler_id ?? ''}:${item.entry_fee_cents}`).join('|')}`
       : null;
 

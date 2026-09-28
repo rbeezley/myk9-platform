@@ -169,6 +169,30 @@ describe('mapDatabaseToShow — branding fallback', () => {
     ]);
   });
 
+  it('distinguishes an old row missing the junior fee from an explicitly unset fee', () => {
+    const oldRow = mapReplicatedShowToDbRow({
+      id: 'show-1',
+      name: 'Test Show',
+      organization: 'AKC',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      status: 'draft',
+    } as never);
+    const currentRow = mapReplicatedShowToDbRow({
+      id: 'show-1',
+      name: 'Test Show',
+      organization: 'AKC',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      status: 'draft',
+      juniorHandlerFee: null,
+    } as never);
+    expect(oldRow).not.toHaveProperty('junior_handler_fee');
+    expect(mapDatabaseToShow(oldRow as never).juniorFeeKnown).toBe(false);
+    expect(currentRow).toHaveProperty('junior_handler_fee', null);
+    expect(mapDatabaseToShow(currentRow as never).juniorFeeKnown).toBe(true);
+  });
+
   it('falls back to club branding when show branding is null', () => {
     const result = mapDatabaseToShow({
       ...baseDbShow,

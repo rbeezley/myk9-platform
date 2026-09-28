@@ -73,6 +73,7 @@ export interface CartWithDetails extends EntryCart {
         name: string;
         start_date: string;
         entry_close_date: string;
+        junior_handler_fee?: number | null;
       }
     | undefined;
 }

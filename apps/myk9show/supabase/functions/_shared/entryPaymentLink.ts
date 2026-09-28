@@ -82,6 +82,9 @@ export function buildEntryPaymentLinkSession(
     throw new Error('buildEntryPaymentLinkSession: no entries to charge');
   }
 
+  if (input.entries.some(e => e.authoritativeFeeCents === 0)) {
+    throw new Error('buildEntryPaymentLinkSession: an entry has no balance due');
+  }
   const lineItems: LineItem[] = input.entries.map(e => ({
     price_data: {
       currency: 'usd',

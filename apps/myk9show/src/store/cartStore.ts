@@ -84,7 +84,7 @@ export const useCartStore = create<CartState>()(
             // StrictMode double-invoke) don't cause maybeSingle() to throw.
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
-              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+              .select(`*, show:shows(id, name, start_date, entry_close_date, junior_handler_fee)`)
               .eq('show_id', showId)
               .eq('exhibitor_id', exhibitorId)
               .eq('status', 'active')
@@ -137,7 +137,7 @@ export const useCartStore = create<CartState>()(
               platform_fee_cents: platformFee,
               total_cents: total,
               items,
-              show: cartData.show as CartWithDetails['show'],
+              show: cartData.show as unknown as CartWithDetails['show'],
             };
 
             write({
@@ -267,7 +267,7 @@ export const useCartStore = create<CartState>()(
 
           const { data: cartData, error: cartError } = await supabase
             .from('entry_carts')
-            .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+            .select(`*, show:shows(id, name, start_date, entry_close_date, junior_handler_fee)`)
             .eq('id', data.id)
             .eq('exhibitor_id', exhibitorId)
             .in('status', ['active', 'expired'])
@@ -334,7 +334,7 @@ export const useCartStore = create<CartState>()(
             platform_fee_cents: platformFee,
             total_cents: total,
             items,
-            show: cartData.show as CartWithDetails['show'],
+            show: cartData.show as unknown as CartWithDetails['show'],
           };
 
           write({
@@ -409,7 +409,7 @@ export const useCartStore = create<CartState>()(
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .insert(cartInsert)
-              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+              .select(`*, show:shows(id, name, start_date, entry_close_date, junior_handler_fee)`)
               .single();
 
             if (cartError) {
@@ -435,7 +435,7 @@ export const useCartStore = create<CartState>()(
             const cartWithDetails: CartWithDetails = {
               ...cartData,
               items: [],
-              show: cartData.show as CartWithDetails['show'],
+              show: cartData.show as unknown as CartWithDetails['show'],
             };
 
             write({

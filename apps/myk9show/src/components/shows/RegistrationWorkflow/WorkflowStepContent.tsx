@@ -458,7 +458,7 @@ export function WorkflowStepContent({
           <div className="space-y-6">
             <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
             {deferJuniorPayment && optimisticState.paymentStatus === PaymentStatus.PENDING && (
-              <JuniorPaymentNotice showId={showId} feePending={false} />
+              <JuniorPaymentNotice showId={showId} outcomes={entryOutcomes} />
             )}
             {STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
               brandColor: styledReceipt.brandColor,

@@ -43,7 +43,6 @@ import {
   ENTRY_SCOPE_SHOW_PARAM,
 } from '@/features/payments/entryScopeParams';
 import { useAuthoritativeCartQuote } from './useAuthoritativeCartQuote';
-import { CartFeeQuoteUnavailable } from './CartFeeQuoteUnavailable';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -462,19 +461,6 @@ export default function CartPage() {
     );
   }
 
-  if (feeQuote.error) {
-    return (
-      <div className="bg-background pt-6">
-        {liveRegion}
-        <CartFeeQuoteUnavailable
-          message={feeQuote.error}
-          onRetry={feeQuote.retry}
-          onBack={() => navigate(continueShoppingTarget(cart.show_id))}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="bg-background pt-6">
       {liveRegion}
@@ -520,6 +506,20 @@ export default function CartPage() {
             </Button>
           )}
         </div>
+
+        {feeQuote.error && (
+          <Alert variant="destructive" role="alert" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between gap-3">
+              <span>
+                {feeQuote.error} Your cart is still editable. Confirm the fee before paying.
+              </span>
+              <Button variant="outline" size="sm" onClick={feeQuote.retry}>
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Cancelled-checkout notice — calm, reassuring, distinct from a hard error */}
         {showCancelNotice && (
@@ -590,6 +590,7 @@ export default function CartPage() {
                 isCheckingOut={isCheckingOut}
                 fulfillment={fulfillment}
                 capacityUnavailable={Boolean(capacityError)}
+                feeUnavailable={!feeQuote.ready}
                 onRetryCapacity={() => void refetchCapacity()}
               />
             </div>

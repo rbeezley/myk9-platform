@@ -108,7 +108,25 @@ export const findRecoverableEntries = async ({
     return [];
   }
 
-  return (entries || []).map(entry => {
+  const entriesWithFrozenFees = await Promise.all(
+    (entries || []).map(async entry => {
+      if (entry.entry_fee !== null) return entry;
+      const { data: fee, error: freezeError } = await supabase.rpc('freeze_pending_entry_fee', {
+        p_entry_id: entry.id,
+      });
+      if (freezeError) {
+        logger.error(
+          'Could not freeze missing entry fee for cart recovery',
+          'cartStore',
+          { entryId: entry.id },
+          freezeError
+        );
+        return entry;
+      }
+      return { ...entry, entry_fee: fee };
+    })
+  );
+  return entriesWithFrozenFees.map(entry => {
     const classRow = Array.isArray(entry.class) ? entry.class[0] : entry.class;
     const showRow = Array.isArray(entry.show) ? entry.show[0] : entry.show;
     return {
@@ -154,7 +172,7 @@ export const recoverCartItemsFromEntryIds = async ({
     recoverableEntries ?? (await findRecoverableEntries({ showId, exhibitorId, entryIds }));
 
   const itemInserts: EntryCartItemInsert[] = ((entries || []) as RecoverableEntryRow[])
-    .filter(entry => entry.class_id && entry.dog_id)
+    .filter(entry => entry.class_id && entry.dog_id && parseFeeDollars(entry.entry_fee) !== null)
     .map(entry => ({
       cart_id: cartId,
       entry_id: entry.id,

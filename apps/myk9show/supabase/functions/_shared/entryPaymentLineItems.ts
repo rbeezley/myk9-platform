@@ -1,6 +1,7 @@
 // Deno-free Stripe line-item metadata reader for secretary payment-link refunds.
 
 interface ExpandedProduct {
+  deleted?: boolean | void;
   metadata?: Record<string, string> | null;
 }
 

@@ -385,7 +385,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               </Badge>
             </div>
             {deferJuniorPayment && paymentStatus === PaymentStatus.PENDING && hasCreatedOutcome && (
-              <JuniorPaymentNotice showId={showId} feePending={feePending} />
+              <JuniorPaymentNotice showId={showId} outcomes={entryOutcomes} />
             )}
             {(paymentStatus === PaymentStatus.PENDING ||
               paymentStatus === PaymentStatus.REFUNDED) &&

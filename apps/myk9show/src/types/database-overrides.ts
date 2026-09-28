@@ -26,7 +26,7 @@
  * callers (it only ever accepts more), but it is a claim about the server, so
  * it must be read off the migration, not assumed.
  */
-import type { Database as GeneratedDatabase } from '@myk9/supabase';
+import type { Database as GeneratedDatabase, Json } from '@myk9/supabase';
 
 type GeneratedPublic = GeneratedDatabase['public'];
 type GeneratedFunctions = GeneratedPublic['Functions'];
@@ -266,6 +266,13 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
       get_club_officials: GetClubOfficials;
+      /** MYK9-662, 20260928175543: first trusted fee for a legacy NULL entry. */
+      freeze_pending_entry_fee: { Args: { p_entry_id: string }; Returns: number };
+      /** MYK9-662, 20260928175841: staff fee eligibility without DOB disclosure. */
+      staff_entries_need_junior_fee: {
+        Args: { p_show_id: string; p_entries: Json };
+        Returns: boolean;
+      };
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

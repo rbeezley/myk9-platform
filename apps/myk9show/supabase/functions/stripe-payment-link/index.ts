@@ -203,7 +203,7 @@ Deno.serve(async req => {
       // stripe-refund-entry): show-scoped secretary, the club's admin, or site
       // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
       const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
+        global: { headers: { Authorization: authHeader! } },
       });
       const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
         userClient.rpc('is_show_secretary', { check_show_id: show.id }),
@@ -341,12 +341,35 @@ Deno.serve(async req => {
     // Submission fixed each entry's fee. Repricing at link creation would
     // charge a different amount after a DOB or show-fee edit, while refunds
     // still use the stored entry fee.
-    const pricedEntries = entries.map(entry => ({
-      entry,
-      feeCents: storedEntryFeeCents(entry.entry_fee),
-    }));
+    const pricedEntries = [] as { entry: EntryRow; feeCents: number | null }[];
+    for (const entry of entries) {
+      let feeCents = storedEntryFeeCents(entry.entry_fee);
+      if (feeCents === null && entry.entry_fee === null) {
+        const { data: frozenFee, error: freezeError } = await supabase.rpc(
+          'freeze_pending_entry_fee',
+          { p_entry_id: entry.id }
+        );
+        if (freezeError) {
+          console.error(`Could not freeze missing fee for entry ${entry.id}:`, freezeError);
+          return corsResponse(
+            corsHeaders,
+            { error: 'Could not confirm an entry fee. Please try again.' },
+            503
+          );
+        }
+        feeCents = storedEntryFeeCents(frozenFee);
+      }
+      pricedEntries.push({ entry, feeCents });
+    }
     if (pricedEntries.some(({ feeCents }) => feeCents === null)) {
       return corsResponse(corsHeaders, { error: 'An entry has no valid recorded fee.' }, 422);
+    }
+    if (pricedEntries.some(({ feeCents }) => feeCents === 0)) {
+      return corsResponse(
+        corsHeaders,
+        { error: 'An entry has no balance due. Remove it from this payment request.' },
+        409
+      );
     }
     const linkEntries = pricedEntries.map(({ entry, feeCents }) => {
       if (feeCents === null) throw new Error('Entry fee disappeared during link creation');
@@ -358,6 +381,8 @@ Deno.serve(async req => {
         showName: show.name || 'Show Entry',
       };
     });
+
+    const nowIso = new Date().toISOString();
 
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).

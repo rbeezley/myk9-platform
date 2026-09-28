@@ -188,6 +188,37 @@ describe('authoritativeEntryFeeCents — junior handler fee (MYK9-662)', () => {
     ).toBe(3000);
   });
 
+  it('switches AKC pricing on the eighteenth birthday, including leap-day births', () => {
+    const trial = (trialDate: string) =>
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        handlerDateOfBirth: '2008-02-29',
+        trialDate,
+      });
+    expect(trial('2026-02-27')).toBe(1500);
+    expect(trial('2026-02-28')).toBe(1500); // calendar birthday is March 1 in a non-leap year
+    expect(trial('2026-03-01')).toBe(3000);
+    expect(
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        handlerDateOfBirth: '2008-09-18',
+        trialDate: '2026-09-18',
+      })
+    ).toBe(3000);
+  });
+
+  it('uses UKC January 1 to decide the fee for the entire competition year', () => {
+    const fee = (dateOfBirth: string) =>
+      authoritativeEntryFeeCents({
+        ...juniorBase,
+        trialRegistryId: 'UKC',
+        trialDate: '2026-11-07',
+        handlerDateOfBirth: dateOfBirth,
+      });
+    expect(fee('2008-01-01')).toBe(3000);
+    expect(fee('2008-01-02')).toBe(1500);
+  });
+
   it('treats a date of birth after the measuring date as bad data, not a very young handler', () => {
     expect(
       authoritativeEntryFeeCents({

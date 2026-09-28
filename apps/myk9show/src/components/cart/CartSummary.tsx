@@ -45,6 +45,7 @@ interface CartSummaryProps {
    * does not sit on a spinner label forever.
    */
   capacityUnavailable?: boolean;
+  feeUnavailable?: boolean;
   /**
    * Retry the class-availability query. Optional so existing call sites keep
    * working; when supplied, a failed capacity load offers a one-tap retry
@@ -62,6 +63,7 @@ export function CartSummary({
   isCheckingOut = false,
   fulfillment,
   capacityUnavailable = false,
+  feeUnavailable = false,
   onRetryCapacity,
   className,
 }: CartSummaryProps) {
@@ -308,6 +310,7 @@ export function CartSummary({
         <Button
           onClick={handleCheckout}
           disabled={
+            feeUnavailable ||
             isCheckingOut ||
             itemCount === 0 ||
             entriesClosed ||

@@ -349,6 +349,10 @@ BEGIN
   IF got_fee <> 30 THEN
     RAISE EXCEPTION 'FAIL case 6 (unresolved typed handler): entry_fee = % (expected 30)', got_fee;
   END IF;
+  IF (SELECT handler_id FROM public.entries
+      WHERE id = (result->'entries'->0->>'entry_id')::uuid) IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL case 6: typed unmatched handler inherited owner ID';
+  END IF;
 
   ----------------------------------------------------------------------------
   -- Case 7: with no selected or typed handler, submission records the dog
@@ -414,6 +418,62 @@ BEGIN
     RAISE EXCEPTION 'FAIL case 9: offline adult fee was not filled at 30';
   END IF;
 
+  -- A legacy pending row with NULL fee freezes once at its first payment
+  -- boundary. A later show-fee edit cannot reprice it.
+  INSERT INTO public.entries (id, show_id, class_id, dog_id, handler_id,
+                              entry_source, entry_status, payment_status,
+                              payment_method, entry_fee, is_day_of_show)
+  VALUES ('00000000-0000-0000-0000-000000662904',
+          '00000000-0000-0000-0000-000000662102',
+          '00000000-0000-0000-0000-000000662302',
+          '00000000-0000-0000-0000-000000662402',
+          '00000000-0000-0000-0000-000000662002',
+          'myk9', 'confirmed', 'pending', 'check', NULL, false);
+  IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
+    RAISE EXCEPTION 'FAIL legacy NULL fee was not frozen at 30';
+  END IF;
+  UPDATE public.shows SET pre_entry_fee = 40
+    WHERE id = '00000000-0000-0000-0000-000000662102';
+  IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
+    RAISE EXCEPTION 'FAIL frozen fee changed after show fee edit';
+  END IF;
+
+  -- The yes/no staff quote reads private DOB without returning it.
+  IF public.staff_entries_need_junior_fee(
+    '00000000-0000-0000-0000-000000662101',
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000662401',
+      'class_id', '00000000-0000-0000-0000-000000662301'))
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL staff quote missed junior handler';
+  END IF;
+  IF public.staff_entries_need_junior_fee(
+    '00000000-0000-0000-0000-000000662101',
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000662402',
+      'class_id', '00000000-0000-0000-0000-000000662301'))
+  ) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL staff quote deferred adult handler';
+  END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+  blocked boolean := false;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000662701', true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000662701',
+                       'role', 'authenticated')::text, true);
+  BEGIN
+    UPDATE public.dogs SET co_owner_id = '00000000-0000-0000-0000-000000662002'
+      WHERE id = '00000000-0000-0000-0000-000000662401';
+  EXCEPTION WHEN insufficient_privilege THEN
+    blocked := true;
+  END;
+  IF NOT blocked THEN RAISE EXCEPTION 'FAIL arbitrary co-owner assignment was allowed'; END IF;
 END;
 $$;
 

@@ -269,6 +269,7 @@ export const mapDatabaseToShow = (
       (
         (dbShow as Record<string, unknown>).junior_handler_fee as number | null | undefined
       )?.toString() || undefined,
+    juniorFeeKnown: (dbShow as Record<string, unknown>).junior_handler_fee !== undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
     lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as
       string | undefined,
@@ -655,6 +656,10 @@ export const mapReplicatedShowToDbRow = (
     }),
     deleted_at: null,
   };
+
+  // mapFields turns missing values into null. Keep an old replicated row's
+  // absent column distinct from a show that explicitly has no junior tier.
+  if (show.juniorHandlerFee === undefined) delete row.junior_handler_fee;
 
   // Attach club sub-object when provided
   if (options?.club) {

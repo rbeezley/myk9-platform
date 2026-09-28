@@ -348,7 +348,7 @@ describe('MYK9-664: the values live only in people_private', () => {
     // service_role bypasses RLS by design (it already holds an explicit GRANT
     // SELECT on people_private, 20260924231700) — not a gap in the RLS
     // boundary the test above pins, but still worth naming every reader
-    // explicitly rather than letting the list grow silently. Each of these is
+    // explicitly rather than letting the list grow silently. This is
     // a Stripe cart pricing path with no caller-controlled "ask again with a
     // different trial date" oracle (the threat people_private's RLS design
     // guards against): the trial date comes from the entry/class being
@@ -363,12 +363,7 @@ describe('MYK9-664: the values live only in people_private', () => {
         }
       }
     }
-    expect(readers.sort()).toEqual(
-      [
-        'supabase/functions/stripe-checkout/index.ts',
-        'supabase/functions/stripe-webhook/index.ts',
-      ].sort()
-    );
+    expect(readers.sort()).toEqual(['supabase/functions/stripe-checkout/index.ts'].sort());
   });
 
   it('positive control: the column scan sees a people read that names a moved column', () => {

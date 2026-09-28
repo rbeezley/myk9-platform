@@ -285,7 +285,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(screen.queryByRole('link', { name: 'Finish payment' })).not.toBeInTheDocument();
   });
 
-  it('clicks Finish Payment into exactly the recovered entries and quoted fees with no original cart', async () => {
+  it('clicks Finish Payment into exactly the recovered entries with no original cart', async () => {
     // Assert presentation through the real router/store/recovery, not a loader spy.
     // Only PostgREST transport is replaced; returned cart items depend on real
     // recovery upserts, so an empty-hydration regression cannot get canned lines.
@@ -547,13 +547,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(unsupportedFilter).toBeNull();
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('stripe-checkout', {
-      body: expect.objectContaining({
-        mode: 'entry',
-        cart_id: 'cart-423',
-        quote_only: true,
-      }),
-    });
+    expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(3);
     for (const entry of entries) {

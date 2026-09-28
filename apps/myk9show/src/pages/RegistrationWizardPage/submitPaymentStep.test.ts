@@ -122,12 +122,69 @@ describe('submitPaymentStep', () => {
       currentWorkflowMode: 'secretary_new',
       paymentMethod: 'secretary_paid',
       showFeeInfo: { preEntryFee: '30', juniorHandlerFee: '15', startDate: '2026-08-01' },
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      quoteStaffJuniorFee: vi.fn().mockResolvedValue(true),
     });
     await submitPaymentStep(ctx);
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(submitOfflineLateEntryMock).not.toHaveBeenCalled();
     expect(notificationErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Save this entry unpaid first')
+    );
+  });
+
+  it('keeps adult handlers on the normal desk payment path', async () => {
+    const quoteStaffJuniorFee = vi.fn().mockResolvedValue(false);
+    const { ctx } = makeContextAndOrder({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+      showFeeInfo: { preEntryFee: '30', juniorHandlerFee: '15', startDate: '2026-08-01' },
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      quoteStaffJuniorFee,
+    });
+    await submitPaymentStep(ctx);
+    expect(quoteStaffJuniorFee).toHaveBeenCalledTimes(1);
+    expect(submitShowRegistrationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'secretary_paid' })
+    );
+  });
+
+  it('does not quote or defer a show without a junior fee', async () => {
+    const quoteStaffJuniorFee = vi.fn();
+    const { ctx } = makeContextAndOrder({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      quoteStaffJuniorFee,
+    });
+    await submitPaymentStep(ctx);
+    expect(quoteStaffJuniorFee).not.toHaveBeenCalled();
+    expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('defers offline collection when the replicated show fee field is missing', async () => {
+    const quoteStaffJuniorFee = vi.fn();
+    const { ctx } = makeContextAndOrder({
+      currentWorkflowMode: 'secretary_new',
+      isLateEntryMode: true,
+      paymentMethod: 'check',
+      paymentStatus: PaymentStatus.PENDING,
+      showFeeInfo: { preEntryFee: '30', startDate: '2026-08-01', juniorFeeKnown: false },
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      quoteStaffJuniorFee,
+    });
+    await submitPaymentStep(ctx);
+    expect(quoteStaffJuniorFee).not.toHaveBeenCalled();
+    expect(submitOfflineLateEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ feePending: true, paymentStatus: PaymentStatus.PENDING })
     );
   });
 

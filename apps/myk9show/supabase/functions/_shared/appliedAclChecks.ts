@@ -41,6 +41,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   entries: 'INSERT,UPDATE,DELETE',
   entry_cart_items: 'SELECT,INSERT,UPDATE,DELETE',
   entry_carts: 'SELECT,INSERT,UPDATE,DELETE',
+  entry_checkout_fee_snapshots: '',
   entry_payment_links: 'SELECT',
   entry_status_history: 'SELECT',
   entry_submissions: 'SELECT',

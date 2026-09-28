@@ -43,6 +43,7 @@ export interface SubmitOfflineLateEntryParams {
   paymentStatus?: PaymentStatus | undefined;
   paymentDetails?: PaymentDetails | undefined;
   showFeeInfo: ShowFeeInfo;
+  feePending?: boolean;
 }
 
 export interface SubmitOfflineLateEntryResult {
@@ -111,6 +112,7 @@ export async function submitOfflineLateEntry({
   paymentStatus,
   paymentDetails,
   showFeeInfo,
+  feePending: verifiedFeePending,
 }: SubmitOfflineLateEntryParams): Promise<SubmitOfflineLateEntryResult> {
   if (!paymentMethod) {
     throw new Error('Payment method is required to save a late entry');
@@ -118,7 +120,8 @@ export async function submitOfflineLateEntry({
   if (paymentMethod === 'credit_card') {
     throw new Error('Offline late entries cannot use card checkout');
   }
-  const feePending = Number(showFeeInfo.juniorHandlerFee) > 0 && paymentMethod !== 'waived';
+  const feePending =
+    (verifiedFeePending ?? Number(showFeeInfo.juniorHandlerFee) > 0) && paymentMethod !== 'waived';
   if (feePending && (paymentMethod === 'secretary_paid' || paymentMethod === 'group_payment')) {
     throw new Error('Save the entry unpaid and record the payment after its fee syncs.');
   }

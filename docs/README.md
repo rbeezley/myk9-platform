@@ -76,6 +76,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md)                                 | Active    | Plan: MYK9-17 Role-Journey Visual QA Matrix                                        |
 | [plan-myk9-366.md](plan-myk9-366.md)                                                                             | Active    | MYK9-366 — Career show calendar dates                                              |
 | [plan-myk9-369.md](plan-myk9-369.md)                                                                             | Active    | MYK9-369 — registration dog picker search                                          |
+| [plan-myk9-662-fee-freeze.md](plan-myk9-662-fee-freeze.md)                                                       | Active    | MYK9-662 fee freeze and payment recovery                                           |
 | [plan-myk9-65-class-entry-count-consistency.md](plan-myk9-65-class-entry-count-consistency.md)                   | Active    | MYK9-65: Class Entry Count Consistency                                             |
 | [plan-sidebar-account-footer.md](plan-sidebar-account-footer.md)                                                 | Active    | Sidebar Account Footer Plan                                                        |
 | [plan-wave2-cross-role-seam-recovery.md](plan-wave2-cross-role-seam-recovery.md)                                 | Active    | Wave 2 Cross-Role Seam Recovery Implementation Plan                                |

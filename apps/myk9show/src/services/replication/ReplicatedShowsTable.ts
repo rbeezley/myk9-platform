@@ -52,7 +52,7 @@ export interface ReplicatedShow {
   entryCloseDate?: string | undefined;
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
-  juniorHandlerFee?: number | undefined;
+  juniorHandlerFee?: number | null | undefined;
   startingArmbandNumber?: number | undefined;
   clubId?: string | undefined;
   maxEntriesPerDog?: number | undefined;
@@ -102,8 +102,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     entryCloseDate: row.entry_close_date ?? undefined,
     preEntryFee: row.pre_entry_fee ?? undefined,
     dayOfShowFee: row.day_of_show_fee ?? undefined,
-    juniorHandlerFee:
-      (row as ShowRow & { junior_handler_fee?: number | null }).junior_handler_fee ?? undefined,
+    juniorHandlerFee: (row as ShowRow & { junior_handler_fee?: number | null }).junior_handler_fee,
     startingArmbandNumber: row.starting_armband_number ?? 100,
     clubId: row.club_id ?? undefined,
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,

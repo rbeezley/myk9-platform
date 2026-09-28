@@ -138,6 +138,15 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(s.expires_at).toBe(base.expiresAtEpoch);
   });
 
+  it('refuses explicit zero-dollar entries before creating a Stripe line', () => {
+    expect(() =>
+      buildEntryPaymentLinkSession({
+        ...base,
+        entries: [baseEntries[0], { ...baseEntries[1], authoritativeFeeCents: 0 }],
+      })
+    ).toThrow('no balance due');
+  });
+
   it('throws rather than create an empty (chargeless) session', () => {
     expect(() => buildEntryPaymentLinkSession({ ...base, entries: [] })).toThrow();
   });

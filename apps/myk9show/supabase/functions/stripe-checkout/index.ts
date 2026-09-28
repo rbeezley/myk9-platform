@@ -13,6 +13,7 @@ import {
   storedEntryFeeCents,
 } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
+import type { CheckoutFeeSnapshotItem } from '../_shared/checkoutFeeSnapshot.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
@@ -627,12 +628,14 @@ async function handleEntryCheckout(
           console.error(`Class gate for cart ${cart_id}: ${release.diagnostic}`);
           return corsResponse(corsHeaders, { error: release.error }, release.status);
         }
-        const refusal = await classGateRefusal(priorSessionId, () =>
-          supabase
-            .from('entry_carts')
-            .update({ stripe_checkout_session_id: null })
-            .eq('id', cart_id)
-            .eq('stripe_checkout_session_id', priorSessionId)
+        const refusal = await classGateRefusal(
+          priorSessionId,
+          async () =>
+            await supabase
+              .from('entry_carts')
+              .update({ stripe_checkout_session_id: null })
+              .eq('id', cart_id)
+              .eq('stripe_checkout_session_id', priorSessionId)
         );
         if (refusal.diagnostic) {
           console.error(`Class gate for cart ${cart_id}: ${refusal.diagnostic}`);
@@ -886,6 +889,19 @@ async function handleEntryCheckout(
     return corsResponse(corsHeaders, { error: resolution.error }, resolution.status);
   }
   if (resolution.reused) {
+    const { data: frozen, error: frozenError } = await supabase
+      .from('entry_checkout_fee_snapshots')
+      .select('session_id')
+      .eq('session_id', resolution.session.id)
+      .maybeSingle();
+    if (frozenError || !frozen) {
+      console.error(`Missing checkout fee snapshot for ${resolution.session.id}:`, frozenError);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Could not safely resume checkout. Please try again.' },
+        503
+      );
+    }
     console.log(`Reusing open checkout session ${resolution.session.id} for cart ${cart_id}`);
     return corsResponse(corsHeaders, {
       sessionId: resolution.session.id,
@@ -947,6 +963,69 @@ async function handleEntryCheckout(
       console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
     }
     return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
+  }
+
+  // Freeze the exact per-item fees and identities BEFORE returning a payable URL.
+  // The webhook reads this service-owned row instead of repricing at payment time.
+  const frozenItems: CheckoutFeeSnapshotItem[] = itemsWithAuthoritativeFee.map(
+    ({ item, authoritativeCents }) => ({
+      id: item.id,
+      dog_id: item.dog_id,
+      class_id: item.class_id,
+      entry_id: item.entry_id,
+      handler_id: item.handler_id,
+      jump_height: (item as { jump_height?: string | null }).jump_height ?? null,
+      special_requests: (item as { special_requests?: string | null }).special_requests ?? null,
+      fee_cents: authoritativeCents,
+    })
+  );
+  const { error: snapshotError } = await supabase.from('entry_checkout_fee_snapshots').insert({
+    session_id: session.id,
+    cart_id,
+    show_id: cart.show_id,
+    exhibitor_id: cart.exhibitor_id,
+    items: frozenItems,
+    subtotal_cents: subtotal,
+    platform_fee_cents: platformFeeCents,
+    total_cents: subtotal + platformFeeCents,
+  });
+  if (snapshotError) {
+    console.error(`Could not freeze checkout fees for ${session.id}:`, snapshotError);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireError) {
+      console.error(`CRITICAL: checkout ${session.id} could not be expired:`, expireError);
+    }
+    await supabase
+      .from('entry_carts')
+      .update({ stripe_checkout_session_id: null })
+      .eq('id', cart_id)
+      .eq('stripe_checkout_session_id', session.id);
+    return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
+  }
+
+  // A cart edit may clear the link while the snapshot insert is in flight.
+  // Check the link once more before giving the payer a usable Stripe URL.
+  const { data: linkedCart, error: linkReadError } = await supabase
+    .from('entry_carts')
+    .select('stripe_checkout_session_id')
+    .eq('id', cart_id)
+    .maybeSingle();
+  if (linkReadError || linkedCart?.stripe_checkout_session_id !== session.id) {
+    console.error(`Cart ${cart_id} changed after checkout snapshot:`, linkReadError);
+    try {
+      await stripe.checkout.sessions.expire(session.id);
+    } catch (expireError) {
+      console.error(
+        `CRITICAL: changed-cart checkout ${session.id} could not be expired:`,
+        expireError
+      );
+    }
+    return corsResponse(
+      corsHeaders,
+      { error: 'Your cart changed while checkout was starting. Please try again.' },
+      409
+    );
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);

@@ -101,6 +101,8 @@ export interface Show {
   preEntryFee: string;
   dayOfShowFee?: string | undefined; // Fee for registrations made on day of show
   juniorHandlerFee?: string | undefined;
+  /** False only when an old replicated row omitted the fee column entirely. */
+  juniorFeeKnown?: boolean | undefined;
   entryDeadline?: string | undefined; // Entry deadline date
   lateEntryDeadline?: string | undefined; // Late entry deadline date
   // Club relationship - FIXED: Added proper foreign key

@@ -119,7 +119,7 @@ describe('EntryManagementPage URL ownership', () => {
     entryDataState.loadedEntriesShowId = 'show-1';
   });
 
-  it('resolves a legacy entry focus to its show-scoped registration', async () => {
+  it('resolves a legacy entry focus and searches within its show-scoped registration', async () => {
     render(
       <>
         <EntryManagementPage />
@@ -130,7 +130,7 @@ describe('EntryManagementPage URL ownership', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('location-search')).toHaveTextContent(
-        '?registration=registration-1'
+        '?search=entry-1&registration=registration-1'
       )
     );
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('registration-1');

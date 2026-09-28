@@ -234,9 +234,9 @@ type ShowClassJudgeDayAvailability = WithReturnFields<
 >;
 
 /**
- * `get_club_officials` (MYK9-860, `20260928034700`), hand-declared until the next
- * `supabase gen types`. `role` is only ever these two values: the SQL folds
- * `trial_secretary` into 'secretary'. `person_name` is NULL for a person with no name.
+ * `get_club_officials` (MYK9-860, `20260928034700`) needs a correction to the
+ * generated return type. SQL folds `trial_secretary` into 'secretary' and returns
+ * NULL for a person with no name.
  */
 type GetClubOfficials = {
   Args: { p_club_id: string };
@@ -258,6 +258,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'move_up_entry'
       | 'get_show_class_availability'
       | 'get_show_class_judge_day_availability'
+      | 'get_club_officials'
       | keyof ClubMembershipRequestFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;

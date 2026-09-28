@@ -11,6 +11,12 @@ describe('benchmarkRequestDisposition', () => {
     ).toBe('continue');
   });
 
+  it('allows the read-only admin roster RPC required by /admin/users', () => {
+    expect(
+      benchmarkRequestDisposition('POST', `${base}/rest/v1/rpc/get_admin_user_list`, base)
+    ).toBe('continue');
+  });
+
   it('acknowledges telemetry without sending it to staging', () => {
     expect(benchmarkRequestDisposition('POST', `${base}/functions/v1/receive-logs`, base)).toBe(
       'acknowledge'

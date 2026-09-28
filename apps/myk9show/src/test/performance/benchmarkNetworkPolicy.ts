@@ -1,7 +1,13 @@
 import { AUDIT_READ_ONLY_RPCS } from '../e2e/helpers/sharedStagingWriteGuard';
 
-// The additional admin checks are STABLE in migrations 156 and 124.
-const readOnlyRpcNames = new Set([...AUDIT_READ_ONLY_RPCS, 'is_site_admin', 'is_platform_admin']);
+// The admin checks are STABLE in migrations 156 and 124. The roster RPC is
+// STABLE and read-only in migration 063; /admin/users requires it to load.
+const readOnlyRpcNames = new Set([
+  ...AUDIT_READ_ONLY_RPCS,
+  'is_site_admin',
+  'is_platform_admin',
+  'get_admin_user_list',
+]);
 
 /** Classify browser requests before they can reach shared staging services. */
 export function benchmarkRequestDisposition(

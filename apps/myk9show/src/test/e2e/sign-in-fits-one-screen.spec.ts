@@ -7,7 +7,9 @@ import { test, expect } from '@playwright/test';
  * fold: at 1440x760 the page overflowed by 73px, so the field you type into
  * was only reachable by scrolling. This asserts rendered GEOMETRY rather than
  * any class or copy, so it fails for whatever reason the card grows again —
- * a taller heading, a third provider, a restored helper line.
+ * a taller heading, a third provider, a restored helper line, or (MYK9-853)
+ * the password field that now renders beside the credential field from the
+ * start.
  *
  * 760px is a 1440x900 laptop window minus browser chrome; 812 is an
  * iPhone-class viewport. Both are the real thing, not the OS window size.
@@ -52,10 +54,12 @@ test.describe('sign-in fits one screen', () => {
       });
       expect(headerGap, 'card sits under the fixed app header').toBeGreaterThanOrEqual(0);
 
-      // The field, the submit and both providers must be reachable without scrolling.
+      // The field, the password field, the submit and both providers must be
+      // reachable without scrolling.
       for (const target of [
         field,
-        page.getByTestId('continue-button'),
+        page.getByTestId('password-input'),
+        page.getByTestId('sign-in-button'),
         page.getByRole('button', { name: /continue with google/i }),
         page.getByRole('button', { name: /continue with apple/i }),
       ]) {

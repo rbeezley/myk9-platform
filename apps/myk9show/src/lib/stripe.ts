@@ -182,7 +182,7 @@ export async function createEntryCheckoutSession(
 
 /** Verify and refresh server-authoritative cart fees before showing the amount due. */
 export async function refreshEntryCartFeeQuote(cartId: string): Promise<void> {
-  const { error } = await supabase.functions.invoke('stripe-checkout', {
+  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       mode: 'entry',
       cart_id: cartId,
@@ -197,6 +197,12 @@ export async function refreshEntryCartFeeQuote(cartId: string): Promise<void> {
       parsed.message ?? 'We could not confirm entry fees. Please try again.',
       parsed.status
     );
+  }
+  // An old checkout function ignores quote_only and returns a payable
+  // Session. Treat that response as unavailable; never display a quote that
+  // the server did not actually verify.
+  if (typeof data?.updated !== 'boolean') {
+    throw new CheckoutSessionError('We could not confirm entry fees. Please try again.');
   }
 }
 

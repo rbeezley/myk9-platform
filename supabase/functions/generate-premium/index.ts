@@ -76,7 +76,7 @@ handle<GeneratePremiumPayload>(
       .select(
         `
         id, name, organization, start_date, end_date, location,
-        entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
+        entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee, junior_handler_fee,
         accept_check_payments, accept_cash_payments, club_id,
         clubs(name, logo_url),
         trials(
@@ -309,6 +309,7 @@ handle<GeneratePremiumPayload>(
         entryCloseDate: show.entry_close_date,
         preEntryFee: show.pre_entry_fee,
         dayOfFee: show.day_of_show_fee,
+        juniorHandlerFee: show.junior_handler_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
       },
@@ -406,6 +407,9 @@ function buildShowSummary(show: Record<string, unknown>): string {
     `Location: ${show.location ?? 'TBD'}`,
     `Entry opens: ${formatDateForPrompt(show.entry_open_date)}, closes: ${formatDateForPrompt(show.entry_close_date)}`,
     `Pre-entry fee: $${show.pre_entry_fee ?? 'TBD'}, day-of fee: $${show.day_of_show_fee ?? 'TBD'}`,
+    ...(show.junior_handler_fee > 0
+      ? [`Junior handler fee: $${show.junior_handler_fee} per class`]
+      : []),
     `Payment: checks=${show.accept_check_payments}, cash=${show.accept_cash_payments}`,
     `Trials:\n${trialLines.join('\n')}`,
     'Note: Do not invent specific clock times or timezones in the narrative — only mention times if explicitly provided above.',

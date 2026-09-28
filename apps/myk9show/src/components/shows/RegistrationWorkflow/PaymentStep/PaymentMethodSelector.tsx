@@ -95,6 +95,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   acceptedMethods,
   allowCardCheckout = true,
   allowReceivedPayment = true,
+  juniorFeeMayApply = false,
   cardCheckoutUnavailableReason,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
@@ -258,7 +259,11 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   selected={paymentMethod === 'secretary_paid'}
                   icon={Receipt}
                   title="Secretary Payment (Already Received)"
-                  description="Payment received outside of online system"
+                  description={
+                    juniorFeeMayApply
+                      ? 'Record adult entries paid; junior entries remain due'
+                      : 'Payment received outside of online system'
+                  }
                   onSelect={handleSelect}
                 />
               </PermissionGuard>
@@ -268,8 +273,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
-                    Mark this registration as paid when payment has been received outside the online
-                    system.
+                    {juniorFeeMayApply
+                      ? 'Only adult entries will be marked paid. Junior entries remain due at their confirmed fee; check the receipt before collecting the remainder.'
+                      : 'Mark this registration as paid when payment has been received outside the online system.'}
                   </AlertDescription>
                 </Alert>
                 {/* MYK9-677: the payments ledger and the closeout card count cash
@@ -348,7 +354,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
-                    This registration is part of a group payment arrangement.
+                    This registration is part of a group payment arrangement. Record any money
+                    received in Entries Management after submission.
                   </AlertDescription>
                 </Alert>
                 <div>

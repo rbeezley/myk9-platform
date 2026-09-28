@@ -12,10 +12,11 @@ export type PaymentReconciliationEntry = {
   deleted_at: string | null;
   moved_from_entry_id: string | null;
   stripe_payment_intent_id: string | null;
+  entry_fee?: number | string | null;
 };
 
 export const PAYMENT_RECONCILIATION_ENTRY_COLUMNS =
-  'id, payment_status, entry_status, deleted_at, moved_from_entry_id, stripe_payment_intent_id';
+  'id, payment_status, entry_status, deleted_at, moved_from_entry_id, stripe_payment_intent_id, entry_fee';
 
 type FetchError = { message: string } | null;
 

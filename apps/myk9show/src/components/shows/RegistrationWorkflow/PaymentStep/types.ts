@@ -11,6 +11,8 @@ import type {
 export interface PaymentStepProps {
   /** Staff collects payment after the server has recorded a junior-priced entry. */
   deferJuniorPayment?: boolean;
+  /** Online staff submission can record adult money and defer junior lines atomically. */
+  juniorFeeMayApply?: boolean;
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   paymentMethod: PaymentMethod | '';
@@ -94,6 +96,7 @@ export interface FeeCalculationResult {
 /** Props for the PaymentMethodSelector sub-component. */
 export interface PaymentMethodSelectorProps {
   allowReceivedPayment?: boolean;
+  juniorFeeMayApply?: boolean;
   paymentMethod: PaymentMethod | '';
   onPaymentMethodChange: (method: PaymentMethod) => void;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */

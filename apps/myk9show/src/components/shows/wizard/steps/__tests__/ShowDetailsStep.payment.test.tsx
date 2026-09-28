@@ -92,6 +92,17 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(mockUpdateShowData).toHaveBeenCalledWith({ juniorHandlerFee: 0 });
   });
 
+  it('does not offer an unused junior rate for ASCA', () => {
+    const currentState = useWizardStore();
+    vi.mocked(useWizardStore).mockReturnValueOnce({
+      ...currentState,
+      show: { ...currentState.show, organization: 'ASCA' },
+    });
+
+    render(<ShowDetailsStep />);
+    expect(screen.queryByLabelText('Junior Handler Fee')).not.toBeInTheDocument();
+  });
+
   it('locks show-detail editing while a clone snapshot is loading', () => {
     const currentState = useWizardStore();
     vi.mocked(useWizardStore).mockReturnValueOnce({

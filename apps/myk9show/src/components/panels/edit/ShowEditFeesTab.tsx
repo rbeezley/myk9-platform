@@ -74,20 +74,22 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               />
             </FormField>
 
-            <FormField
-              label="Junior Handler Fee"
-              fieldId="juniorHandlerFee"
-              error={juniorHandlerFeeError}
-            >
-              <CurrencyInput
-                id="juniorHandlerFee"
-                value={data.juniorHandlerFee ?? ''}
-                onChange={handleFeeChange('juniorHandlerFee')}
-                placeholder="Optional"
-                className={juniorHandlerFeeError ? 'border-destructive' : ''}
-                {...form?.getFieldProps('juniorHandlerFee')}
-              />
-            </FormField>
+            {data.organization !== 'ASCA' && (
+              <FormField
+                label="Junior Handler Fee"
+                fieldId="juniorHandlerFee"
+                error={juniorHandlerFeeError}
+              >
+                <CurrencyInput
+                  id="juniorHandlerFee"
+                  value={data.juniorHandlerFee ?? ''}
+                  onChange={handleFeeChange('juniorHandlerFee')}
+                  placeholder="Optional"
+                  className={juniorHandlerFeeError ? 'border-destructive' : ''}
+                  {...form?.getFieldProps('juniorHandlerFee')}
+                />
+              </FormField>
+            )}
           </div>
 
           <p className="text-sm text-muted-foreground">

@@ -50,6 +50,13 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       </View>
 
+      {show.juniorHandlerFee != null && show.juniorHandlerFee > 0 && (
+        <View style={s.row}>
+          <Text style={s.label}>Junior Handler Fee</Text>
+          <Text style={s.value}>${show.juniorHandlerFee} per class</Text>
+        </View>
+      )}
+
       <View style={s.row}>
         <Text style={s.label}>Entry Opens</Text>
         <Text style={s.value}>

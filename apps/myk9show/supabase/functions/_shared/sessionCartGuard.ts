@@ -23,8 +23,8 @@ export interface SessionCartGuardInput {
   cartItemCount: number;
   /** entry_carts.expires_at at webhook time — null tolerated for legacy rows */
   cartExpiresAt: string | null;
-  /** the webhook's clock, ISO — injected so the guard stays pure/testable */
-  nowIso: string;
+  /** Stripe event creation time, not webhook delivery time; stable on retries. */
+  paidEventIso: string;
   /** entry_carts.subtotal_cents written at checkout — null tolerated (legacy) */
   cartSubtotalCents: number | null;
   /** sum of the CURRENT items' entry_fee_cents at webhook time */
@@ -43,13 +43,12 @@ export function sessionMatchesCart(input: SessionCartGuardInput): SessionCartGua
       reason: `cart is empty — session ${input.sessionId} paid for items that were since removed`,
     };
   }
-  // Round-12 P1: app carts expire (~30 min) but a Stripe Checkout page stays
-  // payable far longer by default. Paying the old page must not resurrect an
-  // expired cart — its contents were frozen while deadlines (entry close,
-  // class capacity) kept moving. Checkout also clamps the Stripe session
-  // lifetime to the cart's, so post-fix this fires only for pre-fix sessions
-  // or clock-skew seconds; the webhook alerts and the operator refunds.
-  if (input.cartExpiresAt != null && new Date(input.cartExpiresAt) < new Date(input.nowIso)) {
+  // Judge expiry when Stripe recorded payment. A redelivery after a database
+  // outage must not refund a charge that completed while the cart was valid.
+  if (
+    input.cartExpiresAt != null &&
+    new Date(input.cartExpiresAt) < new Date(input.paidEventIso)
+  ) {
     return {
       ok: false,
       reason:

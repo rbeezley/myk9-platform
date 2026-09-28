@@ -5,6 +5,8 @@
 // Both link subjects are existing entries (Task 1): a mail-in entry sits at
 // payment_status='pending'; a promoted waitlist entry also sits at
 // payment_status='pending' (column default) AND entry_status='pending-payment'.
+import { storedEntryFeeCents } from './authoritativeFee.ts';
+import { calculatePlatformFeeCents, type PlatformFeeRates } from './platformFee.ts';
 
 export interface ReconcileEntryRow {
   id: string;
@@ -83,6 +85,50 @@ export const INACTIVE_ENTRY_STATUSES = new Set([
   'promotion-expired',
   'cancelled',
 ]);
+
+/** Verify a paid link before any entry is stamped. The root retains the fee
+ * when an entry moves, while the Checkout line can name its live destination. */
+export function verifyPaymentLinkFrozenAmount(input: {
+  entryIds: string[];
+  reconciliationEntryIds: string[];
+  entries: (ReconcileEntryRow & { entry_fee?: number | string | null })[];
+  lineFeesById: Map<string, number>;
+  linkSubtotalCents: number | null;
+  sessionTotalCents: number | null;
+  feeRates: PlatformFeeRates;
+}): { valid: boolean; reason: string } {
+  const rows = new Map(input.entries.map(entry => [entry.id, entry]));
+  let lineSubtotalCents = 0;
+  if (input.lineFeesById.size !== input.entryIds.length) {
+    return { valid: false, reason: 'entry line count differs from the payment link' };
+  }
+  for (const [index, entryId] of input.entryIds.entries()) {
+    const lineCents = input.lineFeesById.get(entryId);
+    if (!Number.isSafeInteger(lineCents) || lineCents! <= 0) {
+      return { valid: false, reason: `entry ${entryId} has no valid Stripe line amount` };
+    }
+    lineSubtotalCents += lineCents!;
+    const root = rows.get(input.reconciliationEntryIds[index] ?? entryId);
+    // A deleted entry is handled by the existing invalid-line refund path.
+    if (!root) continue;
+    const frozenCents = storedEntryFeeCents(root.entry_fee ?? null);
+    if (frozenCents === null || lineCents !== frozenCents) {
+      return { valid: false, reason: `entry ${entryId} differs from its frozen entry fee` };
+    }
+  }
+  if (lineSubtotalCents !== input.linkSubtotalCents) {
+    return { valid: false, reason: 'Stripe entry subtotal differs from the saved link' };
+  }
+  const expectedTotal =
+    lineSubtotalCents + calculatePlatformFeeCents(lineSubtotalCents, input.feeRates);
+  if (input.sessionTotalCents !== expectedTotal) {
+    return {
+      valid: false,
+      reason: 'Stripe paid total differs from the frozen entry and platform fees',
+    };
+  }
+  return { valid: true, reason: '' };
+}
 
 export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileResult {
   const empty = {

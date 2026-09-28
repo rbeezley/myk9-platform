@@ -64,6 +64,7 @@ function applyShowFormDataToPremium(
 ): GeneratedPremium {
   const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
+  const juniorHandlerFee = parseOptionalCurrency(formData.juniorHandlerFee);
 
   return {
     ...premium,
@@ -78,6 +79,10 @@ function applyShowFormDataToPremium(
       entryCloseDate: formData.entryCloseDate ?? premium.show.entryCloseDate,
       preEntryFee: preEntryFee ?? premium.show.preEntryFee,
       dayOfFee: dayOfFee ?? premium.show.dayOfFee,
+      juniorHandlerFee:
+        formData.organization === 'ASCA'
+          ? null
+          : (juniorHandlerFee ?? premium.show.juniorHandlerFee ?? null),
       acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
       acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
     },

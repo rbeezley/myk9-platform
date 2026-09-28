@@ -5,9 +5,12 @@ import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCa
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
+import { recoverSubmittedCart } from '../_shared/paidCartClaim.ts';
+import { buildLegacyCheckoutSnapshot } from '../_shared/legacyCheckoutSnapshot.ts';
 import {
   INACTIVE_ENTRY_STATUSES,
   reconcileEntryPaymentRequest,
+  verifyPaymentLinkFrozenAmount,
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
@@ -15,7 +18,7 @@ import {
   validateCheckoutFeeSnapshot,
   type CheckoutFeeSnapshot,
 } from '../_shared/checkoutFeeSnapshot.ts';
-import { refundUnfulfillableCheckout } from '../_shared/checkoutRefund.ts';
+import { findActiveAutoRefund, refundUnfulfillableCheckout } from '../_shared/checkoutRefund.ts';
 import {
   calculatePlatformFeeCents,
   decodeStampedPlatformFeeRates,
@@ -176,7 +179,7 @@ async function handleEvent(event: Stripe.Event) {
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded':
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event.created);
       break;
 
     case 'checkout.session.async_payment_failed':
@@ -879,12 +882,12 @@ async function stampWithdrawalSnapshot(entryIds: string[], showId: string | null
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, paidEventCreated: number) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
   if (checkoutType === 'entry') {
-    await handleEntryPaymentCompleted(session);
+    await handleEntryPaymentCompleted(session, paidEventCreated);
   } else if (checkoutType === 'entry_payment_request') {
     await handleEntryPaymentRequestCompleted(session);
   } else if (session.mode === 'subscription') {
@@ -910,20 +913,56 @@ async function refundUnfulfillableEntryCheckout(
   session: Stripe.Checkout.Session,
   reason: string
 ): Promise<void> {
+  const { data: order, error: orderError } = await supabase
+    .from('stripe_orders')
+    .select('id')
+    .eq('stripe_checkout_session_id', session.id)
+    .maybeSingle();
+  if (orderError) throw new Error(`Pre-refund order read failed: ${orderError.message}`);
+  if (order) return;
+  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
+  if (paymentIntentId) {
+    const { data: entries, error: entriesError } = await supabase
+      .from('entries')
+      .select('id')
+      .eq('stripe_payment_intent_id', paymentIntentId)
+      .limit(1);
+    if (entriesError) throw new Error(`Pre-refund entry read failed: ${entriesError.message}`);
+    if (entries?.length) {
+      throw new Error(`Paid checkout ${session.id} has entries; reconcile before refund`);
+    }
+  }
   await refundUnfulfillableCheckout(
     {
       sessionId: session.id,
-      paymentIntentId: extractPaymentIntentId(session.payment_intent),
+      paymentIntentId,
       reason,
     },
     {
       create: (params, options) => stripe.refunds.create(params, options),
+      findExisting: async (paymentIntentId, sessionId) => {
+        let startingAfter: string | undefined;
+        for (;;) {
+          const page = await stripe.refunds.list({
+            payment_intent: paymentIntentId,
+            limit: 100,
+            ...(startingAfter ? { starting_after: startingAfter } : {}),
+          });
+          const found = findActiveAutoRefund(page.data, 'entry_checkout_auto_refund', sessionId);
+          if (found) return { id: found.id };
+          if (!page.has_more || page.data.length === 0) return null;
+          startingAfter = page.data[page.data.length - 1].id;
+        }
+      },
       alert: alertAdmin,
     }
   );
 }
 
-async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
+async function handleEntryPaymentCompleted(
+  session: Stripe.Checkout.Session,
+  paidEventCreated: number
+) {
   const cartId = session.metadata?.cart_id;
   if (!cartId) {
     console.error('No cart_id in session metadata');
@@ -988,32 +1027,58 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // A redelivery after the first webhook finished must never auto-refund a
   // fulfilled charge merely because its old cart has since expired or changed.
   if (cart.status === 'submitted') {
-    const { data: completedOrder, error: orderLookupError } = await supabase
-      .from('stripe_orders')
-      .select('id')
-      .eq('stripe_checkout_session_id', session.id)
-      .maybeSingle();
-    if (orderLookupError)
-      throw new Error(`Order idempotency read failed: ${orderLookupError.message}`);
-    if (completedOrder) return;
     const intentId = extractPaymentIntentId(session.payment_intent);
-    const { data: partialEntries, error: partialError } = intentId
-      ? await supabase
-          .from('entries')
-          .select('id')
-          .eq('stripe_payment_intent_id', intentId)
-          .limit(1)
-      : { data: [], error: null };
-    if (partialError) throw new Error(`Partial entry read failed: ${partialError.message}`);
-    if (partialEntries?.length) {
-      await alertAdmin(
-        'Paid cart has entries but no completed order',
-        `<p>Checkout ${session.id} has entries but no order. Reconcile before refunding.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `partial-paid-cart-${session.id}` }
-      );
-      return;
-    }
-    throw new Error(`Paid cart ${cartId} is claimed but has no order or entries`);
+    const recovered = await recoverSubmittedCart(
+      {
+        paidSessionId: session.id,
+        cartSessionId: cart.stripe_checkout_session_id ?? null,
+        cartUpdatedAt: cart.updated_at ?? null,
+        nowIso: new Date().toISOString(),
+      },
+      {
+        orderExists: async () => {
+          const { data, error } = await supabase
+            .from('stripe_orders')
+            .select('id')
+            .eq('stripe_checkout_session_id', session.id)
+            .maybeSingle();
+          if (error) throw new Error(`Order idempotency read failed: ${error.message}`);
+          return !!data;
+        },
+        intentHasEntries: async () => {
+          if (!intentId) return false;
+          const { data, error } = await supabase
+            .from('entries')
+            .select('id')
+            .eq('stripe_payment_intent_id', intentId)
+            .limit(1);
+          if (error) throw new Error(`Partial entry read failed: ${error.message}`);
+          return !!data?.length;
+        },
+        alertPartial: () =>
+          alertAdmin(
+            'Paid cart has entries but no completed order',
+            `<p>Checkout ${session.id} has entries but no order. Reconcile before refunding.</p>`,
+            { source: 'stripe-webhook', dedupeKey: `partial-paid-cart-${session.id}` }
+          ),
+        refundDuplicate: () =>
+          refundUnfulfillableEntryCheckout(session, 'A different paid Session claimed this cart'),
+        releaseStaleClaim: async cutoffIso => {
+          const { data, error } = await supabase
+            .from('entry_carts')
+            .update({ status: 'active' })
+            .eq('id', cartId)
+            .eq('status', 'submitted')
+            .eq('stripe_checkout_session_id', session.id)
+            .eq('updated_at', cart.updated_at)
+            .lt('updated_at', cutoffIso)
+            .select('id');
+          if (error) throw new Error(`Paid cart claim release failed: ${error.message}`);
+          return !!data?.length;
+        },
+      }
+    );
+    if (recovered === 'handled') return;
   }
 
   const { data: snapshotRow, error: snapshotError } = await supabase
@@ -1024,11 +1089,42 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('session_id', session.id)
     .maybeSingle();
   if (snapshotError) throw new Error(`Checkout snapshot read failed: ${snapshotError.message}`);
-  if (!snapshotRow) {
-    await refundUnfulfillableEntryCheckout(session, 'No frozen fee snapshot exists');
-    return;
+  let legacyFreshSession: Stripe.Checkout.Session | null = null;
+  let snapshot = snapshotRow as CheckoutFeeSnapshot | null;
+  if (!snapshot) {
+    // A new-version Session without its mandatory snapshot is a transient or
+    // operational error, not evidence that the customer's payment is invalid.
+    if (session.metadata?.fee_snapshot_version === '1') {
+      throw new Error(`Paid checkout ${session.id} is missing its frozen fee snapshot`);
+    }
+    // Open Sessions from the previous deployment have no snapshot. Rebuild it
+    // once from Stripe's immutable charged lines, only if they still match the
+    // cart this Session points at. Never derive a legacy paid fee from live DOB.
+    legacyFreshSession = await stripe.checkout.sessions.retrieve(session.id);
+    if (legacyFreshSession.metadata?.fee_snapshot_version === '1') {
+      throw new Error(`Paid checkout ${session.id} is missing its frozen fee snapshot`);
+    }
+    const legacyLines = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
+    if (legacyLines.has_more || legacyFreshSession.amount_total == null) {
+      throw new Error(`Paid legacy checkout ${session.id} line items could not be verified`);
+    }
+    snapshot = buildLegacyCheckoutSnapshot(
+      session.id,
+      cart,
+      legacyLines.data.map(line => line.amount_total),
+      legacyFreshSession.amount_total
+    );
+    if (!snapshot) {
+      await refundUnfulfillableEntryCheckout(session, 'Legacy charged lines do not match the cart');
+      return;
+    }
+    const { error: legacySnapshotError } = await supabase
+      .from('entry_checkout_fee_snapshots')
+      .insert(snapshot);
+    if (legacySnapshotError && legacySnapshotError.code !== '23505') {
+      throw new Error(`Legacy checkout snapshot write failed: ${legacySnapshotError.message}`);
+    }
   }
-  const snapshot = snapshotRow as CheckoutFeeSnapshot;
 
   // Refuse a paid session the cart no longer points at: the exhibitor started
   // checkout, abandoned the Stripe tab, changed the cart, then paid the OLD
@@ -1043,7 +1139,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     cartTotalCents: snapshot.total_cents,
     cartItemCount: cart.items?.length ?? 0,
     cartExpiresAt: cart.expires_at ?? null,
-    nowIso: new Date().toISOString(),
+    paidEventIso: new Date(paidEventCreated * 1000).toISOString(),
     cartSubtotalCents: snapshot.subtotal_cents,
     itemFeesSumCents: snapshot.items.reduce((sum, item) => sum + item.fee_cents, 0),
   });
@@ -1055,7 +1151,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // The webhook payload may omit amount_total. Read the paid amount from
   // Stripe and compare it with the immutable, service-owned fee snapshot
   // before claiming the cart. Mutable cart fees never set paid entry amounts.
-  const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+  const freshSession = legacyFreshSession ?? (await stripe.checkout.sessions.retrieve(session.id));
   const freshGate = decideFreshSessionGate(freshSession);
   if (freshGate.action === 'skip') {
     // Delayed-notification methods (e.g. some bank debits) fire
@@ -1137,64 +1233,36 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .select('id');
 
   if (claimError) {
-    // Same severity as the entries-shortfall below — email, don't just log.
+    // This is before any entry insert. A 5xx lets Stripe retry after a
+    // transient database failure instead of stranding a paid cart.
     console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
     await alertAdmin(
       'Paid cart could not be claimed — entries NOT created',
       `<p>Checkout session <code>${session.id}</code> was PAID, but claiming cart
        <code>${cartId}</code> failed with a database error, so no entries were created
-       and Stripe will not retry the event.</p>
+       and Stripe will retry the event.</p>
        <pre>${claimError.message}</pre>
        <p>Recovery: verify the payment in the Stripe dashboard, then create the
        entries manually from the cart items (or refund the payment).</p>`,
       { source: 'stripe-webhook', dedupeKey: `cart-claim-failed-${session.id}` }
     );
-    return;
+    throw new Error(`Paid cart ${cartId} claim failed: ${claimError.message}`);
   }
   if (!claimed || claimed.length === 0) {
-    // Already-claimed cart: benign for a RE-DELIVERED event (same payment
-    // intent that created the entries), but a SECOND paid session on the same
-    // cart is a real duplicate CHARGE with nothing to show for it (Codex P1).
-    // Distinguish them by whether this intent created any entries.
-    const dupIntentId = extractPaymentIntentId(session.payment_intent);
-    const { data: existingOrder } = await supabase
+    // Another worker won the claim between our cart read and update. If it
+    // has not finished, let Stripe retry rather than ACKing an unfulfilled
+    // payment. The submitted-cart recovery path handles the redelivery.
+    const { data: existingOrder, error: racedOrderError } = await supabase
       .from('stripe_orders')
       .select('id')
       .eq('stripe_checkout_session_id', session.id)
       .maybeSingle();
+    if (racedOrderError) throw new Error(`Raced order read failed: ${racedOrderError.message}`);
     if (existingOrder) {
       console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
       return;
     }
-    if (dupIntentId) {
-      const { data: intentEntries } = await supabase
-        .from('entries')
-        .select('id')
-        .eq('stripe_payment_intent_id', dupIntentId)
-        .limit(1);
-      if (!intentEntries || intentEntries.length === 0) {
-        console.error(
-          `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
-        );
-        await alertAdmin(
-          'Possible duplicate entry payment — verify, then refund',
-          `<p>Checkout session <code>${session.id}</code> was PAID for cart
-           <code>${cartId}</code>, but that cart was already claimed and this payment
-           intent owns no entries — most likely the exhibitor was charged twice.</p>
-           <p>VERIFY FIRST (a racing duplicate webhook delivery can trip this while
-           the winner's entries are still inserting): in the Stripe dashboard confirm
-           TWO separate successful payments exist for this cart, and in the entries
-           page confirm the cart's entries exist once. Then refund payment intent
-           <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
-           or orders were created for it, so the dashboard refund is the complete
-           fix.</p>`,
-          { source: 'stripe-webhook', dedupeKey: `duplicate-entry-payment-${session.id}` }
-        );
-        return;
-      }
-    }
-    console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
-    return;
+    throw new Error(`Paid cart ${cartId} claim was won by another worker; retry`);
   }
 
   // Get stripe_customers record for this person
@@ -1666,7 +1734,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const { data: link, error: linkError } = await supabase
     .from('entry_payment_links')
-    .select('id, show_id, entry_ids, status')
+    .select('id, show_id, entry_ids, status, amount_cents')
     .eq('stripe_checkout_session_id', session.id)
     .maybeSingle();
 
@@ -1733,6 +1801,40 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     console.log(
       `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${freshSession.payment_status})`
     );
+    return;
+  }
+
+  // A link charges a fee frozen on each submitted entry. Verify the actual
+  // Stripe lines and paid total before touching any entry; a later fee edit
+  // cannot authorize a different amount. Stripe read failures retry this event.
+  const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
+  const linkFeeRates = decodeStampedPlatformFeeRates(
+    freshSession.metadata,
+    Deno.env.get('PLATFORM_FEE_PERCENT')
+  );
+  const amountCheck = verifyPaymentLinkFrozenAmount({
+    entryIds,
+    reconciliationEntryIds,
+    entries,
+    lineFeesById: entryFeesById,
+    linkSubtotalCents: link.amount_cents,
+    sessionTotalCents: freshAmountTotalCents,
+    feeRates: linkFeeRates,
+  });
+  if (!amountCheck.valid) {
+    await alertAdmin(
+      'Paid payment link failed frozen-fee verification',
+      `<p>Session <code>${session.id}</code> was paid but no entries were stamped: ${amountCheck.reason}.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-frozen-fee-mismatch-${session.id}` }
+    );
+    await issueEntryPaymentAutoRefund({
+      session,
+      paymentIntentId,
+      amountCents: freshAmountTotalCents,
+      reason: 'full_make_whole',
+      invalidEntryIds: entryIds,
+      linkId: link.id,
+    });
     return;
   }
 
@@ -1882,7 +1984,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // per-entry line-item fees are what the financial snapshot below is built
   // from, not just the refund amount. Deriving the snapshot from the session
   // total instead overstated the platform fee on every partial-invalid order.
-  const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
   // Checkout lines point at the live move-up destination, while the payment
   // stamp is applied to its original money root. Keep the destination's
   // authoritative line fee available under the root id for refund arithmetic.
@@ -1899,10 +2000,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // earned once per CHARGE, so splitting them across the invalid entries
   // refunded fee income the platform had genuinely retained (MYK9-197 B1).
   // Absent stamps read as 0 — see decodeStampedPlatformFeeRates.
-  const linkFeeRates = decodeStampedPlatformFeeRates(
-    freshSession.metadata,
-    Deno.env.get('PLATFORM_FEE_PERCENT')
-  );
   const updateOutcome = reconcileEntryPaymentUpdateOutcome({
     plannedPatchIds,
     updatedEntryIds,
@@ -2261,12 +2358,8 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
 }
 
 async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<string, number>> {
-  try {
-    return await loadEntryPaymentLineItemFeesFromStripe(stripe.checkout.sessions, sessionId);
-  } catch (err) {
-    console.error(`Could not load line items for payment-link session ${sessionId}:`, err);
-  }
-  return new Map<string, number>();
+  // A failed Stripe read must retry before any entry is stamped or refunded.
+  return loadEntryPaymentLineItemFeesFromStripe(stripe.checkout.sessions, sessionId);
 }
 
 async function issueEntryPaymentAutoRefund(input: {
@@ -2293,29 +2386,43 @@ async function issueEntryPaymentAutoRefund(input: {
   }
 
   try {
-    // Safe with reason in the key: callers first close the payment-link row, so
-    // later webhook deliveries return before they can issue a second refund.
-    const refund = await stripe.refunds.create(
-      {
+    // Stripe retains idempotency keys for only 24 hours. A late webhook replay
+    // must reuse our existing refund even if the link was not latched.
+    let refund: Stripe.Refund | undefined;
+    let startingAfter: string | undefined;
+    for (;;) {
+      const page = await stripe.refunds.list({
         payment_intent: input.paymentIntentId,
-        amount: input.amountCents,
-        metadata: {
-          type: 'entry_payment_request_auto_refund',
-          // RACE-PROOF ATTRIBUTION: `charge.refunded` can arrive BEFORE this
-          // writer books its own ledger row, and the ledger upsert deliberately
-          // never overwrites `kind`. Without a marker ON THE STRIPE OBJECT the
-          // sweep would book this make-whole refund as 'post_hoc' and it would
-          // stay a permanent (wrong) platform loss. Stripe carries this metadata
-          // on every delivery, so the kind is knowable regardless of order.
-          [MAKE_WHOLE_METADATA_KEY]: 'true',
-          checkout_session_id: input.session.id,
-          entry_payment_link_id: input.linkId ?? '',
-          reason: input.reason,
-          invalid_entry_ids: JSON.stringify(input.invalidEntryIds),
+        limit: 100,
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      refund = findActiveAutoRefund(
+        page.data,
+        'entry_payment_request_auto_refund',
+        input.session.id,
+        input.reason
+      );
+      if (refund || !page.has_more || page.data.length === 0) break;
+      startingAfter = page.data[page.data.length - 1].id;
+    }
+    if (!refund) {
+      refund = await stripe.refunds.create(
+        {
+          payment_intent: input.paymentIntentId,
+          amount: input.amountCents,
+          metadata: {
+            type: 'entry_payment_request_auto_refund',
+            // RACE-PROOF ATTRIBUTION: see MAKE_WHOLE_METADATA_KEY above.
+            [MAKE_WHOLE_METADATA_KEY]: 'true',
+            checkout_session_id: input.session.id,
+            entry_payment_link_id: input.linkId ?? '',
+            reason: input.reason,
+            invalid_entry_ids: JSON.stringify(input.invalidEntryIds),
+          },
         },
-      },
-      { idempotencyKey: `entry-payment-request-auto-refund-${input.session.id}-${input.reason}` }
-    );
+        { idempotencyKey: `entry-payment-request-auto-refund-${input.session.id}-${input.reason}` }
+      );
+    }
     console.error(
       `AUTO-REFUND: ${refund.id} refunded ${refund.amount}¢ for payment-link session ${input.session.id} (${input.reason})`
     );
@@ -2369,6 +2476,14 @@ async function issueEntryPaymentAutoRefund(input: {
       );
     }
   } catch (err) {
+    if ((err as { code?: string }).code === 'charge_already_refunded') {
+      await alertAdmin(
+        'Payment link charge was already refunded',
+        `<p>Session <code>${input.session.id}</code> needs a refund, but payment intent <code>${input.paymentIntentId}</code> was already refunded. Verify the Stripe refund and local order ledger.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-already-refunded-${input.session.id}` }
+      );
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error(
       `CRITICAL: auto-refund failed for payment-link session ${input.session.id}:`,
@@ -2382,6 +2497,7 @@ async function issueEntryPaymentAutoRefund(input: {
        <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-refund-failed-${input.session.id}` }
     );
+    throw err;
   }
 }
 

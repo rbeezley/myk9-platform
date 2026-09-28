@@ -86,7 +86,11 @@ export function PosterBody({ data, tokens }: Props) {
           Online entries via myK9Show
         </Text>
         <Text style={bodyStyle}>
-          Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'} ·{' '}
+          Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'}
+          {show.juniorHandlerFee != null && show.juniorHandlerFee > 0
+            ? ` · Junior handler $${show.juniorHandlerFee} per class`
+            : ''}{' '}
+          ·{' '}
           {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(Boolean).join(', ') ||
             'Payment methods TBD'}
           .{'\n'}

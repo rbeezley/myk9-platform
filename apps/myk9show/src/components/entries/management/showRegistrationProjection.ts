@@ -211,6 +211,7 @@ function getEntrySearchDocument(group: ShowRegistrationGroup, entry: EntryManage
       group.exhibitorEmail,
       group.confirmationNumber,
       entry.confirmationNumber,
+      entry.id,
       entry.dogName,
       entry.handlerName,
       entry.armbandNumber,

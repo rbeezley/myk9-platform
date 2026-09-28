@@ -13,7 +13,7 @@ describe('sessionMatchesCart', () => {
     cartTotalCents: 6180,
     cartItemCount: 2,
     cartExpiresAt: '2026-06-11T12:30:00Z',
-    nowIso: '2026-06-11T12:10:00Z',
+    paidEventIso: '2026-06-11T12:10:00Z',
     cartSubtotalCents: 6000,
     itemFeesSumCents: 6000,
   };
@@ -57,10 +57,14 @@ describe('sessionMatchesCart', () => {
   // page stays payable far longer by default — paying the old page must not
   // resurrect an expired cart (entries could land after entry-close from a
   // cart frozen before it).
-  it('rejects a paid session for an EXPIRED cart', () => {
-    const result = sessionMatchesCart({ ...current, nowIso: '2026-06-11T12:31:00Z' });
+  it('rejects a session paid after the cart expired', () => {
+    const result = sessionMatchesCart({ ...current, paidEventIso: '2026-06-11T12:31:00Z' });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/expired/i);
+  });
+
+  it('allows a webhook redelivery after expiry when payment happened before expiry', () => {
+    expect(sessionMatchesCart(current)).toEqual({ ok: true });
   });
 
   it('tolerates a cart with no expiry (legacy rows) when everything else matches', () => {

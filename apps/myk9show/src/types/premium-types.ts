@@ -78,6 +78,7 @@ export interface GeneratedPremium {
     entryCloseDate: string | null;
     preEntryFee: number | null;
     dayOfFee: number | null;
+    juniorHandlerFee?: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
   };

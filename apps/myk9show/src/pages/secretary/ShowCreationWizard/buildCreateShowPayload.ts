@@ -219,7 +219,8 @@ export function buildCreateShowPayload(
     entryCloseDate: show.entryCloseDate || undefined,
     preEntryFee: show.preEntryFee ?? undefined,
     dayOfShowFee: show.dayOfShowFee ?? undefined,
-    juniorHandlerFee: show.juniorHandlerFee ?? undefined,
+    juniorHandlerFee:
+      show.organization === 'ASCA' ? undefined : (show.juniorHandlerFee ?? undefined),
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
     style: showStyle,
@@ -290,7 +291,7 @@ export function buildCreateShowPayload(
         entry_close_date: show.entryCloseDate ? toLocalDateOnly(show.entryCloseDate) : null,
         pre_entry_fee: show.preEntryFee ?? null,
         day_of_show_fee: show.dayOfShowFee ?? null,
-        junior_handler_fee: show.juniorHandlerFee || null,
+        junior_handler_fee: show.organization === 'ASCA' ? null : show.juniorHandlerFee || null,
         accept_check_payments: show.acceptCheckPayments,
         accept_cash_payments: show.acceptCashPayments,
         style: showStyle,

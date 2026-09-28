@@ -11,7 +11,8 @@ import type { GeneratedPremium } from '../../../../types/premium-types';
  */
 export function isPosterMinimumDataMet(data: GeneratedPremium): boolean {
   const hasJudges = data.trials?.some(t => t.judges?.length > 0) ?? false;
-  const hasFees = !!data.show?.preEntryFee || !!data.show?.dayOfFee;
+  const hasFees =
+    !!data.show?.preEntryFee || !!data.show?.dayOfFee || !!data.show?.juniorHandlerFee;
   const hasTrials = (data.trials?.length ?? 0) > 0;
   return hasJudges && hasFees && hasTrials;
 }

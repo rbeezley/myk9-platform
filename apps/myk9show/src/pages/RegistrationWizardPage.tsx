@@ -128,10 +128,14 @@ function RegistrationWizardContent() {
   // except the Receipt, which has nothing left to total and keeps its own
   // ReceiptExits footer at every width.
   const isPaymentStep = currentStepId === 'payment';
-  const deferJuniorPayment =
+  const juniorFeeMayApply =
     currentWorkflowMode !== 'exhibitor' &&
     registrationData.paymentMethod !== 'waived' &&
+    currentShow?.organization !== 'ASCA' &&
     Number(currentShow?.juniorHandlerFee) > 0;
+  // The offline path cannot read private handler age; the online submission
+  // can atomically record adult money while leaving junior lines pending.
+  const deferJuniorPayment = juniorFeeMayApply && isLateEntryMode;
   const panelGroups = useEntriesPanelGroups({
     selectedDogIds: registrationData.selectedDogs,
     feeCalculation: liveFeeCalculation,
@@ -199,7 +203,7 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
-        feeUnconfirmed={deferJuniorPayment}
+        feeUnconfirmed={juniorFeeMayApply}
         waitlistClassIds={waitlistClassIds}
         {...(isPaymentStep
           ? {
@@ -416,6 +420,7 @@ function RegistrationWizardContent() {
               currentWorkflowConfig={currentWorkflowConfig}
               currentWorkflowMode={currentWorkflowMode}
               deferJuniorPayment={deferJuniorPayment}
+              juniorFeeMayApply={juniorFeeMayApply}
               registrationData={registrationData}
               optimisticState={optimisticState}
               showId={showId}

@@ -52,7 +52,8 @@ export function GazetteBody({ data, tokens }: Props) {
   const hasOfficials = Boolean(officials.chairman);
   const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
   const hasClasses = trials.some(t => (t.classes?.length ?? 0) > 0);
-  const hasFees = (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0;
+  const hasFees =
+    (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0 || (show.juniorHandlerFee ?? 0) > 0;
   const hasEntry = Boolean(
     show.entryOpenDate || show.entryCloseDate || secretary.email || secretary.mailingAddress
   );
@@ -146,6 +147,9 @@ export function GazetteBody({ data, tokens }: Props) {
             </View>
             <Text style={bodyTextStyle}>Pre-entry: ${show.preEntryFee ?? '—'}</Text>
             <Text style={bodyTextStyle}>Day-of: ${show.dayOfFee ?? '—'}</Text>
+            {show.juniorHandlerFee != null && show.juniorHandlerFee > 0 && (
+              <Text style={bodyTextStyle}>Junior handler: ${show.juniorHandlerFee} per class</Text>
+            )}
             <Text style={bodyTextStyle}>
               {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash']
                 .filter(Boolean)

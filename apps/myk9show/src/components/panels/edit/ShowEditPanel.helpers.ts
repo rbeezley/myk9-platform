@@ -77,7 +77,11 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
   ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee && { dayOfShowFee: formData.dayOfShowFee }),
-  ...(formData.juniorHandlerFee !== undefined && { juniorHandlerFee: formData.juniorHandlerFee }),
+  ...(formData.organization === 'ASCA'
+    ? { juniorHandlerFee: '' }
+    : formData.juniorHandlerFee !== undefined
+      ? { juniorHandlerFee: formData.juniorHandlerFee.trim() }
+      : {}),
 });
 
 export const formDataToShowSaveData = (formData: ShowEditFormData): ShowEditSaveData => ({

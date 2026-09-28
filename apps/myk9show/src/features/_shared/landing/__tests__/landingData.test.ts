@@ -88,6 +88,25 @@ describe('buildLandingData', () => {
     expect(buildLandingData(show, trials[1], trials, null).entryCount).toBeNull();
   });
 
+  it('publishes the junior rate with other entry fees when it applies', () => {
+    expect(
+      buildLandingData(
+        { ...show, organization: 'AKC', juniorHandlerFee: '15' },
+        trials[1],
+        trials,
+        0
+      ).fees
+    ).toContainEqual({ label: 'Junior handler entry', amount: '$15.00' });
+    expect(
+      buildLandingData(
+        { ...show, organization: 'ASCA', juniorHandlerFee: '15' },
+        trials[1],
+        trials,
+        0
+      ).fees
+    ).not.toContainEqual({ label: 'Junior handler entry', amount: '$15.00' });
+  });
+
   // MYK9-282: the previous comparator was parseInt(trialNumber) - parseInt(...).
   // trials.trial_number is TEXT and every real row is non-numeric ("Friday Trial 1"),
   // so both sides were NaN, the comparator returned NaN for every pair, and the sort

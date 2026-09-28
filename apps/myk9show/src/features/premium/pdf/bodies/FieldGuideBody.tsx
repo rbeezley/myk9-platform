@@ -55,7 +55,11 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
-    show.entryOpenDate || show.entryCloseDate || show.preEntryFee || show.dayOfFee
+    show.entryOpenDate ||
+    show.entryCloseDate ||
+    show.preEntryFee ||
+    show.dayOfFee ||
+    show.juniorHandlerFee
   );
   const hasSchedule = Boolean(narratives?.showHours?.trim());
   const hasLocation = Boolean(
@@ -206,11 +210,14 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>{formatPremiumDate(show.entryCloseDate)}</Text>
             </View>
           )}
-          {(show.preEntryFee || show.dayOfFee) && (
+          {(show.preEntryFee || show.dayOfFee || show.juniorHandlerFee) && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Fees</Text>
               <Text style={valueStyle}>
                 Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'}
+                {show.juniorHandlerFee != null && show.juniorHandlerFee > 0
+                  ? ` · Junior handler $${show.juniorHandlerFee} per class`
+                  : ''}
               </Text>
             </View>
           )}

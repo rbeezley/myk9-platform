@@ -18,6 +18,7 @@ import type { PaymentStepProps } from './types';
  */
 export const PaymentStep: React.FC<PaymentStepProps> = ({
   deferJuniorPayment = false,
+  juniorFeeMayApply = false,
   selectedDogs,
   classSelections,
   paymentMethod,
@@ -209,8 +210,26 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="status">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Save the entry first to confirm its fee. Then collect cash or check and record the
-            payment in Entries Management. Until then, the entry stays unpaid.
+            Save the entry first to confirm its fee. The adult amount shown for these classes is $
+            {feeCalculation.total.toFixed(2)}.{' '}
+            {Number(show?.juniorHandlerFee) > 0
+              ? `If a handler qualifies as a junior, that entry is $${Number(show?.juniorHandlerFee).toFixed(2)} per class. `
+              : 'A junior rate may apply. '}
+            After sync, collect cash or check and record the confirmed amount in Entries Management.
+            Until then, the entry stays unpaid.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {juniorFeeMayApply && !deferJuniorPayment && (
+        <Alert role="status">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            The adult estimate for these classes is ${feeCalculation.total.toFixed(2)}. A qualifying
+            junior entry is ${Number(show?.juniorHandlerFee).toFixed(2)} per class. If you record
+            cash or check already received, only adult entries are marked paid now; junior entries
+            stay due at their confirmed rate. Review the receipt before collecting any remaining
+            payment.
           </AlertDescription>
         </Alert>
       )}
@@ -223,11 +242,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         acceptedMethods={acceptedMethods}
         allowCardCheckout={cardCheckoutAvailable}
         allowReceivedPayment={!deferJuniorPayment}
+        juniorFeeMayApply={juniorFeeMayApply}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
       />
 
       {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}
-      {entryWindowTimezoneReady && !deferJuniorPayment && (
+      {entryWindowTimezoneReady && !juniorFeeMayApply && !deferJuniorPayment && (
         <SecretaryPaymentManagement
           paymentStatus={paymentStatus}
           entryStatus={entryStatus}

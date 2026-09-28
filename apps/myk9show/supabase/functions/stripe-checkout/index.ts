@@ -867,6 +867,7 @@ async function handleEntryCheckout(
         metadata: {
           cart_id: cart_id,
           type: 'entry',
+          fee_snapshot_version: '1',
           ...stampPlatformFeeRates(platformFeeRates),
         },
         payment_intent_data: {
@@ -896,11 +897,14 @@ async function handleEntryCheckout(
       .maybeSingle();
     if (frozenError || !frozen) {
       console.error(`Missing checkout fee snapshot for ${resolution.session.id}:`, frozenError);
-      return corsResponse(
-        corsHeaders,
-        { error: 'Could not safely resume checkout. Please try again.' },
-        503
-      );
+      // A pre-snapshot open Session is still payable. Expire it so the next
+      // attempt creates a versioned Session with a durable fee snapshot.
+      try {
+        await stripe.checkout.sessions.expire(resolution.session.id);
+      } catch (expireError) {
+        console.error('Could not expire snapshot-less Session:', expireError);
+      }
+      return corsResponse(corsHeaders, { error: 'Checkout was refreshed. Please try again.' }, 409);
     }
     console.log(`Reusing open checkout session ${resolution.session.id} for cart ${cart_id}`);
     return corsResponse(corsHeaders, {

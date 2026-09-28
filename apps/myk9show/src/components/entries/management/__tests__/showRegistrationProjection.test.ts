@@ -44,6 +44,17 @@ function entry(
 }
 
 describe('groupEntriesByShowRegistration', () => {
+  it('finds and highlights only the child named by an entry deep link', () => {
+    const groups = groupEntriesByShowRegistration([
+      entry({ id: 'entry-uuid-a', entryNumber: '101', dogId: 'dog-1', dogName: 'Poppy' }),
+      entry({ id: 'entry-uuid-b', entryNumber: '102', dogId: 'dog-2', dogName: 'Scout' }),
+    ]);
+
+    expect(searchShowRegistrationGroups(groups, 'entry-uuid-b')[0]?.matchingEntryIds).toEqual([
+      'entry-uuid-b',
+    ]);
+  });
+
   it('renders one registration group while preserving each child Entry handler', () => {
     const groups = groupEntriesByShowRegistration([
       entry({ id: 'entry-1', dogId: 'dog-1', dogName: 'Poppy' }),

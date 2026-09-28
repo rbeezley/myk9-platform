@@ -30,7 +30,7 @@ describe('stripe-webhook entry_payment_request branch', () => {
   it('routes async Checkout payment success through the same paid-session handler', () => {
     expect(source).toContain("case 'checkout.session.async_payment_succeeded':");
     expect(source).toContain(
-      'await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)'
+      'await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event.created)'
     );
     expect(source).toContain("case 'checkout.session.async_payment_failed':");
     expect(source).toContain('entries remain pending');
@@ -39,6 +39,18 @@ describe('stripe-webhook entry_payment_request branch', () => {
   it('decides reconciliation via the pure helper (real rules are unit-tested there)', () => {
     expect(source).toContain('reconcileEntryPaymentRequest');
     expect(source).toContain('reconcileEntryPaymentUpdateOutcome');
+  });
+
+  it('verifies the Stripe amount against frozen entry fees before any paid stamp', () => {
+    const handler = source.slice(
+      source.indexOf('async function handleEntryPaymentRequestCompleted'),
+      source.indexOf('async function paidExpiredClaimHasReplacementOffer')
+    );
+    expect(handler).toContain('verifyPaymentLinkFrozenAmount');
+    expect(handler).toContain('linkSubtotalCents: link.amount_cents');
+    expect(handler.indexOf('verifyPaymentLinkFrozenAmount')).toBeLessThan(
+      handler.indexOf('.update(update)')
+    );
   });
 
   it('feeds the session payment_status + expected entry ids to the helper (F3/F4 coherence checks)', () => {

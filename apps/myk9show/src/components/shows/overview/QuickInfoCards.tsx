@@ -60,7 +60,7 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
         secondary={
           [
             show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null,
-            Number(show.juniorHandlerFee) > 0
+            show.organization !== 'ASCA' && Number(show.juniorHandlerFee) > 0
               ? `Junior handler: ${formatFee(show.juniorHandlerFee)}`
               : null,
           ]

@@ -70,6 +70,7 @@ function renderTemplate(org: Org, premium: GeneratedPremium) {
 describe('Poster style — full-data render', () => {
   it.each(ORGS)('renders fully populated poster premium for %s without throwing', org => {
     const premium = makePremium(org);
+    premium.show.juniorHandlerFee = 15;
     expect(() => renderTemplate(org, premium)).not.toThrow();
     // Hero stack splits the show name into per-line words; assert one of them
     // landed in the rendered tree.
@@ -77,6 +78,7 @@ describe('Poster style — full-data render', () => {
     // PosterBody body copy uses a sentence form distinct from StandardBody —
     // confirm the typography-shift body actually rendered, not the fallback.
     expect(screen.getAllByText(/About the Trial/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Junior handler \$15 per class/).length).toBeGreaterThan(0);
   });
 });
 

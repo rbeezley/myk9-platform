@@ -244,6 +244,13 @@ export function buildLandingData(
   if (show?.dayOfShowFee) {
     fees.push({ label: 'Day-of entry', amount: formatFee(show.dayOfShowFee) });
   }
+  if (
+    show?.organization !== 'ASCA' &&
+    show?.juniorHandlerFee &&
+    Number(show.juniorHandlerFee) > 0
+  ) {
+    fees.push({ label: 'Junior handler entry', amount: formatFee(show.juniorHandlerFee) });
+  }
 
   return {
     clubName: show?.organization ?? '',

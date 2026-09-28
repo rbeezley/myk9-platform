@@ -348,6 +348,8 @@ export interface EntrySubmissionOutcome {
   feeCents: number;
   /** A local offline entry has no authoritative fee until its insert syncs. */
   feePending?: boolean;
+  /** Server accepted the entry but left its junior payment due in a mixed received-payment batch. */
+  paymentDeferred?: boolean;
   capacityOverride: boolean;
   denialReason?: string | null;
 }
@@ -367,6 +369,7 @@ interface RpcEntrySubmissionOutcome {
   waitlist_entry_id: string | null;
   waitlist_position?: number | null;
   fee_cents: number;
+  payment_deferred?: boolean;
   capacity_override: boolean;
   denial_reason?: string | null;
 }
@@ -460,6 +463,7 @@ export async function submitShowEntries(params: {
         waitlistEntryId: outcome.waitlist_entry_id,
         waitlistPosition: outcome.waitlist_position ?? null,
         feeCents: outcome.fee_cents,
+        paymentDeferred: outcome.payment_deferred === true,
         capacityOverride: outcome.capacity_override,
         denialReason: outcome.denial_reason ?? null,
       }))

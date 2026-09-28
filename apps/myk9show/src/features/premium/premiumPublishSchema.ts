@@ -36,6 +36,7 @@ const generatedPremiumSchema = z.object({
     entryCloseDate: nullableText,
     preEntryFee: nullableAmount,
     dayOfFee: nullableAmount,
+    juniorHandlerFee: nullableAmount.optional(),
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
   }),

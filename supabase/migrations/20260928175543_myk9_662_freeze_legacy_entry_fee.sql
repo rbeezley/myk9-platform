@@ -34,7 +34,7 @@ BEGIN
     RAISE EXCEPTION 'Entry class does not belong to its show' USING ERRCODE = '22023';
   END IF;
   IF (SELECT auth.role()) IS DISTINCT FROM 'service_role'
-     AND public.get_my_person_id() IS DISTINCT FROM v_owner_id
+     AND (v_owner_id IS NULL OR public.get_my_person_id() IS DISTINCT FROM v_owner_id)
      AND NOT public.is_show_secretary(v_entry.show_id)
      AND NOT (v_club_id IS NOT NULL AND public.is_club_admin(v_club_id))
      AND NOT public.is_site_admin() THEN

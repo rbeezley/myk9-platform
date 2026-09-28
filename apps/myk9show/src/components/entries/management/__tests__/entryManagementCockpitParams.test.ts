@@ -104,7 +104,13 @@ describe('normalizeEntryManagementCockpitParams', () => {
         entryToRegistration,
         validRegistrationKeys,
       }).params.toString()
-    ).toBe('registration=registration-1');
+    ).toBe('search=entry-1&registration=registration-1');
+    expect(
+      normalizeEntryManagementCockpitParams(params('queue=payment-due&entry=entry-1'), {
+        entryToRegistration,
+        validRegistrationKeys,
+      }).params.toString()
+    ).toBe('queue=payment-due&search=entry-1&registration=registration-1');
     expect(
       normalizeEntryManagementCockpitParams(params('registration=registration-other'), {
         entryToRegistration,

@@ -99,6 +99,18 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_show.junior_handler_fee).toBeNull();
   });
 
+  it('does not save a stale junior fee for ASCA', () => {
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      { ...baseShow, organization: 'ASCA', juniorHandlerFee: 15 },
+      [],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_show.junior_handler_fee).toBeNull();
+    expect(localEntities.show.juniorHandlerFee).toBeUndefined();
+  });
+
   it('passes judgeIds straight through to p_judge_ids', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
     expect(rpcInput.p_judge_ids).toEqual(['judge-uuid-a', 'judge-uuid-b']);

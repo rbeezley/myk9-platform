@@ -23,6 +23,8 @@ export interface ConfirmationStepProps {
   entryStatus?: EntryStatus | undefined;
   workflowMode?: WorkflowMode | undefined;
   totalFees: number;
+  /** Pre-confirmation adult total; retained when pending fee outcomes total to zero. */
+  adultEstimate?: number | undefined;
   showId: string;
   armbandAssignments?: ArmbandAssignment[] | undefined;
   handlers?: HandlerAssignment[] | undefined;

@@ -131,7 +131,14 @@ export function normalizeEntryManagementCockpitParams(
     ? 'exceptions'
     : 'registrations';
   const queue = getQueue(source);
-  const rawSearch = source.get('search') ?? source.get('person') ?? '';
+  // Legacy entry links must identify the child row, not merely open its parent
+  // registration. The search result highlights the matching entry in that card.
+  const legacyEntry = source.get('entry');
+  const rawSearch =
+    source.get('search') ??
+    (legacyEntry && context.entryToRegistration?.has(legacyEntry) ? legacyEntry : null) ??
+    source.get('person') ??
+    '';
   const search = rawSearch.trim() ? rawSearch : '';
   const rawDensity = source.get('density');
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';

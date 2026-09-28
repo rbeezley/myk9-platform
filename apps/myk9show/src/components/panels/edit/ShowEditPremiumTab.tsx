@@ -153,8 +153,8 @@ export function ShowEditPremiumTab({
   );
 }
 
-function currencyToNumber(value: string): number {
-  const parsed = Number.parseFloat(value);
+function currencyToNumber(value: string | undefined): number {
+  const parsed = Number.parseFloat(value ?? '');
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -178,6 +178,8 @@ function buildLocalPremiumDraft(
       entryCloseDate: data.entryCloseDate || null,
       preEntryFee: currencyToNumber(data.preEntryFee),
       dayOfFee: currencyToNumber(data.dayOfShowFee),
+      juniorHandlerFee:
+        data.organization === 'ASCA' ? null : currencyToNumber(data.juniorHandlerFee),
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
     },

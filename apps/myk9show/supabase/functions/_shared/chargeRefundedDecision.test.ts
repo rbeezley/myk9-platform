@@ -24,6 +24,10 @@ describe('isAppOriginatedRefund', () => {
     );
   });
 
+  it('recognizes a pre-claim checkout auto-refund', () => {
+    expect(isAppOriginatedRefund({ metadata: { type: 'entry_checkout_auto_refund' } })).toBe(true);
+  });
+
   it('recognizes a bulk show-cancellation refund', () => {
     expect(isAppOriginatedRefund({ metadata: { show_refund: 'show_a' } })).toBe(true);
   });

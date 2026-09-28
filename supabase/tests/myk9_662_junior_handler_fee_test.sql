@@ -471,7 +471,7 @@ BEGIN
     UPDATE public.dogs SET co_owner_id = '00000000-0000-0000-0000-000000662002'
       WHERE id = '00000000-0000-0000-0000-000000662401';
   EXCEPTION WHEN insufficient_privilege THEN
-    blocked := true;
+    blocked := SQLERRM = 'A co-owner must be verified by show staff before assignment';
   END;
   IF NOT blocked THEN RAISE EXCEPTION 'FAIL arbitrary co-owner assignment was allowed'; END IF;
 END;

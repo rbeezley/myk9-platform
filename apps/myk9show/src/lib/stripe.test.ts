@@ -19,7 +19,11 @@ vi.mock('./supabase', () => ({
 }));
 vi.mock('../stripe-config', () => ({ products: {}, annualPriceId: 'price_annual' }));
 
-import { createEntryCheckoutSession, STRIPE_CHECKOUT_SESSION_ID_TOKEN } from './stripe';
+import {
+  createEntryCheckoutSession,
+  refreshEntryCartFeeQuote,
+  STRIPE_CHECKOUT_SESSION_ID_TOKEN,
+} from './stripe';
 
 /** The redirect URLs the client asked the edge function to hand Stripe. */
 async function redirectUrlsFor(options?: {
@@ -115,5 +119,19 @@ describe('createEntryCheckoutSession success_url', () => {
     const url = await successUrlFor({ splitCheckoutId: 'corr-1' });
     expect(new URL(url).origin).toBe('https://app.test');
     expect(new URL(url).pathname).toBe('/checkout/success');
+  });
+});
+
+describe('refreshEntryCartFeeQuote', () => {
+  it('accepts a versioned quote response without starting checkout', async () => {
+    invoke.mockResolvedValue({ data: { updated: false }, error: null });
+    await expect(refreshEntryCartFeeQuote('cart-1')).resolves.toBeUndefined();
+  });
+
+  it('rejects an old checkout function that created a payable Session instead of quoting', async () => {
+    invoke.mockResolvedValue({ data: { sessionId: 'cs_old', url: 'https://stripe.test' }, error: null });
+    await expect(refreshEntryCartFeeQuote('cart-1')).rejects.toThrow(
+      'We could not confirm entry fees'
+    );
   });
 });

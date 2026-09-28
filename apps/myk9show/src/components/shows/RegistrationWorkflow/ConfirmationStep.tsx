@@ -48,9 +48,7 @@ import {
   hasCreatedEntryOutcome,
   summarizeEntrySubmissionOutcomes,
 } from './entrySubmissionOutcomes';
-
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
-
 export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   registrationNumber = 'REG-123456',
   registrationId,
@@ -61,6 +59,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   entryStatus = EntryStatus.PENDING,
   workflowMode = 'exhibitor',
   totalFees,
+  adultEstimate,
   showId,
   armbandAssignments = [],
   handlers = [],
@@ -77,7 +76,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const { shows = [] } = useShowStore();
   const { trials = [] } = useTrialStore();
   const { classes = [] } = useClassStoreCompat();
-
   const show = shows.find(s => s.id === showId);
   const receiptClassSelections = filterClassSelectionsToCreatedOutcomes(
     classSelections,
@@ -87,7 +85,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, totalFees);
   const feePending =
     entryOutcomes?.some(outcome => outcome.outcome === 'created' && outcome.feePending) ?? false;
-
   // Idempotency guards for the "Email Confirmation" action. `sendInFlightRef`
   // blocks a second send while the first request is still pending (the React
   // Query `isPending` lag pattern); `emailSentRef` blocks redundant re-sends
@@ -384,9 +381,15 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 {getPaymentStatusDisplay(paymentStatus)}
               </Badge>
             </div>
-            {deferJuniorPayment && paymentStatus === PaymentStatus.PENDING && hasCreatedOutcome && (
-              <JuniorPaymentNotice showId={showId} outcomes={entryOutcomes} />
-            )}
+            {(deferJuniorPayment || entryOutcomes?.some(outcome => outcome.paymentDeferred)) &&
+              hasCreatedOutcome && (
+                <JuniorPaymentNotice
+                  showId={showId}
+                  outcomes={entryOutcomes}
+                  adultAmount={adultEstimate ?? totalFees}
+                  juniorFee={Number(show?.juniorHandlerFee) || undefined}
+                />
+              )}
             {(paymentStatus === PaymentStatus.PENDING ||
               paymentStatus === PaymentStatus.REFUNDED) &&
               hasCreatedOutcome &&

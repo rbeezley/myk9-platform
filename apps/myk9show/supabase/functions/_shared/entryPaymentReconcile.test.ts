@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileEntryPaymentRequest } from './entryPaymentReconcile';
+import {
+  reconcileEntryPaymentRequest,
+  verifyPaymentLinkFrozenAmount,
+} from './entryPaymentReconcile';
 
 const base = {
   linkStatus: 'open',
@@ -235,5 +238,43 @@ describe('reconcileEntryPaymentRequest', () => {
   it('treats a null payment intent as null on the patch (caller alerts; never crashes)', () => {
     const r = reconcileEntryPaymentRequest({ ...base, paymentIntentId: null });
     expect(r.patches[0].stripe_payment_intent_id).toBeNull();
+  });
+});
+
+describe('verifyPaymentLinkFrozenAmount', () => {
+  const paid = {
+    entryIds: ['destination'],
+    reconciliationEntryIds: ['root'],
+    entries: [{ id: 'root', payment_status: 'pending', entry_status: 'moved', entry_fee: '15.00' }],
+    lineFeesById: new Map([['destination', 1500]]),
+    linkSubtotalCents: 1500,
+    sessionTotalCents: 1605,
+    feeRates: { percent: 7, flatCents: 0, minCents: 0 },
+  };
+
+  it('accepts the stored fee on a moved money root', () => {
+    expect(verifyPaymentLinkFrozenAmount(paid).valid).toBe(true);
+  });
+
+  it('rejects a paid line when the frozen entry fee differs', () => {
+    expect(
+      verifyPaymentLinkFrozenAmount({
+        ...paid,
+        entries: [{ ...paid.entries[0], entry_fee: '25.00' }],
+      }).valid
+    ).toBe(false);
+  });
+
+  it('rejects a wrong paid total or service-owned link subtotal', () => {
+    expect(verifyPaymentLinkFrozenAmount({ ...paid, sessionTotalCents: 1500 }).valid).toBe(false);
+    expect(verifyPaymentLinkFrozenAmount({ ...paid, linkSubtotalCents: 2500 }).valid).toBe(false);
+  });
+
+  it('rejects missing Stripe lines and missing frozen fees', () => {
+    expect(verifyPaymentLinkFrozenAmount({ ...paid, lineFeesById: new Map() }).valid).toBe(false);
+    expect(
+      verifyPaymentLinkFrozenAmount({ ...paid, entries: [{ ...paid.entries[0], entry_fee: null }] })
+        .valid
+    ).toBe(false);
   });
 });

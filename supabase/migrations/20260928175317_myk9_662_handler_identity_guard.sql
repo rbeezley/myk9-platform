@@ -14,9 +14,8 @@ BEGIN
      OR (SELECT auth.role()) = 'service_role'
      OR (session_user IN ('postgres', 'supabase_admin')
          AND current_setting('role', true) IN ('none', 'postgres', 'supabase_admin'))
-     OR public.is_show_secretary()
-     OR public.is_club_admin()
-     OR public.is_site_admin() THEN
+     OR public.is_site_admin()
+     OR (TG_OP = 'UPDATE' AND public.can_manage_show_dog(NEW.id)) THEN
     RETURN NEW;
   END IF;
   RAISE EXCEPTION 'A co-owner must be verified by show staff before assignment'

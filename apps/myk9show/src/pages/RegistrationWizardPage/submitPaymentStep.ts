@@ -16,7 +16,6 @@
 
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
-import { supabase } from '@/lib/supabase';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
 import { submitOfflineLateEntry } from '@/features/registration/submitOfflineLateEntry';
@@ -25,7 +24,6 @@ import type { SelectedDogsOwnerResult } from '@/features/registration/selectedDo
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { makeHandlerKey } from '@/types/show-registration-types';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -82,14 +80,6 @@ export interface SubmitPaymentStepContext {
   // Deps
   cart: PaymentStepCartDeps;
   submitRegistration: SubmitShowRegistrationParams['deps']['submitRegistration'];
-  quoteStaffJuniorFee?: (
-    entries: {
-      dog_id: string;
-      class_id: string;
-      handler_id: string | null;
-      handler_name: string | null;
-    }[]
-  ) => Promise<boolean>;
 
   // Lifecycle / callbacks
   isMounted: () => boolean;
@@ -139,50 +129,17 @@ function handledClasses(
   );
 }
 
-async function staffSubmissionNeedsJuniorFee(ctx: SubmitPaymentStepContext): Promise<boolean> {
-  const configured = Number(ctx.showFeeInfo.juniorHandlerFee) > 0;
-  const unknownOffline = ctx.isLateEntryMode && ctx.showFeeInfo.juniorFeeKnown === false;
-  if (!configured && !unknownOffline) return false;
-  const entries = ctx.classSelections.flatMap(selection =>
-    selection.selectedClasses.map(selectedClass => {
-      const handler =
-        ctx.handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
-      return {
-        dog_id: selection.dogId,
-        class_id: selectedClass.classId,
-        handler_id: handler?.handlerId || null,
-        handler_name: handler?.handlerName || null,
-      };
-    })
-  );
-  if (entries.length === 0) return false;
-  // A typed, unmatched handler has unknown age and cannot receive a junior rate.
-  const couldBeJunior = entries.some(entry => entry.handler_id || !entry.handler_name);
-  if (!couldBeJunior) return false;
-  if (unknownOffline) return true;
-  try {
-    if (ctx.quoteStaffJuniorFee) return await ctx.quoteStaffJuniorFee(entries);
-    const { data, error } = await supabase.rpc('staff_entries_need_junior_fee', {
-      p_show_id: ctx.showId,
-      p_entries: entries,
-    });
-    if (error) throw error;
-    return data === true;
-  } catch (error) {
-    // When the desk cannot reach the private age check, save as unpaid rather
-    // than recording an adult amount that could be wrong after sync.
-    console.error('Could not verify staff junior fee before collecting payment:', error);
-    return true;
-  }
-}
-
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
+    // The offline desk cannot read private handler ages; every potentially
+    // discounted line stays unpaid until the server prices it on sync. Online
+    // submission lets the server price and settle adult lines atomically.
     const deferJuniorPayment =
+      ctx.isLateEntryMode &&
       ctx.currentWorkflowMode !== 'exhibitor' &&
       ctx.paymentMethod !== 'waived' &&
-      (await staffSubmissionNeedsJuniorFee(ctx));
+      (Number(ctx.showFeeInfo.juniorHandlerFee) > 0 || ctx.showFeeInfo.juniorFeeKnown === false);
     if (
       deferJuniorPayment &&
       (ctx.paymentMethod === 'secretary_paid' || ctx.paymentMethod === 'group_payment')
@@ -288,6 +245,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (submissionResult.aborted) return;
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
+    if (submissionResult.entryOutcomes?.some(outcome => outcome.paymentDeferred)) {
+      ctx.setPaymentStatus?.(PaymentStatus.PENDING);
+    }
     ctx.discardDraftsWithoutFinalSave(
       handledClasses(ctx.classSelections, submissionResult.entryOutcomes)
     );

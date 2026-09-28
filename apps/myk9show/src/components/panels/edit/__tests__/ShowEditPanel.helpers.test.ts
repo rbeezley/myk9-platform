@@ -96,6 +96,26 @@ describe('ShowEditPanel helpers', () => {
     expect(showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee: '-1' }).success).toBe(
       false
     );
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '  ' }).juniorHandlerFee).toBe('');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: ' 15.25 ' }).juniorHandlerFee).toBe(
+      '15.25'
+    );
+    expect(
+      showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee: '1000000' }).success
+    ).toBe(false);
+    expect(
+      showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee: '15.999' }).success
+    ).toBe(false);
+    expect(
+      showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee: '999999.99' }).success
+    ).toBe(true);
+  });
+
+  it('clears a stale junior rate when saving an ASCA show', () => {
+    expect(
+      formDataToShow({ ...baseFormData, organization: 'ASCA', juniorHandlerFee: '15' })
+        .juniorHandlerFee
+    ).toBe('');
   });
 
   it('preserves publish-only fields for the save side effect payload', () => {

@@ -35,6 +35,15 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     );
     expect(screen.getByLabelText('Junior Handler Fee')).toHaveValue('15.00');
   });
+  it('hides the unused junior rate for ASCA shows', () => {
+    render(
+      <ShowEditFeesTab
+        data={{ ...baseData, organization: 'ASCA', juniorHandlerFee: '15' }}
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+      />
+    );
+    expect(screen.queryByLabelText('Junior Handler Fee')).not.toBeInTheDocument();
+  });
   it('renders the Payment Methods heading', () => {
     render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     expect(screen.getByText('Payment Methods')).toBeInTheDocument();

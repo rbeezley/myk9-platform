@@ -41,7 +41,6 @@ import {
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
 import { getDogRegisteredName } from '@/types/dog-types';
-
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
   classSelections: ClassSelectionData[];
@@ -49,7 +48,6 @@ interface OptimisticRegistrationState {
   paymentStatus: PaymentStatus;
   entryStatus: EntryStatus;
 }
-
 interface WorkflowStepContentProps {
   /**
    * Resolved by the page (`usePaymentMethodResolution`) and passed straight
@@ -60,6 +58,7 @@ interface WorkflowStepContentProps {
   currentWorkflowConfig: WorkflowConfig;
   currentWorkflowMode: WorkflowMode;
   deferJuniorPayment?: boolean;
+  juniorFeeMayApply?: boolean;
   registrationData: RegistrationFormData;
   optimisticState: OptimisticRegistrationState;
   showId: string;
@@ -104,13 +103,13 @@ interface WorkflowStepContentProps {
   onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
   onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
-
 export function WorkflowStepContent({
   paymentResolution,
   currentStepId,
   currentWorkflowConfig,
   currentWorkflowMode,
   deferJuniorPayment = false,
+  juniorFeeMayApply = false,
   registrationData,
   optimisticState,
   showId,
@@ -153,7 +152,6 @@ export function WorkflowStepContent({
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
-
   // Styled receipt hooks run at the top level; data is read only for confirmation.
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
@@ -162,7 +160,6 @@ export function WorkflowStepContent({
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
   const currentShow = shows.find(show => show.id === showId);
-
   // One registry per show (MYK9-490), so ANY loaded trial of this show answers
   // for the whole show — the first is enough, no scan needed. Read through the
   // registries helpers, never off the column.
@@ -181,11 +178,9 @@ export function WorkflowStepContent({
     if (trial) return getTrialRegistry(trial).id;
     return currentShow ? deriveRegistryId(currentShow.organization) : null;
   }, [trialsReadStatus, allTrials, showId, currentShow]);
-
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
     const style = getShowStyle(currentShow);
-
     const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = receiptSelectedDogs[0];
     const firstDog = dogs.find(d => d.id === firstDogId);
@@ -403,6 +398,7 @@ export function WorkflowStepContent({
         <PaymentErrorBoundary>
           <PaymentStep
             deferJuniorPayment={deferJuniorPayment}
+            juniorFeeMayApply={juniorFeeMayApply}
             paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
@@ -457,8 +453,13 @@ export function WorkflowStepContent({
         !entryOutcomes?.some(outcome => outcome.feePending) ? (
           <div className="space-y-6">
             <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
-            {deferJuniorPayment && optimisticState.paymentStatus === PaymentStatus.PENDING && (
-              <JuniorPaymentNotice showId={showId} outcomes={entryOutcomes} />
+            {(deferJuniorPayment || entryOutcomes?.some(outcome => outcome.paymentDeferred)) && (
+              <JuniorPaymentNotice
+                showId={showId}
+                outcomes={entryOutcomes}
+                adultAmount={currentRegistrationTotalFees}
+                juniorFee={Number(currentShow?.juniorHandlerFee) || undefined}
+              />
             )}
             {STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
               brandColor: styledReceipt.brandColor,
@@ -476,6 +477,7 @@ export function WorkflowStepContent({
             entryStatus={optimisticState.entryStatus}
             workflowMode={currentWorkflowMode}
             totalFees={receiptTotalFees}
+            adultEstimate={currentRegistrationTotalFees}
             showId={showId}
             armbandAssignments={armbandAssignments}
             entryOutcomes={entryOutcomes}

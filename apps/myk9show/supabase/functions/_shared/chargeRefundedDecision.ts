@@ -25,6 +25,7 @@ export function isAppOriginatedRefund(refund: ChargeRefundLike): boolean {
     refund.metadata?.entry_id ||
     refund.metadata?.type === 'entry_payment_request_auto_refund' ||
     refund.metadata?.type === 'entry_cart_overflow_auto_refund' ||
+    refund.metadata?.type === 'entry_checkout_auto_refund' ||
     refund.metadata?.show_refund
   );
 }

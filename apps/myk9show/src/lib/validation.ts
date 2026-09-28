@@ -211,7 +211,8 @@ export const showSchemas = {
       ),
       juniorHandlerFee: z
         .string()
-        .refine(val => val === '' || (Number.isFinite(Number(val)) && Number(val) >= 0), {
+        .trim()
+        .refine(val => val === '' || (/^\d+(?:\.\d{1,2})?$/.test(val) && Number(val) < 1_000_000), {
           message: 'Please enter a valid junior handler fee amount',
         })
         .optional(),

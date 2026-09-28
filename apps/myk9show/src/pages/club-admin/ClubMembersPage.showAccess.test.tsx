@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { createTestQueryClient, render, screen, waitFor } from '@/test/utils/testUtils';
+import { queryKeys } from '@/lib/queryClient';
 import ClubMembersPage from './ClubMembersPage';
 
 const {
@@ -89,7 +90,12 @@ describe('ClubMembersPage show access', () => {
   it('uses the club-scoped access service and confirms the grant', async () => {
     setClubShowManagerAccess.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.clubOfficials('club-1'), {
+      adminNames: ['Club Admin'],
+      secretaryNames: [],
+    });
+    render(<ClubMembersPage />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
@@ -102,6 +108,7 @@ describe('ClubMembersPage show access', () => {
       });
     });
     expect(notificationSuccess).toHaveBeenCalledWith('Show access granted to Ada Lovelace.');
+    expect(queryClient.getQueryState(queryKeys.clubOfficials('club-1'))?.isInvalidated).toBe(true);
   });
 
   it('shows an actionable error when the access change is rejected', async () => {
@@ -131,7 +138,12 @@ describe('ClubMembersPage show access', () => {
     ]);
     setClubShowManagerAccess.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.clubOfficials('club-1'), {
+      adminNames: ['Club Admin'],
+      secretaryNames: ['Ada Lovelace'],
+    });
+    render(<ClubMembersPage />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
@@ -160,6 +172,7 @@ describe('ClubMembersPage show access', () => {
       });
     });
     expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');
+    expect(queryClient.getQueryState(queryKeys.clubOfficials('club-1'))?.isInvalidated).toBe(true);
   });
 
   it('shows an actionable error when revoke is rejected', async () => {

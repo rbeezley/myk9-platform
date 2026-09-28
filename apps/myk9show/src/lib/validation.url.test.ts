@@ -68,6 +68,32 @@ describe('normalizeWebsiteUrl', () => {
     const result = normalizeWebsiteUrl('https://');
     expect(result.valid).toBe(false);
   });
+
+  it('rejects a non-http(s) scheme instead of prepending https:// on top of it', () => {
+    expect(normalizeWebsiteUrl('ftp://myclub.org')).toEqual({
+      value: 'ftp://myclub.org',
+      valid: false,
+    });
+  });
+
+  it('rejects a javascript: scheme', () => {
+    expect(normalizeWebsiteUrl('javascript://myclub.org')).toEqual({
+      value: 'javascript://myclub.org',
+      valid: false,
+    });
+  });
+
+  it('rejects a mailto: value instead of treating it as a bare domain', () => {
+    expect(normalizeWebsiteUrl('mailto:info@myclub.org')).toEqual({
+      value: 'mailto:info@myclub.org',
+      valid: false,
+    });
+  });
+
+  it('reports invalid for an https:// hostname with no dot', () => {
+    const result = normalizeWebsiteUrl('https://word');
+    expect(result.valid).toBe(false);
+  });
 });
 
 describe('commonValidations.url', () => {

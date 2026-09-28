@@ -8,40 +8,51 @@ export interface NormalizedWebsiteUrl {
 }
 
 /**
- * Normalizes a website URL for saving: keeps `http://`/`https://` values as-is,
- * prepends `https://` to a bare domain (e.g. `myclub.org`, `www.myclub.org`), and
+ * Normalizes a website URL for saving: keeps a value that already has a URL
+ * scheme (e.g. `http://`, `https://`, `ftp://`) as-is for judging, prepends
+ * `https://` to a bare domain (e.g. `myclub.org`, `www.myclub.org`), and
  * reports invalid otherwise. Empty input normalizes to an empty, valid value.
  */
-// Schemes are case-insensitive (`HTTP://x.org`); a case-sensitive check would
-// prepend a second scheme and save `https://HTTP://x.org` as valid.
+// Any `scheme://` prefix, not just http(s) — otherwise a non-http scheme
+// (`ftp://x.org`, `mailto:info@x.org`) is mistaken for a bare domain and
+// gets `https://` prepended on top of it (`https://ftp://x.org`).
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+function isWebsiteUrl(candidate: string): boolean {
+  if (/\s/.test(candidate)) return false;
+
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  // A bare domain must contain a dot — otherwise `new URL('https://word')`
+  // would accept a single word as a valid (if useless) hostname.
+  if (!url.hostname.includes('.')) return false;
+  // Credentials mean the "host" is actually embedded scheme/data, e.g.
+  // `https://mailto:info@x.org` parses with username `mailto`, password `info`.
+  if (url.username || url.password) return false;
+
+  return true;
+}
+
+// Distinct from HAS_SCHEME: only http(s) values get the "malformed URL"
+// message; anything else (a bare word, another scheme) gets the
+// bare-domain hint instead.
 const HAS_HTTP_SCHEME = /^https?:\/\//i;
 
 export function normalizeWebsiteUrl(value: string | null | undefined): NormalizedWebsiteUrl {
   const trimmed = (value ?? '').trim();
   if (!trimmed) return { value: '', valid: true };
 
-  if (HAS_HTTP_SCHEME.test(trimmed)) {
-    try {
-      new URL(trimmed);
-      return { value: trimmed, valid: true };
-    } catch {
-      return { value: trimmed, valid: false };
-    }
-  }
+  const candidate = HAS_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`;
 
-  // A bare domain must contain a dot — otherwise `new URL('https://word')` would
-  // accept a single word as a valid (if useless) hostname.
-  if (trimmed.includes('.') && !trimmed.includes(' ')) {
-    const withProtocol = `https://${trimmed}`;
-    try {
-      new URL(withProtocol);
-      return { value: withProtocol, valid: true };
-    } catch {
-      return { value: trimmed, valid: false };
-    }
-  }
-
-  return { value: trimmed, valid: false };
+  return isWebsiteUrl(candidate)
+    ? { value: candidate, valid: true }
+    : { value: trimmed, valid: false };
 }
 
 // Common field validations

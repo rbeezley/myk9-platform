@@ -1,15 +1,13 @@
 -- Behavioral test for 20260926214700_myk9_824_submit_entries_handler_defaults_to_owner.sql (MYK9-824).
 --
 -- `submit_show_entries` must never fall back an unresolved typed handler to
--- the SUBMITTER. Found in the MYK9-819 dress rehearsal: a secretary took a
--- mail-in entry, typed a handler with no person match, and `entries.handler_id`
--- landed on the secretary's own person row instead of the dog's owner.
+-- the SUBMITTER. MYK9-662 keeps that handler_id NULL for a staff-typed name:
+-- its age is unknown, so the saved identity agrees with the regular fee.
 --
 -- Why each case earns its place:
 --   1. A show official submitting on behalf of an exhibitor, with a typed
 --      handler that matches no person (no `handler_id` sent): the entry's
---      `handler_id` must be the DOG'S OWNER, never the official's own person
---      id. This is the exact rehearsal bug.
+--      `handler_id` remains NULL, never the official's or owner's person id.
 --   2. The SAME official submitting with an explicit, resolvable `handler_id`
 --      (the dog's co-owner): that value must be preserved untouched. Case 1
 --      alone would pass a fix that ignores the client-sent id entirely and
@@ -134,7 +132,6 @@ DECLARE
   show_id         CONSTANT uuid := '00000000-0000-0000-0000-000000824100';
   mailin_reg_id   CONSTANT uuid := '00000000-0000-0000-0000-000000824500';
   own_reg_id      CONSTANT uuid := '00000000-0000-0000-0000-000000824501';
-  owner_person    CONSTANT uuid := '00000000-0000-0000-0000-000000824001';
   secretary_person CONSTANT uuid := '00000000-0000-0000-0000-000000824002';
   coowner_person  CONSTANT uuid := '00000000-0000-0000-0000-000000824003';
   exhibitor_person CONSTANT uuid := '00000000-0000-0000-0000-000000824004';
@@ -176,9 +173,9 @@ BEGIN
   IF written_handler_id = secretary_person THEN
     RAISE EXCEPTION 'FAIL unmatched typed handler defaulted to the SUBMITTING SECRETARY (MYK9-824 regression)';
   END IF;
-  IF written_handler_id IS DISTINCT FROM owner_person THEN
-    RAISE EXCEPTION 'FAIL unmatched typed handler did not default to the dog owner: got %, expected %',
-      written_handler_id, owner_person;
+  IF written_handler_id IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL unmatched typed handler should keep unknown identity: got %',
+      written_handler_id;
   END IF;
   IF written_handler_text <> 'ZZ Rehearsal Handler Hana' THEN
     RAISE EXCEPTION 'FAIL printed handler text was altered: %', written_handler_text;
@@ -236,10 +233,10 @@ BEGIN
     RAISE EXCEPTION
       'FAIL the SIX-argument payment-bearing overload still defaults an unmatched typed handler to the SUBMITTING SECRETARY (MYK9-824 regression, payment path)';
   END IF;
-  IF written_handler_id IS DISTINCT FROM owner_person THEN
+  IF written_handler_id IS NOT NULL THEN
     RAISE EXCEPTION
-      'FAIL payment-bearing path: unmatched typed handler did not default to the dog owner: got %, expected %',
-      written_handler_id, owner_person;
+      'FAIL payment-bearing path: unmatched typed handler should keep unknown identity: got %',
+      written_handler_id;
   END IF;
   IF written_handler_text <> 'ZZ Rehearsal Handler Hana' THEN
     RAISE EXCEPTION 'FAIL payment-bearing path altered the printed handler text: %', written_handler_text;

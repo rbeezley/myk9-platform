@@ -12,6 +12,8 @@ BEGIN
      OR NEW.co_owner_id IS NULL
      OR NEW.co_owner_id = public.get_my_person_id()
      OR (SELECT auth.role()) = 'service_role'
+     OR (session_user IN ('postgres', 'supabase_admin')
+         AND current_setting('role', true) IN ('none', 'postgres', 'supabase_admin'))
      OR public.is_show_secretary()
      OR public.is_club_admin()
      OR public.is_site_admin() THEN
@@ -32,7 +34,7 @@ DO $migration$
 DECLARE
   definition text;
   old_clause constant text := 'IF v_handler_person_id IS NULL THEN';
-  new_clause constant text := 'IF v_handler_person_id IS NULL AND nullif(btrim(v_handler_name), '''') IS NULL THEN';
+  new_clause constant text := 'IF v_handler_person_id IS NULL AND (NOT v_is_official OR nullif(btrim(v_handler_name), '''') IS NULL) THEN';
 BEGIN
   SELECT pg_get_functiondef('public.submit_show_entries(uuid,uuid,jsonb,uuid,text,jsonb)'::regprocedure)
     INTO definition;

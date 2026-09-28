@@ -8,8 +8,8 @@
 --
 -- Why each case earns its place:
 --   1. A show official (secretary) submits for a dog owned by someone else,
---      with no explicit handler_id (typed handler, resolved to the owner by
---      MYK9-824): `entry_status` must be 'confirmed' (kind 'accepted'), not
+--      with no explicit handler_id (typed handler, kept as unknown by
+--      MYK9-662): `entry_status` must be 'confirmed' (kind 'accepted'), not
 --      'submitted'. This is the acceptance criterion itself.
 --   2. An exhibitor submits their OWN entry (self-service, not an official):
 --      `entry_status` must remain 'submitted', unchanged by this migration.
@@ -159,8 +159,8 @@ BEGIN
 
   ----------------------------------------------------------------------------
   -- 1. THE ACCEPTANCE CRITERION. Secretary keys a mail-in entry ON BEHALF OF
-  --    the owner (typed handler, no handler_id sent -- resolves to the owner
-  --    per MYK9-824). Must land ACCEPTED ('confirmed'), not 'submitted'.
+  --    the owner (typed handler, no handler_id sent -- identity stays NULL
+  --    per MYK9-662). Must land ACCEPTED ('confirmed'), not 'submitted'.
   ----------------------------------------------------------------------------
   result := public.submit_show_entries(
     show_id, onbehalf_reg_id,

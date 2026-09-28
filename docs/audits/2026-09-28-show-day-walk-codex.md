@@ -60,7 +60,7 @@ Scoring RPC trace, from `.playwright-cli/network-2026-09-28T20-41-30-713Z.log` (
 
 ## Findings
 
-There is no prior show-day report; all findings are **new**. These are first-run observations, pending tracker filing under the repository's shared-system write gate.
+There is no prior show-day report; all findings are **new**. The three P2 findings are tracked as [MYK9-868](https://linear.app/myk9-platform/issue/MYK9-868), [MYK9-869](https://linear.app/myk9-platform/issue/MYK9-869), and [MYK9-870](https://linear.app/myk9-platform/issue/MYK9-870) under [MYK9-867](https://linear.app/myk9-platform/issue/MYK9-867).
 
 - **S1 · P2 · Missing exhibitor day-of time and run position.** SQL start time was 09:00; the secretary and judge saw it, but the exhibitor's show run schedule said “schedule details pending.” Ranger was visually third in secretary/judge lists while `entries.run_order` remained NULL after entry, check-in and scoring. The exhibitor saw no position or check-in state on the tested surfaces. This weakens a handler's ability to plan arrival at the ring. Repro: one new day-of Ranger entry in Trial 4; inspect the show My Entries schedule and the same row in SQL.
 - **S2 · P2 · Today's scored run absent from Ranger's dog page.** A cold exhibitor context showed the qualified 43.21-second result in My Entries and class results. Ranger's dog Overview/Upcoming Shows showed only a future November entry, while Past Results showed an older September 25 Heartland run and not today's September 28 run. This is a cross-surface discoverability gap during an active show; the scored result itself was correct where displayed.
@@ -81,4 +81,4 @@ Part 1's preflight `count(*) from entries` must account for `deleted_at`; otherw
 
 Part 2's routine mechanics should mention UI soft deletion and paired score/completion RPCs. `docs/operations/scheduled-task-walks.md` also says the show-day routine is not installed, despite the observed active routine and passing pointer parity; update that documentation through its own review.
 
-The report is the first-run evidence. Do not treat the soft-deleted Ranger row as a live entry or reuse it on a later walk. The P2 findings have not yet been filed to Linear because that is a separate external write under the repository's shared-system gate.
+The report is the first-run evidence. Do not treat the soft-deleted Ranger row as a live entry or reuse it on a later walk. The P2 findings are filed in Linear under MYK9-867.

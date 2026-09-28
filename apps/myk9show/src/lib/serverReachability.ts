@@ -8,8 +8,10 @@
  */
 import { useSyncExternalStore } from 'react';
 
+/** Short first retry so one dropped request does not lock the controls for long. */
+export const REACHABILITY_FIRST_PROBE_MS = 2_000;
 export const REACHABILITY_PROBE_INTERVAL_MS = 15_000;
-const PROBE_TIMEOUT_MS = 5_000;
+const PROBE_TIMEOUT_MS = 10_000;
 
 let reachable = true;
 let probeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -24,9 +26,8 @@ function setReachable(next: boolean) {
 
 /**
  * postgrest-js resolves a request whose fetch rejected (DNS failure, TLS
- * interception, dropped connection) as `status: 0` with an empty error code.
- * Anything with an HTTP status — RLS, auth, 5xx — reached the server and is not
- * a connectivity problem.
+ * interception, dropped connection, our own timeout abort) as `status: 0`.
+ * Anything with an HTTP status — RLS, auth, 5xx — reached the server.
  */
 export function isTransportFailure(result: { status?: number | null }): boolean {
   return result.status === 0;
@@ -35,28 +36,37 @@ export function isTransportFailure(result: { status?: number | null }): boolean 
 /**
  * Any HTTP response, even 401/404, proves the server is reachable. `no-cors` keeps
  * a CORS rejection from reading as "unreachable": only a network failure rejects.
+ * The CSP `connect-src` must allow this host (it allows https://*.supabase.co).
  */
 async function probeServer(): Promise<boolean> {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!baseUrl) return true;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
     await fetch(`${baseUrl}/auth/v1/health`, {
       mode: 'no-cors',
       cache: 'no-store',
-      signal: controller.signal,
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     return true;
   } catch {
     return false;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
-function scheduleProbe(delayMs: number) {
+function clearProbe() {
   if (probeTimer !== null) clearTimeout(probeTimer);
+  probeTimer = null;
+}
+
+/**
+ * Probe only while someone is showing the hint and the device has a network: with
+ * no listeners nothing needs the answer (the next subscribe restarts it), and while
+ * offline the browser's `online` event restarts it.
+ */
+function scheduleProbe(delayMs: number) {
+  clearProbe();
+  if (reachable || listeners.size === 0) return;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   probeTimer = setTimeout(() => {
     probeTimer = null;
     void runProbe();
@@ -70,30 +80,38 @@ async function runProbe() {
   probeInFlight = false;
   if (ok) {
     setReachable(true);
-  } else if (!reachable) {
+  } else {
     scheduleProbe(REACHABILITY_PROBE_INTERVAL_MS);
   }
 }
 
-function handleBrowserOnline() {
-  if (!reachable) scheduleProbe(0);
+function probeSoon() {
+  if (reachable || probeInFlight) return;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+  scheduleProbe(0);
 }
 
 export function markServerUnreachable(): void {
   if (!reachable) return;
   setReachable(false);
-  scheduleProbe(REACHABILITY_PROBE_INTERVAL_MS);
+  scheduleProbe(REACHABILITY_FIRST_PROBE_MS);
 }
+
+const WINDOW_WAKE_EVENTS = ['online', 'focus'] as const;
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
   if (listeners.size === 1 && typeof window !== 'undefined') {
-    window.addEventListener('online', handleBrowserOnline);
+    WINDOW_WAKE_EVENTS.forEach(event => window.addEventListener(event, probeSoon));
+    document.addEventListener('visibilitychange', probeSoon);
+    if (!reachable && probeTimer === null) scheduleProbe(REACHABILITY_FIRST_PROBE_MS);
   }
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0 && typeof window !== 'undefined') {
-      window.removeEventListener('online', handleBrowserOnline);
+      WINDOW_WAKE_EVENTS.forEach(event => window.removeEventListener(event, probeSoon));
+      document.removeEventListener('visibilitychange', probeSoon);
+      clearProbe();
     }
   };
 }
@@ -105,8 +123,7 @@ export function useServerReachable(): boolean {
 }
 
 export function resetServerReachabilityForTests(): void {
-  if (probeTimer !== null) clearTimeout(probeTimer);
-  probeTimer = null;
+  clearProbe();
   probeInFlight = false;
   reachable = true;
   listeners.forEach(listener => listener());

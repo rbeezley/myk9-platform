@@ -3,10 +3,32 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const upsertMock = vi.fn();
+type Result = { data?: unknown; error: unknown; status: number };
+
+const upsertResult = vi.fn<() => Result>();
+const readResult = vi.fn<() => Result>();
+const upsertSignal = vi.fn();
+const upsertCalls = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: () => ({ upsert: upsertMock }) },
+  supabase: {
+    from: () => ({
+      upsert: (payload: unknown) => {
+        upsertCalls(payload);
+        return {
+          abortSignal: (signal: AbortSignal) => {
+            upsertSignal(signal);
+            return Promise.resolve(upsertResult());
+          },
+        };
+      },
+      select: () => ({
+        eq: () => ({
+          abortSignal: () => ({ maybeSingle: () => Promise.resolve(readResult()) }),
+        }),
+      }),
+    }),
+  },
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -17,78 +39,121 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn() },
 }));
 
-import { useBulkUpdateClassOverrides, useUpdateTrialOverride } from '../useShowSettingsMutations';
+import {
+  useBulkUpdateClassOverrides,
+  useResetOverride,
+  useUpdateClassOverride,
+  useUpdateShowCheckin,
+  useUpdateShowVisibility,
+  useUpdateTrialOverride,
+} from '../useShowSettingsMutations';
 import { resetServerReachabilityForTests, useServerReachable } from '@/lib/serverReachability';
 
-function renderWithClient<T>(hook: () => T) {
-  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  const wrapper = ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client: queryClient }, children);
-  return renderHook(hook, { wrapper });
-}
-
-const transportFailure = {
-  error: { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' },
+const transportFailure: Result = {
+  error: { message: 'AbortError: signal timed out', details: '', hint: '', code: '' },
   status: 0,
 };
-const rlsRejection = {
+const rlsRejection: Result = {
   error: { message: 'permission denied', details: '', hint: '', code: '42501' },
   status: 403,
 };
 
+type AnyMutation = { mutateAsync: (vars: never) => Promise<unknown> };
+
+const HOOKS: Array<[string, () => AnyMutation, unknown]> = [
+  [
+    'useUpdateShowVisibility',
+    useUpdateShowVisibility,
+    {
+      showId: 's1',
+      preset: 'standard',
+      placementTiming: 'class_complete',
+      qualificationTiming: 'immediate',
+      timeTiming: 'class_complete',
+      faultsTiming: 'class_complete',
+    },
+  ],
+  ['useUpdateShowCheckin', useUpdateShowCheckin, { showId: 's1', enabled: true }],
+  ['useUpdateTrialOverride', useUpdateTrialOverride, { trialId: 't1', showId: 's1' }],
+  [
+    'useUpdateClassOverride',
+    useUpdateClassOverride,
+    { classId: 'c1', trialId: 't1', showId: 's1' },
+  ],
+  [
+    'useBulkUpdateClassOverrides',
+    useBulkUpdateClassOverrides,
+    { classIds: ['c1'], showId: 's1', preset: 'standard' },
+  ],
+  ['useResetOverride', useResetOverride, { entityId: 't1', showId: 's1', level: 'trial' }],
+];
+
+function renderMutation(useHook: () => AnyMutation) {
+  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+  return renderHook(() => ({ mutation: useHook(), reachable: useServerReachable() }), {
+    wrapper,
+  });
+}
+
+async function run(result: { current: { mutation: AnyMutation } }, vars: unknown) {
+  let error: unknown = null;
+  await act(async () => {
+    await result.current.mutation.mutateAsync(vars as never).catch(err => {
+      error = err;
+    });
+  });
+  return error;
+}
+
 describe('settings writes and server reachability (MYK9-864)', () => {
   beforeEach(() => {
-    upsertMock.mockReset();
+    vi.clearAllMocks();
+    readResult.mockReturnValue({ data: null, error: null, status: 200 });
     resetServerReachabilityForTests();
   });
 
-  it('marks the server unreachable when a write never reaches Supabase', async () => {
-    upsertMock.mockResolvedValue(transportFailure);
-    const { result } = renderWithClient(() => ({
-      mutation: useUpdateTrialOverride(),
-      reachable: useServerReachable(),
-    }));
+  it.each(HOOKS)(
+    '%s marks the server unreachable on a transport failure',
+    async (_, useHook, vars) => {
+      upsertResult.mockReturnValue(transportFailure);
+      const { result } = renderMutation(useHook);
 
-    await act(async () => {
-      await expect(
-        result.current.mutation.mutateAsync({ trialId: 't1', showId: 's1', preset: 'standard' })
-      ).rejects.toMatchObject({ message: 'TypeError: Failed to fetch' });
+      expect(await run(result, vars)).toMatchObject({ message: 'AbortError: signal timed out' });
+      expect(result.current.reachable).toBe(false);
+    }
+  );
+
+  it.each(HOOKS)(
+    '%s leaves reachability alone when the server answered',
+    async (_, useHook, vars) => {
+      upsertResult.mockReturnValue(rlsRejection);
+      const { result } = renderMutation(useHook);
+
+      expect(await run(result, vars)).toMatchObject({ code: '42501' });
+      expect(result.current.reachable).toBe(true);
+    }
+  );
+
+  it.each(HOOKS)('%s bounds the request with a timeout signal', async (_, useHook, vars) => {
+    upsertResult.mockReturnValue({ error: null, status: 201 });
+    const { result } = renderMutation(useHook);
+
+    expect(await run(result, vars)).toBeNull();
+    expect(upsertSignal).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(result.current.reachable).toBe(true);
+  });
+
+  it('useUpdateShowCheckin does not overwrite the timings when its read fails', async () => {
+    readResult.mockReturnValue({ data: null, ...transportFailure });
+    upsertResult.mockReturnValue({ error: null, status: 201 });
+    const { result } = renderMutation(useUpdateShowCheckin);
+
+    expect(await run(result, { showId: 's1', enabled: true })).toMatchObject({
+      message: 'AbortError: signal timed out',
     });
-
+    expect(upsertCalls).not.toHaveBeenCalled();
     expect(result.current.reachable).toBe(false);
-  });
-
-  it('leaves reachability alone when the server answered with an error', async () => {
-    upsertMock.mockResolvedValue(rlsRejection);
-    const { result } = renderWithClient(() => ({
-      mutation: useBulkUpdateClassOverrides(),
-      reachable: useServerReachable(),
-    }));
-
-    await act(async () => {
-      await expect(
-        result.current.mutation.mutateAsync({ classIds: ['c1'], showId: 's1', preset: 'standard' })
-      ).rejects.toMatchObject({ code: '42501' });
-    });
-
-    expect(result.current.reachable).toBe(true);
-  });
-
-  it('succeeds without touching reachability when the write goes through', async () => {
-    upsertMock.mockResolvedValue({ error: null, status: 201 });
-    const { result } = renderWithClient(() => ({
-      mutation: useUpdateTrialOverride(),
-      reachable: useServerReachable(),
-    }));
-
-    await act(async () => {
-      await result.current.mutation.mutateAsync({
-        trialId: 't1',
-        showId: 's1',
-        preset: 'standard',
-      });
-    });
-
-    expect(result.current.reachable).toBe(true);
   });
 });

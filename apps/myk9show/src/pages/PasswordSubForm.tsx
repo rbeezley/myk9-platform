@@ -40,7 +40,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
 }) => {
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-3">
         <label className="block mb-1 font-medium" htmlFor="password">
           Password
         </label>
@@ -57,7 +57,6 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
             value={password}
             onChange={e => onPasswordChange(e.target.value)}
             className="h-11 w-full rounded-md border border-input bg-background p-2 pl-10 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            required
           />
           <button
             type="button"
@@ -104,7 +103,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
           submitLabel
         )}
       </button>
-      <div className="text-center mt-4">
+      <div className="text-center mt-2">
         <Link to="/forgot-password" className="text-primary hover:underline text-sm font-medium">
           Forgot your password?
         </Link>

@@ -35,8 +35,8 @@ test.describe('entry intent sign-in redirect', () => {
       page.getByRole('heading', { name: `Sign in to enter ${LIVE_SECRETARY_SHOW_NAME}` })
     ).toBeVisible({ timeout: 30000 });
 
+    // Credential and password fields render together from the start (MYK9-853).
     await page.getByTestId('credential-input').fill(exhibitor.email);
-    await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
     await page.getByTestId('password-input').fill(exhibitor.password);
     await page.getByTestId('sign-in-button').click();

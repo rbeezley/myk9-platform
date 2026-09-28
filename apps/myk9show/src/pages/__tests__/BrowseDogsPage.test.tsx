@@ -206,11 +206,46 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Add your first dog to track health records, registrations, and competitions.'
+        'No dogs are visible to you yet. Dogs added by any exhibitor, or by you, will show up here.'
       )
+    ).toBeInTheDocument();
+  });
+
+  // MYK9-854: the empty state must not tell staff to add "your first dog" —
+  // the real state for a secretary/admin seeing zero dogs is "none visible to
+  // you yet", not "you personally own none". Exhibitors keep the original
+  // copy as a positive control.
+  it('never tells a secretary to add "your first dog"', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.SECRETARY]);
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [],
+      filteredDogs: [],
+      hasActiveFilters: false,
+    };
+
+    renderPage();
+
+    expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
+    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
+  });
+
+  it('tells an exhibitor with no dogs to add their first one', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [],
+      filteredDogs: [],
+      hasActiveFilters: false,
+    };
+
+    renderPage();
+
+    expect(
+      screen.getByText('Add your first dog to start tracking titles, training, and health records.')
     ).toBeInTheDocument();
   });
 
@@ -494,7 +529,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       renderPage();
 
       expect(screen.getByTestId('dogs-skeleton')).toBeInTheDocument();
-      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
     });
 
     it('offers a retry instead of "No dogs yet" when identity never resolves', () => {
@@ -510,7 +545,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
     });
 
     it('retries the RBAC lookup, not just the dogs query', async () => {
@@ -543,7 +578,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       renderPage();
 
-      expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+      expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
     });
   });
 

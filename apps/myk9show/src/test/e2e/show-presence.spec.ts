@@ -35,8 +35,8 @@ const SELF_ONLY = '[aria-label="1 person here"]'; // only the viewer present
 async function signIn(page: Page, user: TestUser) {
   await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('credential-input')).toBeVisible({ timeout: 15000 });
+  // Credential and password fields render together from the start (MYK9-853).
   await page.getByTestId('credential-input').fill(user.email);
-  await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(user.password);
   await page.getByTestId('sign-in-button').click();

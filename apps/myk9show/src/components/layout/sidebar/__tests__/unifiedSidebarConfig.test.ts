@@ -230,17 +230,11 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar includes the additional access path', () => {
+  it('exhibitor-only sidebar omits the additional access path (moved to Account settings)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual([
-      'My Shows',
-      'Request additional access',
-      'My Dogs',
-      'My Payments',
-      'Ringside',
-      'Find Shows',
-    ]);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Ringside', 'Find Shows']);
+    expect(allTitles).not.toContain('Request additional access');
   });
 
   it('exhibitor-only sidebar omits descriptions from self-explanatory destinations', () => {
@@ -362,11 +356,11 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── As Exhibitor (multi-role exhibitor) ──────────────────────────────────
-  it('as exhibitor section includes the shared additional access path for secretary+exhibitor', () => {
+  it('as exhibitor section omits the additional access path (moved to Account settings)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const group = config.groups.find(g => g.title === 'As Exhibitor');
     expect(group).toBeDefined();
-    expect(group?.items.map(i => i.title)).toEqual(['My Entries', 'Request additional access']);
+    expect(group?.items.map(i => i.title)).toEqual(['My Entries']);
   });
 
   it('as exhibitor My Entries href is /exhibitor/entries', () => {

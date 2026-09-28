@@ -157,6 +157,10 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => ({ isOnline: true }),
+}));
+
 import ResultsControlPage from '../ResultsControlPage';
 import { Routes, Route } from 'react-router-dom';
 

@@ -311,7 +311,6 @@ const files = [
   'apps/myk9show/src/test/config/testOptimization.ts',
   'apps/myk9show/src/test/load/DatabaseLoadTests.ts',
   'apps/myk9show/src/test/load/LoadTestRunner.ts',
-  'apps/myk9show/src/test/performance/measure-loading-performance.ts',
   'apps/myk9show/src/test/setup/global-setup.ts',
   'apps/myk9show/src/utils/logger.ts',
   'apps/myk9show/src/utils/standardizedErrorHandler.ts',

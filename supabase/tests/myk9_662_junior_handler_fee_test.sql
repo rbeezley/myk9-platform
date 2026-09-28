@@ -12,6 +12,8 @@
 -- the NEW behavior: that submit_show_entries consults the existing mechanism
 -- and applies shows.junior_handler_fee correctly. Every case below submits
 -- through the real RPC as a secretary (payment_method 'secretary_paid').
+-- The junior fixture's stored date of birth needs no secretary verification:
+-- self-entered dates qualify under the owner's 2026-09-28 decision.
 --
 -- `now()` cannot be moved inside a transaction, so every show/trial is placed
 -- 30 days out (entries open, pre-entry tier) so the day-of-show tier never

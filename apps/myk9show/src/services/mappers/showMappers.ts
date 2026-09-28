@@ -266,8 +266,9 @@ export const mapDatabaseToShow = (
     preEntryFee: dbShow.pre_entry_fee?.toString() ?? '',
     dayOfShowFee: dbShow.day_of_show_fee?.toString() || undefined,
     juniorHandlerFee:
-      ((dbShow as Record<string, unknown>).junior_handler_fee as number | null | undefined)
-        ?.toString() || undefined,
+      (
+        (dbShow as Record<string, unknown>).junior_handler_fee as number | null | undefined
+      )?.toString() || undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
     lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as
       string | undefined,

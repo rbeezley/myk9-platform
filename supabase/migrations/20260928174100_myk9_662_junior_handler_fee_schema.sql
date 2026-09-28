@@ -4,6 +4,9 @@
 -- "junior handler fee" beside the regular entry fee, set when building the show. It
 -- applies to the entry fee only; the platform/card-processing split (MYK9-229) is
 -- untouched.
+-- Decision (Richard, 2026-09-28): a handler's self-entered date of birth
+-- qualifies for the reduced fee. Secretary verification is not required;
+-- clubs may check eligibility when needed.
 --
 -- `shows.junior_handler_fee` mirrors `day_of_show_fee`'s own convention: nullable,
 -- and a value of NULL or 0 both mean "no junior tier configured" (0 is what the

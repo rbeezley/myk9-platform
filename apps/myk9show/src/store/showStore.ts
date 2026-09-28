@@ -268,7 +268,9 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         entryCloseDate: showData.entryCloseDate || undefined,
         preEntryFee: showData.preEntryFee ? parseFloat(showData.preEntryFee) : undefined,
         dayOfShowFee: showData.dayOfShowFee ? parseFloat(showData.dayOfShowFee) : undefined,
-        juniorHandlerFee: showData.juniorHandlerFee ? parseFloat(showData.juniorHandlerFee) : undefined,
+        juniorHandlerFee: showData.juniorHandlerFee
+          ? parseFloat(showData.juniorHandlerFee)
+          : undefined,
         clubId: showData.clubId || undefined,
         acceptCheckPayments: showData.acceptCheckPayments,
         acceptCashPayments: showData.acceptCashPayments,

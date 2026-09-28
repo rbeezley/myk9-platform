@@ -6,6 +6,7 @@ import {
   PDFRadioGroup,
   PDFTextField,
 } from 'pdf-lib';
+import { toWinAnsiSafeText } from './winAnsiText';
 
 export type PdfFormFieldType =
   'checkbox' | 'dropdown' | 'option-list' | 'radio-group' | 'text' | 'unknown';
@@ -51,7 +52,7 @@ export async function fillPdfForm(
 
   for (const [name, value] of Object.entries(values.text ?? {})) {
     if (value == null || value === '') continue;
-    form.getTextField(name).setText(String(value));
+    form.getTextField(name).setText(await toWinAnsiSafeText(String(value)));
   }
 
   for (const [name, checked] of Object.entries(values.checkboxes ?? {})) {

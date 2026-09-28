@@ -6,6 +6,7 @@ import {
   resolvePremiumStyle,
   type PremiumStyle,
 } from '@/types/premium-types';
+import { resolveBrowserTrialTimezone } from '@/features/registries';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 
 /** Maps show organization to a default trial type (discipline). */
@@ -72,6 +73,10 @@ interface WizardState {
     judgeIds: string[]; // Judges assigned to the show
     acceptCheckPayments: boolean;
     acceptCashPayments: boolean;
+    // IANA zone for the trials this show creates (MYK9-831). Optional so
+    // existing persisted drafts without it still satisfy the type; resolved
+    // to the browser's zone at draft-creation time and at save time.
+    timezone?: string | undefined;
     style?: PremiumStyle | undefined;
   };
 
@@ -167,6 +172,7 @@ const initialState: WizardState = {
     judgeIds: [],
     acceptCheckPayments: false,
     acceptCashPayments: false,
+    timezone: resolveBrowserTrialTimezone(),
     style: DEFAULT_PREMIUM_STYLE,
   },
   trials: [],

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -7,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
+import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
+import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import {
   getDogDisplayName,
   getDogBreedLabel,
@@ -19,6 +20,7 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import { AddDogPanel } from '@/components/panels/edit';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
 import { RegistrationChipsForShow } from './RegistrationChipsForShow';
@@ -41,9 +43,12 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   showRegistryId,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [isAddDogPanelOpen, setIsAddDogPanelOpen] = React.useState(false);
   const { dogs, isLoading, error, refetch } = useDogStoreCompat();
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
+  const { getUserRoles } = useAuthContext();
+  const currentUserPersonId = useCurrentUserPersonId();
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
@@ -107,215 +112,282 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     };
   };
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label="Loading your dogs" className="space-y-4 py-2">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-56" />
-          <Skeleton className="h-4 w-80 max-w-full" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-24 rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // MYK9-803 (round 2): a new dog is only auto-selected when the same
+  // eligibility rules the list already enforces (age, later registry checks
+  // downstream) would let her check its box herself — an ineligible dog still
+  // appears, disabled, with the reason shown, never silently added to the cart.
+  const handleDogCreated = (newDog: Dog) => {
+    const forShow = resolveRegistrationForShow(newDog, showRegistryId);
+    if (getDogEligibilityStatus(newDog, forShow).eligible) {
+      onSelectionChange([...selectedDogs, newDog.id]);
+    }
+  };
 
-  if (error) {
-    return (
-      <div role="alert" className="space-y-3 py-8 text-center">
-        <p>We couldn't load your dogs. Please try again.</p>
-        <Button type="button" variant="outline" size="touch" onClick={refetch}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
+  const addDogPanel = (
+    <AddDogPanel
+      open={isAddDogPanelOpen}
+      onClose={() => setIsAddDogPanelOpen(false)}
+      onDogCreated={handleDogCreated}
+      userRole={getPrimaryRole(getUserRoles())}
+      currentUserPersonId={currentUserPersonId || undefined}
+    />
+  );
 
-  // MYK9-803: "no dogs at all" and "dogs exist but none are eligible" used to
-  // share one dead-end branch. A first-time exhibitor with zero dogs had no way
-  // out of the wizard — she had to already know "My Dogs" lived elsewhere in
-  // the nav, leave the show she was entering, add the dog, and find her way
-  // back (2026-09-26 exhibitor walk, E47). This is a POINTER to the existing
-  // add-dog surface (`/dogs?add=true`, same query param `BrowseDogsPage`
-  // already reads to auto-open its create panel), not a second add-dog form.
-  if (dogs.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">You don't have any dogs yet.</p>
-        <p className="text-sm text-muted-foreground mt-2">Add a dog to enter this show.</p>
-        <Button asChild variant="outline" size="touch" className="mt-4">
-          <Link to="/dogs?add=true">
+  // The Add Dog panel must hold a STABLE position in a STABLE parent — see the
+  // matching INTENT comment on `creationDialogs` in
+  // `DogSelectionStepEnhanced.tsx`. `renderBody` below early-returns a
+  // different top-level tree per state (loading/error/empty/list); rendering
+  // `addDogPanel` inside each of those branches would remount it whenever the
+  // branch changes, silently resetting a half-filled form.
+  const renderBody = () => {
+    if (isLoading) {
+      return (
+        <div role="status" aria-label="Loading your dogs" className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div role="alert" className="space-y-3 py-8 text-center">
+          <p>We couldn't load your dogs. Please try again.</p>
+          <Button type="button" variant="outline" size="touch" onClick={refetch}>
+            Try again
+          </Button>
+        </div>
+      );
+    }
+
+    // MYK9-803: "no dogs at all" and "dogs exist but none are eligible" used to
+    // share one dead-end branch. A first-time exhibitor with zero dogs had no
+    // way out of the wizard — she had to already know "My Dogs" lived
+    // elsewhere in the nav, leave the show she was entering, add the dog, and
+    // find her way back (2026-09-26 exhibitor walk, E47). Round 1 pointed her
+    // at the existing add-dog surface via a `/dogs?add=true` link; the
+    // production walk that followed (2026-09-27) found that link only
+    // appeared for a zero-dog account, and asked why an account WITH dogs
+    // couldn't add one too. Round 2 opens the SAME reusable `AddDogPanel`
+    // (still not a second add-dog form) in place, for every account, so
+    // nothing here ever leaves the wizard.
+    if (dogs.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">You don't have any dogs yet.</p>
+          <p className="text-sm text-muted-foreground mt-2">Add a dog to enter this show.</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="mt-4"
+            onClick={() => setIsAddDogPanelOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add a dog
-          </Link>
-        </Button>
-      </div>
-    );
-  }
+          </Button>
+        </div>
+      );
+    }
 
-  if (eligibleDogs.length === 0) {
+    if (eligibleDogs.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No eligible dogs found.</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Make sure your dogs are active and have up-to-date information.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="mt-4"
+            onClick={() => setIsAddDogPanelOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add a new dog
+          </Button>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">No eligible dogs found.</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          Make sure your dogs are active and have up-to-date information.
-        </p>
-      </div>
-    );
-  }
+      <div className="space-y-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Choose which dogs you want to enter in this show. You can select multiple dogs.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            onClick={() => setIsAddDogPanelOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add a new dog
+          </Button>
+        </div>
 
-  return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Choose which dogs you want to enter in this show. You can select multiple dogs.
-        </p>
-      </div>
+        <div className="space-y-2">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search dogs by call name"
+            aria-label="Search dogs by call name"
+          />
+          <p role="status" className="text-sm text-muted-foreground">
+            {visibleDogs.length === 0
+              ? 'No dogs match your search. Try another call name or clear the search.'
+              : `${visibleDogs.length} of ${eligibleDogs.length} dogs shown`}
+          </p>
+        </div>
 
-      <div className="space-y-2">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Search dogs by call name"
-          aria-label="Search dogs by call name"
-        />
-        <p role="status" className="text-sm text-muted-foreground">
-          {visibleDogs.length === 0
-            ? 'No dogs match your search. Try another call name or clear the search.'
-            : `${visibleDogs.length} of ${eligibleDogs.length} dogs shown`}
-        </p>
-      </div>
+        <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
+          <div className="space-y-3">
+            {visibleDogs.map(dog => {
+              const forShow = resolveRegistrationForShow(dog, showRegistryId);
+              const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
+              const isSelected = selectedDogs.includes(dog.id);
+              // Same visibility rule as before this change: the fix affordance rides with
+              // the warning, and an already-ineligible dog does not get one.
+              const showAddRegistration =
+                eligible && (warnings.length > 0 || forShow.missingRegistration);
 
-      <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
-        <div className="space-y-3">
-          {visibleDogs.map(dog => {
-            const forShow = resolveRegistrationForShow(dog, showRegistryId);
-            const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
-            const isSelected = selectedDogs.includes(dog.id);
-            // Same visibility rule as before this change: the fix affordance rides with
-            // the warning, and an already-ineligible dog does not get one.
-            const showAddRegistration =
-              eligible && (warnings.length > 0 || forShow.missingRegistration);
-
-            return (
-              <Card
-                key={dog.id}
-                className={cn(
-                  'myk9-dog-card cursor-pointer',
-                  isSelected && 'selected',
-                  !eligible && 'opacity-60'
-                )}
-                onClick={() => eligible && handleDogToggle(dog.id)}
-              >
-                <CardContent className="p-0">
-                  <div className="flex items-start space-x-3">
-                    {/* The 44px touch floor belongs to this WRAPPER, never to
+              return (
+                <Card
+                  key={dog.id}
+                  className={cn(
+                    'myk9-dog-card cursor-pointer',
+                    isSelected && 'selected',
+                    !eligible && 'opacity-60'
+                  )}
+                  onClick={() => eligible && handleDogToggle(dog.id)}
+                >
+                  <CardContent className="p-0">
+                    <div className="flex items-start space-x-3">
+                      {/* The 44px touch floor belongs to this WRAPPER, never to
                       the checkbox's painted box: sizing the control itself gave
                       a 44px square around a 16px tick (MYK9-485). The whole
                       Card also toggles selection, so this hit area is a second
                       one, not the only one. */}
-                    <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
-                      <Checkbox
-                        aria-label={`Select ${getDogDisplayName(dog)}`}
-                        checked={isSelected}
-                        disabled={!eligible}
-                        onCheckedChange={() => handleDogToggle(dog.id)}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </span>
+                      <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+                        <Checkbox
+                          aria-label={`Select ${getDogDisplayName(dog)}`}
+                          checked={isSelected}
+                          disabled={!eligible}
+                          onCheckedChange={() => handleDogToggle(dog.id)}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </span>
 
-                    <div className="min-w-0 flex-1">
-                      {/* Selection is signalled TWICE, not three times: the
+                      <div className="min-w-0 flex-1">
+                        {/* Selection is signalled TWICE, not three times: the
                         checkbox and the card's primary border. The "Selected"
                         badge that used to sit at the end of this row said the
                         same thing a third time, one row-width away from the
                         control that sets it (MYK9-485). */}
-                      <div>
-                        <Label className="break-words text-base font-medium text-foreground cursor-pointer">
-                          {getDogDisplayName(dog)}
-                          {getDogDistinctRegisteredName(dog) &&
-                            ` "${getDogDistinctRegisteredName(dog)}"`}
-                        </Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {getDogBreedLabel(dog)} • {dog.gender || 'Unknown'} • Born{' '}
-                          {formatDateMMDDYYYY(dog.dateOfBirth)}
-                        </p>
+                        <div>
+                          <Label className="break-words text-base font-medium text-foreground cursor-pointer">
+                            {getDogDisplayName(dog)}
+                            {getDogDistinctRegisteredName(dog) &&
+                              ` "${getDogDistinctRegisteredName(dog)}"`}
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {getDogBreedLabel(dog)} • {dog.gender || 'Unknown'} • Born{' '}
+                            {formatDateMMDDYYYY(dog.dateOfBirth)}
+                          </p>
+                        </div>
+
+                        <RegistrationChipsForShow forShow={forShow} className="mt-2" />
+
+                        {forShow.missingRegistrationMessage && (
+                          // role="status": the registry resolves after the first
+                          // paint, so this appears while she is already reading.
+                          <p role="status" className="mt-2 text-xs text-destructive">
+                            • {forShow.missingRegistrationMessage}
+                          </p>
+                        )}
+
+                        {!eligible && issues.length > 0 && (
+                          <div className="mt-2">
+                            {issues.map((issue, idx) => (
+                              <p key={idx} className="text-xs text-destructive">
+                                • {issue}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {eligible && warnings.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {warnings.map((warning, idx) => (
+                              <p key={idx} className="text-xs text-warning ">
+                                • {warning}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {showAddRegistration && (
+                          <div className="mt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="touch"
+                              onClick={event => {
+                                event.stopPropagation();
+                                openRegistrationEditor(dog.id);
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add registration
+                            </Button>
+                          </div>
+                        )}
                       </div>
-
-                      <RegistrationChipsForShow forShow={forShow} className="mt-2" />
-
-                      {forShow.missingRegistrationMessage && (
-                        // role="status": the registry resolves after the first
-                        // paint, so this appears while she is already reading.
-                        <p role="status" className="mt-2 text-xs text-destructive">
-                          • {forShow.missingRegistrationMessage}
-                        </p>
-                      )}
-
-                      {!eligible && issues.length > 0 && (
-                        <div className="mt-2">
-                          {issues.map((issue, idx) => (
-                            <p key={idx} className="text-xs text-destructive">
-                              • {issue}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-
-                      {eligible && warnings.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {warnings.map((warning, idx) => (
-                            <p key={idx} className="text-xs text-warning ">
-                              • {warning}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-
-                      {showAddRegistration && (
-                        <div className="mt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="touch"
-                            onClick={event => {
-                              event.stopPropagation();
-                              openRegistrationEditor(dog.id);
-                            }}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add registration
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </ScrollArea>
 
-      {selectedDogs.length > 0 && (
-        <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-          <p className="text-sm font-medium">
-            {selectedDogs.length} dog{selectedDogs.length > 1 ? 's' : ''} selected
-          </p>
-        </div>
-      )}
+        {selectedDogs.length > 0 && (
+          <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+            <p className="text-sm font-medium">
+              {selectedDogs.length} dog{selectedDogs.length > 1 ? 's' : ''} selected
+            </p>
+          </div>
+        )}
 
-      <div className="relative z-[60]">
-        <AddEditRegistrationDialog
-          open={registrationDogId !== null}
-          onOpenChange={open => !open && closeRegistrationEditor()}
-          onSave={saveRegistration}
-        />
+        <div className="relative z-[60]">
+          <AddEditRegistrationDialog
+            open={registrationDogId !== null}
+            onOpenChange={open => !open && closeRegistrationEditor()}
+            onSave={saveRegistration}
+          />
+        </div>
       </div>
-    </div>
+    );
+  };
+
+  // Stable shape: body swaps at child 0, the Add Dog panel never moves from
+  // child 1 (see the INTENT comment on `renderBody` above).
+  return (
+    <>
+      {renderBody()}
+      {addDogPanel}
+    </>
   );
 };

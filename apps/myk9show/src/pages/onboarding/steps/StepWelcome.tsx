@@ -9,12 +9,19 @@ import { Link } from 'react-router-dom';
 
 interface StepWelcomeProps {
   onFinish: () => void;
+  onNavigateAway: (destination: string) => void;
   onBack: () => void;
   isSubmitting: boolean;
   error: string;
 }
 
-export function StepWelcome({ onFinish, onBack, isSubmitting, error }: StepWelcomeProps) {
+export function StepWelcome({
+  onFinish,
+  onNavigateAway,
+  onBack,
+  isSubmitting,
+  error,
+}: StepWelcomeProps) {
   return (
     <div className="space-y-6 text-center" data-testid="step-welcome">
       <div className="flex justify-center">
@@ -34,6 +41,10 @@ export function StepWelcome({ onFinish, onBack, isSubmitting, error }: StepWelco
           <Link
             className="font-medium text-primary underline-offset-4 hover:underline"
             to="/account?section=profile"
+            onClick={event => {
+              event.preventDefault();
+              onNavigateAway('/account?section=profile');
+            }}
           >
             Account Profile
           </Link>
@@ -41,6 +52,10 @@ export function StepWelcome({ onFinish, onBack, isSubmitting, error }: StepWelco
           <Link
             className="font-medium text-primary underline-offset-4 hover:underline"
             to="/account?section=notifications"
+            onClick={event => {
+              event.preventDefault();
+              onNavigateAway('/account?section=notifications');
+            }}
           >
             Account Notifications
           </Link>

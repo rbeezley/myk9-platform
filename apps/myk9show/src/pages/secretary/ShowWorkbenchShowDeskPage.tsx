@@ -25,6 +25,7 @@ import {
   type CloseoutTrialSummary,
 } from '@/features/show-workbench/showCloseOutShow';
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
+import { SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID } from '@/features/show-desk-people-roster/peopleRosterRoutes';
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -272,7 +273,7 @@ export function ShowWorkbenchShowDeskPage() {
 
     return [
       {
-        id: 'people-at-show',
+        id: SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID,
         title: 'People at show',
         summary: 'Look up exhibitors, armbands, class entries, and check-in status',
         layout: 'wide',

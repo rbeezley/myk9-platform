@@ -45,11 +45,12 @@ let mockBrowseDogsReturn = {
   isLoading: false,
   hasError: false,
   handleRetry: vi.fn(),
-  filters: { search: '', breed: 'all', sex: 'all' },
+  filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'all' },
   setFilters: vi.fn(),
   hasActiveFilters: false,
   clearAllFilters: vi.fn(),
   availableBreeds: ['Golden Retriever', 'Border Collie'],
+  availableOwners: ['Jane Doe'],
 };
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
@@ -153,11 +154,12 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       isLoading: false,
       hasError: false,
       handleRetry: vi.fn(),
-      filters: { search: '', breed: 'all', sex: 'all' },
+      filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'all' },
       setFilters: vi.fn(),
       hasActiveFilters: false,
       clearAllFilters: vi.fn(),
       availableBreeds: ['Golden Retriever', 'Border Collie'],
+      availableOwners: ['Jane Doe'],
     };
   });
 
@@ -204,11 +206,46 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Add your first dog to track health records, registrations, and competitions.'
+        'No dogs are visible to you yet. Dogs added by any exhibitor, or by you, will show up here.'
       )
+    ).toBeInTheDocument();
+  });
+
+  // MYK9-854: the empty state must not tell staff to add "your first dog" —
+  // the real state for a secretary/admin seeing zero dogs is "none visible to
+  // you yet", not "you personally own none". Exhibitors keep the original
+  // copy as a positive control.
+  it('never tells a secretary to add "your first dog"', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.SECRETARY]);
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [],
+      filteredDogs: [],
+      hasActiveFilters: false,
+    };
+
+    renderPage();
+
+    expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
+    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
+  });
+
+  it('tells an exhibitor with no dogs to add their first one', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [],
+      filteredDogs: [],
+      hasActiveFilters: false,
+    };
+
+    renderPage();
+
+    expect(
+      screen.getByText('Add your first dog to start tracking titles, training, and health records.')
     ).toBeInTheDocument();
   });
 
@@ -313,12 +350,14 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.queryByText('DN12345678')).not.toBeInTheDocument();
   });
 
-  it('uses "Sex" consistently for the filter and table column', () => {
+  it('uses "Sex" consistently for the filter and table column', async () => {
+    const user = userEvent.setup();
     localStorage.setItem('view-pref-dogs', 'cards');
 
     renderPage();
+    await user.click(screen.getByRole('button', { name: /^filter$/i }));
 
-    expect(screen.getByText('Sex')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sex' })).toBeInTheDocument();
     expect(screen.queryByText('Gender')).not.toBeInTheDocument();
   });
 
@@ -336,11 +375,81 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.getByTitle('Table view')).toBeInTheDocument();
   });
 
-  it('renders ResultsCount showing correct numbers', () => {
+  it('renders the result line showing correct numbers', () => {
     renderPage();
 
     // 1 of 1 dog
-    expect(screen.getByText('1 dog')).toBeInTheDocument();
+    expect(screen.getByText(/1 dog/)).toBeInTheDocument();
+  });
+
+  describe('list-toolkit views and filters', () => {
+    it('renders the All/Active/Retired/Deceased view tabs', () => {
+      renderPage();
+
+      const nav = screen.getByRole('navigation', { name: 'Dog views' });
+      expect(nav).toHaveTextContent('All');
+      expect(nav).toHaveTextContent('Active');
+      expect(nav).toHaveTextContent('Retired');
+      expect(nav).toHaveTextContent('Deceased');
+    });
+
+    it('selecting a view tab sets the status filter', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: /^retired/i }));
+
+      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
+      const updater = mockBrowseDogsReturn.setFilters.mock.calls[0][0];
+      expect(updater(mockBrowseDogsReturn.filters)).toMatchObject({ status: 'retired' });
+    });
+
+    it('offers Owner as a filter field for a secretary', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: /^filter$/i }));
+
+      expect(screen.getByRole('button', { name: 'Owner' })).toBeInTheDocument();
+    });
+
+    it('does not offer Owner as a filter field for an exhibitor-only roster', async () => {
+      const user = userEvent.setup();
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: /^filter$/i }));
+
+      expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
+    });
+
+    // Codex review, PR #2561: a stale ?owner= from a shared link or an
+    // earlier staff view must not keep silently narrowing an own-dogs-only
+    // roster once the field that set it is gone from the menu.
+    it('clears a stale owner filter once the Owner field is hidden', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
+      };
+
+      renderPage();
+
+      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
+      const updater = mockBrowseDogsReturn.setFilters.mock.calls[0][0];
+      expect(updater(mockBrowseDogsReturn.filters)).toMatchObject({ owner: 'all' });
+    });
+
+    it('leaves an active owner filter alone when the field is offered', () => {
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
+      };
+
+      renderPage();
+
+      expect(mockBrowseDogsReturn.setFilters).not.toHaveBeenCalled();
+    });
   });
 
   it('opens the add dog panel from the add query parameter', () => {
@@ -420,7 +529,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       renderPage();
 
       expect(screen.getByTestId('dogs-skeleton')).toBeInTheDocument();
-      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
     });
 
     it('offers a retry instead of "No dogs yet" when identity never resolves', () => {
@@ -436,7 +545,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
     });
 
     it('retries the RBAC lookup, not just the dogs query', async () => {
@@ -469,7 +578,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       renderPage();
 
-      expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+      expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
     });
   });
 
@@ -630,8 +739,8 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     it('reports the whole filtered roster in the results summary, not the page', () => {
       renderCards(60);
 
-      expect(screen.getByText('60 dogs')).toBeInTheDocument();
-      expect(screen.queryByText('25 dogs')).not.toBeInTheDocument();
+      expect(screen.getByText(/60 dogs/)).toBeInTheDocument();
+      expect(screen.queryByText(/^25 dogs$/)).not.toBeInTheDocument();
 
       const nav = screen.getByRole('navigation', { name: 'Dog list pagination' });
       expect(nav.textContent?.replace(/\s+/g, ' ')).toContain('Showing 1 to 25 of 60');

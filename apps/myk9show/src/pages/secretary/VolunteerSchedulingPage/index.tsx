@@ -22,15 +22,8 @@ import { VolunteerPool } from '@/components/volunteers/VolunteerPool';
 import { VolunteerDialog } from '@/components/volunteers/VolunteerDialog';
 import { ClassVolunteerCard } from '@/components/volunteers/ClassVolunteerCard';
 import { GeneralDutyCard } from '@/components/volunteers/GeneralDutyCard';
-import { SearchBar } from '@/components/common/SearchBar';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
+import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useVolunteerFilters } from './useVolunteerFilters';
 import type { Volunteer, ClassInfo } from '@/types/volunteer';
@@ -84,7 +77,26 @@ export default function VolunteerSchedulingPage() {
     setUnfilledOnly,
     filteredClasses,
     filteredDutyRoles,
+    allCount,
+    unfilledCount,
   } = useVolunteerFilters({ classes: classInfos, classAssignments, generalAssignments });
+
+  const views: ListView[] = [
+    { id: 'all', label: 'All classes', count: allCount },
+    { id: 'unfilled', label: 'Unfilled only', count: unfilledCount },
+  ];
+
+  const trialField: ListFilterField = {
+    kind: 'options',
+    key: 'trial',
+    label: 'Trial',
+    value: trialFilter === 'all' ? null : trialFilter,
+    onChange: value => setTrialFilter(value ?? 'all'),
+    options: showTrials.map(t => ({
+      value: t.id,
+      label: `${formatTrialLabel({ name: t.name, trialNumber: t.trialNumber })} — ${t.trialDate}`,
+    })),
+  };
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
@@ -187,35 +199,23 @@ export default function VolunteerSchedulingPage() {
         onEditClick={handleEditClick}
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search classes, volunteers..."
-          className="w-64"
+      <div className="flex flex-col gap-3">
+        <ListViewTabs
+          label="Volunteer views"
+          views={views}
+          activeId={unfilledOnly ? 'unfilled' : 'all'}
+          onSelect={id => setUnfilledOnly(id === 'unfilled')}
         />
-        <Select value={trialFilter} onValueChange={setTrialFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Trials" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Trials</SelectItem>
-            {showTrials.map(t => (
-              <SelectItem key={t.id} value={t.id}>
-                {formatTrialLabel({ name: t.name, trialNumber: t.trialNumber })} — {t.trialDate}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={unfilledOnly}
-            onChange={e => setUnfilledOnly(e.target.checked)}
-            className="rounded border-input"
-          />
-          <Label className="cursor-pointer text-sm font-normal">Unfilled only</Label>
-        </label>
+        <ListFilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search classes, volunteers..."
+          fields={[trialField]}
+          onClearAll={() => {
+            setSearch('');
+            setTrialFilter('all');
+          }}
+        />
       </div>
 
       {isLoading && (

@@ -37,6 +37,8 @@ import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
 import { normalizeContactDestinations } from './contactDestinations';
 import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import { useClubOfficials } from './useClubOfficials';
+import { ClubOfficialsLine } from './ClubOfficialsLine';
 
 interface ClubHeaderProps {
   club: Club;
@@ -90,6 +92,11 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     [club.accentColor]
   );
   const contact = useMemo(() => normalizeContactDestinations(club), [club]);
+  const {
+    data: officials,
+    isError: officialsError,
+    refetch: refetchOfficials,
+  } = useClubOfficials(club.id);
   const hasMenuActions =
     canEditBranding ||
     canDeleteClub ||
@@ -306,6 +313,41 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 </span>
               )}
             </div>
+            {officialsError ? (
+              <div
+                role="alert"
+                className="mb-2 flex flex-wrap items-center gap-2 text-sm text-destructive"
+              >
+                <span>Club officials couldn't load.</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
+                  onClick={() => void refetchOfficials()}
+                >
+                  Try again
+                </Button>
+              </div>
+            ) : (
+              <ClubOfficialsLine
+                adminNames={officials?.adminNames ?? []}
+                secretaryNames={officials?.secretaryNames ?? []}
+              />
+            )}
+            {/* MYK9-855: the badge alone only reads on hover (the `title`
+                above), which a touch device never shows. Say in visible text
+                what is pending and who acts on it next, instead of leaving
+                the requester with a bare "Unauthorized" word. */}
+            {isClubAuthorized === false && (
+              <p
+                data-testid="club-unauthorized-notice"
+                className="mb-2 max-w-2xl text-sm text-muted-foreground"
+              >
+                {canAuthorizeClub
+                  ? 'Pending myK9 authorization. Authorize this club from the ⋮ menu above to unlock show publishing and the public club directory.'
+                  : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
+              </p>
+            )}
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4" />

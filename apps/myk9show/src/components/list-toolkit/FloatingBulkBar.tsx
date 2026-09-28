@@ -21,6 +21,8 @@ interface FloatingBulkBarProps {
   onClear: () => void;
   /** The actions — use `BulkBarButton`. Destructive ones last. */
   children: ReactNode;
+  /** Disables Clear (button and Escape) while a bulk operation is in flight. */
+  busy?: boolean;
 }
 
 /**
@@ -37,7 +39,13 @@ const BAR_SURFACE = [
   'shadow-[0_12px_32px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.2)]',
 ].join(' ');
 
-export function FloatingBulkBar({ count, noun, onClear, children }: FloatingBulkBarProps) {
+export function FloatingBulkBar({
+  count,
+  noun,
+  onClear,
+  children,
+  busy = false,
+}: FloatingBulkBarProps) {
   if (count === 0) return null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -47,6 +55,7 @@ export function FloatingBulkBar({ count, noun, onClear, children }: FloatingBulk
     if (!event.currentTarget.contains(event.target as Node)) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
+      if (busy) return;
       onClear();
     }
   };
@@ -73,8 +82,9 @@ export function FloatingBulkBar({ count, noun, onClear, children }: FloatingBulk
           <button
             type="button"
             onClick={onClear}
+            disabled={busy}
             aria-label="Clear selection"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -90,6 +100,8 @@ interface BulkBarButtonProps {
   children: ReactNode;
   tone?: 'default' | 'destructive';
   disabled?: boolean;
+  /** Shown as a native tooltip — used to explain why the button is disabled. */
+  title?: string | undefined;
 }
 
 export function BulkBarButton({
@@ -98,12 +110,14 @@ export function BulkBarButton({
   children,
   tone = 'default',
   disabled = false,
+  title,
 }: BulkBarButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium',
         'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',

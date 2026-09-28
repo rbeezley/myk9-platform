@@ -26,12 +26,12 @@ function makeWrapper() {
 
 /*
  * The toast assertions that used to live here moved with the toast itself.
- * Both this hook AND `BulkOperationsBar` used to call sonner, so one release
+ * Both this hook AND `ResultsBulkBar` used to call sonner, so one release
  * produced two differently-worded messages. The bar won, because its message
  * describes the SELECTION outcome ("the failed classes stayed selected so you
  * can retry") which this hook cannot see. The "never resolves silently"
  * guarantee is covered by
- * `pages/secretary/ResultsControlPage/__tests__/BulkOperationsBar.test.tsx`.
+ * `pages/secretary/ResultsControlPage/__tests__/ResultsBulkBar.test.tsx`.
  *
  * What stays here is what this hook actually owns: the per-index partition of
  * released vs failed, which the bar depends on to keep the right rows selected.

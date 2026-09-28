@@ -18,6 +18,14 @@
  * report registry has no exhibitor audience. Deliberately ONE control: no
  * search, no sort, no date range, no export. Filtering display rows means the
  * existing totals card re-totals the chosen year for free.
+ *
+ * The control itself is the shared list-toolkit's `ListViewTabs` (MYK9-815),
+ * replacing the page-local `PaymentYearFilter` Select so every list in the app
+ * reads the same way. It carries no per-year counts: each year's rows are
+ * fetched from the server only once selected (`useMyPayments`), and counting
+ * every year up front would mean fetching payment history the exhibitor never
+ * asked to see — the same call the Entry Management rollout made for the
+ * Waitlist view count (MYK9-795).
  */
 
 import { useCallback, useMemo } from 'react';
@@ -35,6 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPaymentYears, useMyPayments } from '@/features/payments/useMyPayments';
@@ -62,7 +71,6 @@ import {
   type PaymentYearSelection,
 } from '@/features/payments/paymentYearFilter';
 import { PaymentsSummary } from './PaymentsSummaryCard';
-import { PaymentYearFilter } from './PaymentYearFilter';
 
 /**
  * Status chips drawn from the design system's chip pairs rather than the
@@ -383,6 +391,17 @@ export default function ExhibitorPaymentsPage() {
     [paymentRows, selectedYear]
   );
 
+  // Views for the shared list-toolkit's ListViewTabs (MYK9-815). No `count`:
+  // see the module doc for why a per-year count would need fetching years
+  // the exhibitor never selected.
+  const yearViews = useMemo<ListView[]>(
+    () => [
+      { id: ALL_PAYMENT_YEARS, label: 'All time' },
+      ...paymentYears.map(year => ({ id: year, label: year })),
+    ],
+    [paymentYears]
+  );
+
   const visibleRows = useMemo(
     () => filterPaymentRowsByYear(paymentRows, selectedYear),
     [paymentRows, selectedYear]
@@ -459,10 +478,11 @@ export default function ExhibitorPaymentsPage() {
               Payment history
             </h2>
             {canFilterByYear ? (
-              <PaymentYearFilter
-                years={paymentYears}
-                value={selectedYear}
-                onChange={setSelectedYear}
+              <ListViewTabs
+                views={yearViews}
+                activeId={selectedYear}
+                onSelect={year => setSelectedYear(year)}
+                label="Filter payment history by year"
               />
             ) : null}
           </div>

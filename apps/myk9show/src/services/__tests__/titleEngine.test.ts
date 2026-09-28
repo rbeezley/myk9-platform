@@ -141,6 +141,7 @@ describe('titleEngine', () => {
         scoringCompletedAt: '2025-01-15',
         showName: 'January Trial',
         showDate: '2025-01-15',
+        resultsReleasedAt: '2025-01-15',
       };
       const leg = mapExhibitorResultToLeg(result);
       expect(leg).toEqual({

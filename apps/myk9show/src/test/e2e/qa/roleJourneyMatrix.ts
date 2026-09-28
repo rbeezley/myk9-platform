@@ -117,11 +117,6 @@ export const ROLE_JOURNEY_MATRIX = [
         label: 'Judge dashboard',
         pathTemplate: '/judge/dashboard',
       },
-      {
-        id: 'check-in',
-        label: 'Judge check-in management',
-        pathTemplate: '/judge/check-in',
-      },
     ],
     checks: ['render', 'horizontal-overflow', 'console-errors'],
   },

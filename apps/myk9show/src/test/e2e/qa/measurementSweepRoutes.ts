@@ -82,7 +82,6 @@ export const SWEEP_GROUPS: readonly SweepGroup[] = [
     authUser: 'JUDGE',
     routes: [
       { id: 'dashboard', path: '/judge/dashboard', landing: true },
-      { id: 'check-in', path: '/judge/check-in' },
       { id: 'stats', path: '/judge/stats' },
       { id: 'at-show', path: '/at-show/{secretaryShowId}' },
     ],

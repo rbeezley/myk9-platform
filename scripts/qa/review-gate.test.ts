@@ -1623,6 +1623,19 @@ describe('runCli’s changed-file fetch', () => {
     expect(fields).toEqual(expect.arrayContaining(['labels', 'additions', 'deletions']));
   });
 
+  it('never asks `gh pr view` for statusCheckRollup', () => {
+    // Nothing reads the rollup, and its GraphQL query reaches
+    // `checkSuite.workflowRun`, which the gate's Actions token cannot read:
+    // every gate run crashed with "Resource not accessible by integration".
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    const view = calls.find(c => c[0] === 'pr' && c[1] === 'view');
+    if (!view) throw new Error('runCli never called `gh pr view`');
+    const fields = (view[view.indexOf('--json') + 1] ?? '').split(',');
+    expect(fields).not.toContain('statusCheckRollup');
+    expect(fields).toContain('headRefOid');
+  });
+
   it('fetches every page of the REST files endpoint', () => {
     const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
     runCli(env, ['--dry-run'], run);

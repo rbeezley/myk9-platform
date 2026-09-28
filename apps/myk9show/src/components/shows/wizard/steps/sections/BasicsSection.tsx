@@ -17,6 +17,8 @@ import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateV
 import { VenueAddressAutocomplete } from '@/features/maps/VenueAddressAutocomplete';
 import { useVenueAutoLocate, useVenuePinLocator } from '@/features/maps/useVenuePinLocator';
 import type { VenuePinValue } from '@/features/maps/normalizePinValue';
+import { resolveBrowserTrialTimezone } from '@/features/registries';
+import { buildTrialTimezoneOptions } from '@/data/trialTimezones';
 
 interface BasicsSectionProps {
   show: ShowDraft;
@@ -57,6 +59,11 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
   );
   const locator = useVenuePinLocator({ address, value: pin, onChange: setPin });
   const autoLocate = useVenueAutoLocate({ address, hasPin: pin !== null, locator });
+  // MYK9-831: no location-to-timezone lookup exists in this codebase, so the
+  // wizard asks directly rather than leaving trials.timezone at its
+  // 'America/New_York' column default for every show outside Eastern.
+  const timezoneValue = show.timezone || resolveBrowserTrialTimezone();
+  const timezoneOptions = useMemo(() => buildTrialTimezoneOptions(timezoneValue), [timezoneValue]);
 
   return (
     <div>
@@ -107,6 +114,27 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
         </div>
 
         {clubField}
+
+        <div className="space-y-2">
+          <Label htmlFor="show-timezone">
+            Timezone <span className="text-destructive">*</span>
+          </Label>
+          <Select value={timezoneValue} onValueChange={value => onUpdate({ timezone: value })}>
+            <SelectTrigger id="show-timezone" className="bg-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {timezoneOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Governs entry deadlines and "today" for this show's trials.
+          </p>
+        </div>
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="show-location">

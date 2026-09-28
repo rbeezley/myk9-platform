@@ -6,17 +6,18 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import { Users, Plus, Shield, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -44,12 +45,18 @@ import {
 import { countUpcomingClubShows } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { queryKeys } from '@/lib/queryClient';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 import { useClubMembershipRequests } from './useClubMembershipRequests';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
+import {
+  buildClubMemberViews,
+  filterClubMembers,
+  type MemberStatusFilter,
+} from './clubMemberListViews';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +67,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+const MEMBER_NOUN = ['member', 'members'] as const;
 
 // --- Main Page ---
 
@@ -73,7 +82,34 @@ const ClubMembersPage: React.FC = () => {
   const { people, loadUsers } = useUserStore();
 
   const [selectedTab, setSelectedTab] = useState('members');
-  const [searchQuery, setSearchQuery] = useState('');
+  // URL-backed so a refresh or shared link keeps the same result set
+  // (docs/plan-list-toolkit.md). Independent of `selectedTab`, which stays
+  // local state — these two params only mean anything on the Members tab.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
+  const memberStatus = (searchParams.get('status') ?? 'all') as MemberStatusFilter;
+  const setSearchQuery = (value: string) => {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set('q', value);
+        else next.delete('q');
+        return next;
+      },
+      { replace: true }
+    );
+  };
+  const setMemberStatus = (status: MemberStatusFilter) => {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (status === 'all') next.delete('status');
+        else next.set('status', status);
+        return next;
+      },
+      { replace: true }
+    );
+  };
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
   const [showAppointSecretary, setShowAppointSecretary] = useState(false);
@@ -145,13 +181,12 @@ const ClubMembersPage: React.FC = () => {
   }, [officers]);
 
   // Filtered members
-  const filteredMembers = useMemo(() => {
-    if (!searchQuery.trim()) return members;
-    const q = searchQuery.toLowerCase();
-    return members.filter(
-      m => m.personName?.toLowerCase().includes(q) || m.personEmail?.toLowerCase().includes(q)
-    );
-  }, [members, searchQuery]);
+  const filteredMembers = useMemo(
+    () => filterClubMembers(members, memberStatus, searchQuery),
+    [members, memberStatus, searchQuery]
+  );
+  const memberViews = useMemo(() => buildClubMemberViews(members), [members]);
+  const hasActiveMemberFilters = memberStatus !== 'all' || searchQuery.trim() !== '';
 
   // Mutations
   // A rejected write used to do nothing at all: five of these six mutations
@@ -251,6 +286,7 @@ const ClubMembersPage: React.FC = () => {
     }) => setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
     onSuccess: (_, { personId, grant, personName }) => {
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubOfficials(clubId) });
       // The name has to be supplied by the caller now. Resolving it from `members`
       // fails for exactly the people this feature added — a non-member appointee has
       // no roster row — and the fallback called them "the member", which is both
@@ -518,17 +554,28 @@ const ClubMembersPage: React.FC = () => {
                   </p>
                 )}
                 <ClubShowAccessRequests {...membershipRequests.listProps} />
-                {/* Search */}
-                <div className="relative max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    aria-label="Search members by name or email"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-9 border-border"
-                  />
-                </div>
+
+                {/* Views, search and result line — the list toolkit
+                    (docs/plan-list-toolkit.md, MYK9-797). No bulk bar: no
+                    bulk action was drafted for club members. */}
+                <ListViewTabs
+                  label="Member views"
+                  views={memberViews}
+                  activeId={memberStatus}
+                  onSelect={id => setMemberStatus(id as MemberStatusFilter)}
+                />
+                <ListFilterBar
+                  searchValue={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  searchPlaceholder="Search members by name or email..."
+                  fields={[]}
+                />
+                <ListResultLine
+                  shown={filteredMembers.length}
+                  total={members.length}
+                  noun={MEMBER_NOUN}
+                  filtered={hasActiveMemberFilters}
+                />
 
                 {/* Members Table */}
                 <MembersTable

@@ -2,6 +2,7 @@ import { ChevronsDownUp, GitBranch, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ListViewTabs } from '@/components/list-toolkit';
 import type { ShowMapCompletionScope, ShowMapDayScope, ShowMapFilter } from './showMapTypes';
 
 interface ShowMapToolbarProps {
@@ -16,10 +17,10 @@ interface ShowMapToolbarProps {
   showActionHelp?: boolean | undefined;
 }
 
-const filters: Array<{ value: ShowMapFilter; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'in-progress', label: 'In progress' },
-  { value: 'needs-attention', label: 'Attention' },
+const filterViews = [
+  { id: 'all', label: 'All' },
+  { id: 'in-progress', label: 'In progress' },
+  { id: 'needs-attention', label: 'Attention' },
 ];
 
 const dayScopes: Array<{ value: ShowMapDayScope; label: string }> = [
@@ -147,30 +148,13 @@ export function ShowMapToolbar({
             </Button>
           ))}
         </div>
-        <div
-          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
-          role="group"
-          aria-label="Class status"
-        >
-          {filters.map(item => (
-            <Button
-              key={item.value}
-              type="button"
-              variant={filter === item.value ? 'default' : 'ghost'}
-              size="sm"
-              className="min-h-9"
-              // F19: without aria-pressed nothing announces WHICH filter is active,
-              // and the colour-only cue cost real time during the secretary walk --
-              // a scored class vanished from the tree while the header still said
-              // "2 Classes", and only clicking Completed revealed that the default
-              // Active filter was hiding it. Manage Classes already does this.
-              aria-pressed={filter === item.value}
-              onClick={() => onFilterChange(item.value)}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </div>
+        <ListViewTabs
+          views={filterViews}
+          activeId={filter}
+          onSelect={id => onFilterChange(id as ShowMapFilter)}
+          label="Show Map filters"
+          className="w-fit border-b-0"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -1,9 +1,11 @@
 /**
- * Integration tests for the Phase 1b smart-input front door.
+ * Integration tests for the Phase 1b smart-input front door, now with email
+ * and password on one screen (MYK9-853).
  *
- * Covers the four flows from the plan §6: render + submit gating, email branch
- * reveals the password step, passcode branch validates + routes (anonymous),
- * and a signed-in passcode routes through the §2.2 confirmation that attaches a
+ * Covers: render + submit gating, the email branch keeping the password field
+ * beside the credential field and signing in with one submit, the passcode
+ * branch hiding the password field and validating + routing (anonymous), and
+ * a signed-in passcode routing through the §2.2 confirmation that attaches a
  * show-scoped grant (assertion-first on setGrant's {showId, role}).
  */
 
@@ -80,25 +82,31 @@ describe('SmartSignInPage', () => {
     signInWithAppleMock.mockReset();
     useShowQueryMock.mockReset();
     useShowQueryMock.mockReturnValue({ data: undefined });
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it('disables Continue until the input is a valid email or passcode', async () => {
+  it('disables Sign in until a valid email is entered, and swaps to Continue for a passcode', async () => {
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
-    const button = screen.getByTestId('continue-button');
-    expect(button).toBeDisabled();
+    const signInButton = screen.getByTestId('sign-in-button');
+    expect(signInButton).toBeDisabled();
 
     await user.type(screen.getByTestId('credential-input'), 'abc');
-    expect(button).toBeDisabled();
+    expect(signInButton).toBeDisabled();
 
     await user.clear(screen.getByTestId('credential-input'));
     await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
-    expect(button).toBeEnabled();
+    expect(signInButton).toBeEnabled();
+
+    await user.clear(screen.getByTestId('credential-input'));
+    await user.type(screen.getByTestId('credential-input'), 'aa260');
+    expect(screen.queryByTestId('sign-in-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('continue-button')).toBeEnabled();
   });
 
   it('keeps the smart input labelled, described, and sized for touch', () => {
@@ -107,20 +115,70 @@ describe('SmartSignInPage', () => {
     const input = screen.getByLabelText('Email or show passcode');
     expect(input).toHaveAttribute('aria-describedby', 'credential-hint credential-help');
     expect(input).toHaveClass('h-11');
-    expect(screen.getByTestId('continue-button')).toHaveClass('h-11');
+    expect(screen.getByTestId('sign-in-button')).toHaveClass('h-11');
     expect(screen.getByRole('button', { name: /continue with google/i })).toHaveClass('h-11');
   });
 
-  it('email branch reveals the password step in place', async () => {
+  it('renders the password field beside the credential field from the start', () => {
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    expect(screen.getByTestId('credential-input')).toBeInTheDocument();
+    expect(screen.getByTestId('password-input')).toBeInTheDocument();
+  });
+
+  it('never hides the password field while an email is being typed', async () => {
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
-    await user.click(screen.getByTestId('continue-button'));
+    expect(screen.getByTestId('password-input')).toBeInTheDocument();
+  });
 
-    expect(await screen.findByTestId('password-input')).toBeInTheDocument();
+  it('shows account-language heading as soon as an email is typed', async () => {
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+
     expect(screen.getByRole('heading', { name: /sign in to your account/i })).toBeInTheDocument();
-    expect(screen.getByTestId('locked-credential')).toHaveTextContent('jane@example.com');
+  });
+
+  it('signs in with a single submit when email and password are both filled', async () => {
+    const user = userEvent.setup();
+    signInMock.mockResolvedValue(undefined);
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    await user.type(screen.getByTestId('password-input'), 'password');
+    await user.click(screen.getByTestId('sign-in-button'));
+
+    await waitFor(() =>
+      expect(signInMock).toHaveBeenCalledWith('jane@example.com', 'password', undefined)
+    );
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/'));
+  });
+
+  it('a passcode takes its own branch and shows no password field', async () => {
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+
+    expect(screen.queryByTestId('password-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('continue-button')).toBeEnabled();
+  });
+
+  it('focuses the password field and shows a plain error instead of submitting a blank password', async () => {
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    const passwordInput = screen.getByTestId('password-input');
+    await user.click(screen.getByTestId('sign-in-button'));
+
+    expect(signInMock).not.toHaveBeenCalled();
+    expect(await screen.findByText('Enter your password to sign in.')).toBeInTheDocument();
+    expect(passwordInput).toHaveFocus();
   });
 
   it('shows contextual entry copy when redirectTo points at a show registration route', () => {
@@ -144,8 +202,7 @@ describe('SmartSignInPage', () => {
     });
 
     await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
-    await user.click(screen.getByTestId('continue-button'));
-    await user.type(await screen.findByTestId('password-input'), 'password');
+    await user.type(screen.getByTestId('password-input'), 'password');
     await user.click(screen.getByTestId('sign-in-button'));
 
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/shows/show-1/register'));
@@ -158,8 +215,7 @@ describe('SmartSignInPage', () => {
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
-    await user.click(screen.getByTestId('continue-button'));
-    await user.type(await screen.findByTestId('password-input'), 'password');
+    await user.type(screen.getByTestId('password-input'), 'password');
     expect(screen.getByTestId('sign-in-button')).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
@@ -178,8 +234,7 @@ describe('SmartSignInPage', () => {
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
-    await user.click(screen.getByTestId('continue-button'));
-    await user.type(await screen.findByTestId('password-input'), 'password');
+    await user.type(screen.getByTestId('password-input'), 'password');
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
     const form = screen.getByTestId('sign-in-button').closest('form');
     fireEvent.submit(form!);

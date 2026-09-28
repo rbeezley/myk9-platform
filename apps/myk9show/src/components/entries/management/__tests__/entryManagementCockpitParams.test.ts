@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { PaymentStatus } from '@/types/show-registration-types';
 import {
+  entryManagementViewId,
   normalizeEntryManagementCockpitParams,
   writeCockpitException,
   writeCockpitFocus,
+  writeCockpitPaymentStatus,
   writeCockpitQueue,
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitTab,
+  writeCockpitView,
 } from '../entryManagementCockpitParams';
 
 function params(value = ''): URLSearchParams {
@@ -149,5 +153,70 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(exceptions.toString()).toBe('tab=exceptions&exception=waitlist');
 
     expect(writeCockpitTab(exceptions, 'registrations').toString()).toBe('');
+  });
+
+  // MYK9-795: the new payment-status filter for the registration-queue views.
+  describe('paymentStatus', () => {
+    it('round-trips through normalize/write and clears focus like the other scope filters', () => {
+      const written = writeCockpitPaymentStatus(
+        params('registration=r1'),
+        PaymentStatus.PAID_ONLINE
+      );
+      expect(written.toString()).toBe('paymentStatus=paid_online');
+
+      const normalized = normalizeEntryManagementCockpitParams(written);
+      expect(normalized.state.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+      expect(normalized.params.toString()).toBe('paymentStatus=paid_online');
+    });
+
+    it('clears back to unfiltered', () => {
+      const written = writeCockpitPaymentStatus(params('paymentStatus=pending'), null);
+      expect(written.has('paymentStatus')).toBe(false);
+    });
+
+    it('rejects an unsupported value rather than trusting the URL', () => {
+      const normalized = normalizeEntryManagementCockpitParams(params('paymentStatus=bogus'));
+      expect(normalized.state.paymentStatus).toBeNull();
+    });
+
+    it('never applies on the Exceptions tab', () => {
+      const normalized = normalizeEntryManagementCockpitParams(
+        params('tab=waitlist&paymentStatus=pending')
+      );
+      expect(normalized.state.paymentStatus).toBeNull();
+      expect(normalized.params.toString()).toBe('tab=exceptions&exception=waitlist');
+    });
+
+    it('is cleared by switching to the Exceptions tab', () => {
+      const next = writeCockpitTab(
+        writeCockpitPaymentStatus(params(), PaymentStatus.PENDING),
+        'exceptions'
+      );
+      expect(next.has('paymentStatus')).toBe(false);
+    });
+  });
+
+  // MYK9-795: one setter for the unified `ListViewTabs` row.
+  describe('writeCockpitView / entryManagementViewId', () => {
+    it('routes a registration queue id through the Registrations tab', () => {
+      const next = writeCockpitView(params('tab=exceptions&exception=waitlist'), 'payment-due');
+      expect(next.toString()).toBe('queue=payment-due');
+      expect(entryManagementViewId(normalizeEntryManagementCockpitParams(next).state)).toBe(
+        'payment-due'
+      );
+    });
+
+    it('routes an exception id to the Exceptions workspace', () => {
+      const next = writeCockpitView(params('queue=payment-due'), 'pulls');
+      expect(next.toString()).toBe('tab=exceptions&exception=pulls');
+      expect(entryManagementViewId(normalizeEntryManagementCockpitParams(next).state)).toBe(
+        'pulls'
+      );
+    });
+
+    it('preserves the other registration filters when switching queues', () => {
+      const next = writeCockpitView(params('trial=t1&search=Poppy'), 'all');
+      expect(next.toString()).toBe('trial=t1&search=Poppy&queue=all');
+    });
   });
 });

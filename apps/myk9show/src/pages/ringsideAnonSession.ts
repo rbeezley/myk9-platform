@@ -145,16 +145,3 @@ export async function startAnonymousRingsideSession(
 
   return result;
 }
-
-/**
- * End an anonymous ringside session (the "leave show" / exit affordance, when
- * one is wired). No-op when the current session is a real account — we must
- * never sign a signed-in user out as a side effect of leaving a ring.
- */
-export async function endAnonymousRingsideSession(): Promise<void> {
-  const { data } = await supabase.auth.getSession();
-  if (data.session?.user?.is_anonymous) {
-    await supabase.auth.signOut();
-    await replicatedClassesTable.clearCachedHideCounts();
-  }
-}

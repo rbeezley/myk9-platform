@@ -1555,6 +1555,45 @@ describe('showMapActions', () => {
     // operational surface now.
   });
 
+  describe('move-up-entry action (MYK9-825)', () => {
+    it('does NOT offer Move up for a moved (superseded) entry in its old class', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
+        ],
+        entries: [
+          // The retired source record left behind after a move-up: still
+          // filed under the OLD class_id, so without the status gate it
+          // rendered as an ordinary entry offering Move up a second time.
+          { id: 'entry-moved', class_id: 'class-source', entry_status: 'moved' },
+        ],
+      });
+
+      const ids = getDirectActionsForNode(tree.nodesById['entry:entry-moved']!, { tree }).map(
+        a => a.id
+      );
+      expect(ids).not.toContain('move-up-entry');
+    });
+
+    it('offers Move up for an ordinary (not superseded) entry', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
+        ],
+        entries: [{ id: 'entry-pending', class_id: 'class-source', entry_status: 'accepted' }],
+      });
+
+      const ids = getDirectActionsForNode(tree.nodesById['entry:entry-pending']!, { tree }).map(
+        a => a.id
+      );
+      expect(ids).toContain('move-up-entry');
+    });
+  });
+
   describe('class-row primary action lifecycle (B2b Pattern 3)', () => {
     it("returns 'mark-class-started' for a not-started class", () => {
       const tree = buildShowMapTree({

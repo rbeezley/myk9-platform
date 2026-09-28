@@ -64,6 +64,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
+  useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,

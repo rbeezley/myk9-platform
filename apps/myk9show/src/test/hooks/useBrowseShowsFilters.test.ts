@@ -392,6 +392,75 @@ describe('useBrowseShowsFilters — location (MYK9-427 PR 2)', () => {
   });
 });
 
+describe('useBrowseShowsFilters — Managing view (status) filter (MYK9-798)', () => {
+  it('narrows to shows matching the selected Managing view, on the managing tab', async () => {
+    const shows = [
+      makeShow({ id: 'draft-1', status: 'draft' }),
+      makeShow({ id: 'completed-1', status: 'completed' }),
+      makeShow({ id: 'completed-2', status: 'completed' }),
+      makeShow({ id: 'cancelled-1', status: 'cancelled' }),
+    ];
+
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows,
+          entries: [],
+          userContext: null,
+          selectedTab: 'managing',
+        }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.filteredShows).toHaveLength(4));
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, status: 'completed' }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id).sort()).toEqual([
+        'completed-1',
+        'completed-2',
+      ]);
+    });
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it('is inert on any tab other than managing', async () => {
+    const shows = [
+      makeShow({ id: 'draft-1', status: 'draft' }),
+      makeShow({ id: 'completed-1', status: 'completed' }),
+    ];
+
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows,
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, status: 'completed' }));
+    });
+
+    // `status` is only ever set by the Managing tab's own view tabs; on any
+    // other tab it must not silently hide shows.
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id).sort()).toEqual([
+        'completed-1',
+        'draft-1',
+      ]);
+    });
+  });
+});
+
 describe('disciplineMatchesEvent — trial-type variant normalization', () => {
   it.each(['Scent Work', 'Scentwork', 'scent_work', 'AKC Scent Work'])(
     'matches "Scent Work" discipline against event %s',

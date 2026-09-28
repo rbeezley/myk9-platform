@@ -10,6 +10,7 @@ import {
   buildAKCScentWorkScoreSheetPdfBytes,
   buildAKCScentWorkScoreSheetValues,
 } from '../akcScentWorkScoreSheet';
+import { extractDrawnPdfText } from './testPdfText';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
@@ -116,5 +117,21 @@ describe('AKC Scent Work score sheet PDF', () => {
     expect(buildAKCScentWorkScoreSheetFilename(baseProps)).toBe(
       'akc-score-sheets-2026123401-Buried-Novice.pdf'
     );
+  });
+
+  it('does not throw when a handler/call name has a non-WinAnsi character (MYK9-846)', async () => {
+    const propsWithBadChar: ReportProps = fromPartial({
+      ...baseProps,
+      entries: [{ ...baseProps.entries[0], callName: 'Łukasz 😀' }],
+    });
+
+    const bytes = await buildAKCScentWorkScoreSheetPdfBytes({
+      props: propsWithBadChar,
+      templateBytes: await readScoreSheetTemplate(),
+    });
+
+    const drawnText = await extractDrawnPdfText(bytes, 0);
+    expect(drawnText).toContain('Lukasz');
+    expect(drawnText.join(' ')).not.toMatch(/Ł|😀/u);
   });
 });

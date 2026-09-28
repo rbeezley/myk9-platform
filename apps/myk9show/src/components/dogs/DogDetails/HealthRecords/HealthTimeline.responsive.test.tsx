@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { HealthTimeline, type HealthEvent } from './HealthTimeline';
 
@@ -36,16 +37,22 @@ describe('HealthTimeline container-aware reflow', () => {
     useElementWidthMock.mockReset();
   });
 
-  it('keeps every filter control operable in a wide container', () => {
+  it('keeps every filter control operable in a wide container', async () => {
+    const user = userEvent.setup();
     useElementWidthMock.mockReturnValue({ ref: { current: null }, width: 1200 });
     render(<HealthTimeline dogId="dog-123" events={events} />);
 
     expect(screen.getByLabelText(/search health records/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/filter by year/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /toggle timeline view mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /import records/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export timeline/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add event/i })).toBeInTheDocument();
+
+    // Year moved from an always-visible native select onto the shared
+    // list-toolkit's "+ Filter" menu (MYK9-796) — it's reachable, just not
+    // rendered inline until opened.
+    await user.click(screen.getByRole('button', { name: /^filter$/i }));
+    expect(screen.getByRole('button', { name: 'Year' })).toBeInTheDocument();
 
     const header = screen.getByTestId('health-timeline-header');
     expect(header.className).toContain('flex-wrap');
@@ -59,7 +66,7 @@ describe('HealthTimeline container-aware reflow', () => {
     // Every control is still present and operable — nothing is dropped or
     // hidden behind a CSS-only breakpoint.
     expect(screen.getByLabelText(/search health records/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/filter by year/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^filter$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /toggle timeline view mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add event/i })).toBeInTheDocument();
 
@@ -70,13 +77,13 @@ describe('HealthTimeline container-aware reflow', () => {
     expect(filters.className).toContain('flex-col');
   });
 
-  it('does not render two CSS-hidden copies of the same controls', () => {
+  it('does not render two copies of the same control', () => {
     useElementWidthMock.mockReturnValue({ ref: { current: null }, width: 360 });
     render(<HealthTimeline dogId="dog-123" events={events} />);
 
     // A duplicated-controls antipattern would produce two matches; the
     // container-aware reshape keeps exactly one live node per control.
     expect(screen.getAllByLabelText(/search health records/i)).toHaveLength(1);
-    expect(screen.getAllByLabelText(/filter by year/i)).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^filter$/i })).toHaveLength(1);
   });
 });

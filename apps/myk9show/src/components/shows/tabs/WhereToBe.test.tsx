@@ -142,6 +142,28 @@ describe('WhereToBe', () => {
     expect(screen.getByText('NQ')).toBeInTheDocument();
   });
 
+  // MYK9-263/MYK9-805: the run schedule must label an unreleased result
+  // preliminary, the same as My Shows — this is the one result that can still
+  // change.
+  it('labels an unreleased qualifying result preliminary', () => {
+    const entry = makeEntry({
+      hasResult: true,
+      result: { qualified: true, time: '00:52.40', isPreliminary: true },
+    });
+    render(<WhereToBe entries={[entry]} showId={SHOW_ID} />);
+    expect(screen.getByText(/Q · 00:52\.40 · preliminary/)).toBeInTheDocument();
+  });
+
+  it('says nothing about "preliminary" once the result is released', () => {
+    const entry = makeEntry({
+      hasResult: true,
+      result: { qualified: true, time: '00:52.40', isPreliminary: false },
+    });
+    render(<WhereToBe entries={[entry]} showId={SHOW_ID} />);
+    expect(screen.getByText('Q · 00:52.40')).toBeInTheDocument();
+    expect(screen.queryByText(/preliminary/)).not.toBeInTheDocument();
+  });
+
   it('links to the correct class detail URL', () => {
     render(<WhereToBe entries={[makeEntry()]} showId={SHOW_ID} />);
     const link = screen.getByRole('link');

@@ -8,8 +8,8 @@
  * action — ahead of the full ringside class-administration list.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, Info, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
@@ -73,6 +73,7 @@ function EntryRow({
           )}
         </div>
         <div className="mt-0.5 truncate text-sm text-muted-foreground">
+          {detail.trialLabel ? `${detail.trialLabel} · ` : ''}
           {detail.className ?? 'Running order not posted yet'}
         </div>
         {detail.expectedStartLabel && (
@@ -87,6 +88,18 @@ function EntryRow({
           label={getExhibitorStatusLabel(detail)}
           className="mt-1 text-xs"
         />
+        {action.kind === 'self-checkin-disabled' && (
+          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            Self check-in is off for this class. Please check in at the secretary table.
+          </div>
+        )}
+        {action.kind === 'self-checkin-unknown' && (
+          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            Check-in isn't available right now. Ask at the show desk.
+          </div>
+        )}
       </div>
 
       {action.kind === 'check-in' && (
@@ -226,6 +239,18 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
       className="ringside-root mx-auto max-w-2xl px-4 py-4"
       data-testid="at-show-my-entries-today"
     >
+      {/* This page is mounted inside the chromeless ringside surface (no app
+          sidebar), so — like `RingsideHome`'s own "Back to dashboard" link —
+          it needs its own way out. `/` resolves per-role via `HomeRedirect`,
+          landing an exhibitor-only account on `/exhibitor/entries` (My
+          Shows), never back into this same show (MYK9-800 walk finding #3). */}
+      <Link
+        to="/"
+        className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to dashboard
+      </Link>
       <h1 className="mb-1 text-center text-lg font-semibold">Your dogs today</h1>
 
       {isLoading ? (

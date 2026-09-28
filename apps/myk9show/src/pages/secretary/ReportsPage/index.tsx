@@ -29,6 +29,9 @@ import { useReportDogOptions } from './useReportDogOptions';
 import { useHostedReportData } from './useHostedReportData';
 import { resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
+import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
+
+const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -278,22 +281,38 @@ export default function ReportsPage() {
     }
   };
 
+  // Scoped by the selected trial's actual registry, not just the reportType
+  // string: 'trial-secretary-report' serves both AKC and UKC trials, and the
+  // AKC one never reads this context, so it should not fetch officials'
+  // personal contact data it will never print (MYK9-828 review).
+  const selectedTrialIsUKC = useMemo(() => {
+    const trial = (trials as Array<{ id: string; registry_id?: string | null }> | undefined)?.find(
+      t => t.id === trialId
+    );
+    return trial?.registry_id?.trim().toUpperCase() === 'UKC';
+  }, [trials, trialId]);
+
+  const ukcTrialReportContextQuery = useUKCTrialReportContext(
+    show?.id,
+    UKC_TRIAL_REPORT_TYPES.has(reportType) && selectedTrialIsUKC
+  );
+
   const officialPdfProps = useMemo(() => {
     if (!show || trialId === 'all') return null;
-    return (
-      buildTrialReportProps({
-        show,
-        trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
-        classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
-        entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
-        scope:
-          trialId === 'all'
-            ? { kind: 'show', showId: show.id }
-            : { kind: 'trial', showId: show.id, trialId },
-        sortOrder,
-      })[0] ?? null
-    );
-  }, [show, trials, classes, entries, trialId, sortOrder]);
+    const props = buildTrialReportProps({
+      show,
+      trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
+      classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
+      entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
+      scope:
+        trialId === 'all'
+          ? { kind: 'show', showId: show.id }
+          : { kind: 'trial', showId: show.id, trialId },
+      sortOrder,
+    })[0];
+    if (!props) return null;
+    return { ...props, ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null };
+  }, [show, trials, classes, entries, trialId, sortOrder, ukcTrialReportContextQuery.data]);
 
   const officialClassPdfProps = useMemo(() => {
     if (!show || trialId === 'all' || classId === 'all') return null;
@@ -319,6 +338,10 @@ export default function ReportsPage() {
     dogId,
     officialPdfProps,
     officialClassPdfProps,
+    ukcTrialReportContextLoading:
+      UKC_TRIAL_REPORT_TYPES.has(reportType) &&
+      selectedTrialIsUKC &&
+      ukcTrialReportContextQuery.isLoading,
   });
 
   return (

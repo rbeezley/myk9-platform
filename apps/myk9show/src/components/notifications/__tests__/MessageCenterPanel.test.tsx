@@ -5,6 +5,7 @@ import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
+import { acknowledgeAccountNotifications } from '@/services/notifications/accountNotificationAcks';
 
 const navigateMock = vi.fn();
 const judgeReads = vi.hoisted(() => ({
@@ -13,6 +14,10 @@ const judgeReads = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/database/judges', () => judgeReads);
+
+vi.mock('@/services/notifications/accountNotificationAcks', () => ({
+  acknowledgeAccountNotifications: vi.fn(),
+}));
 
 vi.mock('@/hooks/useReplicationSync', () => ({
   useReplicationSync: () => ({
@@ -137,6 +142,7 @@ function renderPanel(route = '/') {
 
 beforeEach(async () => {
   navigateMock.mockReset();
+  vi.mocked(acknowledgeAccountNotifications).mockReset();
   classOptionsHookMock.mockClear();
   judgeReads.getActiveJudgeAssignmentShows.mockReset();
   judgeReads.getActiveJudgeAssignmentShows.mockResolvedValue([]);
@@ -202,6 +208,66 @@ describe('MessageCenterPanel', () => {
     useNotificationStore.getState().addAlert(makePayload('1'));
     renderPanel();
     expect(screen.getByText('Alert 1')).toBeInTheDocument();
+  });
+
+  it('acknowledges an account notice only when View is clicked', () => {
+    useNotificationStore.getState().addAlert({
+      ...makePayload('account-1'),
+      data: { accountNotificationUserId: 'user-1' },
+    });
+    renderPanel();
+
+    expect(acknowledgeAccountNotifications).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('link', { name: /view/i }));
+
+    expect(acknowledgeAccountNotifications).toHaveBeenCalledWith(
+      [expect.objectContaining({ payload: expect.objectContaining({ id: 'account-1' }) })],
+      'user-1'
+    );
+    expect(navigateMock).toHaveBeenCalledWith('/test');
+  });
+
+  it('preserves a modified View click for opening the club in another tab', () => {
+    useNotificationStore.getState().addAlert({
+      ...makePayload('account-1'),
+      data: { accountNotificationUserId: 'user-1' },
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('link', { name: /view/i }), { metaKey: true });
+
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(acknowledgeAccountNotifications).toHaveBeenCalledOnce();
+  });
+
+  it('acknowledges an account notice when dismissed', () => {
+    useNotificationStore.getState().addAlert({
+      ...makePayload('account-1'),
+      data: { accountNotificationUserId: 'user-1' },
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss notification account-1/i }));
+
+    expect(acknowledgeAccountNotifications).toHaveBeenCalledWith(
+      [expect.objectContaining({ payload: expect.objectContaining({ id: 'account-1' }) })],
+      'user-1'
+    );
+  });
+
+  it('acknowledges unread account notices when Mark all read is clicked', () => {
+    useNotificationStore.getState().addAlert({
+      ...makePayload('account-1'),
+      data: { accountNotificationUserId: 'user-1' },
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: /mark all read/i }));
+
+    expect(acknowledgeAccountNotifications).toHaveBeenCalledWith(
+      [expect.objectContaining({ payload: expect.objectContaining({ id: 'account-1' }) })],
+      'user-1'
+    );
   });
 
   it('shows a compose action for staff users', async () => {

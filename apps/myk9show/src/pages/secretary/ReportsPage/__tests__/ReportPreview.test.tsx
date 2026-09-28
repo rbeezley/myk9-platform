@@ -405,6 +405,52 @@ describe('ReportPreview', () => {
       expect(screen.getByText(/Pick a trial above to enable this/i)).toBeInTheDocument();
     });
 
+    it('says a static registry form has no fillable fields, not that it arrives filled in (MYK9-828)', () => {
+      render(
+        <ReportPreview
+          reportType="ukc-nosework-judges-book-element"
+          show={show}
+          trials={trials}
+          classes={classes}
+          entries={entries}
+          trialId="trial-1"
+          classId="all"
+          dogId="all"
+          sortOrder="armband"
+          isLoading={false}
+          isError={false}
+          dataState="ready"
+          hasDownloadAction
+        />
+      );
+
+      expect(screen.getByText(/no fillable fields/i)).toBeInTheDocument();
+      expect(screen.queryByText(/already filled in/i)).toBeNull();
+    });
+
+    it('still promises a filled-in form for a report that actually fills one', () => {
+      render(
+        <ReportPreview
+          reportType="ukc-nosework-trial-report"
+          show={show}
+          trials={trials}
+          classes={classes}
+          entries={entries}
+          trialId="trial-1"
+          classId="all"
+          dogId="all"
+          sortOrder="armband"
+          isLoading={false}
+          isError={false}
+          dataState="ready"
+          hasDownloadAction
+        />
+      );
+
+      expect(screen.getByText(/already filled in/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no fillable fields/i)).toBeNull();
+    });
+
     it('does say so when the form really is for another registry', () => {
       render(
         <ReportPreview

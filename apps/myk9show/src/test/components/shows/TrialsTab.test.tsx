@@ -153,7 +153,7 @@ describe('TrialsTab', () => {
 
     const { user } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    await user.click(screen.getByRole('button', { name: /Completed \(1\)/ }));
+    await user.click(screen.getByRole('button', { name: /^Completed/ }));
     expect(screen.getByText('Derived Complete')).toBeInTheDocument();
     expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
   });

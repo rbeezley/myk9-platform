@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Mail } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import {
@@ -15,7 +14,7 @@ import {
   resolveLiveHint,
   resolveSignInHeading,
 } from './SmartSignInPage.helpers';
-import { PasswordSubForm } from './PasswordSubForm';
+import { SignInCredentialForm } from './SignInCredentialForm';
 import { PasscodeDetailsForm } from './PasscodeDetailsForm';
 import { LockedCredentialChip } from './LockedCredentialChip';
 import { SocialSignInButtons } from './SocialSignInButtons';
@@ -24,16 +23,14 @@ import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
-import {
-  TurnstileChallenge,
-  type TurnstileChallengeHandle,
-} from '@/components/security/TurnstileChallenge';
+import type { TurnstileChallengeHandle } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
 
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
 const INVALID_PASSCODE_COPY =
   'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+const EMPTY_PASSWORD_COPY = 'Enter your password to sign in.';
 
 type PendingPasscode = {
   showId: string;
@@ -43,19 +40,23 @@ type PendingPasscode = {
 };
 
 /**
- * SmartSignInPage — the single email-or-passcode front door (Phase 1b).
+ * SmartSignInPage — the single email-or-passcode front door (Phase 1b),
+ * with email and password on one screen (MYK9-853).
  *
  * One field disambiguates client-side (see `classifyCredential`): an email
- * reveals the password step in place (reusing `PasswordSubForm`); a valid
- * passcode is validated server-side, then — for a signed-in account — routed
- * through the §2.2 confirmation that attaches a show-scoped ringside grant
- * (Phase 1c). Anonymous passcodes route straight to `/at-show/:showId`.
+ * keeps the password field beside it (reusing `PasswordSubForm`) in the same
+ * `<form>`, so a browser password manager can fill both and one submit signs
+ * in. A valid passcode hides the password field and, once committed, is
+ * validated server-side, then — for a signed-in account — routed through the
+ * §2.2 confirmation that attaches a show-scoped ringside grant (Phase 1c).
+ * Anonymous passcodes route straight to `/at-show/:showId`.
  *
- * INTENT: respects the clock (≤2 taps), plain language, no jargon, visible
- * labels, `aria-live` on every transition. The signed-in confirmation is the
- * only added prompt for the rare signed-in-types-passcode case. Anonymous
- * passcode users get one OPTIONAL "Your name" field (never required, never an
- * extra tap) so they show a real name in show presence instead of "Judge".
+ * INTENT: respects the clock (≤2 taps — one submit for email+password),
+ * plain language, no jargon, visible labels, `aria-live` on every
+ * transition. The signed-in confirmation is the only added prompt for the
+ * rare signed-in-types-passcode case. Anonymous passcode users get one
+ * OPTIONAL "Your name" field (never required, never an extra tap) so they
+ * show a real name in show presence instead of "Judge".
  */
 interface SmartSignInPageProps {
   passcodeOnly?: boolean;
@@ -65,7 +66,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const [searchParams] = useSearchParams();
   const [credential, setCredential] = useState(() => searchParams.get('code') ?? '');
   const [displayName, setDisplayName] = useState('');
-  const [step, setStep] = useState<'input' | 'password' | 'passcode'>('input');
+  const [step, setStep] = useState<'input' | 'passcode'>('input');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -114,18 +115,27 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
   const heading = resolveSignInHeading({
+    kind,
     step,
     passcodeOnly,
     ...(entryShowId && entryShow?.name ? { entryShowName: entryShow.name } : {}),
   });
 
-  // Programmatic focus to the password field when the email branch reveals it.
-  useEffect(() => {
-    if (step === 'password') document.getElementById('password')?.focus();
-  }, [step]);
+  // Once committed, the password field hides and a bare Continue button takes
+  // over (passcodeOnly always shows Continue, for any credential shape).
+  const showPasswordSection = !passcodeOnly && kind !== 'passcode';
+  const showContinueButton = passcodeOnly || kind === 'passcode';
+  // A password-field error (wrong password, blank password) belongs beside
+  // the field it's about; anything else (invalid shape, a rejected passcode
+  // before the branch commits) belongs beside the credential field.
+  const errorBelongsToPassword = kind === 'email';
 
-  const liveHint = resolveLiveHint(kind, passcodeOnly);
-  const describedBy = ['credential-hint', 'credential-help', error ? 'credential-error' : null]
+  const liveHint = resolveLiveHint(kind);
+  const describedBy = [
+    'credential-hint',
+    'credential-help',
+    !errorBelongsToPassword && error ? 'credential-error' : null,
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -153,57 +163,83 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     }
   };
 
-  const handleCredentialSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // A disabled button doesn't block Enter from the text input — guard against
-    // a double-submit firing validatePasscode twice (burns a rate-limit attempt).
-    // Also wait out `authLoading`: until auth restore resolves, `user` is null
-    // even for a returning account, which would misroute a passcode into the
-    // account-less anon-session branch and clobber the real session.
+    // a double-submit firing validatePasscode/signIn twice (burns a rate-limit
+    // attempt). Also wait out `authLoading`: until auth restore resolves,
+    // `user` is null even for a returning account, which would misroute a
+    // passcode into the account-less anon-session branch and clobber the real
+    // session.
     if (isLoading || submissionPendingRef.current || !canContinue) return;
     setError('');
 
-    if (kind === 'email' && !passcodeOnly) {
-      turnstileRef.current?.reset();
-      setCaptchaToken(null);
-      setStep('password');
+    if (kind === 'passcode') {
+      // Account-less passcode: commit to the branch, then collect the optional
+      // name and the security check on the step that owns them. Neither may
+      // sit beside the smart input, where five typed characters are still
+      // ambiguous between a passcode and the start of an email — see
+      // PasscodeDetailsForm.
+      if (!user || user.is_anonymous === true) {
+        turnstileRef.current?.reset();
+        setCaptchaToken(null);
+        setStep('passcode');
+        return;
+      }
+
+      setLoading(true);
+      submissionPendingRef.current = true;
+      try {
+        // Signed-in account: validate only (no anon session — Locked Decision
+        // #8 keeps the account session untouched), then confirm before
+        // expanding role (Phase 1c §2.2). DB access stays auth.uid()-based.
+        const normalizedCredential = normalizeCredential(credential);
+        const result = await validatePasscode(normalizedCredential);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
+        setPending({
+          showId: result.showId,
+          showName: result.showName,
+          role: result.role,
+          passcode: normalizedCredential,
+        });
+      } finally {
+        submissionPendingRef.current = false;
+        setLoading(false);
+      }
       return;
     }
-    if (kind !== 'passcode') {
+
+    if (kind !== 'email') {
+      // Defensive: `canContinue` already guarantees `kind` is 'email' or
+      // 'passcode' here ('passcode' returned above), so this only narrows the
+      // type — it is not reachable through the disabled/hidden controls.
       setError(passcodeOnly ? INVALID_PASSCODE_COPY : INVALID_COPY);
       return;
     }
 
-    // Account-less passcode: commit to the branch, then collect the optional
-    // name and the security check on the step that owns them. Neither may sit
-    // beside the smart input, where five typed characters are still ambiguous
-    // between a passcode and the start of an email — see PasscodeDetailsForm.
-    if (!user || user.is_anonymous === true) {
-      turnstileRef.current?.reset();
-      setCaptchaToken(null);
-      setStep('passcode');
+    if (password === '') {
+      setError(EMPTY_PASSWORD_COPY);
+      document.getElementById('password')?.focus();
       return;
     }
+    if (captchaRequired && !captchaToken) return;
 
-    setLoading(true);
     submissionPendingRef.current = true;
+    setLoading(true);
     try {
-      // Signed-in account: validate only (no anon session — Locked Decision #8
-      // keeps the account session untouched), then confirm before expanding
-      // role (Phase 1c §2.2). DB access stays auth.uid()-based.
-      const normalizedCredential = normalizeCredential(credential);
-      const result = await validatePasscode(normalizedCredential);
-      if (!result.ok) {
-        setError(result.message);
-        return;
-      }
-      setPending({
-        showId: result.showId,
-        showName: result.showName,
-        role: result.role,
-        passcode: normalizedCredential,
-      });
+      await signIn(
+        normalizeCredential(credential),
+        password,
+        captchaRequired ? (captchaToken ?? undefined) : undefined
+      );
+      navigate(signInReturnTo);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
+      if (captchaRequired) turnstileRef.current?.reset();
       submissionPendingRef.current = false;
       setLoading(false);
     }
@@ -238,6 +274,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         return;
       }
       const typedName = displayName.trim();
+      // `setGrant` itself persists the confirmed claim to the offline-reload
+      // fallback cache (ringsideGrantStore.ts) — the single choke point every
+      // successful passcode entry passes through, this call included (MYK9-834).
       setGrant({
         showId: result.showId,
         role: result.role,
@@ -248,28 +287,6 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       });
       navigate(`/at-show/${result.showId}`);
     } finally {
-      submissionPendingRef.current = false;
-      setLoading(false);
-    }
-  };
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading || submissionPendingRef.current || (captchaRequired && !captchaToken)) return;
-    submissionPendingRef.current = true;
-    setLoading(true);
-    setError('');
-    try {
-      await signIn(
-        normalizeCredential(credential),
-        password,
-        captchaRequired ? (captchaToken ?? undefined) : undefined
-      );
-      navigate(signInReturnTo);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-    } finally {
-      if (captchaRequired) turnstileRef.current?.reset();
       submissionPendingRef.current = false;
       setLoading(false);
     }
@@ -308,9 +325,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   // subtracting the combined value double-counts the header, and using
   // 100vh flat overflows by the banner's height whenever it shows.
   return (
-    <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-4 pt-[var(--app-header-height,3rem)]">
-      <div className="bg-card p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="mb-3 flex justify-center">
+    <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-2 pt-[var(--app-header-height,3rem)]">
+      <div className="bg-card p-6 rounded-2xl shadow-xl w-full max-w-md">
+        <div className="mb-2 flex justify-center">
           <Link
             to="/"
             className="flex items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
@@ -321,14 +338,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               aria-hidden="true"
               width="40"
               height="40"
-              className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 object-contain"
+              className="h-8 w-8 shrink-0 object-contain"
             />
-            <span className="text-base sm:text-lg font-bold text-primary">myK9Show</span>
+            <span className="text-base font-bold text-primary">myK9Show</span>
           </Link>
         </div>
-        <h2 className="mb-1 text-center text-base sm:text-lg font-bold">{heading}</h2>
+        <h2 className="mb-1 text-center text-base font-bold">{heading}</h2>
         {!passcodeOnly && (
-          <div className="text-muted-foreground mb-4 sm:mb-5 text-center text-sm">
+          <div className="text-muted-foreground mb-2 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
               Sign up
@@ -338,14 +355,28 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
 
         {/* aria-live region announcing branch + step transitions. */}
         <div className="sr-only" aria-live="polite">
-          {step === 'password'
-            ? 'Enter your password to sign in.'
-            : step === 'passcode'
-              ? 'Show passcode entered. Add your name if you like, then continue.'
-              : liveHint}
+          {step === 'passcode'
+            ? 'Show passcode entered. Add your name if you like, then continue.'
+            : liveHint}
         </div>
 
-        {step === 'input' ? (
+        {step === 'passcode' ? (
+          <>
+            <LockedCredentialChip value={normalizeCredential(credential)} onEdit={editCredential} />
+            <PasscodeDetailsForm
+              displayName={displayName}
+              onDisplayNameChange={setDisplayName}
+              onSubmit={handlePasscodeSubmit}
+              isLoading={isLoading}
+              error={error}
+              needsCaptcha={anonymousPasscodeNeedsCaptcha}
+              turnstileSiteKey={turnstileSiteKey}
+              turnstileRef={turnstileRef}
+              onTokenChange={setCaptchaToken}
+              submitDisabled={anonymousPasscodeNeedsCaptcha && !captchaToken}
+            />
+          </>
+        ) : (
           <>
             {!passcodeOnly && (
               <>
@@ -354,7 +385,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                   onApple={handleAppleSignIn}
                   disabled={isLoading || googleLoading || appleLoading}
                 />
-                <div className="relative my-4 sm:my-5">
+                <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-input" />
                   </div>
@@ -365,111 +396,33 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               </>
             )}
 
-            <form onSubmit={handleCredentialSubmit}>
-              <div className="mb-1">
-                <label className="block mb-1 font-medium" htmlFor="credential">
-                  {passcodeOnly ? 'Show passcode' : 'Email or show passcode'}
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <Mail size={18} />
-                  </span>
-                  <input
-                    type="text"
-                    id="credential"
-                    data-testid="credential-input"
-                    inputMode={passcodeOnly ? 'text' : 'email'}
-                    autoComplete={passcodeOnly ? 'off' : 'username'}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder={passcodeOnly ? 'Show passcode' : 'Email or show passcode'}
-                    value={credential}
-                    onChange={e => {
-                      setCredential(e.target.value);
-                      if (error) setError('');
-                    }}
-                    aria-invalid={!!error}
-                    aria-describedby={describedBy}
-                    className="h-11 w-full rounded-md border border-input bg-background p-2 pl-10 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-              </div>
-              {/* Live disambiguation (visible) — empty while invalid/empty. */}
-              <div id="credential-hint" className="min-h-5 mb-3 text-sm text-muted-foreground">
-                {liveHint}
-              </div>
-
-              {error && (
-                <div id="credential-error" className="text-destructive mb-4 text-center">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                data-testid="continue-button"
-                disabled={!canContinue || isLoading}
-                aria-disabled={!canContinue || isLoading}
-                className="h-11 w-full rounded-md bg-primary px-4 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isLoading ? 'Checking…' : 'Continue'}
-              </button>
-            </form>
-
-            {/* The credentials link is underlined at rest, not just on hover:
-                it sits INSIDE this paragraph, and axe's link-in-text-block wants
-                a non-colour distinguisher — primary on muted-foreground is
-                1.01:1, far under the 3:1 it would otherwise require. */}
-            <p
-              id="credential-help"
-              className="mt-4 sm:mt-5 text-xs sm:text-sm text-muted-foreground"
-            >
-              Working a show? Use your secretary's 5-character passcode.{' '}
-              {!passcodeOnly && (
-                <Link to="/help/credentials" className="text-primary underline">
-                  How it works &rarr;
-                </Link>
-              )}
-            </p>
-          </>
-        ) : (
-          <>
-            <LockedCredentialChip value={normalizeCredential(credential)} onEdit={editCredential} />
-            {step === 'passcode' ? (
-              <PasscodeDetailsForm
-                displayName={displayName}
-                onDisplayNameChange={setDisplayName}
-                onSubmit={handlePasscodeSubmit}
-                isLoading={isLoading}
-                error={error}
-                needsCaptcha={anonymousPasscodeNeedsCaptcha}
-                turnstileSiteKey={turnstileSiteKey}
-                turnstileRef={turnstileRef}
-                onTokenChange={setCaptchaToken}
-                submitDisabled={anonymousPasscodeNeedsCaptcha && !captchaToken}
-              />
-            ) : (
-              <form onSubmit={handlePasswordSubmit}>
-                {captchaRequired && (
-                  <TurnstileChallenge
-                    ref={turnstileRef}
-                    siteKey={turnstileSiteKey}
-                    action="password_login"
-                    onTokenChange={setCaptchaToken}
-                  />
-                )}
-                <PasswordSubForm
-                  password={password}
-                  onPasswordChange={setPassword}
-                  showPassword={showPassword}
-                  onToggleShowPassword={() => setShowPassword(prev => !prev)}
-                  isLoading={isLoading}
-                  error={error}
-                  submitDisabled={captchaRequired && !captchaToken}
-                />
-              </form>
-            )}
+            <SignInCredentialForm
+              passcodeOnly={passcodeOnly}
+              credential={credential}
+              onCredentialChange={value => {
+                setCredential(value);
+                if (error) setError('');
+              }}
+              kind={kind}
+              liveHint={liveHint}
+              describedBy={describedBy}
+              error={error}
+              errorBelongsToPassword={errorBelongsToPassword}
+              onSubmit={handleSubmit}
+              canContinue={canContinue}
+              isLoading={isLoading}
+              showPasswordSection={showPasswordSection}
+              showContinueButton={showContinueButton}
+              password={password}
+              onPasswordChange={setPassword}
+              showPassword={showPassword}
+              onToggleShowPassword={() => setShowPassword(prev => !prev)}
+              captchaRequired={captchaRequired}
+              captchaToken={captchaToken}
+              turnstileSiteKey={turnstileSiteKey}
+              turnstileRef={turnstileRef}
+              onTokenChange={setCaptchaToken}
+            />
           </>
         )}
       </div>

@@ -6,6 +6,7 @@
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
 import { useEntryStore } from '@/store/entryStore';
+import { isLiveEntry } from '@/services/database/entries/reads';
 
 export interface CascadingDeleteResult {
   showId: string;
@@ -40,8 +41,13 @@ export function previewCascadingDelete(showId: string, showName: string): Cascad
   const classesToDelete = classStore.classes.filter(cls => trialIds.includes(cls.trialId));
   const classIds = classesToDelete.map(c => c.id);
 
-  // Find all entries for those classes
-  const entriesToDelete = entryStore.entries.filter(entry => classIds.includes(entry.classId));
+  // Find all LIVE entries for those classes. A soft-deleted entry stays in the
+  // replicated cache as a tombstone, so this must mirror the same
+  // `deleted_at IS NULL` filter every other live-entry read uses (MYK9-821) —
+  // otherwise the confirm counts entries that are already gone.
+  const entriesToDelete = entryStore.entries.filter(
+    entry => classIds.includes(entry.classId) && isLiveEntry(entry)
+  );
 
   return {
     showId,

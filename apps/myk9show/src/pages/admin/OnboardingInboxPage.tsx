@@ -8,10 +8,11 @@ import {
   MessageSquareText,
   Phone,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
+import { ListFilterBar, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { formatShortCalendarDate, formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
@@ -28,6 +29,15 @@ import {
 import { ClubAccessRequestsSection } from './ClubAccessRequestsSection';
 
 type OnboardingStatus = OnboardingRequest['status'];
+type OnboardingStatusFilter = OnboardingStatus | 'all';
+
+const DEFAULT_STATUS_FILTER: OnboardingStatusFilter = 'pending';
+
+function readStatusFilter(value: string | null): OnboardingStatusFilter {
+  return (ONBOARDING_STATUS_FILTERS as readonly string[]).includes(value ?? '')
+    ? (value as OnboardingStatusFilter)
+    : DEFAULT_STATUS_FILTER;
+}
 
 // The editable statuses are the filter tabs minus the 'all' pseudo-filter —
 // derive them so the two lists can't drift when a status is added.
@@ -47,10 +57,12 @@ function StatusBadge({ status }: { status: OnboardingStatus }) {
 }
 
 export default function OnboardingInboxPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = readStatusFilter(searchParams.get('status'));
+  const searchTerm = searchParams.get('q') ?? '';
   const [requests, setRequests] = useState<OnboardingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [filter, setFilter] = useState<OnboardingStatus | 'all'>('pending');
   // Per-row edit drafts. Absent key = "unchanged from persisted value".
   const [statusDrafts, setStatusDrafts] = useState<Record<string, OnboardingStatus>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -74,9 +86,19 @@ export default function OnboardingInboxPage() {
     loadRequests();
   }, [loadRequests]);
 
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
   const filteredRequests = useMemo(() => {
-    const matching =
+    let matching =
       filter === 'all' ? [...requests] : requests.filter(request => request.status === filter);
+
+    if (normalizedSearchTerm) {
+      matching = matching.filter(request =>
+        [request.clubName, request.organization, request.contactName, request.contactEmail]
+          .filter(Boolean)
+          .some(value => value?.toLowerCase().includes(normalizedSearchTerm))
+      );
+    }
 
     // Pending is a work queue: the club waiting longest deserves attention first.
     if (filter === 'pending') {
@@ -84,13 +106,52 @@ export default function OnboardingInboxPage() {
     }
 
     return matching;
-  }, [filter, requests]);
+  }, [filter, normalizedSearchTerm, requests]);
 
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
     for (const request of requests) result[request.status] = (result[request.status] ?? 0) + 1;
     return result;
   }, [requests]);
+
+  const views: ListView[] = useMemo(
+    () =>
+      ONBOARDING_STATUS_FILTERS.map(status => ({
+        id: status,
+        label: getOnboardingFilterLabel(status),
+        count: status === 'all' ? requests.length : (counts[status] ?? 0),
+      })),
+    [counts, requests.length]
+  );
+
+  const setFilter = useCallback(
+    (next: OnboardingStatusFilter) => {
+      setSearchParams(current => {
+        const nextParams = new URLSearchParams(current);
+        if (next === DEFAULT_STATUS_FILTER) nextParams.delete('status');
+        else nextParams.set('status', next);
+        return nextParams;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const setSearchTerm = useCallback(
+    (value: string) => {
+      setSearchParams(
+        current => {
+          const nextParams = new URLSearchParams(current);
+          if (value) nextParams.set('q', value);
+          else nextParams.delete('q');
+          return nextParams;
+        },
+        // Replace, not push: a history entry per keystroke would make Back
+        // walk through search edits instead of leaving the page (Codex).
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   const handleSave = async (request: OnboardingRequest) => {
     const nextStatus = statusDrafts[request.id] ?? request.status;
@@ -167,43 +228,19 @@ export default function OnboardingInboxPage() {
 
       <ClubAccessRequestsSection />
 
-      <label className="block sm:hidden">
-        <span className="mb-1.5 block text-sm font-medium">Request status</span>
-        <select
-          value={filter}
-          onChange={event => setFilter(event.target.value as OnboardingStatus | 'all')}
-          className="min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          {ONBOARDING_STATUS_FILTERS.map(status => (
-            <option key={status} value={status}>
-              {`${getOnboardingFilterLabel(status)} (${
-                status === 'all' ? requests.length : (counts[status] ?? 0)
-              })`}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ListViewTabs
+        label="Filter club onboarding requests"
+        views={views}
+        activeId={filter}
+        onSelect={id => setFilter(id as OnboardingStatusFilter)}
+      />
 
-      <div
-        className="hidden flex-wrap gap-2 sm:flex"
-        role="group"
-        aria-label="Filter club onboarding requests"
-      >
-        {ONBOARDING_STATUS_FILTERS.map(status => (
-          <Button
-            key={status}
-            type="button"
-            size="touch"
-            variant={filter === status ? 'default' : 'secondary'}
-            aria-pressed={filter === status}
-            onClick={() => setFilter(status)}
-          >
-            {`${getOnboardingFilterLabel(status)} (${
-              status === 'all' ? requests.length : (counts[status] ?? 0)
-            })`}
-          </Button>
-        ))}
-      </div>
+      <ListFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by club, organization, or contact"
+        fields={[]}
+      />
 
       {loadFailed && (
         <div

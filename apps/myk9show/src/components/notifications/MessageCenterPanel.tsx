@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -18,6 +18,7 @@ import { useAnnouncementStore } from '@/store/announcementStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { acknowledgeAccountNotifications } from '@/services/notifications/accountNotificationAcks';
 import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
@@ -74,8 +75,8 @@ function NotificationItem({
   onDismiss,
 }: {
   entry: AlertEntry;
-  onView: (id: string) => void;
-  onDismiss: (id: string) => void;
+  onView: (alert: AlertEntry, event: MouseEvent<HTMLAnchorElement>) => void;
+  onDismiss: (alert: AlertEntry) => void;
 }) {
   const { payload, read } = entry;
 
@@ -109,7 +110,7 @@ function NotificationItem({
               {!read && payload.actionUrl && (
                 <a
                   href={payload.actionUrl}
-                  onClick={() => onView(payload.id)}
+                  onClick={event => onView(entry, event)}
                   className="rounded bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-500 hover:text-orange-400"
                 >
                   View &rarr;
@@ -117,7 +118,7 @@ function NotificationItem({
               )}
               <button
                 type="button"
-                onClick={() => onDismiss(payload.id)}
+                onClick={() => onDismiss(entry)}
                 aria-label={`Dismiss notification ${payload.id}`}
                 className="rounded p-0.5 text-muted-foreground/40 hover:bg-muted hover:text-foreground"
               >
@@ -214,6 +215,10 @@ export function MessageCenterPanel() {
   const totalUnread = notificationUnread + announcementUnread + messageUnread;
 
   function handleMarkAllRead() {
+    acknowledgeAccountNotifications(
+      recentAlerts.filter(alert => !alert.read),
+      userWithRoles?.id ?? null
+    );
     markAllRead();
     if (author.id) {
       void annMarkAllRead(author.id);
@@ -264,11 +269,29 @@ export function MessageCenterPanel() {
           <NotificationItem
             key={entry.payload.id}
             entry={entry}
-            onView={id => {
-              markRead(id);
+            onView={(alert, event) => {
+              acknowledgeAccountNotifications([alert], userWithRoles?.id ?? null);
+              markRead(alert.payload.id);
               closeCenter();
+              // Keep account-notice navigation inside the SPA so its read update
+              // can finish before the browser unloads the current page.
+              if (
+                alert.payload.data?.accountNotificationUserId === userWithRoles?.id &&
+                alert.payload.actionUrl?.startsWith('/') &&
+                event.button === 0 &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                !event.shiftKey &&
+                !event.altKey
+              ) {
+                event.preventDefault();
+                navigate(alert.payload.actionUrl);
+              }
             }}
-            onDismiss={dismissAlert}
+            onDismiss={alert => {
+              acknowledgeAccountNotifications([alert], userWithRoles?.id ?? null);
+              dismissAlert(alert.payload.id);
+            }}
           />
         ))}
       </div>

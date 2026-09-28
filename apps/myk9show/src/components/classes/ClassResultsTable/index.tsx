@@ -10,11 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable } from '@/components/ui/data-table';
-import { SearchBar } from '@/components/common/SearchBar';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { RunOrderDialog } from '../RunOrderDialog';
 import { useRunOrderPreset } from './useRunOrderPreset';
-import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { ListFilterBar, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow } from './types';
 import type { CheckInStatus } from '@myk9/core';
@@ -138,10 +137,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return { pending: rows.length - completed, completed };
   }, [rows, scoredEntryIds]);
 
-  const scoringTabs: PrimaryTabDef[] = useMemo(
+  // "All" intentionally carries no count — unchanged from the prior
+  // PrimaryTabs behavior it replaces (list-toolkit rollout, MYK9-811).
+  const scoringViews: ListView[] = useMemo(
     () => [
-      { id: 'pending', label: 'Pending', badge: tabCounts.pending },
-      { id: 'completed', label: 'Completed', badge: tabCounts.completed },
+      { id: 'pending', label: 'Pending', count: tabCounts.pending },
+      { id: 'completed', label: 'Completed', count: tabCounts.completed },
       { id: 'all', label: 'All' },
     ],
     [tabCounts.pending, tabCounts.completed]
@@ -264,21 +265,18 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             </div>
           </div>
 
-          <PrimaryTabs
-            tabs={scoringTabs}
-            value={scoringTab}
-            onValueChange={v => setScoringTab(v as ScoringStatusTab)}
-            className="px-4 pt-3"
-          />
-
-          <div className="px-4 pt-3">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search by dog, handler, or armband..."
-              aria-label="Search entries"
-              size="sm"
-              className="max-w-sm"
+          <div className="flex flex-col gap-3 px-4 pt-3">
+            <ListViewTabs
+              label="Result views"
+              views={scoringViews}
+              activeId={scoringTab}
+              onSelect={id => setScoringTab(id as ScoringStatusTab)}
+            />
+            <ListFilterBar
+              searchValue={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search by dog, handler, or armband..."
+              fields={[]}
             />
           </div>
 

@@ -29,8 +29,7 @@ import {
   useUpdateClassOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import type {
   ShowSettings,
   TrialOverrideEntry,
@@ -102,6 +101,8 @@ interface OverrideControlsProps {
   connectionHint: string | undefined;
 }
 
+const CONNECTION_HINT_ID = 'override-tree-connection-hint';
+
 function OverrideControls({
   facet,
   name,
@@ -115,6 +116,7 @@ function OverrideControls({
   connectionHint,
 }: OverrideControlsProps) {
   const switchId = useId();
+  const describedBy = connectionHint ? CONNECTION_HINT_ID : undefined;
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-2">
       {facet === 'visibility' && (
@@ -127,6 +129,7 @@ function OverrideControls({
             <SelectTrigger
               className="min-h-[44px] w-32 shrink-0"
               aria-label={`Results visibility for ${name}`}
+              aria-describedby={describedBy}
               title={connectionHint}
             >
               <SelectValue placeholder="Inherit" />
@@ -143,7 +146,9 @@ function OverrideControls({
             <Button
               variant="ghost"
               size="icon-lg"
-              title={`Reset visibility for ${name}`}
+              aria-label={`Reset visibility for ${name}`}
+              aria-describedby={describedBy}
+              title={connectionHint ?? `Reset visibility for ${name}`}
               onClick={onResetVisibility}
               disabled={mutating}
             >
@@ -164,6 +169,7 @@ function OverrideControls({
             <Switch
               id={switchId}
               aria-label={`Self check-in for ${name}`}
+              aria-describedby={describedBy}
               checked={checkin.effective}
               onCheckedChange={onCheckinToggle}
               disabled={mutating}
@@ -173,7 +179,9 @@ function OverrideControls({
             <Button
               variant="ghost"
               size="icon-lg"
-              title={`Reset check-in for ${name}`}
+              aria-label={`Reset check-in for ${name}`}
+              aria-describedby={describedBy}
+              title={connectionHint ?? `Reset check-in for ${name}`}
               onClick={onResetCheckin}
               disabled={mutating}
             >
@@ -218,14 +226,13 @@ export function OverrideTree({
   const updateTrialOverride = useUpdateTrialOverride();
   const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   const mutating =
     updateTrialOverride.isPending ||
     updateClassOverride.isPending ||
     resetOverride.isPending ||
-    !isOnline;
+    Boolean(connectionHint);
 
   if (trials.length === 0) return null;
 
@@ -329,7 +336,7 @@ export function OverrideTree({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Trial &amp; class overrides</h3>
         {connectionHint && (
-          <span className="text-xs text-muted-foreground" role="status">
+          <span className="text-xs text-muted-foreground" role="status" id={CONNECTION_HINT_ID}>
             {connectionHint} — trial and class overrides are read-only until you&apos;re back
             online.
           </span>

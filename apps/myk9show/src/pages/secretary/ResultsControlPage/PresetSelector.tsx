@@ -17,8 +17,7 @@ import {
   fieldTimingsFromVisibility,
 } from '@myk9/secretary';
 import { useUpdateShowVisibility } from '@/hooks/mutations/useShowSettingsMutations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_ICONS, ALL_TIMINGS, PLACEMENT_TIMINGS, TimingSelect } from './resultsControlUtils';
 
@@ -30,8 +29,7 @@ interface PresetSelectorProps {
 export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const updateVisibility = useUpdateShowVisibility();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   const serverTimingsKey = useMemo(
     () =>
@@ -119,6 +117,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
               aria-disabled={isPending}
               aria-label={`Apply "${info.title}" preset`}
               title={connectionHint}
+              aria-describedby={connectionHint ? 'show-defaults-connection-hint' : undefined}
               className={`transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isPending ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
               onClick={() => applyPreset(preset)}
               onKeyDown={e => {
@@ -152,7 +151,11 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       )}
 
       {connectionHint && (
-        <p className="text-xs text-muted-foreground" role="status">
+        <p
+          className="text-xs text-muted-foreground"
+          role="status"
+          id="show-defaults-connection-hint"
+        >
           {connectionHint} — show defaults are read-only until you&apos;re back online.
         </p>
       )}
@@ -194,6 +197,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
                 onClick={applyCustomTimings}
                 disabled={updateVisibility.isPending || Boolean(connectionHint)}
                 title={connectionHint}
+                aria-describedby={connectionHint ? 'show-defaults-connection-hint' : undefined}
               >
                 Save Custom Timings
               </Button>

@@ -6,8 +6,7 @@
 
 import { Switch } from '@/components/ui/switch';
 import { useUpdateShowCheckin } from '@/hooks/mutations/useShowSettingsMutations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { toast } from 'sonner';
 
 interface ShowCheckinToggleProps {
@@ -17,8 +16,7 @@ interface ShowCheckinToggleProps {
 
 export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
   const updateCheckin = useUpdateShowCheckin();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   function handleToggle(next: boolean) {
     updateCheckin.mutate(
@@ -38,7 +36,7 @@ export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
           Exhibitors can check themselves in via the app
         </p>
         {connectionHint && (
-          <p className="text-xs text-muted-foreground" role="status">
+          <p className="text-xs text-muted-foreground" role="status" id="checkin-show-hint">
             {connectionHint}
           </p>
         )}
@@ -52,9 +50,10 @@ export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
         <Switch
           id="checkin-show"
           aria-label="Allow self check-in for show"
+          aria-describedby={connectionHint ? 'checkin-show-hint' : undefined}
           checked={enabled}
           onCheckedChange={handleToggle}
-          disabled={updateCheckin.isPending || !isOnline}
+          disabled={updateCheckin.isPending || Boolean(connectionHint)}
         />
       </label>
     </div>

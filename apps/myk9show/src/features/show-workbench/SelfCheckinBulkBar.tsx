@@ -18,8 +18,7 @@
 import { CheckCircle2, ListChecks, XCircle } from 'lucide-react';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { toast } from 'sonner';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
@@ -40,8 +39,7 @@ export function SelfCheckinBulkBar({
   onClearSelection,
 }: SelfCheckinBulkBarProps) {
   const updateClasses = useBulkUpdateClassOverrides();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   if (selectedClasses.size === 0) return null;
 
@@ -68,7 +66,7 @@ export function SelfCheckinBulkBar({
     );
   }
 
-  const disabled = updateClasses.isPending || !isOnline;
+  const disabled = updateClasses.isPending || Boolean(connectionHint);
 
   return (
     <FloatingBulkBar count={selectedClasses.size} noun={CLASS_NOUN} onClear={onClearSelection}>

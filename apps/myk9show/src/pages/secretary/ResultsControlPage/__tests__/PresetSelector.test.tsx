@@ -119,7 +119,9 @@ describe('PresetSelector — offline (MYK9-849)', () => {
 
   it('re-enables once back online', () => {
     mockNetworkState.isOnline = false;
-    const { rerender } = render(<PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />);
+    const { rerender } = render(
+      <PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />
+    );
     expect(screen.getByRole('button', { name: 'Apply "Immediately" preset' })).toHaveAttribute(
       'aria-disabled',
       'true'

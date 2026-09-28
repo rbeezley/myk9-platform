@@ -38,8 +38,7 @@ import {
   useUpdateClassOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +71,8 @@ function inheritedFromLabel(level: 'trial' | 'class', inheritedFrom?: string): s
   return map[inheritedFrom] ?? 'Inherited';
 }
 
+const CONNECTION_HINT_ID = 'settings-override-card-connection-hint';
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
@@ -89,15 +90,14 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
   const updateTrialOverride = useUpdateTrialOverride();
   const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   const isMutating =
     updateTrialOverride.isPending ||
     updateClassOverride.isPending ||
     resetOverride.isPending ||
     isLoading ||
-    !isOnline;
+    Boolean(connectionHint);
 
   // ── Preset apply ─────────────────────────────────────────────────────────
 
@@ -181,6 +181,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
 
   const inheritedLabel = inheritedFromLabel(level, currentSettings.inheritedFrom);
   const hasOverride = currentSettings.inheritedFrom === level;
+  const describedBy = connectionHint ? CONNECTION_HINT_ID : undefined;
 
   return (
     <Card className="border-border/60">
@@ -197,7 +198,8 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
               className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
               onClick={handleReset}
               disabled={isMutating}
-              title="Reset to inherited settings"
+              title={connectionHint ?? 'Reset to inherited settings'}
+              aria-describedby={describedBy}
             >
               <RotateCcw className="h-3 w-3" />
               Reset
@@ -206,7 +208,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
         </div>
         <p className="text-xs text-muted-foreground">{inheritedLabel}</p>
         {connectionHint && (
-          <p className="text-xs text-muted-foreground" role="status">
+          <p className="text-xs text-muted-foreground" role="status" id={CONNECTION_HINT_ID}>
             {connectionHint}
           </p>
         )}
@@ -220,7 +222,12 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
             value={currentSettings.preset ?? undefined}
             onValueChange={applyPreset}
           >
-            <SelectTrigger className="h-8 text-xs" disabled={isMutating} title={connectionHint}>
+            <SelectTrigger
+              className="h-8 text-xs"
+              disabled={isMutating}
+              title={connectionHint}
+              aria-describedby={describedBy}
+            >
               <SelectValue placeholder="Choose a preset…" />
             </SelectTrigger>
             <SelectContent>
@@ -249,6 +256,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
                     className="h-7 flex-1 text-xs"
                     disabled={isMutating}
                     title={connectionHint}
+                    aria-describedby={describedBy}
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -282,6 +290,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
             onCheckedChange={handleCheckinToggle}
             disabled={isMutating}
             title={connectionHint}
+            aria-describedby={describedBy}
           />
         </div>
       </CardContent>

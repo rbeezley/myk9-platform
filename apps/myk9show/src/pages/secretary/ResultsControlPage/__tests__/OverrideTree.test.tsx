@@ -246,27 +246,29 @@ describe('OverrideTree', () => {
 
     it('disables the visibility preset select and shows a "Needs a connection" hint', () => {
       renderTree();
-      expect(
-        screen.getByRole('combobox', { name: 'Results visibility for Trial A' })
-      ).toBeDisabled();
+      const combobox = screen.getByRole('combobox', { name: 'Results visibility for Trial A' });
+      expect(combobox).toBeDisabled();
+      expect(combobox).toHaveAttribute('aria-describedby', 'override-tree-connection-hint');
       expect(screen.getByText(/Needs a connection/)).toBeInTheDocument();
     });
 
-    it('disables the check-in switch and reset button', async () => {
+    it('disables the check-in switch and reset button, swapping the reset title to the hint', async () => {
       const { user } = renderTree({
         facet: 'checkin',
         trialOverrides: [
           { trialId: 'trial-1', override: { preset: 'review' }, selfCheckinEnabled: false },
         ],
       });
-      expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toHaveAttribute(
-        'aria-disabled',
-        'true'
-      );
-      expect(screen.getByRole('button', { name: 'Reset check-in for Trial A' })).toBeDisabled();
+      const trialSwitch = screen.getByRole('switch', { name: 'Self check-in for Trial A' });
+      expect(trialSwitch).toHaveAttribute('aria-disabled', 'true');
+      expect(trialSwitch).toHaveAttribute('aria-describedby', 'override-tree-connection-hint');
+
+      const resetButton = screen.getByRole('button', { name: 'Reset check-in for Trial A' });
+      expect(resetButton).toBeDisabled();
+      expect(resetButton).toHaveAttribute('title', 'Needs a connection');
 
       // A click on a disabled switch dispatches nothing.
-      await user.click(screen.getByRole('switch', { name: 'Self check-in for Trial A' }));
+      await user.click(trialSwitch);
       expect(mockTrialMutate).not.toHaveBeenCalled();
     });
 

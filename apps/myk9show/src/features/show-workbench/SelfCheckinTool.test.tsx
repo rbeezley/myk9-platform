@@ -224,9 +224,10 @@ describe('SelfCheckinTool', () => {
         <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
       );
 
-      expect(
-        screen.getByRole('switch', { name: 'Allow self check-in for show' })
-      ).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
       expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toHaveAttribute(
         'aria-disabled',
         'true'
@@ -246,9 +247,10 @@ describe('SelfCheckinTool', () => {
       const { rerender } = render(
         <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
       );
-      expect(
-        screen.getByRole('switch', { name: 'Allow self check-in for show' })
-      ).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
 
       mockNetworkState.isOnline = true;
       rerender(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);

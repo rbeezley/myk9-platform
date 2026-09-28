@@ -40,8 +40,7 @@ import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secret
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
@@ -78,13 +77,12 @@ export function ResultsBulkBar({
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
   const unreleaseResults = useUnreleaseResults();
-  const { isOnline } = useNetworkStatus();
-  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
+  const connectionHint = useConnectionHint();
 
   if (selectedClasses.size === 0) return null;
 
   const isPending = bulkUpdate.isPending || releaseResults.isPending || unreleaseResults.isPending;
-  const presetDisabled = isPending || !isOnline;
+  const presetDisabled = isPending || Boolean(connectionHint);
 
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
@@ -206,7 +204,10 @@ export function ResultsBulkBar({
       >
         Select All ({allClassIds.length})
       </BulkBarButton>
-      <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={presetDisabled}>
+      <Select
+        onValueChange={v => handleBulkPreset(v as VisibilityPreset)}
+        disabled={presetDisabled}
+      >
         <SelectTrigger className="h-11 w-36 shrink-0" title={connectionHint}>
           <SelectValue placeholder="Apply Preset" />
         </SelectTrigger>

@@ -28,6 +28,14 @@ const currentSettings: VisibilitySettings = {
   inheritedFrom: 'show',
 };
 
+// hasOverride is `currentSettings.inheritedFrom === level`, which renders the
+// Reset button — the bare `currentSettings` above never satisfies that for a
+// trial-level card, so it alone can never cover Reset's offline-disabled state.
+const overriddenTrialSettings: VisibilitySettings = {
+  ...currentSettings,
+  inheritedFrom: 'trial',
+};
+
 function renderCard(overrides: Partial<React.ComponentProps<typeof SettingsOverrideCard>> = {}) {
   return render(
     <SettingsOverrideCard
@@ -57,6 +65,19 @@ describe('SettingsOverrideCard', () => {
     );
   });
 
+  it('shows and fires the Reset button once the entity has its own override', async () => {
+    const { user } = renderCard({ currentSettings: overriddenTrialSettings });
+
+    const resetButton = screen.getByRole('button', { name: 'Reset' });
+    expect(resetButton).not.toBeDisabled();
+    await user.click(resetButton);
+    expect(mockResetMutate).toHaveBeenCalledWith({
+      entityId: 'trial-1',
+      showId: 'show-1',
+      level: 'trial',
+    });
+  });
+
   describe('offline (MYK9-849)', () => {
     beforeEach(() => {
       mockNetworkState.isOnline = false;
@@ -73,6 +94,17 @@ describe('SettingsOverrideCard', () => {
 
       await user.click(screen.getByRole('switch'));
       expect(mockTrialMutate).not.toHaveBeenCalled();
+    });
+
+    it('disables the Reset button and swaps its tooltip to the connection hint', async () => {
+      const { user } = renderCard({ currentSettings: overriddenTrialSettings });
+
+      const resetButton = screen.getByRole('button', { name: 'Reset' });
+      expect(resetButton).toBeDisabled();
+      expect(resetButton).toHaveAttribute('title', 'Needs a connection');
+
+      await user.click(resetButton);
+      expect(mockResetMutate).not.toHaveBeenCalled();
     });
 
     it('re-enables once back online', () => {

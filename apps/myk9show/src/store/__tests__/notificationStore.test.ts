@@ -91,6 +91,25 @@ describe('notificationStore', () => {
     expect(useNotificationStore.getState().recentAlerts[0].payload.id).toBe('id-54');
   });
 
+  it('keeps durable account notices outside the 50 temporary-alert limit', () => {
+    for (let i = 0; i < 51; i++) {
+      useNotificationStore.getState().addAlert({
+        ...makePayload(`account-${i}`),
+        data: { accountNotificationUserId: 'user-1' },
+      });
+    }
+    for (let i = 0; i < 55; i++) {
+      useNotificationStore.getState().addAlert(makePayload(`show-${i}`));
+    }
+
+    const alerts = useNotificationStore.getState().recentAlerts;
+    expect(
+      alerts.filter(alert => alert.payload.data?.accountNotificationUserId === 'user-1')
+    ).toHaveLength(51);
+    expect(alerts.filter(alert => !alert.payload.data?.accountNotificationUserId)).toHaveLength(50);
+    expect(useNotificationStore.getState().unreadCount).toBe(101);
+  });
+
   it('markRead marks a single alert as read and recomputes unreadCount', () => {
     useNotificationStore.getState().addAlert(makePayload('1'));
     useNotificationStore.getState().addAlert(makePayload('2'));

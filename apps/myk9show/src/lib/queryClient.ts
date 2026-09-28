@@ -117,6 +117,10 @@ export const queryClient = createAppQueryClient();
 
 // Query key factory for consistent key management
 export const queryKeys = {
+  // Account notifications (durable public.notifications rows, MYK9-859)
+  accountNotifications: (authUserId: string | null) =>
+    ['account-notifications', authUserId] as const,
+
   // Dogs
   dogs: ['dogs'] as const,
   dog: (id: string) => ['dogs', id] as const,

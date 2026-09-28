@@ -5,7 +5,9 @@ export class LoginPage {
   constructor(private page: Page) {}
 
   // Locators - matching SmartSignInPage.tsx (single email-or-passcode field,
-  // two-step: credential → Continue → password).
+  // with the password field beside it in the same form from the start —
+  // MYK9-853. `continueButton` only appears once the credential classifies
+  // as a passcode; the email path submits via `submitButton`.
   private get credentialInput() {
     return this.page.locator('[data-testid="credential-input"]');
   }
@@ -39,10 +41,9 @@ export class LoginPage {
   }
 
   async login(email: string, password: string) {
-    // Step 1: the smart field classifies the email and reveals the password step.
+    // The credential and password fields render together from the start
+    // (MYK9-853); fill both and submit once.
     await this.credentialInput.fill(email);
-    await this.continueButton.click();
-    // Step 2: password revealed in place.
     await this.passwordInput.waitFor({ state: 'visible', timeout: 10000 });
     await this.passwordInput.fill(password);
     await this.submitButton.click();

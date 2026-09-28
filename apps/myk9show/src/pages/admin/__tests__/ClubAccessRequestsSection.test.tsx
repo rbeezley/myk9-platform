@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ClubAccessRequestsSection } from '../ClubAccessRequestsSection';
+import { PendingClubAuthorizationsSection } from '../PendingClubAuthorizationsSection';
+import { getPendingClubAuthorizations } from '@/services/database/clubs';
 import {
   getPendingClubAccessRequests,
   reviewClubAccessRequest,
@@ -19,6 +21,12 @@ vi.mock('@/services/database/club-access-requests', () => ({
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsQuery: () => ({ data: mocks.clubs() }),
+}));
+
+vi.mock('@/services/database/clubs', () => ({
+  getPendingClubAuthorizations: vi.fn(),
+  PENDING_CLUB_AUTHORIZATIONS_QUERY_KEY: ['admin', 'pending-club-authorizations'],
+  setClubAuthorization: vi.fn(),
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -45,6 +53,7 @@ describe('ClubAccessRequestsSection', () => {
     vi.mocked(getPendingClubAccessRequests).mockResolvedValue([request]);
     vi.mocked(reviewClubAccessRequest).mockResolvedValue('club-1');
     mocks.clubs.mockReturnValue([{ id: 'club-2', name: 'Existing Dog Club' }]);
+    vi.mocked(getPendingClubAuthorizations).mockResolvedValue([]);
   });
 
   it('shows a pending new-club request and the review choices', async () => {
@@ -87,16 +96,33 @@ describe('ClubAccessRequestsSection', () => {
     );
   });
 
-  // MYK9-855: approval never authorizes the club (that's the separate,
-  // deliberate MYK9-572 site-admin step on /clubs/:id) — the admin screen
-  // must hand off to it as a link, not leave the admin to find it themselves.
-  it('offers a link to authorize the club after approving a request', async () => {
-    const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+  it('refreshes the persistent authorization queue after approving a request', async () => {
+    vi.mocked(getPendingClubAuthorizations)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: 'club-1',
+          name: 'Heartland Dog Club',
+          website: null,
+          city: null,
+          state: null,
+          createdAt: null,
+        },
+      ]);
+    const { user } = render(
+      <>
+        <PendingClubAuthorizationsSection />
+        <ClubAccessRequestsSection />
+      </>,
+      { initialRoute: '/admin/onboarding' }
+    );
+    expect(await screen.findByText('No clubs are waiting for authorization.')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
 
-    const authorizeLink = await screen.findByRole('link', { name: /authorize this club/i });
-    expect(authorizeLink).toHaveAttribute('href', '/clubs/club-1');
-    expect(screen.getByText(/pending myk9 authorization/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Authorize Heartland Dog Club' })
+    ).toBeInTheDocument();
+    expect(getPendingClubAuthorizations).toHaveBeenCalledTimes(2);
   });
 
   it('does not offer an authorize link after a denial', async () => {
@@ -105,7 +131,7 @@ describe('ClubAccessRequestsSection', () => {
     await user.click(await screen.findByRole('button', { name: /deny request/i }));
 
     await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
-    expect(screen.queryByRole('link', { name: /authorize this club/i })).not.toBeInTheDocument();
+    expect(getPendingClubAuthorizations).not.toHaveBeenCalled();
   });
 
   it('denies a request with an optional review note', async () => {

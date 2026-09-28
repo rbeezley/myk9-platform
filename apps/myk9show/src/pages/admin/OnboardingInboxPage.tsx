@@ -27,6 +27,7 @@ import {
   ONBOARDING_STATUS_FILTERS,
 } from './adminStatusPresentation';
 import { ClubAccessRequestsSection } from './ClubAccessRequestsSection';
+import { PendingClubAuthorizationsSection } from './PendingClubAuthorizationsSection';
 
 type OnboardingStatus = OnboardingRequest['status'];
 type OnboardingStatusFilter = OnboardingStatus | 'all';
@@ -226,6 +227,7 @@ export default function OnboardingInboxPage() {
         </div>
       </div>
 
+      <PendingClubAuthorizationsSection />
       <ClubAccessRequestsSection />
 
       <ListViewTabs

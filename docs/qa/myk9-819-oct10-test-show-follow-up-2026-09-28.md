@@ -1,6 +1,6 @@
 # MYK9-819 / MYK9-829 October 10 test-show follow-up — 2026-09-28
 
-**Result: partial pass; go-live gate remains open.** The deployed app now has a clearly labeled private rehearsal show under the confirmed host, Darboshea Tervuren Club. The signed-in judge-only account can see and score its draft classes. Offline scoring queued one result and that result was visible from a fresh judge browser after reconnect. A full offline reload failed in Chrome, the second offline score was not completed, and a fresh anonymous passcode-only join landed on “Show not found.” The real club is still Unauthorized and no published real October 10 show was identified.
+**Result: partial pass; go-live gate remains open.** The deployed app now has a clearly labeled private rehearsal show under the confirmed host, Darboshea Tervuren Club. The signed-in judge-only account can see and score its draft classes. Offline scoring queued one result and that result was visible from a fresh judge browser after reconnect. A full offline reload failed in Chrome, the second offline score was not completed, and a fresh anonymous passcode-only join landed on “Show not found.” The club was authorized later on September 28; no published real October 10 show was identified.
 
 ## Fixture and scope
 
@@ -12,7 +12,9 @@
 
 ## Real-event publication gate (MYK9-829)
 
-**FAIL.** At 20:47 UTC the deployed Darboshea club page still showed **Unauthorized**. It listed two upcoming shows: the new October 10 **ZZ TEST** draft and a separate Darboshea Tervuren Nosework Club show dated October 31. Neither is proof of a published real October 10 show. The real show's ID and publication state remain unverified. [Club and show screenshot](assets/myk9-829-darboshea-unauthorized-shows-2026-09-28.png). The named authorization/publication check is in the [go-live checklist](../operations/go-live-phase-4-evidence-checklist.md).
+**PARTIAL PASS.** At 20:47 UTC the deployed Darboshea club page still showed **Unauthorized**. [Historical club and show screenshot](assets/myk9-829-darboshea-unauthorized-shows-2026-09-28.png). With the owner's explicit instruction, a site admin called the deployed `set_club_authorization` RPC for club `f8f9c772-3b83-416b-8ff3-688124fc5602` at **21:56:43 UTC**. A fresh server read returned `authorized_at = 2026-09-28T21:56:43.615358+00:00` and a matching `permission_audit_log` action `club_authorized` at that instant. The club authorization half of the gate now passes.
+
+The deployed server listed only two Darboshea shows: the October 10 **ZZ TEST** rehearsal draft (`7da14125-9fb3-4d5e-b77f-238cae19efcb`) and the separate October 31 **Darboshea Tervuren Nosework Club** draft (`f84d4690-6a4f-4d43-82ea-7e374be887a1`). Their trial dates were checked from the server. Neither is a published real October 10 show. The real show's ID and publication remain unverified. The named authorization/publication check stays open in the [go-live checklist](../operations/go-live-phase-4-evidence-checklist.md).
 
 ## Deployed passcode walk (MYK9-819)
 
@@ -26,4 +28,4 @@
 
 The first rehearsal's filed failures remain linked from [MYK9-819](https://linear.app/myk9-platform/issue/MYK9-819/oct-10-dress-rehearsal-on-staging-two-trial-ukc-nosework-show), including MYK9-824 through MYK9-832. The draft-judge access and publication gate are [MYK9-829](https://linear.app/myk9-platform/issue/MYK9-829/a-judge-only-account-cannot-see-or-score-a-draft-show-and-publishing); offline claim and reload evidence are tracked in [MYK9-834](https://linear.app/myk9-platform/issue/MYK9-834/prove-passcode-ringside-scoring-survives-an-offline-reload-oct-10). The fresh anonymous “Show not found” outcome is recorded here against that same access path; this walk does not establish its root cause.
 
-**Acceptance remains open.** Before October 10, the real Darboshea club must be shown Authorized and the actual event shown Published with its ID and screenshots. Before the October 6 final rehearsal, repeat the two-entry offline score and reload sequence on a device and reconcile both results from a fresh session. Do not use this test draft or the signed-in secretary passcode walk as proof of the real event gate.
+**Acceptance remains open.** Darboshea's authorization is verified from the deployed server and audit log. Before October 10, identify the actual event and show it Published with its ID and screenshots. Before the October 6 final rehearsal, repeat the two-entry offline score and reload sequence on a device and reconcile both results from a fresh session. Do not use this test draft or the signed-in secretary passcode walk as proof of the real event gate.

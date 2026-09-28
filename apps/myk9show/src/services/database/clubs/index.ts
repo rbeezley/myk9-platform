@@ -20,7 +20,12 @@ export {
   checkClubNameExists,
 } from './reads';
 
-export { setClubAuthorization } from './authorization';
+export {
+  getPendingClubAuthorizations,
+  PENDING_CLUB_AUTHORIZATIONS_QUERY_KEY,
+  setClubAuthorization,
+} from './authorization';
+export type { PendingClubAuthorization } from './authorization';
 export {
   getPublicDirectoryClubs,
   getPublicClubById,

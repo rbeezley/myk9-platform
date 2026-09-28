@@ -10,11 +10,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { notifications } from '@/lib/notifications';
+import { isTransportFailure, markServerUnreachable } from '@/lib/serverReachability';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bypass generated types for tables not yet in codegen
 const untypedSupabase = supabase as any;
+
+/** A write that never reached Supabase also switches the controls to "Needs a connection" (MYK9-864). */
+function throwIfWriteFailed(result: { error: unknown; status?: number }): void {
+  if (!result.error) return;
+  if (isTransportFailure(result)) markServerUnreachable();
+  throw result.error;
+}
 
 interface ShowVisibilityUpdate {
   showId: string;
@@ -116,17 +124,18 @@ export function useUpdateShowVisibility() {
 
   return useMutation({
     mutationFn: async (update: ShowVisibilityUpdate) => {
-      const { error } = await untypedSupabase.from('show_visibility_settings').upsert({
-        show_id: update.showId,
-        preset: update.preset,
-        placement_timing: update.placementTiming,
-        qualification_timing: update.qualificationTiming,
-        time_timing: update.timeTiming,
-        faults_timing: update.faultsTiming,
-        updated_by: user?.id ?? null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+      throwIfWriteFailed(
+        await untypedSupabase.from('show_visibility_settings').upsert({
+          show_id: update.showId,
+          preset: update.preset,
+          placement_timing: update.placementTiming,
+          qualification_timing: update.qualificationTiming,
+          time_timing: update.timeTiming,
+          faults_timing: update.faultsTiming,
+          updated_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+      );
     },
     onMutate: async variables => {
       // Optimistic update: cancel outgoing refetches and snapshot cache
@@ -183,21 +192,22 @@ export function useUpdateShowCheckin() {
         .eq('show_id', update.showId)
         .maybeSingle();
 
-      const { error } = await untypedSupabase.from('show_visibility_settings').upsert({
-        show_id: update.showId,
-        // Preserve an existing row's preset verbatim — including NULL (custom
-        // timings). Only a brand-new row, written alongside the default timings
-        // below, gets the 'standard' label.
-        preset: existing ? existing.preset : 'standard',
-        placement_timing: existing?.placement_timing ?? 'class_complete',
-        qualification_timing: existing?.qualification_timing ?? 'immediate',
-        time_timing: existing?.time_timing ?? 'class_complete',
-        faults_timing: existing?.faults_timing ?? 'class_complete',
-        self_checkin_enabled: update.enabled,
-        updated_by: user?.id ?? null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+      throwIfWriteFailed(
+        await untypedSupabase.from('show_visibility_settings').upsert({
+          show_id: update.showId,
+          // Preserve an existing row's preset verbatim — including NULL (custom
+          // timings). Only a brand-new row, written alongside the default timings
+          // below, gets the 'standard' label.
+          preset: existing ? existing.preset : 'standard',
+          placement_timing: existing?.placement_timing ?? 'class_complete',
+          qualification_timing: existing?.qualification_timing ?? 'immediate',
+          time_timing: existing?.time_timing ?? 'class_complete',
+          faults_timing: existing?.faults_timing ?? 'class_complete',
+          self_checkin_enabled: update.enabled,
+          updated_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+      );
     },
     onMutate: async variables => {
       await queryClient.cancelQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
@@ -228,18 +238,19 @@ export function useUpdateTrialOverride() {
 
   return useMutation({
     mutationFn: async (update: TrialOverrideUpdate) => {
-      const { error } = await untypedSupabase.from('trial_visibility_overrides').upsert({
-        trial_id: update.trialId,
-        preset: update.preset,
-        placement_timing: update.placementTiming,
-        qualification_timing: update.qualificationTiming,
-        time_timing: update.timeTiming,
-        faults_timing: update.faultsTiming,
-        self_checkin_enabled: update.selfCheckinEnabled,
-        updated_by: user?.id ?? null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+      throwIfWriteFailed(
+        await untypedSupabase.from('trial_visibility_overrides').upsert({
+          trial_id: update.trialId,
+          preset: update.preset,
+          placement_timing: update.placementTiming,
+          qualification_timing: update.qualificationTiming,
+          time_timing: update.timeTiming,
+          faults_timing: update.faultsTiming,
+          self_checkin_enabled: update.selfCheckinEnabled,
+          updated_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+      );
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
@@ -259,18 +270,19 @@ export function useUpdateClassOverride() {
 
   return useMutation({
     mutationFn: async (update: ClassOverrideUpdate) => {
-      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert({
-        class_id: update.classId,
-        preset: update.preset,
-        placement_timing: update.placementTiming,
-        qualification_timing: update.qualificationTiming,
-        time_timing: update.timeTiming,
-        faults_timing: update.faultsTiming,
-        self_checkin_enabled: update.selfCheckinEnabled,
-        updated_by: user?.id ?? null,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+      throwIfWriteFailed(
+        await untypedSupabase.from('class_visibility_overrides').upsert({
+          class_id: update.classId,
+          preset: update.preset,
+          placement_timing: update.placementTiming,
+          qualification_timing: update.qualificationTiming,
+          time_timing: update.timeTiming,
+          faults_timing: update.faultsTiming,
+          self_checkin_enabled: update.selfCheckinEnabled,
+          updated_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+      );
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -320,8 +332,7 @@ export function useBulkUpdateClassOverrides() {
         class_id: classId,
         ...sharedFields,
       }));
-      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert(rows);
-      if (error) throw error;
+      throwIfWriteFailed(await untypedSupabase.from('class_visibility_overrides').upsert(rows));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -356,8 +367,7 @@ export function useResetOverride() {
         userId: user?.id ?? null,
         timestamp: new Date().toISOString(),
       });
-      const { error } = await untypedSupabase.from(table).upsert(payload);
-      if (error) throw error;
+      throwIfWriteFailed(await untypedSupabase.from(table).upsert(payload));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });

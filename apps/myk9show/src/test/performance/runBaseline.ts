@@ -32,6 +32,13 @@ const reportPath = resolve(
   process.env.MYK9_PERF_REPORT_PATH ?? `docs/qa/perf-baseline-${reportDate}.md`
 );
 const runDirectory = resolve(repoRoot, `.logs/perf-${runId}`);
+// A pair can spend its full navigation and readiness budgets on all three page loads,
+// plus service-worker activation during warm priming.
+const pairTimeoutMs =
+  3 * Number(process.env.MYK9_PERF_NAVIGATION_TIMEOUT_MS ?? 25_000) +
+  3 * Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 60_000) +
+  90_000 +
+  15_000;
 
 async function main(): Promise<void> {
   const routes = benchmarkRoutesFor(showId);
@@ -99,7 +106,7 @@ async function main(): Promise<void> {
         MYK9_PERF_SESSION: sessions[route.role] ? JSON.stringify(sessions[route.role]) : '',
       },
       encoding: 'utf8',
-      timeout: 150_000,
+      timeout: pairTimeoutMs,
       maxBuffer: 2_000_000,
     });
     if (worker.stdout) process.stdout.write(worker.stdout);

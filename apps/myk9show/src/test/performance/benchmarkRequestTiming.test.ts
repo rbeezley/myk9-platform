@@ -8,7 +8,9 @@ describe('Supabase request timing', () => {
       url: () => 'https://db.example.test/rest/v1/shows',
       response: () => Promise.reject(new Error('Target page, context or browser has been closed')),
     } as unknown as Request;
-    await expect(readSupabaseRequestDuration(request, 'https://db.example.test')).resolves.toBeNull();
+    await expect(
+      readSupabaseRequestDuration(request, 'https://db.example.test')
+    ).resolves.toBeNull();
   });
 
   it('keeps a completed response timing', async () => {

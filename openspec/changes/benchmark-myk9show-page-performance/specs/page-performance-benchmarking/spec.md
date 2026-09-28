@@ -51,7 +51,7 @@ The benchmark SHALL measure a fresh browser context with empty HTTP cache and In
 #### Scenario: Secretary desktop measurement
 
 - **WHEN** a secretary workbench, Entries Management, or reports route is benchmarked on desktop
-- **THEN** the result records an unthrottled desktop profile separately from the mobile results
+- **THEN** the result records a 20 ms latency, 25 Mbps down/5 Mbps up desktop profile without CPU slowdown separately from the mobile results
 
 ### Requirement: Metrics and evidence are clearly labeled
 

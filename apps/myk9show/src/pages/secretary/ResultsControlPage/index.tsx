@@ -75,21 +75,30 @@ export default function ResultsControlPage() {
     isError: settingsError,
     refetch: refetchSettings,
   } = useShowSettings(showId ?? null);
+  const trialOverridesQuery = useTrialOverrides(showId ?? null);
   const {
     data: trialOverrides = [],
     isLoading: overridesLoading,
     isError: trialOverridesError,
     refetch: refetchTrialOverrides,
-  } = useTrialOverrides(showId ?? null);
+  } = trialOverridesQuery;
+  const classOverridesQuery = useClassOverrides(showId ?? null);
   const {
     data: classOverrides = [],
     isLoading: classOverridesLoading,
     isError: classOverridesError,
     refetch: refetchClassOverrides,
-  } = useClassOverrides(showId ?? null);
+  } = classOverridesQuery;
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
   const isError = settingsError || trialOverridesError || classOverridesError;
+  // MYK9-865: a failed background refetch (e.g. over a dead venue uplink after a
+  // write or a release) keeps the last good settings on screen, as SelfCheckinTool
+  // does. Only a query that errored with nothing cached replaces the card.
+  const hasUnloadedData =
+    (settingsError && settings === undefined) ||
+    (trialOverridesError && trialOverridesQuery.data === undefined) ||
+    (classOverridesError && classOverridesQuery.data === undefined);
 
   // `settings` is undefined whenever the query hasn't produced data: on a
   // resolved fetch it's always defined, but the queries are `enabled: !!showId`,
@@ -266,12 +275,18 @@ export default function ResultsControlPage() {
 
       {/* Query error state */}
       {isError && (
-        <Alert variant="destructive">
+        <Alert variant={hasUnloadedData ? 'destructive' : 'default'}>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Failed to load results settings</AlertTitle>
+          <AlertTitle>
+            {hasUnloadedData
+              ? 'Failed to load results settings'
+              : "Couldn't refresh results settings"}
+          </AlertTitle>
           <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <span>
-              There was a problem fetching show data. Check your connection and try again.
+              {hasUnloadedData
+                ? 'There was a problem fetching show data. Check your connection and try again.'
+                : 'The settings below may be out of date. Check your connection and try again.'}
             </span>
             <Button
               variant="outline"
@@ -306,7 +321,7 @@ export default function ResultsControlPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : isError ? (
+          ) : hasUnloadedData ? (
             <CardLoadError />
           ) : (
             <div className="space-y-6">

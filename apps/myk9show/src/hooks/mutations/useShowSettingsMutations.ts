@@ -35,21 +35,10 @@ interface SettingsRequestResult {
 const SETTINGS_REQUEST_TIMEOUT_MS = 10_000;
 const settingsRequestSignal = () => timeoutSignal(SETTINGS_REQUEST_TIMEOUT_MS);
 
-/** Errors from requests that never reached Supabase; the thrown error carries no status. */
-const transportFailures = new WeakSet<object>();
-
 function throwIfRequestFailed(result: SettingsRequestResult): void {
   if (!result.error) return;
-  if (isTransportFailure(result)) {
-    markServerUnreachable();
-    if (typeof result.error === 'object') transportFailures.add(result.error);
-  }
+  if (isTransportFailure(result)) markServerUnreachable();
   throw result.error;
-}
-
-/** MYK9-865: skip the settled refetch after a transport failure, for the reason above. */
-function failedToReachServer(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && transportFailures.has(error);
 }
 
 async function runSettingsWrite(builder: {
@@ -204,8 +193,7 @@ export function useUpdateShowVisibility() {
         queryClient.setQueryData(settingsQueryKeys.show(variables.showId), context.previous);
       }
     },
-    onSettled: (_, error, variables) => {
-      if (failedToReachServer(error)) return;
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
     },
   });
@@ -266,8 +254,7 @@ export function useUpdateShowCheckin() {
         queryClient.setQueryData(settingsQueryKeys.show(variables.showId), context.previous);
       }
     },
-    onSettled: (_, error, variables) => {
-      if (failedToReachServer(error)) return;
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
     },
   });

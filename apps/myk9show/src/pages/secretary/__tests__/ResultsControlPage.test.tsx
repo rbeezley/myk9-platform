@@ -360,4 +360,25 @@ describe('ResultsControlPage', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBe(0);
     expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
   });
+
+  it('keeps the settings controls when a refresh fails but data is cached (MYK9-865)', async () => {
+    // A background refetch over a dead venue uplink (after a write or a release)
+    // errors while the last good settings are still cached. The card must keep the
+    // controls, so the "Needs a connection" state stays visible, not swap to an error.
+    mockQueryState.settings = fallbackSettings;
+    mockQueryState.isLoading = false;
+    mockQueryState.isError = true;
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(screen.getByText('Immediately')).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Couldn't refresh results settings")).toBeInTheDocument();
+    expect(screen.getByText(/may be out of date/i)).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load results settings')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockRefetch).toHaveBeenCalled();
+  });
 });

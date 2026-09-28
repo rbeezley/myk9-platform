@@ -73,7 +73,18 @@ export const useNotificationStore = create<NotificationState>()(
       addAlert: payload =>
         set(state => {
           const entry: AlertEntry = { payload, read: false };
-          const updated = [entry, ...state.recentAlerts].slice(0, MAX_RECENT_ALERTS);
+          const updated: AlertEntry[] = [];
+          let temporaryCount = 0;
+          for (const alert of [entry, ...state.recentAlerts]) {
+            // Durable account notices are backed by unread DB rows. The
+            // temporary show-alert cap must never evict one before it is read.
+            if (typeof alert.payload.data?.accountNotificationUserId === 'string') {
+              updated.push(alert);
+            } else if (temporaryCount < MAX_RECENT_ALERTS) {
+              updated.push(alert);
+              temporaryCount += 1;
+            }
+          }
           return {
             recentAlerts: updated,
             unreadCount: updated.filter(a => !a.read).length,

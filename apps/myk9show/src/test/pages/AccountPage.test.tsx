@@ -47,12 +47,24 @@ vi.mock('@/hooks/useUsers', () => ({
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
 const mockGetUserRoles = vi.fn(() => [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR]);
+let mockRbacUserRoles: Array<{
+  role: { name: string };
+  scope_type?: string;
+  scope_id?: string | null;
+  is_active?: boolean;
+}> = [];
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     signOut: mockSignOut,
     user: { id: mockAuthUserId },
     getUserRoles: mockGetUserRoles,
+    rbacUserRoles: mockRbacUserRoles,
   }),
+}));
+
+let mockClubs: Array<{ id: string; name: string }> = [];
+vi.mock('@/hooks/queries/useClubsDatabase', () => ({
+  useClubsQuery: () => ({ data: mockClubs }),
 }));
 
 const mockDeleteUser = vi.fn();
@@ -113,6 +125,8 @@ describe('AccountPage', () => {
     mockAuthUserId = 'u-1';
     mockForm.isDirty = false;
     mockForm.saving = false;
+    mockRbacUserRoles = [];
+    mockClubs = [];
   });
 
   const render = (initialRoute = '/account') =>
@@ -183,6 +197,30 @@ describe('AccountPage', () => {
     expect(
       screen.getByText('Roles are managed by your organization administrator.')
     ).toBeInTheDocument();
+  });
+
+  it('shows a club-scoped role with its club name, in plain words', () => {
+    mockGetUserRoles.mockReturnValueOnce([UserRole.SECRETARY]);
+    mockRbacUserRoles = [
+      { role: { name: 'secretary' }, scope_type: 'club', scope_id: 'club-1', is_active: true },
+    ];
+    mockClubs = [{ id: 'club-1', name: 'WALK TEST Club' }];
+
+    render();
+
+    expect(screen.getByLabelText('Assigned roles')).toHaveTextContent('Secretary: WALK TEST Club');
+  });
+
+  it('falls back to the bare role label while the club lookup has not resolved yet', () => {
+    mockGetUserRoles.mockReturnValueOnce([UserRole.SECRETARY]);
+    mockRbacUserRoles = [
+      { role: { name: 'secretary' }, scope_type: 'club', scope_id: 'club-1', is_active: true },
+    ];
+    mockClubs = [];
+
+    render();
+
+    expect(screen.getByLabelText('Assigned roles')).toHaveTextContent('Secretary');
   });
 
   it('opens the requested section from the section query param', () => {

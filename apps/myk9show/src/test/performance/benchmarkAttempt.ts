@@ -7,6 +7,7 @@ import { readBrowserMetrics } from './browserMetrics';
 import { waitForRouteReady } from './benchmarkReadiness';
 import { benchmarkRequestDisposition } from './benchmarkNetworkPolicy';
 import { observeNetwork } from './benchmarkNetworkObservation';
+import { readSupabaseRequestDuration } from './benchmarkRequestTiming';
 import { type BenchmarkSample, type NetworkProfile } from './benchmarkReport';
 
 type Sample = BenchmarkSample;
@@ -193,16 +194,10 @@ export async function measure(
       );
   });
   const requestDurations: Array<{ path: string; durationMs: number }> = [];
-  page.on('requestfinished', async request => {
-    if (!supabaseUrl || !request.url().startsWith(supabaseUrl)) return;
-    const response = await request.response();
-    if (response) {
-      const timing = response.request().timing();
-      requestDurations.push({
-        path: new URL(request.url()).pathname,
-        durationMs: timing.responseEnd,
-      });
-    }
+  page.on('requestfinished', request => {
+    void readSupabaseRequestDuration(request, supabaseUrl).then(duration => {
+      if (duration) requestDurations.push(duration);
+    });
   });
   const target = new URL(route.path, origin);
   const start = performance.now();

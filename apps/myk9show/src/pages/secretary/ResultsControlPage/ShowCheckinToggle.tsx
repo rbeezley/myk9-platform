@@ -6,6 +6,8 @@
 
 import { Switch } from '@/components/ui/switch';
 import { useUpdateShowCheckin } from '@/hooks/mutations/useShowSettingsMutations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 import { toast } from 'sonner';
 
 interface ShowCheckinToggleProps {
@@ -15,6 +17,8 @@ interface ShowCheckinToggleProps {
 
 export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
   const updateCheckin = useUpdateShowCheckin();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   function handleToggle(next: boolean) {
     updateCheckin.mutate(
@@ -33,18 +37,24 @@ export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
         <p className="text-xs text-muted-foreground">
           Exhibitors can check themselves in via the app
         </p>
+        {connectionHint && (
+          <p className="text-xs text-muted-foreground" role="status">
+            {connectionHint}
+          </p>
+        )}
       </div>
       {/* 44px tap row enlarges the hit area around the ~20px switch (PRODUCT.md touch floor). */}
       <label
         htmlFor="checkin-show"
         className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+        title={connectionHint}
       >
         <Switch
           id="checkin-show"
           aria-label="Allow self check-in for show"
           checked={enabled}
           onCheckedChange={handleToggle}
-          disabled={updateCheckin.isPending}
+          disabled={updateCheckin.isPending || !isOnline}
         />
       </label>
     </div>

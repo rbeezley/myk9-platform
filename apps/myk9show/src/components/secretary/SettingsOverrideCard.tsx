@@ -38,6 +38,8 @@ import {
   useUpdateClassOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,12 +89,15 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
   const updateTrialOverride = useUpdateTrialOverride();
   const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   const isMutating =
     updateTrialOverride.isPending ||
     updateClassOverride.isPending ||
     resetOverride.isPending ||
-    isLoading;
+    isLoading ||
+    !isOnline;
 
   // ── Preset apply ─────────────────────────────────────────────────────────
 
@@ -200,6 +205,11 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
           )}
         </div>
         <p className="text-xs text-muted-foreground">{inheritedLabel}</p>
+        {connectionHint && (
+          <p className="text-xs text-muted-foreground" role="status">
+            {connectionHint}
+          </p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -210,7 +220,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
             value={currentSettings.preset ?? undefined}
             onValueChange={applyPreset}
           >
-            <SelectTrigger className="h-8 text-xs" disabled={isMutating}>
+            <SelectTrigger className="h-8 text-xs" disabled={isMutating} title={connectionHint}>
               <SelectValue placeholder="Choose a preset…" />
             </SelectTrigger>
             <SelectContent>
@@ -235,7 +245,11 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
                   value={currentSettings[key]}
                   onValueChange={timing => applyFieldOverride(key, timing)}
                 >
-                  <SelectTrigger className="h-7 flex-1 text-xs" disabled={isMutating}>
+                  <SelectTrigger
+                    className="h-7 flex-1 text-xs"
+                    disabled={isMutating}
+                    title={connectionHint}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -267,6 +281,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
             checked={selfCheckinEnabled}
             onCheckedChange={handleCheckinToggle}
             disabled={isMutating}
+            title={connectionHint}
           />
         </div>
       </CardContent>

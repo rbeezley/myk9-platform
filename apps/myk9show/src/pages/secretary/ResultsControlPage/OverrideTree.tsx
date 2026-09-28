@@ -29,6 +29,8 @@ import {
   useUpdateClassOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 import type {
   ShowSettings,
   TrialOverrideEntry,
@@ -96,6 +98,8 @@ interface OverrideControlsProps {
   onResetVisibility: () => void;
   onResetCheckin: () => void;
   mutating: boolean;
+  /** Set when offline — overrides every control's title with "Needs a connection". */
+  connectionHint: string | undefined;
 }
 
 function OverrideControls({
@@ -108,6 +112,7 @@ function OverrideControls({
   onResetVisibility,
   onResetCheckin,
   mutating,
+  connectionHint,
 }: OverrideControlsProps) {
   const switchId = useId();
   return (
@@ -117,10 +122,12 @@ function OverrideControls({
           <Select
             value={visibility.preset ?? ''}
             onValueChange={v => onVisibilityPreset(v as VisibilityPreset)}
+            disabled={mutating}
           >
             <SelectTrigger
               className="min-h-[44px] w-32 shrink-0"
               aria-label={`Results visibility for ${name}`}
+              title={connectionHint}
             >
               <SelectValue placeholder="Inherit" />
             </SelectTrigger>
@@ -152,6 +159,7 @@ function OverrideControls({
           <label
             htmlFor={switchId}
             className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+            title={connectionHint}
           >
             <Switch
               id={switchId}
@@ -210,9 +218,14 @@ export function OverrideTree({
   const updateTrialOverride = useUpdateTrialOverride();
   const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   const mutating =
-    updateTrialOverride.isPending || updateClassOverride.isPending || resetOverride.isPending;
+    updateTrialOverride.isPending ||
+    updateClassOverride.isPending ||
+    resetOverride.isPending ||
+    !isOnline;
 
   if (trials.length === 0) return null;
 
@@ -313,7 +326,15 @@ export function OverrideTree({
   return (
     <div className="space-y-3">
       <Separator />
-      <h3 className="text-sm font-semibold">Trial &amp; class overrides</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Trial &amp; class overrides</h3>
+        {connectionHint && (
+          <span className="text-xs text-muted-foreground" role="status">
+            {connectionHint} — trial and class overrides are read-only until you&apos;re back
+            online.
+          </span>
+        )}
+      </div>
       {trials.map(trial => {
         const trialClasses = classes.filter(c => c.trialId === trial.id);
         const trialOverride = trialOverrideById.get(trial.id);
@@ -359,6 +380,7 @@ export function OverrideTree({
                 onResetVisibility={() => resetTrial(trial.id, 'visibility')}
                 onResetCheckin={() => resetTrial(trial.id, 'checkin')}
                 mutating={mutating}
+                connectionHint={connectionHint}
               />
             </div>
 
@@ -411,6 +433,7 @@ export function OverrideTree({
                         onResetVisibility={() => resetClass(cls.id, 'visibility')}
                         onResetCheckin={() => resetClass(cls.id, 'checkin')}
                         mutating={mutating}
+                        connectionHint={connectionHint}
                       />
                     </div>
                   );

@@ -15,6 +15,10 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => ({ isOnline: true }),
+}));
+
 const defaultSettings: ShowSettings = {
   visibility: {
     placement: 'class_complete',

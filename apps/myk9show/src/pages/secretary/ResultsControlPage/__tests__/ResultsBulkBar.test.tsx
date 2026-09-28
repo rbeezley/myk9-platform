@@ -18,6 +18,11 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useBulkUpdateClassOverrides: () => ({ mutate: mockBulkMutate, isPending: false }),
 }));
 
+const mockNetworkState = vi.hoisted(() => ({ isOnline: true }));
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => mockNetworkState,
+}));
+
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: mockReleaseMutate, isPending: false }),
 }));
@@ -48,6 +53,7 @@ function getDialogConfirmButton() {
 describe('ResultsBulkBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNetworkState.isOnline = true;
   });
 
   it('renders nothing when no classes are selected', () => {
@@ -297,5 +303,42 @@ describe('ResultsBulkBar', () => {
     renderBar();
     expect(screen.queryByRole('button', { name: /Enable Check-in/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Disable Check-in/i })).not.toBeInTheDocument();
+  });
+
+  describe('offline (MYK9-849)', () => {
+    beforeEach(() => {
+      mockNetworkState.isOnline = false;
+    });
+
+    it('disables Apply Preset and shows a "Needs a connection" hint', () => {
+      renderBar();
+      expect(screen.getByRole('combobox')).toBeDisabled();
+      expect(screen.getByText('Needs a connection')).toBeInTheDocument();
+    });
+
+    it('does not disable Release Results, which is already replicated', () => {
+      renderBar({ hasManualReleaseClasses: true });
+      expect(screen.getByRole('button', { name: 'Release Results' })).not.toBeDisabled();
+    });
+
+    it('re-enables Apply Preset once back online', () => {
+      const props: React.ComponentProps<typeof ResultsBulkBar> = {
+        showId: 'show-1',
+        selectedClasses: new Set(['a', 'b']),
+        allClassIds: ['a', 'b', 'c'],
+        onSelectAll: vi.fn(),
+        onClearSelection: vi.fn(),
+        onDeselectClasses: vi.fn(),
+        hasManualReleaseClasses: true,
+        hasReleasedClasses: false,
+      };
+      const { rerender } = render(<ResultsBulkBar {...props} />);
+      expect(screen.getByRole('combobox')).toBeDisabled();
+
+      mockNetworkState.isOnline = true;
+      rerender(<ResultsBulkBar {...props} />);
+      expect(screen.getByRole('combobox')).not.toBeDisabled();
+      expect(screen.queryByText('Needs a connection')).not.toBeInTheDocument();
+    });
   });
 });

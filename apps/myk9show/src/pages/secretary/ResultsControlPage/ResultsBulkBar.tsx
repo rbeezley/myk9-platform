@@ -8,8 +8,10 @@
  * unchanged toast/partial-failure wording.
  *
  * "Apply Preset" (via `useBulkUpdateClassOverrides`) still writes the online-only
- * `show_visibility_settings`/`*_visibility_overrides` path — tracked, not fixed,
- * by MYK9-849. "Release Results" / "Hide Results" are already replicated
+ * `show_visibility_settings`/`*_visibility_overrides` path, which has no offline
+ * replication path (MYK9-849 option (b)): it disables with a "Needs a
+ * connection" hint while offline instead of failing after the fact.
+ * "Release Results" / "Hide Results" are already replicated
  * (`useReleaseResults`/`useUnreleaseResults`) and unaffected by this change.
  */
 
@@ -38,6 +40,8 @@ import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secret
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
@@ -74,10 +78,13 @@ export function ResultsBulkBar({
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
   const unreleaseResults = useUnreleaseResults();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   if (selectedClasses.size === 0) return null;
 
   const isPending = bulkUpdate.isPending || releaseResults.isPending || unreleaseResults.isPending;
+  const presetDisabled = isPending || !isOnline;
 
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
@@ -199,8 +206,8 @@ export function ResultsBulkBar({
       >
         Select All ({allClassIds.length})
       </BulkBarButton>
-      <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
-        <SelectTrigger className="h-11 w-36 shrink-0">
+      <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={presetDisabled}>
+        <SelectTrigger className="h-11 w-36 shrink-0" title={connectionHint}>
           <SelectValue placeholder="Apply Preset" />
         </SelectTrigger>
         <SelectContent>
@@ -211,6 +218,15 @@ export function ResultsBulkBar({
           ))}
         </SelectContent>
       </Select>
+      {connectionHint && (
+        <span
+          className="whitespace-nowrap px-2 text-xs text-muted-foreground"
+          role="status"
+          aria-label={`Apply Preset: ${connectionHint}`}
+        >
+          {connectionHint}
+        </span>
+      )}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button

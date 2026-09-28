@@ -17,6 +17,8 @@ import {
   fieldTimingsFromVisibility,
 } from '@myk9/secretary';
 import { useUpdateShowVisibility } from '@/hooks/mutations/useShowSettingsMutations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_ICONS, ALL_TIMINGS, PLACEMENT_TIMINGS, TimingSelect } from './resultsControlUtils';
 
@@ -28,6 +30,8 @@ interface PresetSelectorProps {
 export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const updateVisibility = useUpdateShowVisibility();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   const serverTimingsKey = useMemo(
     () =>
@@ -53,7 +57,9 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   function applyPreset(preset: VisibilityPreset) {
     // Guard against a double-fire: the cards are click + Enter/Space activated,
     // so a quick repeat (or Enter-while-pending) could queue a second mutation.
-    if (updateVisibility.isPending) return;
+    // Offline is guarded the same way the disabled/aria-disabled styling below
+    // reads it, so a stale click event can't sneak a mutation through.
+    if (updateVisibility.isPending || connectionHint) return;
     const cfg = PRESET_CONFIGS[preset];
     updateVisibility.mutate(
       {
@@ -73,6 +79,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
   }
 
   function applyCustomTimings() {
+    if (updateVisibility.isPending || connectionHint) return;
     // Persist the true preset — or null when the combination matches no named
     // preset. Coercing an unmatched combo to 'standard' would silently mislabel
     // system state; null is read back as "Custom".
@@ -102,7 +109,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
         {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(preset => {
           const info = PRESET_INFO[preset];
           const isActive = activePreset === preset;
-          const isPending = updateVisibility.isPending;
+          const isPending = updateVisibility.isPending || Boolean(connectionHint);
           return (
             <Card
               key={preset}
@@ -111,6 +118,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
               aria-pressed={isActive}
               aria-disabled={isPending}
               aria-label={`Apply "${info.title}" preset`}
+              title={connectionHint}
               className={`transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isPending ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isActive ? 'ring-2 ring-primary' : 'hover:border-primary/50'}`}
               onClick={() => applyPreset(preset)}
               onKeyDown={e => {
@@ -140,6 +148,12 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       {activePreset === null && (
         <p className="text-xs text-muted-foreground" role="status">
           Custom timings active — no preset selected. Adjust per-field timings under Advanced.
+        </p>
+      )}
+
+      {connectionHint && (
+        <p className="text-xs text-muted-foreground" role="status">
+          {connectionHint} — show defaults are read-only until you&apos;re back online.
         </p>
       )}
 
@@ -178,7 +192,8 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
                 size="sm"
                 className="min-h-[44px]"
                 onClick={applyCustomTimings}
-                disabled={updateVisibility.isPending}
+                disabled={updateVisibility.isPending || Boolean(connectionHint)}
+                title={connectionHint}
               >
                 Save Custom Timings
               </Button>

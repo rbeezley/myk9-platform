@@ -11,12 +11,15 @@
  *
  * Enable/Disable dispatch through the same `useBulkUpdateClassOverrides`
  * mutation as before, unchanged — that path is online-only (writes
- * `class_visibility_overrides` directly via `untypedSupabase`), a
- * pre-existing gap this kit adoption does not close (tracked: MYK9-849).
+ * `class_visibility_overrides` directly via `untypedSupabase`), with no
+ * offline replication path (MYK9-849 option (b)). Both buttons disable with a
+ * "Needs a connection" hint while offline instead of failing after the fact.
  */
 import { CheckCircle2, ListChecks, XCircle } from 'lucide-react';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { NEEDS_CONNECTION_HINT } from '@/lib/needsConnectionHint';
 import { toast } from 'sonner';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
@@ -37,6 +40,8 @@ export function SelfCheckinBulkBar({
   onClearSelection,
 }: SelfCheckinBulkBarProps) {
   const updateClasses = useBulkUpdateClassOverrides();
+  const { isOnline } = useNetworkStatus();
+  const connectionHint = isOnline ? undefined : NEEDS_CONNECTION_HINT;
 
   if (selectedClasses.size === 0) return null;
 
@@ -63,6 +68,8 @@ export function SelfCheckinBulkBar({
     );
   }
 
+  const disabled = updateClasses.isPending || !isOnline;
+
   return (
     <FloatingBulkBar count={selectedClasses.size} noun={CLASS_NOUN} onClear={onClearSelection}>
       <BulkBarButton
@@ -73,18 +80,29 @@ export function SelfCheckinBulkBar({
       </BulkBarButton>
       <BulkBarButton
         onClick={() => updateCheckin(true)}
-        disabled={updateClasses.isPending}
+        disabled={disabled}
+        title={connectionHint}
         icon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
       >
         Enable self check-in
       </BulkBarButton>
       <BulkBarButton
         onClick={() => updateCheckin(false)}
-        disabled={updateClasses.isPending}
+        disabled={disabled}
+        title={connectionHint}
         icon={<XCircle className="h-4 w-4" aria-hidden="true" />}
       >
         Disable self check-in
       </BulkBarButton>
+      {connectionHint && (
+        <span
+          className="whitespace-nowrap px-2 text-xs text-muted-foreground"
+          role="status"
+          aria-label={`Self check-in controls: ${connectionHint}`}
+        >
+          {connectionHint}
+        </span>
+      )}
     </FloatingBulkBar>
   );
 }

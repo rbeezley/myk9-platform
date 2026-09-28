@@ -26,9 +26,11 @@ interface SettingsRequestResult {
  * MYK9-864: a request that never reached Supabase also switches the controls to
  * "Needs a connection". The timeout turns a dead uplink, which otherwise hangs
  * until the browser gives up, into a prompt transport failure (postgrest `status: 0`).
- * It can also cut off a slow write the server did commit, so every hook refetches
- * in `onSettled`, not only on success. supabase-js refreshes an expired token
- * before this signal applies, so that refresh is not bounded by it.
+ * It can also cut off a slow write the server did commit: the secretary then sees
+ * the error and the old value, and a retry is harmless (upserts are idempotent).
+ * Refetching on failure is deliberately not done: the read would fail over the
+ * same dead link and swap the settings card for its error state. supabase-js
+ * refreshes an expired token before this signal applies, so that is unbounded.
  */
 const SETTINGS_REQUEST_TIMEOUT_MS = 10_000;
 const settingsRequestSignal = () => timeoutSignal(SETTINGS_REQUEST_TIMEOUT_MS);
@@ -278,7 +280,7 @@ export function useUpdateTrialOverride() {
         })
       );
     },
-    onSettled: (_, __, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.trialOverride(variables.trialId),
@@ -310,7 +312,7 @@ export function useUpdateClassOverride() {
         })
       );
     },
-    onSettled: (_, __, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.classOverride(variables.classId),
       });
@@ -360,7 +362,7 @@ export function useBulkUpdateClassOverrides() {
       }));
       await runSettingsWrite(untypedSupabase.from('class_visibility_overrides').upsert(rows));
     },
-    onSettled: (_, __, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.classOverrides(variables.showId),
       });
@@ -395,7 +397,7 @@ export function useResetOverride() {
       });
       await runSettingsWrite(untypedSupabase.from(table).upsert(payload));
     },
-    onSettled: (_, __, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.trialOverride(variables.entityId),

@@ -1,5 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import { authoritativeEntryFeeCents, handlerDateOfBirthForFee } from './authoritativeFee';
+import {
+  authoritativeEntryFeeCents,
+  handlerDateOfBirthForFee,
+  resolveCartHandlerForFee,
+} from './authoritativeFee';
+
+describe('resolveCartHandlerForFee', () => {
+  const dog = { owner_id: 'owner', co_owner_id: 'co-owner' };
+
+  it('uses the dog owner when no handler is selected, matching entry submission', () => {
+    expect(resolveCartHandlerForFee('owner', dog, null)).toEqual({
+      valid: true,
+      handlerId: 'owner',
+    });
+  });
+
+  it('accepts an owner or co-owner handler for an owned dog', () => {
+    expect(resolveCartHandlerForFee('owner', dog, 'co-owner')).toEqual({
+      valid: true,
+      handlerId: 'co-owner',
+    });
+  });
+
+  it('rejects a stranger as handler and a dog the payer does not own', () => {
+    expect(resolveCartHandlerForFee('owner', dog, 'junior-stranger').valid).toBe(false);
+    expect(resolveCartHandlerForFee('stranger', dog, 'co-owner').valid).toBe(false);
+    expect(resolveCartHandlerForFee('owner', null, null).valid).toBe(false);
+  });
+});
 
 const base = {
   showPreEntryFee: 30,

@@ -89,6 +89,15 @@ describe('ShowEditPanel helpers', () => {
     expect(formDataToShow({ ...baseFormData, isNationals: true }).isNationals).toBe(true);
   });
 
+  it('saves a junior handler fee and lets the secretary clear it', () => {
+    expect(showToFormData({ juniorHandlerFee: '15' }).juniorHandlerFee).toBe('15');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '15' }).juniorHandlerFee).toBe('15');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '' }).juniorHandlerFee).toBe('');
+    expect(showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee: '-1' }).success).toBe(
+      false
+    );
+  });
+
   it('preserves publish-only fields for the save side effect payload', () => {
     const result = formDataToShowSaveData({
       ...baseFormData,

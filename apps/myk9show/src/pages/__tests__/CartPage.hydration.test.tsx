@@ -24,7 +24,7 @@ const { cartState, profileState } = vi.hoisted(() => ({
     removeItem: () => {},
     clearCart: () => {},
     setError: () => {},
-    loadActiveCart: vi.fn(),
+    loadActiveCart: vi.fn().mockResolvedValue(undefined),
   },
   profileState: { profile: null as unknown, isLoading: false },
 }));
@@ -116,6 +116,7 @@ describe('CartPage hydration gate', () => {
     expect(cartState.loadActiveCart).toHaveBeenCalledWith('p1', {
       showId: 'open-show',
       recoveryEntryIds: ['entry-3', 'entry-1', 'entry-3'],
+      isCurrent: expect.any(Function),
     });
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });

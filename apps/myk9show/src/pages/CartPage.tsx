@@ -42,6 +42,8 @@ import {
   ENTRY_SCOPE_ENTRIES_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
 } from '@/features/payments/entryScopeParams';
+import { useAuthoritativeCartQuote } from './useAuthoritativeCartQuote';
+import { CartFeeQuoteUnavailable } from './CartFeeQuoteUnavailable';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -157,23 +159,11 @@ export default function CartPage() {
     }
   }, [user, navigate]);
 
-  // Hydrate the active cart on direct visits (refresh, deep link, new tab) —
-  // the store is in-memory only, so without this the page always shows empty
-  // unless the same tab just populated it (2026-06-10 walkthrough finding).
-  useEffect(() => {
-    if (profile?.id) {
-      const cartLoadOptions: {
-        showId?: string;
-        recoveryEntryIds?: string[];
-      } = { recoveryEntryIds };
-
-      if (recoveryShowId) {
-        cartLoadOptions.showId = recoveryShowId;
-      }
-
-      loadActiveCart(profile.id, cartLoadOptions);
-    }
-  }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
+  const feeQuote = useAuthoritativeCartQuote({
+    profileId: profile?.id,
+    recoveryShowId,
+    recoveryEntryIds,
+  });
 
   const handleRemoveItem = async (itemId: string) => {
     const removed = items.find(item => item.id === itemId);
@@ -235,6 +225,10 @@ export default function CartPage() {
     }
     if (!profile?.id) {
       setError('Could not verify your exhibitor profile. Please sign in again.');
+      return;
+    }
+    if (!feeQuote.ready) {
+      setError(feeQuote.error ?? 'Checking the final entry fee. Please wait.');
       return;
     }
     // A Stripe session is cart-wide. Skip the capacity dependency only when
@@ -396,7 +390,9 @@ export default function CartPage() {
   // moment loadActiveCart begins, so "profile resolved with an id but no load
   // initiated yet" still counts as hydrating.
   const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
-  const isHydrating = items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+  const isHydrating =
+    (items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad)) ||
+    (items.length > 0 && !feeQuote.ready && !feeQuote.error);
 
   // Rendered by every branch below, deliberately. Removing the last item flips
   // the page to the empty-cart branch, so a live region living inside the
@@ -462,6 +458,19 @@ export default function CartPage() {
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (feeQuote.error) {
+    return (
+      <div className="bg-background pt-6">
+        {liveRegion}
+        <CartFeeQuoteUnavailable
+          message={feeQuote.error}
+          onRetry={feeQuote.retry}
+          onBack={() => navigate(continueShoppingTarget(cart.show_id))}
+        />
       </div>
     );
   }

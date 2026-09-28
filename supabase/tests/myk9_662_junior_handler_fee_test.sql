@@ -70,6 +70,18 @@ FROM (SELECT (now() AT TIME ZONE 'UTC')::date AS today) AS anchor,
        ('00000000-0000-0000-0000-000000662103'::uuid, 'MYK9-662 Show C junior fee zero', 0)
      ) AS v(id, name, junior_fee);
 
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.shows SET junior_handler_fee = -1
+    WHERE id = '00000000-0000-0000-0000-000000662101';
+    RAISE EXCEPTION 'negative junior handler fee was accepted';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+END;
+$$;
+
 INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type, timezone)
 SELECT
   ('00000000-0000-0000-0000-0000006622' || suffix)::uuid,
@@ -179,6 +191,8 @@ VALUES
   ('00000000-0000-0000-0000-000000662403', 'MYK9-662 Dog NoDob', 'NoDob', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000662003'),
   ('00000000-0000-0000-0000-000000662404', 'MYK9-662 Dog Other Handler', 'Other', 'Beagle', 'active',
+   '00000000-0000-0000-0000-000000662001'),
+  ('00000000-0000-0000-0000-000000662405', 'MYK9-662 Dog Owner Default', 'Default', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000662001');
 
 -- An entry needs a registration with the TRIAL'S registry (20260828210000), or
@@ -188,7 +202,8 @@ VALUES
   ('00000000-0000-0000-0000-000000662401', 'AKC', 'AKC66200001', true),
   ('00000000-0000-0000-0000-000000662402', 'AKC', 'AKC66200002', true),
   ('00000000-0000-0000-0000-000000662403', 'AKC', 'AKC66200003', true),
-  ('00000000-0000-0000-0000-000000662404', 'AKC', 'AKC66200004', true);
+  ('00000000-0000-0000-0000-000000662404', 'AKC', 'AKC66200004', true),
+  ('00000000-0000-0000-0000-000000662405', 'AKC', 'AKC66200005', true);
 
 INSERT INTO public.enrollments (id, show_id, handler_id)
 SELECT
@@ -327,6 +342,29 @@ BEGIN
   FROM public.entries e WHERE e.id = (result->'entries'->0->>'entry_id')::uuid;
   IF got_fee <> 30 THEN
     RAISE EXCEPTION 'FAIL case 6 (unresolved typed handler): entry_fee = % (expected 30)', got_fee;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- Case 7: with no selected or typed handler, submission records the dog
+  -- owner as handler and must charge that owner's junior rate.
+  ----------------------------------------------------------------------------
+  result := public.submit_show_entries(
+    '00000000-0000-0000-0000-000000662101'::uuid,
+    '00000000-0000-0000-0000-000000662501'::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000662405'::uuid,
+      'class_id', '00000000-0000-0000-0000-000000662301'::uuid,
+      'client_fee_cents', 1500)),
+    '00000000-0000-0000-0000-000000662807'::uuid,
+    'secretary_paid');
+
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL case 7 (owner-default handler) committed no entry: %', result;
+  END IF;
+  SELECT e.entry_fee INTO got_fee
+  FROM public.entries e WHERE e.id = (result->'entries'->0->>'entry_id')::uuid;
+  IF got_fee <> 15 THEN
+    RAISE EXCEPTION 'FAIL case 7 (owner-default handler): entry_fee = % (expected 15)', got_fee;
   END IF;
 
   RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test';

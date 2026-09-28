@@ -15,7 +15,10 @@ DECLARE
          FROM public.shows s
         WHERE s.id = p_show_id
           AND s.junior_handler_fee > 0
-          AND NULLIF(v_entry->>'handler_id', '') IS NOT NULL
+          AND (
+            NULLIF(v_entry->>'handler_id', '') IS NOT NULL
+            OR NULLIF(v_entry->>'handler_name', '') IS NULL
+          )
           AND private.entry_handler_is_junior(v_handler_person_id, v_class_id, v_trial_id) IS TRUE),
       v_server_fee
     );

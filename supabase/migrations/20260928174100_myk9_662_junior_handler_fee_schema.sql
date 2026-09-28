@@ -50,6 +50,10 @@ begin;
 alter table public.shows
   add column if not exists junior_handler_fee numeric;
 
+alter table public.shows
+  add constraint shows_junior_handler_fee_nonnegative
+  check (junior_handler_fee >= 0);
+
 comment on column public.shows.junior_handler_fee is
   'MYK9-662: the reduced per-show entry fee for a junior handler, applied by submit_show_entries via private.entry_handler_is_junior() (MYK9-664). NULL or 0 = no junior tier configured, mirroring day_of_show_fee''s convention.';
 

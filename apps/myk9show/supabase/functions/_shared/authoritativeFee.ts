@@ -52,6 +52,32 @@ export function handlerDateOfBirthForFee(
   return handlerId ? (dobByPersonId.get(handlerId) ?? null) : null;
 }
 
+/** Match the self-service ownership checks in submit_show_entries before pricing a cart. */
+export function resolveCartHandlerForFee(
+  callerPersonId: string | null,
+  dog: { owner_id: string | null; co_owner_id: string | null } | null,
+  selectedHandlerId: string | null
+): { valid: boolean; handlerId: string | null } {
+  if (!dog || !callerPersonId || dog.owner_id !== callerPersonId) {
+    return { valid: false, handlerId: null };
+  }
+  if (
+    selectedHandlerId &&
+    selectedHandlerId !== dog.owner_id &&
+    selectedHandlerId !== dog.co_owner_id
+  ) {
+    return { valid: false, handlerId: null };
+  }
+  return { valid: true, handlerId: selectedHandlerId ?? dog.owner_id };
+}
+
+/** Existing entries keep the fee fixed at submission, including junior pricing. */
+export function storedEntryFeeCents(value: number | string | null): number | null {
+  if (value === null || value === '') return null;
+  const dollars = Number(value);
+  return Number.isFinite(dollars) && dollars >= 0 ? Math.round(dollars * 100) : null;
+}
+
 const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 
 function parseDollars(value: number | string | null | undefined): number | null {

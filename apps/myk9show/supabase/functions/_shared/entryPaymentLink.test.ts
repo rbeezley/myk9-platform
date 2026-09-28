@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
+import { storedEntryFeeCents } from './authoritativeFee';
 import { buildEntryPaymentLinkSession } from './entryPaymentLink';
+
+describe('storedEntryFeeCents', () => {
+  it('keeps the recorded junior fee even if show pricing changes later', () => {
+    expect(storedEntryFeeCents('15.00')).toBe(1500);
+    expect(storedEntryFeeCents(30.25)).toBe(3025);
+  });
+
+  it('rejects absent or invalid recorded fees', () => {
+    expect(storedEntryFeeCents(null)).toBeNull();
+    expect(storedEntryFeeCents('')).toBeNull();
+    expect(storedEntryFeeCents(-1)).toBeNull();
+  });
+});
 
 const baseEntries = [
   {

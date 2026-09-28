@@ -18,7 +18,7 @@ const { cartState } = vi.hoisted(() => ({
     removeItem: () => {},
     clearCart: () => {},
     setError: () => {},
-    loadActiveCart: vi.fn(),
+    loadActiveCart: vi.fn().mockResolvedValue(undefined),
     dismissDroppedClosedClassItems: vi.fn(),
     droppedClosedClassItems: [
       {

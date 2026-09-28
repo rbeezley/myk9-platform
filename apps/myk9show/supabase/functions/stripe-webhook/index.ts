@@ -14,6 +14,8 @@ import { alertAdmin } from '../_shared/alertAdmin.ts';
 import {
   authoritativeEntryFeeCents,
   handlerDateOfBirthForFee,
+  resolveCartHandlerForFee,
+  storedEntryFeeCents,
 } from '../_shared/authoritativeFee.ts';
 import {
   calculatePlatformFeeCents,
@@ -929,7 +931,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         handler_id,
         entry_fee_cents,
         jump_height,
-        special_requests
+        special_requests,
+        dog:dog_id(owner_id, co_owner_id),
+        entry:entry_id(id, show_id, dog_id, class_id, entry_fee, payment_status)
       )
     `
     )
@@ -1093,14 +1097,53 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const cartItemsForFee = cart.items as {
     id: string;
     class_id: string;
+    dog_id: string;
+    entry_id: string | null;
     handler_id: string | null;
+    dog: { owner_id: string | null; co_owner_id: string | null } | null;
+    entry: {
+      id: string;
+      show_id: string;
+      dog_id: string;
+      class_id: string;
+      entry_fee: number | string | null;
+      payment_status: string | null;
+    } | null;
   }[];
+  const resolvedHandlers = cartItemsForFee.map(item => ({
+    item,
+    resolution: item.entry_id
+      ? {
+          valid:
+            item.entry?.id === item.entry_id &&
+            item.entry.show_id === cart.show_id &&
+            item.entry.dog_id === item.dog_id &&
+            item.entry.class_id === item.class_id &&
+            ['pending', 'paid'].includes(item.entry.payment_status ?? '') &&
+            item.dog?.owner_id === cart.exhibitor?.person_id &&
+            storedEntryFeeCents(item.entry.entry_fee) !== null,
+          handlerId: null,
+        }
+      : resolveCartHandlerForFee(cart.exhibitor?.person_id ?? null, item.dog, item.handler_id),
+  }));
+  if (resolvedHandlers.some(({ resolution }) => !resolution.valid)) {
+    await alertAdmin(
+      'Paid checkout has an invalid dog or handler — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was paid, but a cart line's dog
+       or selected handler is not authorized. Refund the payment in Stripe or correct
+       the cart and re-send this event after confirming the payer's instructions.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `invalid-cart-handler-${session.id}` }
+    );
+    return;
+  }
   // MYK9-662: date of birth lives in people_private (MYK9-664), never on
   // people — readable here because this function runs under service_role,
   // which people_private grants SELECT to explicitly.
   const personIdsForDob = [
     ...new Set(
-      cartItemsForFee.map(item => item.handler_id).filter((id): id is string => Boolean(id))
+      resolvedHandlers
+        .map(({ resolution }) => resolution.handlerId)
+        .filter((id): id is string => Boolean(id))
     ),
   ];
   const dobByPersonId = new Map<string, string | null>();
@@ -1125,21 +1168,23 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     }
   }
   const authoritativeByItem = new Map<string, number>(
-    cartItemsForFee.map(item => {
+    resolvedHandlers.map(({ item, resolution }) => {
       const trialInfo = trialInfoByClass.get(item.class_id);
       return [
         item.id,
-        authoritativeEntryFeeCents({
-          showPreEntryFee: showFees.pre_entry_fee,
-          showDayOfShowFee: showFees.day_of_show_fee,
-          showStartDate: showFees.start_date,
-          classEntryFee: feeByClass.get(item.class_id) ?? null,
-          nowIso,
-          showJuniorHandlerFee: showFees.junior_handler_fee,
-          handlerDateOfBirth: handlerDateOfBirthForFee(item.handler_id, dobByPersonId),
-          trialRegistryId: trialInfo?.registry_id ?? null,
-          trialDate: trialInfo?.date ?? null,
-        }),
+        item.entry_id
+          ? storedEntryFeeCents(item.entry?.entry_fee ?? null)!
+          : authoritativeEntryFeeCents({
+              showPreEntryFee: showFees.pre_entry_fee,
+              showDayOfShowFee: showFees.day_of_show_fee,
+              showStartDate: showFees.start_date,
+              classEntryFee: feeByClass.get(item.class_id) ?? null,
+              nowIso,
+              showJuniorHandlerFee: showFees.junior_handler_fee,
+              handlerDateOfBirth: handlerDateOfBirthForFee(resolution.handlerId, dobByPersonId),
+              trialRegistryId: trialInfo?.registry_id ?? null,
+              trialDate: trialInfo?.date ?? null,
+            }),
       ];
     })
   );

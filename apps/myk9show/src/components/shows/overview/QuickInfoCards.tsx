@@ -57,7 +57,16 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
       <MetadataItem
         label="Entry Fee"
         value={show.preEntryFee ? formatFee(show.preEntryFee) : 'TBD'}
-        secondary={show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null}
+        secondary={
+          [
+            show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null,
+            Number(show.juniorHandlerFee) > 0
+              ? `Junior handler: ${formatFee(show.juniorHandlerFee)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ') || null
+        }
       />
       <div className="flex-1 min-w-[120px] px-4 py-2.5">
         <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">

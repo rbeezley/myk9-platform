@@ -209,6 +209,12 @@ export const showSchemas = {
         },
         { message: 'Please enter a valid day of show fee amount' }
       ),
+      juniorHandlerFee: z
+        .string()
+        .refine(val => val === '' || (Number.isFinite(Number(val)) && Number(val) >= 0), {
+          message: 'Please enter a valid junior handler fee amount',
+        })
+        .optional(),
       assignedJudges: z.custom<import('@/types/judge-types').ShowJudgeAssignment[]>(
         val => Array.isArray(val),
         { message: 'Invalid judge assignments' }

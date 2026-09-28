@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
  * separately inside each branch remounts and says nothing - and a single-entry
  * cart is the common case.
  *
- * All three branches return the same root element, so React reconciles the
+ * All four branches return the same root element, so React reconciles the
  * region in place as long as it is that root's FIRST child everywhere. That
  * placement is the contract; asserting it at the source is the cheapest way to
  * pin it, since driving the transition needs a reactive store the page-level
@@ -25,7 +25,7 @@ const ROOT = '<div className="bg-background pt-6">';
 describe('CartPage live region', () => {
   it('renders the live region as the first child of every branch root', () => {
     const roots = source.split(ROOT).slice(1);
-    expect(roots.length).toBe(3);
+    expect(roots.length).toBe(4);
     for (const branch of roots) {
       expect(branch.trimStart().startsWith('{liveRegion}')).toBe(true);
     }

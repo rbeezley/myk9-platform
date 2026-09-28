@@ -180,6 +180,26 @@ export async function createEntryCheckoutSession(
   window.location.href = data.url;
 }
 
+/** Verify and refresh server-authoritative cart fees before showing the amount due. */
+export async function refreshEntryCartFeeQuote(cartId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('stripe-checkout', {
+    body: {
+      mode: 'entry',
+      cart_id: cartId,
+      quote_only: true,
+      success_url: `${window.location.origin}/cart`,
+      cancel_url: `${window.location.origin}/cart`,
+    },
+  });
+  if (error) {
+    const parsed = await readEdgeFunctionError(error);
+    throw new CheckoutSessionError(
+      parsed.message ?? 'We could not confirm entry fees. Please try again.',
+      parsed.status
+    );
+  }
+}
+
 /**
  * Verify a completed checkout session
  * Used on the success page to confirm payment and get order details

@@ -400,7 +400,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
       if (updates.juniorHandlerFee !== undefined)
-        replicatedUpdates.juniorHandlerFee = parseFloat(updates.juniorHandlerFee);
+        replicatedUpdates.juniorHandlerFee = parseFloat(updates.juniorHandlerFee) || 0;
       if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
       if (updates.acceptCheckPayments !== undefined)
         replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;

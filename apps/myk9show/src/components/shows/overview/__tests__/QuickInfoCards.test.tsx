@@ -14,6 +14,10 @@ const baseShow: Partial<Show> = {
 };
 
 describe('QuickInfoCards — payment methods', () => {
+  it('shows a configured junior fee to exhibitors before entry', () => {
+    render(<QuickInfoCards show={{ ...baseShow, juniorHandlerFee: '10' } as Show} />);
+    expect(screen.getByText(/Junior handler: \$10\.00/)).toBeInTheDocument();
+  });
   it('promotes entries close instead of repeating show date and host club', () => {
     render(<QuickInfoCards show={baseShow as Show} />);
     expect(screen.getByText('Entries Close')).toBeInTheDocument();

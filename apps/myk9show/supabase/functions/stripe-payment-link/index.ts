@@ -2,10 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
-import {
-  authoritativeEntryFeeCents,
-  handlerDateOfBirthForFee,
-} from '../_shared/authoritativeFee.ts';
+import { storedEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
@@ -108,18 +105,13 @@ interface EntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
-  handler_id: string | null;
+  entry_fee: number | string | null;
   dog: { call_name: string | null } | null;
-  class: { name: string | null; entry_fee: number | string | null } | null;
-  trial: { date: string | null; registry_id: string | null } | null;
+  class: { name: string | null } | null;
   show: {
     id: string;
     club_id: string | null;
     name: string | null;
-    pre_entry_fee: number | string | null;
-    day_of_show_fee: number | string | null;
-    junior_handler_fee: number | string | null;
-    start_date: string | null;
   } | null;
 }
 
@@ -182,11 +174,10 @@ Deno.serve(async req => {
         id,
         payment_status,
         entry_status,
-        handler_id,
+        entry_fee,
         dog:dog_id(call_name),
-        class:class_id(name, entry_fee),
-        trial:trial_id(date, registry_id),
-        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
+        class:class_id(name),
+        show:show_id(id, club_id, name)
       `
       )
       .in('id', entry_ids);
@@ -347,47 +338,26 @@ Deno.serve(async req => {
       percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
     });
 
-    // MYK9-662: date of birth lives in people_private (MYK9-664), never on
-    // people — readable here because this function runs under service_role,
-    // which people_private grants SELECT to explicitly. A missing handler
-    // identity stays unknown for junior pricing.
-    const personIdsForDob = [
-      ...new Set(entries.map(e => e.handler_id).filter((id): id is string => Boolean(id))),
-    ];
-    const dobByPersonId = new Map<string, string | null>();
-    if (personIdsForDob.length > 0) {
-      const { data: privateRows, error: privateRowsError } = await supabase
-        .from('people_private')
-        .select('person_id, date_of_birth')
-        .in('person_id', personIdsForDob);
-      if (privateRowsError) {
-        console.error('people_private lookup failed for payment link:', privateRowsError);
-        return corsResponse(corsHeaders, { error: 'Could not verify entry fees' }, 500);
-      }
-      for (const row of privateRows ?? []) {
-        dobByPersonId.set(row.person_id, row.date_of_birth);
-      }
-    }
-
-    // Recompute each fee from the authority chain — never trust a client value.
-    const nowIso = new Date().toISOString();
-    const linkEntries = entries.map(e => ({
-      entryId: e.id,
-      authoritativeFeeCents: authoritativeEntryFeeCents({
-        showPreEntryFee: show.pre_entry_fee,
-        showDayOfShowFee: show.day_of_show_fee,
-        showStartDate: show.start_date,
-        classEntryFee: e.class?.entry_fee ?? null,
-        nowIso,
-        showJuniorHandlerFee: show.junior_handler_fee,
-        handlerDateOfBirth: handlerDateOfBirthForFee(e.handler_id, dobByPersonId),
-        trialRegistryId: e.trial?.registry_id ?? null,
-        trialDate: e.trial?.date ?? null,
-      }),
-      dogName: e.dog?.call_name || 'Dog',
-      className: e.class?.name || 'Class',
-      showName: show.name || 'Show Entry',
+    // Submission fixed each entry's fee. Repricing at link creation would
+    // charge a different amount after a DOB or show-fee edit, while refunds
+    // still use the stored entry fee.
+    const pricedEntries = entries.map(entry => ({
+      entry,
+      feeCents: storedEntryFeeCents(entry.entry_fee),
     }));
+    if (pricedEntries.some(({ feeCents }) => feeCents === null)) {
+      return corsResponse(corsHeaders, { error: 'An entry has no valid recorded fee.' }, 422);
+    }
+    const linkEntries = pricedEntries.map(({ entry, feeCents }) => {
+      if (feeCents === null) throw new Error('Entry fee disappeared during link creation');
+      return {
+        entryId: entry.id,
+        authoritativeFeeCents: feeCents,
+        dogName: entry.dog?.call_name || 'Dog',
+        className: entry.class?.name || 'Class',
+        showName: show.name || 'Show Entry',
+      };
+    });
 
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).

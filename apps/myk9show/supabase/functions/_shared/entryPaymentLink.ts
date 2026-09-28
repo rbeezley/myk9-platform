@@ -15,7 +15,7 @@ import { formatStatementDescriptorSuffix } from './statementDescriptor.ts';
 
 export interface PaymentLinkEntry {
   entryId: string;
-  /** Authoritative fee in cents — recomputed server-side, never a client value. */
+  /** Persisted entries.entry_fee in cents, fixed when the entry was submitted. */
   authoritativeFeeCents: number;
   dogName: string;
   className: string;

@@ -26,27 +26,16 @@ export const RECOVERABLE_ENTRY_STATUSES = [
   'moved',
 ] as const;
 
-const DEFAULT_ENTRY_FEE_DOLLARS = 25;
-
 const parseFeeDollars = (value: number | string | null): number | null => {
   if (value == null) return null;
-  const parsed =
-    typeof value === 'number' ? value : Number.parseFloat(String(value).replace(/[$,]/g, ''));
+  const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
-  const preEntryFee = parseFeeDollars(entry.show_pre_entry_fee);
-  const dayOfShowFee = parseFeeDollars(entry.show_day_of_show_fee);
-  const showStartDate = entry.show_start_date?.slice(0, 10);
-  const todayUtc = new Date().toISOString().slice(0, 10);
-
-  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null) {
-    return Math.round(dayOfShowFee * 100);
-  }
-  if (preEntryFee != null) return Math.round(preEntryFee * 100);
-
-  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+export const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
+  const recordedFee = parseFeeDollars(entry.entry_fee);
+  if (recordedFee === null) throw new Error(`Entry ${entry.id} has no valid recorded fee`);
+  return Math.round(recordedFee * 100);
 };
 
 export const findRecoverableEntries = async ({

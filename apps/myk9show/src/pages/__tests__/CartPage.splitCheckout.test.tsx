@@ -110,6 +110,10 @@ vi.mock('@/lib/stripe', () => ({
   createEntryCheckoutSession: createEntryCheckoutSessionMock,
 }));
 
+vi.mock('@/pages/useAuthoritativeCartQuote', () => ({
+  useAuthoritativeCartQuote: () => ({ ready: true, error: null, retry: vi.fn() }),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
 }));

@@ -349,7 +349,7 @@ describe('MYK9-664: the values live only in people_private', () => {
     // SELECT on people_private, 20260924231700) — not a gap in the RLS
     // boundary the test above pins, but still worth naming every reader
     // explicitly rather than letting the list grow silently. Each of these is
-    // a Stripe pricing path with no caller-controlled "ask again with a
+    // a Stripe cart pricing path with no caller-controlled "ask again with a
     // different trial date" oracle (the threat people_private's RLS design
     // guards against): the trial date comes from the entry/class being
     // priced, never from payer input.
@@ -366,7 +366,6 @@ describe('MYK9-664: the values live only in people_private', () => {
     expect(readers.sort()).toEqual(
       [
         'supabase/functions/stripe-checkout/index.ts',
-        'supabase/functions/stripe-payment-link/index.ts',
         'supabase/functions/stripe-webhook/index.ts',
       ].sort()
     );

@@ -9,6 +9,8 @@ import {
 import {
   authoritativeEntryFeeCents,
   handlerDateOfBirthForFee,
+  resolveCartHandlerForFee,
+  storedEntryFeeCents,
 } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
@@ -90,6 +92,7 @@ interface EntryCheckoutRequest {
   cart_id: string;
   success_url: string;
   cancel_url: string;
+  quote_only?: boolean;
 }
 
 type CheckoutRequest = SubscriptionCheckoutRequest | EntryCheckoutRequest;
@@ -175,9 +178,13 @@ Deno.serve(async req => {
       );
     }
 
-    // Get or create Stripe customer
-    const customerId = await getOrCreateStripeCustomer(user, person.id);
-    if (!customerId) {
+    // A fee quote only reads and heals this user's cart. Viewing a cart must
+    // not create a Stripe customer before the exhibitor chooses to pay.
+    const customerId =
+      mode === 'entry' && (body as EntryCheckoutRequest).quote_only
+        ? null
+        : await getOrCreateStripeCustomer(user, person.id);
+    if (!customerId && !(mode === 'entry' && (body as EntryCheckoutRequest).quote_only)) {
       return corsResponse(corsHeaders, { error: 'Failed to create payment profile' }, 500);
     }
 
@@ -195,6 +202,9 @@ Deno.serve(async req => {
         cancel_url
       );
     } else if (mode === 'subscription') {
+      if (!customerId) {
+        return corsResponse(corsHeaders, { error: 'Failed to create payment profile' }, 500);
+      }
       return await handleSubscriptionCheckout(
         corsHeaders,
         body as SubscriptionCheckoutRequest,
@@ -360,7 +370,7 @@ async function handleEntryCheckout(
   corsHeaders: Record<string, string>,
   request: EntryCheckoutRequest,
   authUserId: string,
-  customerId: string,
+  customerId: string | null,
   successUrl: string,
   cancelUrl: string
 ): Promise<Response> {
@@ -376,7 +386,7 @@ async function handleEntryCheckout(
     .select(
       `
       *,
-      exhibitor:exhibitor_profiles!inner(auth_user_id),
+      exhibitor:exhibitor_profiles!inner(auth_user_id, person_id),
       items:entry_cart_items(
         id,
         dog_id,
@@ -386,7 +396,8 @@ async function handleEntryCheckout(
         entry_fee_cents,
         jump_height,
         special_requests,
-        dog:dogs(call_name),
+        dog:dogs(call_name, owner_id, co_owner_id),
+        entry:entries!entry_cart_items_entry_id_fkey(id, show_id, dog_id, class_id, entry_fee, payment_status),
         class:classes(
           name,
           entry_fee,
@@ -634,23 +645,54 @@ async function handleEntryCheckout(
   const nowIso = new Date().toISOString();
   const cartItemsForFee = cart.items as {
     id: string;
+    entry_id: string | null;
+    dog_id: string;
+    class_id: string;
     entry_fee_cents: number;
     handler_id: string | null;
+    dog: { owner_id: string | null; co_owner_id: string | null } | null;
+    entry: {
+      id: string;
+      show_id: string;
+      dog_id: string;
+      class_id: string;
+      entry_fee: number | string | null;
+      payment_status: string | null;
+    } | null;
     class?: {
       entry_fee?: number | string | null;
       trial?: { date?: string | null; registry_id?: string | null } | null;
     };
   }[];
+  const resolvedHandlers = cartItemsForFee.map(item => ({
+    item,
+    resolution: item.entry_id
+      ? {
+          valid:
+            item.entry?.id === item.entry_id &&
+            item.entry.show_id === cart.show_id &&
+            item.entry.dog_id === item.dog_id &&
+            item.entry.class_id === item.class_id &&
+            item.entry.payment_status === 'pending' &&
+            item.dog?.owner_id === cart.exhibitor.person_id &&
+            storedEntryFeeCents(item.entry.entry_fee) !== null,
+          handlerId: null,
+        }
+      : resolveCartHandlerForFee(cart.exhibitor.person_id, item.dog, item.handler_id),
+  }));
+  if (resolvedHandlers.some(({ resolution }) => !resolution.valid)) {
+    return corsResponse(corsHeaders, { error: 'A cart item has an invalid dog or handler.' }, 403);
+  }
   // MYK9-662: date of birth lives in people_private (MYK9-664), never on
   // people — readable here because this function runs under service_role,
   // which people_private grants SELECT to explicitly. Not a live-derivation
-  // surface reachable by a caller-controlled role: nothing here lets an
-  // exhibitor edit a trial's date and reprice, unlike the "ask again" oracle
-  // MYK9-664 closed off for managers. A cart line without a resolved handler
-  // is unknown for junior pricing.
+  // surface reachable by a caller-controlled role: the handler is constrained
+  // to the owned dog's owner or co-owner, and the trial date is fixed.
   const personIdsForDob = [
     ...new Set(
-      cartItemsForFee.map(item => item.handler_id).filter((id): id is string => Boolean(id))
+      resolvedHandlers
+        .map(({ resolution }) => resolution.handlerId)
+        .filter((id): id is string => Boolean(id))
     ),
   ];
   const dobByPersonId = new Map<string, string | null>();
@@ -671,19 +713,21 @@ async function handleEntryCheckout(
       dobByPersonId.set(row.person_id, row.date_of_birth);
     }
   }
-  const itemsWithAuthoritativeFee = cartItemsForFee.map(item => ({
+  const itemsWithAuthoritativeFee = resolvedHandlers.map(({ item, resolution }) => ({
     item,
-    authoritativeCents: authoritativeEntryFeeCents({
-      showPreEntryFee: showFees.pre_entry_fee,
-      showDayOfShowFee: showFees.day_of_show_fee,
-      showStartDate: showFees.start_date,
-      classEntryFee: item.class?.entry_fee ?? null,
-      nowIso,
-      showJuniorHandlerFee: showFees.junior_handler_fee,
-      handlerDateOfBirth: handlerDateOfBirthForFee(item.handler_id, dobByPersonId),
-      trialRegistryId: item.class?.trial?.registry_id ?? null,
-      trialDate: item.class?.trial?.date ?? null,
-    }),
+    authoritativeCents: item.entry_id
+      ? storedEntryFeeCents(item.entry?.entry_fee ?? null)!
+      : authoritativeEntryFeeCents({
+          showPreEntryFee: showFees.pre_entry_fee,
+          showDayOfShowFee: showFees.day_of_show_fee,
+          showStartDate: showFees.start_date,
+          classEntryFee: item.class?.entry_fee ?? null,
+          nowIso,
+          showJuniorHandlerFee: showFees.junior_handler_fee,
+          handlerDateOfBirth: handlerDateOfBirthForFee(resolution.handlerId, dobByPersonId),
+          trialRegistryId: item.class?.trial?.registry_id ?? null,
+          trialDate: item.class?.trial?.date ?? null,
+        }),
   }));
   const driftedItems = itemsWithAuthoritativeFee.filter(
     x => x.item.entry_fee_cents !== x.authoritativeCents
@@ -722,12 +766,20 @@ async function handleEntryCheckout(
     }
     return corsResponse(
       corsHeaders,
-      {
-        error: 'Entry fees were updated to current show pricing — review your cart and try again.',
-      },
-      409
+      request.quote_only
+        ? { updated: true }
+        : {
+            error:
+              'Entry fees were updated to current show pricing — review your cart and try again.',
+          },
+      request.quote_only ? 200 : 409
     );
   }
+
+  // CartPage asks for the same authoritative calculation before displaying
+  // money. This stops the first junior checkout from bouncing on a known 409.
+  if (request.quote_only) return corsResponse(corsHeaders, { updated: false });
+  if (!customerId) return corsResponse(corsHeaders, { error: 'Payment profile unavailable' }, 500);
 
   // Build line items for Stripe
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(

@@ -209,8 +209,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="status">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Save the entry first to confirm its fee. Then collect cash or check and
-            record the payment in Entries Management. Until then, the entry stays unpaid.
+            Save the entry first to confirm its fee. Then collect cash or check and record the
+            payment in Entries Management. Until then, the entry stays unpaid.
           </AlertDescription>
         </Alert>
       )}

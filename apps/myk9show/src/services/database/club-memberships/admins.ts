@@ -24,6 +24,10 @@ interface DbClubAdminRow {
 }
 
 export async function getClubAdmins(clubId: string): Promise<ClubAdminEntry[]> {
+  // `user_roles_user_id_fkey` (user_id -> people.id, ON DELETE CASCADE) exists on the
+  // live database (verified via pg_constraint 2026-09-27); the generated
+  // database.types.ts omits it, so the explicit hint is what disambiguates this
+  // embed from `user_roles_granted_by_fkey`, the other user_roles -> people FK.
   const { data, error } = await supabase
     .from('user_roles')
     .select(

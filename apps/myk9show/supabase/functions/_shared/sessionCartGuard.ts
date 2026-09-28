@@ -45,10 +45,7 @@ export function sessionMatchesCart(input: SessionCartGuardInput): SessionCartGua
   }
   // Judge expiry when Stripe recorded payment. A redelivery after a database
   // outage must not refund a charge that completed while the cart was valid.
-  if (
-    input.cartExpiresAt != null &&
-    new Date(input.cartExpiresAt) < new Date(input.paidEventIso)
-  ) {
+  if (input.cartExpiresAt != null && new Date(input.cartExpiresAt) < new Date(input.paidEventIso)) {
     return {
       ok: false,
       reason:

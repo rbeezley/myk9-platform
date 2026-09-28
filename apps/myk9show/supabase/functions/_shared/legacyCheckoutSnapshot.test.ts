@@ -21,9 +21,7 @@ const cart = {
 
 describe('buildLegacyCheckoutSnapshot', () => {
   it('pins a legacy paid session only when Stripe line amounts match the live cart', () => {
-    expect(
-      buildLegacyCheckoutSnapshot('cs_old', cart, [2000, 80], 2080)
-    ).toMatchObject({
+    expect(buildLegacyCheckoutSnapshot('cs_old', cart, [2000, 80], 2080)).toMatchObject({
       session_id: 'cs_old',
       subtotal_cents: 2000,
       platform_fee_cents: 80,

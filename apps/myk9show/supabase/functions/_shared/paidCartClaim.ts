@@ -11,9 +11,7 @@ interface SubmittedCartRecoveryInput {
 }
 
 export type SubmittedCartRecoveryDecision =
-  | { action: 'retry' }
-  | { action: 'reclaim' }
-  | { action: 'refund' };
+  { action: 'retry' } | { action: 'reclaim' } | { action: 'refund' };
 
 export function decideSubmittedCartRecovery(
   input: SubmittedCartRecoveryInput

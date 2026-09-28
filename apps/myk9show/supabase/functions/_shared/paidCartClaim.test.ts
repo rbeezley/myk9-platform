@@ -14,15 +14,15 @@ describe('decideSubmittedCartRecovery', () => {
   });
 
   it('reclaims a crashed same-session cart after the worker lease', () => {
-    expect(
-      decideSubmittedCartRecovery({ ...base, nowIso: '2026-09-28T12:16:00Z' })
-    ).toEqual({ action: 'reclaim' });
+    expect(decideSubmittedCartRecovery({ ...base, nowIso: '2026-09-28T12:16:00Z' })).toEqual({
+      action: 'reclaim',
+    });
   });
 
   it('refunds a distinct paid session after a different session claimed the cart', () => {
-    expect(
-      decideSubmittedCartRecovery({ ...base, cartSessionId: 'cs_other' })
-    ).toEqual({ action: 'refund' });
+    expect(decideSubmittedCartRecovery({ ...base, cartSessionId: 'cs_other' })).toEqual({
+      action: 'refund',
+    });
   });
 });
 
@@ -37,18 +37,18 @@ describe('recoverSubmittedCart', () => {
 
   it('resumes fulfilment after a crash between claim and first entry insert', async () => {
     const callbacks = deps();
-    expect(
-      await recoverSubmittedCart({ ...base, nowIso: '2026-09-28T12:16:00Z' }, callbacks)
-    ).toBe('resume');
+    expect(await recoverSubmittedCart({ ...base, nowIso: '2026-09-28T12:16:00Z' }, callbacks)).toBe(
+      'resume'
+    );
     expect(callbacks.releaseStaleClaim).toHaveBeenCalledWith('2026-09-28T12:01:00.000Z');
     expect(callbacks.refundDuplicate).not.toHaveBeenCalled();
   });
 
   it('refunds only a genuinely different paid Session', async () => {
     const callbacks = deps();
-    expect(
-      await recoverSubmittedCart({ ...base, cartSessionId: 'cs_other' }, callbacks)
-    ).toBe('handled');
+    expect(await recoverSubmittedCart({ ...base, cartSessionId: 'cs_other' }, callbacks)).toBe(
+      'handled'
+    );
     expect(callbacks.refundDuplicate).toHaveBeenCalledOnce();
     expect(callbacks.releaseStaleClaim).not.toHaveBeenCalled();
   });
@@ -56,9 +56,9 @@ describe('recoverSubmittedCart', () => {
   it('does not resume or refund a Session with entries already inserted', async () => {
     const callbacks = deps();
     callbacks.intentHasEntries.mockResolvedValue(true);
-    expect(
-      await recoverSubmittedCart({ ...base, nowIso: '2026-09-28T12:16:00Z' }, callbacks)
-    ).toBe('handled');
+    expect(await recoverSubmittedCart({ ...base, nowIso: '2026-09-28T12:16:00Z' }, callbacks)).toBe(
+      'handled'
+    );
     expect(callbacks.alertPartial).toHaveBeenCalledOnce();
     expect(callbacks.releaseStaleClaim).not.toHaveBeenCalled();
     expect(callbacks.refundDuplicate).not.toHaveBeenCalled();

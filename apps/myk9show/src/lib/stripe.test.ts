@@ -129,7 +129,10 @@ describe('refreshEntryCartFeeQuote', () => {
   });
 
   it('rejects an old checkout function that created a payable Session instead of quoting', async () => {
-    invoke.mockResolvedValue({ data: { sessionId: 'cs_old', url: 'https://stripe.test' }, error: null });
+    invoke.mockResolvedValue({
+      data: { sessionId: 'cs_old', url: 'https://stripe.test' },
+      error: null,
+    });
     await expect(refreshEntryCartFeeQuote('cart-1')).rejects.toThrow(
       'We could not confirm entry fees'
     );

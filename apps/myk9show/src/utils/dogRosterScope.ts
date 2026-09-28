@@ -16,3 +16,22 @@ export function rosterIsOwnDogsOnly(hasRole: (role: UserRole) => boolean): boole
 export function rosterIsOwnDogsOnlyForRoles(userRoles: readonly UserRole[]): boolean {
   return rosterIsOwnDogsOnly(role => userRoles.includes(role));
 }
+
+/**
+ * Tri-state roster scope. `hasRole` reports false for every role while
+ * auth/RBAC is still resolving — indistinguishable, on its own, from a
+ * confirmed exhibitor with no full-roster role. "No roles yet" must never
+ * collapse into either `'own'` (a confirmed exhibitor scope) or `'all'` (a
+ * confirmed staff scope); it is its own state until identity/RBAC settles
+ * (LESSONS `offline-identity-pairing`).
+ */
+export type DogRosterScope = 'unresolved' | 'own' | 'all';
+
+/** Derives {@link DogRosterScope} from the auth context's own resolved signal. */
+export function deriveDogRosterScope(
+  identityResolved: boolean,
+  hasRole: (role: UserRole) => boolean
+): DogRosterScope {
+  if (!identityResolved) return 'unresolved';
+  return rosterIsOwnDogsOnly(hasRole) ? 'own' : 'all';
+}

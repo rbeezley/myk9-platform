@@ -1,5 +1,58 @@
 import { z } from 'zod';
 
+export interface NormalizedWebsiteUrl {
+  /** The trimmed input, or `https://`-prefixed when a bare domain normalized cleanly. */
+  value: string;
+  /** False when `value` is still not a valid URL after normalizing. */
+  valid: boolean;
+}
+
+/**
+ * Normalizes a website URL for saving: keeps a value that already has a URL
+ * scheme (e.g. `http://`, `https://`, `ftp://`) as-is for judging, prepends
+ * `https://` to a bare domain (e.g. `myclub.org`, `www.myclub.org`), and
+ * reports invalid otherwise. Empty input normalizes to an empty, valid value.
+ */
+// Any `scheme://` prefix, not just http(s) — otherwise a non-http scheme
+// (`ftp://x.org`, `mailto:info@x.org`) is mistaken for a bare domain and
+// gets `https://` prepended on top of it (`https://ftp://x.org`).
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+function isWebsiteUrl(candidate: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  // A bare domain must contain a dot — otherwise `new URL('https://word')`
+  // would accept a single word as a valid (if useless) hostname.
+  if (!url.hostname.includes('.')) return false;
+  // Credentials mean the "host" is actually embedded scheme/data, e.g.
+  // `https://mailto:info@x.org` parses with username `mailto`, password `info`.
+  if (url.username || url.password) return false;
+
+  return true;
+}
+
+// Distinct from HAS_SCHEME: only http(s) values get the "malformed URL"
+// message; anything else (a bare word, another scheme) gets the
+// bare-domain hint instead.
+const HAS_HTTP_SCHEME = /^https?:\/\//i;
+
+export function normalizeWebsiteUrl(value: string | null | undefined): NormalizedWebsiteUrl {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return { value: '', valid: true };
+
+  const candidate = HAS_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  return isWebsiteUrl(candidate)
+    ? { value: candidate, valid: true }
+    : { value: trimmed, valid: false };
+}
+
 // Common field validations
 export const commonValidations = {
   name: z.string().min(1, 'Please enter a name').max(100, 'Name must be less than 100 characters'),
@@ -22,38 +75,19 @@ export const commonValidations = {
     .optional()
     .or(z.literal(''))
     .transform(val => {
-      // If empty or not provided, return as is
       if (!val || val.trim() === '') return val;
 
-      const trimmed = val.trim();
-
-      // If it already has a protocol, validate as-is
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        try {
-          new URL(trimmed);
-          return trimmed;
-        } catch {
+      const result = normalizeWebsiteUrl(val);
+      if (!result.valid) {
+        const trimmed = val.trim();
+        if (HAS_HTTP_SCHEME.test(trimmed)) {
           throw new Error('Please enter a valid URL');
         }
+        throw new Error(
+          'Please enter a valid website URL (e.g., example.com or https://example.com)'
+        );
       }
-
-      // If it looks like a domain (contains a dot), prepend https://
-      if (trimmed.includes('.') && !trimmed.includes(' ')) {
-        const withProtocol = `https://${trimmed}`;
-        try {
-          new URL(withProtocol);
-          return withProtocol;
-        } catch {
-          throw new Error(
-            'Please enter a valid website URL (e.g., example.com or https://example.com)'
-          );
-        }
-      }
-
-      // Otherwise, it's not a valid URL format
-      throw new Error(
-        'Please enter a valid website URL (e.g., example.com or https://example.com)'
-      );
+      return result.value;
     }),
 };
 

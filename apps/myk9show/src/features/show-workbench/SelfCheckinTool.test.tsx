@@ -49,6 +49,11 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
+const mockNetworkState = vi.hoisted(() => ({ isOnline: true }));
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => mockNetworkState,
+}));
+
 const trials = [{ id: 'trial-1', name: 'Trial A' }];
 const classes = [
   { id: 'class-1', trialId: 'trial-1', element: 'Container', level: 'Novice', section: 'A' },
@@ -78,6 +83,7 @@ describe('SelfCheckinTool', () => {
     queryState.classes.data = [];
     queryState.classes.isLoading = false;
     queryState.classes.isError = false;
+    mockNetworkState.isOnline = true;
   });
 
   it('renders the saved check-in cascade without result visibility controls', async () => {
@@ -206,5 +212,51 @@ describe('SelfCheckinTool', () => {
     expect(screen.getByText(/saved settings shown below may be out of date/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry self check-in settings' }));
     expect(queryState.settings.refetch).toHaveBeenCalled();
+  });
+
+  describe('offline (MYK9-849)', () => {
+    beforeEach(() => {
+      mockNetworkState.isOnline = false;
+    });
+
+    it('disables the show-level toggle, the bulk bar, and per-trial controls, with a hint', async () => {
+      const { user } = render(
+        <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
+      );
+
+      expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+      expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+      expect(screen.getAllByText(/Needs a connection/).length).toBeGreaterThan(0);
+
+      await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+      await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice A' }));
+
+      const enableButton = screen.getByRole('button', { name: 'Enable self check-in' });
+      expect(enableButton).toBeDisabled();
+      await user.click(enableButton);
+      expect(bulkMutate).not.toHaveBeenCalled();
+    });
+
+    it('re-enables once back online', () => {
+      const { rerender } = render(
+        <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
+      );
+      expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+
+      mockNetworkState.isOnline = true;
+      rerender(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
+      expect(
+        screen.getByRole('switch', { name: 'Allow self check-in for show' })
+      ).not.toHaveAttribute('aria-disabled', 'true');
+    });
   });
 });

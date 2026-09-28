@@ -64,6 +64,77 @@ describe('RequestAccessPage', () => {
     expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
   });
 
+  it('normalizes a bare domain website to https:// on blur', () => {
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    const websiteInput = screen.getByLabelText('Club website (optional)');
+    fireEvent.change(websiteInput, { target: { value: 'myclub.org' } });
+    fireEvent.blur(websiteInput);
+
+    expect(websiteInput).toHaveValue('https://myclub.org');
+  });
+
+  it('saves a bare www domain website as https:// on submit', async () => {
+    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    fireEvent.change(screen.getByLabelText('Club name'), {
+      target: { value: 'Heartland Dog Club' },
+    });
+    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
+      target: { value: 'www.myclub.org' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    await waitFor(() => {
+      expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
+        clubName: 'Heartland Dog Club',
+        website: 'https://www.myclub.org',
+        note: '',
+      });
+    });
+  });
+
+  it('keeps a real https:// website value unchanged on submit', async () => {
+    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    fireEvent.change(screen.getByLabelText('Club name'), {
+      target: { value: 'Heartland Dog Club' },
+    });
+    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
+      target: { value: 'https://myclub.org' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    await waitFor(() => {
+      expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
+        clubName: 'Heartland Dog Club',
+        website: 'https://myclub.org',
+        note: '',
+      });
+    });
+  });
+
+  it('shows an error and does not submit when the website is still not a valid URL', async () => {
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    fireEvent.change(screen.getByLabelText('Club name'), {
+      target: { value: 'Heartland Dog Club' },
+    });
+    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
+      target: { value: 'myclub' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByText(/enter a valid website URL/i)).toBeInTheDocument();
+    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
+  });
+
   it('lets an exhibitor search for an existing club from the page', () => {
     mockBrowse.data = {
       ...mockBrowse.data,

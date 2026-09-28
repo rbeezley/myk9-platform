@@ -1,8 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ensureError } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
-import { logger } from '@/services/LoggingService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys } from '@/lib/queryClient';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -29,8 +27,8 @@ const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
  * Delivers durable `public.notifications` rows (currently just club-access
  * approval, MYK9-859) into the existing bell/Message Center, and forces an
  * RBAC refresh so the sidebar reflects a new role grant without a sign-out.
- * Ephemeral by design, matching every other alert in the store: a row is
- * marked read immediately after delivery, so a reload shows it once.
+ * The database row stays unread until the requester views or dismisses it,
+ * so the bell can restore the notice after a reload.
  *
  * Goes straight to the store's `addAlert` rather than
  * `useNotificationDelivery().deliver()` — `deliver` suppresses (and never
@@ -52,8 +50,8 @@ interface AccountNotificationsResult {
 export function useAccountNotifications(): void {
   const { userWithRoles, refreshPermissions } = useAuthContext();
   const addAlert = useNotificationStore(s => s.addAlert);
+  const dismissAlert = useNotificationStore(s => s.dismissAlert);
   const authUserId = userWithRoles?.id ?? null;
-  const deliveredByUserRef = useRef<Map<string, Set<string>>>(new Map());
 
   const query = useQuery({
     queryKey: queryKeys.accountNotifications(authUserId),
@@ -75,46 +73,42 @@ export function useAccountNotifications(): void {
   });
 
   const data = query.data;
+  const dataUpdatedAt = query.dataUpdatedAt;
+
+  useEffect(() => {
+    // The bell is device-local. A prior account's notice must not remain
+    // visible after an in-app account switch; its database row stays unread.
+    for (const alert of useNotificationStore.getState().recentAlerts) {
+      const owner = alert.payload.data?.accountNotificationUserId;
+      if (typeof owner === 'string' && owner !== authUserId) {
+        dismissAlert(alert.payload.id);
+      }
+    }
+  }, [authUserId, dismissAlert]);
+
   useEffect(() => {
     // A fetch started for the previous user can resolve after an account
     // switch; only ever act on a result that matches who is signed in now.
     if (!data || data.userId !== authUserId || data.rows.length === 0) return;
     const { userId, rows } = data;
 
-    let delivered = deliveredByUserRef.current.get(userId);
-    if (!delivered) {
-      delivered = new Set<string>();
-      deliveredByUserRef.current.set(userId, delivered);
-    }
-
-    const unseen = rows.filter(row => HANDLED_TYPES.has(row.type) && !delivered!.has(row.id));
+    // Reconcile against the bell, not a mount-long ID list. A durable
+    // unread row removed from local state can return on the next poll.
+    const visibleIds = new Set(
+      useNotificationStore
+        .getState()
+        .recentAlerts.filter(alert => alert.payload.data?.accountNotificationUserId === userId)
+        .map(alert => alert.payload.id)
+    );
+    const unseen = rows.filter(row => HANDLED_TYPES.has(row.type) && !visibleIds.has(row.id));
     if (unseen.length === 0) return;
 
     let shouldRefreshPermissions = false;
     for (const row of unseen) {
-      delivered.add(row.id);
-      addAlert(buildAccountNotificationPayload(row));
+      visibleIds.add(row.id);
+      addAlert(buildAccountNotificationPayload(row, userId));
       if (ROLE_CHANGING_TYPES.has(row.type)) shouldRefreshPermissions = true;
     }
     if (shouldRefreshPermissions) refreshPermissions();
-
-    void supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .in(
-        'id',
-        unseen.map(row => row.id)
-      )
-      .then(({ error }) => {
-        if (error) {
-          logger.error(
-            'Failed to mark account notifications read',
-            'notifications',
-            {},
-            ensureError(error)
-          );
-        }
-      });
-  }, [data, addAlert, refreshPermissions, authUserId]);
+  }, [data, dataUpdatedAt, addAlert, refreshPermissions, authUserId]);
 }

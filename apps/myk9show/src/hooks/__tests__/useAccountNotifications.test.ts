@@ -1,26 +1,40 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAccountNotifications } from '../useAccountNotifications';
+import type { NotificationPayload } from '@myk9/notifications';
+import type { AlertEntry } from '@/store/notificationStore';
 
 const {
   mockAddAlert,
+  mockDismissAlert,
   mockRefreshPermissions,
   mockUseQueryResult,
   mockUpdate,
-  mockEq,
-  mockIn,
   currentAuthUser,
+  notificationState,
 } = vi.hoisted(() => {
   const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
   const mockEq = vi.fn(() => ({ in: mockIn }));
+  const notificationState = { recentAlerts: [] as AlertEntry[] };
   return {
-    mockAddAlert: vi.fn(),
+    mockAddAlert: vi.fn((payload: NotificationPayload) => {
+      notificationState.recentAlerts = [
+        { payload, read: false },
+        ...notificationState.recentAlerts,
+      ];
+    }),
+    mockDismissAlert: vi.fn((id: string) => {
+      notificationState.recentAlerts = notificationState.recentAlerts.filter(
+        alert => alert.payload.id !== id
+      );
+    }),
     mockRefreshPermissions: vi.fn(),
-    mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
+    mockUseQueryResult: vi.fn((): { data: unknown; dataUpdatedAt?: number } => ({
+      data: undefined,
+    })),
     mockUpdate: vi.fn(() => ({ eq: mockEq })),
-    mockEq,
-    mockIn,
     currentAuthUser: { id: 'auth-user-1' as string | null },
+    notificationState,
   };
 });
 
@@ -28,8 +42,15 @@ vi.mock('@/lib/supabase', () => ({
   supabase: { from: vi.fn(() => ({ update: mockUpdate })) },
 }));
 vi.mock('@/store/notificationStore', () => ({
-  useNotificationStore: (selector: (state: { addAlert: typeof mockAddAlert }) => unknown) =>
-    selector({ addAlert: mockAddAlert }),
+  useNotificationStore: Object.assign(
+    (
+      selector: (state: {
+        addAlert: typeof mockAddAlert;
+        dismissAlert: typeof mockDismissAlert;
+      }) => unknown
+    ) => selector({ addAlert: mockAddAlert, dismissAlert: mockDismissAlert }),
+    { getState: () => notificationState }
+  ),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -54,6 +75,7 @@ describe('useAccountNotifications', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentAuthUser.id = 'auth-user-1';
+    notificationState.recentAlerts = [];
     mockUseQueryResult.mockReturnValue({ data: undefined });
   });
 
@@ -70,6 +92,7 @@ describe('useAccountNotifications', () => {
       title: 'Account update',
       body: clubApprovedRow.message,
       priority: 'normal',
+      data: { accountNotificationUserId: 'auth-user-1' },
       actionUrl: '/clubs/club-1',
       timestamp: new Date(clubApprovedRow.created_at).getTime(),
     });
@@ -85,23 +108,34 @@ describe('useAccountNotifications', () => {
     expect(mockRefreshPermissions).toHaveBeenCalledOnce();
   });
 
-  it('marks delivered rows read, scoped to the signed-in user, so a later poll does not redeliver them', () => {
+  it('leaves a delivered row unread until the requester views or dismisses it', () => {
     mockUseQueryResult.mockReturnValue({
       data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
     });
 
     renderHook(() => useAccountNotifications());
 
-    expect(mockUpdate).toHaveBeenCalledWith({ read_at: expect.any(String) });
-    expect(mockEq).toHaveBeenCalledWith('user_id', 'auth-user-1');
-    expect(mockIn).toHaveBeenCalledWith('id', ['notif-1']);
+    expect(mockAddAlert).toHaveBeenCalledOnce();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('delivers the same unread row again after a reload resets the in-memory bell', () => {
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
+
+    const firstMount = renderHook(() => useAccountNotifications());
+    firstMount.unmount();
+    notificationState.recentAlerts = [];
+    renderHook(() => useAccountNotifications());
+
+    expect(mockAddAlert).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('does not redeliver the same row when a later poll returns it again unread', () => {
     // Each call returns a NEW array/object (a fresh poll response with the
-    // same still-unread row), so the effect's `data` dependency actually
-    // changes identity across rerenders and the per-user delivered guard —
-    // not React's own effect-dependency memoization — is what's under test.
+    // same still-unread row), so the effect checks the store on each response.
     mockUseQueryResult.mockImplementation(() => ({
       data: { userId: 'auth-user-1', rows: [{ ...clubApprovedRow }] },
     }));
@@ -111,6 +145,57 @@ describe('useAccountNotifications', () => {
     rerender();
 
     expect(mockAddAlert).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores an unread notice removed from local state on the next poll', () => {
+    const data = { userId: 'auth-user-1', rows: [clubApprovedRow] };
+    let updatedAt = 1;
+    mockUseQueryResult.mockImplementation(() => ({ data, dataUpdatedAt: updatedAt }));
+
+    const { rerender } = renderHook(() => useAccountNotifications());
+    notificationState.recentAlerts = []; // Local alert state was cleared.
+    updatedAt = 2;
+    rerender();
+
+    expect(mockAddAlert).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps all 51 unread account notices stable across polls', () => {
+    const rows = Array.from({ length: 51 }, (_, index) => ({
+      ...clubApprovedRow,
+      id: `notif-${index}`,
+    }));
+    const data = { userId: 'auth-user-1', rows };
+    let updatedAt = 1;
+    mockUseQueryResult.mockImplementation(() => ({ data, dataUpdatedAt: updatedAt }));
+
+    const { rerender } = renderHook(() => useAccountNotifications());
+    expect(mockAddAlert).toHaveBeenCalledTimes(51);
+    expect(notificationState.recentAlerts).toHaveLength(51);
+    updatedAt = 2;
+    rerender();
+    expect(mockAddAlert).toHaveBeenCalledTimes(51);
+    expect(mockRefreshPermissions).toHaveBeenCalledOnce();
+  });
+
+  it('clears the prior account notice and restores it when that user returns', () => {
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
+    const { rerender } = renderHook(() => useAccountNotifications());
+
+    currentAuthUser.id = 'auth-user-2';
+    mockUseQueryResult.mockReturnValue({ data: { userId: 'auth-user-2', rows: [] } });
+    rerender();
+    expect(mockDismissAlert).toHaveBeenCalledWith('notif-1');
+    expect(notificationState.recentAlerts).toEqual([]);
+
+    currentAuthUser.id = 'auth-user-1';
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
+    rerender();
+    expect(mockAddAlert).toHaveBeenCalledTimes(2);
   });
 
   it('ignores notification types that belong to other delivery paths and never marks them read', () => {
@@ -165,17 +250,5 @@ describe('useAccountNotifications', () => {
     rerender();
 
     expect(mockAddAlert).toHaveBeenCalledTimes(2);
-  });
-
-  it('scopes the mark-read UPDATE to the row owner (data.userId) for the currently signed-in user', () => {
-    currentAuthUser.id = 'auth-user-2';
-    mockUseQueryResult.mockReturnValue({
-      data: { userId: 'auth-user-2', rows: [{ ...clubApprovedRow, id: 'notif-2' }] },
-    });
-
-    renderHook(() => useAccountNotifications());
-
-    expect(mockEq).toHaveBeenCalledWith('user_id', 'auth-user-2');
-    expect(mockIn).toHaveBeenCalledWith('id', ['notif-2']);
   });
 });

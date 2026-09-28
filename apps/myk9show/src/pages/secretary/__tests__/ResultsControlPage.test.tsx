@@ -102,6 +102,9 @@ const mockQueryState = vi.hoisted(() => ({
   settings: undefined as ShowSettings | undefined,
   isLoading: false,
   isError: false,
+  // Per-query overrides for the trial-overrides query; undefined = follow the shared state.
+  trialOverrides: [] as unknown[] | undefined,
+  trialOverridesError: undefined as boolean | undefined,
 }));
 
 vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
@@ -112,9 +115,9 @@ vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
     refetch: mockRefetch,
   }),
   useTrialOverrides: () => ({
-    data: [],
+    data: mockQueryState.trialOverrides,
     isLoading: mockQueryState.isLoading,
-    isError: mockQueryState.isError,
+    isError: mockQueryState.trialOverridesError ?? mockQueryState.isError,
     refetch: mockRefetch,
   }),
   useClassOverrides: () => ({
@@ -180,6 +183,8 @@ describe('ResultsControlPage', () => {
     mockQueryState.settings = defaultSettings;
     mockQueryState.isLoading = false;
     mockQueryState.isError = false;
+    mockQueryState.trialOverrides = [];
+    mockQueryState.trialOverridesError = undefined;
     // Restore default seeded state
     mockTrialStoreState.trials = [
       {
@@ -380,5 +385,19 @@ describe('ResultsControlPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('still shows the load error when one query never loaded, even with settings cached', () => {
+    // Settings are cached, but the trial overrides failed on their first load: the
+    // override tree has nothing true to show, so the card must not render as if empty.
+    mockQueryState.settings = fallbackSettings;
+    mockQueryState.trialOverrides = undefined;
+    mockQueryState.trialOverridesError = true;
+
+    renderPage();
+
+    expect(screen.getByText('Failed to load results settings')).toBeInTheDocument();
+    expect(screen.getAllByText(/Couldn't load these settings/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Couldn't refresh results settings")).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import { ensureError } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { queryKeys } from '@/lib/queryClient';
 import { useNotificationStore } from '@/store/notificationStore';
 import {
   buildAccountNotificationPayload,
@@ -16,6 +17,13 @@ const POLL_MS = 60_000;
  * mean the signed-in user's own roles changed elsewhere (a site admin
  * approving a club-access request in a different session). */
 const ROLE_CHANGING_TYPES = new Set(['club_access_approved']);
+
+/** The only `public.notifications` types this hook delivers and marks read.
+ * The table also allows entry_confirmed, q_earned, schedule_change and
+ * judge_assignment; those belong to other delivery paths, so this hook must
+ * neither render them as "Account update" nor consume them by marking read. */
+export const ACCOUNT_NOTIFICATION_TYPES = ['club_access_approved'] as const;
+const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
 
 /**
  * Delivers durable `public.notifications` rows (currently just club-access
@@ -39,12 +47,13 @@ export function useAccountNotifications(): void {
   const deliveredRef = useRef<Set<string>>(new Set());
 
   const query = useQuery({
-    queryKey: ['account-notifications', authUserId],
+    queryKey: queryKeys.accountNotifications(authUserId),
     queryFn: async (): Promise<AccountNotificationRow[]> => {
       const { data, error } = await supabase
         .from('notifications')
         .select('id, type, message, deep_link_url, created_at')
         .eq('user_id', authUserId as string)
+        .in('type', [...ACCOUNT_NOTIFICATION_TYPES])
         .is('read_at', null)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -58,7 +67,9 @@ export function useAccountNotifications(): void {
   const rows = query.data;
   useEffect(() => {
     if (!rows || rows.length === 0) return;
-    const unseen = rows.filter(row => !deliveredRef.current.has(row.id));
+    const unseen = rows.filter(
+      row => HANDLED_TYPES.has(row.type) && !deliveredRef.current.has(row.id)
+    );
     if (unseen.length === 0) return;
 
     let shouldRefreshPermissions = false;

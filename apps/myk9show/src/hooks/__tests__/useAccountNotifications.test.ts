@@ -96,6 +96,15 @@ describe('useAccountNotifications', () => {
     expect(mockAddAlert).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores notification types that belong to other delivery paths and never marks them read', () => {
+    mockUseQueryResult.mockReturnValue({
+      data: [{ ...clubApprovedRow, id: 'notif-other', type: 'entry_confirmed' }],
+    });
+    renderHook(() => useAccountNotifications());
+    expect(mockAddAlert).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
   it('does nothing when there are no unread rows', () => {
     mockUseQueryResult.mockReturnValue({ data: [] });
 

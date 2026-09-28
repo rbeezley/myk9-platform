@@ -10,7 +10,7 @@
 
 - [x] 2.1 Check available Vercel Speed Insights/Analytics and Sentry performance traces; record source, time window, or access/data limitations.
 - [x] 2.2 Rebuild and measure the complete production route/profile matrix, inspect `dist/stats.html`, and save a new dated baseline with environment details, blocked attempts, and evidence-supported causes.
-- [ ] 2.3 Rank bottlenecks for MYK9-844 and update that issue with the ranked routes and evidence-supported causes.
+- [x] 2.3 Rank bottlenecks for MYK9-844 and update that issue with the ranked routes and evidence-supported causes.
 
 ## 3. Verification and Delivery
 

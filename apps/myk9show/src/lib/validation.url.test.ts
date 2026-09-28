@@ -48,6 +48,17 @@ describe('normalizeWebsiteUrl', () => {
     });
   });
 
+  it('keeps valid URLs with spaces in paths and queries', () => {
+    expect(normalizeWebsiteUrl('https://example.org/dog show')).toEqual({
+      value: 'https://example.org/dog show',
+      valid: true,
+    });
+    expect(normalizeWebsiteUrl('https://example.org/?q=dog show')).toEqual({
+      value: 'https://example.org/?q=dog show',
+      valid: true,
+    });
+  });
+
   it('treats empty input as valid and empty', () => {
     expect(normalizeWebsiteUrl('')).toEqual({ value: '', valid: true });
     expect(normalizeWebsiteUrl(null)).toEqual({ value: '', valid: true });
@@ -86,6 +97,13 @@ describe('normalizeWebsiteUrl', () => {
   it('rejects a mailto: value instead of treating it as a bare domain', () => {
     expect(normalizeWebsiteUrl('mailto:info@myclub.org')).toEqual({
       value: 'mailto:info@myclub.org',
+      valid: false,
+    });
+  });
+
+  it('rejects whitespace that hides a different hostname in credentials', () => {
+    expect(normalizeWebsiteUrl('https://good-club.org\t@evil.com')).toEqual({
+      value: 'https://good-club.org\t@evil.com',
       valid: false,
     });
   });

@@ -19,8 +19,6 @@ export interface NormalizedWebsiteUrl {
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 function isWebsiteUrl(candidate: string): boolean {
-  if (/\s/.test(candidate)) return false;
-
   let url: URL;
   try {
     url = new URL(candidate);

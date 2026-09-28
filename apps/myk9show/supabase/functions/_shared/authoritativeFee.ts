@@ -36,12 +36,20 @@ export interface AuthoritativeFeeInput {
    * persists as 0.00, not NULL).
    */
   showJuniorHandlerFee?: number | string | null;
-  /** people.date_of_birth of this entry's handler, 'YYYY-MM-DD', or null when unknown. */
+  /** people_private.date_of_birth of this entry's handler, 'YYYY-MM-DD', or null when unknown. */
   handlerDateOfBirth?: string | null;
   /** trials.registry_id for this entry's trial ('AKC' | 'UKC' | 'ASCA'), or null. */
   trialRegistryId?: string | null;
   /** trials.date for this entry's trial, 'YYYY-MM-DD', or null. */
   trialDate?: string | null;
+}
+
+/** An unresolved handler never inherits a dog's owner's junior eligibility. */
+export function handlerDateOfBirthForFee(
+  handlerId: string | null,
+  dobByPersonId: ReadonlyMap<string, string | null>
+): string | null {
+  return handlerId ? (dobByPersonId.get(handlerId) ?? null) : null;
 }
 
 const DEFAULT_ENTRY_FEE_DOLLARS = 25;

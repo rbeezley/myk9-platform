@@ -1,4 +1,4 @@
--- Behavioral test for 20260926193700/20260926193900 (MYK9-662, MYK9-570 slice 2):
+-- Behavioral test for the ordered 20260928174100/174700 MYK9-662 migrations:
 -- submit_show_entries prices a junior handler at the show's junior handler fee.
 --
 -- Junior status is NOT re-derived by this change. It reuses the existing
@@ -175,7 +175,9 @@ VALUES
   ('00000000-0000-0000-0000-000000662402', 'MYK9-662 Dog Adult', 'Adult', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000662002'),
   ('00000000-0000-0000-0000-000000662403', 'MYK9-662 Dog NoDob', 'NoDob', 'Beagle', 'active',
-   '00000000-0000-0000-0000-000000662003');
+   '00000000-0000-0000-0000-000000662003'),
+  ('00000000-0000-0000-0000-000000662404', 'MYK9-662 Dog Other Handler', 'Other', 'Beagle', 'active',
+   '00000000-0000-0000-0000-000000662001');
 
 -- An entry needs a registration with the TRIAL'S registry (20260828210000), or
 -- every case below would fail for a reason unrelated to the junior fee.
@@ -183,7 +185,8 @@ INSERT INTO public.dog_registrations (dog_id, organization, registration_number,
 VALUES
   ('00000000-0000-0000-0000-000000662401', 'AKC', 'AKC66200001', true),
   ('00000000-0000-0000-0000-000000662402', 'AKC', 'AKC66200002', true),
-  ('00000000-0000-0000-0000-000000662403', 'AKC', 'AKC66200003', true);
+  ('00000000-0000-0000-0000-000000662403', 'AKC', 'AKC66200003', true),
+  ('00000000-0000-0000-0000-000000662404', 'AKC', 'AKC66200004', true);
 
 INSERT INTO public.enrollments (id, show_id, handler_id)
 SELECT
@@ -298,6 +301,30 @@ BEGIN
   IF got_fee <> 30 THEN
     RAISE EXCEPTION 'FAIL case 5 (junior fee = 0): entry_fee = % (expected 30, zero means unset)',
       got_fee;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- Case 6: a typed handler with no resolved person ID must not inherit the
+  -- junior dog's owner's birth date when staff submits on their behalf.
+  ----------------------------------------------------------------------------
+  result := public.submit_show_entries(
+    '00000000-0000-0000-0000-000000662101'::uuid,
+    '00000000-0000-0000-0000-000000662501'::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000662404'::uuid,
+      'class_id', '00000000-0000-0000-0000-000000662301'::uuid,
+      'handler_name', 'Unmatched Adult Handler',
+      'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000662806'::uuid,
+    'secretary_paid');
+
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL case 6 (unresolved typed handler) committed no entry: %', result;
+  END IF;
+  SELECT e.entry_fee INTO got_fee
+  FROM public.entries e WHERE e.id = (result->'entries'->0->>'entry_id')::uuid;
+  IF got_fee <> 30 THEN
+    RAISE EXCEPTION 'FAIL case 6 (unresolved typed handler): entry_fee = % (expected 30)', got_fee;
   END IF;
 
   RAISE NOTICE 'PASS myk9_662_junior_handler_fee_test';

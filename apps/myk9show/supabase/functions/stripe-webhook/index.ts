@@ -11,7 +11,10 @@ import {
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import {
+  authoritativeEntryFeeCents,
+  handlerDateOfBirthForFee,
+} from '../_shared/authoritativeFee.ts';
 import {
   calculatePlatformFeeCents,
   decodeStampedPlatformFeeRates,
@@ -926,8 +929,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         handler_id,
         entry_fee_cents,
         jump_height,
-        special_requests,
-        dog:dog_id(owner_id)
+        special_requests
       )
     `
     )
@@ -1092,16 +1094,13 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     id: string;
     class_id: string;
     handler_id: string | null;
-    dog?: { owner_id: string | null } | null;
   }[];
   // MYK9-662: date of birth lives in people_private (MYK9-664), never on
   // people — readable here because this function runs under service_role,
   // which people_private grants SELECT to explicitly.
   const personIdsForDob = [
     ...new Set(
-      cartItemsForFee
-        .flatMap(item => [item.handler_id, item.dog?.owner_id])
-        .filter((id): id is string => Boolean(id))
+      cartItemsForFee.map(item => item.handler_id).filter((id): id is string => Boolean(id))
     ),
   ];
   const dobByPersonId = new Map<string, string | null>();
@@ -1137,10 +1136,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           classEntryFee: feeByClass.get(item.class_id) ?? null,
           nowIso,
           showJuniorHandlerFee: showFees.junior_handler_fee,
-          handlerDateOfBirth:
-            (item.handler_id && dobByPersonId.get(item.handler_id)) ??
-            (item.dog?.owner_id && dobByPersonId.get(item.dog.owner_id)) ??
-            null,
+          handlerDateOfBirth: handlerDateOfBirthForFee(item.handler_id, dobByPersonId),
           trialRegistryId: trialInfo?.registry_id ?? null,
           trialDate: trialInfo?.date ?? null,
         }),

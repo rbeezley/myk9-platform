@@ -24,6 +24,7 @@ export interface WizardShowData {
   entryCloseDate: string;
   preEntryFee: number;
   dayOfShowFee: number;
+  juniorHandlerFee?: number;
   startingArmbandNumber: number;
   officials: {
     secretary: string[];
@@ -211,6 +212,7 @@ export function showToShowInput(show: Show): ShowInput {
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee,
     dayOfShowFee: show.dayOfShowFee,
+    juniorHandlerFee: show.juniorHandlerFee,
     clubId: show.clubId,
     clubName: show.clubName,
     clubAddress: show.clubAddress,
@@ -285,6 +287,7 @@ export function transformWizardDataToShow(
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee.toString(),
     dayOfShowFee: show.dayOfShowFee.toString(),
+    juniorHandlerFee: show.juniorHandlerFee?.toString(),
     clubId: show.clubId,
     clubName: selectedClub?.name || 'Unknown Club',
     clubAddress: selectedClub

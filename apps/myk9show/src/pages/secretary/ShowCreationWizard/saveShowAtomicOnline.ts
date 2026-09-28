@@ -156,6 +156,7 @@ export async function saveShowAtomicOnline(
     entryCloseDate: show.entryCloseDate || '',
     preEntryFee: String(show.preEntryFee ?? 0),
     dayOfShowFee: String(show.dayOfShowFee ?? 0),
+    juniorHandlerFee: String(show.juniorHandlerFee ?? 0),
     clubId: show.clubId,
     clubName: selectedClub?.name || '',
     clubAddress: formatClubAddress(selectedClub),

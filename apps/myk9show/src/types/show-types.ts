@@ -100,6 +100,7 @@ export interface Show {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined; // Fee for registrations made on day of show
+  juniorHandlerFee?: string | undefined;
   entryDeadline?: string | undefined; // Entry deadline date
   lateEntryDeadline?: string | undefined; // Late entry deadline date
   // Club relationship - FIXED: Added proper foreign key
@@ -181,6 +182,7 @@ export interface ShowInput {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  juniorHandlerFee?: string | undefined;
   clubId: string;
   clubName: string;
   clubAddress: string;

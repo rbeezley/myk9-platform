@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { authoritativeEntryFeeCents } from './authoritativeFee';
+import { authoritativeEntryFeeCents, handlerDateOfBirthForFee } from './authoritativeFee';
 
 const base = {
   showPreEntryFee: 30,
@@ -168,5 +168,22 @@ describe('authoritativeEntryFeeCents — junior handler fee (MYK9-662)', () => {
         handlerDateOfBirth: '2026-07-01',
       })
     ).toBe(3000);
+  });
+});
+
+describe('handlerDateOfBirthForFee', () => {
+  const dates = new Map<string, string | null>([
+    ['junior-owner', '2010-01-01'],
+    ['adult-handler', '1990-01-01'],
+    ['unknown-handler', null],
+  ]);
+
+  it('uses the explicit handler even when the dog owner is younger', () => {
+    expect(handlerDateOfBirthForFee('adult-handler', dates)).toBe('1990-01-01');
+    expect(handlerDateOfBirthForFee('unknown-handler', dates)).toBeNull();
+  });
+
+  it('keeps an unresolved handler unknown even when a junior owner is known', () => {
+    expect(handlerDateOfBirthForFee(null, dates)).toBeNull();
   });
 });

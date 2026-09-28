@@ -1037,6 +1037,7 @@ describe('ReplicatedShowsTable', () => {
           entry_close_date: '2024-06-10',
           pre_entry_fee: 35,
           day_of_show_fee: 45,
+          junior_handler_fee: 15,
           club_id: 'club-123',
           max_entries_per_dog: 3,
           max_total_entries: 150,
@@ -1074,6 +1075,7 @@ describe('ReplicatedShowsTable', () => {
       expect(show?.startDate).toBe('2024-06-15');
       expect(show?.endDate).toBe('2024-06-16');
       expect(show?.preEntryFee).toBe(35);
+      expect(show?.juniorHandlerFee).toBe(15);
       expect(show?.maxEntriesPerDog).toBe(3);
     });
 

@@ -114,6 +114,7 @@ export function buildEditModeDraft({
       entryCloseDate: existingShow.entryCloseDate,
       preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
       dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
+      juniorHandlerFee: parseFloat(existingShow.juniorHandlerFee || '0') || 0,
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,

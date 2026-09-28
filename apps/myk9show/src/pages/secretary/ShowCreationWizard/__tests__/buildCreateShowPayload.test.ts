@@ -82,6 +82,23 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_show.status).toBe('published');
   });
 
+  it('passes the configured junior fee through the atomic save and local show', () => {
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      { ...baseShow, juniorHandlerFee: 15 },
+      [],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_show.junior_handler_fee).toBe(15);
+    expect(localEntities.show.juniorHandlerFee).toBe(15);
+  });
+
+  it('leaves the junior tier unset when the optional fee is blank', () => {
+    const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
+    expect(rpcInput.p_show.junior_handler_fee).toBeNull();
+  });
+
   it('passes judgeIds straight through to p_judge_ids', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
     expect(rpcInput.p_judge_ids).toEqual(['judge-uuid-a', 'judge-uuid-b']);

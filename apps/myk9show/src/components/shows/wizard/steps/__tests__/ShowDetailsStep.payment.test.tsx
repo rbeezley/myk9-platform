@@ -81,6 +81,17 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(screen.queryByText('Payment Methods')).not.toBeInTheDocument();
   });
 
+  it('lets a secretary set the junior fee beside the regular fees', () => {
+    render(<ShowDetailsStep />);
+    const juniorFee = screen.getByLabelText('Junior Handler Fee');
+    fireEvent.change(juniorFee, {
+      target: { value: '15' },
+    });
+    expect(mockUpdateShowData).toHaveBeenCalledWith({ juniorHandlerFee: 15 });
+    fireEvent.change(juniorFee, { target: { value: '' } });
+    expect(mockUpdateShowData).toHaveBeenCalledWith({ juniorHandlerFee: 0 });
+  });
+
   it('locks show-detail editing while a clone snapshot is loading', () => {
     const currentState = useWizardStore();
     vi.mocked(useWizardStore).mockReturnValueOnce({

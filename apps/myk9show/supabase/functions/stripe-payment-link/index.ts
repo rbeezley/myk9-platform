@@ -2,7 +2,10 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import {
+  authoritativeEntryFeeCents,
+  handlerDateOfBirthForFee,
+} from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
@@ -106,7 +109,7 @@ interface EntryRow {
   payment_status: string | null;
   entry_status: string | null;
   handler_id: string | null;
-  dog: { call_name: string | null; owner_id: string | null } | null;
+  dog: { call_name: string | null } | null;
   class: { name: string | null; entry_fee: number | string | null } | null;
   trial: { date: string | null; registry_id: string | null } | null;
   show: {
@@ -180,7 +183,7 @@ Deno.serve(async req => {
         payment_status,
         entry_status,
         handler_id,
-        dog:dog_id(call_name, owner_id),
+        dog:dog_id(call_name),
         class:class_id(name, entry_fee),
         trial:trial_id(date, registry_id),
         show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
@@ -346,14 +349,10 @@ Deno.serve(async req => {
 
     // MYK9-662: date of birth lives in people_private (MYK9-664), never on
     // people — readable here because this function runs under service_role,
-    // which people_private grants SELECT to explicitly. Batched once for
-    // every handler AND dog-owner id across the requested entries.
+    // which people_private grants SELECT to explicitly. A missing handler
+    // identity stays unknown for junior pricing.
     const personIdsForDob = [
-      ...new Set(
-        entries
-          .flatMap(e => [e.handler_id, e.dog?.owner_id])
-          .filter((id): id is string => Boolean(id))
-      ),
+      ...new Set(entries.map(e => e.handler_id).filter((id): id is string => Boolean(id))),
     ];
     const dobByPersonId = new Map<string, string | null>();
     if (personIdsForDob.length > 0) {
@@ -381,10 +380,7 @@ Deno.serve(async req => {
         classEntryFee: e.class?.entry_fee ?? null,
         nowIso,
         showJuniorHandlerFee: show.junior_handler_fee,
-        handlerDateOfBirth:
-          (e.handler_id && dobByPersonId.get(e.handler_id)) ??
-          (e.dog?.owner_id && dobByPersonId.get(e.dog.owner_id)) ??
-          null,
+        handlerDateOfBirth: handlerDateOfBirthForFee(e.handler_id, dobByPersonId),
         trialRegistryId: e.trial?.registry_id ?? null,
         trialDate: e.trial?.date ?? null,
       }),

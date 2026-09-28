@@ -64,6 +64,7 @@ interface WizardState {
     entryCloseDate: string; // ISO datetime string
     preEntryFee: number;
     dayOfShowFee: number;
+    juniorHandlerFee?: number;
     startingArmbandNumber: number;
     officials: {
       secretary: string[]; // people.id values
@@ -163,6 +164,7 @@ const initialState: WizardState = {
     entryCloseDate: '',
     preEntryFee: 0,
     dayOfShowFee: 0,
+    juniorHandlerFee: 0,
     startingArmbandNumber: 100,
     officials: {
       secretary: [],

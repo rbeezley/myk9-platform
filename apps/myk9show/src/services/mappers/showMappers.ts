@@ -28,6 +28,7 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     entry_close_date: input.entryCloseDate,
     pre_entry_fee: parseFloat(input.preEntryFee) || null,
     day_of_show_fee: input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null,
+    junior_handler_fee: input.juniorHandlerFee ? parseFloat(input.juniorHandlerFee) : null,
     club_id: input.clubId,
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
@@ -65,6 +66,8 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.preEntryFee !== undefined) update.pre_entry_fee = parseFloat(input.preEntryFee) || null;
   if (input.dayOfShowFee !== undefined)
     update.day_of_show_fee = input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null;
+  if (input.juniorHandlerFee !== undefined)
+    update.junior_handler_fee = input.juniorHandlerFee ? parseFloat(input.juniorHandlerFee) : null;
   if (input.clubId !== undefined) update.club_id = input.clubId;
   if (input.logoUrl !== undefined) update.logo_url = input.logoUrl || null;
   if (input.coverImageUrl !== undefined) update.cover_image_url = input.coverImageUrl || null;
@@ -262,6 +265,9 @@ export const mapDatabaseToShow = (
     // empty value.
     preEntryFee: dbShow.pre_entry_fee?.toString() ?? '',
     dayOfShowFee: dbShow.day_of_show_fee?.toString() || undefined,
+    juniorHandlerFee:
+      ((dbShow as Record<string, unknown>).junior_handler_fee as number | null | undefined)
+        ?.toString() || undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
     lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as
       string | undefined,
@@ -629,6 +635,7 @@ export const mapReplicatedShowToDbRow = (
       entry_close_date: 'entryCloseDate',
       pre_entry_fee: 'preEntryFee',
       day_of_show_fee: 'dayOfShowFee',
+      junior_handler_fee: 'juniorHandlerFee',
       club_id: 'clubId',
       max_entries_per_dog: 'maxEntriesPerDog',
       max_total_entries: 'maxTotalEntries',

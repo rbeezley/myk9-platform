@@ -6,7 +6,10 @@ import {
   resolvePlatformFeeRates,
   stampPlatformFeeRates,
 } from '../_shared/platformFee.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import {
+  authoritativeEntryFeeCents,
+  handlerDateOfBirthForFee,
+} from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
@@ -383,7 +386,7 @@ async function handleEntryCheckout(
         entry_fee_cents,
         jump_height,
         special_requests,
-        dog:dogs(call_name, owner_id),
+        dog:dogs(call_name),
         class:classes(
           name,
           entry_fee,
@@ -637,21 +640,17 @@ async function handleEntryCheckout(
       entry_fee?: number | string | null;
       trial?: { date?: string | null; registry_id?: string | null } | null;
     };
-    dog?: { owner_id?: string | null } | null;
   }[];
   // MYK9-662: date of birth lives in people_private (MYK9-664), never on
   // people — readable here because this function runs under service_role,
   // which people_private grants SELECT to explicitly. Not a live-derivation
   // surface reachable by a caller-controlled role: nothing here lets an
   // exhibitor edit a trial's date and reprice, unlike the "ask again" oracle
-  // MYK9-664 closed off for managers. Batched once for every handler AND
-  // dog-owner id in the cart (the same fallback identity submit_show_entries
-  // uses when no handler is explicitly assigned).
+  // MYK9-664 closed off for managers. A cart line without a resolved handler
+  // is unknown for junior pricing.
   const personIdsForDob = [
     ...new Set(
-      cartItemsForFee
-        .flatMap(item => [item.handler_id, item.dog?.owner_id])
-        .filter((id): id is string => Boolean(id))
+      cartItemsForFee.map(item => item.handler_id).filter((id): id is string => Boolean(id))
     ),
   ];
   const dobByPersonId = new Map<string, string | null>();
@@ -681,10 +680,7 @@ async function handleEntryCheckout(
       classEntryFee: item.class?.entry_fee ?? null,
       nowIso,
       showJuniorHandlerFee: showFees.junior_handler_fee,
-      handlerDateOfBirth:
-        (item.handler_id && dobByPersonId.get(item.handler_id)) ??
-        (item.dog?.owner_id && dobByPersonId.get(item.dog.owner_id)) ??
-        null,
+      handlerDateOfBirth: handlerDateOfBirthForFee(item.handler_id, dobByPersonId),
       trialRegistryId: item.class?.trial?.registry_id ?? null,
       trialDate: item.class?.trial?.date ?? null,
     }),

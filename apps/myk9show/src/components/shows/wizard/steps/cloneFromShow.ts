@@ -114,6 +114,7 @@ export function buildCloneSnapshot(args: {
       clubId: show.clubId || '',
       preEntryFee: parseFloat(show.preEntryFee) || 0,
       dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
+      juniorHandlerFee: parseFloat(show.juniorHandlerFee || '0') || 0,
       startingArmbandNumber: show.startingArmbandNumber ?? 100,
       acceptCheckPayments: show.acceptCheckPayments ?? false,
       acceptCashPayments: show.acceptCashPayments ?? false,

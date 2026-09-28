@@ -58,6 +58,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     entryCloseDate: replicated.entryCloseDate || '',
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
+    juniorHandlerFee: replicated.juniorHandlerFee?.toString() || '',
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store
@@ -182,6 +183,7 @@ export interface ShowInput {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  juniorHandlerFee?: string | undefined;
   clubId: string;
   clubName: string;
   clubAddress: string;
@@ -266,6 +268,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         entryCloseDate: showData.entryCloseDate || undefined,
         preEntryFee: showData.preEntryFee ? parseFloat(showData.preEntryFee) : undefined,
         dayOfShowFee: showData.dayOfShowFee ? parseFloat(showData.dayOfShowFee) : undefined,
+        juniorHandlerFee: showData.juniorHandlerFee ? parseFloat(showData.juniorHandlerFee) : undefined,
         clubId: showData.clubId || undefined,
         acceptCheckPayments: showData.acceptCheckPayments,
         acceptCashPayments: showData.acceptCashPayments,
@@ -394,6 +397,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
+      if (updates.juniorHandlerFee !== undefined)
+        replicatedUpdates.juniorHandlerFee = parseFloat(updates.juniorHandlerFee);
       if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
       if (updates.acceptCheckPayments !== undefined)
         replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
@@ -445,6 +450,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.entryCloseDate = updates.entryCloseDate;
       if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
       if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
+      if (updates.juniorHandlerFee !== undefined)
+        definedUpdates.juniorHandlerFee = updates.juniorHandlerFee;
       if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;
       if (updates.acceptCheckPayments !== undefined)
         definedUpdates.acceptCheckPayments = updates.acceptCheckPayments;

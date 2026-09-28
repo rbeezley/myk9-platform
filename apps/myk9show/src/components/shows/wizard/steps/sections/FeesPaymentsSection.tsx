@@ -39,6 +39,16 @@ export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({ show, 
         }}
       />
 
+      <FeeField
+        id="show-junior-handler-fee"
+        label="Junior Handler Fee"
+        tooltip="Optional entry fee for a junior handler. Leave blank if this show does not offer a junior rate."
+        value={show.juniorHandlerFee}
+        onChange={v => {
+          if (v !== undefined) onUpdate({ juniorHandlerFee: v });
+        }}
+      />
+
       <div className="md:col-span-2">
         <PaymentMethodsCheckboxGroup
           acceptCheck={show.acceptCheckPayments ?? false}

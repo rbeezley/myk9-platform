@@ -12,6 +12,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
         endDate: '2026-08-09',
         entryCloseDate: '2026-07-30',
         preEntryFee: '25',
+        juniorHandlerFee: '15',
         clubName: 'Prairie Dog Club',
         clubEmail: 'secretary@prairie.example',
       },
@@ -145,6 +146,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
       entryId: 'entry-2',
       label: 'Tera — Advanced Exterior',
       options: {
+        show: { junior_handler_fee: 15 },
         entry: {
           trial_id: 'trial-2',
           class_id: 'class-2',

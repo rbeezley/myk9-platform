@@ -23,8 +23,11 @@ Use this checklist after Phases 1-3 are complete and the app is near-final. Past
 ## Oct 10 UKC Nosework Event Gate (MYK9-829 / MYK9-819)
 
 - [ ] Before judges use a passcode, identify the **real** Oct 10 club and show by name and ID. Verify in the deployed app that the club is **Authorized** (`clubs.authorized_at` set) and the show is **Published**. Record the observer, time, show ID, and screenshots. A demo club or draft rehearsal show does not satisfy this check.
+
+  September 28 check: Darboshea Tervuren Club is the confirmed host, but its deployed badge is **Unauthorized**. The October 10 `ZZ TEST MYK9-819` show is a private rehearsal draft; no published real October 10 show was identified. See the [follow-up evidence](../qa/myk9-819-oct10-test-show-follow-up-2026-09-28.md). Keep this item open.
+
 - [ ] On a deployed build containing the passcode and offline-reload fixes, walk the real two-trial UKC show by passcode: score every Trial 1 Vehicle level, reload mid-class, score two entries offline and reload while offline, reconnect and prove the queued scores reached the server, then mistype a code and confirm a visible error. Record pass/fail and a screenshot for each step. Repeat at the Oct 6 final rehearsal.
-- [ ] Link unresolved failures to MYK9 issues and keep this gate open until the show-specific evidence passes. The [2026-09-28 deployed-app follow-up](../qa/myk9-819-deployed-follow-up-2026-09-28.md) records the current result and blockers.
+- [ ] Link unresolved failures to MYK9 issues and keep this gate open until the show-specific evidence passes. The [initial deployed-app walk](../qa/myk9-819-deployed-follow-up-2026-09-28.md) and [October 10 test-show follow-up](../qa/myk9-819-oct10-test-show-follow-up-2026-09-28.md) record the results and blockers.
 
 ## 4.2b Cross-App Data Reconciliation
 

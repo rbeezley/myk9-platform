@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ResultsBulkBar } from '../ResultsBulkBar';
+import { markServerUnreachable, resetServerReachabilityForTests } from '@/lib/serverReachability';
 
 const mockBulkMutate = vi.hoisted(() => vi.fn());
 const mockReleaseMutate = vi.hoisted(() => vi.fn());
@@ -54,6 +55,7 @@ describe('ResultsBulkBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNetworkState.isOnline = true;
+    resetServerReachabilityForTests();
   });
 
   it('renders nothing when no classes are selected', () => {
@@ -339,6 +341,19 @@ describe('ResultsBulkBar', () => {
       rerender(<ResultsBulkBar {...props} />);
       expect(screen.getByRole('combobox')).not.toBeDisabled();
       expect(screen.queryByText('Needs a connection')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('online but the server is unreachable (MYK9-864)', () => {
+    it('disables Apply Preset with the hint after a write fails to reach the server', () => {
+      renderBar();
+      expect(screen.getByRole('combobox')).not.toBeDisabled();
+
+      act(() => markServerUnreachable());
+
+      expect(screen.getByRole('combobox')).toBeDisabled();
+      expect(screen.getByText('Needs a connection')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Release Results' })).not.toBeDisabled();
     });
   });
 });

@@ -233,6 +233,20 @@ type ShowClassJudgeDayAvailability = WithReturnFields<
   }
 >;
 
+/**
+ * `get_club_officials` (MYK9-860, `20260928034700`), hand-declared until the next
+ * `supabase gen types`. `role` is only ever these two values: the SQL folds
+ * `trial_secretary` into 'secretary'. `person_name` is NULL for a person with no name.
+ */
+type GetClubOfficials = {
+  Args: { p_club_id: string };
+  Returns: {
+    role: 'club_admin' | 'secretary';
+    person_id: string;
+    person_name: string | null;
+  }[];
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -251,6 +265,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
+      get_club_officials: GetClubOfficials;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

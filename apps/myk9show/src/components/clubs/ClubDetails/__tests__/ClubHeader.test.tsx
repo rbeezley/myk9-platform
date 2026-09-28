@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
 import { ClubHeader } from '../ClubHeader';
@@ -8,6 +8,22 @@ import { ClubHeader } from '../ClubHeader';
 vi.mock('@/components/ui/cover-image-upload', () => ({
   CoverImageUpload: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+
+// MYK9-860: the officials line reads through useClubOfficials ->
+// getClubOfficials. Mocked (default empty) so the "populated" test proves the
+// line renders when the real hook resolves, not just when handed props. The
+// hook skips guests, so the viewer is signed in unless a test says otherwise.
+vi.mock('@/services/database/club-memberships', () => ({
+  getClubOfficials: vi.fn().mockResolvedValue({ adminNames: [], secretaryNames: [] }),
+}));
+
+vi.mock('@/hooks/useAuthContext', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useAuthContext')>()),
+  useAuthContext: vi.fn(() => ({ user: { id: 'auth-1' } })),
+}));
+
+import { getClubOfficials } from '@/services/database/club-memberships';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const baseClub: Club = {
   id: 'club-1',
@@ -297,5 +313,60 @@ describe('club authorization control', () => {
 
     await user.click(screen.getByRole('button', { name: 'Club options' }));
     expect(await screen.findByText('Authorize Club')).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+// MYK9-860 — proves the real wiring (useClubOfficials -> getClubOfficials ->
+// ClubOfficialsLine), not just the presentational component in isolation.
+describe('club officials line', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as Mock).mockImplementation(() => ({ user: { id: 'auth-1' } }));
+  });
+
+  it('shows every admin and secretary once the real data path resolves', async () => {
+    (getClubOfficials as Mock).mockResolvedValueOnce({
+      adminNames: ['Jane Doe', 'John Smith'],
+      secretaryNames: ['Pat Lee'],
+    });
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent(
+      'Admins: Jane Doe, John Smith'
+    );
+    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
+  });
+
+  it('renders nothing when this viewer gets no officials back', async () => {
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    await waitFor(() => expect(getClubOfficials).toHaveBeenCalledWith(baseClub.id));
+    expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-secretary-names')).not.toBeInTheDocument();
+  });
+
+  it('shows a retryable error when officials cannot load', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    (getClubOfficials as Mock)
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce({ adminNames: ['Jane Doe'], secretaryNames: [] });
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Club officials couldn't load.");
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent('Admin: Jane Doe');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('does not ask for officials on behalf of a signed-out guest', () => {
+    (useAuthContext as Mock).mockImplementation(() => ({ user: null }));
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(getClubOfficials).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
   });
 });

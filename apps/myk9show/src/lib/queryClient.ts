@@ -170,6 +170,7 @@ export const queryKeys = {
   clubs: ['clubs'] as const,
   club: (id: string) => ['clubs', id] as const,
   clubShows: (clubId: string) => ['clubs', clubId, 'shows'] as const,
+  clubOfficials: (clubId: string | undefined) => ['clubs', clubId, 'officials'] as const,
 
   // Registrations
   registrations: ['registrations'] as const,

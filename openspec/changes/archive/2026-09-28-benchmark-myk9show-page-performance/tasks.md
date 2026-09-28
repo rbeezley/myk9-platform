@@ -16,4 +16,4 @@
 
 - [x] 3.1 Add focused coverage for route readiness, manifest/result validation, metric aggregation, and blocked-worker behavior; run those tests and the benchmark command against the production build.
 - [x] 3.2 Review the regenerated complete matrix for missing/duplicate pairs, unavailable metrics, and accidental secrets; verify the dated baseline and bundle report are reproducible.
-- [ ] 3.3 Run OpenSpec validation and the repo's relevant quality checks, then complete the PR, CI, review, and merge gates before archiving the change.
+- [x] 3.3 Run OpenSpec validation and the repo's relevant quality checks, then complete the PR, CI, review, and merge gates before archiving the change.

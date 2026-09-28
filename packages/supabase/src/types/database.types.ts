@@ -12503,6 +12503,7 @@ export type Database = {
         Returns: boolean
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
+      can_read_dog_directory: { Args: never; Returns: boolean }
       check_and_record_premium_generation_attempt: {
         Args: { p_auth_user_id: string; p_show_id: string }
         Returns: {
@@ -12995,6 +12996,14 @@ export type Database = {
           roles: string[]
           status: string
           updated_at: string
+        }[]
+      }
+      get_club_officials: {
+        Args: { p_club_id: string }
+        Returns: {
+          person_id: string
+          person_name: string
+          role: string
         }[]
       }
       get_club_show_manager_ids: {
@@ -13543,6 +13552,7 @@ export type Database = {
         Args: { p_club_id: string; p_person_id: string }
         Returns: boolean
       }
+      is_any_secretary: { Args: never; Returns: boolean }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
       is_club_member: { Args: { check_club_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }

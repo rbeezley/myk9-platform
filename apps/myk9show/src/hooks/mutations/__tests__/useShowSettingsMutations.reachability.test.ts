@@ -90,11 +90,13 @@ const HOOKS: Array<[string, () => AnyMutation, unknown]> = [
 
 function renderMutation(useHook: () => AnyMutation) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
-  return renderHook(() => ({ mutation: useHook(), reachable: useServerReachable() }), {
+  const view = renderHook(() => ({ mutation: useHook(), reachable: useServerReachable() }), {
     wrapper,
   });
+  return { ...view, invalidate };
 }
 
 async function run(result: { current: { mutation: AnyMutation } }, vars: unknown) {
@@ -118,10 +120,12 @@ describe('settings writes and server reachability (MYK9-864)', () => {
     '%s marks the server unreachable on a transport failure',
     async (_, useHook, vars) => {
       upsertResult.mockReturnValue(transportFailure);
-      const { result } = renderMutation(useHook);
+      const { result, invalidate } = renderMutation(useHook);
 
       expect(await run(result, vars)).toMatchObject({ message: 'AbortError: signal timed out' });
       expect(result.current.reachable).toBe(false);
+      // A timed-out write may still have committed, so the settings are refetched.
+      expect(invalidate).toHaveBeenCalled();
     }
   );
 

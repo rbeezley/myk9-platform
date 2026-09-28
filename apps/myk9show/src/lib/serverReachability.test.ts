@@ -6,6 +6,7 @@ import {
   isTransportFailure,
   markServerUnreachable,
   resetServerReachabilityForTests,
+  timeoutSignal,
   useServerReachable,
 } from './serverReachability';
 
@@ -155,5 +156,20 @@ describe('serverReachability (MYK9-864)', () => {
       await vi.advanceTimersByTimeAsync(REACHABILITY_PROBE_INTERVAL_MS * 4);
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to a timer when AbortSignal.timeout is missing (Safari before 16)', () => {
+    const original = Object.getOwnPropertyDescriptor(AbortSignal, 'timeout');
+    Object.defineProperty(AbortSignal, 'timeout', { configurable: true, value: undefined });
+
+    try {
+      const signal = timeoutSignal(1_000);
+      expect(signal.aborted).toBe(false);
+      vi.advanceTimersByTime(1_000);
+      expect(signal.aborted).toBe(true);
+      expect((signal.reason as DOMException).name).toBe('TimeoutError');
+    } finally {
+      if (original) Object.defineProperty(AbortSignal, 'timeout', original);
+    }
   });
 });

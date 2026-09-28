@@ -38,6 +38,14 @@ export function isTransportFailure(result: { status?: number | null }): boolean 
  * a CORS rejection from reading as "unreachable": only a network failure rejects.
  * The CSP `connect-src` must allow this host (it allows https://*.supabase.co).
  */
+/** `AbortSignal.timeout` arrived in Safari 16; the build still targets Safari 14.1. */
+export function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new DOMException('signal timed out', 'TimeoutError')), ms);
+  return controller.signal;
+}
+
 async function probeServer(): Promise<boolean> {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!baseUrl) return true;
@@ -45,7 +53,7 @@ async function probeServer(): Promise<boolean> {
     await fetch(`${baseUrl}/auth/v1/health`, {
       mode: 'no-cors',
       cache: 'no-store',
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: timeoutSignal(PROBE_TIMEOUT_MS),
     });
     return true;
   } catch {

@@ -4,7 +4,6 @@ set -eu
 cd "$(dirname "$0")/../../../../.."
 report_path="${MYK9_PERF_REPORT_PATH:-docs/qa/perf-baseline-$(TZ=America/Chicago date +%F).md}"
 export MYK9_PERF_REPORT_PATH="$report_path"
-playwright-cli open
 if [ "${MYK9_PERF_SKIP_BUILD:-0}" != "1" ]; then
   pnpm --dir apps/myk9show build:production
 fi

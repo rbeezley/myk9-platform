@@ -136,7 +136,7 @@ async function main(): Promise<void> {
       showId,
       buildRef,
       routeCount: routes.length,
-      readyTimeoutMs: Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 30_000),
+      readyTimeoutMs: Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 60_000),
       reportDate,
       runId,
       timingBufferSize: 10_000,

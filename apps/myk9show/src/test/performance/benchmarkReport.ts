@@ -22,6 +22,7 @@ export interface BenchmarkSample {
   jsTransferBytes?: number;
   jsChunks?: Array<{ file: string; bytes: number }>;
   requestCount?: number;
+  warmEvidence?: { serviceWorkerScripts: number; replicationRows: number };
   slowestSupabase?: Array<{ path: string; durationMs: number }>;
 }
 
@@ -63,7 +64,7 @@ function reportReason(reason: string | undefined): string {
 }
 
 function passLabel(cache: BenchmarkSample['cache']): string {
-  return cache === 'cold' ? 'cold' : 'same-context uncached';
+  return cache === 'cold' ? 'cold' : 'service-worker warm';
 }
 
 function median(values: number[]): number | undefined {
@@ -187,29 +188,30 @@ export function formatBenchmarkReport(
     'A fresh full-matrix run uses:',
     '',
     '```sh',
-    `MYK9_PERF_REPORT_PATH=.logs/perf-reproduction-$(date +%s).md MYK9_PERF_ROUTES=${routeIds.join(',')} MYK9_PERF_PROFILES=${profiles.join(',')} MYK9_PERF_REPEATS=${repeats} MYK9_PERF_READY_TIMEOUT_MS=${metadata.readyTimeoutMs ?? 30000} pnpm --dir apps/myk9show performance:baseline`,
+    `MYK9_PERF_REPORT_PATH=.logs/perf-reproduction-$(date +%s).md MYK9_PERF_ROUTES=${routeIds.join(',')} MYK9_PERF_PROFILES=${profiles.join(',')} MYK9_PERF_REPEATS=${repeats} MYK9_PERF_READY_TIMEOUT_MS=${metadata.readyTimeoutMs ?? 60000} pnpm --dir apps/myk9show performance:baseline`,
     '```',
     '',
     '## Run conditions',
     '',
     '- Production Vite build served locally with Playwright Chromium.',
-    '- Each two-navigation pair used a separate Chromium process. Failed workers were recorded as blocked attempts; pair results were checked against the run manifest.',
+    '- Each cold/warm pair used a separate Chromium process. Failed workers were recorded as blocked attempts; pair results were checked against the run manifest.',
     '- Mobile: 390×844 and 4× CPU; fast 4G is 40 ms / 5 Mbps down, slow 4G is 150 ms / 1.6 Mbps down. Secretary desktop: 1440×1000, 1× CPU and 25 Mbps down.',
-    '- Cold uses a fresh browser context; the second pass revisits the route in that context. Service workers and WebSocket connections are blocked to prevent precaching and Realtime presence writes.',
-    '- HTTP writes are blocked except token refresh and verified read-only RPCs. Telemetry POSTs receive a local 204 response without reaching staging. Playwright routing disables HTTP cache, so the second pass is a same-context uncached navigation, not a browser-cache warm load. Warm-cache performance remains unmeasured.',
+    '- Cold uses a fresh browser context with empty HTTP cache and IndexedDB; service workers are blocked. For warm, a separate fresh context loads the same route unthrottled until primary data and the service-worker precache are ready, then a new worker-controlled page is measured under the profile throttle. The priming load is not timed.',
+    '- HTTP writes are blocked except token refresh and verified read-only RPCs. Telemetry POSTs receive a local 204 response without reaching staging; Realtime WebSocket connections are blocked. Playwright routing disables HTTP cache, but the warm page is served by the service-worker precache. Warm samples require worker-controlled scripts; the report records scripts served by the worker and local replication rows after priming.',
+    '- Request count is CDP page-target network attempts, excluding browser-cache hits and locally handled requests. JavaScript bytes are encoded network bytes; scripts served by the worker contribute zero. Service-worker installation traffic belongs to the unmeasured priming phase.',
     '- Time-to-usable stops after route-specific primary content remains available for 300 ms. LCP, CLS, and TBT proxy are read after a further 500 ms observation window.',
     `- Resource timing buffer size was ${metadata.timingBufferSize.toLocaleString()} entries per navigation.`,
-    `- A route is blocked if primary content is not visible within ${((metadata.readyTimeoutMs ?? 30000) / 1000).toFixed(0)} s after DOM content loads; blocked samples have no measured load time.`,
+    `- A route is blocked if primary content is not visible within ${((metadata.readyTimeoutMs ?? 60000) / 1000).toFixed(0)} s after DOM content loads; blocked samples have no measured load time.`,
     '- INP requires an interaction and is not reported. LCP is null when Chromium provides no entry.',
     '- Official field targets at the 75th percentile: LCP ≤2.5 s, INP <200 ms, CLS ≤0.1. Lab TBT proxy target: <200 ms. Custom mobile time-to-usable triage targets: ≤3 s fast 4G, ≤5 s slow 4G.',
     '',
     '## Route samples',
     '',
-    '| Route | Role | Profile | Pass | Run | Status | Usable ms | TTFB ms | LCP ms | CLS | TBT proxy ms | JS bytes | Requests |',
-    '|---|---|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|',
+    '| Route | Role | Profile | Pass | Run | Status | Usable ms | TTFB ms | LCP ms | CLS | TBT proxy ms | JS bytes | Requests | SW scripts | Replication rows |',
+    '|---|---|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
     ...samples.map(
       sample =>
-        `| ${sample.path} | ${sample.role} | ${sample.profile} | ${passLabel(sample.cache)} | ${sample.repeat ?? 1} | ${sample.status}${sample.reason ? `: ${reportReason(sample.reason)}` : ''} | ${sample.timeToUsableMs?.toFixed(0) ?? '—'} | ${sample.ttfbMs?.toFixed(0) ?? '—'} | ${sample.lcpMs?.toFixed(0) ?? '—'} | ${sample.cls?.toFixed(3) ?? '—'} | ${sample.tbtProxyMs?.toFixed(0) ?? '—'} | ${sample.jsTransferBytes ?? '—'} | ${sample.requestCount ?? '—'} |`
+        `| ${sample.path} | ${sample.role} | ${sample.profile} | ${passLabel(sample.cache)} | ${sample.repeat ?? 1} | ${sample.status}${sample.reason ? `: ${reportReason(sample.reason)}` : ''} | ${sample.timeToUsableMs?.toFixed(0) ?? '—'} | ${sample.ttfbMs?.toFixed(0) ?? '—'} | ${sample.lcpMs?.toFixed(0) ?? '—'} | ${sample.cls?.toFixed(3) ?? '—'} | ${sample.tbtProxyMs?.toFixed(0) ?? '—'} | ${sample.jsTransferBytes ?? '—'} | ${sample.requestCount ?? '—'} | ${sample.warmEvidence?.serviceWorkerScripts ?? '—'} | ${sample.warmEvidence?.replicationRows ?? '—'} |`
     ),
     '',
     '## Median by route and profile',
@@ -252,7 +254,7 @@ export function formatBenchmarkReport(
             : []),
           ...(mostRequests?.requestCount
             ? [
-                `- The largest observed resource request count was ${mostRequests.requestCount} on ${mostRequests.path} (${mostRequests.profile}, ${passLabel(mostRequests.cache)}); investigate the request mix before assigning a cause.`,
+                `- The largest observed network request count was ${mostRequests.requestCount} on ${mostRequests.path} (${mostRequests.profile}, ${passLabel(mostRequests.cache)}); investigate the request mix before assigning a cause.`,
               ]
             : []),
           ...(whollyBlocked.length

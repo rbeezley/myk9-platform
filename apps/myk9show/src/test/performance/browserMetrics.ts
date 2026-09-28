@@ -11,20 +11,24 @@ export function chunkInventory(appRoot: string): Array<{ file: string; bytes: nu
     .slice(0, 15);
 }
 
-interface ResourceTransfer {
-  name: string;
-  transferSize: number;
-  initiatorType: string;
+export interface ObservedRequest {
+  url: string;
+  bytes: number;
+  cached: boolean;
+  handledLocally: boolean;
 }
 
-export function summarizeJavaScriptTransfer(resources: ResourceTransfer[]) {
-  const scripts = resources.filter(resource => new URL(resource.name).pathname.endsWith('.js'));
+/** Count network attempts and encoded JS bytes, excluding cache hits and local guard responses. */
+export function summarizeNetworkTransfers(requests: ObservedRequest[]) {
+  const network = requests.filter(request => !request.cached && !request.handledLocally);
+  const scripts = network.filter(request => new URL(request.url).pathname.endsWith('.js'));
   return {
-    jsTransferBytes: scripts.reduce((sum, script) => sum + script.transferSize, 0),
+    requestCount: network.length,
+    jsTransferBytes: scripts.reduce((sum, script) => sum + script.bytes, 0),
     jsChunks: scripts
       .map(script => ({
-        file: new URL(script.name).pathname.split('/').at(-1) ?? 'script',
-        bytes: script.transferSize,
+        file: new URL(script.url).pathname.split('/').at(-1) ?? 'script',
+        bytes: script.bytes,
       }))
       .filter(script => script.bytes > 0)
       .sort((a, b) => b.bytes - a.bytes)
@@ -37,7 +41,6 @@ export async function readBrowserMetrics(page: Page) {
   const metrics = await page.evaluate(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as
       PerformanceNavigationTiming | undefined;
-    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
     return {
       title: document.title,
       heading: document.querySelector('h1, h2, [role="heading"]')?.textContent?.trim() ?? '',
@@ -45,14 +48,7 @@ export async function readBrowserMetrics(page: Page) {
       lcpMs: (window as Window & { __benchLcp?: number }).__benchLcp || null,
       cls: (window as Window & { __benchCls?: number | null }).__benchCls ?? null,
       tbtProxyMs: (window as Window & { __benchTbt?: number }).__benchTbt ?? 0,
-      resourceTransfers: resources.map(resource => ({
-        name: resource.name,
-        transferSize: resource.transferSize,
-        initiatorType: resource.initiatorType,
-      })),
-      requestCount: resources.length,
     };
   });
-  const { resourceTransfers, ...rest } = metrics;
-  return { ...rest, ...summarizeJavaScriptTransfer(resourceTransfers) };
+  return metrics;
 }

@@ -63,6 +63,9 @@ export function validatePairResult(
       !['measured', 'blocked'].includes(sample.status) ||
       (sample.status === 'measured' &&
         (typeof sample.timeToUsableMs !== 'number' || !Number.isFinite(sample.timeToUsableMs))) ||
+      (sample.status === 'measured' &&
+        sample.cache === 'warm' &&
+        (!sample.warmEvidence || sample.warmEvidence.serviceWorkerScripts < 1)) ||
       (sample.status === 'blocked' && !sample.reason)
     ) {
       throw new Error(`Pair sample ${index} does not match manifest`);

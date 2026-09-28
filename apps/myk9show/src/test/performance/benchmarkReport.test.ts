@@ -63,8 +63,8 @@ describe('MYK9-843 baseline report', () => {
     expect(report).toContain('2026-09-27');
     expect(report).toContain('Resource timing buffer size was 10,000');
     expect(report).not.toContain('250-entry browser default');
-    expect(report).toContain('same-context uncached');
-    expect(report).toContain('Warm-cache performance remains unmeasured');
+    expect(report).toContain('service-worker warm');
+    expect(report).toContain('worker-controlled page');
   });
 
   it('reports the median of repeated route measurements while preserving each run', () => {

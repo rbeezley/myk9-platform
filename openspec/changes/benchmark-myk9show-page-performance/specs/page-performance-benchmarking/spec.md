@@ -24,19 +24,24 @@ The repository SHALL provide one documented command that measures representative
 - **WHEN** a result has a different build, seed show, route, profile, repeat, or run identifier, or duplicates an expected pair
 - **THEN** report generation rejects it rather than combining incomparable samples
 
-### Requirement: Controlled cold and same-context measurements
+### Requirement: Controlled cold and primed warm measurements
 
-The benchmark SHALL distinguish a fresh browser context from a second navigation in the same context, state that HTTP and service-worker caches are disabled, and apply the requested mobile and secretary desktop profiles. It SHALL not present the second navigation as a cached warm load.
+The benchmark SHALL measure a fresh browser context with empty HTTP cache and IndexedDB, then prime a separate context with the same route's primary data and service-worker precache before measuring a worker-controlled warm navigation. It SHALL apply the requested mobile and secretary desktop profiles to measured navigations and identify priming as untimed.
 
 #### Scenario: Cold mobile measurement
 
 - **WHEN** a mobile route is measured cold
 - **THEN** the browser context starts with only the role's auth state, blocks service workers, and applies 4x CPU slowdown with Fast 4G or Slow 4G network throttling
 
-#### Scenario: Same-context mobile measurement
+#### Scenario: Primed warm mobile measurement
 
 - **WHEN** a mobile route is measured for a second time
-- **THEN** the same context retains available app and local data state, service workers and HTTP caching remain disabled, and the result is labeled same-context uncached with the throttle profile recorded
+- **THEN** its priming context has an activated service-worker precache and retains the route's available local data, the measured page is worker-controlled with scripts served by that worker, and the result is labeled service-worker warm with the throttle profile recorded
+
+#### Scenario: Warm state cannot be verified
+
+- **WHEN** priming fails, the measured page is not worker-controlled, or no scripts are served by the worker
+- **THEN** the warm attempt is blocked with a reason rather than counted as a successful warm measurement
 
 #### Scenario: A loading shell exposes a heading
 

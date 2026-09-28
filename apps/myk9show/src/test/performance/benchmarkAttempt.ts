@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext, type Page } from '@playwright/test';
+import { chromium, type BrowserContext } from '@playwright/test';
 import { createClient, type Session } from '@supabase/supabase-js';
 import { loadEnv } from 'vite';
 import { type BenchmarkRole, type BenchmarkRoute } from './benchmarkRoutes';
@@ -6,6 +6,7 @@ import { blockedRouteReason } from './benchmarkMetrics';
 import { readBrowserMetrics } from './browserMetrics';
 import { waitForRouteReady } from './benchmarkReadiness';
 import { benchmarkRequestDisposition } from './benchmarkNetworkPolicy';
+import { observeNetwork } from './benchmarkNetworkObservation';
 import { type BenchmarkSample, type NetworkProfile } from './benchmarkReport';
 
 type Sample = BenchmarkSample;
@@ -16,7 +17,7 @@ const origin = process.env.MYK9_PERF_BASE_URL ?? 'http://127.0.0.1:4173';
 const supabaseUrl = env.VITE_SUPABASE_URL;
 const anonKey = env.VITE_SUPABASE_ANON_KEY;
 const maxNavigationMs = Number(process.env.MYK9_PERF_NAVIGATION_TIMEOUT_MS ?? 25_000);
-const maxReadyMs = Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 30_000);
+const maxReadyMs = Number(process.env.MYK9_PERF_READY_TIMEOUT_MS ?? 60_000);
 
 const credentials: Partial<Record<BenchmarkRole, { email?: string; password?: string }>> = {
   secretary: { email: env.E2E_SECRETARY_EMAIL, password: env.E2E_SECRETARY_PASSWORD },
@@ -65,7 +66,7 @@ function storageFor(session: Session | null):
   };
 }
 
-async function configureContext(context: BrowserContext, profile: NetworkProfile): Promise<Page> {
+async function configureContext(context: BrowserContext, profile: NetworkProfile, throttle = true) {
   const page = await context.newPage();
   await page.addInitScript(() => {
     performance.setResourceTimingBufferSize(10_000);
@@ -129,8 +130,18 @@ async function configureContext(context: BrowserContext, profile: NetworkProfile
   }
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
+  const networkSummary = observeNetwork(cdp, supabaseUrl);
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
-  if (profile === 'fast-4g-mobile') {
+  if (!throttle) {
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 20,
+      downloadThroughput: 25_000_000 / 8,
+      uploadThroughput: 5_000_000 / 8,
+      connectionType: 'ethernet',
+    });
+  } else if (profile === 'fast-4g-mobile') {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     await cdp.send('Network.emulateNetworkConditions', {
       offline: false,
@@ -158,7 +169,7 @@ async function configureContext(context: BrowserContext, profile: NetworkProfile
       connectionType: 'ethernet',
     });
   }
-  return page;
+  return { page, networkSummary };
 }
 
 export async function measure(
@@ -166,9 +177,10 @@ export async function measure(
   route: BenchmarkRoute,
   profile: NetworkProfile,
   cache: 'cold' | 'warm',
-  repeat: number
+  repeat: number,
+  primedReplicationRows = 0
 ): Promise<Sample> {
-  const page = await configureContext(context, profile);
+  const { page, networkSummary } = await configureContext(context, profile);
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
   page.on('pageerror', error => {
@@ -199,6 +211,9 @@ export async function measure(
     await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: maxNavigationMs });
     usableAt = await waitForRouteReady(page, route, maxReadyMs);
     await page.waitForTimeout(500);
+    if (cache === 'warm' && !(await page.evaluate(() => !!navigator.serviceWorker.controller))) {
+      throw new Error('Warm navigation was not controlled by the service worker');
+    }
   } catch (error) {
     const pageState = await page
       .evaluate(() => ({
@@ -254,6 +269,20 @@ export async function measure(
     return blocked;
   }
   const metrics = await readBrowserMetrics(page);
+  const transfer = networkSummary();
+  if (cache === 'warm' && transfer.serviceWorkerScripts === 0) {
+    await page.close();
+    return {
+      routeId: route.id,
+      role: route.role,
+      path: route.path,
+      profile,
+      cache,
+      repeat,
+      status: 'blocked',
+      reason: 'Warm navigation transferred no scripts from the service worker',
+    };
+  }
   if (new URL(page.url()).pathname !== target.pathname) {
     const blocked: Sample = {
       routeId: route.id,
@@ -287,9 +316,16 @@ export async function measure(
     lcpMs: metrics.lcpMs,
     cls: metrics.cls,
     tbtProxyMs: metrics.tbtProxyMs,
-    jsTransferBytes: metrics.jsTransferBytes,
-    jsChunks: metrics.jsChunks,
-    requestCount: metrics.requestCount,
+    jsTransferBytes: transfer.jsTransferBytes,
+    jsChunks: transfer.jsChunks,
+    requestCount: transfer.requestCount,
+    warmEvidence:
+      cache === 'warm'
+        ? {
+            serviceWorkerScripts: transfer.serviceWorkerScripts,
+            replicationRows: primedReplicationRows,
+          }
+        : undefined,
     slowestSupabase: requestDurations.sort((a, b) => b.durationMs - a.durationMs).slice(0, 3),
   };
   console.log(
@@ -323,6 +359,51 @@ export async function measurePair(
   return runWithSession(route, profile, repeat, session);
 }
 
+/** Prime the same route with an activated precache and its local persistent data. */
+async function primeWarmContext(
+  context: BrowserContext,
+  route: BenchmarkRoute,
+  profile: NetworkProfile
+): Promise<number> {
+  const { page } = await configureContext(context, profile, false);
+  try {
+    await page.goto(new URL(route.path, origin).href, {
+      waitUntil: 'domcontentloaded',
+      timeout: maxNavigationMs,
+    });
+    await waitForRouteReady(page, route, maxReadyMs);
+    await page.waitForFunction(async () => !!(await navigator.serviceWorker.ready).active, null, {
+      timeout: 90_000,
+    });
+    return await page.evaluate(async () => {
+      if (!(await caches.keys()).some(key => key.startsWith('workbox-precache'))) {
+        throw new Error('Service-worker precache did not become available');
+      }
+      if (!(await indexedDB.databases()).some(db => db.name === 'myK9_Replication')) return 0;
+      const request = indexedDB.open('myK9_Replication');
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const stores = Array.from(db.objectStoreNames);
+      const counts = await Promise.all(
+        stores.map(
+          name =>
+            new Promise<number>(resolve => {
+              const count = db.transaction(name, 'readonly').objectStore(name).count();
+              count.onsuccess = () => resolve(count.result);
+              count.onerror = () => resolve(0);
+            })
+        )
+      );
+      db.close();
+      return counts.reduce((sum, value) => sum + value, 0);
+    });
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
 async function runWithSession(
   route: BenchmarkRoute,
   profile: NetworkProfile,
@@ -331,25 +412,42 @@ async function runWithSession(
 ): Promise<[Sample, Sample]> {
   const browser = await chromium.launch({ headless: true });
   try {
-    const context = await browser.newContext({
+    const coldContext = await browser.newContext({
       storageState: storageFor(session),
       serviceWorkers: 'block',
     });
+    let cold: Sample;
     try {
       // Presence and live-sync channels can send writes outside Playwright's HTTP route.
-      await context.routeWebSocket('**/*', webSocket => webSocket.close());
-      const cold = await measure(context, route, profile, 'cold', repeat);
-      const warm =
-        cold.status === 'measured'
-          ? await measure(context, route, profile, 'warm', repeat)
-          : {
-              ...cold,
-              cache: 'warm' as const,
-              reason: `Second pass not attempted: ${cold.reason}`,
-            };
-      return [cold, warm];
+      await coldContext.routeWebSocket('**/*', webSocket => webSocket.close());
+      cold = await measure(coldContext, route, profile, 'cold', repeat);
     } finally {
-      await context.close().catch(() => undefined);
+      await coldContext.close().catch(() => undefined);
+    }
+    const warmContext = await browser.newContext({
+      storageState: storageFor(session),
+      serviceWorkers: 'allow',
+    });
+    try {
+      await warmContext.routeWebSocket('**/*', webSocket => webSocket.close());
+      const replicationRows = await primeWarmContext(warmContext, route, profile);
+      return [cold, await measure(warmContext, route, profile, 'warm', repeat, replicationRows)];
+    } catch (error) {
+      return [
+        cold,
+        {
+          routeId: route.id,
+          role: route.role,
+          path: route.path,
+          profile,
+          cache: 'warm',
+          repeat,
+          status: 'blocked',
+          reason: `Warm priming failed: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ];
+    } finally {
+      await warmContext.close().catch(() => undefined);
     }
   } finally {
     await browser.close().catch(() => undefined);

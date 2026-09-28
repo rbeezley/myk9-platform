@@ -21,7 +21,11 @@ const cold = {
   status: 'measured',
   timeToUsableMs: 1000,
 };
-const warm = { ...cold, cache: 'warm' };
+const warm = {
+  ...cold,
+  cache: 'warm',
+  warmEvidence: { serviceWorkerScripts: 4, replicationRows: 0 },
+};
 
 describe('performance pair manifest validation', () => {
   it('accepts exactly one cold and one warm sample for this run', () => {
@@ -41,6 +45,15 @@ describe('performance pair manifest validation', () => {
     expect(() => validatePairResult({ ...spec, samples: [cold] }, spec, route)).toThrow(
       'exactly two'
     );
+  });
+  it('rejects a claimed warm measurement without service-worker evidence', () => {
+    expect(() =>
+      validatePairResult(
+        { ...spec, samples: [cold, { ...warm, warmEvidence: undefined }] },
+        spec,
+        route
+      )
+    ).toThrow('sample 1');
   });
   it('records a failed worker as two blocked attempts without inventing load times', () => {
     const failed = failedWorkerResult(route, spec, 'worker exit 1');

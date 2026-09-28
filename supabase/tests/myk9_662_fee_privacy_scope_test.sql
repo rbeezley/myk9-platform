@@ -185,9 +185,11 @@ UPDATE public.entries
    SET registration_id = '00000000-0000-0000-0000-000000663501',
        payment_status = 'paid', payment_method = 'check'
  WHERE id = '00000000-0000-0000-0000-000000663904';
+SET LOCAL ROLE service_role;
 UPDATE public.enrollments
    SET total_amount = 3500, paid_amount = 35, payment_status = 'paid_by_check'
  WHERE id = '00000000-0000-0000-0000-000000663501';
+RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 DO $$

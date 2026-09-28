@@ -17,6 +17,7 @@ import {
   listClubRoleRequests,
 } from '@/services/database/role-requests';
 import { notifications } from '@/lib/notifications';
+import { queryKeys } from '@/lib/queryClient';
 
 export function useClubShowAccessRequests(
   clubId: string | undefined,
@@ -80,6 +81,7 @@ export function useClubShowAccessRequests(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubOfficials(clubId) });
       notifications.success('Request approved. They can now run this club’s shows.');
     },
     onError: error =>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClubAdmins, getClubShowManagers } from '@/services/database/club-memberships';
+import { queryKeys } from '@/lib/queryClient';
 
 export interface ClubOfficials {
   adminNames: string[];
@@ -35,7 +36,7 @@ async function fetchClubOfficials(clubId: string): Promise<ClubOfficials> {
 
 export function useClubOfficials(clubId: string | undefined) {
   return useQuery({
-    queryKey: ['club-officials', clubId],
+    queryKey: queryKeys.clubOfficials(clubId),
     queryFn: () => fetchClubOfficials(clubId as string),
     enabled: Boolean(clubId),
     staleTime: 60_000,

@@ -346,6 +346,21 @@ describe('club officials line', () => {
     expect(screen.queryByTestId('club-secretary-names')).not.toBeInTheDocument();
   });
 
+  it('shows a retryable error when officials cannot load', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    (getClubOfficials as Mock)
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce({ adminNames: ['Jane Doe'], secretaryNames: [] });
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Club officials couldn't load.");
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent('Admin: Jane Doe');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('does not ask for officials on behalf of a signed-out guest', () => {
     (useAuthContext as Mock).mockImplementation(() => ({ user: null }));
 

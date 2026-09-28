@@ -92,7 +92,11 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     [club.accentColor]
   );
   const contact = useMemo(() => normalizeContactDestinations(club), [club]);
-  const { data: officials } = useClubOfficials(club.id);
+  const {
+    data: officials,
+    isError: officialsError,
+    refetch: refetchOfficials,
+  } = useClubOfficials(club.id);
   const hasMenuActions =
     canEditBranding ||
     canDeleteClub ||
@@ -309,10 +313,27 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 </span>
               )}
             </div>
-            <ClubOfficialsLine
-              adminNames={officials?.adminNames ?? []}
-              secretaryNames={officials?.secretaryNames ?? []}
-            />
+            {officialsError ? (
+              <div
+                role="alert"
+                className="mb-2 flex flex-wrap items-center gap-2 text-sm text-destructive"
+              >
+                <span>Club officials couldn't load.</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
+                  onClick={() => void refetchOfficials()}
+                >
+                  Try again
+                </Button>
+              </div>
+            ) : (
+              <ClubOfficialsLine
+                adminNames={officials?.adminNames ?? []}
+                secretaryNames={officials?.secretaryNames ?? []}
+              />
+            )}
             {/* MYK9-855: the badge alone only reads on hover (the `title`
                 above), which a touch device never shows. Say in visible text
                 what is pending and who acts on it next, instead of leaving

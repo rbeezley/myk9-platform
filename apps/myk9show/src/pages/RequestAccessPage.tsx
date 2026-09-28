@@ -3,6 +3,7 @@ import { ArrowLeft, Building2, CheckCircle2, Search, UserRound } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
+import { normalizeWebsiteUrl } from '@/lib/validation';
 import type { Club } from '@/types/club-types';
 import { ExistingClubRequestPanel } from '@/features/club-requests/ExistingClubRequestPanel';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,13 @@ const RequestAccessPage: React.FC = () => {
     setSubmitted(false);
   };
 
+  const handleWebsiteBlur = () => {
+    const normalized = normalizeWebsiteUrl(website);
+    if (normalized.valid) {
+      setWebsite(normalized.value);
+    }
+  };
+
   const submitNewClub = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = clubName.trim();
@@ -41,12 +49,19 @@ const RequestAccessPage: React.FC = () => {
       return;
     }
 
+    const normalizedWebsite = normalizeWebsiteUrl(website);
+    if (!normalizedWebsite.valid) {
+      setError('Please enter a valid website URL (e.g., example.com or https://example.com).');
+      return;
+    }
+    setWebsite(normalizedWebsite.value);
+
     setIsSubmitting(true);
     setError(null);
     try {
       await submitNewClubAccessRequest({
         clubName: trimmedName,
-        website: website.trim(),
+        website: normalizedWebsite.value,
         note: note.trim(),
       });
       setSubmitted(true);
@@ -123,7 +138,7 @@ const RequestAccessPage: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-5" onSubmit={submitNewClub}>
+              <form className="space-y-5" onSubmit={submitNewClub} noValidate>
                 <div className="space-y-2">
                   <Label htmlFor="requested-club-name">Club name</Label>
                   <Input
@@ -141,6 +156,7 @@ const RequestAccessPage: React.FC = () => {
                     type="url"
                     value={website}
                     onChange={event => setWebsite(event.target.value)}
+                    onBlur={handleWebsiteBlur}
                     placeholder="https://"
                   />
                 </div>

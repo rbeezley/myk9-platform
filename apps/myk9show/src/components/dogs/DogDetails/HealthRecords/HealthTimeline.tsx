@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
 import {
   Calendar,
   Heart,
@@ -12,7 +11,6 @@ import {
   Shield,
   Stethoscope,
   FileText,
-  Search,
   Filter,
   Download,
   Upload,
@@ -23,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { downloadFile, exportToCSV } from '@/lib/export';
+import { ListFilterBar } from '@/components/list-toolkit';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
 import {
@@ -30,6 +29,7 @@ import {
   hasActiveHealthTimelineFilters,
   type HealthTimelineFilters,
 } from './HealthTimeline.filters';
+import { buildHealthTimelineFilterFields } from './HealthTimeline.filterFields';
 import { HealthTimelineEvent } from './HealthTimelineEvent';
 
 export interface HealthEvent {
@@ -170,6 +170,11 @@ export function HealthTimeline({
     setSelectedYear(null);
   };
 
+  const handleFilterFieldChange = (patch: Partial<HealthTimelineFilters>) => {
+    if ('filterType' in patch && patch.filterType !== undefined) setFilterType(patch.filterType);
+    if ('selectedYear' in patch) setSelectedYear(patch.selectedYear ?? null);
+  };
+
   const filteredEvents = useMemo(() => {
     return filterHealthEvents(events, activeFilters).sort(
       (a, b) => b.date.getTime() - a.date.getTime()
@@ -286,75 +291,36 @@ export function HealthTimeline({
         <CardContent className="p-4">
           <div
             data-testid="health-timeline-filters"
-            className={cn('flex flex-wrap gap-4', isNarrow && 'flex-col')}
+            className={cn('flex flex-wrap items-start gap-2', isNarrow && 'flex-col items-stretch')}
           >
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search health records..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                  aria-label="Search health records"
-                />
-              </div>
+            <div className="min-w-0 flex-1">
+              <ListFilterBar
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="Search health records..."
+                fields={buildHealthTimelineFilterFields({
+                  filters: activeFilters,
+                  eventTypeOptions: Object.entries(eventTypeConfig).map(([key, config]) => ({
+                    value: key,
+                    label: config.label,
+                  })),
+                  availableYears,
+                  vaccinationsOnly,
+                  onChange: handleFilterFieldChange,
+                })}
+                {...(filtersActive ? { onClearAll: clearFilters } : {})}
+              />
             </div>
 
-            <div className={cn('flex flex-wrap gap-2', isNarrow && 'w-full flex-col')}>
-              {!vaccinationsOnly && (
-                <select
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                  className={cn('px-3 py-2 border rounded-md text-sm', isNarrow && 'w-full')}
-                  aria-label="Filter by record type"
-                >
-                  <option value="all">All Types</option>
-                  {Object.entries(eventTypeConfig).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              <select
-                value={selectedYear ?? ''}
-                onChange={e => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
-                className={cn('px-3 py-2 border rounded-md text-sm', isNarrow && 'w-full')}
-                aria-label="Filter by year"
-              >
-                <option value="">All Years</option>
-                {availableYears.map(year => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-
-              <div className={cn('flex gap-2', isNarrow && 'w-full')}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(isNarrow && 'flex-1')}
-                  onClick={() => setViewMode(viewMode === 'timeline' ? 'grid' : 'timeline')}
-                  aria-label="Toggle timeline view mode"
-                >
-                  <Filter className="h-4 w-4" />
-                </Button>
-
-                {filtersActive && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(isNarrow && 'flex-1')}
-                    onClick={clearFilters}
-                  >
-                    Clear filters
-                  </Button>
-                )}
-              </div>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('shrink-0', isNarrow && 'w-full')}
+              onClick={() => setViewMode(viewMode === 'timeline' ? 'grid' : 'timeline')}
+              aria-label="Toggle timeline view mode"
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>

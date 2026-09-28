@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
-import { AskQAnswer, AskQAnswerSkeleton } from './AskQAnswer';
+import { AskQAnswer, TeraWorkingIndicator } from './AskQAnswer';
 
 const SUPPORT_TICKET_NEXT_STEP =
   'Use the box below, then click Create ticket so we can follow up in the app.';
@@ -31,7 +31,7 @@ export function AskQAppHelpContent({
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.answer}</p>
           </div>
         ) : (
-          <AskQAnswerSkeleton />
+          <TeraWorkingIndicator />
         ))}
 
       {state.route?.kind === 'answer' && (

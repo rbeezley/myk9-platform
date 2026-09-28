@@ -65,6 +65,16 @@ export function deriveStatusCounts(
  * Per-window counts WITHIN one status. `positionCount` is the wait-list
  * positions that belong on All and Upcoming (never Completed) under this
  * status; the caller decides it, because only it knows the scope.
+ *
+ * A position has no `MyEntry` row, so it renders in its own section below
+ * the show list rather than as a row inside it (MYK9-417). Folding it into a
+ * badge's count is therefore only honest when it is the ONLY thing that
+ * badge describes — a real order under the same tab already has its own row
+ * in the list the badge sits above, and adding the position on top would
+ * count something the list underneath does not contain (MYK9-804: an
+ * exhibitor read "All 8" over a 7-row list and took the extra one for a
+ * missing entry, when it was a wait-list position rendered elsewhere on the
+ * page). So the position only stands in for an otherwise-EMPTY tab.
  */
 export function deriveTabCounts(
   entries: MyEntry[],
@@ -74,11 +84,12 @@ export function deriveTabCounts(
 ): Record<EntryTabFilter, number> {
   const statusFiltered = entries.filter(entry => orderMatchesStatusFilter(entry, status));
   return Object.fromEntries(
-    ENTRY_TAB_DEFS.map(tab => [
-      tab.id,
-      statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length +
-        (tab.id === 'completed' ? 0 : positionCount),
-    ])
+    ENTRY_TAB_DEFS.map(tab => {
+      const realCount = statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length;
+      const admitsPositions = tab.id !== 'completed';
+      const count = admitsPositions && realCount === 0 ? realCount + positionCount : realCount;
+      return [tab.id, count];
+    })
   ) as Record<EntryTabFilter, number>;
 }
 

@@ -8,6 +8,7 @@ import { notifications } from '@/lib/notifications';
 import type { ShowStyle } from '@/features/registries';
 import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
 import { LANDING_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
+import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 
 const STYLE_LABELS: Record<ShowStyle, string> = PREMIUM_STYLE_LABELS;
 
@@ -100,7 +101,7 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
         {/* Same route the deleted header `...` menu used; this is the link
             moving next to the URL it previews, not a second implementation. */}
         <Button size="sm" variant="outline" asChild className="min-h-[44px] flex-1 sm:flex-none">
-          <Link to={`/shows/${showId}?preview=public`}>
+          <Link to={getShowPreviewHref(showId, `/shows/${showId}`)}>
             <Eye className="h-3.5 w-3.5 mr-1.5" />
             Preview
           </Link>

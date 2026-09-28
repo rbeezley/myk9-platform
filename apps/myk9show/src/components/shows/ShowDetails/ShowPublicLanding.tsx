@@ -12,6 +12,7 @@ import {
   ShowStyleSaveError,
 } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
+import { PreviewExitBar } from './PreviewExitBar';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
@@ -170,6 +171,7 @@ export function ShowPublicLanding({
 
   return (
     <>
+      {isManagerDraftPreview && <PreviewExitBar showId={show.id} />}
       {styleEditorEnabled && (
         <PremiumStylePreviewControls
           committedStyle={committedStyle}

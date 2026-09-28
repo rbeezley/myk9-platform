@@ -12,22 +12,25 @@ export interface VenueLocateNoticeValue {
 }
 
 const MANUAL = 'or click the map to place the pin yourself.';
+/** MYK9-857: a failed lookup must never look like a lost address — the typed
+ * text is saved as-is whether or not the map finds a pin for it. */
+const SAVE_AS_TYPED = 'You can still save it as typed.';
 
-/** MYK9-686: each failure says what happened and what to do next. */
+/** MYK9-686/MYK9-857: each failure says what happened and what to do next. */
 const NOTICES: Record<LocateFailure, VenueLocateNoticeValue> = {
   not_found: {
     kind: 'not_found',
-    message: `We couldn't find that address on the map. Check the street, city and ZIP and locate again, ${MANUAL}`,
+    message: `We couldn't find that address on the map. ${SAVE_AS_TYPED} Check the street, city and ZIP and locate again, ${MANUAL}`,
     canRetry: false,
   },
   invalid: {
     kind: 'invalid',
-    message: `Enter a street address with city and state to locate it, ${MANUAL}`,
+    message: `Enter a street address with city and state to locate it. ${SAVE_AS_TYPED} Or, ${MANUAL}`,
     canRetry: false,
   },
   unavailable: {
     kind: 'unavailable',
-    message: `The map search isn't responding right now. Try again, ${MANUAL}`,
+    message: `The map search isn't responding right now. ${SAVE_AS_TYPED} Try again, ${MANUAL}`,
     canRetry: true,
   },
 };

@@ -8,7 +8,7 @@ interface LockedCredentialChipProps {
 
 /**
  * The committed credential, shown back with an edit affordance once the front
- * door has branched (password or passcode step).
+ * door has branched into the committed passcode step.
  *
  * INTENT: no hunting — the value you typed stays on screen, and getting back to
  * it is one obvious tap rather than a browser Back guess.

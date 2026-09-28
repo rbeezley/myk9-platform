@@ -45,6 +45,7 @@ import {
 import { countUpcomingClubShows } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { queryKeys } from '@/lib/queryClient';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 import { useClubMembershipRequests } from './useClubMembershipRequests';
@@ -285,6 +286,7 @@ const ClubMembersPage: React.FC = () => {
     }) => setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
     onSuccess: (_, { personId, grant, personName }) => {
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubOfficials(clubId) });
       // The name has to be supplied by the caller now. Resolving it from `members`
       // fails for exactly the people this feature added — a non-member appointee has
       // no roster row — and the fallback called them "the member", which is both

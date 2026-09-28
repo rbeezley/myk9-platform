@@ -22,10 +22,9 @@ test.describe('Authentication Flow Test', () => {
     // Navigate to sign-in page
     await page.goto('/sign-in', { waitUntil: 'networkidle' });
 
-    // Drive the two-step flow: an email reveals the password step, then a bad
-    // password fails and keeps us on /sign-in.
+    // Credential and password fields render together from the start
+    // (MYK9-853); a bad password fails and keeps us on /sign-in.
     await page.fill('[data-testid="credential-input"]', 'invalid@example.com');
-    await page.click('[data-testid="continue-button"]');
     await expect(page.locator('[data-testid="password-input"]')).toBeVisible();
     await page.fill('[data-testid="password-input"]', 'wrongpassword');
     await page.click('[data-testid="sign-in-button"]');

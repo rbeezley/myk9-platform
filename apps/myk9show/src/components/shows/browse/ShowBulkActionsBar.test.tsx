@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowBulkActionsBar } from './ShowBulkActionsBar';
@@ -59,13 +59,26 @@ describe('ShowBulkActionsBar', () => {
     );
   }
 
+  function bulkBar() {
+    return screen.getByRole('toolbar', { name: /bulk actions/i });
+  }
+
+  function dialog() {
+    return screen.getByRole('dialog');
+  }
+
   it('bulk status change persists a DB-valid status for every selected show', async () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole('button', { name: /status/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /mark completed/i }));
-    await user.click(screen.getByRole('button', { name: /mark completed/i }));
+    // The bar's own "Mark completed" button and the dialog's confirm button
+    // share the same accessible name, so each click is scoped to its own
+    // container rather than the destructive-click-picks-another-row trap
+    // (docs/lessons/README.md#confirm-click-destructive).
+    await user.click(within(bulkBar()).getByRole('button', { name: /mark completed/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /mark completed/i })
+    );
 
     await waitFor(() => {
       expect(updateShow).toHaveBeenCalledWith('show-1', { status: 'completed' });
@@ -78,8 +91,10 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole('button', { name: /delete/i }));
-    await user.click(await screen.findByRole('button', { name: /delete shows/i }));
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
+    );
 
     await waitFor(() => {
       expect(deleteShow).toHaveBeenCalledWith('show-1');
@@ -100,8 +115,10 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole('button', { name: /delete/i }));
-    await user.click(await screen.findByRole('button', { name: /delete shows/i }));
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
+    );
 
     await waitFor(() => {
       expect(notifications.error).toHaveBeenCalledWith(
@@ -123,8 +140,8 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole('button', { name: /delete/i }));
-    await user.click(await screen.findByRole('button', { name: /delete shows/i }));
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
 
     expect(await screen.findByText(/failed to delete the selected shows/i)).toBeInTheDocument();
     expect(onBulkComplete).not.toHaveBeenCalled();

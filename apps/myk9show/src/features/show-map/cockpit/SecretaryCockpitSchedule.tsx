@@ -3,24 +3,19 @@ import { ChevronDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ListViewTabs } from '@/components/list-toolkit';
 import { cn } from '@/lib/utils';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
+import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
   CockpitFilter,
   SecretaryCockpitClass,
   SecretaryCockpitModel,
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
-
-const FILTERS: readonly { value: CockpitFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'in-progress', label: 'In progress' },
-  { value: 'needs-attention', label: 'Needs attention' },
-  { value: 'needs-closeout', label: 'Needs closeout' },
-];
 
 export function SecretaryCockpitSchedule({
   model,
@@ -85,21 +80,12 @@ export function SecretaryCockpitSchedule({
             </Button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2" aria-label="Schedule filters">
-          {FILTERS.map(option => (
-            <Button
-              key={option.value}
-              type="button"
-              size="sm"
-              variant={filter === option.value ? 'default' : 'secondary'}
-              aria-pressed={filter === option.value}
-              onClick={() => onFilterChange(option.value)}
-              className="min-h-11 rounded-full"
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
+        <ListViewTabs
+          views={buildCockpitScheduleViews(model)}
+          activeId={filter}
+          onSelect={id => onFilterChange(id as CockpitFilter)}
+          label="Schedule filters"
+        />
       </section>
 
       <section className="space-y-3 xl:col-start-1 xl:row-start-2" aria-label="Trial schedule">

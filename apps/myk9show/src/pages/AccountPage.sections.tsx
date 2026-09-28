@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, Camera, CheckCircle2, Loader2, Mail, MapPin, Phone } from 'lucide-react';
@@ -14,8 +14,8 @@ import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { USER_ROLE_HIERARCHY } from '@/types/auth-types';
-import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
+import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { describeUserRoleBadges } from '@/pages/AccountPage.roleBadges';
 import { deleteUser } from '@/services/database/users/reads';
 import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
@@ -34,7 +34,8 @@ function getPendingSelfDeleteRevocationKey(authUserId: string) {
 export function ProfileSection() {
   const form = useProfileForm();
   const updatePerson = useUpdatePerson();
-  const { getUserRoles } = useAuthContext();
+  const { getUserRoles, rbacUserRoles } = useAuthContext();
+  const { data: clubs = [] } = useClubsQuery();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onSuccess = useCallback(
@@ -46,8 +47,11 @@ export function ProfileSection() {
 
   const { upload, uploading, error: avatarError } = useAvatarUpload({ onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
-  const userRoles = new Set(getUserRoles());
-  const roles = USER_ROLE_HIERARCHY.filter(role => userRoles.has(role));
+  const clubNameById = useMemo(() => new Map(clubs.map(club => [club.id, club.name])), [clubs]);
+  const roleBadges = useMemo(
+    () => describeUserRoleBadges(getUserRoles(), rbacUserRoles ?? [], clubNameById),
+    [getUserRoles, rbacUserRoles, clubNameById]
+  );
 
   // Auto-clear the inline success indicator after a few seconds, matching
   // SecuritySettings' password-update feedback pattern.
@@ -258,11 +262,14 @@ export function ProfileSection() {
           </p>
         </CardHeader>
         <CardContent>
-          {roles.length > 0 ? (
+          {roleBadges.length > 0 ? (
             <div className="flex flex-wrap gap-2" aria-label="Assigned roles">
-              {roles.map(role => (
-                <Badge key={role} variant="secondary">
-                  {ROLE_LABELS[role] ?? role}
+              {roleBadges.map((label, index) => (
+                // Two distinct clubs can share a display name, so the same
+                // label text can legitimately appear twice — index keeps the
+                // key unique without changing the label itself.
+                <Badge key={`${label}-${index}`} variant="secondary">
+                  {label}
                 </Badge>
               ))}
             </div>

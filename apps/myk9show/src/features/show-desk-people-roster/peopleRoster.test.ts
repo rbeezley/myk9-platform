@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { buildPeopleRoster, filterPeopleRoster, formatTrialIdentity } from './peopleRoster';
+import {
+  buildPeopleRoster,
+  buildPeopleRosterViews,
+  filterPeopleRoster,
+  formatTrialIdentity,
+  type PeopleRosterFilter,
+} from './peopleRoster';
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -176,6 +182,58 @@ describe('peopleRoster', () => {
     ]);
   });
 
+  it('MYK9-812: builds view tabs whose counts match filterPeopleRoster for each view id', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry(),
+        entry({
+          id: 'entry-3',
+          registrationId: 'reg-3',
+          dogId: 'dog-3',
+          dogName: 'Cedar',
+          ownerName: 'Bob Chen',
+          handlerName: 'Bob Chen',
+          ownerId: 'person-2',
+          ownerAuthUserId: 'auth-2',
+          handlerId: 'person-2',
+          handlerAuthUserId: 'auth-2',
+          entryNumber: '208',
+          armbandNumber: '208',
+          classes: [
+            {
+              id: 'class-3',
+              name: 'Exterior Novice A',
+              number: '3',
+              fee: 25,
+              status: 'entered',
+              checkInStatus: 'checked-in',
+            },
+          ],
+        }),
+      ],
+      presence: [
+        {
+          userId: 'auth-2',
+          name: 'Bob Chen',
+          role: 'exhibitor',
+          location: { page: '/shows/show-1' },
+          activity: 'viewing',
+          ts: 1,
+        },
+      ],
+    });
+
+    const views = buildPeopleRosterViews(roster);
+
+    expect(views.map(view => view.id)).toEqual(['all', 'needs-check-in', 'online']);
+    for (const view of views) {
+      expect(view.count).toBe(filterPeopleRoster(roster, '', view.id as PeopleRosterFilter).length);
+    }
+    expect(views.find(view => view.id === 'all')?.count).toBe(2);
+    expect(views.find(view => view.id === 'needs-check-in')?.count).toBe(1);
+    expect(views.find(view => view.id === 'online')?.count).toBe(1);
+  });
+
   it('marks missing armbands and inactive rows without check-in eligibility', () => {
     const roster = buildPeopleRoster({
       entries: [
@@ -269,6 +327,30 @@ describe('peopleRoster', () => {
         statusLabel: 'Not today',
       })
     );
+  });
+
+  // MYK9-842: a multi-day show with unchecked entries only on a FUTURE trial
+  // day must produce no "needs check-in" result on the roster -- not just a
+  // per-row ineligible flag, but zero rows surfaced by the roster's own
+  // "Needs check-in" filter and no "N due" badge.
+  it('surfaces no needs-check-in rows or badge when unchecked entries exist only on a future day', () => {
+    const roster = buildPeopleRoster({
+      entries: [entry()],
+      presence: [],
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          trialDate: '2026-07-09',
+          timezone: 'America/Chicago',
+        },
+      ],
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.badge).not.toBe('1 due');
+    expect(filterPeopleRoster(roster, '', 'needs-check-in')).toHaveLength(0);
   });
 
   it('keeps rows ineligible when today is known but class date metadata is missing', () => {

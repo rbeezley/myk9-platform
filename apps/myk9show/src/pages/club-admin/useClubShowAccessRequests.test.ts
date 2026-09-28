@@ -7,7 +7,9 @@ import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { queryKeys } from '@/lib/queryClient';
 import type { RoleRequest } from '@/services/database/role-requests';
+import { approveClubRoleRequest } from '@/services/database/role-requests';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 
 const listClubRoleRequestsMock = vi.hoisted(() => vi.fn());
@@ -48,7 +50,10 @@ function renderTheHook() {
   });
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
-  return renderHook(() => useClubShowAccessRequests('club-1', vi.fn()), { wrapper });
+  return {
+    ...renderHook(() => useClubShowAccessRequests('club-1', vi.fn()), { wrapper }),
+    queryClient,
+  };
 }
 
 describe('useClubShowAccessRequests', () => {
@@ -70,5 +75,22 @@ describe('useClubShowAccessRequests', () => {
 
     expect(result.current.roleRequestsTabProps.pendingRequests[0]?.id).toBe('request-1');
     expect(result.current.clubMembersTabs.find(tab => tab.id === 'show-access')?.badge).toBe(1);
+  });
+
+  it('invalidates the club officials after approving a secretary request', async () => {
+    listClubRoleRequestsMock.mockResolvedValue([baseRequest({})]);
+    vi.mocked(approveClubRoleRequest).mockResolvedValue(undefined);
+    const { result, queryClient } = renderTheHook();
+    queryClient.setQueryData(queryKeys.clubOfficials('club-1'), {
+      adminNames: ['Club Admin'],
+      secretaryNames: [],
+    });
+
+    result.current.roleRequestsTabProps.onApproveRequest('request-1');
+
+    await waitFor(() => expect(approveClubRoleRequest).toHaveBeenCalledWith('request-1'));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(queryKeys.clubOfficials('club-1'))?.isInvalidated).toBe(true)
+    );
   });
 });

@@ -154,16 +154,6 @@ type UpdateShowStyle = {
 };
 
 /**
- * `20260926174500` (MYK9-822) adds the delete-dog dialog's blocking-entry
- * count RPC. Hand-declared until the next `supabase gen types` picks it up,
- * the same way `mark_enrollment_paid_online` was before its own regen.
- */
-type CountBlockingEntriesByDog = {
-  Args: { p_dog_id: string };
-  Returns: number;
-};
-
-/**
  * Club membership requests (MYK9-685) —
  * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
@@ -243,6 +233,20 @@ type ShowClassJudgeDayAvailability = WithReturnFields<
   }
 >;
 
+/**
+ * `get_club_officials` (MYK9-860, `20260928034700`), hand-declared until the next
+ * `supabase gen types`. `role` is only ever these two values: the SQL folds
+ * `trial_secretary` into 'secretary'. `person_name` is NULL for a person with no name.
+ */
+type GetClubOfficials = {
+  Args: { p_club_id: string };
+  Returns: {
+    role: 'club_admin' | 'secretary';
+    person_id: string;
+    person_name: string | null;
+  }[];
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -261,7 +265,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       list_club_role_requests: ListClubRoleRequests;
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
-      count_blocking_entries_by_dog: CountBlockingEntriesByDog;
+      get_club_officials: GetClubOfficials;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

@@ -49,6 +49,7 @@ describe('useVenueLocate', () => {
     expect(result.current.notice).toMatchObject({ kind: 'unavailable', canRetry: true });
     expect(result.current.notice?.message).toMatch(/isn.t responding/i);
     expect(result.current.notice?.message).toMatch(/click the map/i);
+    expect(result.current.notice?.message).toMatch(/save it as typed/i);
     expect(onLocated).not.toHaveBeenCalled();
 
     mockGeocode.mockResolvedValueOnce({ status: 'found', lat: 1, lng: 2 });
@@ -65,6 +66,7 @@ describe('useVenueLocate', () => {
     expect(result.current.notice).toMatchObject({ kind: 'not_found', canRetry: false });
     expect(result.current.notice?.message).toMatch(/couldn.t find that address/i);
     expect(result.current.notice?.message).toMatch(/click the map/i);
+    expect(result.current.notice?.message).toMatch(/save it as typed/i);
   });
 
   it('asks for a street address when the input is malformed', async () => {
@@ -74,6 +76,7 @@ describe('useVenueLocate', () => {
     await act(() => result.current.locate());
     expect(result.current.notice).toMatchObject({ kind: 'invalid', canRetry: false });
     expect(result.current.notice?.message).toMatch(/street address/i);
+    expect(result.current.notice?.message).toMatch(/save it as typed/i);
   });
 
   it('drops a result that arrives after the address was edited', async () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { HealthTimeline, type HealthEvent } from './HealthTimeline';
 import { downloadFile, exportToCSV } from '@/lib/export';
@@ -233,6 +234,70 @@ describe('HealthTimeline export', () => {
 
     expect(onImportRecords).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledWith('Fix CSV errors before importing.');
+  });
+});
+
+describe('HealthTimeline filters via the shared list toolkit', () => {
+  const events: HealthEvent[] = [
+    {
+      id: 'vacc-1',
+      type: 'vaccination',
+      title: 'Rabies Vaccination',
+      date: new Date('2026-02-14T12:00:00Z'),
+      status: 'completed',
+    },
+    {
+      id: 'visit-1',
+      type: 'vet_visit',
+      title: 'Annual Checkup',
+      date: new Date('2025-06-01T12:00:00Z'),
+      status: 'completed',
+    },
+  ];
+
+  it('narrows the timeline with the search box', () => {
+    render(<HealthTimeline dogId="dog-123" events={events} />);
+
+    fireEvent.change(screen.getByLabelText(/search health records/i), {
+      target: { value: 'checkup' },
+    });
+
+    expect(screen.getByText('Annual Checkup')).toBeInTheDocument();
+    expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
+  });
+
+  it('narrows the timeline by type through the "+ Filter" menu', async () => {
+    const user = userEvent.setup();
+    render(<HealthTimeline dogId="dog-123" events={events} />);
+
+    await user.click(screen.getByRole('button', { name: /^filter$/i }));
+    await user.click(screen.getByRole('button', { name: 'Type' }));
+    await user.click(screen.getByRole('button', { name: 'Vet Visit' }));
+
+    expect(screen.getByText('Annual Checkup')).toBeInTheDocument();
+    expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
+  });
+
+  it('narrows the timeline by year through the "+ Filter" menu', async () => {
+    const user = userEvent.setup();
+    render(<HealthTimeline dogId="dog-123" events={events} />);
+
+    await user.click(screen.getByRole('button', { name: /^filter$/i }));
+    await user.click(screen.getByRole('button', { name: 'Year' }));
+    await user.click(screen.getByRole('button', { name: '2025' }));
+
+    expect(screen.getByText('Annual Checkup')).toBeInTheDocument();
+    expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
+  });
+
+  it('omits Type from the filter menu in vaccinations-only mode', async () => {
+    const user = userEvent.setup();
+    render(<HealthTimeline dogId="dog-123" events={events} vaccinationsOnly />);
+
+    await user.click(screen.getByRole('button', { name: /^filter$/i }));
+
+    expect(screen.queryByRole('button', { name: 'Type' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Year' })).toBeInTheDocument();
   });
 });
 

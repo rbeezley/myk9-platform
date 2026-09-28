@@ -100,6 +100,8 @@ interface BulkBarButtonProps {
   children: ReactNode;
   tone?: 'default' | 'destructive';
   disabled?: boolean;
+  /** Shown as a native tooltip — used to explain why the button is disabled. */
+  title?: string | undefined;
 }
 
 export function BulkBarButton({
@@ -108,12 +110,14 @@ export function BulkBarButton({
   children,
   tone = 'default',
   disabled = false,
+  title,
 }: BulkBarButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium',
         'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',

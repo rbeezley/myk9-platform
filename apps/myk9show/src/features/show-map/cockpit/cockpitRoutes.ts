@@ -51,15 +51,16 @@ export function writeCockpitUrlState(
   const requestedToolId = previous.get('tool')?.trim();
   if (requestedToolId) params.set('tool', requestedToolId);
 
-  // MYK9-825/826: the People-at-show roster's own filter (`rosterFilter`,
-  // e.g. `needs-check-in`) rides in a param distinct from this state's own
+  // MYK9-825/826, renamed `rosterFilter` -> `view` by MYK9-812: the
+  // People-at-show roster's own view (`usePeopleRosterUrlState`, e.g.
+  // `needs-check-in`) rides in a param distinct from this state's own
   // `filter`. CockpitUrlState has no concept of it, so without carrying it
   // forward here (same as `tool` above) a cockpit-driven URL rewrite — e.g.
   // selecting a day or focusing a class — would silently drop it on the
   // next `writeCockpitUrlState` call, resetting the roster to "All
   // exhibitors" on reopen/refresh.
-  const requestedRosterFilter = previous.get('rosterFilter')?.trim();
-  if (requestedRosterFilter) params.set('rosterFilter', requestedRosterFilter);
+  const requestedRosterView = previous.get('view')?.trim();
+  if (requestedRosterView) params.set('view', requestedRosterView);
 
   return params;
 }

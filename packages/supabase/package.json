@@ -26,10 +26,10 @@
     "generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.types.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.116.0"
+    "@supabase/supabase-js": "^2.117.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.1",
     "rimraf": "^6.1.3",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

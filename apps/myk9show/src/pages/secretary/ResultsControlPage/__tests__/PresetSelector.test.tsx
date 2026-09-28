@@ -12,6 +12,11 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useUpdateShowVisibility: () => ({ mutate, isPending: false }),
 }));
 
+const mockNetworkState = vi.hoisted(() => ({ isOnline: true }));
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => mockNetworkState,
+}));
+
 function makeSettings(visibility: {
   placement: VisibilityTiming;
   qualification: VisibilityTiming;
@@ -50,6 +55,7 @@ async function saveCustomTimings() {
 describe('PresetSelector — honest custom-preset persistence', () => {
   beforeEach(() => {
     mutate.mockClear();
+    mockNetworkState.isOnline = true;
   });
 
   it('persists preset: null when timings match no named preset (no coercion to standard)', async () => {
@@ -85,5 +91,48 @@ describe('PresetSelector — honest custom-preset persistence', () => {
   it('hides the custom status when a named preset is active', () => {
     render(<PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('PresetSelector — offline (MYK9-849)', () => {
+  beforeEach(() => {
+    mutate.mockClear();
+  });
+
+  it('disables preset cards and Save Custom Timings, and shows a "Needs a connection" hint', async () => {
+    mockNetworkState.isOnline = false;
+    const user = userEvent.setup();
+    render(<PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />);
+
+    expect(screen.getByRole('button', { name: 'Apply "Immediately" preset' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByText('Needs a connection', { exact: false })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Apply "Immediately" preset' }));
+    expect(mutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
+    expect(screen.getByRole('button', { name: 'Save Custom Timings' })).toBeDisabled();
+  });
+
+  it('re-enables once back online', () => {
+    mockNetworkState.isOnline = false;
+    const { rerender } = render(
+      <PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />
+    );
+    expect(screen.getByRole('button', { name: 'Apply "Immediately" preset' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+
+    mockNetworkState.isOnline = true;
+    rerender(<PresetSelector showId="show-1" settings={makeSettings(STANDARD)} />);
+    expect(screen.getByRole('button', { name: 'Apply "Immediately" preset' })).toHaveAttribute(
+      'aria-disabled',
+      'false'
+    );
+    expect(screen.queryByText('Needs a connection', { exact: false })).not.toBeInTheDocument();
   });
 });

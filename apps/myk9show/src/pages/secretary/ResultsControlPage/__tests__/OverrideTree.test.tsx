@@ -22,6 +22,11 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+const mockNetworkState = vi.hoisted(() => ({ isOnline: true }));
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => mockNetworkState,
+}));
+
 const settings: ShowSettings = {
   visibility: {
     placement: 'class_complete',
@@ -71,6 +76,7 @@ function renderTree(opts?: {
 describe('OverrideTree', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNetworkState.isOnline = true;
   });
 
   it('renders only visibility controls in visibility mode', () => {
@@ -231,5 +237,66 @@ describe('OverrideTree', () => {
     const classCheckbox = screen.getByRole('checkbox', { name: 'Select Container Novice' });
     const classRow = classCheckbox.closest('.rounded-md');
     expect(classRow).toHaveClass('flex-col', 'sm:flex-row');
+  });
+
+  describe('offline (MYK9-849)', () => {
+    beforeEach(() => {
+      mockNetworkState.isOnline = false;
+    });
+
+    it('disables the visibility preset select and shows a "Needs a connection" hint', () => {
+      renderTree();
+      const combobox = screen.getByRole('combobox', { name: 'Results visibility for Trial A' });
+      expect(combobox).toBeDisabled();
+      expect(combobox).toHaveAttribute('aria-describedby', 'override-tree-connection-hint');
+      expect(screen.getByText(/Needs a connection/)).toBeInTheDocument();
+    });
+
+    it('disables the check-in switch and reset button, swapping the reset title to the hint', async () => {
+      const { user } = renderTree({
+        facet: 'checkin',
+        trialOverrides: [
+          { trialId: 'trial-1', override: { preset: 'review' }, selfCheckinEnabled: false },
+        ],
+      });
+      const trialSwitch = screen.getByRole('switch', { name: 'Self check-in for Trial A' });
+      expect(trialSwitch).toHaveAttribute('aria-disabled', 'true');
+      expect(trialSwitch).toHaveAttribute('aria-describedby', 'override-tree-connection-hint');
+
+      const resetButton = screen.getByRole('button', { name: 'Reset check-in for Trial A' });
+      expect(resetButton).toBeDisabled();
+      expect(resetButton).toHaveAttribute('title', 'Needs a connection');
+
+      // A click on a disabled switch dispatches nothing.
+      await user.click(trialSwitch);
+      expect(mockTrialMutate).not.toHaveBeenCalled();
+    });
+
+    it('re-enables controls once back online', () => {
+      const { rerender } = renderTree();
+      expect(
+        screen.getByRole('combobox', { name: 'Results visibility for Trial A' })
+      ).toBeDisabled();
+
+      mockNetworkState.isOnline = true;
+      rerender(
+        <OverrideTree
+          facet="visibility"
+          showId="show-1"
+          settings={settings}
+          trials={trials}
+          classes={classes}
+          trialOverrides={[]}
+          classOverrides={[]}
+          selectedClasses={new Set()}
+          onToggleClass={vi.fn()}
+          onToggleAllInTrial={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByRole('combobox', { name: 'Results visibility for Trial A' })
+      ).not.toBeDisabled();
+      expect(screen.queryByText(/Needs a connection/)).not.toBeInTheDocument();
+    });
   });
 });

@@ -124,14 +124,6 @@ export interface GateResult {
   evidence?: GateEvidence;
 }
 
-/** Kept for `PrView.statusCheckRollup` below — the fetched rollup shape. */
-export interface StatusCheck {
-  name?: string;
-  context?: string;
-  conclusion?: string | null;
-  state?: string | null;
-}
-
 /**
  * The evidence line. Must be the FIRST line of the comment (the workflow's
  * trigger filter uses the same rule); the dash accepts em, en or hyphen.
@@ -749,7 +741,6 @@ interface PrView {
   labels?: Array<{ name: string }>;
   additions?: number;
   deletions?: number;
-  statusCheckRollup?: StatusCheck[];
   /**
    * GitHub's own count of the files this PR touches. Used only to CHECK the
    * fetched list, never as the list itself — see fileListIsUnusable.
@@ -801,7 +792,9 @@ export function runCli(
       '--repo',
       repo,
       '--json',
-      'headRefOid,baseRefOid,isDraft,statusCheckRollup,changedFiles,labels,additions,deletions',
+      // No `statusCheckRollup`: nothing reads it, and its GraphQL query now reaches
+      // `checkSuite.workflowRun`, which the gate's token may not read — every run crashed.
+      'headRefOid,baseRefOid,isDraft,changedFiles,labels,additions,deletions',
     ])
   ) as PrView;
   if (view.isDraft) {

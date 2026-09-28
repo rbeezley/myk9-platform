@@ -2,19 +2,27 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAccountNotifications } from '../useAccountNotifications';
 
-const { mockAddAlert, mockRefreshPermissions, mockUseQueryResult, mockUpdate, mockEq, mockIn } =
-  vi.hoisted(() => {
-    const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
-    const mockEq = vi.fn(() => ({ in: mockIn }));
-    return {
-      mockAddAlert: vi.fn(),
-      mockRefreshPermissions: vi.fn(),
-      mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
-      mockUpdate: vi.fn(() => ({ eq: mockEq })),
-      mockEq,
-      mockIn,
-    };
-  });
+const {
+  mockAddAlert,
+  mockRefreshPermissions,
+  mockUseQueryResult,
+  mockUpdate,
+  mockEq,
+  mockIn,
+  currentAuthUser,
+} = vi.hoisted(() => {
+  const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
+  const mockEq = vi.fn(() => ({ in: mockIn }));
+  return {
+    mockAddAlert: vi.fn(),
+    mockRefreshPermissions: vi.fn(),
+    mockUseQueryResult: vi.fn(() => ({ data: undefined as unknown })),
+    mockUpdate: vi.fn(() => ({ eq: mockEq })),
+    mockEq,
+    mockIn,
+    currentAuthUser: { id: 'auth-user-1' as string | null },
+  };
+});
 
 vi.mock('@/lib/supabase', () => ({
   supabase: { from: vi.fn(() => ({ update: mockUpdate })) },
@@ -25,7 +33,7 @@ vi.mock('@/store/notificationStore', () => ({
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { id: 'auth-user-1' },
+    userWithRoles: currentAuthUser.id ? { id: currentAuthUser.id } : null,
     refreshPermissions: mockRefreshPermissions,
   }),
 }));
@@ -45,11 +53,14 @@ const clubApprovedRow = {
 describe('useAccountNotifications', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentAuthUser.id = 'auth-user-1';
     mockUseQueryResult.mockReturnValue({ data: undefined });
   });
 
   it('delivers an unread club_access_approved row as the exact bell payload', () => {
-    mockUseQueryResult.mockReturnValue({ data: [clubApprovedRow] });
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
 
     renderHook(() => useAccountNotifications());
 
@@ -65,7 +76,9 @@ describe('useAccountNotifications', () => {
   });
 
   it('refreshes RBAC permissions after delivering a club_access_approved row', () => {
-    mockUseQueryResult.mockReturnValue({ data: [clubApprovedRow] });
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
 
     renderHook(() => useAccountNotifications());
 
@@ -73,7 +86,9 @@ describe('useAccountNotifications', () => {
   });
 
   it('marks delivered rows read, scoped to the signed-in user, so a later poll does not redeliver them', () => {
-    mockUseQueryResult.mockReturnValue({ data: [clubApprovedRow] });
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
 
     renderHook(() => useAccountNotifications());
 
@@ -84,10 +99,12 @@ describe('useAccountNotifications', () => {
 
   it('does not redeliver the same row when a later poll returns it again unread', () => {
     // Each call returns a NEW array/object (a fresh poll response with the
-    // same still-unread row), so the effect's `rows` dependency actually
-    // changes identity across rerenders and the deliveredRef guard — not
-    // React's own effect-dependency memoization — is what's under test.
-    mockUseQueryResult.mockImplementation(() => ({ data: [{ ...clubApprovedRow }] }));
+    // same still-unread row), so the effect's `data` dependency actually
+    // changes identity across rerenders and the per-user delivered guard —
+    // not React's own effect-dependency memoization — is what's under test.
+    mockUseQueryResult.mockImplementation(() => ({
+      data: { userId: 'auth-user-1', rows: [{ ...clubApprovedRow }] },
+    }));
 
     const { rerender } = renderHook(() => useAccountNotifications());
     rerender();
@@ -98,7 +115,10 @@ describe('useAccountNotifications', () => {
 
   it('ignores notification types that belong to other delivery paths and never marks them read', () => {
     mockUseQueryResult.mockReturnValue({
-      data: [{ ...clubApprovedRow, id: 'notif-other', type: 'entry_confirmed' }],
+      data: {
+        userId: 'auth-user-1',
+        rows: [{ ...clubApprovedRow, id: 'notif-other', type: 'entry_confirmed' }],
+      },
     });
     renderHook(() => useAccountNotifications());
     expect(mockAddAlert).not.toHaveBeenCalled();
@@ -106,12 +126,56 @@ describe('useAccountNotifications', () => {
   });
 
   it('does nothing when there are no unread rows', () => {
-    mockUseQueryResult.mockReturnValue({ data: [] });
+    mockUseQueryResult.mockReturnValue({ data: { userId: 'auth-user-1', rows: [] } });
 
     renderHook(() => useAccountNotifications());
 
     expect(mockAddAlert).not.toHaveBeenCalled();
     expect(mockRefreshPermissions).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('delivers nothing and marks nothing read when the fetch result belongs to a previous user (stale data after an account switch)', () => {
+    // Current session is user B, but the query result in flight was fetched
+    // for user A (e.g. resolved just after an in-app account switch).
+    currentAuthUser.id = 'auth-user-2';
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
+
+    renderHook(() => useAccountNotifications());
+
+    expect(mockAddAlert).not.toHaveBeenCalled();
+    expect(mockRefreshPermissions).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('delivers a switched-in user row even when its id matches an already-delivered row from the previous user', () => {
+    currentAuthUser.id = 'auth-user-1';
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-1', rows: [clubApprovedRow] },
+    });
+    const { rerender } = renderHook(() => useAccountNotifications());
+    expect(mockAddAlert).toHaveBeenCalledTimes(1);
+
+    currentAuthUser.id = 'auth-user-2';
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-2', rows: [{ ...clubApprovedRow, id: 'notif-1' }] },
+    });
+    rerender();
+
+    expect(mockAddAlert).toHaveBeenCalledTimes(2);
+  });
+
+  it('scopes the mark-read UPDATE to the row owner (data.userId) for the currently signed-in user', () => {
+    currentAuthUser.id = 'auth-user-2';
+    mockUseQueryResult.mockReturnValue({
+      data: { userId: 'auth-user-2', rows: [{ ...clubApprovedRow, id: 'notif-2' }] },
+    });
+
+    renderHook(() => useAccountNotifications());
+
+    expect(mockEq).toHaveBeenCalledWith('user_id', 'auth-user-2');
+    expect(mockIn).toHaveBeenCalledWith('id', ['notif-2']);
   });
 });

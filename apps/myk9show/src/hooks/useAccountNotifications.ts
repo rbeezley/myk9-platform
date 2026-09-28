@@ -40,51 +40,68 @@ const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
  * one thing MYK9-859 exists to do. An account-level notice like "your club
  * was approved" isn't the ambient show-day chatter that toggle is for.
  */
+/** A fetch result bound to the user it was fetched for, so a delivered row
+ * can never be attributed to whichever user happens to be signed in when
+ * the fetch resolves — required after an in-app account switch left rows
+ * bound only to the query's cache key, not to the effect that delivers them. */
+interface AccountNotificationsResult {
+  userId: string;
+  rows: AccountNotificationRow[];
+}
+
 export function useAccountNotifications(): void {
   const { userWithRoles, refreshPermissions } = useAuthContext();
   const addAlert = useNotificationStore(s => s.addAlert);
   const authUserId = userWithRoles?.id ?? null;
-  const deliveredRef = useRef<Set<string>>(new Set());
+  const deliveredByUserRef = useRef<Map<string, Set<string>>>(new Map());
 
   const query = useQuery({
     queryKey: queryKeys.accountNotifications(authUserId),
-    queryFn: async (): Promise<AccountNotificationRow[]> => {
+    queryFn: async (): Promise<AccountNotificationsResult> => {
+      const userId = authUserId as string;
       const { data, error } = await supabase
         .from('notifications')
         .select('id, type, message, deep_link_url, created_at')
-        .eq('user_id', authUserId as string)
+        .eq('user_id', userId)
         .in('type', [...ACCOUNT_NOTIFICATION_TYPES])
         .is('read_at', null)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      return { userId, rows: data ?? [] };
     },
     enabled: Boolean(authUserId),
     staleTime: POLL_MS,
     refetchInterval: POLL_MS,
   });
 
-  const rows = query.data;
+  const data = query.data;
   useEffect(() => {
-    if (!rows || rows.length === 0) return;
-    const unseen = rows.filter(
-      row => HANDLED_TYPES.has(row.type) && !deliveredRef.current.has(row.id)
-    );
+    // A fetch started for the previous user can resolve after an account
+    // switch; only ever act on a result that matches who is signed in now.
+    if (!data || data.userId !== authUserId || data.rows.length === 0) return;
+    const { userId, rows } = data;
+
+    let delivered = deliveredByUserRef.current.get(userId);
+    if (!delivered) {
+      delivered = new Set<string>();
+      deliveredByUserRef.current.set(userId, delivered);
+    }
+
+    const unseen = rows.filter(row => HANDLED_TYPES.has(row.type) && !delivered!.has(row.id));
     if (unseen.length === 0) return;
 
     let shouldRefreshPermissions = false;
     for (const row of unseen) {
-      deliveredRef.current.add(row.id);
+      delivered.add(row.id);
       addAlert(buildAccountNotificationPayload(row));
       if (ROLE_CHANGING_TYPES.has(row.type)) shouldRefreshPermissions = true;
     }
     if (shouldRefreshPermissions) refreshPermissions();
 
-    const authUserIdForUpdate = authUserId as string;
     void supabase
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
-      .eq('user_id', authUserIdForUpdate)
+      .eq('user_id', userId)
       .in(
         'id',
         unseen.map(row => row.id)
@@ -99,5 +116,5 @@ export function useAccountNotifications(): void {
           );
         }
       });
-  }, [rows, addAlert, refreshPermissions, authUserId]);
+  }, [data, addAlert, refreshPermissions, authUserId]);
 }

@@ -5,10 +5,7 @@ export interface ClubOfficialsLineProps {
   secretaryNames: string[];
 }
 
-/**
- * Renders nothing when neither group is readable for the current viewer —
- * see useClubOfficials.ts for what "readable" means per-viewer (MYK9-860).
- */
+/** Renders nothing when this viewer gets no officials back (MYK9-860). */
 export const ClubOfficialsLine: React.FC<ClubOfficialsLineProps> = ({
   adminNames,
   secretaryNames,

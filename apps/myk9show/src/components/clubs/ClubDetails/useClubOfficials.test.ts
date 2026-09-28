@@ -1,9 +1,7 @@
 /**
- * MYK9-860 — direct coverage of the data path ClubOfficialsLine.test.tsx
- * cannot reach: the real getClubAdmins/getClubShowManagers wiring, the
- * null-name filter, and the per-source `.catch(() => [])` that must let one
- * unreadable group (RLS-denied, or a genuinely broken query) fall back to []
- * without losing the other group's names.
+ * MYK9-860 — who the officials query runs for, and that a failure stays a failure.
+ * The RPC returns zero rows to unauthorized signed-in viewers, so nothing here needs
+ * swallowing; guests are skipped because anon cannot execute it at all.
  */
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -11,15 +9,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('@/services/database/club-memberships', () => ({
-  getClubAdmins: vi.fn(),
-  getClubShowManagers: vi.fn(),
+  getClubOfficials: vi.fn(),
 }));
 
-import { getClubAdmins, getClubShowManagers } from '@/services/database/club-memberships';
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: vi.fn(),
+}));
+
+import { getClubOfficials } from '@/services/database/club-memberships';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubOfficials } from './useClubOfficials';
 
-const mockedGetClubAdmins = vi.mocked(getClubAdmins);
-const mockedGetClubShowManagers = vi.mocked(getClubShowManagers);
+const mockedGetClubOfficials = vi.mocked(getClubOfficials);
+const mockedUseAuthContext = vi.mocked(useAuthContext);
+
+function signedInAs(user: { id: string; is_anonymous?: boolean } | null) {
+  mockedUseAuthContext.mockReturnValue({ user } as unknown as ReturnType<typeof useAuthContext>);
+}
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -31,70 +37,53 @@ function createWrapper() {
 describe('useClubOfficials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    signedInAs({ id: 'auth-1' });
   });
 
-  it('combines admin and secretary names once both reads resolve', async () => {
-    mockedGetClubAdmins.mockResolvedValue([{ personId: 'p1', personName: 'Jane Doe' }]);
-    mockedGetClubShowManagers.mockResolvedValue([
-      {
-        personId: 'p2',
-        personName: 'Pat Lee',
-        personEmail: null,
-        isClubMember: true,
-        membershipStatus: 'active',
-      },
-    ]);
-
-    const { result } = renderHook(() => useClubOfficials('club-1'), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.data).toBeDefined());
-
-    expect(result.current.data).toEqual({
-      adminNames: ['Jane Doe'],
+  it('returns the officials for a signed-in viewer', async () => {
+    mockedGetClubOfficials.mockResolvedValue({
+      adminNames: ['Jane Doe', 'John Smith'],
       secretaryNames: ['Pat Lee'],
     });
-    expect(mockedGetClubAdmins).toHaveBeenCalledWith('club-1');
-    expect(mockedGetClubShowManagers).toHaveBeenCalledWith('club-1');
-  });
-
-  it('drops entries with no resolvable person name', async () => {
-    mockedGetClubAdmins.mockResolvedValue([{ personId: 'p1', personName: null }]);
-    mockedGetClubShowManagers.mockResolvedValue([]);
 
     const { result } = renderHook(() => useClubOfficials('club-1'), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.data).toBeDefined());
-
-    expect(result.current.data).toEqual({ adminNames: [], secretaryNames: [] });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({
+      adminNames: ['Jane Doe', 'John Smith'],
+      secretaryNames: ['Pat Lee'],
+    });
+    expect(mockedGetClubOfficials).toHaveBeenCalledWith('club-1');
   });
 
-  it('falls back to [] for the group that errors, without losing the other group', async () => {
-    // Mirrors an RLS-denied read (a guest, or a viewer unauthorized for
-    // get_club_show_managers) — and, just as importantly, a genuinely broken
-    // query: both throw, and both must be indistinguishable to this hook
-    // (the display responsibility ends at "no names for this viewer").
-    mockedGetClubAdmins.mockRejectedValue(new Error('42501: not authorized'));
-    mockedGetClubShowManagers.mockResolvedValue([
-      {
-        personId: 'p2',
-        personName: 'Pat Lee',
-        personEmail: null,
-        isClubMember: true,
-        membershipStatus: 'active',
-      },
-    ]);
+  it('surfaces a failed read as an error, not as an empty list', async () => {
+    mockedGetClubOfficials.mockRejectedValue(new Error('function does not exist'));
 
     const { result } = renderHook(() => useClubOfficials('club-1'), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.data).toBeDefined());
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
+  });
 
-    expect(result.current.data).toEqual({ adminNames: [], secretaryNames: ['Pat Lee'] });
+  it('does not query for a signed-out guest', () => {
+    signedInAs(null);
+
+    renderHook(() => useClubOfficials('club-1'), { wrapper: createWrapper() });
+
+    expect(mockedGetClubOfficials).not.toHaveBeenCalled();
+  });
+
+  it('does not query for an anonymous ringside session', () => {
+    signedInAs({ id: 'anon-1', is_anonymous: true });
+
+    renderHook(() => useClubOfficials('club-1'), { wrapper: createWrapper() });
+
+    expect(mockedGetClubOfficials).not.toHaveBeenCalled();
   });
 
   it('does not query when no clubId is given', () => {
     renderHook(() => useClubOfficials(undefined), { wrapper: createWrapper() });
 
-    expect(mockedGetClubAdmins).not.toHaveBeenCalled();
-    expect(mockedGetClubShowManagers).not.toHaveBeenCalled();
+    expect(mockedGetClubOfficials).not.toHaveBeenCalled();
   });
 });

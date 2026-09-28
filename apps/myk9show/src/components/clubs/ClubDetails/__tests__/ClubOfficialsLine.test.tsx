@@ -1,8 +1,7 @@
 /**
  * MYK9-860 — the club admin(s)/secretary(ies) line under the club name.
- * useClubOfficials.ts resolves each group to [] when RLS makes it unreadable
- * for the current viewer; this component's only job is to render that
- * correctly, including rendering nothing when neither group is readable.
+ * get_club_officials returns zero rows to viewers who may not see the list;
+ * this component's only job is to render what came back, including nothing.
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';

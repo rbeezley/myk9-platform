@@ -1,44 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
-import { getClubAdmins, getClubShowManagers } from '@/services/database/club-memberships';
+import { getClubOfficials } from '@/services/database/club-memberships';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys } from '@/lib/queryClient';
 
-export interface ClubOfficials {
-  adminNames: string[];
-  secretaryNames: string[];
-}
-
-function toNames(names: (string | null)[]): string[] {
-  return names.filter((name): name is string => Boolean(name));
-}
-
 /**
- * Club admin(s) and secretary(ies) for the club header (MYK9-860).
- *
- * Admins come from a direct `user_roles` read, which RLS scopes to the
- * caller's own row or a site admin (see admins.ts) — no policy change.
- * Secretaries come from the existing `get_club_show_managers` RPC, which
- * already permits a broader set of callers (site admin, or this club's own
- * admin/secretary) via its own internal check. Either read returning
- * unauthorized (RLS row-filtering, or the RPC's 42501) is not an error for
- * this display — it just means this viewer sees no names for that group.
+ * Club admin(s) and secretary(ies) for the club header (MYK9-860). Guests and
+ * anonymous ringside sessions are skipped: anon has no EXECUTE on the RPC, and an
+ * anonymous session is never a member, so the answer is known to be empty.
  */
-async function fetchClubOfficials(clubId: string): Promise<ClubOfficials> {
-  const [admins, secretaries] = await Promise.all([
-    getClubAdmins(clubId).catch(() => []),
-    getClubShowManagers(clubId).catch(() => []),
-  ]);
-
-  return {
-    adminNames: toNames(admins.map(admin => admin.personName)),
-    secretaryNames: toNames(secretaries.map(manager => manager.personName)),
-  };
-}
-
 export function useClubOfficials(clubId: string | undefined) {
+  const { user } = useAuthContext();
+  const isSignedIn = Boolean(user) && user?.is_anonymous !== true;
+
   return useQuery({
     queryKey: queryKeys.clubOfficials(clubId),
-    queryFn: () => fetchClubOfficials(clubId as string),
-    enabled: Boolean(clubId),
+    queryFn: () => getClubOfficials(clubId as string),
+    enabled: Boolean(clubId) && isSignedIn,
     staleTime: 60_000,
   });
 }

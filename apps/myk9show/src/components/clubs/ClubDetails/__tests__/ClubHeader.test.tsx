@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi, type Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
@@ -9,17 +9,21 @@ vi.mock('@/components/ui/cover-image-upload', () => ({
   CoverImageUpload: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// MYK9-860: the club officials line reads through useClubOfficials, which
-// calls these two real service functions. Mocked here (default empty, like
-// the pre-existing tests below already got from the global Supabase mock) so
-// the "populated" test below proves the line actually renders when the real
-// data path resolves, not just when handed props by hand.
+// MYK9-860: the officials line reads through useClubOfficials ->
+// getClubOfficials. Mocked (default empty) so the "populated" test proves the
+// line renders when the real hook resolves, not just when handed props. The
+// hook skips guests, so the viewer is signed in unless a test says otherwise.
 vi.mock('@/services/database/club-memberships', () => ({
-  getClubAdmins: vi.fn().mockResolvedValue([]),
-  getClubShowManagers: vi.fn().mockResolvedValue([]),
+  getClubOfficials: vi.fn().mockResolvedValue({ adminNames: [], secretaryNames: [] }),
 }));
 
-import { getClubAdmins, getClubShowManagers } from '@/services/database/club-memberships';
+vi.mock('@/hooks/useAuthContext', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useAuthContext')>()),
+  useAuthContext: vi.fn(() => ({ user: { id: 'auth-1' } })),
+}));
+
+import { getClubOfficials } from '@/services/database/club-memberships';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const baseClub: Club = {
   id: 'club-1',
@@ -312,33 +316,42 @@ describe('club authorization control', () => {
   });
 });
 
-// MYK9-860 — proves the real wiring (useClubOfficials -> getClubAdmins /
-// getClubShowManagers -> ClubOfficialsLine), not just the presentational
-// component in isolation (see ClubOfficialsLine.test.tsx for that).
+// MYK9-860 — proves the real wiring (useClubOfficials -> getClubOfficials ->
+// ClubOfficialsLine), not just the presentational component in isolation.
 describe('club officials line', () => {
-  it('shows the admin and secretary names once the real data path resolves', async () => {
-    (getClubAdmins as Mock).mockResolvedValueOnce([{ personId: 'p1', personName: 'Jane Doe' }]);
-    (getClubShowManagers as Mock).mockResolvedValueOnce([
-      {
-        personId: 'p2',
-        personName: 'Pat Lee',
-        personEmail: null,
-        isClubMember: true,
-        membershipStatus: 'active',
-      },
-    ]);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as Mock).mockImplementation(() => ({ user: { id: 'auth-1' } }));
+  });
+
+  it('shows every admin and secretary once the real data path resolves', async () => {
+    (getClubOfficials as Mock).mockResolvedValueOnce({
+      adminNames: ['Jane Doe', 'John Smith'],
+      secretaryNames: ['Pat Lee'],
+    });
 
     render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
 
-    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent('Admin: Jane Doe');
+    expect(await screen.findByTestId('club-admin-names')).toHaveTextContent(
+      'Admins: Jane Doe, John Smith'
+    );
     expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
   });
 
-  it('renders nothing when this viewer has no readable admins or secretaries', async () => {
+  it('renders nothing when this viewer gets no officials back', async () => {
     render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
 
-    await waitFor(() => expect(getClubAdmins).toHaveBeenCalledWith(baseClub.id));
+    await waitFor(() => expect(getClubOfficials).toHaveBeenCalledWith(baseClub.id));
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
     expect(screen.queryByTestId('club-secretary-names')).not.toBeInTheDocument();
+  });
+
+  it('does not ask for officials on behalf of a signed-out guest', () => {
+    (useAuthContext as Mock).mockImplementation(() => ({ user: null }));
+
+    render(<ClubHeader club={baseClub} onEditClub={noop} onEditPhoto={noop} onDeleteClub={noop} />);
+
+    expect(getClubOfficials).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
   });
 });

@@ -69,11 +69,22 @@ it at the start of slice B, not before.
 Ship each as its own small PR, each with one independent (Codex) review at the end, never a
 review per patch.
 
-**Slice A — show setting and print.** Nullable `shows.junior_handler_fee` with a bounded CHECK
-(`>= 0 and < 100000`; `numeric` admits NaN through a bare `>= 0`), explicit `GRANT`s and
-`REVOKE FROM anon` per the migration rules, the field in the show edit form (hidden for ASCA),
-and the real fee/age in `buildEntryBlankProps.ts`. It changes no price. Nothing is charged
-differently, so a secretary sees the setting but no entry is priced by it until slice B.
+**Slice A — show setting and entry-blank fee.** Nullable `shows.junior_handler_fee` with a bounded
+CHECK (`>= 0 and < 100000`; `numeric` admits NaN through a bare `>= 0`), the field on the show
+**edit** panel (hidden for ASCA), and the real fee in `buildEntryBlankProps.ts`, replacing the
+hardcoded `$18.00`. It changes no price. Deliberately left out, each for a later slice or issue:
+the show **creation** wizard (it would touch the atomic `create_show_with_children` RPC and the
+clone path), the public premium-list PDF bodies, and the entry-blank **age** field. That field
+stays null on purpose: MYK9-664 moved `date_of_birth` to `people_private` so no official-facing read
+can derive a handler's age. No GRANT is needed (`public.shows` has a table-level grant), which must be
+verified against the applied database after `db push`.
+
+**Slice A2 — set the fee when creating a show.** Add the Junior Handler Fee field to the show creation
+wizard's fees step (hidden for ASCA), carry it through the wizard store, the payload builder and the
+clone-from-show path, and add `junior_handler_fee` to `create_show_with_children` (a new migration
+that copies from the LATEST definition of that function, never an older one). Small, and independent
+of pricing, so it can ship before or after slice B. Until it ships, a secretary sets the fee on the
+show edit panel after creating the show.
 
 **Slice B — staff and desk entries (show-day path).** `submit_show_entries` (cash, check,
 waived) and the offline insert path price a junior entry using the single derivation function

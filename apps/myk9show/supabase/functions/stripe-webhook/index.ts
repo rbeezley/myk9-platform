@@ -5,7 +5,7 @@ import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCa
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
-import { recoverSubmittedCart } from '../_shared/paidCartClaim.ts';
+import { decideLostClaim, recoverSubmittedCart } from '../_shared/paidCartClaim.ts';
 import { buildLegacyCheckoutSnapshot } from '../_shared/legacyCheckoutSnapshot.ts';
 import {
   INACTIVE_ENTRY_STATUSES,
@@ -1260,6 +1260,16 @@ async function handleEntryPaymentCompleted(
     if (racedOrderError) throw new Error(`Raced order read failed: ${racedOrderError.message}`);
     if (existingOrder) {
       console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
+      return;
+    }
+    const { data: lostCart, error: lostCartError } = await supabase
+      .from('entry_carts')
+      .select('status')
+      .eq('id', cartId)
+      .maybeSingle();
+    if (lostCartError) throw new Error(`Lost-claim cart read failed: ${lostCartError.message}`);
+    if (decideLostClaim(lostCart?.status) === 'refund') {
+      await refundUnfulfillableEntryCheckout(session, 'Cart was abandoned before it was paid');
       return;
     }
     throw new Error(`Paid cart ${cartId} claim was won by another worker; retry`);

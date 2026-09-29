@@ -172,6 +172,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           showFeeInfo: {
             preEntryFee: currentShow.preEntryFee || '0',
             dayOfShowFee: currentShow.dayOfShowFee,
+            organization: currentShow.organization,
             juniorHandlerFee: currentShow.juniorHandlerFee,
             juniorFeeKnown: currentShow.juniorFeeKnown,
             startDate: currentShow.startDate,

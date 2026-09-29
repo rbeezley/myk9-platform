@@ -35,6 +35,7 @@ import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
+import { juniorFeeMayApply } from './juniorFeePolicy';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -48,6 +49,7 @@ export interface PaymentStepCartDeps {
 export interface PaymentStepShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  organization?: string | undefined;
   juniorHandlerFee?: string | undefined;
   juniorFeeKnown?: boolean | undefined;
   startDate: string;
@@ -137,9 +139,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     // submission lets the server price and settle adult lines atomically.
     const deferJuniorPayment =
       ctx.isLateEntryMode &&
-      ctx.currentWorkflowMode !== 'exhibitor' &&
-      ctx.paymentMethod !== 'waived' &&
-      (Number(ctx.showFeeInfo.juniorHandlerFee) > 0 || ctx.showFeeInfo.juniorFeeKnown === false);
+      juniorFeeMayApply(ctx.showFeeInfo, ctx.currentWorkflowMode, ctx.paymentMethod);
     if (
       deferJuniorPayment &&
       (ctx.paymentMethod === 'secretary_paid' || ctx.paymentMethod === 'group_payment')

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { decideSubmittedCartRecovery, recoverSubmittedCart } from './paidCartClaim';
+import {
+  decideLostClaim,
+  decideSubmittedCartRecovery,
+  recoverSubmittedCart,
+} from './paidCartClaim';
 
 const base = {
   paidSessionId: 'cs_paid',
@@ -63,4 +67,17 @@ describe('recoverSubmittedCart', () => {
     expect(callbacks.releaseStaleClaim).not.toHaveBeenCalled();
     expect(callbacks.refundDuplicate).not.toHaveBeenCalled();
   });
+});
+
+describe('decideLostClaim', () => {
+  it.each(['submitted', 'active', 'expired'])('retries while the cart is %s', status => {
+    expect(decideLostClaim(status)).toBe('retry');
+  });
+
+  it.each(['abandoned', 'cancelled', null, undefined])(
+    'refunds a paid session on a cart that is %s',
+    status => {
+      expect(decideLostClaim(status)).toBe('refund');
+    }
+  );
 });

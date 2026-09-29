@@ -249,6 +249,26 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
   }
 
+  /**
+   * MYK9-662: `ADD COLUMN junior_handler_fee` does not touch `updated_at`, so an
+   * incremental pull never re-sends shows a device cached before the column
+   * existed, and a desk that cannot tell "no junior tier" from "not synced yet"
+   * refuses cash and check entries offline. A synced row always carries the
+   * column (null when unset), so `undefined` marks a pre-column row: pull those
+   * clubs' shows in full once, after which the check is false again.
+   */
+  private async hasRowsMissingJuniorFee(syncScopeId: string): Promise<boolean> {
+    try {
+      const local = await this.getAllOrThrow();
+      return local.some(
+        show => show.juniorHandlerFee === undefined && (!syncScopeId || show.clubId === syncScopeId)
+      );
+    } catch {
+      // An unreadable replica is the sync engine's own failure to report.
+      return false;
+    }
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -293,7 +313,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       adapter,
       { value: syncScopeId },
       {
-        forceFullSync: options?.forceFullSync === true,
+        forceFullSync:
+          options?.forceFullSync === true || (await this.hasRowsMissingJuniorFee(syncScopeId)),
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
       }
     );

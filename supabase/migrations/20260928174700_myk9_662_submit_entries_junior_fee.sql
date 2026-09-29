@@ -17,7 +17,7 @@ DECLARE
           AND s.junior_handler_fee > 0
           AND (
             NULLIF(v_entry->>'handler_id', '') IS NOT NULL
-            OR NULLIF(v_entry->>'handler_name', '') IS NULL
+            OR NULLIF(btrim(v_entry->>'handler_name'), '') IS NULL
           )
           AND private.entry_handler_is_junior(v_handler_person_id, v_class_id, v_trial_id) IS TRUE),
       v_server_fee
@@ -89,7 +89,11 @@ BEGIN
   END IF;
 
   NEW.entry_fee := coalesce(
+    -- A manager may insert directly and read entry_fee back, so an unrelated
+    -- handler must price as an adult: the fee would otherwise reveal whether
+    -- that person is a junior on the trial date (the MYK9-664 bisect oracle).
     CASE WHEN v_junior_fee > 0 AND v_handler_id IS NOT NULL
+           AND private.entry_handler_has_show_relationship(NEW.show_id, NEW.dog_id, v_handler_id)
            AND private.entry_handler_is_junior(v_handler_id, NEW.class_id, v_trial_id) IS TRUE
       THEN v_junior_fee END,
     CASE WHEN NEW.is_day_of_show IS TRUE AND v_dos_fee > 0 THEN v_dos_fee

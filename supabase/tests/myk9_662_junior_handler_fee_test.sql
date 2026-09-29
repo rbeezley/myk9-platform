@@ -67,18 +67,26 @@ FROM (SELECT (now() AT TIME ZONE 'UTC')::date AS today) AS anchor,
      (VALUES
        ('00000000-0000-0000-0000-000000662101'::uuid, 'MYK9-662 Show A junior fee set', 15::numeric),
        ('00000000-0000-0000-0000-000000662102'::uuid, 'MYK9-662 Show B junior fee unset', NULL),
-       ('00000000-0000-0000-0000-000000662103'::uuid, 'MYK9-662 Show C junior fee zero', 0)
+       ('00000000-0000-0000-0000-000000662103'::uuid, 'MYK9-662 Show C junior fee zero', 0),
+       -- Show D: a junior fee, and the junior handler is NOT enrolled here.
+       ('00000000-0000-0000-0000-000000662104'::uuid, 'MYK9-662 Show D junior fee, unrelated', 15)
      ) AS v(id, name, junior_fee);
 
 DO $$
+DECLARE
+  bad_fee numeric;
 BEGIN
-  BEGIN
-    UPDATE public.shows SET junior_handler_fee = -1
-    WHERE id = '00000000-0000-0000-0000-000000662101';
-    RAISE EXCEPTION 'negative junior handler fee was accepted';
-  EXCEPTION WHEN check_violation THEN
-    NULL;
-  END;
+  -- Negative, NaN (numeric sorts it above every number) and an amount that
+  -- would overflow integer cents are all refused.
+  FOREACH bad_fee IN ARRAY ARRAY[-1::numeric, 'NaN'::numeric, 100000::numeric] LOOP
+    BEGIN
+      UPDATE public.shows SET junior_handler_fee = bad_fee
+      WHERE id = '00000000-0000-0000-0000-000000662101';
+      RAISE EXCEPTION 'junior handler fee % was accepted', bad_fee;
+    EXCEPTION WHEN check_violation THEN
+      NULL;
+    END;
+  END LOOP;
 END;
 $$;
 
@@ -89,7 +97,7 @@ SELECT
   'MYK9-662 Trial ' || suffix,
   ((now() AT TIME ZONE 'UTC')::date + 30),
   'AKC', 'Scent Work', 'UTC'
-FROM (VALUES ('01'), ('02'), ('03')) AS t(suffix);
+FROM (VALUES ('01'), ('02'), ('03'), ('04')) AS t(suffix);
 
 INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
 SELECT
@@ -211,6 +219,12 @@ SELECT
   ('00000000-0000-0000-0000-0000006621' || suffix)::uuid,
   '00000000-0000-0000-0000-000000662001'
 FROM (VALUES ('01'), ('02'), ('03')) AS e(suffix);
+
+-- Show D's own class (the generated ids stop at 303; 304 is the offline class below).
+INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+VALUES ('00000000-0000-0000-0000-000000662305',
+        '00000000-0000-0000-0000-000000662204',
+        'Interior Novice A', 'Interior', 'Novice', 'upcoming', 'manual', 30);
 
 -- Separate class for direct offline-sync inserts (the RPC cases above use 301).
 INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
@@ -433,6 +447,26 @@ BEGIN
   IF (SELECT entry_fee FROM public.entries
       WHERE id = '00000000-0000-0000-0000-000000662902') <> 30 THEN
     RAISE EXCEPTION 'FAIL case 9: offline adult fee was not filled at 30';
+  END IF;
+
+  -- Case 8b: a manager can INSERT directly and read entry_fee back, so a
+  -- handler with no relationship to the dog or show must price as an adult.
+  -- Otherwise the fee answers "is this person a junior on the trial date?"
+  -- (varying the trial date would bisect the birthday, the MYK9-664 oracle).
+  -- The junior handler is not the owner of dog 402, has no entry for it and is
+  -- not enrolled on Show D. Case 8 above is the related control that gets 15.
+  INSERT INTO public.entries (id, show_id, class_id, dog_id, handler_id,
+                              entry_source, entry_status, payment_status,
+                              payment_method, entry_fee, is_day_of_show)
+  VALUES ('00000000-0000-0000-0000-000000662905',
+          '00000000-0000-0000-0000-000000662104',
+          '00000000-0000-0000-0000-000000662305',
+          '00000000-0000-0000-0000-000000662402',
+          '00000000-0000-0000-0000-000000662001',
+          'myk9', 'confirmed', 'pending', 'cash', NULL, false);
+  IF (SELECT entry_fee FROM public.entries
+      WHERE id = '00000000-0000-0000-0000-000000662905') IS DISTINCT FROM 30 THEN
+    RAISE EXCEPTION 'FAIL case 8b: an unrelated handler priced at the junior fee';
   END IF;
 
   -- An offline write whose local show lacked the junior column gets the

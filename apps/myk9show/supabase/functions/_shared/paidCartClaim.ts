@@ -58,3 +58,14 @@ export async function recoverSubmittedCart(
   }
   return 'resume';
 }
+
+/**
+ * The claim UPDATE matched no row. `submitted` means another worker holds it,
+ * and `active`/`expired` means the race was transient: retry either way. Any
+ * other status (an `abandoned` cart whose checkout session stayed linked and
+ * was paid afterwards) can never be fulfilled, and retrying would fail forever
+ * with the charge kept and no entries made, so refund it.
+ */
+export function decideLostClaim(status: string | null | undefined): 'retry' | 'refund' {
+  return status === 'submitted' || status === 'active' || status === 'expired' ? 'retry' : 'refund';
+}

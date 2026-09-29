@@ -37,6 +37,7 @@ import { usePaymentMethodResolution } from '@/components/shows/RegistrationWorkf
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { juniorFeeMayApply } from './RegistrationWizardPage/juniorFeePolicy';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
 const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
@@ -128,14 +129,12 @@ function RegistrationWizardContent() {
   // except the Receipt, which has nothing left to total and keeps its own
   // ReceiptExits footer at every width.
   const isPaymentStep = currentStepId === 'payment';
-  const juniorFeeMayApply =
-    currentWorkflowMode !== 'exhibitor' &&
-    registrationData.paymentMethod !== 'waived' &&
-    currentShow?.organization !== 'ASCA' &&
-    Number(currentShow?.juniorHandlerFee) > 0;
+  const showJuniorFeeMayApply =
+    !!currentShow &&
+    juniorFeeMayApply(currentShow, currentWorkflowMode, registrationData.paymentMethod);
   // The offline path cannot read private handler age; the online submission
   // can atomically record adult money while leaving junior lines pending.
-  const deferJuniorPayment = juniorFeeMayApply && isLateEntryMode;
+  const deferJuniorPayment = showJuniorFeeMayApply && isLateEntryMode;
   const panelGroups = useEntriesPanelGroups({
     selectedDogIds: registrationData.selectedDogs,
     feeCalculation: liveFeeCalculation,
@@ -203,7 +202,7 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
-        feeUnconfirmed={juniorFeeMayApply}
+        feeUnconfirmed={showJuniorFeeMayApply}
         waitlistClassIds={waitlistClassIds}
         {...(isPaymentStep
           ? {
@@ -420,7 +419,7 @@ function RegistrationWizardContent() {
               currentWorkflowConfig={currentWorkflowConfig}
               currentWorkflowMode={currentWorkflowMode}
               deferJuniorPayment={deferJuniorPayment}
-              juniorFeeMayApply={juniorFeeMayApply}
+              juniorFeeMayApply={showJuniorFeeMayApply}
               registrationData={registrationData}
               optimisticState={optimisticState}
               showId={showId}

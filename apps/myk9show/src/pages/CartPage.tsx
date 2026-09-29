@@ -389,9 +389,16 @@ export default function CartPage() {
   // moment loadActiveCart begins, so "profile resolved with an id but no load
   // initiated yet" still counts as hydrating.
   const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
+  // The skeleton covers only the FIRST fee confirmation. Editing a line changes
+  // the quote key and re-quotes in the background; blanking the page for that
+  // would drop scroll and focus, so later quotes only disable Pay (feeUnavailable).
+  const [firstQuoteSettled, setFirstQuoteSettled] = useState(false);
+  if (!firstQuoteSettled && items.length > 0 && (feeQuote.ready || feeQuote.error)) {
+    setFirstQuoteSettled(true);
+  }
   const isHydrating =
     (items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad)) ||
-    (items.length > 0 && !feeQuote.ready && !feeQuote.error);
+    (items.length > 0 && !firstQuoteSettled && !feeQuote.ready && !feeQuote.error);
 
   // Rendered by every branch below, deliberately. Removing the last item flips
   // the page to the empty-cart branch, so a live region living inside the

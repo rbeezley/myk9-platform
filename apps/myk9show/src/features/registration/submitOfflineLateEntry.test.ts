@@ -168,6 +168,25 @@ describe('submitOfflineLateEntry', () => {
     ]);
   });
 
+  it('queues an unknown junior tier unpaid for trusted server pricing', async () => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      showFeeInfo: { preEntryFee: '30', startDate: '2026-07-01' },
+      feePending: true,
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ entryFee: undefined, paymentStatus: 'pending' }),
+      expect.anything()
+    );
+  });
+
   it('creates confirmed replicated day-of entries with payment and dog dependency metadata', async () => {
     getAllClassesMock.mockResolvedValue([
       { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },

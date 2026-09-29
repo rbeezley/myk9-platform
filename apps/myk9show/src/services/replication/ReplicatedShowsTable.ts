@@ -188,7 +188,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       entry_close_date: show.entryCloseDate || null,
       pre_entry_fee: show.preEntryFee ?? null,
       day_of_show_fee: show.dayOfShowFee ?? null,
-      junior_handler_fee: show.juniorHandlerFee ?? null,
+      ...(show.juniorHandlerFee !== undefined ? { junior_handler_fee: show.juniorHandlerFee } : {}),
       starting_armband_number: show.startingArmbandNumber ?? 100,
       club_id: show.clubId ?? null,
       max_entries_per_dog: show.maxEntriesPerDog ?? null,

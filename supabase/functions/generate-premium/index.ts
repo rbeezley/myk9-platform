@@ -7,6 +7,7 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
+import { premiumJuniorFee } from './juniorFee.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -309,7 +310,7 @@ handle<GeneratePremiumPayload>(
         entryCloseDate: show.entry_close_date,
         preEntryFee: show.pre_entry_fee,
         dayOfFee: show.day_of_show_fee,
-        juniorHandlerFee: show.junior_handler_fee,
+        juniorHandlerFee: premiumJuniorFee(show.organization, show.junior_handler_fee),
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
       },
@@ -400,6 +401,8 @@ function buildShowSummary(show: Record<string, unknown>): string {
     return `  - ${t.name} (${formatDateForPrompt(t.date)}): ${t.trial_type ?? 'unknown type'} — classes: ${classNames || 'none'}`;
   });
 
+  const juniorFee = premiumJuniorFee(show.organization, show.junior_handler_fee);
+
   return [
     `Show: ${show.name}`,
     `Organization: ${show.organization ?? 'AKC'}`,
@@ -407,9 +410,7 @@ function buildShowSummary(show: Record<string, unknown>): string {
     `Location: ${show.location ?? 'TBD'}`,
     `Entry opens: ${formatDateForPrompt(show.entry_open_date)}, closes: ${formatDateForPrompt(show.entry_close_date)}`,
     `Pre-entry fee: $${show.pre_entry_fee ?? 'TBD'}, day-of fee: $${show.day_of_show_fee ?? 'TBD'}`,
-    ...(show.junior_handler_fee > 0
-      ? [`Junior handler fee: $${show.junior_handler_fee} per class`]
-      : []),
+    ...(juniorFee !== null ? [`Junior handler fee: $${juniorFee} per class`] : []),
     `Payment: checks=${show.accept_check_payments}, cash=${show.accept_cash_payments}`,
     `Trials:\n${trialLines.join('\n')}`,
     'Note: Do not invent specific clock times or timezones in the narrative — only mention times if explicitly provided above.',

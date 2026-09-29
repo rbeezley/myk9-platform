@@ -18,9 +18,9 @@ import { describe, expect, it } from 'vitest';
  *
  * Expiry is already enforced upstream in pure code by `sessionMatchesCart`
  * (see sessionCartGuard.test.ts: "rejects a paid session for an EXPIRED cart"),
- * so the claim only needs the `status = 'active'` idempotency latch. These
- * assertions guard against anyone re-adding a PostgREST filter on `expires_at`
- * to the UPDATE.
+ * so the claim only needs an `active` or `expired` status latch. A delayed
+ * webhook can see `expired` after a valid payment. These assertions guard
+ * against anyone re-adding a PostgREST filter on `expires_at` to the UPDATE.
  */
 const source = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-webhook/index.ts'),
@@ -28,9 +28,9 @@ const source = readFileSync(
 );
 
 describe('stripe-webhook entry-payment cart claim', () => {
-  it('flips the paid cart active → submitted as an idempotency latch', () => {
+  it('claims active or expired carts paid while valid', () => {
     expect(source).toContain(".update({ status: 'submitted' })");
-    expect(source).toContain(".eq('status', 'active')");
+    expect(source).toContain(".in('status', ['active', 'expired'])");
   });
 
   it('never filters the claim on expires_at via a PostgREST .or() (the silent charge-without-entries bug)', () => {

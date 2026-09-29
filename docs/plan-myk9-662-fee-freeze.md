@@ -21,6 +21,12 @@ Each entry has one fee in integer cents, fixed by a trusted server at the first 
 4. **Compatibility and release.** Snapshot-less Sessions created before the server deployment are handled explicitly; an open legacy Session is expired and replaced at checkout, while an already paid one is checked against Stripe's charged lines and the Session's unchanged cart before its snapshot is persisted. The quote response is versioned so an old checkout function cannot silently create a Session in quote mode. Deploy schema and both Stripe functions before the client.
 5. **Refund and record lifecycle.** Recognize checkout auto-refunds in `charge.refunded`, treat an already refunded intent as successful on retry, and compare payment-link paid cents to the frozen entry fees before marking entries paid. Fee snapshots do not block authorized hard deletion and are deleted after seven years.
 
+## Round 5 review design
+
+1. **Paid cart claim.** The frozen snapshot and Stripe event-time expiry check decide whether payment is valid. The atomic claim accepts an `active` or `expired` cart still pointing to that Session; the status latch moves either to `submitted`. A paid, valid cart therefore cannot be stranded merely because the expiry worker ran before webhook delivery.
+2. **Replication and offline pricing.** A stale replicated show with an absent junior-fee field must omit that column from update and conflict-replay payloads; an explicit null remains a deliberate clear. A queued offline entry with a NULL fee is priced by the server trigger for every show, using the configured junior rate only when positive and otherwise the regular fee. The offline client leaves payment pending until sync.
+3. **Scope.** Only shows with a positive junior fee need the added staff handler relationship guard. Premium generation omits the junior fee for ASCA and narrows the untyped database value before comparing it.
+
 ## Verification and release
 
 - Add behavior tests for AKC birthday and UKC calendar-year boundaries, a failed quote with an editable cart, frozen-price webhook behavior after DOB/show-fee changes, retryable read failures, mismatch refunds, typed handlers, NULL/zero entry fees, co-owner writes, and scoped staff/offline deferral.

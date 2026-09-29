@@ -301,6 +301,23 @@ BEGIN
       got_fee;
   END IF;
 
+  -- A staff-selected unrelated handler is allowed when this show has no
+  -- junior fee: there is no private discount decision to probe.
+  result := public.submit_show_entries(
+    '00000000-0000-0000-0000-000000662102'::uuid,
+    '00000000-0000-0000-0000-000000662502'::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000662404'::uuid,
+      'class_id', '00000000-0000-0000-0000-000000662302'::uuid,
+      'handler_id', '00000000-0000-0000-0000-000000662002'::uuid,
+      'handler_name', 'MYK9-662 Adult',
+      'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000662808'::uuid,
+    'secretary_paid');
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL staff handler guard applied on a show without junior fee';
+  END IF;
+
   ----------------------------------------------------------------------------
   -- Case 5: junior-age handler, junior_handler_fee is exactly 0.
   ----------------------------------------------------------------------------
@@ -418,8 +435,9 @@ BEGIN
     RAISE EXCEPTION 'FAIL case 9: offline adult fee was not filled at 30';
   END IF;
 
-  -- A legacy pending row with NULL fee freezes once at its first payment
-  -- boundary. A later show-fee edit cannot reprice it.
+  -- An offline write whose local show lacked the junior column gets the
+  -- normal fee immediately on a show with no junior tier. The frozen value
+  -- survives a later show-fee edit.
   INSERT INTO public.entries (id, show_id, class_id, dog_id, handler_id,
                               entry_source, entry_status, payment_status,
                               payment_method, entry_fee, is_day_of_show)
@@ -429,11 +447,19 @@ BEGIN
           '00000000-0000-0000-0000-000000662402',
           '00000000-0000-0000-0000-000000662002',
           'myk9', 'confirmed', 'pending', 'check', NULL, false);
+  IF (SELECT entry_fee FROM public.entries
+      WHERE id = '00000000-0000-0000-0000-000000662904') IS DISTINCT FROM 30 THEN
+    RAISE EXCEPTION 'FAIL offline NULL fee remained unpriced on show without junior tier';
+  END IF;
   IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
-    RAISE EXCEPTION 'FAIL legacy NULL fee was not frozen at 30';
+    RAISE EXCEPTION 'FAIL server-priced offline fee was not frozen at 30';
   END IF;
   UPDATE public.shows SET pre_entry_fee = 40
     WHERE id = '00000000-0000-0000-0000-000000662102';
+  IF (SELECT entry_fee FROM public.entries
+      WHERE id = '00000000-0000-0000-0000-000000662904') IS DISTINCT FROM 30 THEN
+    RAISE EXCEPTION 'FAIL offline fee changed after show fee edit';
+  END IF;
   IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
     RAISE EXCEPTION 'FAIL frozen fee changed after show fee edit';
   END IF;

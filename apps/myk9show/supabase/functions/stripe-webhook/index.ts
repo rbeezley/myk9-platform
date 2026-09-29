@@ -1214,12 +1214,12 @@ async function handleEntryPaymentCompleted(
     freshSession.metadata,
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-  // Idempotency latch: atomically claim the cart by flipping active → submitted.
+  // Idempotency latch: atomically claim a paid cart by flipping active/expired → submitted.
   // A re-delivered event would otherwise create duplicate paid entries — which
   // the payout cron would then pay the club for twice.
-  // Expiry is already enforced in pure code by sessionMatchesCart above (the
-  // cartExpiresAt < now check on the SAME cart.expires_at read), so the claim
-  // only needs the status latch for idempotency. We deliberately do NOT
+  // Expiry is judged against the Stripe event time above. A delayed webhook
+  // may see an expired cart that was paid while still valid, so both statuses
+  // are claimable for this verified Session. We deliberately do NOT
   // re-filter on expires_at here: a raw ISO timestamp inside PostgREST's .or()
   // mini-language misparses the dotted/colon'd value and the whole UPDATE
   // fails with `column entry_carts.expires_at does not exist`. The TOCTOU window
@@ -1229,7 +1229,7 @@ async function handleEntryPaymentCompleted(
     .from('entry_carts')
     .update({ status: 'submitted' })
     .eq('id', cartId)
-    .eq('status', 'active')
+    .in('status', ['active', 'expired'])
     .select('id');
 
   if (claimError) {

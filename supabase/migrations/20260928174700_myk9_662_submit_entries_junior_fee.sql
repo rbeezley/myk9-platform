@@ -41,8 +41,8 @@ $migration$;
 -- Offline show-desk entries cannot read private handler birth dates. They queue a
 -- pending entry with NULL entry_fee; this trigger prices it on insert, before
 -- ledger/replication readers see it. Explicit fees and waived entries retain
--- their existing behavior. A NULL price is used only when this show offers a
--- junior rate, so unrelated imports and manual overrides remain untouched.
+-- their existing behavior. A stale offline show may not know whether a junior
+-- tier exists, so every pending myk9 row with a NULL fee needs server pricing.
 CREATE FUNCTION private.price_pending_offline_junior_entry()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -71,9 +71,6 @@ BEGIN
     JOIN public.shows s ON s.id = t.show_id
    WHERE c.id = NEW.class_id AND s.id = NEW.show_id;
 
-  IF v_junior_fee IS NULL OR v_junior_fee <= 0 THEN
-    RETURN NEW;
-  END IF;
   IF v_trial_id IS NULL THEN
     RAISE EXCEPTION 'class % does not belong to show %', NEW.class_id, NEW.show_id
       USING ERRCODE = '22023';
@@ -87,7 +84,7 @@ BEGIN
   END IF;
 
   NEW.entry_fee := coalesce(
-    CASE WHEN v_handler_id IS NOT NULL
+    CASE WHEN v_junior_fee > 0 AND v_handler_id IS NOT NULL
            AND private.entry_handler_is_junior(v_handler_id, NEW.class_id, v_trial_id) IS TRUE
       THEN v_junior_fee END,
     CASE WHEN NEW.is_day_of_show IS TRUE AND v_dos_fee > 0 THEN v_dos_fee

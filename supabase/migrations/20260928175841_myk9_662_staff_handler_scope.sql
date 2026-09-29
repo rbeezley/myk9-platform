@@ -23,14 +23,19 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION private.entry_handler_has_show_relationship(uuid,uuid,uuid) FROM PUBLIC;
 
--- The staff submission RPC also returns a fee, so it must enforce the same
--- handler scope before that amount can reveal the private junior decision.
+-- For shows with a junior rate, the staff submission RPC returns a fee and
+-- must reject an unrelated handler before deriving private junior status.
 DO $migration$
 DECLARE
   definition text;
   anchor constant text := '    IF v_handler_person_id IS NOT NULL AND NOT EXISTS (';
   guard_clause constant text := $body$
     IF v_is_official AND v_handler_person_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM public.shows s
+         WHERE s.id = p_show_id AND s.organization <> 'ASCA'
+           AND s.junior_handler_fee > 0
+       )
        AND NOT private.entry_handler_has_show_relationship(
          p_show_id, v_dog_id, v_handler_person_id
        ) THEN

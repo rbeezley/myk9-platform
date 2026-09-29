@@ -68,6 +68,7 @@ const launchCriticalSqlTests = [
   'move_up_supersession_test.sql',
   'judge_assignment_private_read_test.sql',
   'judge_assignment_touches_class_test.sql',
+  'myk9_819_passcode_draft_visibility_test.sql',
   'myk9_833_judge_draft_show_visibility_test.sql',
   'myk9_841_staff_on_behalf_entries_accepted_test.sql',
   'myk9_854_dogs_select_show_scoped_secretary_test.sql',

@@ -437,24 +437,6 @@ BEGIN
   IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
     RAISE EXCEPTION 'FAIL frozen fee changed after show fee edit';
   END IF;
-
-  -- The yes/no staff quote reads private DOB without returning it.
-  IF public.staff_entries_need_junior_fee(
-    '00000000-0000-0000-0000-000000662101',
-    jsonb_build_array(jsonb_build_object(
-      'dog_id', '00000000-0000-0000-0000-000000662401',
-      'class_id', '00000000-0000-0000-0000-000000662301'))
-  ) IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'FAIL staff quote missed junior handler';
-  END IF;
-  IF public.staff_entries_need_junior_fee(
-    '00000000-0000-0000-0000-000000662101',
-    jsonb_build_array(jsonb_build_object(
-      'dog_id', '00000000-0000-0000-0000-000000662402',
-      'class_id', '00000000-0000-0000-0000-000000662301'))
-  ) IS DISTINCT FROM false THEN
-    RAISE EXCEPTION 'FAIL staff quote deferred adult handler';
-  END IF;
 END;
 $$;
 

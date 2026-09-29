@@ -1,4 +1,4 @@
--- MYK9-662: handler quotes and co-owner changes must stay within the show.
+-- MYK9-662: handler submissions and co-owner changes must stay scoped.
 -- Run after all migrations. Fixtures and assertions roll back together.
 BEGIN;
 
@@ -207,19 +207,11 @@ BEGIN
 END;
 $$;
 DO $$
-DECLARE blocked boolean := false;
 BEGIN
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663701', true);
-  PERFORM set_config('request.jwt.claims',
-    '{"sub":"00000000-0000-0000-0000-000000663701","role":"authenticated"}', true);
-  BEGIN
-    PERFORM public.staff_entries_need_junior_fee(
-      '00000000-0000-0000-0000-000000663101',
-      '[{"dog_id":"00000000-0000-0000-0000-000000663403", "class_id":"00000000-0000-0000-0000-000000663301"}]');
-  EXCEPTION WHEN insufficient_privilege THEN
-    blocked := SQLERRM = 'Not authorized to quote show entries';
-  END;
-  IF NOT blocked THEN RAISE EXCEPTION 'FAIL self-service caller reached staff quote'; END IF;
+  IF to_regprocedure('public.staff_entries_junior_fee_decisions(uuid,jsonb)') IS NOT NULL
+     OR to_regprocedure('public.staff_entries_need_junior_fee(uuid,jsonb)') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL unused staff quote RPC remains exposed';
+  END IF;
 END;
 $$;
 DO $$
@@ -228,36 +220,6 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663703', true);
   PERFORM set_config('request.jwt.claims',
     '{"sub":"00000000-0000-0000-0000-000000663703","role":"authenticated"}', true);
-  BEGIN
-    PERFORM public.staff_entries_need_junior_fee(
-      '00000000-0000-0000-0000-000000663101',
-      '[{"dog_id":"00000000-0000-0000-0000-000000663401", "class_id":"00000000-0000-0000-0000-000000663301", "handler_id":"00000000-0000-0000-0000-000000663002"}]');
-  EXCEPTION WHEN insufficient_privilege THEN
-    blocked := SQLERRM = 'Handler has no relationship to this dog or show';
-  END;
-  IF NOT blocked THEN RAISE EXCEPTION 'FAIL unrelated handler quote was allowed'; END IF;
-  blocked := false;
-  BEGIN
-    PERFORM public.staff_entries_junior_fee_decisions(
-      '00000000-0000-0000-0000-000000663101',
-      '[{"dog_id":"00000000-0000-0000-0000-000000663401", "class_id":"00000000-0000-0000-0000-000000663301", "handler_id":"00000000-0000-0000-0000-000000663002"}]');
-  EXCEPTION WHEN insufficient_privilege THEN
-    blocked := SQLERRM = 'Handler has no relationship to this dog or show';
-  END;
-  IF NOT blocked THEN RAISE EXCEPTION 'FAIL unrelated handler decisions were allowed'; END IF;
-  IF public.staff_entries_junior_fee_decisions(
-    '00000000-0000-0000-0000-000000663101',
-    '[{"dog_id":"00000000-0000-0000-0000-000000663401", "class_id":"00000000-0000-0000-0000-000000663301"}, {"dog_id":"00000000-0000-0000-0000-000000663403", "class_id":"00000000-0000-0000-0000-000000663301"}, {"dog_id":"00000000-0000-0000-0000-000000663403", "class_id":"00000000-0000-0000-0000-000000663302", "handler_name":"Unknown Handler"}]'
-  ) IS DISTINCT FROM ARRAY[false, true, false] THEN
-    RAISE EXCEPTION 'FAIL ordered adult/junior/unknown quote decisions';
-  END IF;
-  IF public.staff_entries_need_junior_fee(
-    '00000000-0000-0000-0000-000000663101',
-    '[{"dog_id":"00000000-0000-0000-0000-000000663401", "class_id":"00000000-0000-0000-0000-000000663301"}]'
-  ) IS DISTINCT FROM false THEN
-    RAISE EXCEPTION 'FAIL related owner quote';
-  END IF;
-  blocked := false;
   BEGIN
     PERFORM public.submit_show_entries(
       '00000000-0000-0000-0000-000000663101', null,

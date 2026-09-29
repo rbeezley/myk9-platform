@@ -159,8 +159,6 @@ $body$;
 END;
 $migration$;
 
-COMMIT;
-
 DO $migration$
 DECLARE
   definition text;
@@ -190,3 +188,5 @@ $body$);
   EXECUTE definition;
 END;
 $migration$;
+
+COMMIT;

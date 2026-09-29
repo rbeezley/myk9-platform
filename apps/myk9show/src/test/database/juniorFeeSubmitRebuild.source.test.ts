@@ -6,6 +6,17 @@ const migrationsDir = resolve(__dirname, '../../../../../supabase/migrations');
 const juniorFeeVersion = '20260928174700';
 
 describe('junior fee survives later submit_show_entries rebuilds', () => {
+  it('commits the mixed submission and ledger patches together', () => {
+    const sql = readFileSync(
+      resolve(migrationsDir, '20260928180137_myk9_662_mixed_staff_payment.sql'),
+      'utf8'
+    );
+    expect(sql.match(/^BEGIN;$/gm)).toHaveLength(1);
+    expect(sql.match(/^COMMIT;$/gm)).toHaveLength(1);
+    expect(sql.indexOf('BEGIN;')).toBeLessThan(sql.indexOf("'public.submit_show_entries"));
+    expect(sql.lastIndexOf('EXECUTE definition;')).toBeLessThan(sql.indexOf('COMMIT;'));
+  });
+
   it('requires every later full RPC definition to preserve the junior override', () => {
     for (const file of readdirSync(migrationsDir).filter(name => name.endsWith('.sql'))) {
       if (file.slice(0, 14) <= juniorFeeVersion) continue;

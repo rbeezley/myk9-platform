@@ -77,7 +77,13 @@ function UpcomingRow({
   );
 }
 
-function ResultRow({ entry }: { entry: DogActivityEntry }) {
+function ResultRow({
+  entry,
+  resultsVerified,
+}: {
+  entry: DogActivityEntry;
+  resultsVerified: boolean;
+}) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
   const formattedDate = formatActivityDate(getEntryDisplayDate(entry));
@@ -88,12 +94,15 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
       : `/shows/${entry.show.id}`
     : undefined;
   const placementValue = entry.final_placement == null ? null : Number(entry.final_placement);
-  const release = deriveResultReleaseDisplay({
-    resultsReleasedAt: entry.class_results_released_at,
-    resultStatus: entry.result_status,
-    finalPlacement:
-      placementValue != null && Number.isFinite(placementValue) ? placementValue : null,
-  });
+  const releaseKnown = resultsVerified && entry.class_results_released_at !== undefined;
+  const release = releaseKnown
+    ? deriveResultReleaseDisplay({
+        resultsReleasedAt: entry.class_results_released_at,
+        resultStatus: entry.result_status,
+        finalPlacement:
+          placementValue != null && Number.isFinite(placementValue) ? placementValue : null,
+      })
+    : null;
 
   return (
     <div className="flex items-start gap-4 py-3 border-t border-border first:border-t-0">
@@ -124,14 +133,17 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
         {entry.search_time_seconds != null && (
           <div className="font-mono text-xs text-muted-foreground mt-0.5">
             {formatTime(entry.search_time_seconds)}
-            {release.placement != null && (
+            {release?.placement != null && (
               <span className="ml-2 font-sans font-medium text-amber-600">
                 #{release.placement}
               </span>
             )}
           </div>
         )}
-        {release.isPreliminary && <div className="text-xs text-muted-foreground">preliminary</div>}
+        {release?.isPreliminary && <div className="text-xs text-muted-foreground">preliminary</div>}
+        {!releaseKnown && (
+          <div className="text-xs text-muted-foreground">Release status unavailable</div>
+        )}
       </div>
       <div className="flex-shrink-0">
         {qualified ? (
@@ -150,7 +162,7 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
 }
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
-  const { upcoming, recentResults, isLoading, isError, canTrustEmpty, refetch } =
+  const { upcoming, recentResults, isLoading, isError, canTrustEmpty, resultsVerified, refetch } =
     useDogActivity(dogId);
   // An empty list is only "nothing booked" when the read actually resolved.
   // Career applies the identical rule — see `canTrustEmpty`.
@@ -220,6 +232,16 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
       </Card>
 
       {/* Recent results */}
+      {!resultsVerified && canTrustEmpty && !isError && (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Recent results unavailable right now.</p>
+            <Button variant="outline" className="mt-3" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       {recentResults.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -234,7 +256,7 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           <CardContent>
             <div>
               {recentResults.map(e => (
-                <ResultRow key={e.id} entry={e} />
+                <ResultRow key={e.id} entry={e} resultsVerified={resultsVerified} />
               ))}
             </div>
             <div className="pt-3 border-t border-border mt-1">

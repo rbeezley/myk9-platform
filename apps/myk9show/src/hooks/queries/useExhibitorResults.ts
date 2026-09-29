@@ -131,14 +131,18 @@ export function useExhibitorResults(dogId?: string) {
     ...cacheStrategies.moderate,
     ...(dogId ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}),
   });
+  const rosterUnavailable =
+    dogsQuery.isPending && !dogsQuery.isLoading && dogsQuery.fetchStatus !== 'fetching';
+  const resultsUnavailable =
+    dogIds.length > 0 && resultsQuery.isPending && resultsQuery.fetchStatus === 'paused';
 
   return {
     ...resultsQuery,
     // A disabled result query is idle, not proof that the dog has no scores.
-    isLoading: dogsQuery.isPending || dogsQuery.isLoading || resultsQuery.isLoading,
-    isError: dogsQuery.isError || resultsQuery.isError,
+    isLoading: dogsQuery.isLoading || resultsQuery.isLoading,
+    isError: dogsQuery.isError || resultsQuery.isError || rosterUnavailable || resultsUnavailable,
     retry: async () => {
-      if (dogsQuery.isError) {
+      if (dogsQuery.isError || rosterUnavailable) {
         await dogsQuery.refetch();
       } else {
         await resultsQuery.refetch();

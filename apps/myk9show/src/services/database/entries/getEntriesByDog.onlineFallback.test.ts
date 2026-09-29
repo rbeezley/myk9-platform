@@ -133,6 +133,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
     resultError = { message: 'result view unavailable' };
     const result = await getEntriesByDog('dog-1');
     expect(result.verified).toBe(true);
+    expect(result.resultsVerified).toBe(false);
     expect(result.data).toMatchObject([{ id: 'entry-online-1' }]);
   });
 
@@ -151,6 +152,7 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
 
     const result = await getEntriesByDog('dog-1');
 
+    expect(result.resultsVerified).toBe(true);
     expect(result.data[0]).toMatchObject({
       trial: { date: '2026-09-28' },
       result_status: 'qualified',

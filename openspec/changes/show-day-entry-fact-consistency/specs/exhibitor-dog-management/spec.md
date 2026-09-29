@@ -21,3 +21,13 @@ The existing dog page SHALL show a scored run on its trial date, including its r
 
 - **WHEN** the current result read fails and no verified result set is available
 - **THEN** the dog page presents an unavailable or retry state rather than a factual no-results claim
+
+#### Scenario: Release fact missing
+
+- **WHEN** a cached result has no verified class release fact
+- **THEN** the dog page does not call it preliminary or show placement as final
+
+#### Scenario: Dog roster paused
+
+- **WHEN** the owner dog-roster query is disabled or paused without data
+- **THEN** Past Results offers an unavailable/retry state instead of loading forever

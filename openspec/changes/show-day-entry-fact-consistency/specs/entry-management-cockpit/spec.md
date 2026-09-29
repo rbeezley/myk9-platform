@@ -20,3 +20,13 @@ The secretary's live registration queue and whole-show search SHALL exclude soft
 
 - **WHEN** removal succeeds and the secretary loses connectivity before the next download
 - **THEN** the local queue does not resurrect the removed entry
+
+#### Scenario: Zero rows without authorization proof
+
+- **WHEN** a scoped sync records zero rows but an independent manager-authorized count is unavailable or disagrees
+- **THEN** Entry Management does not claim the show has no entries
+
+#### Scenario: Server restores a removed entry
+
+- **WHEN** the server later restores an entry that was soft-deleted here
+- **THEN** a subsequent sync makes it visible without requiring a page reload

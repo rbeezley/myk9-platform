@@ -1086,6 +1086,8 @@ export const getEntriesByClassId = async (
 export interface DogEntriesReadResult {
   data: unknown[];
   error: DatabaseError | null;
+  /** The protected scored projection completed; distinct from entry-list verification. */
+  resultsVerified: boolean;
   /**
    * True when these rows came from the ONLINE read, so an empty list means the
    * dog really has no entries. False when the online read was unavailable and
@@ -1174,6 +1176,7 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
     // Protected score columns are absent from public.entries. The owner-gated
     // result view supplies them without changing the trial/show joins above.
     const scoredById = new Map<string, Record<string, unknown>>();
+    let resultsVerified = false;
     try {
       const { data: scoredRows, error: scoredError } = await supabase
         .from('view_authenticated_entry_results')
@@ -1187,6 +1190,7 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
       for (const row of scoredRows ?? []) {
         if (row.is_scored === true && row.id) scoredById.set(row.id, row);
       }
+      resultsVerified = true;
     } catch (scoreError) {
       // Keep the authoritative entry list when only its scored projection
       // fails. The dog page's separate Past Results read reports its own error.
@@ -1228,12 +1232,12 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
         }),
       ...pendingRows.filter(row => !serverIds.has(rowId(row))),
     ];
-    return { data, error: null, verified: true };
+    return { data, error: null, verified: true, resultsVerified };
   } catch (error) {
     // Offline, or the read failed. Serve the replica — correct as far as it
     // goes, but unverifiable, hence `verified: false`.
     logQuery('entries', 'select_by_dog_replica_fallback', 0, String(error));
-    return { data: local.data, error: null, verified: false };
+    return { data: local.data, error: null, verified: false, resultsVerified: false };
   }
 };
 

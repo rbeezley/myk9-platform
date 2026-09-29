@@ -57,6 +57,7 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
           },
         ],
         verified: true,
+        resultsVerified: true,
       },
       isLoading: false,
       isError: false,
@@ -75,6 +76,52 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('does not claim an offline score is preliminary when release is unknown', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-28T16:00:00Z'));
+    useEntriesByDogQueryMock.mockReturnValue({
+      data: {
+        rows: [
+          {
+            id: 'entry-1',
+            entry_status: 'confirmed',
+            is_scored: true,
+            result_status: 'qualified',
+            search_time_seconds: 43.21,
+            final_placement: 1,
+            trial: { date: '2026-09-28', timezone: 'America/Chicago' },
+            show: { id: 'show-1', name: 'Today Show', start_date: '2026-09-28' },
+            class: { id: 'class-1', name: 'Container Novice A' },
+          },
+        ],
+        verified: true,
+        resultsVerified: false,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    try {
+      render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
+      expect(screen.queryByText('preliminary')).not.toBeInTheDocument();
+      expect(screen.getByText('Release status unavailable')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows a retry when the entry list loads but its scored projection does not', () => {
+    useEntriesByDogQueryMock.mockReturnValue({
+      data: { rows: [upcomingRow], verified: true, resultsVerified: false },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
+    expect(screen.getByText(/Recent results unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('speaks the secretary voice for the same entry', () => {

@@ -388,7 +388,10 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
 
     it('reports an entry deleted locally this session as missing', async () => {
       get.mockResolvedValue(undefined);
-      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      (table as unknown as { _deletedIds: Map<string, number | null> })._deletedIds.set(
+        'entry-1',
+        null
+      );
       mockReadBack({ data: COLD_ROW, error: null });
 
       const batch = await table.getWithdrawEligibilityForEntries(['entry-1']);
@@ -400,7 +403,10 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     it('refuses to withdraw an entry deleted locally this session', async () => {
       // The server copy must not resurrect a row the user just deleted here.
       get.mockResolvedValue(undefined);
-      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      (table as unknown as { _deletedIds: Map<string, number | null> })._deletedIds.set(
+        'entry-1',
+        null
+      );
       mockReadBack({ data: COLD_ROW, error: null });
 
       await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/no longer exists/);

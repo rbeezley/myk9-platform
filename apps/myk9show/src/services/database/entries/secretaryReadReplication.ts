@@ -343,14 +343,9 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedEntriesTable.getSyncMetadata(showId),
   ]);
-  // A completed zero-row sync is authoritative. If metadata still expects
-  // rows but the cache is empty, hydrate before claiming none.
-  const expectedRows = Math.max(
-    syncMetadata?.expectedRemoteRows ?? 0,
-    syncMetadata?.totalRows ?? 0
-  );
-  const isColdStore =
-    syncMetadata?.totalRows === undefined || (allEntries.length === 0 && expectedRows > 0);
+  // A zero-row sync can reflect a transient RLS gap. The caller verifies an
+  // empty queue independently before presenting it as authoritative.
+  const isColdStore = syncMetadata?.totalRows === undefined || allEntries.length === 0;
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     // Joins that label the entries (see joinRowsOrEmpty): throwing would drop

@@ -150,7 +150,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * IDs deleted locally this session. The download sync skips these
    * so it doesn't resurrect entries the user just deleted.
    */
-  private _deletedIds: Set<string> = new Set();
+  private _deletedIds = new Map<string, number | null>();
   private entryMutationManager: MutationManager | null = null;
 
   /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
@@ -308,6 +308,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
+    let completeFullFetch = false;
+    const confirmedDeletionIds = new Set<string>();
+    const restoredIds = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       ...this.getRowRefetchAdapter(),
@@ -386,7 +389,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           ) {
             receiptReferenceColumnObserved = true;
           }
-          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) return rows;
+          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
+            completeFullFetch =
+              since === 0 && remoteRowCount !== undefined && rows.length >= remoteRowCount;
+            return rows;
+          }
 
           const lastRow = pageRows[pageRows.length - 1];
           if (!lastRow?.updated_at || !lastRow.id) return rows;
@@ -404,7 +411,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       shouldSkipRemoteRow: remote => {
         const entryId = String(remote.id);
-        const shouldSkip = this._deletedIds.has(entryId);
+        const deletedVersion = this._deletedIds.get(entryId);
+        const guarded = this._deletedIds.has(entryId);
+        const remoteVersion = typeof remote.version === 'number' ? remote.version : null;
+        const restored =
+          guarded &&
+          deletedVersion !== null &&
+          deletedVersion !== undefined &&
+          remoteVersion !== null &&
+          remoteVersion > deletedVersion &&
+          !remote.deleted_at;
+        if (restored) restoredIds.add(entryId);
+        if (guarded && remote.deleted_at) confirmedDeletionIds.add(entryId);
+        const shouldSkip = guarded && !restored;
         if (shouldSkip) {
           logger.log(`[${this.getTableName()}] Skipping deleted entry ${entryId} during sync`);
         }
@@ -412,6 +431,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
       afterSuccessfulSync: async ({ serverIds, localRows }) => {
         const pendingCount = await this.getMutationPendingCount();
+        for (const [id, deletedVersion] of this._deletedIds) {
+          if (
+            restoredIds.has(id) ||
+            confirmedDeletionIds.has(id) ||
+            (completeFullFetch &&
+              !serverIds.has(id) &&
+              (deletedVersion !== null || pendingCount === 0))
+          ) {
+            this._deletedIds.delete(id);
+          }
+        }
         if (pendingCount > 0) {
           return;
         }
@@ -421,12 +451,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
             await this.delete(local.id);
           }
-        }
-
-        // Keep the guard while a fetch still includes the deleted row. An
-        // in-flight download can have started before the server removal.
-        for (const id of this._deletedIds) {
-          if (!serverIds.has(id)) this._deletedIds.delete(id);
         }
       },
     };
@@ -1571,7 +1595,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Also marks the ID so the download sync won't resurrect it this session.
    */
   async deleteEntry(entryId: string): Promise<string | null> {
-    this._deletedIds.add(entryId);
+    this._deletedIds.set(entryId, null);
     // Read before removing: the payload records the entry's show when it was
     // already on the server, so readiness can count the pending delete.
     const entry = await this.get(entryId);
@@ -1583,8 +1607,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /** A direct server soft-delete supersedes any queued local edit for this row. */
-  async acknowledgeServerDeletion(entryId: string): Promise<void> {
-    this._deletedIds.add(entryId);
+  async acknowledgeServerDeletion(entryId: string, deletedVersion: number): Promise<void> {
+    this._deletedIds.set(entryId, deletedVersion);
     try {
       await this.entryMutationManager?.discardPendingMutationsForRow('entries', entryId);
     } finally {

@@ -62,6 +62,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
         getPendingMutationsForTable: async (tableName: string) =>
           pending.filter(mutation => mutation.tableName === tableName),
         discardPendingMutationsForRow: discardPending,
+        getPendingCount: async () => pending.length,
       })
     );
   });
@@ -108,7 +109,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       })
     );
 
-    await table.acknowledgeServerDeletion('e1');
+    await table.acknowledgeServerDeletion('e1', 5);
     await table.sync('show-1');
 
     expect(discardPending).toHaveBeenCalledWith('entries', 'e1');
@@ -120,5 +121,14 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
     // finish its batch write after it. The show read must still hide that row.
     await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
     expect(await table.getEntriesByShow('show-1')).toEqual([]);
+    expect(
+      adapter.shouldSkipRemoteRow?.({ id: 'e1', version: 6, deleted_at: null }, { local: null })
+    ).toBe(false);
+    await adapter.afterSuccessfulSync?.({
+      scope: { value: 'show-1' },
+      serverIds: new Set(['e1']),
+      localRows: [],
+    });
+    expect(await table.getEntriesByShow('show-1')).toHaveLength(1);
   });
 });

@@ -22,6 +22,7 @@ import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSele
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 import { hasUnsavedLocalEntryWrites } from '@/services/replication/entriesShowSyncState';
+import { clearSecretaryEmptyProof, verifySecretaryEmptyShow } from './secretaryEmptyProof';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -72,7 +73,12 @@ export const getEntriesForShow = async (showId: string) => {
 
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
-    if (!result.isColdStore) {
+    if (result.data.length === 0 && (await verifySecretaryEmptyShow(showId))) {
+      logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
+      return { data: result.data, error: null };
+    }
+    if (!result.isColdStore && result.data.length > 0) {
+      await clearSecretaryEmptyProof(showId);
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
@@ -82,7 +88,10 @@ export const getEntriesForShow = async (showId: string) => {
       operation: 'get_entries_for_show',
     });
     const hydratedData = await hydrateSecretaryEntriesForShow(showId, startTime);
-    if (hydratedData) return { data: hydratedData, error: null };
+    if (hydratedData?.length) {
+      await clearSecretaryEmptyProof(showId);
+      return { data: hydratedData, error: null };
+    }
     // MYK9-746: the show never completed a sync here. While this device holds
     // a write the server has not seen (a check-in, an edit, a queued delete),
     // a server list would show it undone, so wait for the sync instead of
@@ -121,11 +130,16 @@ export const getEntriesForShow = async (showId: string) => {
   }
 
   try {
-    return await postgrestGetSecretaryEntriesForShow(
+    const fallback = await postgrestGetSecretaryEntriesForShow(
       showId,
       startTime,
       'get_entries_for_show_fallback'
     );
+    if (!fallback.error && fallback.data?.length === 0 && !(await verifySecretaryEmptyShow(showId))) {
+      return secretaryEntriesReadFailure(new Error('Show entry count could not be verified'), startTime);
+    }
+    if (fallback.data?.length) await clearSecretaryEmptyProof(showId);
+    return fallback;
   } catch (error) {
     return secretaryEntriesReadFailure(error, startTime);
   }

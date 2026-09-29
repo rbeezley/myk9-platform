@@ -75,7 +75,7 @@ describe('exhibitor scored-result query scope', () => {
     expect(mocks.filter).not.toHaveBeenCalled();
   });
 
-  it('stays loading while the roster query is disabled pending the owner profile', () => {
+  it('offers retry while the roster query is disabled pending the owner profile', () => {
     mocks.dogsQuery.mockReturnValue({
       data: undefined,
       isPending: true,
@@ -83,8 +83,23 @@ describe('exhibitor scored-result query scope', () => {
       isError: false,
     });
     render(<ResultsState />);
-    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.getByText('error')).toBeInTheDocument();
     expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
+  it('offers retry instead of loading forever when the roster query is paused', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isLoading: false,
+      isError: false,
+      fetchStatus: 'paused',
+      refetch: mocks.retryDogs,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mocks.retryDogs).toHaveBeenCalledOnce();
   });
 
   it('reports a roster failure instead of a confirmed empty result', () => {

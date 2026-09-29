@@ -88,27 +88,33 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('entries')
       .update({
         deleted_at: new Date().toISOString(),
         deleted_by: deletedBy || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('version')
+      .single();
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'delete', duration, error?.message);
 
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'delete');
+    if (error || !data) {
+      throw createDatabaseError(
+        error ?? new Error('Entry removal returned no row'),
+        'entries',
+        'delete'
+      );
     }
 
     // The authenticated result view hides a secretary's soft-deleted row.
     // Incremental sync therefore cannot replace the clean cached copy with a
     // tombstone. Cancel queued edits and guard racing downloads before eviction.
     try {
-      await replicatedEntriesTable.acknowledgeServerDeletion(id);
+      await replicatedEntriesTable.acknowledgeServerDeletion(id, data.version);
     } catch (cacheError) {
       logger.warn('Entry removed on server but local cache reconciliation failed', 'database', {
         entryId: id,

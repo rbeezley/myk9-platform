@@ -13,8 +13,9 @@ The schedule composes `useShowEntriesForUser` and `WhereToBe`; `mapDatabaseToCla
 ## Decisions
 
 1. Map stored class start time through the existing class compatibility layer and format it locally. Show `runOrder` only if positive; otherwise label position pending. Carry the canonical check-in status into `WhereToBe`. This reuses the existing schedule instead of duplicating My Shows controls.
-2. Read protected scored fields from the existing authenticated result view and join them by entry ID to the dog-scoped entry read. Preserve the trial date from the entry join and the replica fallback. Keep `useExhibitorResults` fresh on dog-page mount and use the existing release display selector for placement.
-3. After successful server soft-delete, evict its local replica row. Enable scoped stale-row cleanup on a successful full entry sync so other devices and pre-fix cached rows reconcile when the authorized view omits tombstones. Never remove pending local writes or infer deletion from a failed remote read. Existing Entry Management search remains replica-backed.
+2. Keep entry-list completeness separate from scored-fact completeness. Read protected scored fields from the existing authenticated result view and join them by entry ID, but report a failed score read explicitly. Preserve the trial date from the entry join and replica fallback. A missing release field is unknown, not proof of an unreleased class; the dog surfaces may call a result preliminary only after a successful scored projection says release is null. A disabled or paused dog-roster query is unavailable with retry, not indefinitely loading.
+3. After successful server soft-delete, evict its local replica row and supersede queued edits. Hold a per-entry guard while a racing download can still carry the old live row. Retire the guard after a complete fetch proves absence or a server tombstone, so a later restore can appear without a page reload. Existing Entry Management search remains replica-backed.
+4. A zero-row replication receipt alone does not prove a secretary show is empty: a permission gap can produce the same result. Check it against a manager-authorized server count independent of the replication view. Persist proof of a legitimate empty scope for offline reuse; without that proof, show an unavailable state rather than a factual empty queue.
 
 ## Risks / Trade-offs
 
@@ -24,7 +25,7 @@ The schedule composes `useShowEntriesForUser` and `WhereToBe`; `mapDatabaseToCla
 
 ## Migration Plan
 
-No schema migration. Deploy app code after checks; rollback restores old read behavior without changing stored entries. Historical tombstones remain in SQL.
+The authoritative secretary count requires a narrowly authorized SQL function. Deploy its migration after merge and before the frontend change; until then an unverified empty scope stays unavailable. Historical tombstones remain in SQL.
 
 ## Validation Profile
 

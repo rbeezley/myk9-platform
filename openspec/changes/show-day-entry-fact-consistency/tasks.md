@@ -17,10 +17,15 @@
 
 ## 4. Integration and delivery
 
-- [ ] 4.1 Run OpenSpec validation, focused suites, typecheck, lint, relevant app tests shuffled, and code-quality ratchet; record results.
+- [x] 4.0a Separate entry-list and scored-fact verification; resolve release as unknown, preliminary, or released; test failed and paused reads.
+- [x] 4.0b Replace the deletion guard with a state retired by confirmed tombstone or complete absence; test racing sync and later restore.
+- [x] 4.0c Add a manager-authorized independent entry count and offline empty-scope proof; test RLS-gap zero, legitimate zero, and offline reads.
+
+- [x] 4.1 Run OpenSpec validation, focused suites, typecheck, lint, relevant app tests shuffled, and code-quality ratchet; record results.
 - [ ] 4.2 Review diff and risk, commit the verified implementation, then push/open one PR with linked issues when the repository approval gate is satisfied; watch required CI and complete review gate before merge.
 - [ ] 4.3 After merge, verify criteria and update Linear issue comments/status, archive the OpenSpec change, and perform worktree cleanup.
 
 ## Verification note
 
 - 2026-09-28: Focused shuffled app suites passed (220 tests); TypeScript, lint, formatting, code-quality ratchet, and OpenSpec validation passed. The full shuffled app run produced no test progress for 45 seconds and was stopped under the repository runner rule, so task 4.1 remains open.
+- 2026-09-29: Review-fix focused suites passed. Final shuffled app suite passed (2,463 files, 24,185 tests; 1 file and 9 tests skipped). Typecheck, lint, formatting, code-quality ratchet, and strict OpenSpec validation passed. The new SQL function has not been applied to the shared database; browser/SQL fixture re-walk remains pending.

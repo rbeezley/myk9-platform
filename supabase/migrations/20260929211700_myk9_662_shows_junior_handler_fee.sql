@@ -16,6 +16,8 @@ alter table public.shows
 -- Bounded above as well: numeric sorts NaN above every number, so a bare `>= 0`
 -- admits it, and ROUND(NaN * 100)::int would then fail every entry on the show.
 alter table public.shows
+  drop constraint if exists shows_junior_handler_fee_bounded;
+alter table public.shows
   add constraint shows_junior_handler_fee_bounded
   check (junior_handler_fee >= 0 and junior_handler_fee < 100000);
 

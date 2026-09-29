@@ -104,8 +104,8 @@ describe('ShowEditPanel helpers', () => {
       showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee }).success;
     expect(parse('-1')).toBe(false);
     expect(parse('15.999')).toBe(false);
-    expect(parse('1000000')).toBe(false);
-    expect(parse('999999.99')).toBe(true);
+    expect(parse('100000')).toBe(false);
+    expect(parse('99999.99')).toBe(true);
     expect(parse('')).toBe(true);
   });
 
@@ -114,6 +114,16 @@ describe('ShowEditPanel helpers', () => {
       formDataToShow({ ...baseFormData, organization: 'ASCA', juniorHandlerFee: '15' })
         .juniorHandlerFee
     ).toBe('');
+  });
+
+  it('writes nothing for an ASCA show that has no junior rate to clear', () => {
+    const form = showToFormData({ organization: 'ASCA' });
+    expect(formDataToShow({ ...form, name: 'Renamed' })).not.toHaveProperty('juniorHandlerFee');
+  });
+
+  it('keeps an existing junior fee through an unrelated edit', () => {
+    const form = showToFormData({ organization: 'AKC', juniorHandlerFee: '15' });
+    expect(formDataToShow({ ...form, name: 'Renamed' }).juniorHandlerFee).toBe('15');
   });
 
   it('does not send a junior fee for a show that has none, so an unrelated edit cannot clear one', () => {

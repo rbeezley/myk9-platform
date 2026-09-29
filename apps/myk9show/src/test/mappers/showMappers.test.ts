@@ -443,7 +443,9 @@ describe('junior handler fee mapping (MYK9-662)', () => {
   };
 
   it('reads the column into the Show and treats NULL as unset', () => {
-    expect(mapDatabaseToShow({ ...baseDbShow, junior_handler_fee: 15 }).juniorHandlerFee).toBe('15');
+    expect(mapDatabaseToShow({ ...baseDbShow, junior_handler_fee: 15 }).juniorHandlerFee).toBe(
+      '15'
+    );
     expect(mapDatabaseToShow({ ...baseDbShow, junior_handler_fee: null }).juniorHandlerFee).toBe(
       undefined
     );

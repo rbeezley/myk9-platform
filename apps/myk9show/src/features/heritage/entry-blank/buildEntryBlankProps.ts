@@ -325,8 +325,8 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   // 'paid' and other system statuses map to null (blank checkbox row on the form).
   const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
-  // MYK9-662: the show's own configured junior handler fee (submit_show_entries
-  // prices from the same column). 'N/A' rather than $0.00 when unset — this
+  // MYK9-662: the show's own configured junior handler fee. It only prints here for
+  // now; no path prices an entry with it yet (slice B). 'N/A' rather than $0.00 when unset — this
   // club has no junior discount, not a free junior entry. Same "> 0 means
   // configured" convention as the day-of-show fee elsewhere in this codebase.
   const juniorHandlerFee =

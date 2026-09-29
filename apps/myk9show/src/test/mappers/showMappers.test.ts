@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mapDatabaseToShow, mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
+import {
+  mapDatabaseToShow,
+  mapReplicatedShowToDbRow,
+  mapShowInputToInsert,
+  mapShowInputToUpdate,
+} from '@/services/mappers/showMappers';
 import type { DbShow } from '@/types/database-mappings';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -424,5 +429,45 @@ describe('mapDatabaseToShow — show.events discipline source', () => {
     );
 
     expect(result.events).toEqual(['Scent Work', 'Nosework']);
+  });
+});
+
+describe('junior handler fee mapping (MYK9-662)', () => {
+  const replicated = {
+    id: 'show-1',
+    name: 'Test Show',
+    organization: 'AKC',
+    startDate: '2026-06-01',
+    endDate: '2026-06-02',
+    status: 'draft',
+  };
+
+  it('reads the column into the Show and treats NULL as unset', () => {
+    expect(mapDatabaseToShow({ ...baseDbShow, junior_handler_fee: 15 }).juniorHandlerFee).toBe('15');
+    expect(mapDatabaseToShow({ ...baseDbShow, junior_handler_fee: null }).juniorHandlerFee).toBe(
+      undefined
+    );
+  });
+
+  it('writes the fee onto the DB row shape used by the read paths', () => {
+    expect(
+      mapReplicatedShowToDbRow({ ...replicated, juniorHandlerFee: 15 } as never)
+    ).toHaveProperty('junior_handler_fee', 15);
+  });
+
+  it('inserts the fee as a number and a blank fee as NULL', () => {
+    const input = { ...replicated, preEntryFee: '25', clubId: 'club-1' };
+    expect(
+      mapShowInputToInsert(fromAny({ ...input, juniorHandlerFee: '15' })).junior_handler_fee
+    ).toBe(15);
+    expect(
+      mapShowInputToInsert(fromAny({ ...input, juniorHandlerFee: '' })).junior_handler_fee
+    ).toBeNull();
+  });
+
+  it('updates the fee, clears it with a blank, and leaves it alone when absent', () => {
+    expect(mapShowInputToUpdate({ juniorHandlerFee: '15.5' }).junior_handler_fee).toBe(15.5);
+    expect(mapShowInputToUpdate({ juniorHandlerFee: '' }).junior_handler_fee).toBeNull();
+    expect(mapShowInputToUpdate({ name: 'Renamed' })).not.toHaveProperty('junior_handler_fee');
   });
 });

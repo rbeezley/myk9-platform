@@ -423,3 +423,64 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
     expect(propsNullClose.closeDate).toBeNull();
   });
 });
+
+// ─── MYK9-662: junior handler fee ───────────────────────────────────────────────
+//
+// juniorHandlerAge is not covered here: MYK9-664 (20260924231700) took
+// date-of-birth-based junior derivation off every surface an official can
+// query, including this builder's callers, so it stays permanently null (see
+// the comment in buildEntryBlankProps.ts). Only the fee — a flat, show-level
+// rate with no per-handler PII — is wired up.
+
+describe('buildEntryBlankProps — junior handler fee (MYK9-662)', () => {
+  it('juniorHandlerFee is N/A when the show has not configured one', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW, // no junior_handler_fee on the fixture
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('N/A');
+  });
+
+  it('juniorHandlerFee is N/A when the show sets it to exactly 0', () => {
+    const props = buildEntryBlankProps({
+      show: { ...SHOW, junior_handler_fee: 0 },
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('N/A');
+  });
+
+  it('juniorHandlerFee prints the show-configured amount', () => {
+    const props = buildEntryBlankProps({
+      show: { ...SHOW, junior_handler_fee: 15 },
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+    });
+    expect(props.fees.juniorHandlerFee).toBe('$15.00');
+  });
+
+  it('juniorHandlerAge always stays null (no live derivation from a date of birth)', () => {
+    const props = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      handler: HANDLER,
+    });
+    expect(props.owner.juniorHandlerAge).toBeNull();
+  });
+});

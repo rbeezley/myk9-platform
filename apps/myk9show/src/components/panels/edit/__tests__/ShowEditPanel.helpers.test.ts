@@ -89,6 +89,39 @@ describe('ShowEditPanel helpers', () => {
     expect(formDataToShow({ ...baseFormData, isNationals: true }).isNationals).toBe(true);
   });
 
+  it('saves a junior handler fee and lets the secretary clear it', () => {
+    expect(showToFormData({ juniorHandlerFee: '15' }).juniorHandlerFee).toBe('15');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '15' }).juniorHandlerFee).toBe('15');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '' }).juniorHandlerFee).toBe('');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: '  ' }).juniorHandlerFee).toBe('');
+    expect(formDataToShow({ ...baseFormData, juniorHandlerFee: ' 15.25 ' }).juniorHandlerFee).toBe(
+      '15.25'
+    );
+  });
+
+  it('validates the junior handler fee like a currency amount', () => {
+    const parse = (juniorHandlerFee: string) =>
+      showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee }).success;
+    expect(parse('-1')).toBe(false);
+    expect(parse('15.999')).toBe(false);
+    expect(parse('1000000')).toBe(false);
+    expect(parse('999999.99')).toBe(true);
+    expect(parse('')).toBe(true);
+  });
+
+  it('clears a stale junior rate when saving an ASCA show', () => {
+    expect(
+      formDataToShow({ ...baseFormData, organization: 'ASCA', juniorHandlerFee: '15' })
+        .juniorHandlerFee
+    ).toBe('');
+  });
+
+  it('does not send a junior fee for a show that has none, so an unrelated edit cannot clear one', () => {
+    const form = showToFormData({ organization: 'AKC' });
+    expect(form).not.toHaveProperty('juniorHandlerFee');
+    expect(formDataToShow({ ...form, name: 'Renamed' })).not.toHaveProperty('juniorHandlerFee');
+  });
+
   it('preserves publish-only fields for the save side effect payload', () => {
     const result = formDataToShowSaveData({
       ...baseFormData,

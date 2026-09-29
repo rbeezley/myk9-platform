@@ -119,6 +119,24 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(lastPayload()).toMatchObject({ entry_open_date: null, entry_close_date: null });
   });
 
+  it('omits an absent junior fee on update and conflict replay', async () => {
+    await table.set('show-1', serverShapedShow());
+    await table.updateShow('show-1', { name: 'Renamed' });
+    expect(lastPayload()).not.toHaveProperty('junior_handler_fee');
+
+    const local = await table.get('show-1');
+    const replay = (
+      table as unknown as { rebuildUpdatePayload: (s: ReplicatedShow) => Record<string, unknown> }
+    ).rebuildUpdatePayload(local as ReplicatedShow);
+    expect(replay).not.toHaveProperty('junior_handler_fee');
+  });
+
+  it('preserves an explicit junior-fee clear', async () => {
+    await table.set('show-1', { ...serverShapedShow(), juniorHandlerFee: 15 });
+    await table.updateShow('show-1', { juniorHandlerFee: null });
+    expect(lastPayload()).toHaveProperty('junior_handler_fee', null);
+  });
+
   it('normalizes a create the same way', async () => {
     process.env.TZ = 'America/Los_Angeles';
     const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();

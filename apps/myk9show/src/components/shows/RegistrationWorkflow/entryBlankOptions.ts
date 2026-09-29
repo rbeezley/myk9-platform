@@ -12,6 +12,7 @@ interface ShowSource {
   endDate: string;
   entryCloseDate?: string | null;
   preEntryFee?: string | number | null;
+  juniorHandlerFee?: string | number | null | undefined;
   clubName?: string | null;
   clubEmail?: string | null;
 }
@@ -240,6 +241,7 @@ export function buildRegistrationEntryBlankDownloads(
           end_date: currentShow.endDate,
           entry_close_date: currentShow.entryCloseDate ?? null,
           pre_entry_fee: parseOptionalNumber(currentShow.preEntryFee),
+          junior_handler_fee: parseOptionalNumber(currentShow.juniorHandlerFee),
           organization: currentShow.organization ?? null,
         },
         trials: showTrials.map((showTrial, index) => ({

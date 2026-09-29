@@ -24,6 +24,9 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     entryCloseDate: show.entryCloseDate || '',
     preEntryFee: show.preEntryFee || '',
     dayOfShowFee: show.dayOfShowFee || '',
+    ...(show.juniorHandlerFee !== undefined
+      ? { juniorHandlerFee: show.juniorHandlerFee }
+      : {}),
     assignedJudges: show.assignedJudges || [],
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
     ...(show.maxEntriesPerDog !== undefined && { maxEntriesPerDog: show.maxEntriesPerDog }),
@@ -76,6 +79,11 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
   ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee && { dayOfShowFee: formData.dayOfShowFee }),
+  ...(formData.organization === 'ASCA'
+    ? { juniorHandlerFee: '' }
+    : formData.juniorHandlerFee !== undefined
+      ? { juniorHandlerFee: formData.juniorHandlerFee.trim() }
+      : {}),
 });
 
 export const formDataToShowSaveData = (formData: ShowEditFormData): ShowEditSaveData => ({

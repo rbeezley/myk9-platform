@@ -33,6 +33,8 @@ interface ShowInput {
   entry_close_date?: string | null;
   pre_entry_fee?: number | null;
   organization?: string | null;
+  // MYK9-662 column (may be absent until type-regen).
+  junior_handler_fee?: number | null;
 }
 
 interface TrialInput {
@@ -287,6 +289,20 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   };
 
   // §III — owner/handler
+  //
+  // juniorHandlerAge stays null. MYK9-664 (20260924231700) deliberately took
+  // date-of-birth-based junior derivation out of every surface an official
+  // can query on demand: a manager who could ask "is this handler a junior at
+  // date X?" could edit a trial's date and bisect the handler's 18th birthday
+  // in a dozen probes. `people.date_of_birth` no longer exists (moved to
+  // `people_private`, readable only by the person themself or a site admin),
+  // and this builder is fed from the same secretary-facing reads MYK9-664
+  // closed that surface on. The one thing an official may read is the
+  // boolean each entry already recorded at creation
+  // (`entries.handler_is_junior`, via `recorded_entry_handler_junior_flags()`)
+  // — not an age. Printing that boolean onto this specific AKC-form field
+  // (labelled "(age)" on the real paper form) is left as a deliberate
+  // follow-up rather than guessed at here.
   const ownerProps: EntryBlankOwner = {
     ownerName: ownerDisplayName,
     handlerName: handlerDisplayName,
@@ -309,10 +325,18 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   // 'paid' and other system statuses map to null (blank checkbox row on the form).
   const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
+  // MYK9-662: the show's own configured junior handler fee (submit_show_entries
+  // prices from the same column). 'N/A' rather than $0.00 when unset — this
+  // club has no junior discount, not a free junior entry. Same "> 0 means
+  // configured" convention as the day-of-show fee elsewhere in this codebase.
+  const juniorHandlerFee =
+    show.junior_handler_fee != null && show.junior_handler_fee > 0
+      ? formatFee(show.junior_handler_fee)
+      : 'N/A';
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),
     additionalEntryFee: formatFee(additional),
-    juniorHandlerFee: '$18.00',
+    juniorHandlerFee,
     mailProcessingFee: '$3.00',
     totalAmount: total,
     paymentMethod: MAIL_PAYMENT_METHODS.has(paymentMethod ?? '')

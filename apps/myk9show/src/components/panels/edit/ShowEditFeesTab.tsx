@@ -29,6 +29,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
 }) => {
   const preEntryFeeError = form?.getError('preEntryFee');
   const dayOfShowFeeError = form?.getError('dayOfShowFee');
+  const juniorHandlerFeeError = form?.getError('juniorHandlerFee');
   const maxEntriesPerDogError = form?.getError('maxEntriesPerDog');
   const maxTotalEntriesError = form?.getError('maxTotalEntries');
 
@@ -72,6 +73,23 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                 {...form?.getFieldProps('dayOfShowFee')}
               />
             </FormField>
+
+            {data.organization !== 'ASCA' && (
+              <FormField
+                label="Junior Handler Fee"
+                fieldId="juniorHandlerFee"
+                error={juniorHandlerFeeError}
+              >
+                <CurrencyInput
+                  id="juniorHandlerFee"
+                  value={data.juniorHandlerFee ?? ''}
+                  onChange={handleFeeChange('juniorHandlerFee')}
+                  placeholder="Optional"
+                  className={juniorHandlerFeeError ? 'border-destructive' : ''}
+                  {...form?.getFieldProps('juniorHandlerFee')}
+                />
+              </FormField>
+            )}
           </div>
 
           <p className="text-sm text-muted-foreground">

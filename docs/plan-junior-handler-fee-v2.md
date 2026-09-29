@@ -42,6 +42,8 @@ From MYK9-662, Richard, 2026-09-18:
 - Junior status is **derived**, never set by hand. Do not add a flag.
 - `discounts` stays empty: this is a second fee, not a discount line.
 - Refunds are **never automatic** (MYK9-876). Any refund needs human approval.
+- The reduced fee is decided by **age only**, per the rulebooks. It never requires a junior handler
+  number (Richard, 2026-09-29). A number on file is shown to the secretary as a way to verify.
 
 ## Decisions needed before any code (slice 0)
 
@@ -62,15 +64,10 @@ Each has a recommendation. Get an answer in Linear before building.
    trusted with this, which is reasonable pre-launch. Decide which.
 3. **When is the fee fixed?** _Recommended:_ at entry creation, then frozen. A handler who turns
    18 between entering and the trial keeps the fee they were quoted. Confirm with Richard.
-4. **Does the reduced fee require a junior handler number?** _Recommended: no, age only._ The
-   rulebooks make age the test, AKC lets a junior enter without a number, and UKC issues none, so
-   requiring a number would deny a UKC junior the fee outright and turn away AKC juniors the rulebook
-   allows. Show the number to the secretary when one is on file, as a way to verify. If a club wants
-   the number required, that is a per-show setting for AKC only and needs its own decision.
-5. **`unknown` status** (no date of birth on file, or ASCA, which has no derivable ceiling).
+4. **`unknown` status** (no date of birth on file, or ASCA, which has no derivable ceiling).
    _Recommended:_ prices at the normal tier, and an ASCA show hides the setting. A secretary can
    still correct an entry through the existing edit path.
-6. **Self-asserted date of birth and number** (`/account` has no verification). _Recommended:_ out of scope
+5. **Self-asserted date of birth and number** (`/account` has no verification). _Recommended:_ out of scope
    for this fee; file separately. The club can request proof, as AKC's own rule allows.
 
 ## Slices

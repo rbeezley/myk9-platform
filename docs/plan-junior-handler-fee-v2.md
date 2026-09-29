@@ -20,6 +20,19 @@ recovery. Each copy is another place the price can answer "is this person a juni
 date?" (the MYK9-664 oracle), and each review round found another. Most findings were in code the
 previous fix had added, which is the CLAUDE.md convergence signal to restructure, not patch.
 
+## What the rulebooks say (verified in `docs/rulebooks/`)
+
+- **AKC Scent Work:** a junior is under 18 **on the day of the trial**. A junior "need not have an
+  AKC Junior Handler number to compete"; without one held before the trial they earn no award
+  credit (glossary, "Junior Handler").
+- **UKC Nosework:** a junior has not reached their 18th birthday **as of January 1st of the
+  competition year** (Ch.1 §3), so the measuring date is fixed, not the trial date. UKC issues no
+  number; the "UKC Junior program" is optional and gates awards, not entry. A club may request
+  verification of age.
+- **ASCA:** a floor of 8 and no upper age bound, so junior status cannot be derived.
+
+So the number is not what makes someone a junior: age is. The number is evidence a club can check.
+
 ## Decisions already made (do not reopen)
 
 From MYK9-662, Richard, 2026-09-18:
@@ -49,10 +62,15 @@ Each has a recommendation. Get an answer in Linear before building.
    trusted with this, which is reasonable pre-launch. Decide which.
 3. **When is the fee fixed?** _Recommended:_ at entry creation, then frozen. A handler who turns
    18 between entering and the trial keeps the fee they were quoted. Confirm with Richard.
-4. **`unknown` status** (no date of birth on file, or ASCA, which has no derivable ceiling).
+4. **Does the reduced fee require a junior handler number?** _Recommended: no, age only._ The
+   rulebooks make age the test, AKC lets a junior enter without a number, and UKC issues none, so
+   requiring a number would deny a UKC junior the fee outright and turn away AKC juniors the rulebook
+   allows. Show the number to the secretary when one is on file, as a way to verify. If a club wants
+   the number required, that is a per-show setting for AKC only and needs its own decision.
+5. **`unknown` status** (no date of birth on file, or ASCA, which has no derivable ceiling).
    _Recommended:_ prices at the normal tier, and an ASCA show hides the setting. A secretary can
    still correct an entry through the existing edit path.
-5. **Self-asserted date of birth** (`/account` has no verification). _Recommended:_ out of scope
+6. **Self-asserted date of birth and number** (`/account` has no verification). _Recommended:_ out of scope
    for this fee; file separately. The club can request proof, as AKC's own rule allows.
 
 ## Slices

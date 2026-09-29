@@ -62,6 +62,11 @@ BEGIN
      OR NEW.entry_fee IS NOT NULL THEN
     RETURN NEW;
   END IF;
+  -- Historical status-only rows may have no dog or class. They are not
+  -- chargeable entries and have no price to derive.
+  IF NEW.show_id IS NULL OR NEW.class_id IS NULL OR NEW.dog_id IS NULL THEN
+    RETURN NEW;
+  END IF;
 
   SELECT s.pre_entry_fee, s.day_of_show_fee, s.junior_handler_fee,
          c.entry_fee, t.id

@@ -19,7 +19,11 @@ import { UserRole } from '@/types/auth-types';
 
 const { authState, networkState } = vi.hoisted(() => ({
   authState: {
-    user: null as { id: string; is_anonymous?: boolean } | null,
+    user: null as {
+      id: string;
+      is_anonymous?: boolean;
+      app_metadata?: Record<string, unknown>;
+    } | null,
     roles: [] as UserRole[],
   },
   networkState: { isOnline: true },
@@ -152,6 +156,40 @@ describe('RingsideShowBoundary', () => {
     renderBoundary('show-missing');
     expect(await screen.findByText('Show not found')).toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+  });
+
+  it('verifies a cold draft show under its stamped anonymous judge claim', async () => {
+    authState.user = {
+      id: 'anon-judge',
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'draft-show', ringside_role: 'judge' },
+    };
+    vi.mocked(replicatedShowsTable.getShowById)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({ id: 'draft-show' } as never);
+
+    renderBoundary('draft-show');
+
+    expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    expect(replicatedShowsTable.sync).toHaveBeenCalledWith('');
+  });
+
+  it('does not call an unverified passcode-show miss a 404 after refresh failure', async () => {
+    authState.user = {
+      id: 'anon-judge',
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'draft-show', ringside_role: 'judge' },
+    };
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+    vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
+      success: false,
+      error: getSyncErrorMessage(new Error('Supabase query failed: Failed to fetch')),
+    } as never);
+
+    renderBoundary('draft-show');
+
+    expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+    expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
   });
 
   it('offers staff a way to prepare an uncached show while offline', async () => {

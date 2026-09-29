@@ -21,6 +21,7 @@ import { replicatedShowsTable } from '@/services/replication';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOnlineStatus } from '@/lib/networkUtils';
+import { deriveRingsideRoleFromClaim } from '@/store/ringsideGrantStore';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
 import {
@@ -120,7 +121,10 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const { user } = useAuthContext();
   const isOnline = useOnlineStatus();
-  const canVerifyOnline = Boolean(user && !user.is_anonymous);
+  const passcodeRole = deriveRingsideRoleFromClaim(user, showId);
+  const canVerifyOnline = Boolean(
+    user && (!user.is_anonymous || (passcodeRole && passcodeRole !== 'exhibitor'))
+  );
 
   const showQuery = useQuery({
     queryKey: ['shows', 'at-show', 'ringside-boundary', showId, isOnline, canVerifyOnline],

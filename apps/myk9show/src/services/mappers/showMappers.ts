@@ -28,7 +28,9 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     entry_close_date: input.entryCloseDate,
     pre_entry_fee: parseFloat(input.preEntryFee) || null,
     day_of_show_fee: input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null,
-    junior_handler_fee: input.juniorHandlerFee ? parseFloat(input.juniorHandlerFee) : null,
+    // Omitted when unset (the column defaults to NULL), so creating a show never names a
+    // column an unmigrated database does not have yet.
+    ...(input.juniorHandlerFee ? { junior_handler_fee: parseFloat(input.juniorHandlerFee) } : {}),
     club_id: input.clubId,
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials

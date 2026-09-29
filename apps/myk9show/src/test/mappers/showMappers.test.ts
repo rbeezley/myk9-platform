@@ -457,14 +457,17 @@ describe('junior handler fee mapping (MYK9-662)', () => {
     ).toHaveProperty('junior_handler_fee', 15);
   });
 
-  it('inserts the fee as a number and a blank fee as NULL', () => {
+  it('inserts the fee as a number and leaves the column out when there is none', () => {
     const input = { ...replicated, preEntryFee: '25', clubId: 'club-1' };
     expect(
       mapShowInputToInsert(fromAny({ ...input, juniorHandlerFee: '15' })).junior_handler_fee
     ).toBe(15);
-    expect(
-      mapShowInputToInsert(fromAny({ ...input, juniorHandlerFee: '' })).junior_handler_fee
-    ).toBeNull();
+    // Unset must not name the column at all, so show creation still works against a
+    // database that has not had the migration applied yet.
+    expect(mapShowInputToInsert(fromAny({ ...input, juniorHandlerFee: '' }))).not.toHaveProperty(
+      'junior_handler_fee'
+    );
+    expect(mapShowInputToInsert(fromAny(input))).not.toHaveProperty('junior_handler_fee');
   });
 
   it('updates the fee, clears it with a blank, and leaves it alone when absent', () => {

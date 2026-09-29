@@ -135,7 +135,7 @@ export function useExhibitorResults(dogId?: string) {
   return {
     ...resultsQuery,
     // A disabled result query is idle, not proof that the dog has no scores.
-    isLoading: dogsQuery.isLoading || resultsQuery.isLoading,
+    isLoading: dogsQuery.isPending || dogsQuery.isLoading || resultsQuery.isLoading,
     isError: dogsQuery.isError || resultsQuery.isError,
     retry: async () => {
       if (dogsQuery.isError) {

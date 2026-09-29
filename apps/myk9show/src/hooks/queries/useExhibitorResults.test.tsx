@@ -75,6 +75,18 @@ describe('exhibitor scored-result query scope', () => {
     expect(mocks.filter).not.toHaveBeenCalled();
   });
 
+  it('stays loading while the roster query is disabled pending the owner profile', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isLoading: false,
+      isError: false,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
   it('reports a roster failure instead of a confirmed empty result', () => {
     mocks.dogsQuery.mockReturnValue({
       data: undefined,

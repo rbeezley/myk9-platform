@@ -5,6 +5,8 @@ export interface CheckoutFeeSnapshotItem {
   class_id: string;
   entry_id: string | null;
   handler_id: string | null;
+  /** Handler used for pricing; absent on snapshots created before this field. */
+  resolved_handler_id?: string | null;
   jump_height: string | null;
   special_requests: string | null;
   fee_cents: number;
@@ -19,7 +21,9 @@ export interface CheckoutFeeSnapshot {
   total_cents: number;
   items: CheckoutFeeSnapshotItem[];
 }
-type LiveItem = Omit<CheckoutFeeSnapshotItem, 'fee_cents'> & { entry_fee_cents: number };
+type LiveItem = Omit<CheckoutFeeSnapshotItem, 'fee_cents' | 'resolved_handler_id'> & {
+  entry_fee_cents: number;
+};
 interface LiveCart {
   id: string;
   show_id: string;
@@ -27,7 +31,8 @@ interface LiveCart {
   items: LiveItem[];
 }
 type SnapshotValidation =
-  { ok: true; feeByItem: Map<string, number> } | { ok: false; reason: string };
+  | { ok: true; feeByItem: Map<string, number>; handlerByItem: Map<string, string | null> }
+  | { ok: false; reason: string };
 const integerCents = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 export function validateCheckoutFeeSnapshot(
@@ -60,6 +65,7 @@ export function validateCheckoutFeeSnapshot(
   }
   const liveById = new Map(cart.items.map(item => [item.id, item]));
   const feeByItem = new Map<string, number>();
+  const handlerByItem = new Map<string, string | null>();
   let subtotal = 0;
   for (const item of snapshot.items) {
     const live = liveById.get(item.id);
@@ -77,10 +83,14 @@ export function validateCheckoutFeeSnapshot(
       return { ok: false, reason: `Cart item ${item.id} differs from the checkout snapshot` };
     }
     feeByItem.set(item.id, item.fee_cents);
+    handlerByItem.set(
+      item.id,
+      item.resolved_handler_id !== undefined ? item.resolved_handler_id : item.handler_id
+    );
     subtotal += item.fee_cents;
   }
   if (subtotal !== snapshot.subtotal_cents) {
     return { ok: false, reason: 'Frozen item fees differ from the frozen subtotal' };
   }
-  return { ok: true, feeByItem };
+  return { ok: true, feeByItem, handlerByItem };
 }

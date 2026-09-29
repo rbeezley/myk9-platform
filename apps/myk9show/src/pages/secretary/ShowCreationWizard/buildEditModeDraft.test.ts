@@ -94,3 +94,14 @@ describe('buildEditModeDraft timezone', () => {
     expect(draft.show.timezone).toBe('America/New_York');
   });
 });
+
+it('does not turn an unhydrated junior fee into a zero fee in an edit draft', () => {
+  const draft = buildEditModeDraft({
+    editMode: { showId: 'show-1', mode: 'edit-show' } as never,
+    existingShow: { ...show([]), juniorFeeKnown: false },
+    showTrials: [],
+    existingClasses: [],
+    people: [],
+  });
+  expect(draft.show.juniorHandlerFee).toBeUndefined();
+});

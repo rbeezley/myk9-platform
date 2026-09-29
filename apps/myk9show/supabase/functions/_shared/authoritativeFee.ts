@@ -71,6 +71,16 @@ export function resolveCartHandlerForFee(
   return { valid: true, handlerId: selectedHandlerId ?? dog.owner_id };
 }
 
+/** Recovery pays an existing entry without exposing a new handler-age decision. */
+export function canPayStoredDogEntry(
+  callerPersonId: string | null,
+  dog: { owner_id: string | null; co_owner_id: string | null } | null
+): boolean {
+  return Boolean(
+    callerPersonId && dog && (dog.owner_id === callerPersonId || dog.co_owner_id === callerPersonId)
+  );
+}
+
 /** Existing entries keep the fee fixed at submission, including junior pricing. */
 export function storedEntryFeeCents(value: number | string | null): number | null {
   if (value === null || value === '') return null;

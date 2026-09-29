@@ -1436,6 +1436,7 @@ async function handleEntryPaymentCompleted(
     const entryInsert = buildEntryInsert(
       {
         ...item,
+        handler_id: snapshotValidation.handlerByItem.get(item.id) ?? null,
         entry_fee_cents: lineAmountCents,
       },
       paymentIntentId,

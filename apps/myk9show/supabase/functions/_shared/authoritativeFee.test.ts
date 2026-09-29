@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   authoritativeEntryFeeCents,
+  canPayStoredDogEntry,
   handlerDateOfBirthForFee,
   resolveCartHandlerForFee,
 } from './authoritativeFee';
@@ -244,5 +245,18 @@ describe('handlerDateOfBirthForFee', () => {
 
   it('keeps an unresolved handler unknown even when a junior owner is known', () => {
     expect(handlerDateOfBirthForFee(null, dates)).toBeNull();
+  });
+});
+
+describe('stored entry recovery ownership', () => {
+  const dog = { owner_id: 'owner', co_owner_id: 'co-owner' };
+  it('lets either verified owner pay an existing entry', () => {
+    expect(canPayStoredDogEntry('co-owner', dog)).toBe(true);
+    expect(canPayStoredDogEntry('owner', dog)).toBe(true);
+  });
+  it('rejects strangers, missing dogs and absent caller identities', () => {
+    expect(canPayStoredDogEntry('stranger', dog)).toBe(false);
+    expect(canPayStoredDogEntry('owner', null)).toBe(false);
+    expect(canPayStoredDogEntry(null, { owner_id: null, co_owner_id: null })).toBe(false);
   });
 });

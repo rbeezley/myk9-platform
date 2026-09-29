@@ -99,3 +99,12 @@ describe('areAssignedJudgesEqual', () => {
     ).toBe(false);
   });
 });
+
+it('preserves an absent junior fee through the show store mapper', () => {
+  expect(replicatedToShow(baseRow)).toMatchObject({ juniorFeeKnown: false });
+  expect(replicatedToShow(baseRow).juniorHandlerFee).toBeUndefined();
+  expect(replicatedToShow({ ...baseRow, juniorHandlerFee: null })).toMatchObject({
+    juniorFeeKnown: true,
+    juniorHandlerFee: '',
+  });
+});

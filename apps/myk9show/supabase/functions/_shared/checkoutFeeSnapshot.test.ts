@@ -45,6 +45,7 @@ describe('validateCheckoutFeeSnapshot', () => {
     expect(validateCheckoutFeeSnapshot(snapshot, cart, 1600)).toEqual({
       ok: true,
       feeByItem: new Map([['item_1', 1500]]),
+      handlerByItem: new Map([['item_1', 'handler_1']]),
     });
   });
   it('refuses a changed handler even if the total still matches', () => {
@@ -62,4 +63,14 @@ describe('validateCheckoutFeeSnapshot', () => {
   it('refuses a changed Stripe total', () => {
     expect(validateCheckoutFeeSnapshot(snapshot, cart, 3000)).toMatchObject({ ok: false });
   });
+});
+
+it('retains the priced owner for a blank handler selection', () => {
+  const frozen = {
+    ...snapshot,
+    items: [{ ...snapshot.items[0], handler_id: null, resolved_handler_id: 'priced-owner' }],
+  };
+  const live = { ...cart, items: [{ ...cart.items[0], handler_id: null }] };
+  const result = validateCheckoutFeeSnapshot(frozen, live, 1600);
+  expect(result.ok && result.handlerByItem.get('item_1')).toBe('priced-owner');
 });

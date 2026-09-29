@@ -10,6 +10,7 @@ AS $$
 DECLARE
   v_entry public.entries%ROWTYPE;
   v_owner_id uuid;
+  v_co_owner_id uuid;
   v_pre_fee numeric;
   v_day_fee numeric;
   v_junior_fee numeric;
@@ -22,7 +23,8 @@ BEGIN
   IF NOT FOUND OR v_entry.deleted_at IS NOT NULL THEN
     RAISE EXCEPTION 'Entry not found' USING ERRCODE = 'P0002';
   END IF;
-  SELECT d.owner_id INTO v_owner_id FROM public.dogs d WHERE d.id = v_entry.dog_id;
+  SELECT d.owner_id, d.co_owner_id INTO v_owner_id, v_co_owner_id
+    FROM public.dogs d WHERE d.id = v_entry.dog_id;
   SELECT s.pre_entry_fee, s.day_of_show_fee, s.junior_handler_fee,
          c.entry_fee, t.id, s.club_id
     INTO v_pre_fee, v_day_fee, v_junior_fee, v_class_fee, v_trial_id, v_club_id
@@ -34,7 +36,10 @@ BEGIN
     RAISE EXCEPTION 'Entry class does not belong to its show' USING ERRCODE = '22023';
   END IF;
   IF (SELECT auth.role()) IS DISTINCT FROM 'service_role'
-     AND (v_owner_id IS NULL OR public.get_my_person_id() IS DISTINCT FROM v_owner_id)
+     AND (public.get_my_person_id() IS NULL OR (
+       public.get_my_person_id() IS DISTINCT FROM v_owner_id
+       AND public.get_my_person_id() IS DISTINCT FROM v_co_owner_id
+     ))
      AND NOT public.is_show_secretary(v_entry.show_id)
      AND NOT (v_club_id IS NOT NULL AND public.is_club_admin(v_club_id))
      AND NOT public.is_site_admin() THEN

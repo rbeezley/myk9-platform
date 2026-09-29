@@ -58,7 +58,11 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     entryCloseDate: replicated.entryCloseDate || '',
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
-    juniorHandlerFee: replicated.juniorHandlerFee?.toString() || '',
+    juniorHandlerFee:
+      replicated.juniorHandlerFee === undefined
+        ? undefined
+        : (replicated.juniorHandlerFee?.toString() ?? ''),
+    juniorFeeKnown: replicated.juniorHandlerFee !== undefined,
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store

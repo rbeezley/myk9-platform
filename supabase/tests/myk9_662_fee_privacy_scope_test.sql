@@ -380,5 +380,25 @@ BEGIN
   END IF;
 END;
 $$;
+-- Finish Payment offers legacy rows to both verified owners.
+UPDATE public.dogs SET co_owner_id = '00000000-0000-0000-0000-000000663002'
+WHERE id = '00000000-0000-0000-0000-000000663401';
+UPDATE public.entries SET entry_fee = NULL
+WHERE id = '00000000-0000-0000-0000-000000663901';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.role', 'authenticated', true);
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663702', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000663702","role":"authenticated"}', true);
+DO $$
+BEGIN
+  IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000663901') IS DISTINCT FROM 30::numeric THEN
+    RAISE EXCEPTION 'FAIL co-owner could not freeze the existing owner-handler fee';
+  END IF;
+  IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000663901') IS DISTINCT FROM 30::numeric THEN
+    RAISE EXCEPTION 'FAIL co-owner recovery repriced the stored entry';
+  END IF;
+END;
+$$;
 RESET ROLE;
 ROLLBACK;

@@ -163,3 +163,8 @@ describe('ShowEditPanel helpers', () => {
     expect(parsed.error?.issues[0]?.message).toMatch(/shared show content/i);
   });
 });
+
+it('omits an unhydrated junior fee when saving an unrelated show edit', () => {
+  const form = showToFormData({ organization: 'AKC', juniorFeeKnown: false });
+  expect(formDataToShow({ ...form, name: 'Renamed' })).not.toHaveProperty('juniorHandlerFee');
+});

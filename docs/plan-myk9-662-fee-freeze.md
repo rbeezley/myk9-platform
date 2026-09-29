@@ -27,6 +27,14 @@ Each entry has one fee in integer cents, fixed by a trusted server at the first 
 2. **Replication and offline pricing.** A stale replicated show with an absent junior-fee field must omit that column from update and conflict-replay payloads; an explicit null remains a deliberate clear. A queued offline entry with a NULL fee is priced by the server trigger for every show, using the configured junior rate only when positive and otherwise the regular fee. The offline client leaves payment pending until sync.
 3. **Scope.** Only shows with a positive junior fee need the added staff handler relationship guard. Premium generation omits the junior fee for ASCA and narrows the untyped database value before comparing it.
 
+## Self-review: recovery authorization
+
+Finish Payment already offers existing entries to both dog owners and co-owners. Keep that same authorization at checkout and the legacy NULL-fee freeze RPC, with an explicit non-null caller requirement. Recovery reads the submitted handler and fee; it does not accept a replacement handler. The new-entry handler restriction stays at the submission boundary. Test co-owner recovery and unrelated/null callers, and verify the SQL authorization in the behavioral fixture.
+
+The frozen cart line must also retain the handler used to calculate its price. Store `resolved_handler_id` beside the original cart `handler_id`: the original remains the cart-mutation comparison key, while the resolved value is written to the paid entry. This prevents a blank selection from pricing the owner but saving an unknown handler, and prevents later dog ownership edits from changing the paid handler. Older snapshots without the new field retain their original handler value.
+
+Stale show rows must preserve the unknown junior fee through every mapping into an edit form, not only the final replication serializer. The show store records `juniorFeeKnown`, and both edit-form builders omit an unknown fee. Explicit blanks and zero remain intentional edits. Cover the store and both form builders before testing their existing save paths.
+
 ## Verification and release
 
 - Add behavior tests for AKC birthday and UKC calendar-year boundaries, a failed quote with an editable cart, frozen-price webhook behavior after DOB/show-fee changes, retryable read failures, mismatch refunds, typed handlers, NULL/zero entry fees, co-owner writes, and scoped staff/offline deferral.

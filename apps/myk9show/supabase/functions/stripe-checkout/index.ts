@@ -8,6 +8,7 @@ import {
 } from '../_shared/platformFee.ts';
 import {
   authoritativeEntryFeeCents,
+  canPayStoredDogEntry,
   handlerDateOfBirthForFee,
   resolveCartHandlerForFee,
   storedEntryFeeCents,
@@ -677,7 +678,7 @@ async function handleEntryCheckout(
             item.entry.dog_id === item.dog_id &&
             item.entry.class_id === item.class_id &&
             item.entry.payment_status === 'pending' &&
-            item.dog?.owner_id === cart.exhibitor.person_id &&
+            canPayStoredDogEntry(cart.exhibitor.person_id, item.dog) &&
             storedEntryFeeCents(item.entry.entry_fee) !== null,
           handlerId: null,
         }
@@ -718,6 +719,7 @@ async function handleEntryCheckout(
   }
   const itemsWithAuthoritativeFee = resolvedHandlers.map(({ item, resolution }) => ({
     item,
+    resolvedHandlerId: item.entry_id ? item.handler_id : resolution.handlerId,
     authoritativeCents: item.entry_id
       ? storedEntryFeeCents(item.entry?.entry_fee ?? null)!
       : authoritativeEntryFeeCents({
@@ -972,12 +974,13 @@ async function handleEntryCheckout(
   // Freeze the exact per-item fees and identities BEFORE returning a payable URL.
   // The webhook reads this service-owned row instead of repricing at payment time.
   const frozenItems: CheckoutFeeSnapshotItem[] = itemsWithAuthoritativeFee.map(
-    ({ item, authoritativeCents }) => ({
+    ({ item, authoritativeCents, resolvedHandlerId }) => ({
       id: item.id,
       dog_id: item.dog_id,
       class_id: item.class_id,
       entry_id: item.entry_id,
       handler_id: item.handler_id,
+      resolved_handler_id: resolvedHandlerId,
       jump_height: (item as { jump_height?: string | null }).jump_height ?? null,
       special_requests: (item as { special_requests?: string | null }).special_requests ?? null,
       fee_cents: authoritativeCents,

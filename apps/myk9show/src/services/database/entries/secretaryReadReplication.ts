@@ -20,7 +20,6 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
-import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
@@ -340,14 +339,18 @@ export function toSecretaryEntry(
 }
 
 export async function getReplicatedSecretaryEntriesForShow(showId: string) {
-  const [allEntries, scopeSynced] = await Promise.all([
+  const [allEntries, syncMetadata] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
-    hasShowEntriesSynced(showId),
+    replicatedEntriesTable.getSyncMetadata(showId),
   ]);
-  // Scope metadata, not row count, establishes whether a full show download
-  // completed. An empty synced scope is valid after its last entry is removed;
-  // a single locally written row in an unsynced scope is still incomplete.
-  const isColdStore = !scopeSynced;
+  // A completed zero-row sync is authoritative. If metadata still expects
+  // rows but the cache is empty, hydrate before claiming none.
+  const expectedRows = Math.max(
+    syncMetadata?.expectedRemoteRows ?? 0,
+    syncMetadata?.totalRows ?? 0
+  );
+  const isColdStore =
+    syncMetadata?.totalRows === undefined || (allEntries.length === 0 && expectedRows > 0);
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     // Joins that label the entries (see joinRowsOrEmpty): throwing would drop

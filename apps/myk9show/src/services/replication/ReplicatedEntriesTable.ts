@@ -151,6 +151,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * so it doesn't resurrect entries the user just deleted.
    */
   private _deletedIds: Set<string> = new Set();
+  private entryMutationManager: MutationManager | null = null;
 
   /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
   readonly pendingDeletes = new PendingDeletes('entries');
@@ -161,6 +162,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   override setMutationManager(manager: MutationManager): void {
     super.setMutationManager(manager);
+    this.entryMutationManager = manager;
     this.pendingDeletes.attach(manager);
   }
 
@@ -171,6 +173,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
     return entryToSupabaseRow(entry);
+  }
+
+  protected override presentRows(rows: ReplicatedEntry[]): ReplicatedEntry[] {
+    return rows.filter(row => !this._deletedIds.has(row.id));
   }
 
   /**
@@ -417,8 +423,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           }
         }
 
-        // Safe to clear deleted IDs — all DELETEs have been uploaded.
-        this._deletedIds.clear();
+        // Keep the guard while a fetch still includes the deleted row. An
+        // in-flight download can have started before the server removal.
+        for (const id of this._deletedIds) {
+          if (!serverIds.has(id)) this._deletedIds.delete(id);
+        }
       },
     };
 
@@ -1571,6 +1580,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
     return mutationId;
+  }
+
+  /** A direct server soft-delete supersedes any queued local edit for this row. */
+  async acknowledgeServerDeletion(entryId: string): Promise<void> {
+    this._deletedIds.add(entryId);
+    try {
+      await this.entryMutationManager?.discardPendingMutationsForRow('entries', entryId);
+    } finally {
+      await this.delete(entryId);
+    }
   }
 }
 

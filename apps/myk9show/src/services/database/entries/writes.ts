@@ -106,11 +106,11 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
 
     // The authenticated result view hides a secretary's soft-deleted row.
     // Incremental sync therefore cannot replace the clean cached copy with a
-    // tombstone; drop it here after the server has accepted the removal.
+    // tombstone. Cancel queued edits and guard racing downloads before eviction.
     try {
-      await replicatedEntriesTable.delete(id);
+      await replicatedEntriesTable.acknowledgeServerDeletion(id);
     } catch (cacheError) {
-      logger.warn('Entry removed on server but local cache eviction failed', 'database', {
+      logger.warn('Entry removed on server but local cache reconciliation failed', 'database', {
         entryId: id,
         error: String(cacheError),
       });

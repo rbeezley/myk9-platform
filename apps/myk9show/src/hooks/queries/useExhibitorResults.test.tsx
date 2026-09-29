@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
 import { useExhibitorResults } from './useExhibitorResults';
 
 const mocks = vi.hoisted(() => ({
   filter: vi.fn(),
   range: vi.fn(),
+  dogsQuery: vi.fn(),
+  retryDogs: vi.fn(),
   dogs: [{ id: 'dog-a' }, { id: 'dog-b' }],
 }));
-vi.mock('./useDogsDatabase', () => ({ useDogsQuery: () => ({ data: mocks.dogs }) }));
+vi.mock('./useDogsDatabase', () => ({ useDogsQuery: mocks.dogsQuery }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: () => {
@@ -43,12 +45,48 @@ function Results() {
   return <p>{isError ? 'error' : data ? `results: ${data.length}` : 'loading'}</p>;
 }
 
+function ResultsState() {
+  const { isLoading, isError, retry } = useExhibitorResults('dog-a');
+  return (
+    <>
+      <p>{isError ? 'error' : isLoading ? 'loading' : 'ready'}</p>
+      <button onClick={() => void retry()}>Retry</button>
+    </>
+  );
+}
+
 beforeEach(() => {
+  mocks.retryDogs.mockReset().mockResolvedValue(undefined);
+  mocks.dogsQuery.mockReturnValue({
+    data: mocks.dogs,
+    isLoading: false,
+    isError: false,
+    refetch: mocks.retryDogs,
+  });
   mocks.filter.mockClear();
   mocks.range.mockReset().mockResolvedValue({ data: [], error: null });
 });
 
 describe('exhibitor scored-result query scope', () => {
+  it('stays loading until the owned-dog roster resolves', () => {
+    mocks.dogsQuery.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    render(<ResultsState />);
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
+  it('reports a roster failure instead of a confirmed empty result', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: mocks.retryDogs,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mocks.retryDogs).toHaveBeenCalledOnce();
+  });
   it('requests only the title card dog instead of every owned dog (MYK9-289)', async () => {
     render(<Titles />);
     await screen.findByText('ready');

@@ -64,6 +64,25 @@ function renderSection(results: ExhibitorResult[]) {
 }
 
 describe('PastResultsSection — platform results release gate', () => {
+  it('does not claim there are no results while the dog roster is loading', () => {
+    mockExhibitorResults.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: true,
+      retry: vi.fn(),
+    });
+    render(
+      <PastResultsSection
+        dogId="dog-willow"
+        isPremium={false}
+        addDialogOpen={false}
+        setAddDialogOpen={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Loading results…')).toBeInTheDocument();
+    expect(screen.queryByText(/No results yet/)).not.toBeInTheDocument();
+  });
+
   it('shows retry instead of a false no-results claim when the result read fails', () => {
     mockExhibitorResults.mockReturnValue({
       data: [],

@@ -795,6 +795,18 @@ describe('secretary entry read replication', () => {
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
   });
 
+  it('rehydrates when rows are missing but persisted scope metadata still expects them', async () => {
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    await getEntriesForShow('show-1');
+
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+  });
+
   it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {
     // Warm store — entries were synced, but all are soft-deleted. This is NOT a
     // cold store: getEntriesByShow returns rows, isColdStore = false.

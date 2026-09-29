@@ -117,17 +117,32 @@ async function fetchExhibitorResults(dogIds: string[]) {
  */
 export function useExhibitorResults(dogId?: string) {
   const viewerId = useViewerId();
-  const { data: dogs = [] } = useDogsQuery();
+  const dogsQuery = useDogsQuery();
+  const dogs = dogsQuery.data ?? [];
   const dogIds = dogs
     .map((d: Record<string, unknown>) => d.id as string)
     .filter(id => dogId === undefined || id === dogId);
   const sortedIds = dogIds.slice().sort();
 
-  return useQuery({
+  const resultsQuery = useQuery({
     queryKey: ['exhibitor', 'results', viewerScope(viewerId), sortedIds],
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,
     ...(dogId ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}),
   });
+
+  return {
+    ...resultsQuery,
+    // A disabled result query is idle, not proof that the dog has no scores.
+    isLoading: dogsQuery.isLoading || resultsQuery.isLoading,
+    isError: dogsQuery.isError || resultsQuery.isError,
+    retry: async () => {
+      if (dogsQuery.isError) {
+        await dogsQuery.refetch();
+      } else {
+        await resultsQuery.refetch();
+      }
+    },
+  };
 }

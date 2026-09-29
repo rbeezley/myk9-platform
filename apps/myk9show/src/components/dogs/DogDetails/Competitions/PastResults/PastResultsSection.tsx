@@ -71,7 +71,7 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
     data: exhibitorResults = [],
     isError: resultsError,
     isLoading: resultsLoading,
-    refetch: retryResults,
+    retry: retryResults,
   } = useExhibitorResults(dogId);
   const platformResults = useMemo(
     () => exhibitorResults.filter(r => r.dogId === dogId),

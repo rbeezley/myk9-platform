@@ -50,6 +50,7 @@
     "test:a11y": "cross-env PLAYWRIGHT_A11Y=true playwright test --config=playwright.ci.config.ts",
     "reset:e2e-passwords": "tsx scripts/reset-e2e-passwords.ts",
     "test:performance": "vitest run --config vitest.config.ts src/test/performance/",
+    "performance:baseline": "pnpm --dir ../.. qa:browser-session sh apps/myk9show/src/test/performance/run-baseline.sh",
     "test:load": "pnpm run test:load:list",
     "test:load:list": "playwright test --config=playwright.load.config.ts --list",
     "test:load:unit": "vitest run src/test/load",

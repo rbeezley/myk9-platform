@@ -8,7 +8,7 @@ Keeps a prepared ringside scoring device usable after a full reload at a show ve
 
 ### Requirement: Prepared ringside deep links boot offline
 
-The app SHALL fetch the current document for a same-origin `/at-show` navigation while online, and serve its saved shell if that fetch fails, including a show, class list, or scoresheet deep link, after the service worker has activated and cached the shell. It SHALL preserve the requested URL so the existing ringside route and replicated data can restore the view. The shell fallback MUST NOT intercept API, asset, or unrelated navigation requests.
+The app SHALL fetch the current document for a same-origin `/at-show` navigation while online. If the navigation stalls beyond a bounded wait, fails, or returns a non-app document, it SHALL serve its saved shell, including for a show, class list, or scoresheet deep link, after the service worker has activated and cached the shell. It SHALL preserve the requested URL so the existing ringside route and replicated data can restore the view. The shell fallback MUST NOT intercept API, asset, or unrelated navigation requests.
 
 #### Scenario: Online show deep-link reload after deployment
 
@@ -24,6 +24,16 @@ The app SHALL fetch the current document for a same-origin `/at-show` navigation
 
 - **WHEN** a judge reloads a prepared ringside scoresheet deep link without a network
 - **THEN** the app boots at the same URL and can read cached scoring data and pending mutations
+
+#### Scenario: Venue wifi has no usable uplink
+
+- **WHEN** a controlled ringside deep link reloads while the navigation request or its response body stalls
+- **THEN** the precached shell loads within the navigation deadline
+
+#### Scenario: Origin or captive portal returns the wrong document
+
+- **WHEN** a controlled ringside deep link reloads and the server returns an HTTP error or a non-myk9 HTML page
+- **THEN** the precached shell loads instead of that response
 
 #### Scenario: Unrelated request
 

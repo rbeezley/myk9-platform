@@ -3,7 +3,7 @@
 ## 1. Offline ringside navigation
 
 - [x] 1.1 Register a ringside-only navigation fallback to the precached shell and verify the generated build serves ringside deep links without intercepting unrelated requests.
-- [x] 1.2 Run service-worker-controlled browser reloads at show and scoresheet deep links online and offline. Both online navigations made service-worker-owned network requests; both offline reloads returned HTTP 200 from the service worker and kept the deep-link URL in the local preview. The prepared-show content must still be checked after deployment.
+- [x] 1.2 Run service-worker-controlled browser reloads at show and scoresheet deep links online and offline. Both online navigations made service-worker-owned network requests; both offline reloads returned HTTP 200 from the service worker and kept the deep-link URL in the local preview. A focused handler test covers stalled requests and bodies, HTTP 5xx, and captive portal HTML. A production-build Chrome run also returned the cached shell for intercepted 503 and portal-style 200 responses (one route hit each) and for offline reload while keeping the deep-link URL. The separate browser stall attempt lost its task-owned session before the script ran; the timed-fetch and stalled-body cases passed in unit tests. Prepared-show content still needs checking after deployment.
 
 ## 2. Passcode-only draft show structure
 

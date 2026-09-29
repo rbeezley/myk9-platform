@@ -31,3 +31,8 @@ The existing dog page SHALL show a scored run on its trial date, including its r
 
 - **WHEN** the owner dog-roster query is disabled or paused without data
 - **THEN** Past Results offers an unavailable/retry state instead of loading forever
+
+#### Scenario: Result on a later day of a multi-day show
+
+- **WHEN** a dog scores on a trial after the show's first day
+- **THEN** Past Results uses the trial's date for that result

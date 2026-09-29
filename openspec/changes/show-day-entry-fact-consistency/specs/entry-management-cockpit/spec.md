@@ -26,6 +26,16 @@ The secretary's live registration queue and whole-show search SHALL exclude soft
 - **WHEN** a scoped sync records zero rows but an independent manager-authorized count is unavailable or disagrees
 - **THEN** Entry Management does not claim the show has no entries
 
+#### Scenario: Queued create without a cached row
+
+- **WHEN** a day-of entry create is queued but the cold replica has no cached row
+- **THEN** Entry Management does not claim the show has no entries, even if the server count is still zero
+
+#### Scenario: Empty replica offline
+
+- **WHEN** a previously verified empty replica is read without connectivity
+- **THEN** Entry Management presents an unavailable state instead of claiming the show remains empty
+
 #### Scenario: Server restores a removed entry
 
 - **WHEN** the server later restores an entry that was soft-deleted here

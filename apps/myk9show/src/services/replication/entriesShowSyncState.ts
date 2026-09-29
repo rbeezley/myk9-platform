@@ -33,6 +33,7 @@ export async function hasShowEntriesSynced(
 export interface ShowEntryRowStateReader {
   getEntriesByShow(showId: string): Promise<readonly { id: string }[]>;
   getReplicatedRow(id: string): Promise<{ isDirty: boolean } | null>;
+  hasPendingWritesForShow?(showId: string): Promise<boolean>;
 }
 
 /**
@@ -48,6 +49,7 @@ export async function hasUnsavedLocalEntryWrites(
   showId: string,
   table: ShowEntryRowStateReader = replicatedEntriesTable
 ): Promise<boolean> {
+  if (await table.hasPendingWritesForShow?.(showId)) return true;
   return hasUnsavedWritesAmong(await table.getEntriesByShow(showId), table);
 }
 

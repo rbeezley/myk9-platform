@@ -325,12 +325,11 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
             : null,
     ring_entry_time: entry.ring_entry_time ?? null,
     ring_exit_time: entry.ring_exit_time ?? null,
-    deleted_at:
-      entry.deletedAt !== undefined
-        ? entry.deletedAt
-        : entry.deleted_at !== undefined
-          ? entry.deleted_at
-          : null,
+    // A queued live-row UPDATE can finish after a secretary's direct soft
+    // delete. Never send null here, or that older UPDATE would restore it.
+    ...((entry.deletedAt ?? entry.deleted_at) && {
+      deleted_at: entry.deletedAt ?? entry.deleted_at,
+    }),
     updated_at: new Date().toISOString(),
   };
 }

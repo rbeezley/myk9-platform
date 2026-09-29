@@ -24,3 +24,4 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_secretary_live_entry_count(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_secretary_live_entry_count(uuid) TO authenticated, service_role;
+NOTIFY pgrst, 'reload schema';

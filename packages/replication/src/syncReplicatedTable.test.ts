@@ -192,10 +192,17 @@ describe('syncReplicatedTable', () => {
       await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() });
       // Counts agree, so this is an incremental sync returning one changed row.
       const adapter = countedAdapter([{ id: 1, name: 'Unchanged', updated_at: 2000 }], 2);
+      adapter.afterSuccessfulSync = vi.fn();
 
-      const result = await syncReplicatedTable(table, adapter);
+      const result = await syncReplicatedTable(table, adapter, {}, { incrementalBufferMs: 5000 });
 
       expect(result.operation).toBe('incremental-sync');
+      expect(adapter.fetchRemoteRows).toHaveBeenCalledWith(
+        expect.objectContaining({ since: 0, forceFullSync: false })
+      );
+      expect(adapter.afterSuccessfulSync).toHaveBeenCalledWith(
+        expect.objectContaining({ staleCleanupCompleted: false })
+      );
       expect(await table.get('2')).toMatchObject({ name: 'Also unchanged' });
     });
 
@@ -420,6 +427,7 @@ describe('syncReplicatedTable', () => {
       scope: { value: 'show-1' },
       serverIds: new Set(['1']),
       localRows: [expect.objectContaining({ id: '1' })],
+      staleCleanupCompleted: false,
     });
   });
 

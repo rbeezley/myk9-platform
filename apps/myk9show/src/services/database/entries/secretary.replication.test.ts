@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getEntriesByShow: vi.fn(),
   getEntriesSyncMetadata: vi.fn(),
   getReplicatedRow: vi.fn(),
+  hasPendingWritesForShow: vi.fn(),
   syncEntries: vi.fn(),
   syncClasses: vi.fn(),
   syncTrials: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     getEntriesByShow: mocks.getEntriesByShow,
     getSyncMetadata: mocks.getEntriesSyncMetadata,
     getReplicatedRow: mocks.getReplicatedRow,
+    hasPendingWritesForShow: mocks.hasPendingWritesForShow,
     sync: mocks.syncEntries,
   },
 }));
@@ -181,6 +183,7 @@ describe('secretary entry status replication', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mocks.supabaseRpc.mockResolvedValue({ data: 1, error: null });
+    mocks.hasPendingWritesForShow.mockReset().mockResolvedValue(false);
     mocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'secretary-1' } } } });
     mocks.syncEntries.mockResolvedValue({ success: false });
     mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-1');
@@ -298,6 +301,8 @@ describe('secretary entry status replication', () => {
 describe('secretary entry read replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.hasPendingWritesForShow.mockReset().mockResolvedValue(false);
+    mocks.getReplicatedRow.mockReset().mockResolvedValue({ isDirty: false });
     localStorage.clear();
     mocks.supabaseRpc.mockResolvedValue({ data: 1, error: null });
     mocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'secretary-1' } } } });
@@ -826,7 +831,7 @@ describe('secretary entry read replication', () => {
     expect(result.error?.message).toBe("We couldn't load entries for this show. Please retry.");
   });
 
-  it('uses a scoped verified-empty receipt while offline', async () => {
+  it('shows unavailable while offline even after an earlier verified zero', async () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
     mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
     mocks.getEntriesByShow.mockResolvedValue([]);
@@ -838,27 +843,28 @@ describe('secretary entry read replication', () => {
     vi.stubGlobal('navigator', { onLine: false });
     try {
       mocks.supabaseRpc.mockClear();
-      expect((await getEntriesForShow('show-1')).data).toEqual([]);
+      const offline = await getEntriesForShow('show-1');
+      expect(offline.data).toBeNull();
+      expect(offline.error?.message).toBe("We couldn't load entries for this show. Please retry.");
       expect(mocks.supabaseRpc).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it('discards an old empty receipt after observing a live entry', async () => {
+  it('does not report zero while a cold create is queued without a cached row', async () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
+    mocks.hasPendingWritesForShow.mockResolvedValue(true);
     mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
     mocks.getArmbandsByShow.mockResolvedValue([]);
-    expect((await getEntriesForShow('show-1')).data).toEqual([]);
-    expect(localStorage.getItem('myk9:secretary-empty:secretary-1:show-1')).toBe('verified');
+    mockPostgrestEntriesRead([]);
 
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
-    mocks.getEntriesByShow.mockResolvedValue([{ id: 'entry-1', showId: 'show-1' }]);
-    expect((await getEntriesForShow('show-1')).data).toHaveLength(1);
-    expect(localStorage.getItem('myk9:secretary-empty:secretary-1:show-1')).toBeNull();
+    const result = await getEntriesForShow('show-1');
+    expect(result.data).toBeNull();
+    expect(result.error?.message).toBe("We couldn't load entries for this show. Please retry.");
   });
 
   it('rehydrates when rows are missing but persisted scope metadata still expects them', async () => {

@@ -166,6 +166,21 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     this.pendingDeletes.attach(manager);
   }
 
+  /** A cold INSERT can be queued without a cached row on production devices. */
+  async hasPendingWritesForShow(showId: string): Promise<boolean> {
+    if (!this.entryMutationManager) return true;
+    const mutations = await this.entryMutationManager.getPendingMutationsForTable('entries');
+    for (const mutation of mutations) {
+      const mutationShowId = mutation.data.show_id ?? mutation.data.showId;
+      if (mutationShowId === showId) return true;
+      if (mutationShowId == null) {
+        const row = await this.get(mutation.rowId);
+        if (!row?.showId || row.showId === showId) return true;
+      }
+    }
+    return false;
+  }
+
   /** Get the mutation ID from the last create/update operation */
   get lastMutationId(): string | null {
     return this._lastMutationId;
@@ -308,7 +323,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
-    let completeFullFetch = false;
     const confirmedDeletionIds = new Set<string>();
     const restoredIds = new Set<string>();
 
@@ -390,8 +404,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             receiptReferenceColumnObserved = true;
           }
           if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
-            completeFullFetch =
-              since === 0 && remoteRowCount !== undefined && rows.length >= remoteRowCount;
             return rows;
           }
 
@@ -429,15 +441,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         }
         return shouldSkip;
       },
-      afterSuccessfulSync: async ({ serverIds, localRows }) => {
+      afterSuccessfulSync: async ({ serverIds, localRows, staleCleanupCompleted }) => {
         const pendingCount = await this.getMutationPendingCount();
         for (const [id, deletedVersion] of this._deletedIds) {
           if (
             restoredIds.has(id) ||
             confirmedDeletionIds.has(id) ||
-            (completeFullFetch &&
+            (staleCleanupCompleted &&
               !serverIds.has(id) &&
-              (deletedVersion !== null || pendingCount === 0))
+              (deletedVersion !== null || pendingCount === 0) &&
+              !(await this.get(id)))
           ) {
             this._deletedIds.delete(id);
           }

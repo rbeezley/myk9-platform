@@ -22,7 +22,7 @@ import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSele
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 import { hasUnsavedLocalEntryWrites } from '@/services/replication/entriesShowSyncState';
-import { clearSecretaryEmptyProof, verifySecretaryEmptyShow } from './secretaryEmptyProof';
+import { verifySecretaryEmptyShow } from './secretaryEmptyProof';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -73,12 +73,15 @@ export const getEntriesForShow = async (showId: string) => {
 
   try {
     const result = await getReplicatedSecretaryEntriesForShow(showId);
-    if (result.data.length === 0 && (await verifySecretaryEmptyShow(showId))) {
+    if (
+      result.data.length === 0 &&
+      !(await unsavedWritesOrUnknown(showId)) &&
+      (await verifySecretaryEmptyShow(showId))
+    ) {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
     if (!result.isColdStore && result.data.length > 0) {
-      await clearSecretaryEmptyProof(showId);
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
@@ -89,7 +92,6 @@ export const getEntriesForShow = async (showId: string) => {
     });
     const hydratedData = await hydrateSecretaryEntriesForShow(showId, startTime);
     if (hydratedData?.length) {
-      await clearSecretaryEmptyProof(showId);
       return { data: hydratedData, error: null };
     }
     // MYK9-746: the show never completed a sync here. While this device holds
@@ -135,10 +137,16 @@ export const getEntriesForShow = async (showId: string) => {
       startTime,
       'get_entries_for_show_fallback'
     );
-    if (!fallback.error && fallback.data?.length === 0 && !(await verifySecretaryEmptyShow(showId))) {
-      return secretaryEntriesReadFailure(new Error('Show entry count could not be verified'), startTime);
+    if (
+      !fallback.error &&
+      fallback.data?.length === 0 &&
+      ((await unsavedWritesOrUnknown(showId)) || !(await verifySecretaryEmptyShow(showId)))
+    ) {
+      return secretaryEntriesReadFailure(
+        new Error('Show entry count could not be verified'),
+        startTime
+      );
     }
-    if (fallback.data?.length) await clearSecretaryEmptyProof(showId);
     return fallback;
   } catch (error) {
     return secretaryEntriesReadFailure(error, startTime);

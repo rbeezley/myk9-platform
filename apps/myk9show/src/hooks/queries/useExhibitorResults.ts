@@ -80,6 +80,21 @@ async function fetchExhibitorResults(dogIds: string[]) {
     if (page.length < PAGE_SIZE) break;
   }
 
+  // The result view names the show start date, which can precede this trial
+  // by several days. Resolve actual trial dates before publishing the history.
+  const trialIds = [
+    ...new Set(rows.map(row => row.trial_id).filter((id): id is string => typeof id === 'string')),
+  ];
+  const trialDates = new Map<string, string>();
+  for (let from = 0; from < trialIds.length; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('trials')
+      .select('id, date')
+      .in('id', trialIds.slice(from, from + PAGE_SIZE));
+    if (error) throw error;
+    for (const trial of data ?? []) trialDates.set(trial.id, trial.date);
+  }
+
   return rows.map((row: Record<string, unknown>): ExhibitorResult => ({
     id: row.id as string,
     dogId: row.dog_id as string,
@@ -98,7 +113,9 @@ async function fetchExhibitorResults(dogIds: string[]) {
     finalPlacement: row.final_placement as number | null,
     scoringCompletedAt: row.scoring_completed_at as string | null,
     showName: (row.show_name as string) || 'Unknown Show',
-    showDate: (row.show_start_date as string) || '',
+    showDate: row.trial_id
+      ? (trialDates.get(row.trial_id as string) ?? '')
+      : (row.show_start_date as string) || '',
     resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
 }

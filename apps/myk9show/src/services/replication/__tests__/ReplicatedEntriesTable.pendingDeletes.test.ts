@@ -77,6 +77,21 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       allowColdInsert: 'test fixture standing in for the sync download',
     });
 
+  it('recognizes a queued cold create even when the row was not cached', async () => {
+    pending.push(
+      fromAny<PendingMutation, unknown>({
+        tableName: 'entries',
+        operation: 'INSERT',
+        rowId: 'cold-entry',
+        data: { id: 'cold-entry', show_id: 'show-1' },
+      })
+    );
+
+    expect(await table.getEntriesByShow('show-1')).toEqual([]);
+    expect(await table.hasPendingWritesForShow('show-1')).toBe(true);
+    expect(await table.hasPendingWritesForShow('show-2')).toBe(false);
+  });
+
   it('hands the sync engine this show’s server-backed deletes that are still queued', async () => {
     await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
     await seed({ id: 'e2', classId: 'c1', showId: 'show-2' });
@@ -128,7 +143,41 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       scope: { value: 'show-1' },
       serverIds: new Set(['e1']),
       localRows: [],
+      staleCleanupCompleted: false,
     });
     expect(await table.getEntriesByShow('show-1')).toHaveLength(1);
+  });
+
+  it('keeps a deleted-row guard through an incremental fetch whose watermark is zero', async () => {
+    await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
+    await table.acknowledgeServerDeletion('e1', 5);
+    await table.sync('show-1');
+    const adapter = engine.adapters[0] as SyncReplicatedTableAdapter<unknown, ReplicatedEntry>;
+
+    await adapter.afterSuccessfulSync?.({
+      scope: { value: 'show-1' },
+      serverIds: new Set(),
+      localRows: [],
+      staleCleanupCompleted: false,
+    });
+    await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
+    expect(await table.getEntriesByShow('show-1')).toEqual([]);
+
+    await adapter.afterSuccessfulSync?.({
+      scope: { value: 'show-1' },
+      serverIds: new Set(),
+      localRows: [],
+      staleCleanupCompleted: true,
+    });
+    expect(await table.getEntriesByShow('show-1')).toEqual([]);
+
+    await table.delete('e1');
+    await adapter.afterSuccessfulSync?.({
+      scope: { value: 'show-1' },
+      serverIds: new Set(),
+      localRows: [],
+      staleCleanupCompleted: true,
+    });
+    expect(adapter.shouldSkipRemoteRow?.({ id: 'e1' }, { local: null })).toBe(false);
   });
 });

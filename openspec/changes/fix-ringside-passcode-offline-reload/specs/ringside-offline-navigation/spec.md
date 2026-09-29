@@ -8,7 +8,12 @@ Keeps a prepared ringside scoring device usable after a full reload at a show ve
 
 ### Requirement: Prepared ringside deep links boot offline
 
-The app SHALL serve its saved shell for a same-origin `/at-show` navigation while offline, including a show, class list, or scoresheet deep link, after the service worker has activated and cached the shell. It SHALL preserve the requested URL so the existing ringside route and replicated data can restore the view. The shell fallback MUST NOT intercept API, asset, or unrelated navigation requests.
+The app SHALL fetch the current document for a same-origin `/at-show` navigation while online, and serve its saved shell if that fetch fails, including a show, class list, or scoresheet deep link, after the service worker has activated and cached the shell. It SHALL preserve the requested URL so the existing ringside route and replicated data can restore the view. The shell fallback MUST NOT intercept API, asset, or unrelated navigation requests.
+
+#### Scenario: Online show deep-link reload after deployment
+
+- **WHEN** a judge reloads `/at-show/<show-id>` with a network connection after a new app deployment
+- **THEN** the service worker requests the current document from the server instead of returning its older precached shell
 
 #### Scenario: Offline show deep-link reload
 

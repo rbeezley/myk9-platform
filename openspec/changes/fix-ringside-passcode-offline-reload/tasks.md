@@ -3,7 +3,7 @@
 ## 1. Offline ringside navigation
 
 - [x] 1.1 Register a ringside-only navigation fallback to the precached shell and verify the generated build serves ringside deep links without intercepting unrelated requests.
-- [x] 1.2 Run service-worker-controlled browser reloads at show and scoresheet deep links with the network disabled; both returned HTTP 200 from the service worker and kept the deep-link URL in the local preview. The prepared-show content must still be checked after deployment.
+- [x] 1.2 Run service-worker-controlled browser reloads at show and scoresheet deep links online and offline. Both online navigations made service-worker-owned network requests; both offline reloads returned HTTP 200 from the service worker and kept the deep-link URL in the local preview. The prepared-show content must still be checked after deployment.
 
 ## 2. Passcode-only draft show structure
 
@@ -13,7 +13,7 @@
 
 ## 3. Integration and delivery
 
-- [ ] 3.1 Run focused tests, database contract tests, app typecheck, lint, code quality ratchet, OpenSpec validation, and risk-required review; record outcomes and any local SQL/browser limits. Focused tests, local browser reloads, build, typecheck, lint, and ratchet passed; SQL behavior and review remain. The full shuffled Vitest run produced no test output for 30 seconds and was stopped per repository instructions.
+- [ ] 3.1 Run focused tests, database contract tests, app typecheck, lint, code quality ratchet, OpenSpec validation, and risk-required review; record outcomes and any local SQL/browser limits. Focused tests, local browser reloads, build, typecheck, lint, ratchet, and CI SQL behavior passed. Independent review remains: the Claude reviewer reached its weekly usage limit. The full local shuffled Vitest run produced no test output for 30 seconds and was stopped per repository instructions.
 - [ ] 3.2 Commit, push, open a PR after repository authorization, pass CI and the review gate, and obtain separate merge approval; link the result to MYK9-819 and MYK9-829.
 - [ ] 3.3 After separately authorized migration and frontend deployment, repeat the deployed anonymous passcode join and two-score offline reload/reconnect walk; update the October 10 evidence report and checklist with screenshots and exact pass/fail outcomes.
 

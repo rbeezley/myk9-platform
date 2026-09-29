@@ -11,14 +11,22 @@ declare const self: ServiceWorkerGlobalScope & {
 // Workbox precaching — vite-plugin-pwa injects the manifest here
 precacheAndRoute(self.__WB_MANIFEST);
 
-// A full reload requests the deep-link document, not /index.html. Serve the
-// precached shell for ringside navigations so the existing router and IndexedDB
-// can restore a prepared show while the venue has no network. NavigationRoute
+// A full reload requests the deep-link document, not /index.html. Fetch the
+// current shell while online; if the venue has no network, serve the precached
+// shell so the router and IndexedDB can restore a prepared show. NavigationRoute
 // ignores API and asset requests; the allowlist keeps other app paths untouched.
+const precachedShell = createHandlerBoundToURL('/index.html');
 registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-    allowlist: [/^\/at-show(?:\/|$)/],
-  })
+  new NavigationRoute(
+    async options => {
+      try {
+        return await fetch(options.request, { cache: 'no-store' });
+      } catch {
+        return precachedShell(options);
+      }
+    },
+    { allowlist: [/^\/at-show(?:\/|$)/] }
+  )
 );
 
 // Activate the new SW immediately when the page asks (prompt-then-skip-waiting pattern).

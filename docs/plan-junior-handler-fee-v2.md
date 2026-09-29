@@ -45,30 +45,24 @@ From MYK9-662, Richard, 2026-09-18:
 - The reduced fee is decided by **age only**, per the rulebooks. It never requires a junior handler
   number (Richard, 2026-09-29). A number on file is shown to the secretary as a way to verify.
 
-## Decisions needed before any code (slice 0)
+Decided by Richard, 2026-09-29 (all recommendations accepted):
 
-Each has a recommendation. Get an answer in Linear before building.
+- **Derive once, store, never re-derive.** One trusted server function prices an entry at creation
+  and the fee is stored on the entry. Checkout, webhook, payment links and refunds read the stored
+  fee.
+- **Privacy boundary:** a junior fee is priced only for the dog's owner or co-owner, or a handler who
+  enrolled themselves through the exhibitor flow. Whether "enrolled" needs provenance (MYK9-875) is
+  settled inside slice B.
+- **The fee is fixed at entry creation**, then frozen.
+- **`unknown` status** (no date of birth on file, or ASCA) prices at the normal tier, and an ASCA show
+  hides the setting.
+- **Self-asserted date of birth and number:** out of scope for this fee; file separately.
 
-1. **Derive once, store, never re-derive.** _Recommended._ Compute junior status in **one**
-   trusted server function when an entry is created, store the resulting fee on the entry
-   (`entries.entry_fee` already exists), and let every other path (checkout, webhook, payment
-   link, refunds) read the stored fee. This replaces five derivations with one. Alternative: a
-   secretary-verified flag on the entry. It is far smaller and has no privacy oracle, but it
-   reverses the "never set by hand" decision above, so it needs Richard's explicit override.
-2. **Privacy boundary.** Who may cause a junior fee to be priced for a given handler?
-   _Recommended:_ only the dog's owner or co-owner, or a handler who enrolled themselves through
-   the exhibitor flow. A show official entering someone else's handler is priced as an adult
-   unless that handler is enrolled. The catch (MYK9-875): `enrollments_insert` lets a show
-   official create an enrollment for any handler, so "enrolled" is not yet trustworthy. Either
-   add provenance to enrollments (a small column) or accept and document that show officials are
-   trusted with this, which is reasonable pre-launch. Decide which.
-3. **When is the fee fixed?** _Recommended:_ at entry creation, then frozen. A handler who turns
-   18 between entering and the trial keeps the fee they were quoted. Confirm with Richard.
-4. **`unknown` status** (no date of birth on file, or ASCA, which has no derivable ceiling).
-   _Recommended:_ prices at the normal tier, and an ASCA show hides the setting. A secretary can
-   still correct an entry through the existing edit path.
-5. **Self-asserted date of birth and number** (`/account` has no verification). _Recommended:_ out of scope
-   for this fee; file separately. The club can request proof, as AKC's own rule allows.
+## Open before slice B
+
+Slice A needs none of the decisions above beyond what is recorded. Slice B still has one open
+design point: whether enrollments need provenance so that "enrolled" can be trusted (MYK9-875). Settle
+it at the start of slice B, not before.
 
 ## Slices
 

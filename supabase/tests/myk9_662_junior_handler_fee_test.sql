@@ -497,6 +497,16 @@ BEGIN
   IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662904') <> 30 THEN
     RAISE EXCEPTION 'FAIL frozen fee changed after show fee edit';
   END IF;
+
+  -- A legacy NULL-fee row must never derive junior status, or the frozen fee
+  -- would answer "is this handler a junior on the trial date?". Entry 901 is
+  -- the related junior handler that case 8 priced at 15; cleared and frozen it
+  -- prices at the normal 30.
+  UPDATE public.entries SET entry_fee = NULL
+    WHERE id = '00000000-0000-0000-0000-000000662901';
+  IF public.freeze_pending_entry_fee('00000000-0000-0000-0000-000000662901') IS DISTINCT FROM 30::numeric THEN
+    RAISE EXCEPTION 'FAIL legacy freeze derived junior status for a junior handler';
+  END IF;
 END;
 $$;
 

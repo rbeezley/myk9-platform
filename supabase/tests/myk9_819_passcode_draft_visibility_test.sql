@@ -13,11 +13,11 @@ VALUES
   ('00000000-0000-0000-0000-000000819004', 'Published control', 'UKC', current_date, current_date + 1, '00000000-0000-0000-0000-000000819001', 'published'),
   ('00000000-0000-0000-0000-000000819005', 'Deleted draft', 'UKC', current_date, current_date + 1, '00000000-0000-0000-0000-000000819001', 'draft');
 
-INSERT INTO public.trials (id, show_id, name, date)
+INSERT INTO public.trials (id, show_id, name, date, registry_id)
 VALUES
-  ('00000000-0000-0000-0000-000000819012', '00000000-0000-0000-0000-000000819002', 'Draft trial', current_date),
-  ('00000000-0000-0000-0000-000000819014', '00000000-0000-0000-0000-000000819004', 'Published trial', current_date),
-  ('00000000-0000-0000-0000-000000819015', '00000000-0000-0000-0000-000000819005', 'Deleted trial', current_date);
+  ('00000000-0000-0000-0000-000000819012', '00000000-0000-0000-0000-000000819002', 'Draft trial', current_date, 'UKC'),
+  ('00000000-0000-0000-0000-000000819014', '00000000-0000-0000-0000-000000819004', 'Published trial', current_date, 'UKC'),
+  ('00000000-0000-0000-0000-000000819015', '00000000-0000-0000-0000-000000819005', 'Deleted trial', current_date, 'UKC');
 
 INSERT INTO public.classes (id, trial_id, name)
 VALUES

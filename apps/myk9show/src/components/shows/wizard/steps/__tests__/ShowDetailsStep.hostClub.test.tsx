@@ -3,7 +3,6 @@
  * copy must survive the `clubCreateDenied` prop hop from the step into HostClubField.
  */
 import { useLocation } from 'react-router-dom';
-import { waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ScopeType, UserRole } from '@/types/auth-types';
@@ -125,17 +124,23 @@ describe('ShowDetailsStep host club advisory (MYK9-887)', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('stays silent for a just-created club, then strips the flag so a reload advises normally', async () => {
+  it('stays silent for a just-created club, and the silence survives a Next then Back remount', () => {
     h.clubId = 'c2';
     h.userWithRoles = secretaryOf('c1');
     const { unmount } = renderStep('?clubId=c2&clubCreated=1');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?clubId=c2'));
-    expect(screen.getByTestId('search')).not.toHaveTextContent('clubCreated');
     unmount();
 
-    // A reload arrives with the flag already stripped.
-    renderStep('?clubId=c2');
+    // Back to the step: a fresh mount on the same, unchanged URL.
+    renderStep('?clubId=c2&clubCreated=1');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByTestId('search')).toHaveTextContent('?clubId=c2&clubCreated=1');
+  });
+
+  it('advises for the flagged URL once another club is selected', () => {
+    h.clubId = 'c1';
+    h.userWithRoles = secretaryOf('c2');
+    renderStep('?clubId=c2&clubCreated=1');
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });

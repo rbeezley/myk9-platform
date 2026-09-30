@@ -8,7 +8,6 @@
  * NOT the club's publish approval. The RPC stays the authority at submission.
  */
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import type { UserWithRoles } from '@/types/auth-types';
@@ -34,29 +33,21 @@ export const CLUB_CREATED_PARAM = 'clubCreated';
 
 /**
  * The advisory for the wizard. Silent for a club this navigation just created: the creator's
- * club_admin grant is issued server-side after the club uploads, so scopes can lag. The flag is
- * consumed once (captured in component state, stripped from the URL) so a reload shows the
- * normal advisory. No module or persisted state.
+ * club_admin grant is issued server-side after the club uploads, so scopes can lag. Derived
+ * from the URL on every render (`clubCreated=1` and `clubId` equal to the selected club), so
+ * it survives the step unmounting on Next then Back. The flag deliberately persists for the
+ * wizard session; the advisory is guidance only and the server stays authoritative. No module
+ * or persisted state.
  */
 export function useClubShowCreateDenied(clubId: string | undefined, enabled = true): boolean {
   const { userWithRoles } = useAuthContext();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [justCreatedClubId] = useState(() =>
-    searchParams.get(CLUB_CREATED_PARAM) === '1' ? searchParams.get('clubId') : null
-  );
-  const flagPresent = searchParams.has(CLUB_CREATED_PARAM);
-  useEffect(() => {
-    if (!flagPresent) return;
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        next.delete(CLUB_CREATED_PARAM);
-        return next;
-      },
-      { replace: true }
-    );
-  }, [flagPresent, setSearchParams]);
+  const [searchParams] = useSearchParams();
   if (!enabled) return false;
-  if (clubId && clubId === justCreatedClubId) return false;
+  if (
+    clubId &&
+    searchParams.get(CLUB_CREATED_PARAM) === '1' &&
+    searchParams.get('clubId') === clubId
+  )
+    return false;
   return isClubShowCreateDenied(userWithRoles, clubId);
 }

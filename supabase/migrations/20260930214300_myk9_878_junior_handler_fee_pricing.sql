@@ -19,8 +19,10 @@
 --     secretary makes; it never reads a date of birth, so it cannot be used as
 --     the MYK9-664 age oracle. Who applied it is stored on the entry.
 --   * NULL or 0 junior_handler_fee = no junior tier (slice A's convention,
---     mirroring day_of_show_fee). Unknown status => the normal fee.
---   * The fee is fixed at entry creation and stored on the entry. Nothing
+--     mirroring day_of_show_fee). Unknown status => the normal fee. The junior
+--     result is LEAST(junior fee, normal fee): never above the regular fee.
+--   * The fee is fixed at entry creation and stored on the entry, and a direct
+--     client UPDATE cannot change it (server-enforced below). Nothing
 --     downstream re-derives it. No refund is issued by anything here.
 --
 -- ONE PRICING FUNCTION: private.price_entry_fee. EXECUTE is revoked from PUBLIC,
@@ -62,6 +64,11 @@
 -- The gate writes a transaction-local setting on every entries INSERT and on
 -- every UPDATE that names junior_fee_override_by (overwriting any earlier value), and the fee trigger reads it; a client
 -- cannot forge it because the gate runs before the fee trigger on every row.
+-- FROZEN AFTER CREATION: on a direct client UPDATE the same trigger keeps
+-- OLD.entry_fee and OLD.junior_fee_override_by (trg_entries_00_direct_write_gate
+-- also fires on UPDATE OF entry_fee), so a queued full-row upload cannot restore a
+-- regular fee over the server-priced junior fee. RPC / definer / service_role
+-- updates are not direct client writes and may still change the fee.
 -- The fee trigger never RAISES for an ordinary insert, never RAISES on a write
 -- it does not price, and only ever LOWERS a client-sent fee to the junior fee
 -- (it does not normalise other fees, so waived / overridden / desk-adjusted
@@ -178,9 +185,11 @@ BEGIN
     RETURN;
   END IF;
 
+  -- LEAST: a junior tier configured ABOVE the regular fee never produces a fee
+  -- above what the client can quote (and the RPC's client-fee check would refuse).
   IF p_junior_override THEN
     -- Never reads a date of birth.
-    fee := v_junior_fee;
+    fee := LEAST(v_junior_fee, v_normal);
     junior_fee_applied := true;
   ELSIF p_handler_id IS NOT NULL
         AND EXISTS (
@@ -193,7 +202,7 @@ BEGIN
           false
         )
   THEN
-    fee := v_junior_fee;
+    fee := LEAST(v_junior_fee, v_normal);
     junior_fee_applied := true;
   END IF;
 END;
@@ -241,9 +250,16 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- A client may not edit the audit stamp after the fact.
+  -- The fee is fixed at creation, then frozen (plan: "the fee is fixed at entry
+  -- creation"). A direct client UPDATE keeps the stored fee and the audit stamp,
+  -- so a queued full-row upload from a device that still holds the regular fee
+  -- (the INSERT ack returns only the id, so it is never reconciled) cannot write
+  -- it back over the server-priced one. No client path edits entry_fee on an
+  -- UPDATE (grep of the app: none); RPC / definer writers (refunds, move-up,
+  -- withdraw) and service_role are not direct client writes and are unaffected.
   IF TG_OP = 'UPDATE' THEN
     NEW.junior_fee_override_by := OLD.junior_fee_override_by;
+    NEW.entry_fee := OLD.entry_fee;
     RETURN NEW;
   END IF;
 
@@ -283,12 +299,12 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_entries_00_direct_write_gate ON public.entries;
 CREATE TRIGGER trg_entries_00_direct_write_gate
-  BEFORE INSERT OR UPDATE OF junior_fee_override_by ON public.entries
+  BEFORE INSERT OR UPDATE OF junior_fee_override_by, entry_fee ON public.entries
   FOR EACH ROW EXECUTE FUNCTION private.entries_direct_write_gate();
 
 DROP TRIGGER IF EXISTS trg_entries_junior_fee ON public.entries;
 CREATE TRIGGER trg_entries_junior_fee
-  BEFORE INSERT OR UPDATE OF junior_fee_override_by ON public.entries
+  BEFORE INSERT OR UPDATE OF junior_fee_override_by, entry_fee ON public.entries
   FOR EACH ROW EXECUTE FUNCTION private.entries_apply_junior_fee();
 
 REVOKE ALL ON FUNCTION private.entries_direct_write_gate() FROM PUBLIC;

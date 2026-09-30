@@ -253,6 +253,19 @@ select pg_temp.expect('a zero junior fee is no tier: the normal fee',
   '30|false');
 update public.shows set junior_handler_fee = 15 where id = '00000000-0000-0000-0000-000000878101';
 
+-- A junior tier configured ABOVE the regular fee never exceeds it: regular 10,
+-- junior 15 => 10 (derived and override alike).
+update public.shows set pre_entry_fee = 10 where id = '00000000-0000-0000-0000-000000878101';
+select pg_temp.expect('junior tier above the regular fee is capped at the regular fee (derived)',
+  pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301',
+    '00000000-0000-0000-0000-000000878401', '00000000-0000-0000-0000-000000878001', false, false),
+  '10|true');
+select pg_temp.expect('junior tier above the regular fee is capped at the regular fee (override)',
+  pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301',
+    '00000000-0000-0000-0000-000000878405', '00000000-0000-0000-0000-000000878005', false, true),
+  '10|true');
+update public.shows set pre_entry_fee = 30 where id = '00000000-0000-0000-0000-000000878101';
+
 -- Override refused for anyone who is not the show secretary or a site admin,
 -- whether or not the show has a junior fee.
 select pg_temp.as_user('00000000-0000-0000-0000-000000878107');
@@ -435,6 +448,12 @@ update public.entries set junior_fee_override_by = '00000000-0000-0000-0000-0000
  where id = '00000000-0000-0000-0000-000000878501';
 update public.entries set junior_fee_override_by = NULL
  where id = '00000000-0000-0000-0000-000000878506';
+-- m. The fee is FROZEN: a direct client UPDATE (a whole-row upload from a device
+--    that still holds the regular fee) cannot change entry_fee, in either direction.
+update public.entries set entry_fee = 30, entry_status = 'confirmed'
+ where id = '00000000-0000-0000-0000-000000878501';
+update public.entries set entry_fee = 99 where id = '00000000-0000-0000-0000-000000878502';
+update public.entries set entry_fee = 0 where id = '00000000-0000-0000-0000-000000878506';
 reset role;
 
 create function pg_temp.fee(p_id uuid) returns text language sql as $$
@@ -478,6 +497,12 @@ select pg_temp.expect('the club admin''s ordinary insert landed (positive contro
   pg_temp.fee('00000000-0000-0000-0000-000000878513'), '30.00');
 select pg_temp.expect('a client update cannot forge the stamp on a derived entry',
   pg_temp.stamp('00000000-0000-0000-0000-000000878501'), 'none');
+select pg_temp.expect('frozen: an update cannot restore the regular fee over the junior fee',
+  pg_temp.fee('00000000-0000-0000-0000-000000878501'), '15.00');
+select pg_temp.expect('frozen: an update cannot raise a stored fee',
+  pg_temp.fee('00000000-0000-0000-0000-000000878502'), '30.00');
+select pg_temp.expect('frozen: an update cannot zero an overridden fee',
+  pg_temp.fee('00000000-0000-0000-0000-000000878506'), '15.00');
 select pg_temp.expect('a client update cannot clear the stamp',
   pg_temp.stamp('00000000-0000-0000-0000-000000878506'), '00000000-0000-0000-0000-000000878006');
 
@@ -505,6 +530,16 @@ values ('00000000-0000-0000-0000-000000878602', '00000000-0000-0000-0000-0000008
 reset role;
 select pg_temp.expect('service_role write (checkout, webhook, import) is NOT repriced',
   pg_temp.fee('00000000-0000-0000-0000-000000878602'), '30.00');
+
+-- Writers that are not direct client writes may still change the fee.
+update public.entries set entry_fee = 22 where id = '00000000-0000-0000-0000-000000878601';
+select pg_temp.expect('definer / migration-role UPDATE can change the fee',
+  pg_temp.fee('00000000-0000-0000-0000-000000878601'), '22.00');
+set local role service_role;
+update public.entries set entry_fee = 25 where id = '00000000-0000-0000-0000-000000878602';
+reset role;
+select pg_temp.expect('service_role UPDATE can change the fee',
+  pg_temp.fee('00000000-0000-0000-0000-000000878602'), '25.00');
 
 -- The gate must not leak "direct write" into a later statement of the same
 -- transaction: after the authenticated inserts above, a migration-role insert

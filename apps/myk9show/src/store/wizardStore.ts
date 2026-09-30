@@ -7,6 +7,7 @@ import {
   type PremiumStyle,
 } from '@/types/premium-types';
 import { resolveBrowserTrialTimezone } from '@/features/registries';
+import { realignTrialsToShowDates } from '@/utils/wizardTrialDates';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 
 /** Maps show organization to a default trial type (discipline). */
@@ -211,10 +212,22 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Show data
       updateShowData: data =>
-        set(state => ({
-          show: { ...state.show, ...data },
-          isDirty: true,
-        })),
+        set(state => {
+          const show = { ...state.show, ...data };
+          // Create mode only (edit modes set editBaselineJudgeIds): keep draft
+          // trials inside the show dates (MYK9-884).
+          const datesChanged = 'startDate' in data || 'endDate' in data;
+          const trials =
+            datesChanged && state.editBaselineJudgeIds === null
+              ? realignTrialsToShowDates(
+                  state.trials,
+                  state.show.startDate,
+                  show.startDate,
+                  show.endDate
+                )
+              : state.trials;
+          return { show, trials, isDirty: true };
+        }),
 
       // Trial management
       addTrial: trial =>

@@ -5,29 +5,13 @@ import {
 } from '@/types/template.types';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { addDays, format, startOfDay } from 'date-fns';
-import { parseLocalDateString } from '@/utils/dateLocal';
+import { parseWizardDay } from '@/utils/wizardTrialDates';
+
+export { parseWizardDateTime, parseWizardDay } from '@/utils/wizardTrialDates';
 
 /** Trials the wizard schedules per show day before suggesting the next day. */
 const TRIALS_PER_DAY = 2;
 const MAX_SHOW_DAYS = 31;
-
-/**
- * Parse a wizard date string to a local calendar day. Date-only strings are
- * read as local; full ISO datetimes (the show-dates picker stores
- * `toISOString()`) go through `Date` so the viewer's local day wins, not the
- * UTC day embedded in the string.
- */
-export function parseWizardDateTime(str: string | undefined): Date | undefined {
-  if (!str) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return parseLocalDateString(str);
-  const parsed = new Date(str);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-}
-
-export function parseWizardDay(str: string | undefined): Date | undefined {
-  const parsed = parseWizardDateTime(str);
-  return parsed ? startOfDay(parsed) : undefined;
-}
 
 /**
  * Default date-time for a newly added trial: 8:00 AM on the first SHOW day that

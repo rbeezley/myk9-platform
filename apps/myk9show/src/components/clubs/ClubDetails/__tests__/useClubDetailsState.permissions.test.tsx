@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScopeType, UserRole } from '@/types/auth-types';
@@ -27,6 +27,9 @@ const mockAuth = vi.hoisted(() => ({
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuth,
+}));
+vi.mock('@/services/replication/sharedMutationManager', () => ({
+  mutationManager: { getPendingMutationsForRow: async () => [] },
 }));
 vi.mock('@/store/clubStore', () => ({
   useClubStore: () => ({ updateClub: vi.fn() }),
@@ -191,14 +194,16 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
     expect(renderState().result.current.canAddShow).toBe(true);
   });
 
-  it("hides it from anonymous viewers, exhibitors, and another club's secretary", () => {
+  it("hides it from anonymous viewers, exhibitors, and another club's secretary", async () => {
     expect(renderState().result.current.canAddShow).toBe(false);
     mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-    expect(renderState().result.current.canAddShow).toBe(false);
+    const exhibitor = renderState();
+    await waitFor(() => expect(exhibitor.result.current.canAddShow).toBe(false));
     mockAuth.userWithRoles = userWith(
       [UserRole.SECRETARY],
       [clubScope(UserRole.SECRETARY, CLUB_B)]
     );
-    expect(renderState().result.current.canAddShow).toBe(false);
+    const other = renderState();
+    await waitFor(() => expect(other.result.current.canAddShow).toBe(false));
   });
 });

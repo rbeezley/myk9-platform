@@ -7,8 +7,8 @@
  * gate Add Show). It mirrors the server's create-show check and is deliberately
  * NOT the club's publish approval. The RPC stays the authority at submission.
  */
-import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useClubShowCreateAccess } from '@/components/clubs/ClubDetails/useClubShowCreateAccess';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import type { UserWithRoles } from '@/types/auth-types';
 
@@ -30,8 +30,7 @@ export function isClubShowCreateDenied(
 
 export function useClubShowCreateDenied(clubId: string | undefined, enabled = true): boolean {
   const { userWithRoles } = useAuthContext();
-  return useMemo(
-    () => enabled && isClubShowCreateDenied(userWithRoles, clubId),
-    [enabled, userWithRoles, clubId]
-  );
+  const access = useClubShowCreateAccess(enabled ? clubId : undefined);
+  // An unloaded identity or unselected club is unknown here, never denied.
+  return enabled && Boolean(userWithRoles && clubId) && access === 'denied';
 }

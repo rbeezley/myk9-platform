@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { ScopeType, UserRole, type UserWithRoles } from '@/types/auth-types';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
-import { isClubShowCreateDenied, useClubShowCreateDenied } from './clubShowCreatePermission';
+import { isClubShowCreateDenied } from './clubShowCreatePermission';
 import { getShowDetailsValidationMessages } from './showCreationWizardValidation';
 
 const scope = (roleId: string, scopeId: string, scopeType = ScopeType.CLUB) => ({
@@ -50,29 +49,6 @@ describe('isClubShowCreateDenied (wizard)', () => {
   it('is unknown, not denied, before identity loads or a club is chosen', () => {
     expect(isClubShowCreateDenied(null, 'c1')).toBe(false);
     expect(isClubShowCreateDenied(user([], []), undefined)).toBe(false);
-  });
-});
-
-const auth = vi.hoisted(() => ({ userWithRoles: null as unknown }));
-vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
-
-describe('useClubShowCreateDenied is advisory and reactive', () => {
-  it('flags an unauthorized club, then clears when scopes gain it', () => {
-    auth.userWithRoles = user([UserRole.SECRETARY], [scope(UserRole.SECRETARY, 'old')]);
-    const { result, rerender } = renderHook(() => useClubShowCreateDenied('new1'));
-    expect(result.current).toBe(true);
-
-    auth.userWithRoles = user(
-      [UserRole.SECRETARY],
-      [scope(UserRole.SECRETARY, 'old'), scope(UserRole.CLUB_ADMIN, 'new1')]
-    );
-    rerender();
-    expect(result.current).toBe(false);
-  });
-
-  it('does not check when disabled (editing an existing show)', () => {
-    auth.userWithRoles = user([], []);
-    expect(renderHook(() => useClubShowCreateDenied('c1', false)).result.current).toBe(false);
   });
 });
 

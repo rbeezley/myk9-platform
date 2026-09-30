@@ -24,13 +24,11 @@ import { ListFilterBar, ListResultLine, type ListFilterField } from '@/component
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
-const RBAC_REFRESH_WAIT_MS = 3000;
-
 const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { user, userWithRoles, refreshPermissions } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
   const isAuthenticated = !!user;
 
   // Keep the affordance aligned with migration 160's clubs_insert policy.
@@ -119,12 +117,6 @@ const BrowseClubsPage: React.FC = () => {
 
         if (createdId) {
           selectClub(createdId);
-          // The creator's club_admin grant is issued by a DB trigger. Refresh RBAC before
-          // returning so the wizard's advisory permission check sees it; never hold navigation.
-          await Promise.race([
-            refreshPermissions().catch(() => undefined),
-            new Promise<void>(resolve => setTimeout(resolve, RBAC_REFRESH_WAIT_MS)),
-          ]);
           const returnTo = searchParams.get('returnTo');
           if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
             const target = new URL(returnTo, window.location.origin);
@@ -146,7 +138,7 @@ const BrowseClubsPage: React.FC = () => {
         notifications.error('Failed to create club');
       }
     },
-    [addClub, selectClub, navigate, searchParams, refreshPermissions]
+    [addClub, selectClub, navigate, searchParams]
   );
 
   const actionButton = useMemo(

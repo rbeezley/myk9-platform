@@ -12,7 +12,8 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
-import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { useClubShowCreateAccess } from './useClubShowCreateAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
 import type { ClubTab, StatCard } from './types';
@@ -96,7 +97,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   }, [userWithRoles, selectedClub, isSiteAdmin]);
 
   // MYK9-890: Add Show leads to the create wizard, so only offer it to someone it will accept.
-  const canAddShow = canCreateShowForClub(userWithRoles, selectedClub?.id);
+  const canAddShow = useClubShowCreateAccess(selectedClub?.id) !== 'denied';
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);

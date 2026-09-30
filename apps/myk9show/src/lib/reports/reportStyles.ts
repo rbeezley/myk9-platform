@@ -8,7 +8,7 @@
 export const REPORT_STYLES = `
 @page {
   size: letter;
-  margin: 0.5in;
+  margin: 0.4in;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────── */
@@ -458,8 +458,12 @@ body {
     padding: 0;
   }
 
+  /* MYK9-886: keep a margin inside the page too. With padding 0 the only
+     margin was @page's, so a print path that ignores @page margins (or a
+     "Margins: None" dialog setting) printed the report edge to edge. With
+     @page honoured this totals 0.6in a side (7.3in of content on letter). */
   .report-page {
-    padding: 0;
+    padding: 0.2in;
     max-width: none;
   }
 

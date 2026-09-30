@@ -58,6 +58,13 @@ describe('ResultCatalog', () => {
     expect(screen.getByText(/Work Show Results/i)).toBeInTheDocument();
   });
 
+  it('titles the report once per word (no "Scent Work Work")', () => {
+    render(<ResultCatalog {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      /^UKC Scent Work Show Results$/
+    );
+  });
+
   it('renders class section heading', () => {
     render(<ResultCatalog {...baseProps} />);
     expect(screen.getByText(/Buried Novice/i)).toBeInTheDocument();

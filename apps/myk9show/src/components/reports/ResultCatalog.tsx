@@ -48,7 +48,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
     <div className="report-page">
       <div className="report-header">
         <div className="report-logo">myK9Show</div>
-        <h1 className="report-title">{orgTitle} Work Show Results</h1>
+        <h1 className="report-title">{orgTitle} Show Results</h1>
         {showName && <p className="report-subtitle">{showName}</p>}
         {showDates && <p className="report-subtitle">{showDates}</p>}
       </div>

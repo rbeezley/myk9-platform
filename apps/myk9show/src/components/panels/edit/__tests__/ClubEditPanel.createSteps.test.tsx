@@ -114,6 +114,9 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
     const status = () => screen.getByTestId('club-tab-status-contact');
     expect(status()).toHaveTextContent('6 to complete');
+    // Phone width shows a bare count; the full phrase stays readable to assistive tech.
+    expect(status().querySelector('[aria-hidden="true"]')).toHaveTextContent(/^6$/);
+    expect(within(status()).getByText('6 to complete')).toHaveClass('sr-only', 'sm:not-sr-only');
 
     const email = await screen.findByRole('textbox', { name: /Email Address/ });
     await user.type(email, 'not-an-email');

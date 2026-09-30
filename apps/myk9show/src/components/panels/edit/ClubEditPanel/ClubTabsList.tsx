@@ -59,7 +59,12 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
                   : 'rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning'
               }
             >
-              {unresolved} to complete
+              {/* Below sm the column is too narrow for the phrase: show the bare
+                  count, keep the full phrase as the accessible name. */}
+              <span aria-hidden className="sm:hidden">
+                {unresolved}
+              </span>
+              <span className="sr-only sm:not-sr-only">{unresolved} to complete</span>
             </span>
           );
         } else if (mode === 'create') {
@@ -73,7 +78,7 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
           <TabsTrigger
             key={tab}
             value={tab}
-            className="flex-wrap gap-x-2 rounded-lg transition-all duration-300"
+            className="flex-wrap justify-center gap-x-1.5 gap-y-0 whitespace-normal rounded-lg px-1.5 transition-all duration-300 sm:gap-x-2 sm:px-4"
           >
             {TAB_ICON[tab]}
             {CLUB_TAB_LABEL[tab]}

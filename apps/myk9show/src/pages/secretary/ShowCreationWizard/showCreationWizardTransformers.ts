@@ -10,6 +10,7 @@ import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 import type { NormalizedWizardClassSelection } from './classConfigurationValidation';
+import { wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
 
 export interface WizardShowData {
   name: string;
@@ -24,6 +25,7 @@ export interface WizardShowData {
   entryCloseDate: string;
   preEntryFee: number;
   dayOfShowFee: number;
+  juniorHandlerFee?: number | undefined;
   startingArmbandNumber: number;
   officials: {
     secretary: string[];
@@ -211,6 +213,7 @@ export function showToShowInput(show: Show): ShowInput {
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee,
     dayOfShowFee: show.dayOfShowFee,
+    ...(show.juniorHandlerFee !== undefined ? { juniorHandlerFee: show.juniorHandlerFee } : {}),
     clubId: show.clubId,
     clubName: show.clubName,
     clubAddress: show.clubAddress,
@@ -244,6 +247,8 @@ export function transformWizardDataToShow(
         const randomSuffix = Math.floor(Math.random() * 1000);
         return `wizard-${timestamp}-${randomSuffix}`;
       })();
+
+  const juniorHandlerFee = wizardJuniorHandlerFee(show);
 
   // Look up club information
   const selectedClub = clubs.find(club => club.id === show.clubId);
@@ -285,6 +290,7 @@ export function transformWizardDataToShow(
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee.toString(),
     dayOfShowFee: show.dayOfShowFee.toString(),
+    ...(juniorHandlerFee !== undefined ? { juniorHandlerFee: String(juniorHandlerFee) } : {}),
     clubId: show.clubId,
     clubName: selectedClub?.name || 'Unknown Club',
     clubAddress: selectedClub

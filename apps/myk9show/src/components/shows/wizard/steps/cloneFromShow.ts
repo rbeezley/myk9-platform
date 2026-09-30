@@ -7,6 +7,7 @@ import type { CloneHydrationSnapshot } from '@/store/wizardStore';
 import type { Class, Show, ShowTrial } from '@/types/show-types';
 import type { ClassTemplate } from '@/types/template.types';
 import { getTrialTimezone } from '@/features/registries';
+import { seedJuniorHandlerFee } from '@/pages/secretary/ShowCreationWizard/wizardJuniorHandlerFee';
 
 interface ClonePerson {
   id: string;
@@ -114,6 +115,7 @@ export function buildCloneSnapshot(args: {
       clubId: show.clubId || '',
       preEntryFee: parseFloat(show.preEntryFee) || 0,
       dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
+      ...seedJuniorHandlerFee(show.juniorHandlerFee),
       startingArmbandNumber: show.startingArmbandNumber ?? 100,
       acceptCheckPayments: show.acceptCheckPayments ?? false,
       acceptCashPayments: show.acceptCashPayments ?? false,

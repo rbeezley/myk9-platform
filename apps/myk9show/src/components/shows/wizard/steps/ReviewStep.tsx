@@ -13,6 +13,7 @@ import { formatTrialTypeLabel } from '@/types/template.types';
 import { countLabel } from '@/utils/pluralize';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
+import { ReviewJuniorHandlerFee } from './ReviewJuniorHandlerFee';
 import { ReviewEntryWindowNotice, ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
 
 interface ReviewStepProps {
@@ -342,6 +343,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   <div className="text-sm text-muted-foreground">Day of Show Fee</div>
                   <div className="text-foreground font-medium">{formatFee(show.dayOfShowFee)}</div>
                 </div>
+
+                <ReviewJuniorHandlerFee show={show} />
               </div>
             </CardContent>
           </Card>

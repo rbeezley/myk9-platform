@@ -1,3 +1,4 @@
+import postcss from 'postcss';
 import { describe, it, expect } from 'vitest';
 import { renderReportToHtml } from '../reportRenderer';
 import { REPORT_STYLES } from '../reportStyles';
@@ -74,12 +75,26 @@ describe('REPORT_STYLES', () => {
     expect(REPORT_STYLES).toContain('margin: 0.4in');
   });
 
-  it('keeps a non-zero page padding in print (MYK9-886)', () => {
-    // With `padding: 0` the only print margin was @page's, so any print path
-    // that ignores @page margins printed edge to edge.
-    const printBlock = REPORT_STYLES.slice(REPORT_STYLES.indexOf('@media print'));
-    const reportPageRule = printBlock.match(/\.report-page\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(reportPageRule).toMatch(/padding:\s*0\.2in/);
+  it('keeps a print margin on both layers: @page and the report page (MYK9-886)', () => {
+    // With `padding: 0` in print the only margin was @page's, so any print
+    // path that ignores @page margins printed edge to edge. Parsed rather than
+    // grepped: the LAST print declaration for .report-page is the one that
+    // wins, and the @page margin must be on the @page rule itself.
+    const root = postcss.parse(REPORT_STYLES);
+    const pageMargins: string[] = [];
+    root.walkAtRules('page', rule =>
+      rule.walkDecls('margin', decl => void pageMargins.push(decl.value))
+    );
+    const printPaddings: string[] = [];
+    root.walkAtRules('media', media => {
+      if (!media.params.includes('print')) return;
+      media.walkRules(rule => {
+        if (!rule.selectors.includes('.report-page')) return;
+        rule.walkDecls(/^padding/, decl => void printPaddings.push(decl.value));
+      });
+    });
+    expect(pageMargins).toEqual(['0.4in']);
+    expect(printPaddings.at(-1)).toBe('0.2in');
   });
 
   it('contains report-page class with font and color settings', () => {

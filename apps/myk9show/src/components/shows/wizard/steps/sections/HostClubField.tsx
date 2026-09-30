@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { SearchablePopover } from '@/components/ui/searchable-popover';
 import { Plus } from 'lucide-react';
 import type { Club } from '@/types/club-types';
-import { CLUB_CREATE_DENIED_MESSAGE } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
+import { clubCreateDeniedMessage } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 
 const CREATE_BTN_CLASS = 'w-full border-primary/20 text-primary hover:bg-primary/5';
 
@@ -55,6 +55,9 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
           triggerLabel={
             clubId ? clubs.find(c => c.id === clubId)?.name || 'Unknown Club' : 'Select a club'
           }
+          aria-describedby={
+            clubCreateDenied ? 'show-host-club-help show-host-club-advisory' : 'show-host-club-help'
+          }
           searchPlaceholder="Search clubs..."
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -80,11 +83,15 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
         <p id="show-host-club-help" className="text-sm text-muted-foreground">
           {selectedClub
             ? `Hosting club: ${selectedClub.name}. It already exists, so there is nothing to create. Change it above if another club is hosting.`
-            : 'Choose the club hosting this show from your clubs above. Only create a new club if yours is not listed.'}
+            : 'Choose the club hosting this show above. Only create a new club if yours is not listed.'}
         </p>
         {clubCreateDenied && (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {CLUB_CREATE_DENIED_MESSAGE}
+          <p
+            id="show-host-club-advisory"
+            role="status"
+            className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+          >
+            {clubCreateDeniedMessage(selectedClub?.name ?? 'this club')}
           </p>
         )}
         <Button
@@ -95,7 +102,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
           <Link to={createClubHref}>
             <Plus className="mr-2 h-4 w-4" />
             {selectedClub
-              ? 'My club is not listed: Create New Club'
+              ? 'Not the right club? Create New Club'
               : 'Club not listed? Create New Club'}
           </Link>
         </Button>

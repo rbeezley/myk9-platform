@@ -99,6 +99,8 @@ export function canCreateShowForClub(
 ): boolean {
   if (!user || !clubId) return false;
   if (user.roles?.includes(UserRole.SITE_ADMIN)) return true;
+  // Only CLUB-scoped rows count. A show-scoped row (user_roles.show_id set) never grants
+  // club-level create, matching is_trial_secretary's `show_id IS NULL`.
   return (user.scopes ?? []).some(
     scope =>
       scope.scopeType === ScopeType.CLUB &&

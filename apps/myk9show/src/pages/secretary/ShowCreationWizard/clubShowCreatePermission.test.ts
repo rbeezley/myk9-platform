@@ -35,7 +35,7 @@ describe('canCreateShowForClub (mirrors create_show_with_children)', () => {
     expect(canCreateShowForClub(null, 'c1')).toBe(false);
   });
 
-  it('does not count a show-scoped secretary or a non-creator club role', () => {
+  it('never lets a show-scoped row grant club-level create (is_trial_secretary requires show_id IS NULL), nor a non-creator club role', () => {
     expect(
       canCreateShowForClub(user([], [scope(UserRole.SECRETARY, 'c1', ScopeType.SHOW)]), 'c1')
     ).toBe(false);

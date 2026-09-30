@@ -8,12 +8,13 @@
  * NOT the club's publish approval. The RPC stays the authority at submission.
  */
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import type { UserWithRoles } from '@/types/auth-types';
 
-export const CLUB_CREATE_DENIED_MESSAGE =
-  "You may not have permission to create shows for this club. Ask the club's admin to appoint you as a secretary, or choose a club you manage. You can still continue; the final check happens when you create the show.";
+export const clubCreateDeniedMessage = (clubName: string) =>
+  `You're not an appointed secretary for ${clubName}. Ask a club admin to appoint you; the show can't be created for this club until then.`;
 
 /**
  * True only when the signed-in user is known and holds no create-show grant for the club.
@@ -32,19 +33,30 @@ export function isClubShowCreateDenied(
 export const CLUB_CREATED_PARAM = 'clubCreated';
 
 /**
- * The advisory alert for the wizard. Silent for a club this navigation just created: the
- * creator's club_admin grant is issued server-side after the club uploads, so scopes can lag.
- * URL-scoped on purpose: no module or persisted state.
+ * The advisory for the wizard. Silent for a club this navigation just created: the creator's
+ * club_admin grant is issued server-side after the club uploads, so scopes can lag. The flag is
+ * consumed once (captured in component state, stripped from the URL) so a reload shows the
+ * normal advisory. No module or persisted state.
  */
 export function useClubShowCreateDenied(clubId: string | undefined, enabled = true): boolean {
   const { userWithRoles } = useAuthContext();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [justCreatedClubId] = useState(() =>
+    searchParams.get(CLUB_CREATED_PARAM) === '1' ? searchParams.get('clubId') : null
+  );
+  const flagPresent = searchParams.has(CLUB_CREATED_PARAM);
+  useEffect(() => {
+    if (!flagPresent) return;
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete(CLUB_CREATED_PARAM);
+        return next;
+      },
+      { replace: true }
+    );
+  }, [flagPresent, setSearchParams]);
   if (!enabled) return false;
-  if (
-    clubId &&
-    searchParams.get(CLUB_CREATED_PARAM) === '1' &&
-    searchParams.get('clubId') === clubId
-  )
-    return false;
+  if (clubId && clubId === justCreatedClubId) return false;
   return isClubShowCreateDenied(userWithRoles, clubId);
 }

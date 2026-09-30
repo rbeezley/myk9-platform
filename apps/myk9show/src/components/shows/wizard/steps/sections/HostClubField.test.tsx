@@ -57,10 +57,9 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
     expect(screen.getByText(/Hosting club: Summit K9 Masters/)).toBeInTheDocument();
     expect(screen.getByText(/nothing to create/i)).toBeInTheDocument();
     // The create action stays reachable, but phrased as the exception.
-    expect(screen.getByRole('link', { name: /my club is not listed/i })).toHaveAttribute(
-      'href',
-      '/clubs?create=true'
-    );
+    expect(
+      screen.getByRole('link', { name: /not the right club\? create new club/i })
+    ).toHaveAttribute('href', '/clubs?create=true');
   });
 
   it('frames Create New Club as the not-listed path before a club is chosen', () => {
@@ -71,9 +70,11 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
 
   it('explains missing create permission inline only when denied', () => {
     const { unmount } = renderField({ clubCreateDenied: true });
-    expect(screen.getByRole('alert')).toHaveTextContent(/permission to create shows/i);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /not an appointed secretary for Summit K9 Masters/i
+    );
     unmount();
     renderField({ clubCreateDenied: false });
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

@@ -23,16 +23,15 @@ interface DatedTrial {
 }
 
 /**
- * Realign draft trials after the show dates change (MYK9-884). The wizard
- * draft is persisted and trials are not derived from the show dates, so a
- * trial added against an earlier date would otherwise keep it. A trial that
- * falls outside the new range moves by the day-delta between the old and new
- * start (time of day and multi-day structure kept), then is clamped into the
- * range. Trials already inside the range stay put.
+ * Realign draft trials to the final show dates (MYK9-884). The wizard draft is
+ * persisted and trials are not derived from the show dates, so a trial added
+ * against an earlier date would otherwise keep it. If every dated trial is
+ * already inside [start, end] nothing changes. Otherwise ALL dated trials shift
+ * by (new start - earliest trial day), keeping time of day and the relative day
+ * structure, and each is clamped into the range. Undated trials are left alone.
  */
 export function realignTrialsToShowDates<T extends DatedTrial>(
   trials: T[],
-  oldStartDate: string | undefined,
   newStartDate: string | undefined,
   newEndDate: string | undefined
 ): T[] {
@@ -40,19 +39,25 @@ export function realignTrialsToShowDates<T extends DatedTrial>(
   if (!newStart) return trials;
   const parsedEnd = parseWizardDay(newEndDate);
   const newEnd = parsedEnd && parsedEnd >= newStart ? parsedEnd : undefined;
-  const oldStart = parseWizardDay(oldStartDate);
-  const delta = oldStart ? differenceInCalendarDays(newStart, oldStart) : 0;
 
-  let changed = false;
-  const next = trials.map(trial => {
+  const dated = trials.flatMap(trial => {
     const at = parseWizardDateTime(trial.dateTime);
-    if (!at) return trial;
-    const day = startOfDay(at);
-    if (day >= newStart && (!newEnd || day <= newEnd)) return trial;
+    return at ? [{ trial, at, day: startOfDay(at) }] : [];
+  });
+  if (dated.length === 0) return trials;
+  if (dated.every(({ day }) => day >= newStart && (!newEnd || day <= newEnd))) return trials;
 
-    let target = addDays(day, delta);
+  const earliest = dated.reduce((min, { day }) => (day < min ? day : min), dated[0]!.day);
+  const delta = differenceInCalendarDays(newStart, earliest);
+  const byTrial = new Map(dated.map(entry => [entry.trial, entry]));
+
+  return trials.map(trial => {
+    const entry = byTrial.get(trial);
+    if (!entry) return trial;
+    let target = addDays(entry.day, delta);
     if (target < newStart) target = newStart;
     if (newEnd && target > newEnd) target = newEnd;
+    const { at } = entry;
     const moved = new Date(
       target.getFullYear(),
       target.getMonth(),
@@ -62,9 +67,6 @@ export function realignTrialsToShowDates<T extends DatedTrial>(
       at.getSeconds()
     );
     const dateTime = format(moved, "yyyy-MM-dd'T'HH:mm:ss");
-    if (dateTime === trial.dateTime) return trial;
-    changed = true;
-    return { ...trial, dateTime };
+    return dateTime === trial.dateTime ? trial : { ...trial, dateTime };
   });
-  return changed ? next : trials;
 }

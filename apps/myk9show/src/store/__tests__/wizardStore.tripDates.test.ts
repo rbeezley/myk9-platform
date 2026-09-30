@@ -28,6 +28,21 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
     expect(days()).toEqual(['2026-08-15T08:00:00']);
   });
 
+  it('keeps two days for a legacy or cloned draft when Aug 14-15 moves to Sep 12-13', () => {
+    // Trials written straight into the store, as a pre-change persisted draft has them.
+    useWizardStore.setState({
+      trials: [
+        { id: 'a', dateTime: '2026-08-14T08:00:00', eventNumber: '', classes: [] },
+        { id: 'b', dateTime: '2026-08-15T09:00:00', eventNumber: '', classes: [] },
+      ],
+    });
+
+    setShowDates([2026, 9, 12], [2026, 9, 13]);
+    store().setCurrentStep(1);
+
+    expect(days()).toEqual(['2026-09-12T08:00:00', '2026-09-13T09:00:00']);
+  });
+
   it('keeps both days when Aug 14-15 moves to Aug 1-2 through separate start and end writes', () => {
     setShowDates([2026, 8, 14], [2026, 8, 15]);
     store().addTrial(trial('2026-08-14T08:00:00'));
@@ -61,17 +76,6 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
     expect(days()).toEqual(['2026-07-01T08:00:00']);
   });
 
-  it('moves a multi-day structure by the start delta', () => {
-    setShowDates([2026, 9, 12], [2026, 9, 13]);
-    store().addTrial(trial('2026-09-12T08:00:00'));
-    store().addTrial(trial('2026-09-13T09:00:00'));
-
-    setShowDates([2026, 9, 19], [2026, 9, 20]);
-    store().alignTrialsToShowDates();
-
-    expect(days()).toEqual(['2026-09-19T08:00:00', '2026-09-20T09:00:00']);
-  });
-
   it('keeps a trial that is still inside the new range', () => {
     setShowDates([2026, 8, 14], [2026, 8, 16]);
     store().addTrial(trial('2026-08-15T13:30:00'));
@@ -80,6 +84,17 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
     store().setCurrentStep(1);
 
     expect(days()).toEqual(['2026-08-15T13:30:00']);
+  });
+
+  it('leaves undated trials alone and moves the dated ones', () => {
+    setShowDates([2026, 7, 1], [2026, 7, 2]);
+    store().addTrial(trial(''));
+    store().addTrial(trial('2026-07-01T08:00:00'));
+
+    setShowDates([2026, 8, 15], [2026, 8, 16]);
+    store().alignTrialsToShowDates();
+
+    expect(days()).toEqual(['', '2026-08-15T08:00:00']);
   });
 
   it('is idempotent once aligned', () => {

@@ -49,15 +49,6 @@ interface WizardState {
    * is not "removed". Null outside edit mode (a new show only adds).
    */
   editBaselineJudgeIds: string[] | null;
-  /**
-   * Create mode: the show date range the draft trials were last aligned to
-   * (set when a trial is added or its date edited, and when realignment runs).
-   * Show-date edits do not move trials as they happen, because the range
-   * picker writes start and end separately and every intermediate range is
-   * wrong. `alignTrialsToShowDates` moves them once, from this anchor to the
-   * final range (MYK9-884).
-   */
-  trialsAlignedRange: { startDate: string; endDate: string } | null;
 
   // Show data
   show: {
@@ -164,7 +155,6 @@ const initialState: WizardState = {
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
   editBaselineJudgeIds: null,
-  trialsAlignedRange: null,
   show: {
     name: '',
     organization: 'AKC',
@@ -196,23 +186,18 @@ const initialState: WizardState = {
 };
 
 /**
- * Trials realigned to the current show dates plus the new anchor, or undefined
- * when nothing applies: edit modes (they set `editBaselineJudgeIds`) never
- * move existing trials, and with no show start there is nothing to align to.
+ * Draft trials realigned to the current show dates, or undefined when nothing
+ * applies: edit modes (they set `editBaselineJudgeIds`) never move existing
+ * trials, and with no show start there is nothing to align to. Run once per
+ * step change, not per date write: the range picker writes start and end
+ * separately, so intermediate ranges are wrong (MYK9-884).
  */
 function alignedTrialsPatch(
-  state: Pick<WizardState, 'show' | 'trials' | 'trialsAlignedRange' | 'editBaselineJudgeIds'>
-): Pick<WizardState, 'trials' | 'trialsAlignedRange'> | undefined {
+  state: Pick<WizardState, 'show' | 'trials' | 'editBaselineJudgeIds'>
+): Pick<WizardState, 'trials'> | undefined {
   if (state.editBaselineJudgeIds !== null || !state.show.startDate) return undefined;
-  return {
-    trials: realignTrialsToShowDates(
-      state.trials,
-      state.trialsAlignedRange?.startDate,
-      state.show.startDate,
-      state.show.endDate
-    ),
-    trialsAlignedRange: { startDate: state.show.startDate, endDate: state.show.endDate },
-  };
+  const trials = realignTrialsToShowDates(state.trials, state.show.startDate, state.show.endDate);
+  return trials === state.trials ? undefined : { trials };
 }
 
 export const useWizardStore = create<WizardState & WizardActions>()(
@@ -257,33 +242,23 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Trial management
       addTrial: trial =>
-        set(state => {
-          const aligned = alignedTrialsPatch(state);
-          return {
-            ...aligned,
-            trials: [
-              ...(aligned?.trials ?? state.trials),
-              {
-                ...trial,
-                id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
-              },
-            ],
-            isDirty: true,
-          };
-        }),
+        set(state => ({
+          trials: [
+            ...state.trials,
+            {
+              ...trial,
+              id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
+            },
+          ],
+          isDirty: true,
+        })),
 
       updateTrial: (id, data) =>
-        set(state => {
-          const aligned = alignedTrialsPatch(state);
-          return {
-            ...aligned,
-            trials: (aligned?.trials ?? state.trials).map(trial =>
-              trial.id === id ? { ...trial, ...data } : trial
-            ),
-            isDirty: true,
-          };
-        }),
+        set(state => ({
+          trials: state.trials.map(trial => (trial.id === id ? { ...trial, ...data } : trial)),
+          isDirty: true,
+        })),
 
       removeTrial: id =>
         set(state => ({
@@ -439,7 +414,6 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         lastSaved: state.lastSaved,
         show: state.show,
         trials: state.trials,
-        trialsAlignedRange: state.trialsAlignedRange,
         judgeAssignments: state.judgeAssignments,
         judgeDetails: state.judgeDetails,
         // Kept with the draft it describes. Edit mode rebuilds the draft (and

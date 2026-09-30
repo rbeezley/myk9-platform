@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building, MapPin, Phone, Camera } from 'lucide-react';
+import { Building, MapPin, Phone, Camera, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import { clubSchemas } from '@/lib/validation';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
@@ -26,6 +26,13 @@ import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
+import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
+import {
+  CLUB_TAB_LABEL,
+  CLUB_TAB_ORDER,
+  locateInvalidField,
+  type ClubTabValue,
+} from './ClubEditPanel/validationTab';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -89,11 +96,13 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 });
 
 // Form content component
-const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?: () => void }> = ({
-  clubId,
-  mode,
-  onClose,
-}) => {
+const ClubEditForm: React.FC<{
+  clubId: string;
+  mode: 'create' | 'edit';
+  onClose?: () => void;
+  activeTab: ClubTabValue;
+  onTabChange: (tab: ClubTabValue) => void;
+}> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
   const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -184,20 +193,12 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
-            <Building className="h-4 w-4" />
-            Basic Info
-          </TabsTrigger>
-          <TabsTrigger value="contact" className="gap-2 rounded-lg transition-all duration-300">
-            <Phone className="h-4 w-4" />
-            Contact
-          </TabsTrigger>
-          <TabsTrigger value="premium" className="gap-2 rounded-lg transition-all duration-300">
-            Premium
-          </TabsTrigger>
-        </TabsList>
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as ClubTabValue)}
+        className="w-full"
+      >
+        <ClubTabsList mode={mode} data={data} errors={form?.errors ?? {}} />
 
         {/* Basic Information Tab */}
         <TabsContent
@@ -495,7 +496,15 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
           value="premium"
           className="animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <PremiumTemplatesTab clubId={clubId} onClose={onClose} />
+          {mode === 'create' ? (
+            // Templates hang off a club row, which does not exist yet.
+            <p className="rounded-xl border border-border/30 bg-muted/30 p-4 text-sm text-muted-foreground">
+              Premium templates are optional. You can set them up from the club's Premium tab once
+              it has been created.
+            </p>
+          ) : (
+            <PremiumTemplatesTab clubId={clubId} onClose={onClose} />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -531,6 +540,23 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   enableAutoSave = false,
   mode = 'edit',
 }) => {
+  const [activeTab, setActiveTab] = useState<ClubTabValue>('basic');
+  const nextTab =
+    mode === 'create' ? CLUB_TAB_ORDER[CLUB_TAB_ORDER.indexOf(activeTab) + 1] : undefined;
+
+  // A failed save moves to the tab holding the first invalid field (MYK9-891).
+  const handleValidationFail = useCallback((firstErrorField: string) => {
+    const location = locateInvalidField(firstErrorField);
+    if (!location) return;
+    setActiveTab(location.tab);
+    // The target tab mounts on the next render; focus once it has.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(location.elementId);
+      el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    });
+  }, []);
+
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
 
@@ -564,8 +590,28 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
+      onValidationFail={handleValidationFail}
+      footerActions={
+        nextTab ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setActiveTab(nextTab)}
+            className="min-w-0 flex-1 gap-2 sm:flex-none"
+          >
+            Next: {CLUB_TAB_LABEL[nextTab]}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : undefined
+      }
     >
-      <ClubEditForm clubId={clubId} mode={mode} onClose={onClose} />
+      <ClubEditForm
+        clubId={clubId}
+        mode={mode}
+        onClose={onClose}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </EditPanelWrapper>
   );
 };

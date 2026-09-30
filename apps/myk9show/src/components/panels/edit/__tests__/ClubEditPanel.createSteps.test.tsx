@@ -1,0 +1,93 @@
+/**
+ * MYK9-891: after Basic Info the Create Club footer read as "ready to submit"
+ * while the required Contact fields were still blank. The panel now marks each
+ * section's status, offers "Next: <section>", and a failed submit lands on the
+ * first section with a missing field, focusing that field.
+ */
+
+import { describe, it, expect, vi } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render } from '@/test/utils/testUtils';
+import { ClubEditPanel } from '../ClubEditPanel';
+
+function renderCreate(onSave = vi.fn().mockResolvedValue(undefined)) {
+  render(
+    <ClubEditPanel
+      open
+      onClose={() => {}}
+      clubId=""
+      clubName=""
+      initialClubData={{}}
+      mode="create"
+      onSave={onSave}
+    />
+  );
+  return onSave;
+}
+
+const tab = (name: RegExp) => screen.getByRole('tab', { name });
+
+describe('ClubEditPanel create mode — guided sections', () => {
+  it('flags Contact as still required once Basic Info is filled', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+
+    expect(
+      within(screen.getByTestId('club-tab-status-basic')).getByLabelText('Complete')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ required/);
+    expect(screen.getByTestId('club-tab-status-premium')).toHaveTextContent('Optional');
+  });
+
+  it('offers Next: Contact from Basic Info and Next: Premium from Contact, then stops', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(screen.getByRole('button', { name: /Next: Premium/ }));
+    expect(tab(/^Premium/)).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('button', { name: /Next:/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create Club' })).toBeInTheDocument();
+  });
+
+  it('a failed submit from Basic Info lands on Contact, focuses the first missing field and flags the tab', async () => {
+    const user = userEvent.setup();
+    const onSave = renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+
+    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+
+    await waitFor(() => expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true'));
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ to fix/);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('submits once the required Contact fields are filled in', async () => {
+    const user = userEvent.setup();
+    const onSave = renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    await user.click(screen.getByRole('button', { name: /Next: Contact/ }));
+
+    await user.type(
+      await screen.findByRole('textbox', { name: /Email Address/ }),
+      'club@example.com'
+    );
+    await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
+    await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
+    await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
+    await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
+    await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
+
+    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Heartland',
+      email: 'club@example.com',
+    });
+  });
+});

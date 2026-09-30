@@ -107,4 +107,17 @@ describe('ClubEditPanel create mode — guided sections', () => {
     }
     expect(missing).toEqual([]);
   });
+
+  it('counts a blank required field as required and a malformed one as to fix', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent('6 required');
+    expect(screen.getByTestId('club-tab-status-contact')).not.toHaveTextContent('to fix');
+
+    await user.type(await screen.findByRole('textbox', { name: /Email Address/ }), 'not-an-email');
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(
+      '5 required · 1 to fix'
+    );
+  });
 });

@@ -40,11 +40,25 @@ export const locateInvalidField = (field: string): FieldLocation<ClubTabValue> |
 
 const emptyCounts = (): Record<ClubTabValue, number> => ({ basic: 0, contact: 0, premium: 0 });
 
-/** Number of schema-failing fields per tab for the current form data. */
+export interface TabFieldCounts {
+  /** Failing fields left blank: the user still has to fill them in. */
+  empty: number;
+  /** Failing fields that have a value the schema rejects: the user has to correct them. */
+  malformed: number;
+}
+
+const isBlank = (value: unknown): boolean =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+
+/** Schema-failing fields per tab, split into blank vs filled-but-invalid. */
 export function countInvalidFieldsByTab(
   data: Record<string, unknown>
-): Record<ClubTabValue, number> {
-  const counts = emptyCounts();
+): Record<ClubTabValue, TabFieldCounts> {
+  const counts: Record<ClubTabValue, TabFieldCounts> = {
+    basic: { empty: 0, malformed: 0 },
+    contact: { empty: 0, malformed: 0 },
+    premium: { empty: 0, malformed: 0 },
+  };
   const result = clubSchemas.basic.safeParse(data);
   if (result.success) return counts;
   const seen = new Set<string>();
@@ -53,7 +67,8 @@ export function countInvalidFieldsByTab(
     if (typeof field !== 'string' || seen.has(field)) continue;
     seen.add(field);
     const location = FIELD_LOCATION[field];
-    if (location) counts[location.tab] += 1;
+    if (!location) continue;
+    counts[location.tab][isBlank(data[field]) ? 'empty' : 'malformed'] += 1;
   }
   return counts;
 }

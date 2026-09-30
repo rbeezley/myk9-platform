@@ -53,13 +53,16 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
                 Optional
               </span>
             );
-          } else if (invalid[tab] > 0) {
+          } else if (invalid[tab].empty + invalid[tab].malformed > 0) {
+            const parts: string[] = [];
+            if (invalid[tab].empty > 0) parts.push(`${invalid[tab].empty} required`);
+            if (invalid[tab].malformed > 0) parts.push(`${invalid[tab].malformed} to fix`);
             status = (
               <span
                 data-testid={`club-tab-status-${tab}`}
                 className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
               >
-                {invalid[tab]} required
+                {parts.join(' · ')}
               </span>
             );
           } else {

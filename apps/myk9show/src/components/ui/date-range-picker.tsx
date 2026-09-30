@@ -206,11 +206,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
           >
             <DialogDescription className="max-w-2xl">
-              Select the first date for the start of your range, then select the last date for the
-              end. If both dates fall in the same month, click both in that one calendar. The second
-              calendar only shows the following month, so you never need to change it to match. For
-              a one-day range, click that day once. Use the Previous Month and Next Month buttons to
-              move through the calendar.
+              Click the first date, then the last date. For one day, click it once. Both dates can
+              be in the same calendar; the second calendar just shows the next month.
             </DialogDescription>
             <div
               role="group"

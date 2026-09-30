@@ -25,10 +25,14 @@ interface DatedTrial {
 /**
  * Realign draft trials to the final show dates (MYK9-884). The wizard draft is
  * persisted and trials are not derived from the show dates, so a trial added
- * against an earlier date would otherwise keep it. If every dated trial is
- * already inside [start, end] nothing changes. Otherwise ALL dated trials shift
- * by (new start - earliest trial day), keeping time of day and the relative day
- * structure, and each is clamped into the range. Undated trials are left alone.
+ * against an earlier date would otherwise keep it.
+ * - Every dated trial inside [start, end]: nothing changes.
+ * - Every dated trial outside it (the show moved wholesale): all shift by
+ *   (new start - earliest trial day), keeping time of day and relative day
+ *   structure, then clamp into the range.
+ * - A mix: only the out-of-range trials are clamped; trials already inside the
+ *   range stay exactly where the secretary put them.
+ * Undated trials are left alone. An empty or inverted end leaves the range open.
  */
 export function realignTrialsToShowDates<T extends DatedTrial>(
   trials: T[],
@@ -39,21 +43,22 @@ export function realignTrialsToShowDates<T extends DatedTrial>(
   if (!newStart) return trials;
   const parsedEnd = parseWizardDay(newEndDate);
   const newEnd = parsedEnd && parsedEnd >= newStart ? parsedEnd : undefined;
+  const isInside = (day: Date) => day >= newStart && (!newEnd || day <= newEnd);
 
   const dated = trials.flatMap(trial => {
     const at = parseWizardDateTime(trial.dateTime);
     return at ? [{ trial, at, day: startOfDay(at) }] : [];
   });
-  if (dated.length === 0) return trials;
-  if (dated.every(({ day }) => day >= newStart && (!newEnd || day <= newEnd))) return trials;
+  if (dated.length === 0 || dated.every(({ day }) => isInside(day))) return trials;
 
+  const allOutside = dated.every(({ day }) => !isInside(day));
   const earliest = dated.reduce((min, { day }) => (day < min ? day : min), dated[0]!.day);
-  const delta = differenceInCalendarDays(newStart, earliest);
+  const delta = allOutside ? differenceInCalendarDays(newStart, earliest) : 0;
   const byTrial = new Map(dated.map(entry => [entry.trial, entry]));
 
   return trials.map(trial => {
     const entry = byTrial.get(trial);
-    if (!entry) return trial;
+    if (!entry || isInside(entry.day)) return trial;
     let target = addDays(entry.day, delta);
     if (target < newStart) target = newStart;
     if (newEnd && target > newEnd) target = newEnd;

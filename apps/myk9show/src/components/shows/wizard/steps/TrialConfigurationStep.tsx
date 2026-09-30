@@ -51,7 +51,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   existingTrialsReadError,
   onRetryExistingTrials,
 }) => {
-  const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
+  const { show, trials, trialsMovedCount, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
 
   // Derive trial types from the org mapping, plus active templates for custom/local additions.
@@ -64,6 +64,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     [trials, trialView]
   );
   const canAddTrial = existingTrialsReady;
+  const showAddAnotherHelp = canAddTrial && trials.length > 0;
   const creationCopy = useMemo(
     () => getTrialCreationCopy(trialView.hasAnyTrials, canAddTrial),
     [trialView.hasAnyTrials, canAddTrial]
@@ -165,6 +166,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
               onClick={handleAddTrial}
               disabled={!canAddTrial}
               title={canAddTrial ? undefined : 'Waiting for the current trials to finish loading'}
+              aria-describedby={showAddAnotherHelp ? 'trial-add-another-help' : undefined}
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -172,11 +174,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
             </Button>
           </div>
 
-          {canAddTrial && trials.length > 0 && (
-            <p className="text-sm text-muted-foreground" data-testid="trial-next-step-help">
-              Does your show run trials on other days? Use <strong>Add Another Trial</strong> to add
-              one for each day. When every trial is listed here, use <strong>Next</strong> at the
-              bottom of the page to choose classes.
+          {canAddTrial && trialsMovedCount > 0 && (
+            <p
+              role="status"
+              className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-foreground"
+            >
+              We moved {trialsMovedCount} trial {trialsMovedCount === 1 ? 'date' : 'dates'} to match
+              the new show dates.
             </p>
           )}
 
@@ -413,6 +417,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 );
               })}
             </div>
+          )}
+
+          {showAddAnotherHelp && (
+            <p id="trial-add-another-help" className="text-sm text-muted-foreground">
+              Add Another Trial adds a trial on another day. Use Next when all your trials are
+              listed.
+            </p>
           )}
 
           {/* Validation Summary */}

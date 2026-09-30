@@ -24,7 +24,7 @@ export function getDefaultTrialDateTime(
 ): string {
   const start = parseWizardDay(showStartDate) ?? startOfDay(new Date());
   const parsedEnd = parseWizardDay(showEndDate);
-  const end = parsedEnd && parsedEnd >= start ? parsedEnd : start;
+  const end = parsedEnd && parsedEnd >= start ? parsedEnd : undefined;
   const used = new Map<string, number>();
   for (const dateTime of existingTrialDateTimes) {
     const day = parseWizardDay(dateTime);
@@ -32,8 +32,10 @@ export function getDefaultTrialDateTime(
     const key = format(day, 'yyyy-MM-dd');
     used.set(key, (used.get(key) ?? 0) + 1);
   }
-  let chosen = end;
-  for (let day = start; day <= end; day = addDays(day, 1)) {
+  let chosen = end ?? start;
+  // An open-ended range keeps advancing past the start; it terminates because
+  // only finitely many days are full.
+  for (let day = start; !end || day <= end; day = addDays(day, 1)) {
     if ((used.get(format(day, 'yyyy-MM-dd')) ?? 0) < TRIALS_PER_DAY) {
       chosen = day;
       break;

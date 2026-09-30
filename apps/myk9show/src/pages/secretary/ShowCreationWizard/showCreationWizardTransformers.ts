@@ -10,7 +10,7 @@ import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 import type { NormalizedWizardClassSelection } from './classConfigurationValidation';
-import { wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
+import { assertJuniorHandlerFee, wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
 
 export interface WizardShowData {
   name: string;
@@ -248,6 +248,7 @@ export function transformWizardDataToShow(
         return `wizard-${timestamp}-${randomSuffix}`;
       })();
 
+  assertJuniorHandlerFee(show);
   const juniorHandlerFee = wizardJuniorHandlerFee(show);
 
   // Look up club information

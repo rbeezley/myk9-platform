@@ -159,6 +159,21 @@ describe('saveShowAtomicOnline', () => {
     expect(result.savedShow).toMatchObject({ latitude: 36.15, longitude: -95.99 });
   });
 
+  it('refuses an over-limit junior handler fee before calling the RPC', async () => {
+    await expect(
+      saveShowAtomicOnline({
+        show: { ...baseShow, juniorHandlerFee: 100000 },
+        trials: baseTrials,
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toThrow('Junior handler fee must be less than $100,000');
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it('carries the junior handler fee on the saved show and its cache entries', async () => {
     rpcMock.mockResolvedValue({ error: null });
     const queryClient = makeQueryClient();

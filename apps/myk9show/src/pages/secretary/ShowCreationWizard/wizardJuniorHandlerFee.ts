@@ -9,6 +9,33 @@
 /** Exclusive upper bound; mirrors shows_junior_handler_fee_bounded (< 100000). */
 export const JUNIOR_HANDLER_FEE_LIMIT = 100_000;
 
+export const JUNIOR_HANDLER_FEE_MESSAGE = 'Junior handler fee must be less than $100,000';
+
+/** The blocking message for a draft whose fee the column CHECK would reject, else undefined. */
+export function juniorHandlerFeeError(show: {
+  organization: string;
+  juniorHandlerFee?: number | undefined;
+}): string | undefined {
+  if (show.organization === 'ASCA') return undefined;
+  const fee = show.juniorHandlerFee;
+  return fee !== undefined && fee >= JUNIOR_HANDLER_FEE_LIMIT
+    ? JUNIOR_HANDLER_FEE_MESSAGE
+    : undefined;
+}
+
+/**
+ * Every write path calls this. The Details step validates on Next, but the step rail can jump
+ * back to Review and save without revalidating Details, so the bound is enforced again here
+ * rather than silently dropping the fee or surfacing the raw database CHECK error.
+ */
+export function assertJuniorHandlerFee(show: {
+  organization: string;
+  juniorHandlerFee?: number | undefined;
+}): void {
+  const message = juniorHandlerFeeError(show);
+  if (message) throw new Error(message);
+}
+
 export function wizardJuniorHandlerFee(show: {
   organization: string;
   juniorHandlerFee?: number | undefined;

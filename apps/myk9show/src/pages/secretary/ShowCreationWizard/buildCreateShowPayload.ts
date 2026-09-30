@@ -9,7 +9,7 @@ import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import { normalizeWizardClassSelections } from './classConfigurationValidation';
-import { wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
+import { assertJuniorHandlerFee, wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
 import {
   createClassDataFromWizard,
   type WizardShowData,
@@ -169,6 +169,7 @@ export function buildCreateShowPayload(
     };
   });
 
+  assertJuniorHandlerFee(show);
   const juniorHandlerFee = wizardJuniorHandlerFee(show);
 
   const allClassData = createClassDataFromWizard(

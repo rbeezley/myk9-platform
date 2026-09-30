@@ -55,6 +55,34 @@ describe('wizardJuniorHandlerFee', () => {
   });
 });
 
+describe('an over-limit fee cannot reach a save (step-rail bypass)', () => {
+  // The Details step blocks it on Next, but the step rail can jump back to Review and save
+  // without revalidating Details. Every write path must refuse it by itself.
+  const over = { ...baseShow, juniorHandlerFee: 100000 };
+
+  it('refuses in buildCreateShowPayload, before any RPC is built', () => {
+    expect(() => build(over)).toThrow('Junior handler fee must be less than $100,000');
+  });
+
+  it('refuses in transformWizardDataToShow, which the edit and offline saves use', () => {
+    expect(() =>
+      transformWizardDataToShow(
+        over,
+        [],
+        {},
+        [],
+        'unpublished',
+        undefined,
+        createWizardTrialView([], [])
+      )
+    ).toThrow('Junior handler fee must be less than $100,000');
+  });
+
+  it('does not refuse an ASCA draft holding a stale over-limit fee', () => {
+    expect(() => build({ ...over, organization: 'ASCA' })).not.toThrow();
+  });
+});
+
 describe('junior handler fee through show creation', () => {
   it('sends the fee to create_show_with_children and the local show', () => {
     const { rpcInput, localEntities } = build({ ...baseShow, juniorHandlerFee: 15 });

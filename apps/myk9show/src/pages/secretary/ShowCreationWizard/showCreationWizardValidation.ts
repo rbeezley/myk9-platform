@@ -8,7 +8,7 @@ import {
   normalizeWizardClassSelections,
   type PersistedClassIdentity,
 } from './classConfigurationValidation';
-import { JUNIOR_HANDLER_FEE_LIMIT } from './wizardJuniorHandlerFee';
+import { juniorHandlerFeeError } from './wizardJuniorHandlerFee';
 
 interface ShowData {
   name: string;
@@ -69,13 +69,8 @@ export function getShowDetailsValidationMessages(
   if (show.officials.secretary.length === 0) messages.push('Show secretary is required');
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database
   // error on the final save. ASCA hides the field, so its stale value is never checked.
-  if (
-    show.organization !== 'ASCA' &&
-    show.juniorHandlerFee !== undefined &&
-    show.juniorHandlerFee >= JUNIOR_HANDLER_FEE_LIMIT
-  ) {
-    messages.push('Junior handler fee must be less than $100,000');
-  }
+  const juniorFeeError = juniorHandlerFeeError(show);
+  if (juniorFeeError) messages.push(juniorFeeError);
   if (requireEntryWindow) {
     if (!show.entryOpenDate) messages.push('Entry open date is required');
     if (!show.entryCloseDate) messages.push('Entry close date is required');

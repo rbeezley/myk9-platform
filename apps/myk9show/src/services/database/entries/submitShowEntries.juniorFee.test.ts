@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDatabaseError } from '@/services/database/databaseError';
 
 // MYK9-878 (last hop): the secretary's junior-fee request must survive the hand-picked
 // projection from the wizard's entry objects to the `submit_show_entries` payload.
@@ -7,7 +8,7 @@ const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }));
 vi.mock('../supabaseClient', () => ({
   supabase: { rpc: rpcMock },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
+  createDatabaseError,
 }));
 
 import { submitShowEntries } from './writes';

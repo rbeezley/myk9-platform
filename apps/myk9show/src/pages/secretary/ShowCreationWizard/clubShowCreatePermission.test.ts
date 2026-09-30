@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ScopeType, UserRole, type UserWithRoles } from '@/types/auth-types';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
-import { isClubShowCreateDenied } from './clubShowCreatePermission';
+import {
+  isClubShowCreateDenied,
+  markClubJustCreated,
+  clearJustCreatedClubsForTest,
+} from './clubShowCreatePermission';
 import { getShowDetailsValidationMessages } from './showCreationWizardValidation';
 
 const scope = (roleId: string, scopeId: string, scopeType = ScopeType.CLUB) => ({
@@ -49,6 +53,17 @@ describe('isClubShowCreateDenied (wizard)', () => {
   it('is unknown, not denied, before identity loads or a club is chosen', () => {
     expect(isClubShowCreateDenied(null, 'c1')).toBe(false);
     expect(isClubShowCreateDenied(user([], []), undefined)).toBe(false);
+  });
+});
+
+describe('create-club-and-return path (Codex P1)', () => {
+  it('never blocks a club this user just created, even before scopes catch up', () => {
+    clearJustCreatedClubsForTest();
+    const u = user([UserRole.SECRETARY], [scope(UserRole.SECRETARY, 'old')]);
+    expect(isClubShowCreateDenied(u, 'new1')).toBe(true);
+    markClubJustCreated('new1');
+    expect(isClubShowCreateDenied(u, 'new1')).toBe(false);
+    expect(isClubShowCreateDenied(u, 'other')).toBe(true);
   });
 });
 

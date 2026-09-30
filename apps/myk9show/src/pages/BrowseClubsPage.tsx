@@ -14,6 +14,7 @@ import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { markClubJustCreated } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
@@ -28,7 +29,7 @@ const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { user, userWithRoles } = useAuthContext();
+  const { user, userWithRoles, refreshPermissions } = useAuthContext();
   const isAuthenticated = !!user;
 
   // Keep the affordance aligned with migration 160's clubs_insert policy.
@@ -117,6 +118,10 @@ const BrowseClubsPage: React.FC = () => {
 
         if (createdId) {
           selectClub(createdId);
+          // The creator's club_admin grant is issued by a DB trigger: refresh RBAC (best effort)
+          // and tell the wizard this club is not a permission miss while scopes catch up.
+          markClubJustCreated(createdId);
+          void refreshPermissions();
           const returnTo = searchParams.get('returnTo');
           if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
             const target = new URL(returnTo, window.location.origin);

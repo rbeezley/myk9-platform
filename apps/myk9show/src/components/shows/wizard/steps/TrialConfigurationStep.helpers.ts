@@ -41,10 +41,9 @@ export function getDefaultTrialDateTime(
       break;
     }
   }
-  return format(
-    new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate(), 8),
-    "yyyy-MM-dd'T'HH:mm:ss"
-  );
+  // A local wall-clock 8:00 AM on the chosen calendar day, not an instant.
+  const eightAm = new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate(), 8);
+  return format(eightAm, "yyyy-MM-dd'T'HH:mm:ss");
 }
 
 interface TrialTypeTemplateOption {

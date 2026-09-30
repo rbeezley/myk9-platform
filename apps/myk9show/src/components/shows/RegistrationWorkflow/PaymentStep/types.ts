@@ -107,6 +107,12 @@ export interface PaymentMethodSelectorProps {
   allowCardCheckout?: boolean | undefined;
   /** Plain-English reason shown when card checkout is unavailable. */
   cardCheckoutUnavailableReason?: string | undefined;
+  /**
+   * MYK9-878: the show's junior handler fee (dollars) when the caller may charge it
+   * explicitly (show secretary / site admin) and the show has a junior tier; null
+   * or omitted hides the choice.
+   */
+  juniorFee?: number | null | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

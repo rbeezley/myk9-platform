@@ -44,6 +44,12 @@ export interface PaymentDetails {
    * record cash or check rather than an unnamed channel.
    */
   receivedMethod?: 'cash' | 'check';
+  /**
+   * MYK9-878: a show secretary / site admin explicitly charges the show's junior
+   * handler fee for these entries. A fee choice, never derived from age; the
+   * server re-checks who is asking.
+   */
+  chargeJuniorFee?: boolean;
 }
 
 // Registration context for role-based workflows

@@ -21,6 +21,7 @@ import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
+import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentMethodSelectorProps } from './types';
 import type { PaymentDetails } from '@/types/show-registration-types';
@@ -95,7 +96,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   acceptedMethods,
   allowCardCheckout = true,
   cardCheckoutUnavailableReason,
+  juniorFee = null,
 }) => {
+  const [chargeJuniorFee, setChargeJuniorFee] = useState(false);
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
@@ -116,6 +119,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       groupReference,
       paymentNotes,
       ...(receivedMethod ? { receivedMethod } : {}),
+      ...(chargeJuniorFee ? { chargeJuniorFee } : {}),
       ...patch,
     });
   };
@@ -148,6 +152,11 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const handleReceivedMethodChange = (value: 'cash' | 'check') => {
     setReceivedMethod(value);
     notifyDetailsChange({ receivedMethod: value });
+  };
+
+  const handleJuniorFeeChange = (value: boolean) => {
+    setChargeJuniorFee(value);
+    notifyDetailsChange({ chargeJuniorFee: value });
   };
 
   const handleSelect = (value: PaymentMethod) => {
@@ -389,6 +398,14 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   />
                 </div>
               </div>
+            )}
+
+            {juniorFee !== null && (
+              <JuniorFeeChoice
+                fee={juniorFee}
+                checked={chargeJuniorFee}
+                onCheckedChange={handleJuniorFeeChange}
+              />
             )}
           </div>
         </div>

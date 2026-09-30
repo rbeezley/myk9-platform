@@ -58,11 +58,14 @@ Decided by Richard, 2026-09-29 (all recommendations accepted):
   hides the setting.
 - **Self-asserted date of birth and number:** out of scope for this fee; file separately.
 
-## Open before slice B
+## Settled at the start of slice B (Richard, 2026-09-30, MYK9-875)
 
-Slice A needs none of the decisions above beyond what is recorded. Slice B still has one open
-design point: whether enrollments need provenance so that "enrolled" can be trusted (MYK9-875). Settle
-it at the start of slice B, not before.
+Ownership only, no provenance column. A junior fee is derived only when the handler is the dog's
+`owner_id` or `co_owner_id`: `enrollments.handler_id` is always the registrant, and the enrollment
+and existing-entry arms both let a show manager manufacture the relationship. The show secretary
+or a site admin may instead explicitly charge the junior fee for any entry (a junior showing a
+parent's dog); that override never reads a date of birth, and who applied it is stored on the
+entry (`entries.junior_fee_override_by`). Migration `20260930214300_myk9_878_*` implements it.
 
 ## Slices
 

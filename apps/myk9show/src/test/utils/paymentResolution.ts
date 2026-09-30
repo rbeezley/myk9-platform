@@ -34,6 +34,7 @@ export function makePaymentResolution(
     accountCheckPending: false,
     cardCheckoutUnavailableReason: undefined,
     isOnBehalf: false,
+    canChargeJuniorFee: false,
     show: undefined,
     ...rest,
   };

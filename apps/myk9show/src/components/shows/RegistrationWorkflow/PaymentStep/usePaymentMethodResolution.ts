@@ -29,6 +29,12 @@ export interface PaymentMethodResolution {
   cardCheckoutUnavailableReason: string | undefined;
   /** Staff entering on an exhibitor's behalf. Also gates the entry agreement. */
   isOnBehalf: boolean;
+  /**
+   * MYK9-878: may explicitly charge the junior handler fee. Narrower than
+   * `isOnBehalf`: the server accepts the override only from the show secretary or
+   * a site admin, so a club admin is not offered it.
+   */
+  canChargeJuniorFee: boolean;
   /** The show record this lookup already resolved — reused for fees and the
    *  entry agreement rather than looked up a second time. */
   show: Show | undefined;
@@ -65,6 +71,7 @@ export function usePaymentMethodResolution(
     accountCheckPending:
       !isOnBehalf && (clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching),
     isOnBehalf,
+    canChargeJuniorFee: isSecretary || isSiteAdmin,
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined

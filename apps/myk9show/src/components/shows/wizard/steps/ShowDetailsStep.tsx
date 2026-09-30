@@ -8,6 +8,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useClubShowCreateDenied } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import {
   filterClubs,
@@ -52,6 +53,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     selectedClassCount: trials.reduce((count, trial) => count + trial.classes.length, 0),
   });
   const isExistingShow = mode === 'add-trials' || mode === 'add-classes';
+  // MYK9-887: tell the secretary at the club field, not at submit, that the RPC would refuse.
+  const clubCreateDenied = useClubShowCreateDenied(show.clubId || undefined, !isExistingShow);
   const organizationHint = isExistingShow
     ? 'This is an existing show. Its sanctioning organization cannot change in this wizard; create a separate show instead.'
     : !organizationEditable
@@ -189,6 +192,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
                 setSearchTerm={setClubSearchTerm}
                 onSelectClub={clubId => updateShowData({ clubId })}
                 createClubHref={createClubHref}
+                clubCreateDenied={clubCreateDenied}
               />
             }
           />

@@ -12,6 +12,7 @@ import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScopeType, UserRole } from '@/types/auth-types';
+import { CREATE_SHOW_WIZARD_ROLES } from '@/routes/createShowWizardAccess';
 import type { RoleScope, UserWithRoles } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
 
@@ -70,11 +71,11 @@ function userWith(roles: UserRole[], scopes: RoleScope[]): UserWithRoles {
 
 const club = { id: CLUB_A, name: 'Heartland Scent Work Club' } as Club;
 
-function renderState() {
+function renderState(clubId: string = CLUB_A) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return renderHook(() => useClubDetailsState(club), {
+  return renderHook(() => useClubDetailsState({ ...club, id: clubId }), {
     wrapper: ({ children }: { children: React.ReactNode }) => (
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -168,5 +169,40 @@ describe('hasClubAdminScope', () => {
       createdAt: new Date(),
     };
     expect(hasClubAdminScope([showScope], CLUB_A)).toBe(false);
+  });
+});
+
+describe('useClubDetailsState canAddShow (MYK9-890)', () => {
+  beforeEach(() => {
+    mockAuth.userWithRoles = null;
+  });
+
+  it('shows it to a secretary on their own club, not on another club', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(true);
+    expect(renderState(CLUB_B).result.current.canAddShow).toBe(false);
+  });
+
+  it('shows it to a site admin on any club', () => {
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(true);
+    expect(renderState(CLUB_B).result.current.canAddShow).toBe(true);
+  });
+
+  it('hides it from anonymous viewers and roles the wizard route refuses', () => {
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
+    for (const role of [
+      UserRole.EXHIBITOR,
+      UserRole.JUDGE,
+      UserRole.CLUB_ADMIN,
+      UserRole.STEWARD,
+    ]) {
+      expect(CREATE_SHOW_WIZARD_ROLES).not.toContain(role);
+      mockAuth.userWithRoles = userWith([role], [clubScope(role, CLUB_A)]);
+      expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
+    }
   });
 });

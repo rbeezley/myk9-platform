@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { UserRole } from '@/types/auth-types';
+import { CREATE_SHOW_WIZARD_ROLES } from './createShowWizardAccess';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
@@ -297,7 +298,7 @@ export const SecretaryRoutes = () => (
     <Route
       path="/secretary/create-show"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute requiredRole={[...CREATE_SHOW_WIZARD_ROLES]}>
           <Navigate to="/secretary/create-show/wizard" replace />
         </ProtectedRoute>
       }
@@ -305,7 +306,7 @@ export const SecretaryRoutes = () => (
     <Route
       path="/secretary/create-show/wizard"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute requiredRole={[...CREATE_SHOW_WIZARD_ROLES]}>
           <SuspenseWrapper>
             <PageTransition>
               <ShowCreationWizardPage />

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { SearchablePopover } from '@/components/ui/searchable-popover';
 import { Plus } from 'lucide-react';
 import type { Club } from '@/types/club-types';
+import { clubCreateDeniedMessage } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 
 const CREATE_BTN_CLASS = 'w-full border-primary/20 text-primary hover:bg-primary/5';
 
@@ -18,6 +19,8 @@ interface HostClubFieldProps {
   setSearchTerm: (term: string) => void;
   onSelectClub: (clubId: string) => void;
   createClubHref: string;
+  /** MYK9-887: the signed-in user cannot create shows for the selected club. */
+  clubCreateDenied?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -36,7 +39,9 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
   setSearchTerm,
   onSelectClub,
   createClubHref,
+  clubCreateDenied = false,
 }) => {
+  const selectedClub = clubId ? clubs.find(c => c.id === clubId) : undefined;
   return (
     <div className="space-y-2 md:col-span-2">
       <Label htmlFor="show-host-club">
@@ -49,6 +54,9 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
           onOpenChange={setShowSearch}
           triggerLabel={
             clubId ? clubs.find(c => c.id === clubId)?.name || 'Unknown Club' : 'Select a club'
+          }
+          aria-describedby={
+            clubCreateDenied ? 'show-host-club-help show-host-club-advisory' : 'show-host-club-help'
           }
           searchPlaceholder="Search clubs..."
           searchTerm={searchTerm}
@@ -70,10 +78,32 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
             </div>
           )}
         />
-        <Button asChild variant="outline" className={CREATE_BTN_CLASS}>
+        {/* MYK9-889: choosing an existing club and creating a new one are different jobs.
+            Once a club is chosen the create action steps back to a quiet text link. */}
+        <p id="show-host-club-help" className="text-sm text-muted-foreground">
+          {selectedClub
+            ? `Hosting club: ${selectedClub.name}. It already exists, so there is nothing to create. Change it above if another club is hosting.`
+            : 'Choose the club hosting this show above. Only create a new club if yours is not listed.'}
+        </p>
+        {clubCreateDenied && (
+          <p
+            id="show-host-club-advisory"
+            role="status"
+            className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+          >
+            {clubCreateDeniedMessage(selectedClub?.name ?? 'this club')}
+          </p>
+        )}
+        <Button
+          asChild
+          variant={selectedClub ? 'link' : 'outline'}
+          className={selectedClub ? 'h-auto min-h-[44px] px-0 py-2 text-sm' : CREATE_BTN_CLASS}
+        >
           <Link to={createClubHref}>
             <Plus className="mr-2 h-4 w-4" />
-            Create New Club
+            {selectedClub
+              ? 'Not the right club? Create New Club'
+              : 'Club not listed? Create New Club'}
           </Link>
         </Button>
       </div>

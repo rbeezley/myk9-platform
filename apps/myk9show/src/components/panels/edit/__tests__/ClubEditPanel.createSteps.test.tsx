@@ -5,12 +5,26 @@
  * first section with a missing field, focusing that field.
  */
 
+import { useEffect } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClubEditPanel } from '../ClubEditPanel';
 import { FIELD_LOCATION } from '../ClubEditPanel/validationTab';
+
+const tabsListMounts = vi.hoisted(() => vi.fn());
+vi.mock('../ClubEditPanel/ClubTabsList', async importOriginal => {
+  const original = await importOriginal<typeof import('../ClubEditPanel/ClubTabsList')>();
+  return {
+    ClubTabsList: (props: React.ComponentProps<typeof original.ClubTabsList>) => {
+      useEffect(() => {
+        tabsListMounts();
+      }, []);
+      return <original.ClubTabsList {...props} />;
+    },
+  };
+});
 
 function renderCreate(onSave = vi.fn().mockResolvedValue(undefined)) {
   render(
@@ -116,7 +130,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(status()).toHaveTextContent('6 to complete');
     // Phone width shows a bare count; the full phrase stays readable to assistive tech.
     expect(status().querySelector('[aria-hidden="true"]')).toHaveTextContent(/^6$/);
-    expect(within(status()).getByText('6 to complete')).toHaveClass('sr-only', 'sm:not-sr-only');
+    expect(screen.getByRole('tab', { name: 'Contact 6 to complete' })).toBeInTheDocument();
 
     const email = await screen.findByRole('textbox', { name: /Email Address/ });
     await user.type(email, 'not-an-email');
@@ -160,4 +174,92 @@ describe('ClubEditPanel create mode — guided sections', () => {
       await waitFor(() => expect(tab(/^Basic Info/)).toHaveAttribute('aria-selected', 'true'));
     }
   );
+
+  it('closing does not remount the panel, only a new open does', async () => {
+    const props = {
+      clubId: 'club-1',
+      clubName: 'Heartland',
+      initialClubData: { id: 'club-1', name: 'Heartland' },
+      mode: 'edit' as const,
+    };
+    tabsListMounts.mockClear();
+    const { rerender } = render(<ClubEditPanel open onClose={() => {}} {...props} />);
+    await screen.findByRole('tab', { name: /^Contact/ });
+    expect(tabsListMounts).toHaveBeenCalledTimes(1);
+
+    rerender(<ClubEditPanel open={false} onClose={() => {}} {...props} />);
+    expect(tabsListMounts).toHaveBeenCalledTimes(1);
+
+    rerender(<ClubEditPanel open onClose={() => {}} {...props} />);
+    await screen.findByRole('tab', { name: /^Contact/ });
+    expect(tabsListMounts).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes Next primary and Create Club secondary until nothing later is outstanding', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+
+    const next = () => screen.getByRole('button', { name: /Next: Contact/ });
+    const create = () => screen.getByRole('button', { name: 'Create Club' });
+    expect(next()).toHaveAttribute('data-variant', 'default');
+    expect(create()).toHaveAttribute('data-variant', 'outline');
+    expect(create()).toBeEnabled();
+
+    await user.click(next());
+    await user.type(
+      await screen.findByRole('textbox', { name: /Email Address/ }),
+      'club@example.com'
+    );
+    await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
+    await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
+    await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
+    await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
+    await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
+
+    // Everything required is resolved: Create Club is the primary action again.
+    expect(create()).toHaveAttribute('data-variant', 'default');
+    expect(screen.getByRole('button', { name: /Next: Premium/ })).toHaveAttribute(
+      'data-variant',
+      'secondary'
+    );
+  });
+
+  it('summarises unresolved counts in one polite live region that ignores same-count typing', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    const region = await screen.findByTestId('club-tab-summary');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toHaveTextContent(
+      'Basic Info: 1 field to complete. Contact: 6 fields to complete'
+    );
+
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), 'H');
+    expect(region).toHaveTextContent('Contact: 6 fields to complete');
+    expect(region).not.toHaveTextContent('Basic Info');
+
+    // Another keystroke in an already-resolved field leaves the text untouched.
+    const before = region.textContent;
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), 'eartland');
+    expect(region.textContent).toBe(before);
+  });
+
+  it('edit mode shows no Next buttons and no create-mode statuses', async () => {
+    render(
+      <ClubEditPanel
+        open
+        onClose={() => {}}
+        clubId="club-1"
+        clubName="Heartland"
+        initialClubData={{ id: 'club-1', name: 'Heartland' }}
+        mode="edit"
+      />
+    );
+    await screen.findByRole('tab', { name: /^Contact/ });
+    expect(screen.queryByRole('button', { name: /Next:/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-tab-status-basic')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-tab-status-contact')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-tab-status-premium')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('club-tab-summary')).not.toBeInTheDocument();
+  });
 });

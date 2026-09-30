@@ -29,6 +29,7 @@ import {
   CLUB_TAB_LABEL,
   CLUB_TAB_ORDER,
   locateInvalidField,
+  countInvalidFieldsByTab,
   type ClubTabValue,
 } from './ClubEditPanel/validationTab';
 import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
@@ -187,6 +188,7 @@ const ClubEditForm: React.FC<{
                   </Label>
                   <div className="flex gap-2">
                     <Button
+                      id="club-logo-button"
                       type="button"
                       variant="outline"
                       size="sm"
@@ -343,12 +345,20 @@ const ClubEditForm: React.FC<{
   );
 };
 
-// Main component. Keyed on `open` so every open starts on Basic Info with no
-// pending focus: callers keep this mounted while closed, and the tab state is
-// lifted out of the tab content (MYK9-891). Same approach as AddDogPanel.
-export const ClubEditPanel: React.FC<ClubEditPanelProps> = props => (
-  <ClubEditPanelSession key={props.open ? 'open' : 'closed'} {...props} />
-);
+// Main component. The session is keyed on a counter bumped only on the
+// closed -> open edge, so every open starts on Basic Info with no pending focus
+// (callers keep this mounted while closed, and the tab state is lifted out of
+// the tab content, MYK9-891) while closing does NOT remount, which would cut
+// the panel's exit transition.
+export const ClubEditPanel: React.FC<ClubEditPanelProps> = props => {
+  const [prevOpen, setPrevOpen] = useState(props.open);
+  const [session, setSession] = useState(0);
+  if (props.open !== prevOpen) {
+    setPrevOpen(props.open);
+    if (props.open) setSession(current => current + 1);
+  }
+  return <ClubEditPanelSession key={session} {...props} />;
+};
 
 const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   open,
@@ -365,6 +375,20 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
     usePanelValidationNavigation<ClubTabValue>('basic', locateInvalidField);
   const nextTab =
     mode === 'create' ? CLUB_TAB_ORDER[CLUB_TAB_ORDER.indexOf(activeTab) + 1] : undefined;
+
+  // While a later section still has unresolved fields, "Next" is the primary
+  // action and Create Club is demoted (still enabled: clicking it routes to the
+  // missing field). Once nothing later is outstanding, Create Club is primary.
+  const [laterUnresolved, setLaterUnresolved] = useState(false);
+  const handleDataChange = useCallback(
+    (data: ClubEditFormData) => {
+      const counts = countInvalidFieldsByTab(data);
+      const later = CLUB_TAB_ORDER.slice(CLUB_TAB_ORDER.indexOf(activeTab) + 1);
+      setLaterUnresolved(later.some(tab => counts[tab] > 0));
+    },
+    [activeTab]
+  );
+  const nextIsPrimary = nextTab !== undefined && laterUnresolved;
 
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
@@ -400,11 +424,14 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
       onValidationFail={handleValidationFail}
+      onDataChange={handleDataChange}
+      saveVariant={nextIsPrimary ? 'outline' : 'default'}
       footerActions={
         nextTab ? (
           <Button
             type="button"
-            variant="secondary"
+            variant={nextIsPrimary ? 'default' : 'secondary'}
+            data-variant={nextIsPrimary ? 'default' : 'secondary'}
             onClick={() => setActiveTab(nextTab)}
             className="min-w-0 flex-1 gap-2 sm:flex-none"
           >

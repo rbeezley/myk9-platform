@@ -25,6 +25,8 @@ export const FIELD_LOCATION: Record<string, FieldLocation<ClubTabValue>> = {
   description: { tab: 'basic', elementId: 'description' },
   founded: { tab: 'basic', elementId: 'founded' },
   clubType: { tab: 'basic', elementId: 'clubType' },
+  // Logo is set through the Change Logo button; accentColor has no focusable id.
+  logo: { tab: 'basic', elementId: 'club-logo-button' },
   email: { tab: 'contact', elementId: 'email' },
   phone: { tab: 'contact', elementId: 'phone' },
   website: { tab: 'contact', elementId: 'website' },

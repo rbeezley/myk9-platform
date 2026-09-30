@@ -64,6 +64,8 @@ interface WizardState {
     entryCloseDate: string; // ISO datetime string
     preEntryFee: number;
     dayOfShowFee: number;
+    /** Optional so drafts persisted before slice A2 still load. */
+    juniorHandlerFee?: number | undefined;
     startingArmbandNumber: number;
     officials: {
       secretary: string[]; // people.id values

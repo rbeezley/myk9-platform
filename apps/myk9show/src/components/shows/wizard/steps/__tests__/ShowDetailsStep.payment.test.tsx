@@ -249,3 +249,20 @@ describe('ShowDetailsStep — Step-1 grouping', () => {
     }
   );
 });
+
+describe('ShowDetailsStep — Junior Handler Fee wiring', () => {
+  it('offers the field when creating a show', () => {
+    render(<ShowDetailsStep />);
+    expect(screen.getByLabelText(/Junior Handler Fee/i)).toBeInTheDocument();
+  });
+
+  it.each(['add-trials', 'add-classes'] as const)(
+    'hides the field when the wizard is adding to an existing show (%s)',
+    mode => {
+      render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
+      expect(screen.queryByLabelText(/Junior Handler Fee/i)).toBeNull();
+      // Positive control: the sibling fee is still rendered.
+      expect(screen.getByLabelText(/Day-of-Show Fee/i)).toBeInTheDocument();
+    }
+  );
+});

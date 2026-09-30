@@ -7,6 +7,11 @@ import { SectionHeading } from './SectionHeading';
 interface FeesPaymentsSectionProps {
   show: ShowDraft;
   onUpdate: (patch: Partial<ShowDraft>) => void;
+  /**
+   * False when the wizard is adding to an existing show: the fee is edited on the show edit
+   * panel, and a draft that carries none writes nothing, so it can neither set nor clear one.
+   */
+  juniorHandlerFeeEditable?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -15,7 +20,11 @@ interface FeesPaymentsSectionProps {
 /*  belong with the fees they modify.                                  */
 /* ------------------------------------------------------------------ */
 
-export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({ show, onUpdate }) => (
+export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({
+  show,
+  onUpdate,
+  juniorHandlerFeeEditable = true,
+}) => (
   <div>
     <SectionHeading>Fees &amp; Payments</SectionHeading>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -38,6 +47,18 @@ export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({ show, 
           if (v !== undefined) onUpdate({ dayOfShowFee: v });
         }}
       />
+
+      {juniorHandlerFeeEditable && show.organization !== 'ASCA' && (
+        <FeeField
+          id="show-junior-handler-fee"
+          label="Junior Handler Fee"
+          tooltip="Reduced entry fee for a junior handler (under 18). Leave blank or $0 for no junior fee. Shown on the entry blank; it does not change any entry's price yet."
+          value={show.juniorHandlerFee}
+          onChange={v => {
+            if (v !== undefined) onUpdate({ juniorHandlerFee: v });
+          }}
+        />
+      )}
 
       <div className="md:col-span-2">
         <PaymentMethodsCheckboxGroup

@@ -50,3 +50,17 @@ describe('buildCloneSnapshot timezone', () => {
     expect(snapshot.show.timezone).toBe('America/New_York');
   });
 });
+
+describe('buildCloneSnapshot junior handler fee', () => {
+  const clone = (overrides: Partial<Show>) =>
+    buildCloneSnapshot({ show: show(overrides), sourceTrials: [], people: [], templates: [] });
+
+  it('carries a positive source fee into the draft', () => {
+    expect(clone({ juniorHandlerFee: '15' }).show.juniorHandlerFee).toBe(15);
+  });
+
+  it('adds no key when the source show has no fee or a zero fee', () => {
+    expect('juniorHandlerFee' in clone({}).show).toBe(false);
+    expect('juniorHandlerFee' in clone({ juniorHandlerFee: '0' }).show).toBe(false);
+  });
+});

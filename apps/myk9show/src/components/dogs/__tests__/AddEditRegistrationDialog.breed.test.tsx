@@ -112,6 +112,39 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
       'Golden Retriever'
     );
   });
+
+  it('typing an initial letter lists only breeds starting with it, Golden Retriever included (MYK9-883)', () => {
+    renderDialog(akcRegistration);
+    fireEvent.change(screen.getByPlaceholderText(/search breeds/i), { target: { value: 'G' } });
+
+    const options = screen.getAllByRole('option');
+    expect(options.length).toBeGreaterThan(1);
+    for (const option of options) {
+      expect(option.textContent?.trim().toLowerCase().startsWith('g')).toBe(true);
+    }
+    expect(screen.getByRole('option', { name: 'Golden Retriever' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Beagle' })).toBeNull();
+  });
+
+  it('selecting a breed after typing an initial letter sets the breed (MYK9-883)', () => {
+    renderDialog(akcRegistration);
+    fireEvent.change(screen.getByPlaceholderText(/search breeds/i), { target: { value: 'G' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Golden Retriever' }));
+
+    expect(screen.getByRole('combobox', { name: /registered breed/i })).toHaveTextContent(
+      'Golden Retriever'
+    );
+  });
+
+  it('Enter chooses the first breed for the typed letter (MYK9-883)', () => {
+    renderDialog(akcRegistration);
+    const search = screen.getByPlaceholderText(/search breeds/i);
+    fireEvent.change(search, { target: { value: 'G' } });
+    const first = screen.getAllByRole('option')[0]!.textContent?.trim() ?? '';
+    fireEvent.keyDown(search, { key: 'Enter' });
+
+    expect(screen.getByRole('combobox', { name: /registered breed/i })).toHaveTextContent(first);
+  });
 });
 
 // User testing: exhibitors typed a registration number before picking a

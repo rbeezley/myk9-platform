@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Registration } from '@/types/dog-types';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import { MAX_FILE_SIZE, ALLOWED_IMAGE_TYPES } from '@/services/imageUploadService';
-import type { DogFormData, TabValue } from './types';
+import type { DogFormData } from './types';
 
 interface UseAddDogFormOptions {
   open: boolean;
@@ -12,8 +12,6 @@ interface UseAddDogFormOptions {
 const ALLOWED_PHOTO_MIME = new Set<string>(ALLOWED_IMAGE_TYPES);
 
 export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
-  const [activeTab, setActiveTab] = useState<TabValue>('basic');
-
   // Photo dialog state
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -32,7 +30,6 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
-      setActiveTab('basic');
       setIsPhotoDialogOpen(false);
       setPhotoPreview(null);
       setIsPhotoDragging(false);
@@ -170,10 +167,6 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   }, []);
 
   return {
-    // Tab / UI state
-    activeTab,
-    setActiveTab,
-
     // Photo state
     isPhotoDialogOpen,
     photoPreview,

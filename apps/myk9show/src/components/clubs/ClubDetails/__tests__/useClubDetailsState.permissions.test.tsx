@@ -71,11 +71,11 @@ function userWith(roles: UserRole[], scopes: RoleScope[]): UserWithRoles {
 
 const club = { id: CLUB_A, name: 'Heartland Scent Work Club' } as Club;
 
-function renderState() {
+function renderState(clubId: string = CLUB_A) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return renderHook(() => useClubDetailsState(club), {
+  return renderHook(() => useClubDetailsState({ ...club, id: clubId }), {
     wrapper: ({ children }: { children: React.ReactNode }) => (
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -177,15 +177,23 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
     mockAuth.userWithRoles = null;
   });
 
-  it('follows the create-wizard route guard: secretary and site admin see it', () => {
-    for (const role of CREATE_SHOW_WIZARD_ROLES) {
-      mockAuth.userWithRoles = userWith([role], []);
-      expect(renderState().result.current.canAddShow).toBe(true);
-    }
+  it('shows it to a secretary on their own club, not on another club', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(true);
+    expect(renderState(CLUB_B).result.current.canAddShow).toBe(false);
   });
 
-  it('hides it from anonymous viewers, exhibitors, and other non-wizard roles', () => {
-    expect(renderState().result.current.canAddShow).toBe(false);
+  it('shows it to a site admin on any club', () => {
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(true);
+    expect(renderState(CLUB_B).result.current.canAddShow).toBe(true);
+  });
+
+  it('hides it from anonymous viewers and roles the wizard route refuses', () => {
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
     for (const role of [
       UserRole.EXHIBITOR,
       UserRole.JUDGE,
@@ -193,8 +201,8 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
       UserRole.STEWARD,
     ]) {
       expect(CREATE_SHOW_WIZARD_ROLES).not.toContain(role);
-      mockAuth.userWithRoles = userWith([role], []);
-      expect(renderState().result.current.canAddShow).toBe(false);
+      mockAuth.userWithRoles = userWith([role], [clubScope(role, CLUB_A)]);
+      expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
     }
   });
 });

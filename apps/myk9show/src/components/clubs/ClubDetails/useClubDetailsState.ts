@@ -12,7 +12,7 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
-import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
 import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
@@ -96,8 +96,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
     });
   }, [userWithRoles, selectedClub, isSiteAdmin]);
 
-  // MYK9-890: Add Show links to the create wizard, so offer it only to roles that route admits.
-  const canAddShow = canOpenCreateShowWizard(userWithRoles?.roles);
+  // MYK9-890: Add Show opens the create wizard, so offer it only to someone the route admits
+  // AND the create-show rule accepts for THIS club. Pure: no queue or timing inputs. A club's
+  // creator may not see it on a brand-new club until the normal RBAC refresh lands.
+  const canAddShow =
+    canOpenCreateShowWizard(userWithRoles?.roles) &&
+    canCreateShowForClub(userWithRoles, selectedClub?.id);
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);

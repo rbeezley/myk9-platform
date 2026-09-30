@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -17,15 +17,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building, MapPin, Phone, Camera } from 'lucide-react';
-import { z } from 'zod';
-import { clubSchemas } from '@/lib/validation';
+import { Building, Camera, ArrowRight } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
-import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
+import { CLUB_TYPES } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
+import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
+import {
+  CLUB_TAB_LABEL,
+  CLUB_TAB_ORDER,
+  locateInvalidField,
+  countInvalidFieldsByTab,
+  type ClubTabValue,
+} from './ClubEditPanel/validationTab';
+import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
+import {
+  clubEditSchema,
+  clubToFormData,
+  formDataToClub,
+  type ClubEditFormData,
+} from './ClubEditPanel/formData';
+import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -40,60 +54,14 @@ interface ClubEditPanelProps {
   mode?: 'create' | 'edit';
 }
 
-// Zod schema for club edit form
-const clubEditSchema = clubSchemas.basic;
-
-// Form data type derived from the Zod schema
-type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, unknown>;
-
-// Convert Club to form data
-const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
-  return {
-    name: club.name || '',
-    clubNumber: club.clubNumber || '',
-    email: club.email || '',
-    phone: club.phone || '',
-    website: club.website || '',
-    description: club.description || '',
-    logo: club.logo || '',
-    street: club.address?.street || '',
-    city: club.address?.city || '',
-    state: club.address?.state || '',
-    zipCode: club.address?.zipCode || '',
-    country: club.address?.country || DEFAULT_COUNTRY,
-    founded: club.founded ? new Date(club.founded).toISOString().slice(0, 10) : '',
-    clubType: club.clubType || '',
-    accentColor: club.accentColor || '',
-  };
-};
-
-// Convert form data back to Club
-const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
-  name: formData.name,
-  clubNumber: formData.clubNumber ?? '',
-  email: formData.email,
-  phone: formData.phone,
-  website: formData.website || undefined,
-  description: formData.description ?? '',
-  logo: formData.logo ?? '',
-  address: {
-    street: formData.street,
-    city: formData.city,
-    state: formData.state,
-    zipCode: formData.zipCode,
-    country: formData.country,
-  },
-  founded: formData.founded ? new Date(formData.founded) : undefined,
-  clubType: (formData.clubType as Club['clubType']) || undefined,
-  accentColor: formData.accentColor ?? '',
-});
-
 // Form content component
-const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?: () => void }> = ({
-  clubId,
-  mode,
-  onClose,
-}) => {
+const ClubEditForm: React.FC<{
+  clubId: string;
+  mode: 'create' | 'edit';
+  onClose?: () => void;
+  activeTab: ClubTabValue;
+  onTabChange: (tab: ClubTabValue) => void;
+}> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
   const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -182,22 +150,16 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
     [form]
   );
 
+  const fieldHandlers = { handleInputChange, handleBlur, handleSelectChange };
+
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
-            <Building className="h-4 w-4" />
-            Basic Info
-          </TabsTrigger>
-          <TabsTrigger value="contact" className="gap-2 rounded-lg transition-all duration-300">
-            <Phone className="h-4 w-4" />
-            Contact
-          </TabsTrigger>
-          <TabsTrigger value="premium" className="gap-2 rounded-lg transition-all duration-300">
-            Premium
-          </TabsTrigger>
-        </TabsList>
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as ClubTabValue)}
+        className="w-full"
+      >
+        <ClubTabsList mode={mode} data={data} errors={form?.errors ?? {}} />
 
         {/* Basic Information Tab */}
         <TabsContent
@@ -226,6 +188,7 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
                   </Label>
                   <div className="flex gap-2">
                     <Button
+                      id="club-logo-button"
                       type="button"
                       variant="outline"
                       size="sm"
@@ -341,153 +304,7 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
           value="contact"
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="Email Address"
-                  fieldId="email"
-                  required
-                  error={form?.getError('email')}
-                >
-                  <Input
-                    id="email"
-                    type="email"
-                    value={data.email}
-                    onChange={handleInputChange('email')}
-                    onBlur={handleBlur('email')}
-                    placeholder="Enter email address"
-                    {...form?.getFieldProps('email')}
-                  />
-                </FormField>
-
-                <FormField
-                  label="Phone Number"
-                  fieldId="phone"
-                  required
-                  error={form?.getError('phone')}
-                >
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={data.phone}
-                    onChange={handleInputChange('phone')}
-                    onBlur={handleBlur('phone')}
-                    placeholder="Enter phone number"
-                    {...form?.getFieldProps('phone')}
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Website" fieldId="website" error={form?.getError('website')}>
-                <Input
-                  id="website"
-                  type="url"
-                  value={data.website}
-                  onChange={handleInputChange('website')}
-                  onBlur={handleBlur('website')}
-                  placeholder="https://www.clubwebsite.com"
-                  {...form?.getFieldProps('website')}
-                />
-              </FormField>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                  <MapPin className="h-3 w-3" />
-                  Address Information
-                </h4>
-
-                <FormField
-                  label="Street Address"
-                  fieldId="street"
-                  required
-                  error={form?.getError('street')}
-                >
-                  <Input
-                    id="street"
-                    value={data.street}
-                    onChange={handleInputChange('street')}
-                    onBlur={handleBlur('street')}
-                    placeholder="123 Main Street"
-                    {...form?.getFieldProps('street')}
-                  />
-                </FormField>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="City" fieldId="city" required error={form?.getError('city')}>
-                    <Input
-                      id="city"
-                      value={data.city}
-                      onChange={handleInputChange('city')}
-                      onBlur={handleBlur('city')}
-                      placeholder="Enter city"
-                      {...form?.getFieldProps('city')}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="State/Province"
-                    fieldId="state"
-                    required
-                    error={form?.getError('state')}
-                  >
-                    <Input
-                      id="state"
-                      value={data.state}
-                      onChange={handleInputChange('state')}
-                      onBlur={handleBlur('state')}
-                      placeholder="Enter state"
-                      {...form?.getFieldProps('state')}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="ZIP Code"
-                    fieldId="zipCode"
-                    required
-                    error={form?.getError('zipCode')}
-                  >
-                    <Input
-                      id="zipCode"
-                      value={data.zipCode}
-                      onChange={handleInputChange('zipCode')}
-                      onBlur={handleBlur('zipCode')}
-                      placeholder="12345"
-                      {...form?.getFieldProps('zipCode')}
-                    />
-                  </FormField>
-                </div>
-
-                <FormField
-                  label="Country"
-                  fieldId="country"
-                  required
-                  error={form?.getError('country')}
-                >
-                  <Select value={data.country} onValueChange={handleSelectChange('country')}>
-                    <SelectTrigger id="country" {...form?.getFieldProps('country')}>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTRIES.map(country => (
-                        <SelectItem key={country.value} value={country.value}>
-                          {country.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-            </CardContent>
-          </Card>
+          <ClubContactCard {...fieldHandlers} data={data} form={form} />
         </TabsContent>
 
         {/* Premium Templates Tab */}
@@ -495,7 +312,15 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
           value="premium"
           className="animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <PremiumTemplatesTab clubId={clubId} onClose={onClose} />
+          {mode === 'create' ? (
+            // Templates hang off a club row, which does not exist yet.
+            <p className="rounded-xl border border-border/30 bg-muted/30 p-4 text-sm text-muted-foreground">
+              Premium templates are optional. You can set them up from the club's Premium tab once
+              it has been created.
+            </p>
+          ) : (
+            <PremiumTemplatesTab clubId={clubId} onClose={onClose} />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -520,8 +345,22 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
   );
 };
 
-// Main component
-export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
+// Main component. The session is keyed on a counter bumped only on the
+// closed -> open edge, so every open starts on Basic Info with no pending focus
+// (callers keep this mounted while closed, and the tab state is lifted out of
+// the tab content, MYK9-891) while closing does NOT remount, which would cut
+// the panel's exit transition.
+export const ClubEditPanel: React.FC<ClubEditPanelProps> = props => {
+  const [prevOpen, setPrevOpen] = useState(props.open);
+  const [session, setSession] = useState(0);
+  if (props.open !== prevOpen) {
+    setPrevOpen(props.open);
+    if (props.open) setSession(current => current + 1);
+  }
+  return <ClubEditPanelSession key={session} {...props} />;
+};
+
+const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   open,
   onClose,
   clubId,
@@ -531,6 +370,26 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   enableAutoSave = false,
   mode = 'edit',
 }) => {
+  // A failed save moves to the tab holding the first invalid field (MYK9-891).
+  const { activeTab, setActiveTab, handleValidationFail } =
+    usePanelValidationNavigation<ClubTabValue>('basic', locateInvalidField);
+  const nextTab =
+    mode === 'create' ? CLUB_TAB_ORDER[CLUB_TAB_ORDER.indexOf(activeTab) + 1] : undefined;
+
+  // While a later section still has unresolved fields, "Next" is the primary
+  // action and Create Club is demoted (still enabled: clicking it routes to the
+  // missing field). Once nothing later is outstanding, Create Club is primary.
+  const [laterUnresolved, setLaterUnresolved] = useState(false);
+  const handleDataChange = useCallback(
+    (data: ClubEditFormData) => {
+      const counts = countInvalidFieldsByTab(data);
+      const later = CLUB_TAB_ORDER.slice(CLUB_TAB_ORDER.indexOf(activeTab) + 1);
+      setLaterUnresolved(later.some(tab => counts[tab] > 0));
+    },
+    [activeTab]
+  );
+  const nextIsPrimary = nextTab !== undefined && laterUnresolved;
+
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
 
@@ -564,8 +423,31 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
+      onValidationFail={handleValidationFail}
+      onDataChange={handleDataChange}
+      saveVariant={nextIsPrimary ? 'outline' : 'default'}
+      footerActions={
+        nextTab ? (
+          <Button
+            type="button"
+            variant={nextIsPrimary ? 'default' : 'secondary'}
+            data-variant={nextIsPrimary ? 'default' : 'secondary'}
+            onClick={() => setActiveTab(nextTab)}
+            className="min-w-0 flex-1 gap-2 sm:flex-none"
+          >
+            Next: {CLUB_TAB_LABEL[nextTab]}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : undefined
+      }
     >
-      <ClubEditForm clubId={clubId} mode={mode} onClose={onClose} />
+      <ClubEditForm
+        clubId={clubId}
+        mode={mode}
+        onClose={onClose}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </EditPanelWrapper>
   );
 };

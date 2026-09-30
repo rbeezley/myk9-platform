@@ -1,10 +1,5 @@
 import type { TabValue } from './types';
-
-interface FieldLocation {
-  tab: TabValue;
-  /** DOM id to focus once the tab is showing, so the move is announced. */
-  elementId: string;
-}
+import type { FieldLocation } from '../usePanelValidationNavigation';
 
 /**
  * MYK9-885: the Add Dog footer error summary names fields (call name, sex, date
@@ -14,7 +9,7 @@ interface FieldLocation {
  */
 export const REGISTRATION_HEADING_ID = 'registration-tab-heading';
 
-const FIELD_LOCATION: Record<string, FieldLocation> = {
+const FIELD_LOCATION: Record<string, FieldLocation<TabValue>> = {
   callName: { tab: 'basic', elementId: 'callName' },
   gender: { tab: 'basic', elementId: 'gender' },
   dateOfBirth: { tab: 'basic', elementId: 'dateOfBirth' },
@@ -28,5 +23,5 @@ const FIELD_LOCATION: Record<string, FieldLocation> = {
   spayedNeutered: { tab: 'optional', elementId: 'spayedNeutered' },
 };
 
-export const locateInvalidField = (field: string): FieldLocation | undefined =>
+export const locateInvalidField = (field: string): FieldLocation<TabValue> | undefined =>
   FIELD_LOCATION[field];

@@ -60,6 +60,8 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
 
   // Customization
   saveLabel?: string;
+  /** 'outline' demotes Save while another control (e.g. a Next step) is the primary action. */
+  saveVariant?: 'default' | 'outline';
   cancelLabel?: string;
   footerActions?: React.ReactNode;
   headerActions?: React.ReactNode;
@@ -129,6 +131,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   autoSaveInterval = 30000, // 30 seconds
   showUnsavedWarning = true,
   saveLabel = 'Save Changes',
+  saveVariant = 'default',
   cancelLabel = 'Cancel',
   footerActions,
   headerActions,
@@ -498,6 +501,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             {cancelLabel}
           </Button>
           <Button
+            variant={saveVariant}
+            data-variant={saveVariant}
             onClick={handleSave}
             disabled={
               useSchemaPath

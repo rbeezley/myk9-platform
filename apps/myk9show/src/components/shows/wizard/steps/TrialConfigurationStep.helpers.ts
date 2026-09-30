@@ -11,7 +11,6 @@ export { parseWizardDateTime, parseWizardDay } from '@/utils/wizardTrialDates';
 
 /** Trials the wizard schedules per show day before suggesting the next day. */
 const TRIALS_PER_DAY = 2;
-const MAX_SHOW_DAYS = 31;
 
 /**
  * Default date-time for a newly added trial: 8:00 AM on the first SHOW day that
@@ -34,9 +33,7 @@ export function getDefaultTrialDateTime(
     used.set(key, (used.get(key) ?? 0) + 1);
   }
   let chosen = end;
-  for (let i = 0; i < MAX_SHOW_DAYS; i += 1) {
-    const day = addDays(start, i);
-    if (day > end) break;
+  for (let day = start; day <= end; day = addDays(day, 1)) {
     if ((used.get(format(day, 'yyyy-MM-dd')) ?? 0) < TRIALS_PER_DAY) {
       chosen = day;
       break;

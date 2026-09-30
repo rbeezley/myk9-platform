@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -51,7 +51,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   existingTrialsReadError,
   onRetryExistingTrials,
 }) => {
-  const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
+  const { show, trials, addTrial, updateTrial, removeTrial, alignTrialsToShowDates } =
+    useWizardStore();
+  // Defensive: the store realigns when the step changes; this covers a trial
+  // step reached by any other path (MYK9-884). Create mode only, idempotent.
+  useEffect(() => {
+    alignTrialsToShowDates();
+  }, [alignTrialsToShowDates]);
   const { templates } = useTemplates();
 
   // Derive trial types from the org mapping, plus active templates for custom/local additions.

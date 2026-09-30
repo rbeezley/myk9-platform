@@ -117,7 +117,7 @@ describe('DateRangePicker', () => {
       'overflow-hidden'
     );
     expect(dialog).toHaveAccessibleDescription(
-      'Select the first date for the start of your range, then select the last date for the end. Both panes are one continuous calendar. Use the Previous Month and Next Month buttons to move through the calendar.'
+      'Select the first date for the start of your range, then select the last date for the end. If both dates fall in the same month, click both in that one calendar. The second calendar only shows the following month, so you never need to change it to match. For a one-day range, click that day once. Use the Previous Month and Next Month buttons to move through the calendar.'
     );
     expect(body).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
     expect(body).toContainElement(screen.getByRole('group', { name: 'Date range key' }));

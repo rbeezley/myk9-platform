@@ -4,6 +4,65 @@ import {
   getTrialTypesForOrganization,
 } from '@/types/template.types';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
+import { addDays, format, startOfDay } from 'date-fns';
+import { parseLocalDateString } from '@/utils/dateLocal';
+
+/** Trials the wizard schedules per show day before suggesting the next day. */
+const TRIALS_PER_DAY = 2;
+const MAX_SHOW_DAYS = 31;
+
+/**
+ * Parse a wizard date string to a local calendar day. Date-only strings are
+ * read as local; full ISO datetimes (the show-dates picker stores
+ * `toISOString()`) go through `Date` so the viewer's local day wins, not the
+ * UTC day embedded in the string.
+ */
+export function parseWizardDateTime(str: string | undefined): Date | undefined {
+  if (!str) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return parseLocalDateString(str);
+  const parsed = new Date(str);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+export function parseWizardDay(str: string | undefined): Date | undefined {
+  const parsed = parseWizardDateTime(str);
+  return parsed ? startOfDay(parsed) : undefined;
+}
+
+/**
+ * Default date-time for a newly added trial: 8:00 AM on the first SHOW day that
+ * has fewer than two trials, else the show's last day. It reads only the show
+ * dates and the trials already added, never the entry period (MYK9-884).
+ */
+export function getDefaultTrialDateTime(
+  showStartDate: string | undefined,
+  showEndDate: string | undefined,
+  existingTrialDateTimes: string[]
+): string {
+  const start = parseWizardDay(showStartDate) ?? startOfDay(new Date());
+  const parsedEnd = parseWizardDay(showEndDate);
+  const end = parsedEnd && parsedEnd >= start ? parsedEnd : start;
+  const used = new Map<string, number>();
+  for (const dateTime of existingTrialDateTimes) {
+    const day = parseWizardDay(dateTime);
+    if (!day) continue;
+    const key = format(day, 'yyyy-MM-dd');
+    used.set(key, (used.get(key) ?? 0) + 1);
+  }
+  let chosen = end;
+  for (let i = 0; i < MAX_SHOW_DAYS; i += 1) {
+    const day = addDays(start, i);
+    if (day > end) break;
+    if ((used.get(format(day, 'yyyy-MM-dd')) ?? 0) < TRIALS_PER_DAY) {
+      chosen = day;
+      break;
+    }
+  }
+  return format(
+    new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate(), 8),
+    "yyyy-MM-dd'T'HH:mm:ss"
+  );
+}
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;

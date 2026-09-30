@@ -10,8 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
-import { addDays, format, isWithinInterval, startOfDay } from 'date-fns';
-import { parseLocalDateString } from '@/utils/dateLocal';
+import { format, isWithinInterval, startOfDay } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
@@ -19,16 +18,13 @@ import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
-import { getTrialCreationCopy, resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
-
-/** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
-function safeParseDateString(str: string | undefined): Date | undefined {
-  if (!str) return undefined;
-  // YYYY-MM-DD (no time) → use parseLocalDateString to avoid UTC shift
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return parseLocalDateString(str);
-  // ISO datetime with time component → new Date() is safe
-  return new Date(str);
-}
+import {
+  getDefaultTrialDateTime,
+  getTrialCreationCopy,
+  parseWizardDateTime,
+  parseWizardDay,
+  resolveTrialTypeOptions,
+} from './TrialConfigurationStep.helpers';
 
 interface TrialConfigurationStepProps {
   className?: string;
@@ -96,9 +92,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         newErrors[`${prefix}-dateTime`] = 'Trial date and time is required';
       } else if (show.startDate && show.endDate) {
         // Check if trial date is within show date range
-        const trialDate = parseLocalDateString(trial.dateTime) || new Date(trial.dateTime);
-        const showStart = parseLocalDateString(show.startDate) || new Date();
-        const showEnd = parseLocalDateString(show.endDate) || new Date();
+        const trialDate = parseWizardDay(trial.dateTime) ?? new Date(trial.dateTime);
+        const showStart = parseWizardDay(show.startDate) ?? new Date();
+        const showEnd = parseWizardDay(show.endDate) ?? new Date();
 
         if (!isWithinInterval(trialDate, { start: showStart, end: showEnd })) {
           newErrors[`${prefix}-dateTime`] = 'Trial date must be within show dates';
@@ -137,20 +133,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const handleAddTrial = () => {
     if (!canAddTrial) return;
 
-    const trialIndex = trials.length;
-    // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
-    const startDate = (show.startDate && parseLocalDateString(show.startDate)) || new Date();
-    const daysOffset = Math.floor(trialIndex / 2);
-    let baseDate = addDays(startDate, daysOffset);
-    // Cap at show end date if set
-    if (show.endDate) {
-      const endDate = parseLocalDateString(show.endDate) || new Date();
-      if (baseDate > endDate) {
-        baseDate = endDate;
-      }
-    }
-    baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
-    const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
+    const defaultDateTime = getDefaultTrialDateTime(
+      show.startDate,
+      show.endDate,
+      trials.map(trial => trial.dateTime)
+    );
 
     addTrial({
       nameOverride: undefined,
@@ -184,6 +171,14 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
               {creationCopy.addTrialLabel}
             </Button>
           </div>
+
+          {canAddTrial && trials.length > 0 && (
+            <p className="text-sm text-muted-foreground" data-testid="trial-next-step-help">
+              Does your show run trials on other days? Use <strong>Add Another Trial</strong> to add
+              one for each day. When every trial is listed here, use <strong>Next</strong> at the
+              bottom of the page to choose classes.
+            </p>
+          )}
 
           {existingTrialsReadFailed ? (
             <div
@@ -394,17 +389,17 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       </Label>
                       <DateTimePicker
                         id={`trial-${trial.id}-dateTime`}
-                        value={safeParseDateString(trial.dateTime)}
+                        value={parseWizardDateTime(trial.dateTime)}
                         onChange={date => handleTrialDateTimeChange(trial.id, date)}
                         placeholder="Pick trial date and time"
                         className="h-10"
-                        minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
+                        minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
                         maxDate={
                           show.endDate
-                            ? startOfDay(safeParseDateString(show.endDate) || new Date())
+                            ? startOfDay(parseWizardDay(show.endDate) || new Date())
                             : undefined
                         }
-                        defaultMonth={safeParseDateString(show.startDate)}
+                        defaultMonth={parseWizardDay(show.startDate)}
                         showTime={true}
                         timeFormat="12h"
                       />

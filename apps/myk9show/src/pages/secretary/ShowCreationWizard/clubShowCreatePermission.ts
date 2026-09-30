@@ -1,6 +1,7 @@
 /**
  * MYK9-887: lets the wizard say "you cannot create a show for this club" on the
- * Basics step instead of after the secretary has filled in trials and judges.
+ * Basics step instead of after the secretary has filled in trials and judges. ADVISORY:
+ * it never blocks Next, so a stale scope list cannot strand anyone; the RPC decides.
  *
  * The rule itself is `canCreateShowForClub` (the same one the club page uses to
  * gate Add Show). It mirrors the server's create-show check and is deliberately
@@ -12,23 +13,7 @@ import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import type { UserWithRoles } from '@/types/auth-types';
 
 export const CLUB_CREATE_DENIED_MESSAGE =
-  "You don't have permission to create shows for this club. Ask the club's admin to appoint you as a secretary, or choose a club you manage.";
-
-/**
- * Clubs this session just created. The creator's club_admin grant comes from a DB trigger and
- * club creation rides the offline queue, so the grant can land after the wizard is re-entered
- * with the new clubId. Until scopes catch up the answer is "unknown", never "denied": the
- * create-club-and-return path must not block, and the RPC stays authoritative.
- */
-const justCreatedClubIds = new Set<string>();
-
-export function markClubJustCreated(clubId: string): void {
-  justCreatedClubIds.add(clubId);
-}
-
-export function clearJustCreatedClubsForTest(): void {
-  justCreatedClubIds.clear();
-}
+  "You may not have permission to create shows for this club. Ask the club's admin to appoint you as a secretary, or choose a club you manage. You can still continue; the final check happens when you create the show.";
 
 /**
  * True only when the signed-in user is known and holds no create-show grant for the club.
@@ -39,7 +24,7 @@ export function isClubShowCreateDenied(
   user: UserWithRoles | null | undefined,
   clubId: string | undefined
 ): boolean {
-  if (!user || !clubId || justCreatedClubIds.has(clubId)) return false;
+  if (!user || !clubId) return false;
   return !canCreateShowForClub(user, clubId);
 }
 

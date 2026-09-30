@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
@@ -349,6 +349,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     mockAuthReturn = {
       user: { id: 'secretary-user' },
       userWithRoles: { roles: ['secretary'] },
+      refreshPermissions: vi.fn().mockResolvedValue(undefined),
     };
 
     renderPage(
@@ -359,6 +360,27 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     expect(await screen.findByTestId('location')).toHaveTextContent(
       '/secretary/create-show/wizard?source=club-link&clubId=club-new'
+    );
+  });
+
+  it('refreshes permissions BEFORE returning to the wizard, so its club check sees the new grant', async () => {
+    let finishRefresh: () => void = () => {};
+    const refreshPermissions = vi.fn(() => new Promise<void>(resolve => (finishRefresh = resolve)));
+    mockAuthReturn = {
+      user: { id: 'secretary-user' },
+      userWithRoles: { roles: ['secretary'] },
+      refreshPermissions,
+    };
+
+    renderPage('/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard');
+    fireEvent.click(await screen.findByRole('button', { name: /submit complete club/i }));
+
+    await waitFor(() => expect(refreshPermissions).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('location')).not.toBeInTheDocument();
+
+    finishRefresh();
+    expect(await screen.findByTestId('location')).toHaveTextContent(
+      '/secretary/create-show/wizard?clubId=club-new'
     );
   });
 });

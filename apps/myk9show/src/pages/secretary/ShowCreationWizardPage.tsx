@@ -46,7 +46,6 @@ import {
 } from './ShowCreationWizard/wizardScrollChrome';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
-import { useClubShowCreateDenied } from './ShowCreationWizard/clubShowCreatePermission';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
 
@@ -192,9 +191,6 @@ const ShowCreationWizardPage: React.FC = () => {
   const requireEntryWindow =
     editModeResolution.state === 'resolved' && isShowListingLive(editModeResolution.show.status);
 
-  // MYK9-887: create mode only; editing or adding to an existing show never re-checks the club.
-  const clubCreateDenied = useClubShowCreateDenied(show.clubId || undefined, !editMode);
-
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
     editModeResolution,
@@ -259,7 +255,7 @@ const ShowCreationWizardPage: React.FC = () => {
       trials,
       trialView,
       retainedClasses,
-      { requireEntryWindow, clubCreateDenied }
+      { requireEntryWindow }
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -306,7 +302,6 @@ const ShowCreationWizardPage: React.FC = () => {
     trialView,
     retainedClasses,
     requireEntryWindow,
-    clubCreateDenied,
     scrollBannerIntoView,
   ]);
 
@@ -320,7 +315,7 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
     trialView,
     retainedClasses,
-    { requireEntryWindow, clubCreateDenied }
+    { requireEntryWindow }
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT

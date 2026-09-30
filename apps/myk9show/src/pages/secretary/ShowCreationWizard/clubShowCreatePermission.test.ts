@@ -1,11 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { ScopeType, UserRole, type UserWithRoles } from '@/types/auth-types';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
-import {
-  isClubShowCreateDenied,
-  markClubJustCreated,
-  clearJustCreatedClubsForTest,
-} from './clubShowCreatePermission';
+import { isClubShowCreateDenied, useClubShowCreateDenied } from './clubShowCreatePermission';
 import { getShowDetailsValidationMessages } from './showCreationWizardValidation';
 
 const scope = (roleId: string, scopeId: string, scopeType = ScopeType.CLUB) => ({
@@ -56,34 +53,43 @@ describe('isClubShowCreateDenied (wizard)', () => {
   });
 });
 
-describe('create-club-and-return path (Codex P1)', () => {
-  it('never blocks a club this user just created, even before scopes catch up', () => {
-    clearJustCreatedClubsForTest();
-    const u = user([UserRole.SECRETARY], [scope(UserRole.SECRETARY, 'old')]);
-    expect(isClubShowCreateDenied(u, 'new1')).toBe(true);
-    markClubJustCreated('new1');
-    expect(isClubShowCreateDenied(u, 'new1')).toBe(false);
-    expect(isClubShowCreateDenied(u, 'other')).toBe(true);
+const auth = vi.hoisted(() => ({ userWithRoles: null as unknown }));
+vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
+
+describe('useClubShowCreateDenied is advisory and reactive', () => {
+  it('flags an unauthorized club, then clears when scopes gain it', () => {
+    auth.userWithRoles = user([UserRole.SECRETARY], [scope(UserRole.SECRETARY, 'old')]);
+    const { result, rerender } = renderHook(() => useClubShowCreateDenied('new1'));
+    expect(result.current).toBe(true);
+
+    auth.userWithRoles = user(
+      [UserRole.SECRETARY],
+      [scope(UserRole.SECRETARY, 'old'), scope(UserRole.CLUB_ADMIN, 'new1')]
+    );
+    rerender();
+    expect(result.current).toBe(false);
+  });
+
+  it('does not check when disabled (editing an existing show)', () => {
+    auth.userWithRoles = user([], []);
+    expect(renderHook(() => useClubShowCreateDenied('c1', false)).result.current).toBe(false);
   });
 });
 
-describe('Basics-step validation carries the club permission message', () => {
-  const show = {
-    name: 'Spring',
-    organization: 'AKC',
-    startDate: '2026-10-10',
-    endDate: '2026-10-11',
-    location: 'Venue',
-    clubId: 'c1',
-    entryOpenDate: '',
-    entryCloseDate: '',
-    officials: { secretary: ['p1'], chairman: ['p2'], steward: [] },
-  };
-
-  it('blocks Next for an unauthorized club and is clean for an authorized one', () => {
-    expect(getShowDetailsValidationMessages(show, { clubCreateDenied: true })).toEqual([
-      expect.stringMatching(/permission to create shows for this club/i),
-    ]);
-    expect(getShowDetailsValidationMessages(show, { clubCreateDenied: false })).toEqual([]);
+describe('Next is never blocked by the club check', () => {
+  it('Basics validation has no club-permission message even for an unauthorized club', () => {
+    const show = {
+      name: 'Spring',
+      organization: 'AKC',
+      startDate: '2026-10-10',
+      endDate: '2026-10-11',
+      location: 'Venue',
+      clubId: 'not-mine',
+      entryOpenDate: '',
+      entryCloseDate: '',
+      officials: { secretary: ['p1'], chairman: ['p2'], steward: [] },
+    };
+    expect(isClubShowCreateDenied(user([], []), 'not-mine')).toBe(true);
+    expect(getShowDetailsValidationMessages(show)).toEqual([]);
   });
 });

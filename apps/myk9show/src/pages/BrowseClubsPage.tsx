@@ -14,7 +14,6 @@ import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { markClubJustCreated } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
@@ -24,6 +23,8 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+
+const RBAC_REFRESH_WAIT_MS = 3000;
 
 const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -118,10 +119,12 @@ const BrowseClubsPage: React.FC = () => {
 
         if (createdId) {
           selectClub(createdId);
-          // The creator's club_admin grant is issued by a DB trigger: refresh RBAC (best effort)
-          // and tell the wizard this club is not a permission miss while scopes catch up.
-          markClubJustCreated(createdId);
-          void refreshPermissions();
+          // The creator's club_admin grant is issued by a DB trigger. Refresh RBAC before
+          // returning so the wizard's advisory permission check sees it; never hold navigation.
+          await Promise.race([
+            refreshPermissions().catch(() => undefined),
+            new Promise<void>(resolve => setTimeout(resolve, RBAC_REFRESH_WAIT_MS)),
+          ]);
           const returnTo = searchParams.get('returnTo');
           if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
             const target = new URL(returnTo, window.location.origin);
@@ -143,7 +146,7 @@ const BrowseClubsPage: React.FC = () => {
         notifications.error('Failed to create club');
       }
     },
-    [addClub, selectClub, navigate, searchParams]
+    [addClub, selectClub, navigate, searchParams, refreshPermissions]
   );
 
   const actionButton = useMemo(

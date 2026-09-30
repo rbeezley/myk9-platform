@@ -34,17 +34,9 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
     <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
       {CLUB_TAB_ORDER.map(tab => {
         let status: React.ReactNode = null;
-        if (visible[tab] > 0) {
-          status = (
-            <span
-              data-testid={`club-tab-status-${tab}`}
-              className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-            >
-              {visible[tab]} to fix
-            </span>
-          );
-        } else if (mode === 'create') {
-          if (tab === 'premium') {
+        const unresolved = invalid[tab];
+        if (tab === 'premium') {
+          if (mode === 'create') {
             status = (
               <span
                 data-testid={`club-tab-status-${tab}`}
@@ -53,25 +45,29 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
                 Optional
               </span>
             );
-          } else if (invalid[tab].empty + invalid[tab].malformed > 0) {
-            const parts: string[] = [];
-            if (invalid[tab].empty > 0) parts.push(`${invalid[tab].empty} required`);
-            if (invalid[tab].malformed > 0) parts.push(`${invalid[tab].malformed} to fix`);
-            status = (
-              <span
-                data-testid={`club-tab-status-${tab}`}
-                className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
-              >
-                {parts.join(' · ')}
-              </span>
-            );
-          } else {
-            status = (
-              <span data-testid={`club-tab-status-${tab}`} className="text-primary">
-                <Check className="h-4 w-4" aria-label="Complete" />
-              </span>
-            );
           }
+        } else if (unresolved > 0 && (mode === 'create' || visible[tab] > 0)) {
+          // One count, one label. It turns red once a save has been attempted
+          // (or the field was touched), so the wording never changes under the user.
+          status = (
+            <span
+              data-testid={`club-tab-status-${tab}`}
+              data-error={visible[tab] > 0 || undefined}
+              className={
+                visible[tab] > 0
+                  ? 'rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive'
+                  : 'rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning'
+              }
+            >
+              {unresolved} to complete
+            </span>
+          );
+        } else if (mode === 'create') {
+          status = (
+            <span data-testid={`club-tab-status-${tab}`} className="text-primary">
+              <Check className="h-4 w-4" aria-label="Complete" />
+            </span>
+          );
         }
         return (
           <TabsTrigger

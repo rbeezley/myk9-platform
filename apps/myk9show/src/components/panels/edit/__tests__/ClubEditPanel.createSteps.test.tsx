@@ -38,7 +38,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(
       within(screen.getByTestId('club-tab-status-basic')).getByLabelText('Complete')
     ).toBeInTheDocument();
-    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ required/);
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ to complete/);
     expect(screen.getByTestId('club-tab-status-premium')).toHaveTextContent('Optional');
   });
 
@@ -63,7 +63,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
 
     await waitFor(() => expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true'));
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
-    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ to fix/);
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(/\d+ to complete/);
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -108,17 +108,33 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(missing).toEqual([]);
   });
 
-  it('counts a blank required field as required and a malformed one as to fix', async () => {
+  it('keeps one to-complete count per tab as fields are typed', async () => {
     const user = userEvent.setup();
     renderCreate();
     await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
-    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent('6 required');
-    expect(screen.getByTestId('club-tab-status-contact')).not.toHaveTextContent('to fix');
+    const status = () => screen.getByTestId('club-tab-status-contact');
+    expect(status()).toHaveTextContent('6 to complete');
 
-    await user.type(await screen.findByRole('textbox', { name: /Email Address/ }), 'not-an-email');
-    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent(
-      '5 required · 1 to fix'
+    const email = await screen.findByRole('textbox', { name: /Email Address/ });
+    await user.type(email, 'not-an-email');
+    expect(status()).toHaveTextContent('6 to complete');
+
+    await user.clear(email);
+    await user.type(email, 'club@example.com');
+    expect(status()).toHaveTextContent('5 to complete');
+  });
+
+  it('keeps the same label, styled as an error, after a failed submit', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    expect(screen.getByTestId('club-tab-status-contact')).not.toHaveAttribute('data-error');
+
+    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('club-tab-status-contact')).toHaveAttribute('data-error', 'true')
     );
+    expect(screen.getByTestId('club-tab-status-contact')).toHaveTextContent('6 to complete');
   });
 
   it.each(['create', 'edit'] as const)(

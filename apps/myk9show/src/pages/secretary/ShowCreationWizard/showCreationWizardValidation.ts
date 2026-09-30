@@ -9,6 +9,7 @@ import {
   type PersistedClassIdentity,
 } from './classConfigurationValidation';
 import { juniorHandlerFeeError } from './wizardJuniorHandlerFee';
+import { CLUB_CREATE_DENIED_MESSAGE } from './clubShowCreatePermission';
 
 interface ShowData {
   name: string;
@@ -48,6 +49,8 @@ export interface ShowDetailsValidationOptions {
    * already live, so adding trials or classes can never clear its window.
    */
   requireEntryWindow?: boolean;
+  /** MYK9-887: the user holds no create-show grant for the selected club (create mode only). */
+  clubCreateDenied?: boolean;
 }
 
 /**
@@ -55,7 +58,7 @@ export interface ShowDetailsValidationOptions {
  */
 export function getShowDetailsValidationMessages(
   show: ShowData,
-  { requireEntryWindow = false }: ShowDetailsValidationOptions = {}
+  { requireEntryWindow = false, clubCreateDenied = false }: ShowDetailsValidationOptions = {}
 ): string[] {
   const messages: string[] = [];
 
@@ -65,6 +68,7 @@ export function getShowDetailsValidationMessages(
   if (!show.endDate) messages.push('End date is required');
   if (!show.location?.trim()) messages.push('Location is required');
   if (!show.clubId) messages.push('Club selection is required');
+  else if (clubCreateDenied) messages.push(CLUB_CREATE_DENIED_MESSAGE);
   if (show.officials.chairman.length === 0) messages.push('Show chairman is required');
   if (show.officials.secretary.length === 0) messages.push('Show secretary is required');
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database

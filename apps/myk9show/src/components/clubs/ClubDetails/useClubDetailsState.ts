@@ -12,7 +12,7 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
-import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
 import type { ClubTab, StatCard } from './types';
@@ -94,6 +94,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
       isSiteAdmin,
     });
   }, [userWithRoles, selectedClub, isSiteAdmin]);
+
+  // MYK9-890: Add Show leads to the create wizard, so only offer it to someone it will accept.
+  const canAddShow = canCreateShowForClub(userWithRoles, selectedClub?.id);
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
@@ -414,6 +417,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     canManageMembers,
     canEditBranding,
     canDeleteClub,
+    canAddShow,
     ...authorizationControl, // MYK9-572: authorize/revoke control (site-admin only)
     // Edit panel
     showEditPanel,

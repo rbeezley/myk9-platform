@@ -122,7 +122,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         >
           <TabsContent value="upcoming" className="pt-6">
             <div className="flex justify-end mb-4">
-              {upcomingShows.length > 0 && (
+              {upcomingShows.length > 0 && state.canAddShow && (
                 <Button onClick={state.handleAddShow} className="min-h-[44px]">
                   <Plus className="w-5 h-5 mr-2" />
                   Add Show
@@ -134,7 +134,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
                 shows={upcomingShows}
                 onViewShowDetails={state.handleViewShowDetails}
                 onRegisterForShow={state.handleRegisterForShow}
-                onAddShow={state.handleAddShow}
+                onAddShow={state.canAddShow ? state.handleAddShow : undefined}
               />
             ) : (
               <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />

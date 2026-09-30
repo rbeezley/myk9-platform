@@ -72,3 +72,37 @@ export function computeClubPermissions(args: {
     canDeleteClub: isSiteAdmin,
   };
 }
+
+/**
+ * Roles whose club-scoped grant lets the holder create a show for that club.
+ * Mirrors the gate in `create_show_with_children` (migration 20260929233100):
+ * `is_site_admin() OR is_club_admin(club) OR is_trial_secretary(club)`, where
+ * `is_trial_secretary` accepts the `secretary` and `trial_secretary` role names.
+ *
+ * This is permission to CREATE a draft. It is deliberately not the club's
+ * approval to publish (`clubs.authorized_at`), which gates publishing only.
+ */
+const CLUB_SHOW_CREATOR_ROLE_NAMES: readonly string[] = [
+  UserRole.CLUB_ADMIN,
+  UserRole.SECRETARY,
+  'trial_secretary',
+];
+
+/**
+ * The ONE client-side answer to "can this user create a show for this club?"
+ * (MYK9-887, MYK9-890): used by the wizard's Basics step and the club page's
+ * Add Show buttons. UI guidance only; the RPC remains the authority on submit.
+ */
+export function canCreateShowForClub(
+  user: { roles?: readonly UserRole[]; scopes?: RoleScope[] } | null | undefined,
+  clubId: string | undefined
+): boolean {
+  if (!user || !clubId) return false;
+  if (user.roles?.includes(UserRole.SITE_ADMIN)) return true;
+  return (user.scopes ?? []).some(
+    scope =>
+      scope.scopeType === ScopeType.CLUB &&
+      scope.scopeId === clubId &&
+      CLUB_SHOW_CREATOR_ROLE_NAMES.includes(scope.roleId)
+  );
+}

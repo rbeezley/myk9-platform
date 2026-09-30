@@ -170,3 +170,35 @@ describe('hasClubAdminScope', () => {
     expect(hasClubAdminScope([showScope], CLUB_A)).toBe(false);
   });
 });
+
+describe('useClubDetailsState canAddShow (MYK9-890)', () => {
+  beforeEach(() => {
+    mockAuth.userWithRoles = null;
+  });
+
+  it("offers Add Show to this club's secretary and admin, and to a site admin", () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+    expect(renderState().result.current.canAddShow).toBe(true);
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+    expect(renderState().result.current.canAddShow).toBe(true);
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+    expect(renderState().result.current.canAddShow).toBe(true);
+  });
+
+  it("hides it from anonymous viewers, exhibitors, and another club's secretary", () => {
+    expect(renderState().result.current.canAddShow).toBe(false);
+    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
+    expect(renderState().result.current.canAddShow).toBe(false);
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_B)]
+    );
+    expect(renderState().result.current.canAddShow).toBe(false);
+  });
+});

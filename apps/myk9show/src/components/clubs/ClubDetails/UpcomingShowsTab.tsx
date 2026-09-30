@@ -16,7 +16,8 @@ interface UpcomingShowsTabProps {
   shows: ClubShow[];
   onViewShowDetails: (showId: string) => void;
   onRegisterForShow: (showId: string) => void;
-  onAddShow: () => void;
+  /** Omitted when the viewer cannot create shows for this club (MYK9-890). */
+  onAddShow?: (() => void) | undefined;
 }
 
 export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
@@ -31,13 +32,16 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
         <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
         <div className="text-lg font-medium mb-2 text-foreground">No Upcoming Shows</div>
         <div className="text-sm text-muted-foreground leading-relaxed mb-5">
-          This club doesn't have any shows scheduled yet. Add your first show to get started
-          organizing events.
+          {onAddShow
+            ? "This club doesn't have any shows scheduled yet. Add your first show to get started organizing events."
+            : "This club doesn't have any shows scheduled yet. Only the club's admins and appointed secretaries can add shows."}
         </div>
-        <Button onClick={onAddShow} className="inline-flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add First Show
-        </Button>
+        {onAddShow && (
+          <Button onClick={onAddShow} className="inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add First Show
+          </Button>
+        )}
       </div>
     );
   }

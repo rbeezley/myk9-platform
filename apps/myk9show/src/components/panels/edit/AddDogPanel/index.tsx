@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EditPanelWrapper, type EditPanelSaveContext } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -17,6 +17,8 @@ import { getErrorMessage } from '@myk9/core';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
+import { locateInvalidField } from './validationTab';
+import type { TabValue } from './types';
 import { buildDogSavedToast } from './dogSavedToast';
 import { useAddDogForm } from './useAddDogForm';
 import { TabNavigation } from './TabNavigation';
@@ -52,6 +54,39 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
+  // Lives here (not in the content) so a failed Save can move the user to the
+  // tab holding the first invalid field (MYK9-885).
+  const [activeTab, setActiveTab] = useState<TabValue>('basic');
+
+  // Set alongside the tab switch; the effect below focuses the target once
+  // the tab has rendered (handledFocusRef marks it done). A fresh object per failure so the
+  // same field failing twice re-focuses.
+  const [pendingFocus, setPendingFocus] = useState<{ elementId: string } | null>(null);
+
+  const handledFocusRef = useRef<typeof pendingFocus>(null);
+
+  const handleValidationFail = (firstErrorField: string) => {
+    const location = locateInvalidField(firstErrorField);
+    if (!location) return;
+    setActiveTab(location.tab);
+    setPendingFocus({ elementId: location.elementId });
+  };
+
+  useEffect(() => {
+    if (!pendingFocus || handledFocusRef.current === pendingFocus) return;
+    handledFocusRef.current = pendingFocus;
+    const focusTarget = () => {
+      const el = document.getElementById(pendingFocus.elementId);
+      el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    };
+    focusTarget();
+    // In the dialog variant the focus manager re-focuses the previously
+    // focused control on the next animation frame; focus again after it so the
+    // field keeps focus.
+    const raf = requestAnimationFrame(focusTarget);
+    return () => cancelAnimationFrame(raf);
+  }, [pendingFocus]);
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary
@@ -193,9 +228,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       enableAutoSave={false}
       showUnsavedWarning={true}
       variant={variant}
+      onValidationFail={handleValidationFail}
     >
       <AddDogPanelContent
         open={open}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
         userRole={userRole}
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
@@ -213,6 +251,8 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 /** Inner component rendered within EditPanelWrapper so it can access useEditPanel context */
 interface AddDogPanelContentProps {
   open: boolean;
+  activeTab: TabValue;
+  onActiveTabChange: (tab: TabValue) => void;
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
   saveError: string | null;
@@ -223,6 +263,8 @@ interface AddDogPanelContentProps {
 
 const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   open,
+  activeTab,
+  onActiveTabChange,
   userRole,
   currentUserPersonId,
   saveError,
@@ -236,8 +278,6 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   const uiState = useAddDogForm({ open, form });
 
   const {
-    activeTab,
-    setActiveTab,
     // Photo state
     isPhotoDialogOpen,
     photoPreview,
@@ -328,10 +368,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         )}
 
         {/* Tabbed Content */}
-        <Tabs
-          value={activeTab}
-          onValueChange={value => setActiveTab(value as 'basic' | 'registration' | 'optional')}
-        >
+        <Tabs value={activeTab} onValueChange={value => onActiveTabChange(value as TabValue)}>
           <TabNavigation
             isBasicValid={isBasicValid}
             hasRegistrations={hasRegistrations}

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
+import { rankBreedMatches } from './rankBreedMatches';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
@@ -145,12 +146,10 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   // novice. Make it a searchable popover. Items must be { id } shaped.
   const [breedPickerOpen, setBreedPickerOpen] = useState(false);
   const [breedSearch, setBreedSearch] = useState('');
-  const filteredBreeds = useMemo(() => {
-    const q = breedSearch.trim().toLowerCase();
-    return availableBreeds
-      .filter(breed => !q || breed.toLowerCase().includes(q))
-      .map(breed => ({ id: breed }));
-  }, [availableBreeds, breedSearch]);
+  const filteredBreeds = useMemo(
+    () => rankBreedMatches(availableBreeds, breedSearch).map(breed => ({ id: breed })),
+    [availableBreeds, breedSearch]
+  );
 
   // Get varieties for the selected breed
   const availableVarieties = useMemo(() => {

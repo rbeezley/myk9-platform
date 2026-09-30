@@ -4,6 +4,7 @@ import { RegistrationTab } from '../RegistrationTab';
 import { EditPanelContext } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from '../types';
 import { createInitialFormData } from '../types';
+import { REGISTRATION_HEADING_ID } from '../validationTab';
 
 function renderTab(formOverrides: Partial<DogFormData> = {}) {
   const data: DogFormData = { ...createInitialFormData(), ...formOverrides };
@@ -44,6 +45,16 @@ function renderTab(formOverrides: Partial<DogFormData> = {}) {
     </EditPanelContext.Provider>
   );
 }
+
+describe('RegistrationTab validation focus target (MYK9-885)', () => {
+  it('renders a focusable heading a failed save can move focus to', () => {
+    renderTab({ registrations: [] });
+    const heading = document.getElementById(REGISTRATION_HEADING_ID);
+    expect(heading).not.toBeNull();
+    heading!.focus();
+    expect(document.activeElement).toBe(heading);
+  });
+});
 
 describe('RegistrationTab empty state (4.E — no silent Mixed Breed)', () => {
   it('says a registration will supply the breed later', () => {

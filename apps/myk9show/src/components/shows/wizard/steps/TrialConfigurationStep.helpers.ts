@@ -4,6 +4,47 @@ import {
   getTrialTypesForOrganization,
 } from '@/types/template.types';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
+import { addDays, format, startOfDay } from 'date-fns';
+import { parseWizardDay } from '@/utils/wizardTrialDates';
+
+export { parseWizardDateTime, parseWizardDay } from '@/utils/wizardTrialDates';
+
+/** Trials the wizard schedules per show day before suggesting the next day. */
+const TRIALS_PER_DAY = 2;
+
+/**
+ * Default date-time for a newly added trial: 8:00 AM on the first SHOW day that
+ * has fewer than two trials, else the show's last day. It reads only the show
+ * dates and the trials already added, never the entry period (MYK9-884).
+ */
+export function getDefaultTrialDateTime(
+  showStartDate: string | undefined,
+  showEndDate: string | undefined,
+  existingTrialDateTimes: string[]
+): string {
+  const start = parseWizardDay(showStartDate) ?? startOfDay(new Date());
+  const parsedEnd = parseWizardDay(showEndDate);
+  const end = parsedEnd && parsedEnd >= start ? parsedEnd : undefined;
+  const used = new Map<string, number>();
+  for (const dateTime of existingTrialDateTimes) {
+    const day = parseWizardDay(dateTime);
+    if (!day) continue;
+    const key = format(day, 'yyyy-MM-dd');
+    used.set(key, (used.get(key) ?? 0) + 1);
+  }
+  let chosen = end ?? start;
+  // An open-ended range keeps advancing past the start; it terminates because
+  // only finitely many days are full.
+  for (let day = start; !end || day <= end; day = addDays(day, 1)) {
+    if ((used.get(format(day, 'yyyy-MM-dd')) ?? 0) < TRIALS_PER_DAY) {
+      chosen = day;
+      break;
+    }
+  }
+  // A local wall-clock 8:00 AM on the chosen calendar day, not an instant.
+  const eightAm = new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate(), 8);
+  return format(eightAm, "yyyy-MM-dd'T'HH:mm:ss");
+}
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;

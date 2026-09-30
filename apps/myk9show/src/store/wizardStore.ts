@@ -7,6 +7,7 @@ import {
   type PremiumStyle,
 } from '@/types/premium-types';
 import { resolveBrowserTrialTimezone } from '@/features/registries';
+import { realignTrialsToShowDates } from '@/utils/wizardTrialDates';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 
 /** Maps show organization to a default trial type (discipline). */
@@ -48,6 +49,12 @@ interface WizardState {
    * is not "removed". Null outside edit mode (a new show only adds).
    */
   editBaselineJudgeIds: string[] | null;
+  /**
+   * Transient (never persisted): how many trial dates the last realignment
+   * moved, shown once on the trial step and cleared when the user leaves it or
+   * edits a trial (MYK9-884).
+   */
+  trialsMovedCount: number;
 
   // Show data
   show: {
@@ -152,6 +159,7 @@ const initialState: WizardState = {
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
   editBaselineJudgeIds: null,
+  trialsMovedCount: 0,
   show: {
     name: '',
     organization: 'AKC',
@@ -182,6 +190,44 @@ const initialState: WizardState = {
   judgeDetails: {},
 };
 
+/**
+ * Draft trials realigned to the current show dates, or undefined when nothing
+ * applies: edit modes (they set `editBaselineJudgeIds`) never move existing
+ * trials, and with no show start there is nothing to align to. Run once on
+ * the forward move off Basics, not per date write: the range picker writes start and end
+ * separately, so intermediate ranges are wrong (MYK9-884).
+ */
+function alignedTrialsPatch(
+  state: Pick<WizardState, 'show' | 'trials' | 'editBaselineJudgeIds'>
+): Pick<WizardState, 'trials' | 'trialsMovedCount'> | undefined {
+  if (state.editBaselineJudgeIds !== null || !state.show.startDate) return undefined;
+  const trials = realignTrialsToShowDates(state.trials, state.show.startDate, state.show.endDate);
+  if (trials === state.trials) return undefined;
+  return {
+    trials,
+    trialsMovedCount: trials.filter((trial, i) => trial !== state.trials[i]).length,
+  };
+}
+
+/** The wizard's Trials step (index in the step list). */
+const TRIAL_STEP = 1;
+
+/**
+ * The one step transition, shared by setCurrentStep and goToStep (the step
+ * header). Only the forward move off Basics realigns trials; Back must not undo
+ * a chosen date. Leaving the trial step clears the moved-dates notice.
+ */
+function stepTransitionPatch(state: WizardState, step: number): Partial<WizardState> {
+  const aligned = state.currentStep === 0 && step > 0 ? alignedTrialsPatch(state) : undefined;
+  const leavingTrials = state.currentStep === TRIAL_STEP && step !== TRIAL_STEP;
+  return {
+    ...aligned,
+    ...(!aligned && leavingTrials ? { trialsMovedCount: 0 } : {}),
+    // Moved dates land on the Trials step so the notice is seen, not skipped.
+    currentStep: aligned ? TRIAL_STEP : step,
+  };
+}
+
 export const useWizardStore = create<WizardState & WizardActions>()(
   persist(
     (set, get) => ({
@@ -189,7 +235,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Navigation
       setCurrentStep: step =>
-        set(state => (state.cloneHydration.status === 'hydrating' ? state : { currentStep: step })),
+        set(state =>
+          state.cloneHydration.status === 'hydrating' ? state : stepTransitionPatch(state, step)
+        ),
 
       markStepCompleted: step => {
         if (get().cloneHydration.status === 'hydrating') return;
@@ -205,7 +253,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         const maxAllowedStep = completedSteps.length > 0 ? Math.max(...completedSteps) + 1 : 0;
 
         if (step <= maxAllowedStep) {
-          set({ currentStep: step });
+          set(state => stepTransitionPatch(state, step));
         }
       },
 
@@ -227,18 +275,21 @@ export const useWizardStore = create<WizardState & WizardActions>()(
               trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
             },
           ],
+          trialsMovedCount: 0,
           isDirty: true,
         })),
 
       updateTrial: (id, data) =>
         set(state => ({
           trials: state.trials.map(trial => (trial.id === id ? { ...trial, ...data } : trial)),
+          trialsMovedCount: 0,
           isDirty: true,
         })),
 
       removeTrial: id =>
         set(state => ({
           trials: state.trials.filter(trial => trial.id !== id),
+          trialsMovedCount: 0,
           isDirty: true,
         })),
 
@@ -374,6 +425,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             ...draft,
             cloneGeneration: state.cloneGeneration + 1,
             cloneHydration: initialState.cloneHydration,
+            trialsMovedCount: 0,
             isDirty: false,
           };
           return ensureShowDefaults(merged);

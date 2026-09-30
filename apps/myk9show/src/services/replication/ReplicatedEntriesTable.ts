@@ -150,7 +150,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * IDs deleted locally this session. The download sync skips these
    * so it doesn't resurrect entries the user just deleted.
    */
-  private _deletedIds: Set<string> = new Set();
+  private _deletedIds = new Map<string, number | null>();
+  private entryMutationManager: MutationManager | null = null;
 
   /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
   readonly pendingDeletes = new PendingDeletes('entries');
@@ -161,7 +162,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   override setMutationManager(manager: MutationManager): void {
     super.setMutationManager(manager);
+    this.entryMutationManager = manager;
     this.pendingDeletes.attach(manager);
+  }
+
+  /** A cold INSERT can be queued without a cached row on production devices. */
+  async hasPendingWritesForShow(showId: string): Promise<boolean> {
+    if (!this.entryMutationManager) return true;
+    const mutations = await this.entryMutationManager.getPendingMutationsForTable('entries');
+    for (const mutation of mutations) {
+      const mutationShowId = mutation.data.show_id ?? mutation.data.showId;
+      if (mutationShowId === showId) return true;
+      if (mutationShowId == null) {
+        const row = await this.get(mutation.rowId);
+        if (!row?.showId || row.showId === showId) return true;
+      }
+    }
+    return false;
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -171,6 +188,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
     return entryToSupabaseRow(entry);
+  }
+
+  protected override presentRows(rows: ReplicatedEntry[]): ReplicatedEntry[] {
+    return rows.filter(row => !this._deletedIds.has(row.id));
   }
 
   /**
@@ -302,6 +323,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
+    const confirmedDeletionIds = new Set<string>();
+    const restoredIds = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       ...this.getRowRefetchAdapter(),
@@ -380,7 +403,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           ) {
             receiptReferenceColumnObserved = true;
           }
-          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) return rows;
+          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
+            return rows;
+          }
 
           const lastRow = pageRows[pageRows.length - 1];
           if (!lastRow?.updated_at || !lastRow.id) return rows;
@@ -391,17 +416,45 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(row => row.showId === scope.value) : rows,
+      // A successful full show download is authoritative about missing rows;
+      // the result view can hide secretary-deleted entries entirely. Scope the
+      // cleanup above so entries cached for other shows survive this pass.
+      cleanupStaleRowsOnFullSync: true,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       shouldSkipRemoteRow: remote => {
         const entryId = String(remote.id);
-        const shouldSkip = this._deletedIds.has(entryId);
+        const deletedVersion = this._deletedIds.get(entryId);
+        const guarded = this._deletedIds.has(entryId);
+        const remoteVersion = typeof remote.version === 'number' ? remote.version : null;
+        const restored =
+          guarded &&
+          deletedVersion !== null &&
+          deletedVersion !== undefined &&
+          remoteVersion !== null &&
+          remoteVersion > deletedVersion &&
+          !remote.deleted_at;
+        if (restored) restoredIds.add(entryId);
+        if (guarded && remote.deleted_at) confirmedDeletionIds.add(entryId);
+        const shouldSkip = guarded && !restored;
         if (shouldSkip) {
           logger.log(`[${this.getTableName()}] Skipping deleted entry ${entryId} during sync`);
         }
         return shouldSkip;
       },
-      afterSuccessfulSync: async ({ serverIds, localRows }) => {
+      afterSuccessfulSync: async ({ serverIds, localRows, staleCleanupCompleted }) => {
         const pendingCount = await this.getMutationPendingCount();
+        for (const [id, deletedVersion] of this._deletedIds) {
+          if (
+            restoredIds.has(id) ||
+            confirmedDeletionIds.has(id) ||
+            (staleCleanupCompleted &&
+              !serverIds.has(id) &&
+              (deletedVersion !== null || pendingCount === 0) &&
+              !(await this.get(id)))
+          ) {
+            this._deletedIds.delete(id);
+          }
+        }
         if (pendingCount > 0) {
           return;
         }
@@ -412,9 +465,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             await this.delete(local.id);
           }
         }
-
-        // Safe to clear deleted IDs — all DELETEs have been uploaded.
-        this._deletedIds.clear();
       },
     };
 
@@ -1558,7 +1608,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Also marks the ID so the download sync won't resurrect it this session.
    */
   async deleteEntry(entryId: string): Promise<string | null> {
-    this._deletedIds.add(entryId);
+    this._deletedIds.set(entryId, null);
     // Read before removing: the payload records the entry's show when it was
     // already on the server, so readiness can count the pending delete.
     const entry = await this.get(entryId);
@@ -1567,6 +1617,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
     return mutationId;
+  }
+
+  /** A direct server soft-delete supersedes any queued local edit for this row. */
+  async acknowledgeServerDeletion(entryId: string, deletedVersion: number): Promise<void> {
+    this._deletedIds.set(entryId, deletedVersion);
+    try {
+      await this.entryMutationManager?.discardPendingMutationsForRow('entries', entryId);
+    } finally {
+      await this.delete(entryId);
+    }
   }
 }
 

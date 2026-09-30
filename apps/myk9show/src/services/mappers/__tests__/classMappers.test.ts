@@ -33,6 +33,12 @@ function createDbClass(status: string | null): DbClassWithRelations {
 }
 
 describe('mapDatabaseToClass', () => {
+  it('carries a stored class start time to the exhibitor schedule', () => {
+    expect(
+      mapDatabaseToClass({ ...createDbClass('upcoming'), start_time: '09:00:00' }).startTime
+    ).toBe('9:00 AM');
+  });
+
   it('maps persisted in_progress class status back to In Progress', () => {
     expect(mapDatabaseToClass(createDbClass('in_progress')).status).toBe('In Progress');
   });

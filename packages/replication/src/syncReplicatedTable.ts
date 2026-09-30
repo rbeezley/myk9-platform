@@ -103,6 +103,7 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
     scope: SyncScope;
     serverIds: Set<string>;
     localRows: TLocal[];
+    staleCleanupCompleted: boolean;
   }) => Promise<void> | void;
 }
 
@@ -355,8 +356,10 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       );
     }
 
+    let staleCleanupCompleted = false;
     if (adapter.shouldCleanupStaleRows) {
       rowsAffected += await table.removeStaleEntries(serverIds);
+      staleCleanupCompleted = true;
     } else if (
       adapter.cleanupStaleRowsOnFullSync &&
       forceFullSync &&
@@ -368,11 +371,13 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       serverIds.size >= expectedRemoteRows
     ) {
       const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
-      if (keep)
+      if (keep) {
         rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
+        staleCleanupCompleted = true;
+      }
     }
 
-    await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
+    await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
 
     // Server-authoritative, monotonic watermark, routed to the correct scope slot.
     // Advance only to a timestamp the client actually observed from the server, and

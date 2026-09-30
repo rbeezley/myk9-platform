@@ -20,7 +20,6 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
-import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
@@ -340,15 +339,13 @@ export function toSecretaryEntry(
 }
 
 export async function getReplicatedSecretaryEntriesForShow(showId: string) {
-  const [allEntries, scopeSynced] = await Promise.all([
+  const [allEntries, syncMetadata] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
-    hasShowEntriesSynced(showId),
+    replicatedEntriesTable.getSyncMetadata(showId),
   ]);
-  // isColdStore: this show's scope has never completed a sync, or holds no rows.
-  // Rows alone prove nothing: a check-in or lifecycle edit on a fresh device
-  // stores its one row, which is not the show (MYK9-746). A synced store with
-  // every entry deleted is NOT cold (allEntries.length > 0).
-  const isColdStore = allEntries.length === 0 || !scopeSynced;
+  // A zero-row sync can reflect a transient RLS gap. The caller verifies an
+  // empty queue independently before presenting it as authoritative.
+  const isColdStore = syncMetadata?.totalRows === undefined || allEntries.length === 0;
   const entries = allEntries.filter(isNotDeleted);
   const [dogs, classes, armbands, trials] = await Promise.all([
     // Joins that label the entries (see joinRowsOrEmpty): throwing would drop

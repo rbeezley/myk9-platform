@@ -208,6 +208,15 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
   return updateData;
 };
 
+function formatClassStartTime(value: string | null): string {
+  const parts = /^(\d{1,2}):(\d{2})/.exec(value ?? '');
+  if (!parts) return '';
+  const hour = Number(parts[1]);
+  const minute = Number(parts[2]);
+  if (hour > 23 || minute > 59) return '';
+  return `${hour % 12 || 12}:${parts[2]} ${hour < 12 ? 'AM' : 'PM'}`;
+}
+
 /**
  * Convert database class to SyncableClassData format
  */
@@ -229,6 +238,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     trialDate: trial?.date || new Date().toISOString().split('T')[0],
     trialNumber: trial?.trial_number || 'TBD',
     classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
+    startTime: formatClassStartTime(dbClass.start_time),
     status: mapClassStatus(dbClass.status),
     is_scoring_finalized: dbClass.is_scoring_finalized ?? null,
     scored_count: dbClass.scored_count ?? null,

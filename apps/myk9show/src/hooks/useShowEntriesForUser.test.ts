@@ -276,6 +276,15 @@ describe('useShowEntriesForUser', () => {
     expect(entry.dayLabel).toBe('Sunday, May 10');
   });
 
+  it('carries the canonical check-in state and stored position to the schedule', () => {
+    setMocks({ entries: [makeEntry({ checkInStatus: 'checked-in' })] });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries[0]).toMatchObject({
+      runOrder: 3,
+      checkInStatus: 'checked-in',
+    });
+  });
+
   it('enriches entry with startTime and judgeName', () => {
     setMocks();
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));

@@ -19,7 +19,7 @@ describe('ActivityTab never asserts an empty calendar it cannot vouch for', () =
   beforeEach(() => {
     vi.clearAllMocks();
     useEntriesByDogQueryMock.mockReturnValue({
-      data: { rows: [], verified: true },
+      data: { rows: [], verified: true, resultsVerified: true },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),

@@ -1086,6 +1086,8 @@ export const getEntriesByClassId = async (
 export interface DogEntriesReadResult {
   data: unknown[];
   error: DatabaseError | null;
+  /** The protected scored projection completed; distinct from entry-list verification. */
+  resultsVerified: boolean;
   /**
    * True when these rows came from the ONLINE read, so an empty list means the
    * dog really has no entries. False when the online read was unavailable and
@@ -1171,6 +1173,29 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
 
   try {
     const online = await postgrestGetEntriesByDog(dogId);
+    // Protected score columns are absent from public.entries. The owner-gated
+    // result view supplies them without changing the trial/show joins above.
+    const scoredById = new Map<string, Record<string, unknown>>();
+    let resultsVerified = false;
+    try {
+      const { data: scoredRows, error: scoredError } = await supabase
+        .from('view_authenticated_entry_results')
+        .select(
+          'id,is_scored,result_status,search_time_seconds,final_placement,class_results_released_at'
+        )
+        .eq('dog_id', dogId)
+        .is('deleted_at', null)
+        .order('scoring_completed_at', { ascending: false });
+      if (scoredError) throw createDatabaseError(scoredError, 'entries', 'select_dog_results');
+      for (const row of scoredRows ?? []) {
+        if (row.is_scored === true && row.id) scoredById.set(row.id, row);
+      }
+      resultsVerified = true;
+    } catch (scoreError) {
+      // Keep the authoritative entry list when only its scored projection
+      // fails. The dog page's separate Past Results read reports its own error.
+      logQuery('entries', 'select_dog_results_unavailable', 0, String(scoreError));
+    }
     const deleted = new Set(local.locallyDeletedIds);
     const pendingRows = local.data.filter(row => local.pendingIds.has(rowId(row)));
     const pendingById = new Map(pendingRows.map(row => [rowId(row), row]));
@@ -1185,8 +1210,10 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
       ...online.data
         .filter(row => !deleted.has(rowId(row)))
         .map(row => {
+          const scored = scoredById.get(rowId(row));
+          const visibleRow = scored ? { ...row, ...scored } : row;
           const pending = pendingById.get(rowId(row));
-          if (!pending) return row;
+          if (!pending) return visibleRow;
           // Overlay the pending FIELDS rather than swapping the whole row. The
           // replica maps `class`/`show` from local lookup caches that may be
           // cold (a row hydrated on its own has neither), while the server row
@@ -1194,7 +1221,7 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
           // `show.start_date`, so dropping the join would push the entry out of
           // "upcoming" — a false empty produced by the very read meant to
           // prevent one.
-          const serverRow = row as Record<string, unknown>;
+          const serverRow = visibleRow as Record<string, unknown>;
           const localRow = pending as Record<string, unknown>;
           return {
             ...serverRow,
@@ -1205,12 +1232,12 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
         }),
       ...pendingRows.filter(row => !serverIds.has(rowId(row))),
     ];
-    return { data, error: null, verified: true };
+    return { data, error: null, verified: true, resultsVerified };
   } catch (error) {
     // Offline, or the read failed. Serve the replica — correct as far as it
     // goes, but unverifiable, hence `verified: false`.
     logQuery('entries', 'select_by_dog_replica_fallback', 0, String(error));
-    return { data: local.data, error: null, verified: false };
+    return { data: local.data, error: null, verified: false, resultsVerified: false };
   }
 };
 

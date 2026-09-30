@@ -94,9 +94,9 @@ export const useEntriesByDogQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: queryKeys.dogEntries(dogId),
     queryFn: async () => {
-      const { data, error, verified } = await getEntriesByDog(dogId);
+      const { data, error, verified, resultsVerified } = await getEntriesByDog(dogId);
       if (error) throw error;
-      return { rows: data, verified };
+      return { rows: data, verified, resultsVerified };
     },
     enabled: !!dogId && enabled,
     ...cacheStrategies.moderate,

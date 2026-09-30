@@ -175,6 +175,29 @@ describe('WhereToBe', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
+  it('shows a stored run position and check-in state', () => {
+    render(
+      <WhereToBe
+        entries={[makeEntry({ runOrder: 3, checkInStatus: 'checked-in' })]}
+        showId={SHOW_ID}
+      />
+    );
+    expect(screen.getByText('Run position 3')).toBeInTheDocument();
+    expect(screen.getByText('Checked-in')).toBeInTheDocument();
+  });
+
+  it('labels an unassigned run position as pending without inferring it from armband', () => {
+    render(
+      <WhereToBe
+        entries={[makeEntry({ runOrder: 0, armband: '202', checkInStatus: 'completed' })]}
+        showId={SHOW_ID}
+      />
+    );
+    expect(screen.getByText('Run position pending')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('Run position 202')).not.toBeInTheDocument();
+  });
+
   it('shows armband in the leading column', () => {
     render(<WhereToBe entries={[makeEntry({ armband: '104' })]} showId={SHOW_ID} />);
     expect(screen.getByLabelText('Armband 104')).toHaveTextContent('104');

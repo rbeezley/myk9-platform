@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import ShowSourceBadge from '../ShowSourceBadge';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import PastResultViewDialog from './PastResultViewDialog';
@@ -66,7 +67,12 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
   const deleteMutation = useDeleteManualResultMutation();
 
   // Platform-scored results
-  const { data: exhibitorResults = [] } = useExhibitorResults();
+  const {
+    data: exhibitorResults = [],
+    isError: resultsError,
+    isLoading: resultsLoading,
+    retry: retryResults,
+  } = useExhibitorResults(dogId);
   const platformResults = useMemo(
     () => exhibitorResults.filter(r => r.dogId === dogId),
     [exhibitorResults, dogId]
@@ -153,7 +159,16 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
               <div className="myk9-record-header">
                 <div className="flex items-center gap-2">
                   <ShowSourceBadge source="myK9Show" />
-                  <span className="myk9-record-title">{result.showName}</span>
+                  <Link
+                    className="myk9-record-title hover:text-primary"
+                    to={
+                      result.trialId
+                        ? `/shows/${result.showId}/trials/${result.trialId}/classes/${result.classId}`
+                        : `/shows/${result.showId}`
+                    }
+                  >
+                    {result.showName}
+                  </Link>
                 </div>
               </div>
               <div className="myk9-record-content">
@@ -240,13 +255,27 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
         })}
       </div>
 
-      {platformResults.length === 0 && manualResults.length === 0 && (
+      {resultsError && (
         <div className="text-center text-muted-foreground py-8">
-          {isPremium
-            ? 'No results yet. Add an external result or enter shows through the platform.'
-            : 'No results yet. Results from shows run on myK9Show will appear here automatically.'}
+          Results could not be loaded right now.{' '}
+          <button type="button" className="underline" onClick={() => void retryResults()}>
+            Try again
+          </button>
         </div>
       )}
+      {resultsLoading && (
+        <div className="text-center text-muted-foreground py-8">Loading results…</div>
+      )}
+      {!resultsError &&
+        !resultsLoading &&
+        platformResults.length === 0 &&
+        manualResults.length === 0 && (
+          <div className="text-center text-muted-foreground py-8">
+            {isPremium
+              ? 'No results yet. Add an external result or enter shows through the platform.'
+              : 'No results yet. Results from shows run on myK9Show will appear here automatically.'}
+          </div>
+        )}
 
       <PastResultViewDialog
         open={viewDialogOpen}

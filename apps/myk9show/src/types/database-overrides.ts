@@ -247,6 +247,12 @@ type GetClubOfficials = {
   }[];
 };
 
+/** Added by 20260929133147; generated types catch up after the migration applies. */
+type GetSecretaryLiveEntryCount = {
+  Args: { p_show_id: string };
+  Returns: number;
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -259,6 +265,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_show_class_availability'
       | 'get_show_class_judge_day_availability'
       | 'get_club_officials'
+      | 'get_secretary_live_entry_count'
       | keyof ClubMembershipRequestFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
@@ -267,6 +274,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       move_up_entry: MoveUpEntry;
       update_show_style: UpdateShowStyle;
       get_club_officials: GetClubOfficials;
+      get_secretary_live_entry_count: GetSecretaryLiveEntryCount;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions;

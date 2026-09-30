@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
 import { useExhibitorResults } from './useExhibitorResults';
 
 const mocks = vi.hoisted(() => ({
   filter: vi.fn(),
   range: vi.fn(),
+  trialDates: vi.fn(),
+  dogsQuery: vi.fn(),
+  retryDogs: vi.fn(),
   dogs: [{ id: 'dog-a' }, { id: 'dog-b' }],
 }));
-vi.mock('./useDogsDatabase', () => ({ useDogsQuery: () => ({ data: mocks.dogs }) }));
+vi.mock('./useDogsDatabase', () => ({ useDogsQuery: mocks.dogsQuery }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: () => {
+    from: (table: string) => {
+      if (table === 'trials') return { select: () => ({ in: mocks.trialDates }) };
       const query = {
         select: () => query,
         in: (column: string, ids: string[]) => {
@@ -42,13 +46,81 @@ function Results() {
   const { data, isError } = useExhibitorResults();
   return <p>{isError ? 'error' : data ? `results: ${data.length}` : 'loading'}</p>;
 }
+function ResultDate() {
+  const { data, isError } = useExhibitorResults('dog-a');
+  return <p>{isError ? 'error' : (data?.[0]?.showDate ?? 'loading')}</p>;
+}
+
+function ResultsState() {
+  const { isLoading, isError, retry } = useExhibitorResults('dog-a');
+  return (
+    <>
+      <p>{isError ? 'error' : isLoading ? 'loading' : 'ready'}</p>
+      <button onClick={() => void retry()}>Retry</button>
+    </>
+  );
+}
 
 beforeEach(() => {
+  mocks.retryDogs.mockReset().mockResolvedValue(undefined);
+  mocks.dogsQuery.mockReturnValue({
+    data: mocks.dogs,
+    isLoading: false,
+    isError: false,
+    refetch: mocks.retryDogs,
+  });
   mocks.filter.mockClear();
   mocks.range.mockReset().mockResolvedValue({ data: [], error: null });
+  mocks.trialDates.mockReset().mockResolvedValue({ data: [], error: null });
 });
 
 describe('exhibitor scored-result query scope', () => {
+  it('stays loading until the owned-dog roster resolves', () => {
+    mocks.dogsQuery.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    render(<ResultsState />);
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
+  it('offers retry while the roster query is disabled pending the owner profile', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isLoading: false,
+      isError: false,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
+  it('offers retry instead of loading forever when the roster query is paused', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isLoading: false,
+      isError: false,
+      fetchStatus: 'paused',
+      refetch: mocks.retryDogs,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mocks.retryDogs).toHaveBeenCalledOnce();
+  });
+
+  it('reports a roster failure instead of a confirmed empty result', () => {
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: mocks.retryDogs,
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mocks.retryDogs).toHaveBeenCalledOnce();
+  });
   it('requests only the title card dog instead of every owned dog (MYK9-289)', async () => {
     render(<Titles />);
     await screen.findByText('ready');
@@ -112,5 +184,21 @@ describe('exhibitor scored-result query scope', () => {
     mocks.range.mockResolvedValue({ data: null, error: new Error('unavailable') });
     render(<Results />);
     await waitFor(() => expect(screen.getByText('error')).toBeInTheDocument());
+  });
+
+  it('uses the trial day for a result from the last day of a multi-day show', async () => {
+    mocks.range.mockResolvedValueOnce({
+      data: [
+        { id: 'entry-1', dog_id: 'dog-a', trial_id: 'trial-1', show_start_date: '2026-09-25' },
+      ],
+      error: null,
+    });
+    mocks.trialDates.mockResolvedValueOnce({
+      data: [{ id: 'trial-1', date: '2026-09-28' }],
+      error: null,
+    });
+    render(<ResultDate />);
+    expect(await screen.findByText('2026-09-28')).toBeInTheDocument();
+    expect(mocks.trialDates).toHaveBeenCalledWith('id', ['trial-1']);
   });
 });

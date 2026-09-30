@@ -17,6 +17,7 @@ export interface ExhibitorResult {
   dogCallName: string;
   showId: string;
   classId: string;
+  trialId?: string | null;
   className: string;
   classLevel: string | null;
   classElement: string | null;
@@ -52,6 +53,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
       dog_call_name,
       show_id,
       class_id,
+      trial_id,
       class_name,
       class_level,
       class_element,
@@ -78,6 +80,21 @@ async function fetchExhibitorResults(dogIds: string[]) {
     if (page.length < PAGE_SIZE) break;
   }
 
+  // The result view names the show start date, which can precede this trial
+  // by several days. Resolve actual trial dates before publishing the history.
+  const trialIds = [
+    ...new Set(rows.map(row => row.trial_id).filter((id): id is string => typeof id === 'string')),
+  ];
+  const trialDates = new Map<string, string>();
+  for (let from = 0; from < trialIds.length; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('trials')
+      .select('id, date')
+      .in('id', trialIds.slice(from, from + PAGE_SIZE));
+    if (error) throw error;
+    for (const trial of data ?? []) trialDates.set(trial.id, trial.date);
+  }
+
   return rows.map((row: Record<string, unknown>): ExhibitorResult => ({
     id: row.id as string,
     dogId: row.dog_id as string,
@@ -85,6 +102,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     dogCallName: (row.dog_call_name as string) || (row.dog_name as string),
     showId: row.show_id as string,
     classId: row.class_id as string,
+    trialId: row.trial_id as string | null,
     className: (row.class_name as string) || 'Unknown Class',
     classLevel: row.class_level as string | null,
     classElement: row.class_element as string | null,
@@ -95,7 +113,9 @@ async function fetchExhibitorResults(dogIds: string[]) {
     finalPlacement: row.final_placement as number | null,
     scoringCompletedAt: row.scoring_completed_at as string | null,
     showName: (row.show_name as string) || 'Unknown Show',
-    showDate: (row.show_start_date as string) || '',
+    showDate: row.trial_id
+      ? (trialDates.get(row.trial_id as string) ?? '')
+      : (row.show_start_date as string) || '',
     resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
 }
@@ -114,16 +134,36 @@ async function fetchExhibitorResults(dogIds: string[]) {
  */
 export function useExhibitorResults(dogId?: string) {
   const viewerId = useViewerId();
-  const { data: dogs = [] } = useDogsQuery();
+  const dogsQuery = useDogsQuery();
+  const dogs = dogsQuery.data ?? [];
   const dogIds = dogs
     .map((d: Record<string, unknown>) => d.id as string)
     .filter(id => dogId === undefined || id === dogId);
   const sortedIds = dogIds.slice().sort();
 
-  return useQuery({
+  const resultsQuery = useQuery({
     queryKey: ['exhibitor', 'results', viewerScope(viewerId), sortedIds],
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,
+    ...(dogId ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}),
   });
+  const rosterUnavailable =
+    dogsQuery.isPending && !dogsQuery.isLoading && dogsQuery.fetchStatus !== 'fetching';
+  const resultsUnavailable =
+    dogIds.length > 0 && resultsQuery.isPending && resultsQuery.fetchStatus === 'paused';
+
+  return {
+    ...resultsQuery,
+    // A disabled result query is idle, not proof that the dog has no scores.
+    isLoading: dogsQuery.isLoading || resultsQuery.isLoading,
+    isError: dogsQuery.isError || resultsQuery.isError || rosterUnavailable || resultsUnavailable,
+    retry: async () => {
+      if (dogsQuery.isError || rosterUnavailable) {
+        await dogsQuery.refetch();
+      } else {
+        await resultsQuery.refetch();
+      }
+    },
+  };
 }

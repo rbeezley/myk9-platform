@@ -226,6 +226,22 @@ describe('executeMutation', () => {
   });
 
   describe('UPDATE', () => {
+    it('omits a stale deleted_at null from an older queued entry update', async () => {
+      const updateChain = chainable({ data: [{ id: 'entry-1', version: 5 }], error: null });
+      const update = vi.fn(() => updateChain);
+      const supabase = {
+        from: vi.fn(() => ({ update })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+      const mutation = makeMutation({
+        operation: 'UPDATE',
+        data: { id: 'entry-1', deleted_at: null, entry_status: 'confirmed' },
+      });
+
+      await executeMutation(supabase, makeLogger(), mutation);
+      expect(update).toHaveBeenCalledWith({ id: 'entry-1', entry_status: 'confirmed' });
+    });
+
     it('applies an OCC precondition and returns the new server version', async () => {
       const updateChain = chainable({ data: [{ id: 'entry-1', version: 5 }], error: null });
       const supabase = {

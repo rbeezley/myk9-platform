@@ -5,11 +5,14 @@ import type { EntryStatus } from '@/types/entry-lifecycle';
 const mocks = vi.hoisted(() => ({
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
+  supabaseRpc: vi.fn(),
+  getSession: vi.fn(),
   updateSecretaryLifecycleStatus: vi.fn(),
   getEntryById: vi.fn(),
   getEntriesByShow: vi.fn(),
   getEntriesSyncMetadata: vi.fn(),
   getReplicatedRow: vi.fn(),
+  hasPendingWritesForShow: vi.fn(),
   syncEntries: vi.fn(),
   syncClasses: vi.fn(),
   syncTrials: vi.fn(),
@@ -26,6 +29,8 @@ vi.mock('../supabaseClient', () => ({
   logQuery: mocks.logQuery,
   supabase: {
     from: mocks.supabaseFrom,
+    rpc: mocks.supabaseRpc,
+    auth: { getSession: mocks.getSession },
   },
 }));
 
@@ -36,6 +41,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     getEntriesByShow: mocks.getEntriesByShow,
     getSyncMetadata: mocks.getEntriesSyncMetadata,
     getReplicatedRow: mocks.getReplicatedRow,
+    hasPendingWritesForShow: mocks.hasPendingWritesForShow,
     sync: mocks.syncEntries,
   },
 }));
@@ -175,6 +181,10 @@ function mockPostgrestEntriesRead(data: unknown[]) {
 describe('secretary entry status replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    mocks.supabaseRpc.mockResolvedValue({ data: 1, error: null });
+    mocks.hasPendingWritesForShow.mockReset().mockResolvedValue(false);
+    mocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'secretary-1' } } } });
     mocks.syncEntries.mockResolvedValue({ success: false });
     mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-1');
     mocks.getEntryById.mockImplementation((entryId: string) =>
@@ -291,6 +301,11 @@ describe('secretary entry status replication', () => {
 describe('secretary entry read replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.hasPendingWritesForShow.mockReset().mockResolvedValue(false);
+    mocks.getReplicatedRow.mockReset().mockResolvedValue({ isDirty: false });
+    localStorage.clear();
+    mocks.supabaseRpc.mockResolvedValue({ data: 1, error: null });
+    mocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'secretary-1' } } } });
     // A completed show-scoped sync records the scope's row count (MYK9-746).
     mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 2 });
     mocks.syncEntries.mockResolvedValue({ success: false });
@@ -649,6 +664,7 @@ describe('secretary entry read replication', () => {
 
   it('falls back to PostgREST when replication store is cold (returns empty)', async () => {
     // Cold store — entries not yet synced for this show (secretary never entered at-show context)
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries' });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -736,6 +752,9 @@ describe('secretary entry read replication', () => {
   });
 
   it('hydrates a cold show-scoped replica before using PostgREST', async () => {
+    mocks.getEntriesSyncMetadata
+      .mockResolvedValueOnce({ tableName: 'entries' })
+      .mockResolvedValue({ tableName: 'entries', totalRows: 1 });
     mocks.getEntriesByShow.mockResolvedValueOnce([]).mockResolvedValue([
       {
         id: 'entry-after-hydration',
@@ -776,7 +795,92 @@ describe('secretary entry read replication', () => {
     ]);
   });
 
+  it('trusts a synced empty scope after its last entry was removed', async () => {
+    mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([]);
+    expect(mocks.syncEntries).not.toHaveBeenCalled();
+    expect(mocks.supabaseRpc).toHaveBeenCalledWith('get_secretary_live_entry_count', {
+      p_show_id: 'show-1',
+    });
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('view_authenticated_entry_results');
+  });
+
+  it('does not present an RLS-filtered zero-row replica as an empty queue', async () => {
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+    mockPostgrestEntriesRead([]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.supabaseRpc).toHaveBeenCalledWith('get_secretary_live_entry_count', {
+      p_show_id: 'show-1',
+    });
+    expect(result.data).toBeNull();
+    expect(result.error?.message).toBe("We couldn't load entries for this show. Please retry.");
+  });
+
+  it('shows unavailable while offline even after an earlier verified zero', async () => {
+    mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    expect((await getEntriesForShow('show-1')).data).toEqual([]);
+    vi.stubGlobal('navigator', { onLine: false });
+    try {
+      mocks.supabaseRpc.mockClear();
+      const offline = await getEntriesForShow('show-1');
+      expect(offline.data).toBeNull();
+      expect(offline.error?.message).toBe("We couldn't load entries for this show. Please retry.");
+      expect(mocks.supabaseRpc).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('does not report zero while a cold create is queued without a cached row', async () => {
+    mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
+    mocks.hasPendingWritesForShow.mockResolvedValue(true);
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+    mockPostgrestEntriesRead([]);
+
+    const result = await getEntriesForShow('show-1');
+    expect(result.data).toBeNull();
+    expect(result.error?.message).toBe("We couldn't load entries for this show. Please retry.");
+  });
+
+  it('rehydrates when rows are missing but persisted scope metadata still expects them', async () => {
+    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mocks.getEntriesByShow.mockResolvedValue([]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses.mockResolvedValue([]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+
+    await getEntriesForShow('show-1');
+
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+  });
+
   it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {
+    mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
     // Warm store — entries were synced, but all are soft-deleted. This is NOT a
     // cold store: getEntriesByShow returns rows, isColdStore = false.
     mocks.getEntriesByShow.mockResolvedValue([

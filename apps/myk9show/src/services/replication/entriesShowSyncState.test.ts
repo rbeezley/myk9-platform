@@ -83,6 +83,7 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
   });
 
   it('reports unsaved writes only while a row for the show is dirty', async () => {
+    vi.spyOn(table, 'hasPendingWritesForShow').mockResolvedValue(false);
     await table.batchSet([entry('synced-1'), entry('other-show', 'show-2')]);
     expect(await hasUnsavedLocalEntryWrites('show-1', table)).toBe(false);
 

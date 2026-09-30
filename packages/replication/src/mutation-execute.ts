@@ -169,9 +169,16 @@ export async function executeMutation(
       // Build the query: add OCC precondition when serverVersion is set so a
       // concurrent server write (trigger bumped version) causes 0-row rejection
       // rather than silently overwriting with last-write-wins.
+      // Legacy queued entry edits can still contain deleted_at: null. Strip it
+      // before sending so an upload racing a secretary soft-delete cannot
+      // restore the row. A non-null tombstone remains an explicit write.
+      const updateData =
+        tableName === 'entries' && data.deleted_at === null
+          ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'deleted_at'))
+          : data;
       let updateQuery = supabase
         .from(tableName)
-        .update(data)
+        .update(updateData)
         .eq('id', data.id as string);
       if (mutation.serverVersion !== undefined) {
         updateQuery = updateQuery.eq('version', mutation.serverVersion);

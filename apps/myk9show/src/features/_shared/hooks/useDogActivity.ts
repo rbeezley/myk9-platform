@@ -34,6 +34,8 @@ export interface UseDogActivityResult {
    * apply the rule differently.
    */
   canTrustEmpty: boolean;
+  /** Scored facts and release status were read from the authorized result view. */
+  resultsVerified: boolean;
   /** Re-run the read — lets an error state offer retry without a page reload. */
   refetch: () => void;
 }
@@ -63,6 +65,7 @@ export function useDogActivity(dogId: string): UseDogActivityResult {
     // An unresolved query has no provenance yet, so it cannot vouch for an
     // empty list either. Surfaces branch on `isLoading` first regardless.
     canTrustEmpty: data?.verified ?? false,
+    resultsVerified: data?.resultsVerified ?? false,
     refetch,
   };
 }

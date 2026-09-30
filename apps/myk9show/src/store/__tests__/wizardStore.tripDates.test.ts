@@ -92,9 +92,31 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
     store().addTrial(trial('2026-07-01T08:00:00'));
 
     setShowDates([2026, 8, 15], [2026, 8, 16]);
-    store().alignTrialsToShowDates();
+    store().setCurrentStep(1);
 
     expect(days()).toEqual(['', '2026-08-15T08:00:00']);
+  });
+
+  it('keeps an out-of-range trial edit through Back, then realigns on the next forward move', () => {
+    setShowDates([2026, 8, 14], [2026, 8, 15]);
+    store().addTrial(trial('2026-08-14T08:00:00'));
+    store().setCurrentStep(1);
+    const id = store().trials[0]!.id;
+
+    // Secretary picks a date past the show, goes Back to extend the show.
+    store().updateTrial(id, { dateTime: '2026-08-20T08:00:00' });
+    store().setCurrentStep(0);
+    expect(days()).toEqual(['2026-08-20T08:00:00']);
+
+    store().updateShowData({ endDate: local(2026, 8, 21) });
+    store().setCurrentStep(1);
+    expect(days()).toEqual(['2026-08-20T08:00:00']);
+
+    // Dates moved away from the trial: the next forward move realigns it.
+    store().setCurrentStep(0);
+    setShowDates([2026, 9, 12], [2026, 9, 13]);
+    store().setCurrentStep(1);
+    expect(days()).toEqual(['2026-09-12T08:00:00']);
   });
 
   it('is idempotent once aligned', () => {
@@ -103,7 +125,7 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
     setShowDates([2026, 8, 15], [2026, 8, 15]);
     store().setCurrentStep(1);
     store().setCurrentStep(2);
-    store().alignTrialsToShowDates();
+    store().setCurrentStep(1);
 
     expect(days()).toEqual(['2026-08-15T08:00:00']);
   });
@@ -115,7 +137,7 @@ describe('draft trials follow the final show dates (MYK9-884)', () => {
 
     setShowDates([2026, 8, 15], [2026, 8, 15]);
     store().setCurrentStep(1);
-    store().alignTrialsToShowDates();
+    store().setCurrentStep(1);
 
     expect(days()).toEqual(['2026-07-01T08:00:00']);
   });

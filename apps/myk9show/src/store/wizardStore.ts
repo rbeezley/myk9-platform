@@ -122,8 +122,6 @@ interface WizardActions {
 
   // Show data
   updateShowData: (data: Partial<WizardState['show']>) => void;
-  /** Realign draft trials to the final show dates (create mode only). Idempotent. */
-  alignTrialsToShowDates: () => void;
 
   // Trial management
   addTrial: (trial: Omit<WizardState['trials'][0], 'id'>) => void;
@@ -188,8 +186,8 @@ const initialState: WizardState = {
 /**
  * Draft trials realigned to the current show dates, or undefined when nothing
  * applies: edit modes (they set `editBaselineJudgeIds`) never move existing
- * trials, and with no show start there is nothing to align to. Run once per
- * step change, not per date write: the range picker writes start and end
+ * trials, and with no show start there is nothing to align to. Run once on
+ * the forward move off Basics, not per date write: the range picker writes start and end
  * separately, so intermediate ranges are wrong (MYK9-884).
  */
 function alignedTrialsPatch(
@@ -210,7 +208,12 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         set(state =>
           state.cloneHydration.status === 'hydrating'
             ? state
-            : { ...alignedTrialsPatch(state), currentStep: step }
+            : {
+                // Only the forward move off Basics (step 0) realigns: Back or a
+                // later-step move must not undo a date the secretary chose.
+                ...(state.currentStep === 0 && step > 0 ? alignedTrialsPatch(state) : undefined),
+                currentStep: step,
+              }
         ),
 
       markStepCompleted: step => {
@@ -237,8 +240,6 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           show: { ...state.show, ...data },
           isDirty: true,
         })),
-
-      alignTrialsToShowDates: () => set(state => alignedTrialsPatch(state) ?? state),
 
       // Trial management
       addTrial: trial =>

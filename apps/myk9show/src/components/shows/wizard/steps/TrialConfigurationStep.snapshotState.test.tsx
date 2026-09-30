@@ -23,7 +23,6 @@ const wizardState = vi.hoisted(() => ({
     classes: unknown[];
   }>,
   addTrial: vi.fn(),
-  alignTrialsToShowDates: vi.fn(),
   updateTrial: vi.fn(),
   removeTrial: vi.fn(),
 }));

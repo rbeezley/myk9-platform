@@ -19,6 +19,8 @@ export interface PaymentStepProps {
   onPaymentMethodClear?: (() => void) | undefined;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
+  /** Reads the wizard's retained payment details (MYK9-878): what a remounted step shows. */
+  getPaymentDetails?: (() => PaymentDetails) | undefined;
   onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
   showId?: string | undefined;
@@ -95,6 +97,12 @@ export interface PaymentMethodSelectorProps {
   onPaymentMethodChange: (method: PaymentMethod) => void;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
+  /**
+   * Reads the payment details the wizard already holds. The selector seeds its fields
+   * from them on mount (a function, so no ref is read during render), so going back and returning shows the same values submit will
+   * send (MYK9-878: a retained junior-fee choice must not read as unchecked).
+   */
+  getInitialDetails?: (() => PaymentDetails | undefined) | undefined;
   /** Which at-show payment methods are enabled for this show. Defaults to all enabled. */
   acceptedMethods?: { check: boolean; cash: boolean } | undefined;
   /**

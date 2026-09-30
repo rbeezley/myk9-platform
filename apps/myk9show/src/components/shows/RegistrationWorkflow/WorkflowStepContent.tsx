@@ -80,6 +80,7 @@ interface WorkflowStepContentProps {
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentMethodClear?: (() => void) | undefined;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
+  getPaymentDetails?: (() => PaymentDetails) | undefined;
   onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => void | Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
@@ -128,6 +129,7 @@ export function WorkflowStepContent({
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
+  getPaymentDetails,
   onPaymentStatusChange,
   onEntryStatusChange,
   setPaymentStatus,
@@ -417,6 +419,7 @@ export function WorkflowStepContent({
             onPaymentMethodChange={onPaymentMethodChange}
             onPaymentMethodClear={onPaymentMethodClear}
             onPaymentDetailsChange={onPaymentDetailsChange}
+            getPaymentDetails={getPaymentDetails}
             onPaymentStatusChange={async (status: PaymentStatus) => {
               setPaymentStatus(status);
               if (registrationId) {

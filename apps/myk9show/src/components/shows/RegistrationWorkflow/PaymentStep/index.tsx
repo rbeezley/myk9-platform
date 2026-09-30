@@ -25,6 +25,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
+  getPaymentDetails,
   onPaymentStatusChange,
   onEntryStatusChange,
   onAgreementChange,
@@ -202,6 +203,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         paymentMethod={effectivePaymentMethod}
         onPaymentMethodChange={handlePaymentMethodSelect}
         onPaymentDetailsChange={onPaymentDetailsChange}
+        getInitialDetails={getPaymentDetails}
         acceptedMethods={acceptedMethods}
         allowCardCheckout={cardCheckoutAvailable}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}

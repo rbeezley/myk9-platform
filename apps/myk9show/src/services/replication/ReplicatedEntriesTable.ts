@@ -36,6 +36,7 @@ import {
   type EntryRow,
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
+import { editsEntryFee, entryToSupabaseUpdateRow } from './entryUpdateRow';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
   classifyMoveUpRpcError,
@@ -187,7 +188,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
-    return entryToSupabaseRow(entry);
+    return entryToSupabaseUpdateRow(entry);
   }
 
   protected override presentRows(rows: ReplicatedEntry[]): ReplicatedEntry[] {
@@ -252,7 +253,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       // payload so advancing its OCC token doesn't clobber server-changed untouched
       // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
       // a delta and don't need this.
-      rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
+      rebuildUpdatePayload: entry => entryToSupabaseUpdateRow(entry),
     };
   }
 
@@ -609,7 +610,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    const mutationId = await this.queueMutation('UPDATE', entryId, entryToSupabaseRow(updated));
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      entryToSupabaseUpdateRow(updated)
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
     return mutationId;
@@ -665,7 +670,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    const supabaseRow = entryToSupabaseRow(updated);
+    const supabaseRow = entryToSupabaseUpdateRow(updated, editsEntryFee(updates));
     // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
     // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
     // denied by the entries UPDATE RLS policy — can persist. Writes that touch

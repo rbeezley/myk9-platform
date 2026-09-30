@@ -51,4 +51,33 @@ describe('PaymentMethodSelector junior handler fee choice', () => {
     expect(last.checkNumber).toBe('1042');
     expect(last.chargeJuniorFee).not.toBe(true);
   });
+
+  it('shows the retained choice as checked when the step remounts (back, then forward)', () => {
+    // The wizard keeps the payment details (and submits them) while this step is
+    // unmounted; a remount must reflect them, not read as unchecked.
+    const retained = { checkNumber: '1042', chargeJuniorFee: true };
+    const { unmount } = render(
+      <PaymentMethodSelector {...baseProps} paymentMethod="check" juniorFee={15} />
+    );
+    unmount();
+
+    const onPaymentDetailsChange = vi.fn();
+    render(
+      <PaymentMethodSelector
+        {...baseProps}
+        paymentMethod="check"
+        juniorFee={15}
+        getInitialDetails={() => retained}
+        onPaymentDetailsChange={onPaymentDetailsChange}
+      />
+    );
+
+    expect(screen.getByRole('checkbox', { name: /charge junior handler fee/i })).toBeChecked();
+    expect(screen.getByLabelText(/check number/i)).toHaveValue('1042');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /charge junior handler fee/i }));
+    const last = onPaymentDetailsChange.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(last.chargeJuniorFee).not.toBe(true);
+    expect(last.checkNumber).toBe('1042');
+  });
 });

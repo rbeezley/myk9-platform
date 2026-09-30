@@ -97,14 +97,18 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   allowCardCheckout = true,
   cardCheckoutUnavailableReason,
   juniorFee = null,
+  getInitialDetails,
 }) => {
-  const [chargeJuniorFee, setChargeJuniorFee] = useState(false);
-  const [checkNumber, setCheckNumber] = useState('');
-  const [paymentDate, setPaymentDate] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
-  const [groupReference, setGroupReference] = useState('');
-  const [paymentNotes, setPaymentNotes] = useState('');
-  const [receivedMethod, setReceivedMethod] = useState<PaymentDetails['receivedMethod']>();
+  const [initialDetails] = useState(() => getInitialDetails?.());
+  const [chargeJuniorFee, setChargeJuniorFee] = useState(initialDetails?.chargeJuniorFee === true);
+  const [checkNumber, setCheckNumber] = useState(initialDetails?.checkNumber ?? '');
+  const [paymentDate, setPaymentDate] = useState(initialDetails?.paymentDate ?? '');
+  const [paymentReference, setPaymentReference] = useState(initialDetails?.paymentReference ?? '');
+  const [groupReference, setGroupReference] = useState(initialDetails?.groupReference ?? '');
+  const [paymentNotes, setPaymentNotes] = useState(initialDetails?.paymentNotes ?? '');
+  const [receivedMethod, setReceivedMethod] = useState<PaymentDetails['receivedMethod']>(
+    initialDetails?.receivedMethod
+  );
 
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;

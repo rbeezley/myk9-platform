@@ -75,6 +75,7 @@ function RegistrationWizardContent() {
     liveTotalFees,
     liveFeeCalculation,
     entryWindowTimezoneState,
+    paymentDetailsRef,
     waiveFees,
     setWaiveFees,
     feeOverride,
@@ -432,6 +433,7 @@ function RegistrationWizardContent() {
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
               onPaymentMethodClear={handlePaymentMethodClear}
+              getPaymentDetails={() => paymentDetailsRef.current}
               onPaymentDetailsChange={(details: PaymentDetails) =>
                 handlePaymentDetailsChange(details)
               }

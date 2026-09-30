@@ -71,7 +71,15 @@ describe('REPORT_STYLES', () => {
   it('contains @page rule with letter size', () => {
     expect(REPORT_STYLES).toContain('@page');
     expect(REPORT_STYLES).toContain('size: letter');
-    expect(REPORT_STYLES).toContain('margin: 0.5in');
+    expect(REPORT_STYLES).toContain('margin: 0.4in');
+  });
+
+  it('keeps a non-zero page padding in print (MYK9-886)', () => {
+    // With `padding: 0` the only print margin was @page's, so any print path
+    // that ignores @page margins printed edge to edge.
+    const printBlock = REPORT_STYLES.slice(REPORT_STYLES.indexOf('@media print'));
+    const reportPageRule = printBlock.match(/\.report-page\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(reportPageRule).toMatch(/padding:\s*0\.2in/);
   });
 
   it('contains report-page class with font and color settings', () => {

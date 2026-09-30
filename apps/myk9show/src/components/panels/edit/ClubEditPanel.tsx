@@ -17,13 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building, MapPin, Phone, Camera, ArrowRight } from 'lucide-react';
-import { z } from 'zod';
-import { clubSchemas } from '@/lib/validation';
+import { Building, Camera, ArrowRight } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
-import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
+import { CLUB_TYPES } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
 import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
@@ -33,6 +31,14 @@ import {
   locateInvalidField,
   type ClubTabValue,
 } from './ClubEditPanel/validationTab';
+import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
+import {
+  clubEditSchema,
+  clubToFormData,
+  formDataToClub,
+  type ClubEditFormData,
+} from './ClubEditPanel/formData';
+import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -46,54 +52,6 @@ interface ClubEditPanelProps {
   /** Set to 'create' when adding a new club. Defaults to 'edit'. */
   mode?: 'create' | 'edit';
 }
-
-// Zod schema for club edit form
-const clubEditSchema = clubSchemas.basic;
-
-// Form data type derived from the Zod schema
-type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, unknown>;
-
-// Convert Club to form data
-const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
-  return {
-    name: club.name || '',
-    clubNumber: club.clubNumber || '',
-    email: club.email || '',
-    phone: club.phone || '',
-    website: club.website || '',
-    description: club.description || '',
-    logo: club.logo || '',
-    street: club.address?.street || '',
-    city: club.address?.city || '',
-    state: club.address?.state || '',
-    zipCode: club.address?.zipCode || '',
-    country: club.address?.country || DEFAULT_COUNTRY,
-    founded: club.founded ? new Date(club.founded).toISOString().slice(0, 10) : '',
-    clubType: club.clubType || '',
-    accentColor: club.accentColor || '',
-  };
-};
-
-// Convert form data back to Club
-const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
-  name: formData.name,
-  clubNumber: formData.clubNumber ?? '',
-  email: formData.email,
-  phone: formData.phone,
-  website: formData.website || undefined,
-  description: formData.description ?? '',
-  logo: formData.logo ?? '',
-  address: {
-    street: formData.street,
-    city: formData.city,
-    state: formData.state,
-    zipCode: formData.zipCode,
-    country: formData.country,
-  },
-  founded: formData.founded ? new Date(formData.founded) : undefined,
-  clubType: (formData.clubType as Club['clubType']) || undefined,
-  accentColor: formData.accentColor ?? '',
-});
 
 // Form content component
 const ClubEditForm: React.FC<{
@@ -190,6 +148,8 @@ const ClubEditForm: React.FC<{
     },
     [form]
   );
+
+  const fieldHandlers = { handleInputChange, handleBlur, handleSelectChange };
 
   return (
     <div className="space-y-6 p-6">
@@ -342,153 +302,7 @@ const ClubEditForm: React.FC<{
           value="contact"
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="Email Address"
-                  fieldId="email"
-                  required
-                  error={form?.getError('email')}
-                >
-                  <Input
-                    id="email"
-                    type="email"
-                    value={data.email}
-                    onChange={handleInputChange('email')}
-                    onBlur={handleBlur('email')}
-                    placeholder="Enter email address"
-                    {...form?.getFieldProps('email')}
-                  />
-                </FormField>
-
-                <FormField
-                  label="Phone Number"
-                  fieldId="phone"
-                  required
-                  error={form?.getError('phone')}
-                >
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={data.phone}
-                    onChange={handleInputChange('phone')}
-                    onBlur={handleBlur('phone')}
-                    placeholder="Enter phone number"
-                    {...form?.getFieldProps('phone')}
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Website" fieldId="website" error={form?.getError('website')}>
-                <Input
-                  id="website"
-                  type="url"
-                  value={data.website}
-                  onChange={handleInputChange('website')}
-                  onBlur={handleBlur('website')}
-                  placeholder="https://www.clubwebsite.com"
-                  {...form?.getFieldProps('website')}
-                />
-              </FormField>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                  <MapPin className="h-3 w-3" />
-                  Address Information
-                </h4>
-
-                <FormField
-                  label="Street Address"
-                  fieldId="street"
-                  required
-                  error={form?.getError('street')}
-                >
-                  <Input
-                    id="street"
-                    value={data.street}
-                    onChange={handleInputChange('street')}
-                    onBlur={handleBlur('street')}
-                    placeholder="123 Main Street"
-                    {...form?.getFieldProps('street')}
-                  />
-                </FormField>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField label="City" fieldId="city" required error={form?.getError('city')}>
-                    <Input
-                      id="city"
-                      value={data.city}
-                      onChange={handleInputChange('city')}
-                      onBlur={handleBlur('city')}
-                      placeholder="Enter city"
-                      {...form?.getFieldProps('city')}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="State/Province"
-                    fieldId="state"
-                    required
-                    error={form?.getError('state')}
-                  >
-                    <Input
-                      id="state"
-                      value={data.state}
-                      onChange={handleInputChange('state')}
-                      onBlur={handleBlur('state')}
-                      placeholder="Enter state"
-                      {...form?.getFieldProps('state')}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="ZIP Code"
-                    fieldId="zipCode"
-                    required
-                    error={form?.getError('zipCode')}
-                  >
-                    <Input
-                      id="zipCode"
-                      value={data.zipCode}
-                      onChange={handleInputChange('zipCode')}
-                      onBlur={handleBlur('zipCode')}
-                      placeholder="12345"
-                      {...form?.getFieldProps('zipCode')}
-                    />
-                  </FormField>
-                </div>
-
-                <FormField
-                  label="Country"
-                  fieldId="country"
-                  required
-                  error={form?.getError('country')}
-                >
-                  <Select value={data.country} onValueChange={handleSelectChange('country')}>
-                    <SelectTrigger id="country" {...form?.getFieldProps('country')}>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTRIES.map(country => (
-                        <SelectItem key={country.value} value={country.value}>
-                          {country.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-            </CardContent>
-          </Card>
+          <ClubContactCard {...fieldHandlers} data={data} form={form} />
         </TabsContent>
 
         {/* Premium Templates Tab */}
@@ -540,22 +354,11 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   enableAutoSave = false,
   mode = 'edit',
 }) => {
-  const [activeTab, setActiveTab] = useState<ClubTabValue>('basic');
+  // A failed save moves to the tab holding the first invalid field (MYK9-891).
+  const { activeTab, setActiveTab, handleValidationFail } =
+    usePanelValidationNavigation<ClubTabValue>('basic', locateInvalidField);
   const nextTab =
     mode === 'create' ? CLUB_TAB_ORDER[CLUB_TAB_ORDER.indexOf(activeTab) + 1] : undefined;
-
-  // A failed save moves to the tab holding the first invalid field (MYK9-891).
-  const handleValidationFail = useCallback((firstErrorField: string) => {
-    const location = locateInvalidField(firstErrorField);
-    if (!location) return;
-    setActiveTab(location.tab);
-    // The target tab mounts on the next render; focus once it has.
-    requestAnimationFrame(() => {
-      const el = document.getElementById(location.elementId);
-      el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      el?.focus({ preventScroll: true });
-    });
-  }, []);
 
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);

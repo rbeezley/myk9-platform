@@ -10,6 +10,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClubEditPanel } from '../ClubEditPanel';
+import { FIELD_LOCATION } from '../ClubEditPanel/validationTab';
 
 function renderCreate(onSave = vi.fn().mockResolvedValue(undefined)) {
   render(
@@ -89,5 +90,21 @@ describe('ClubEditPanel create mode — guided sections', () => {
       name: 'Heartland',
       email: 'club@example.com',
     });
+  });
+
+  it('every mapped field has a focus target on the tab it names', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await screen.findByRole('textbox', { name: /Club Name/ });
+    const missing: string[] = [];
+    for (const name of ['basic', 'contact'] as const) {
+      await user.click(
+        screen.getByRole('tab', { name: name === 'basic' ? /^Basic Info/ : /^Contact/ })
+      );
+      for (const [field, loc] of Object.entries(FIELD_LOCATION)) {
+        if (loc.tab === name && !document.getElementById(loc.elementId)) missing.push(field);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });

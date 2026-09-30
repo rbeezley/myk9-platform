@@ -1,4 +1,5 @@
 import { clubSchemas } from '@/lib/validation';
+import type { FieldLocation } from '../usePanelValidationNavigation';
 
 export type ClubTabValue = 'basic' | 'contact' | 'premium';
 
@@ -10,12 +11,6 @@ export const CLUB_TAB_LABEL: Record<ClubTabValue, string> = {
   premium: 'Premium',
 };
 
-interface FieldLocation {
-  tab: ClubTabValue;
-  /** DOM id to focus once the tab is showing. */
-  elementId: string;
-}
-
 /**
  * MYK9-891: the Create Club footer sits under every tab, so a user who finished
  * Basic Info took "Create Club" to mean "done" while the required Contact
@@ -24,7 +19,7 @@ interface FieldLocation {
  * strip can say which sections still need attention. Same shape as the Add Dog
  * panel's validationTab (MYK9-885).
  */
-const FIELD_LOCATION: Record<string, FieldLocation> = {
+export const FIELD_LOCATION: Record<string, FieldLocation<ClubTabValue>> = {
   name: { tab: 'basic', elementId: 'name' },
   clubNumber: { tab: 'basic', elementId: 'clubNumber' },
   description: { tab: 'basic', elementId: 'description' },
@@ -40,7 +35,7 @@ const FIELD_LOCATION: Record<string, FieldLocation> = {
   country: { tab: 'contact', elementId: 'country' },
 };
 
-export const locateInvalidField = (field: string): FieldLocation | undefined =>
+export const locateInvalidField = (field: string): FieldLocation<ClubTabValue> | undefined =>
   FIELD_LOCATION[field];
 
 const emptyCounts = (): Record<ClubTabValue, number> => ({ basic: 0, contact: 0, premium: 0 });

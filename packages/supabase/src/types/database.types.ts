@@ -13173,6 +13173,7 @@ export type Database = {
           experience_published_style: string | null
           id: string
           is_nationals: boolean
+          junior_handler_fee: number | null
           latitude: number | null
           license_key: string | null
           location: string | null
@@ -13998,6 +13999,7 @@ export type Database = {
           experience_published_style: string | null
           id: string
           is_nationals: boolean
+          junior_handler_fee: number | null
           latitude: number | null
           license_key: string | null
           location: string | null

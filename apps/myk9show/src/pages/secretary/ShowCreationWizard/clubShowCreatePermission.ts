@@ -13,7 +13,7 @@ import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import type { UserWithRoles } from '@/types/auth-types';
 
 export const clubCreateDeniedMessage = (clubName: string) =>
-  `You're not an appointed secretary for ${clubName}. Ask a club admin to appoint you; the show can't be created for this club until then.`;
+  `You're not a club admin or appointed secretary for ${clubName}. Ask a club admin to appoint you; the show can't be created for this club until then.`;
 
 /**
  * True only when the signed-in user is known and holds no create-show grant for the club.

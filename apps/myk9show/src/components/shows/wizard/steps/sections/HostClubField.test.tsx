@@ -71,7 +71,7 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
   it('explains missing create permission inline only when denied', () => {
     const { unmount } = renderField({ clubCreateDenied: true });
     expect(screen.getByRole('status')).toHaveTextContent(
-      /not an appointed secretary for Summit K9 Masters/i
+      /not a club admin or appointed secretary for Summit K9 Masters/i
     );
     unmount();
     renderField({ clubCreateDenied: false });

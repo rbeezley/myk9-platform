@@ -192,14 +192,18 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
     expect(renderState(CLUB_B).result.current.canAddShow).toBe(true);
   });
 
+  it('shows it to a club admin on their own club, not on another club (MYK9-895)', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+    expect(renderState(CLUB_A).result.current.canAddShow).toBe(true);
+    expect(renderState(CLUB_B).result.current.canAddShow).toBe(false);
+  });
+
   it('hides it from anonymous viewers and roles the wizard route refuses', () => {
     expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
-    for (const role of [
-      UserRole.EXHIBITOR,
-      UserRole.JUDGE,
-      UserRole.CLUB_ADMIN,
-      UserRole.STEWARD,
-    ]) {
+    for (const role of [UserRole.EXHIBITOR, UserRole.JUDGE, UserRole.STEWARD]) {
       expect(CREATE_SHOW_WIZARD_ROLES).not.toContain(role);
       mockAuth.userWithRoles = userWith([role], [clubScope(role, CLUB_A)]);
       expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);

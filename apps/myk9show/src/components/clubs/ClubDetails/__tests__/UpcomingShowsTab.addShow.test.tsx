@@ -21,6 +21,8 @@ describe('UpcomingShowsTab Add First Show (MYK9-890)', () => {
   it('hides it, and says who can add shows, when the viewer cannot', () => {
     render(<UpcomingShowsTab shows={[]} onViewShowDetails={noop} onRegisterForShow={noop} />);
     expect(screen.queryByRole('button', { name: /add first show/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/added by the club's appointed secretaries/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added by the club's admins and appointed secretaries/i)
+    ).toBeInTheDocument();
   });
 });

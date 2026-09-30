@@ -6,6 +6,9 @@
  * junior status. A draft that switched organization after typing a fee therefore never
  * writes it. Edit mode relies on the same rule: a draft that carries no fee sends no key.
  */
+/** Exclusive upper bound; mirrors shows_junior_handler_fee_bounded (< 100000). */
+export const JUNIOR_HANDLER_FEE_LIMIT = 100_000;
+
 export function wizardJuniorHandlerFee(show: {
   organization: string;
   juniorHandlerFee?: number | undefined;

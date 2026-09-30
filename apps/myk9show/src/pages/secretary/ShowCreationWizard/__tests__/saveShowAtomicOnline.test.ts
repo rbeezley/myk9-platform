@@ -159,6 +159,37 @@ describe('saveShowAtomicOnline', () => {
     expect(result.savedShow).toMatchObject({ latitude: 36.15, longitude: -95.99 });
   });
 
+  it('carries the junior handler fee on the saved show and its cache entries', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+    const queryClient = makeQueryClient();
+
+    const withFee = await saveShowAtomicOnline({
+      show: { ...baseShow, juniorHandlerFee: 15 },
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient,
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+    expect(withFee.savedShow.juniorHandlerFee).toBe('15');
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ juniorHandlerFee: '15' })
+    );
+
+    const without = await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+    expect('juniorHandlerFee' in without.savedShow).toBe(false);
+  });
+
   it('returns and caches the selected premium list style on the saved show', async () => {
     rpcMock.mockResolvedValue({ error: null });
     const queryClient = makeQueryClient();

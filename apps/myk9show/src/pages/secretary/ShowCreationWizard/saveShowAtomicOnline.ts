@@ -156,6 +156,12 @@ export async function saveShowAtomicOnline(
     entryCloseDate: show.entryCloseDate || '',
     preEntryFee: String(show.preEntryFee ?? 0),
     dayOfShowFee: String(show.dayOfShowFee ?? 0),
+    // The same value the RPC and the local seed just wrote (absent for ASCA / unset / 0), so
+    // the store and query cache do not show a fee-carrying show as having none.
+    ...(localEntities.show.juniorHandlerFee !== undefined &&
+    localEntities.show.juniorHandlerFee !== null
+      ? { juniorHandlerFee: String(localEntities.show.juniorHandlerFee) }
+      : {}),
     clubId: show.clubId,
     clubName: selectedClub?.name || '',
     clubAddress: formatClubAddress(selectedClub),

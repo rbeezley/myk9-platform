@@ -36,6 +36,28 @@ function baseShow(overrides: Record<string, unknown> = {}) {
   } as Parameters<typeof getShowDetailsValidationMessages>[0];
 }
 
+describe('getShowDetailsValidationMessages — junior handler fee bound', () => {
+  const RULE = 'Junior handler fee must be less than $100,000';
+
+  it.each([
+    [99999.99, false],
+    [100000, true],
+    [1e21, true],
+  ])('a fee of %s blocks the step: %s', (fee, blocked) => {
+    const messages = getShowDetailsValidationMessages(baseShow({ juniorHandlerFee: fee }));
+    expect(messages.includes(RULE)).toBe(blocked);
+  });
+
+  it('ignores a stale over-limit fee on an ASCA show, which hides the field', () => {
+    const show = baseShow({ organization: 'ASCA', juniorHandlerFee: 100000 });
+    expect(getShowDetailsValidationMessages(show)).not.toContain(RULE);
+  });
+
+  it('does not block an unset fee', () => {
+    expect(getShowDetailsValidationMessages(baseShow())).not.toContain(RULE);
+  });
+});
+
 describe('getShowDetailsValidationMessages — entry close vs show start', () => {
   it('accepts entries closing at 11:59 PM on the show start date (day-of entry)', () => {
     expect(getShowDetailsValidationMessages(baseShow())).not.toContain(CLOSE_RULE);

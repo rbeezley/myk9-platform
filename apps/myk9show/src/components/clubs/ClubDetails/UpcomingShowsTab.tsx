@@ -34,7 +34,7 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
         <div className="text-sm text-muted-foreground leading-relaxed mb-5">
           {onAddShow
             ? "This club doesn't have any shows scheduled yet. Add your first show to get started organizing events."
-            : "This club doesn't have any shows scheduled yet. Shows are added by the club's appointed secretaries."}
+            : "This club doesn't have any shows scheduled yet. Shows are added by the club's admins and appointed secretaries."}
         </div>
         {onAddShow && (
           <Button onClick={onAddShow} className="inline-flex items-center gap-2">

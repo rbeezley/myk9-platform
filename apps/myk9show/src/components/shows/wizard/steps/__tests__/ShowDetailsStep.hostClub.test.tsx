@@ -112,7 +112,7 @@ describe('ShowDetailsStep host club advisory (MYK9-887)', () => {
     h.userWithRoles = secretaryOf('c1');
     renderStep('?clubId=c2');
     expect(screen.getByRole('status')).toHaveTextContent(
-      /not an appointed secretary for Other Dog Club/i
+      /not a club admin or appointed secretary for Other Dog Club/i
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

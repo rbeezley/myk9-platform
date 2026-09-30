@@ -122,6 +122,7 @@ const BrowseClubsPage: React.FC = () => {
             const target = new URL(returnTo, window.location.origin);
             if (target.origin === window.location.origin) {
               target.searchParams.set('clubId', createdId);
+              target.searchParams.set('clubCreated', '1');
               navigate(`${target.pathname}${target.search}${target.hash}`);
             } else {
               navigate(`/clubs/${createdId}`);

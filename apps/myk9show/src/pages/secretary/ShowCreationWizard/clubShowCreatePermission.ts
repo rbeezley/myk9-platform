@@ -8,7 +8,7 @@
  * NOT the club's publish approval. The RPC stays the authority at submission.
  */
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useClubShowCreateAccess } from '@/components/clubs/ClubDetails/useClubShowCreateAccess';
+import { useSearchParams } from 'react-router-dom';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import type { UserWithRoles } from '@/types/auth-types';
 
@@ -28,9 +28,23 @@ export function isClubShowCreateDenied(
   return !canCreateShowForClub(user, clubId);
 }
 
+/** BrowseClubsPage's create-and-return navigation adds this flag beside `clubId` (MYK9-887). */
+export const CLUB_CREATED_PARAM = 'clubCreated';
+
+/**
+ * The advisory alert for the wizard. Silent for a club this navigation just created: the
+ * creator's club_admin grant is issued server-side after the club uploads, so scopes can lag.
+ * URL-scoped on purpose: no module or persisted state.
+ */
 export function useClubShowCreateDenied(clubId: string | undefined, enabled = true): boolean {
   const { userWithRoles } = useAuthContext();
-  const access = useClubShowCreateAccess(enabled ? clubId : undefined);
-  // An unloaded identity or unselected club is unknown here, never denied.
-  return enabled && Boolean(userWithRoles && clubId) && access === 'denied';
+  const [searchParams] = useSearchParams();
+  if (!enabled) return false;
+  if (
+    clubId &&
+    searchParams.get(CLUB_CREATED_PARAM) === '1' &&
+    searchParams.get('clubId') === clubId
+  )
+    return false;
+  return isClubShowCreateDenied(userWithRoles, clubId);
 }

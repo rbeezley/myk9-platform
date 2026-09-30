@@ -8,10 +8,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScopeType, UserRole } from '@/types/auth-types';
+import { CREATE_SHOW_WIZARD_ROLES } from '@/routes/createShowWizardAccess';
 import type { RoleScope, UserWithRoles } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
 
@@ -27,10 +28,6 @@ const mockAuth = vi.hoisted(() => ({
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuth,
-}));
-const pendingRead = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown[]>>());
-vi.mock('@/services/replication/sharedMutationManager', () => ({
-  mutationManager: { getPendingMutationsForRow: (...args: unknown[]) => pendingRead(...args) },
 }));
 vi.mock('@/store/clubStore', () => ({
   useClubStore: () => ({ updateClub: vi.fn() }),
@@ -177,48 +174,27 @@ describe('hasClubAdminScope', () => {
 
 describe('useClubDetailsState canAddShow (MYK9-890)', () => {
   beforeEach(() => {
-    pendingRead.mockReset().mockResolvedValue([]);
     mockAuth.userWithRoles = null;
   });
 
-  it("offers Add Show to this club's secretary and admin, and to a site admin", () => {
-    mockAuth.userWithRoles = userWith(
-      [UserRole.SECRETARY],
-      [clubScope(UserRole.SECRETARY, CLUB_A)]
-    );
-    expect(renderState().result.current.canAddShow).toBe(true);
-    mockAuth.userWithRoles = userWith(
-      [UserRole.CLUB_ADMIN],
-      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
-    );
-    expect(renderState().result.current.canAddShow).toBe(true);
-    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
-    expect(renderState().result.current.canAddShow).toBe(true);
+  it('follows the create-wizard route guard: secretary and site admin see it', () => {
+    for (const role of CREATE_SHOW_WIZARD_ROLES) {
+      mockAuth.userWithRoles = userWith([role], []);
+      expect(renderState().result.current.canAddShow).toBe(true);
+    }
   });
 
-  it("hides it from anonymous viewers, exhibitors, and another club's secretary", async () => {
+  it('hides it from anonymous viewers, exhibitors, and other non-wizard roles', () => {
     expect(renderState().result.current.canAddShow).toBe(false);
-    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-    const exhibitor = renderState();
-    await waitFor(() => expect(exhibitor.result.current.canAddShow).toBe(false));
-    mockAuth.userWithRoles = userWith(
-      [UserRole.SECRETARY],
-      [clubScope(UserRole.SECRETARY, CLUB_B)]
-    );
-    const other = renderState();
-    await waitFor(() => expect(other.result.current.canAddShow).toBe(false));
-  });
-
-  it('hides it from a no-scope viewer while the queue read is still loading or paused', () => {
-    pendingRead.mockReturnValue(new Promise(() => {})); // never settles: loading / paused offline
-    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-    expect(renderState().result.current.canAddShow).toBe(false);
-  });
-
-  it('keeps it visible for a club confirmed to have queued local mutations', async () => {
-    pendingRead.mockResolvedValue([{ id: 'm1' }]);
-    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-    const pending = renderState();
-    await waitFor(() => expect(pending.result.current.canAddShow).toBe(true));
+    for (const role of [
+      UserRole.EXHIBITOR,
+      UserRole.JUDGE,
+      UserRole.CLUB_ADMIN,
+      UserRole.STEWARD,
+    ]) {
+      expect(CREATE_SHOW_WIZARD_ROLES).not.toContain(role);
+      mockAuth.userWithRoles = userWith([role], []);
+      expect(renderState().result.current.canAddShow).toBe(false);
+    }
   });
 });

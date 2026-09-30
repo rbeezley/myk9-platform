@@ -358,7 +358,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     fireEvent.click(await screen.findByRole('button', { name: /submit complete club/i }));
 
     expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/secretary/create-show/wizard?source=club-link&clubId=club-new'
+      '/secretary/create-show/wizard?source=club-link&clubId=club-new&clubCreated=1'
     );
   });
 });

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import React from 'react';
 import { ScopeType, UserRole, type UserWithRoles } from '@/types/auth-types';
 import { canCreateShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
-import { isClubShowCreateDenied } from './clubShowCreatePermission';
+import { isClubShowCreateDenied, useClubShowCreateDenied } from './clubShowCreatePermission';
 import { getShowDetailsValidationMessages } from './showCreationWizardValidation';
 
 const scope = (roleId: string, scopeId: string, scopeType = ScopeType.CLUB) => ({
@@ -49,6 +52,38 @@ describe('isClubShowCreateDenied (wizard)', () => {
   it('is unknown, not denied, before identity loads or a club is chosen', () => {
     expect(isClubShowCreateDenied(null, 'c1')).toBe(false);
     expect(isClubShowCreateDenied(user([], []), undefined)).toBe(false);
+  });
+});
+
+const auth = vi.hoisted(() => ({ userWithRoles: null as unknown }));
+vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
+
+function denied(clubId: string, search: string, enabled = true) {
+  return renderHook(() => useClubShowCreateDenied(clubId, enabled), {
+    wrapper: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(MemoryRouter, { initialEntries: [`/wizard${search}`] }, children),
+  }).result.current;
+}
+
+describe('wizard advisory alert (MYK9-887)', () => {
+  it('alerts for an unauthorized club, not for an authorized one', () => {
+    auth.userWithRoles = user([UserRole.SECRETARY], [scope(UserRole.SECRETARY, 'mine')]);
+    expect(denied('other', '?clubId=other')).toBe(true);
+    expect(denied('mine', '?clubId=mine')).toBe(false);
+  });
+
+  it('is silent for the club this navigation just created, but only that club', () => {
+    auth.userWithRoles = user([UserRole.SECRETARY], []);
+    expect(denied('new1', '?clubId=new1&clubCreated=1')).toBe(false);
+    // The user then picks a different club: the flag no longer covers it.
+    expect(denied('other', '?clubId=new1&clubCreated=1')).toBe(true);
+    // Without the flag a club is an ordinary permission miss.
+    expect(denied('new1', '?clubId=new1')).toBe(true);
+  });
+
+  it('does not check when disabled (editing an existing show)', () => {
+    auth.userWithRoles = user([], []);
+    expect(denied('c1', '', false)).toBe(false);
   });
 });
 

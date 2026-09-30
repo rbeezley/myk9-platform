@@ -13,7 +13,7 @@ import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
-import { useClubShowCreateAccess } from './useClubShowCreateAccess';
+import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
 import type { ClubTab, StatCard } from './types';
@@ -96,9 +96,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     });
   }, [userWithRoles, selectedClub, isSiteAdmin]);
 
-  // MYK9-890: Add Show leads to the create wizard, so only offer it to someone it will accept.
-  const createAccess = useClubShowCreateAccess(selectedClub?.id);
-  const canAddShow = createAccess === 'allowed' || createAccess === 'unknown';
+  // MYK9-890: Add Show links to the create wizard, so offer it only to roles that route admits.
+  const canAddShow = canOpenCreateShowWizard(userWithRoles?.roles);
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);

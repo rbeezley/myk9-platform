@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { addDogSchema } from './validation';
 import { createInitialFormData } from './types';
-import { locateInvalidField } from './validationTab';
+import { locateInvalidField, REGISTRATION_HEADING_ID } from './validationTab';
 
 describe('locateInvalidField (MYK9-885)', () => {
   it('sends the required Essential fields to the Essential tab', () => {
@@ -13,6 +13,14 @@ describe('locateInvalidField (MYK9-885)', () => {
   it('sends optional-detail fields to the Optional tab and registrations to Registration', () => {
     expect(locateInvalidField('microchip')?.tab).toBe('optional');
     expect(locateInvalidField('registrations')?.tab).toBe('registration');
+  });
+
+  it('gives every field a focus target, including registrations and the photo', () => {
+    expect(locateInvalidField('registrations')).toEqual({
+      tab: 'registration',
+      elementId: REGISTRATION_HEADING_ID,
+    });
+    expect(locateInvalidField('imageUrl')?.elementId).toBe('dog-photo-button');
   });
 
   it('returns undefined for an unknown field', () => {

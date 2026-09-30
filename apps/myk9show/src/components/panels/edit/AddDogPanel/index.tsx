@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EditPanelWrapper, type EditPanelSaveContext } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -58,19 +58,35 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   // tab holding the first invalid field (MYK9-885).
   const [activeTab, setActiveTab] = useState<TabValue>('basic');
 
+  // Set alongside the tab switch; the effect below focuses the target once
+  // the tab has rendered (handledFocusRef marks it done). A fresh object per failure so the
+  // same field failing twice re-focuses.
+  const [pendingFocus, setPendingFocus] = useState<{ elementId: string } | null>(null);
+
+  const handledFocusRef = useRef<typeof pendingFocus>(null);
+
   const handleValidationFail = (firstErrorField: string) => {
     const location = locateInvalidField(firstErrorField);
     if (!location) return;
     setActiveTab(location.tab);
-    const { elementId } = location;
-    if (!elementId) return;
-    // The target tab mounts on the next render; focus once it has.
-    requestAnimationFrame(() => {
-      const el = document.getElementById(elementId);
+    setPendingFocus({ elementId: location.elementId });
+  };
+
+  useEffect(() => {
+    if (!pendingFocus || handledFocusRef.current === pendingFocus) return;
+    handledFocusRef.current = pendingFocus;
+    const focusTarget = () => {
+      const el = document.getElementById(pendingFocus.elementId);
       el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       el?.focus({ preventScroll: true });
-    });
-  };
+    };
+    focusTarget();
+    // In the dialog variant the focus manager re-focuses the previously
+    // focused control on the next animation frame; focus again after it so the
+    // field keeps focus.
+    const raf = requestAnimationFrame(focusTarget);
+    return () => cancelAnimationFrame(raf);
+  }, [pendingFocus]);
 
   // Stable initial data — recalculated when currentUserPersonId changes.
   // INTENT: when the panel opens with a contextual person (e.g. secretary

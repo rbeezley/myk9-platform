@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AddEditRegistrationDialog } from '../AddEditRegistrationDialog';
+import { getBreedNamesForOrganization } from '@/data/breedData';
 import type { Registration } from '@/types/dog-types';
 
 // Render Dialog + Popover inline so jsdom doesn't fight portals/floating-ui.
@@ -113,17 +114,14 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     );
   });
 
-  it('typing an initial letter lists only breeds starting with it, Golden Retriever included (MYK9-883)', () => {
+  it('typing an initial letter lists breeds starting with it first, Golden Retriever included (MYK9-883)', () => {
     renderDialog(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), { target: { value: 'G' } });
 
-    const options = screen.getAllByRole('option');
-    expect(options.length).toBeGreaterThan(1);
-    for (const option of options) {
-      expect(option.textContent?.trim().toLowerCase().startsWith('g')).toBe(true);
-    }
-    expect(screen.getByRole('option', { name: 'Golden Retriever' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'Beagle' })).toBeNull();
+    const names = screen.getAllByRole('option').map(o => o.textContent?.trim() ?? '');
+    expect(names[0]?.toLowerCase().startsWith('g')).toBe(true);
+    expect(names).toContain('Golden Retriever');
+    expect(names).not.toContain('Beagle');
   });
 
   it('selecting a breed after typing an initial letter sets the breed (MYK9-883)', () => {
@@ -136,14 +134,16 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     );
   });
 
-  it('Enter chooses the first breed for the typed letter (MYK9-883)', () => {
+  it('Enter chooses the first G-breed for "G", not an earlier substring match (MYK9-883)', () => {
     renderDialog(akcRegistration);
     const search = screen.getByPlaceholderText(/search breeds/i);
+    const expected = getBreedNamesForOrganization('AKC').find(b => b.startsWith('G'));
+    expect(expected).toBeDefined();
     fireEvent.change(search, { target: { value: 'G' } });
-    const first = screen.getAllByRole('option')[0]!.textContent?.trim() ?? '';
     fireEvent.keyDown(search, { key: 'Enter' });
 
-    expect(screen.getByRole('combobox', { name: /registered breed/i })).toHaveTextContent(first);
+    const trigger = screen.getByRole('combobox', { name: /registered breed/i });
+    expect(trigger).toHaveTextContent(expected!);
   });
 });
 

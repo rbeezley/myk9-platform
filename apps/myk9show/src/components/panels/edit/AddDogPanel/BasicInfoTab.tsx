@@ -89,6 +89,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <div className="flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm">
           <button
             type="button"
+            id="dog-photo-button"
             onClick={onPhotoOpen}
             aria-label={formData.imageUrl ? 'Change dog photo' : 'Add dog photo'}
             className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-300 hover:scale-105 active:scale-95"

@@ -90,7 +90,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
         <Button
           asChild
           variant={selectedClub ? 'link' : 'outline'}
-          className={selectedClub ? 'h-auto p-0 text-sm' : CREATE_BTN_CLASS}
+          className={selectedClub ? 'h-auto min-h-[44px] px-0 py-2 text-sm' : CREATE_BTN_CLASS}
         >
           <Link to={createClubHref}>
             <Plus className="mr-2 h-4 w-4" />

@@ -72,6 +72,7 @@
     "qa:worktree-liveness:test": "vitest run scripts/qa/worktree-liveness.test.ts",
     "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts",
     "qa:ci-concurrency:test": "vitest run scripts/qa/ci-concurrency.test.ts",
+    "qa:deploy-picker:test": "vitest run scripts/qa/pick-deploy-commit.test.ts",
     "qa:shared-rules": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/sync-shared-rules.ts",
     "qa:shared-rules:write": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/sync-shared-rules.ts --write",
     "qa:shared-rules:test": "vitest run scripts/qa/sync-shared-rules.test.ts",

@@ -275,6 +275,7 @@ jobs:
           pnpm qa:worktree-liveness:test
           pnpm qa:primary-checkout:test
           pnpm qa:ci-concurrency:test
+          pnpm qa:deploy-picker:test
           pnpm qa:shared-rules:test
           pnpm qa:shared-rules
 

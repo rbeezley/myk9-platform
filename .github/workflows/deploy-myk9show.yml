@@ -47,41 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin main --no-tags
-
-          green_shas="$(gh run list --workflow CI --branch main --event push --status success --limit 100 --json headSha --jq '.[].headSha')"
-
-          if [[ -z "$REQUESTED_SHA" ]]; then
-            # gh lists newest first, so the first green SHA is the newest one.
-            commit_sha="$(head -n 1 <<<"$green_shas")"
-            [[ -n "$commit_sha" ]] || {
-              echo "no successful main CI push run found" >&2
-              exit 1
-            }
-          else
-            commit_sha="$REQUESTED_SHA"
-            [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || {
-              echo "commit_sha must be a full 40-character SHA" >&2
-              exit 1
-            }
-            grep -Fxq "$commit_sha" <<<"$green_shas" || {
-              echo "no successful main CI push run found for $commit_sha" >&2
-              exit 1
-            }
-          fi
-
-          git merge-base --is-ancestor "$commit_sha" origin/main || {
-            echo "$commit_sha is not reachable from origin/main" >&2
-            exit 1
-          }
-
-          behind="$(git rev-list --count "$commit_sha..origin/main")"
-          echo "commit_sha=$commit_sha" >>"$GITHUB_OUTPUT"
-          {
-            echo "### myK9Show deploy"
-            echo ""
-            echo "- Commit: \`$commit_sha\` ($(git log -1 --format=%s "$commit_sha"))"
-            echo "- Commits on main not included (still in CI or failed it): $behind"
-          } >>"$GITHUB_STEP_SUMMARY"
+          bash scripts/qa/pick-deploy-commit.sh
 
   deploy:
     name: Build and deploy to Vercel production
@@ -117,6 +83,16 @@ jobs:
       - name: Build
         run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
 
+      # MYK9-896: stamp the built output with the commit it was built from, so
+      # the verify step can prove production serves THIS commit.
+      - name: Stamp the build with its commit
+        env:
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$COMMIT_SHA" ]]
+          printf '%s\n' "$COMMIT_SHA" >.vercel/output/static/build-sha.txt
+
       - name: Deploy the prebuilt output
         id: deploy
         run: |
@@ -132,6 +108,7 @@ jobs:
       - name: Verify myk9show.com serves this deployment
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
         run: |
           set -euo pipefail
           ref="${DEPLOYMENT_URL#https://}"
@@ -171,8 +148,21 @@ jobs:
             echo "entry chunk mismatch after 60s: default alias=$default_alias myk9show.com=$public" >&2
             exit 1
           }
+          # MYK9-896: the chunk comparison cannot tell an old build from a new
+          # one, so also require the live site to report this exact commit.
+          served=""
+          for attempt in 1 2 3 4 5 6; do
+            served="$(curl --silent --location "https://myk9show.com/build-sha.txt?v=$COMMIT_SHA-$attempt" | tr -d '[:space:]' || true)"
+            [[ "$served" == "$COMMIT_SHA" ]] && break
+            echo "attempt $attempt: myk9show.com/build-sha.txt=$served expected=$COMMIT_SHA"
+            if [[ $attempt -lt 6 ]]; then sleep 10; fi
+          done
+          [[ "$served" == "$COMMIT_SHA" ]] || {
+            echo "myk9show.com serves commit '$served', expected $COMMIT_SHA" >&2
+            exit 1
+          }
           rm -f deployment.json aliases.json
           {
             echo "- Deployment: $DEPLOYMENT_URL (\`$deployment_id\`)"
-            echo "- myk9show.com serves \`$public\`"
+            echo "- myk9show.com serves \`$public\` built from \`$COMMIT_SHA\`"
           } >>"$GITHUB_STEP_SUMMARY"

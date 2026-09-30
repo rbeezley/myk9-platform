@@ -1,7 +1,9 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from 'workbox-precaching';
+import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { installSkipWaitingHandler } from '@myk9/pwa-update/sw';
 import { getNotificationActionUrl, routeNotificationClick } from './swClickNavigation';
+import { loadRingsideNavigation } from './ringsideNavigation';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -9,6 +11,18 @@ declare const self: ServiceWorkerGlobalScope & {
 
 // Workbox precaching — vite-plugin-pwa injects the manifest here
 precacheAndRoute(self.__WB_MANIFEST);
+
+// A full reload requests the deep-link document, not /index.html. The handler
+// bounds the network wait and rejects non-app responses before using the
+// precached shell. NavigationRoute ignores API and asset requests; the
+// allowlist keeps other app paths untouched.
+const precachedShell = createHandlerBoundToURL('/index.html');
+registerRoute(
+  new NavigationRoute(
+    options => loadRingsideNavigation(options.request, () => precachedShell(options)),
+    { allowlist: [/^\/at-show(?:\/|$)/] }
+  )
+);
 
 // Activate the new SW immediately when the page asks (prompt-then-skip-waiting pattern).
 installSkipWaitingHandler(self);

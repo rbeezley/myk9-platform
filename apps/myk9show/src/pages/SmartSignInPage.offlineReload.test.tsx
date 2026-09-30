@@ -19,6 +19,8 @@ import { Routes, Route } from 'react-router-dom';
 import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import SmartSignInPage from './SmartSignInPage';
 import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
+import { RingsideShowBoundary } from '@/features/at-show/RingsideShowBoundary';
+import { replicatedShowsTable } from '@/services/replication';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
 vi.mock('@/components/security/TurnstileChallenge', () => ({
@@ -125,6 +127,57 @@ describe('SmartSignInPage → offline reload (MYK9-834)', () => {
 
   afterEach(() => {
     setOnline(originalOnLine);
+    vi.restoreAllMocks();
+  });
+
+  it('opens a cold draft show after an anonymous judge enters its passcode', async () => {
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'draft-show',
+      showName: 'Draft Trial',
+    });
+    const getShow = vi
+      .spyOn(replicatedShowsTable, 'getShowById')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'draft-show' } as never);
+    const sync = vi
+      .spyOn(replicatedShowsTable, 'sync')
+      .mockResolvedValue({ success: true } as never);
+    vi.spyOn(replicatedShowsTable, 'updateSyncMetadata').mockResolvedValue(undefined);
+
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/draft-show'));
+
+    mockUser = {
+      id: 'anon-judge',
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'draft-show', ringside_role: 'judge' },
+    };
+    render(
+      <Routes>
+        <Route
+          path="/at-show/:showId"
+          element={
+            <AtShowAccessGate>
+              <RingsideShowBoundary>
+                <div>DRAFT RING OPEN</div>
+              </RingsideShowBoundary>
+            </AtShowAccessGate>
+          }
+        />
+      </Routes>,
+      { initialRoute: '/at-show/draft-show' }
+    );
+
+    expect(await screen.findByText('DRAFT RING OPEN')).toBeInTheDocument();
+    expect(getShow).toHaveBeenCalledTimes(2);
+    expect(sync).toHaveBeenCalledWith('');
+    expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
   });
 
   it('persists the confirmed claim on normal passcode entry, and the ring survives an offline reload', async () => {

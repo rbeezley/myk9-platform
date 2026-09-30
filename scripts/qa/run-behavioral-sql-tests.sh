@@ -70,6 +70,7 @@ TEST_FILES=(
   "$TEST_DIR/judge_assignment_touches_class_test.sql"
   "$TEST_DIR/judge_qualification_rpc_authorization_test.sql"
   "$TEST_DIR/myk9_833_judge_draft_show_visibility_test.sql"
+  "$TEST_DIR/myk9_819_passcode_draft_visibility_test.sql"
   "$TEST_DIR/myk9_841_staff_on_behalf_entries_accepted_test.sql"
   "$TEST_DIR/myk9_854_dogs_select_show_scoped_secretary_test.sql"
   "$TEST_DIR/office_admin_rls_test.sql"

@@ -14,6 +14,8 @@ interface RegistrationTabProps {
   onAddRegistration: () => void;
 }
 
+import { REGISTRATION_HEADING_ID } from './validationTab';
+
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,
   onEditRegistration,
@@ -28,7 +30,11 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle
+          id={REGISTRATION_HEADING_ID}
+          tabIndex={-1}
+          className="flex items-center gap-2 focus:outline-none"
+        >
           <FileText className="h-5 w-5 text-primary" />
           Registration Information
         </CardTitle>

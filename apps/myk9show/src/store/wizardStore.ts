@@ -214,9 +214,8 @@ const TRIAL_STEP = 1;
 
 /**
  * The one step transition, shared by setCurrentStep and goToStep (the step
- * header calls goToStep). Only the forward move off Basics (0 to a later step)
- * realigns trials: Back or a later-step move must not undo a date the
- * secretary chose. Leaving the trial step clears the moved-dates notice.
+ * header). Only the forward move off Basics realigns trials; Back must not undo
+ * a chosen date. Leaving the trial step clears the moved-dates notice.
  */
 function stepTransitionPatch(state: WizardState, step: number): Partial<WizardState> {
   const aligned = state.currentStep === 0 && step > 0 ? alignedTrialsPatch(state) : undefined;
@@ -224,7 +223,8 @@ function stepTransitionPatch(state: WizardState, step: number): Partial<WizardSt
   return {
     ...aligned,
     ...(!aligned && leavingTrials ? { trialsMovedCount: 0 } : {}),
-    currentStep: step,
+    // Moved dates land on the Trials step so the notice is seen, not skipped.
+    currentStep: aligned ? TRIAL_STEP : step,
   };
 }
 
@@ -425,6 +425,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             ...draft,
             cloneGeneration: state.cloneGeneration + 1,
             cloneHydration: initialState.cloneHydration,
+            trialsMovedCount: 0,
             isDirty: false,
           };
           return ensureShowDefaults(merged);

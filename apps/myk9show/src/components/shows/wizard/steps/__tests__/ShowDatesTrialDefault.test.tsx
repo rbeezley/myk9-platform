@@ -113,7 +113,7 @@ describe('show dates and trial default (MYK9-884, MYK9-892, MYK9-888)', () => {
 
     const add = screen.getAllByRole('button', { name: 'Add Another Trial' })[0]!;
     expect(add).toHaveAccessibleDescription(
-      'Add Another Trial adds a trial on another day. Use Next when all your trials are listed.'
+      'Add Another Trial adds one more trial — check its date in the new card. Use Next when all your trials are listed.'
     );
 
     await user.click(add);

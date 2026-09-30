@@ -421,8 +421,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
           {showAddAnotherHelp && (
             <p id="trial-add-another-help" className="text-sm text-muted-foreground">
-              Add Another Trial adds a trial on another day. Use Next when all your trials are
-              listed.
+              Add Another Trial adds one more trial — check its date in the new card. Use Next when
+              all your trials are listed.
             </p>
           )}
 

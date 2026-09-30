@@ -7,7 +7,7 @@ const store = () => useWizardStore.getState();
 const t = (dateTime: string) => ({ dateTime });
 
 describe('step header navigation realigns like Next (MYK9-884)', () => {
-  it('realigns when a later step is reached through goToStep', () => {
+  const seedOldTrial = () => {
     store().updateShowData({ startDate: local(2026, 7, 1), endDate: local(2026, 7, 1) });
     store().addTrial({
       nameOverride: undefined,
@@ -15,15 +15,40 @@ describe('step header navigation realigns like Next (MYK9-884)', () => {
       eventNumber: '',
       classes: [],
     });
-    store().markStepCompleted(0);
-    store().markStepCompleted(1);
+    [0, 1, 2].forEach(step => store().markStepCompleted(step));
+  };
+
+  it('lands on the Trials step when a header jump past it moved trial dates', () => {
+    seedOldTrial();
     store().updateShowData({ startDate: local(2026, 8, 15) });
     store().updateShowData({ endDate: local(2026, 8, 15) });
 
-    store().goToStep(2);
+    store().goToStep(3);
 
-    expect(store().currentStep).toBe(2);
     expect(store().trials.map(x => x.dateTime)).toEqual(['2026-08-15T08:00:00']);
+    expect(store().currentStep).toBe(1);
+    expect(store().trialsMovedCount).toBe(1);
+  });
+
+  it('goes to the requested step when no trial moved', () => {
+    seedOldTrial();
+
+    store().goToStep(3);
+
+    expect(store().currentStep).toBe(3);
+    expect(store().trialsMovedCount).toBe(0);
+  });
+});
+
+describe('moved-dates count does not survive a new draft', () => {
+  it('resets on loadDraft and resetWizard', () => {
+    useWizardStore.setState({ trialsMovedCount: 2 });
+    store().loadDraft({});
+    expect(store().trialsMovedCount).toBe(0);
+
+    useWizardStore.setState({ trialsMovedCount: 2 });
+    store().resetWizard();
+    expect(store().trialsMovedCount).toBe(0);
   });
 });
 

@@ -120,4 +120,25 @@ describe('ClubEditPanel create mode — guided sections', () => {
       '5 required · 1 to fix'
     );
   });
+
+  it.each(['create', 'edit'] as const)(
+    'reopens on Basic Info after being closed on Contact (%s mode)',
+    async mode => {
+      const user = userEvent.setup();
+      const props = {
+        clubId: 'club-1',
+        clubName: 'Heartland',
+        initialClubData: { id: 'club-1', name: 'Heartland' },
+        mode,
+      };
+      const { rerender } = render(<ClubEditPanel open onClose={() => {}} {...props} />);
+      await user.click(await screen.findByRole('tab', { name: /^Contact/ }));
+      expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true');
+
+      rerender(<ClubEditPanel open={false} onClose={() => {}} {...props} />);
+      rerender(<ClubEditPanel open onClose={() => {}} {...props} />);
+
+      await waitFor(() => expect(tab(/^Basic Info/)).toHaveAttribute('aria-selected', 'true'));
+    }
+  );
 });

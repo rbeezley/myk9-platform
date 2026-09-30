@@ -343,8 +343,14 @@ const ClubEditForm: React.FC<{
   );
 };
 
-// Main component
-export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
+// Main component. Keyed on `open` so every open starts on Basic Info with no
+// pending focus: callers keep this mounted while closed, and the tab state is
+// lifted out of the tab content (MYK9-891). Same approach as AddDogPanel.
+export const ClubEditPanel: React.FC<ClubEditPanelProps> = props => (
+  <ClubEditPanelSession key={props.open ? 'open' : 'closed'} {...props} />
+);
+
+const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   open,
   onClose,
   clubId,

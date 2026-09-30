@@ -28,8 +28,9 @@ const mockAuth = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuth,
 }));
+const pendingRead = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown[]>>());
 vi.mock('@/services/replication/sharedMutationManager', () => ({
-  mutationManager: { getPendingMutationsForRow: async () => [] },
+  mutationManager: { getPendingMutationsForRow: (...args: unknown[]) => pendingRead(...args) },
 }));
 vi.mock('@/store/clubStore', () => ({
   useClubStore: () => ({ updateClub: vi.fn() }),
@@ -176,6 +177,7 @@ describe('hasClubAdminScope', () => {
 
 describe('useClubDetailsState canAddShow (MYK9-890)', () => {
   beforeEach(() => {
+    pendingRead.mockReset().mockResolvedValue([]);
     mockAuth.userWithRoles = null;
   });
 
@@ -205,5 +207,18 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
     );
     const other = renderState();
     await waitFor(() => expect(other.result.current.canAddShow).toBe(false));
+  });
+
+  it('hides it from a no-scope viewer while the queue read is still loading or paused', () => {
+    pendingRead.mockReturnValue(new Promise(() => {})); // never settles: loading / paused offline
+    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
+    expect(renderState().result.current.canAddShow).toBe(false);
+  });
+
+  it('keeps it visible for a club confirmed to have queued local mutations', async () => {
+    pendingRead.mockResolvedValue([{ id: 'm1' }]);
+    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
+    const pending = renderState();
+    await waitFor(() => expect(pending.result.current.canAddShow).toBe(true));
   });
 });

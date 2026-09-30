@@ -97,7 +97,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
   }, [userWithRoles, selectedClub, isSiteAdmin]);
 
   // MYK9-890: Add Show leads to the create wizard, so only offer it to someone it will accept.
-  const canAddShow = useClubShowCreateAccess(selectedClub?.id) !== 'denied';
+  const createAccess = useClubShowCreateAccess(selectedClub?.id);
+  const canAddShow = createAccess === 'allowed' || createAccess === 'unknown';
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);

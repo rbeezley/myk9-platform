@@ -14,7 +14,17 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { canCreateShowForClub } from './clubPermissions';
 
-export type ClubShowCreateAccess = 'allowed' | 'denied' | 'unknown';
+/**
+ * Rule (one, for both callers):
+ * - `allowed`:  the user's scopes grant the club.
+ * - `unknown`:  ONLY a club CONFIRMED to have queued local mutations (just created, grant pending).
+ * - `checking`: no grant and the queue read has not settled (loading, or paused offline).
+ * - `denied`:   no grant and the queue read settled with nothing queued (or no user/club).
+ * The club page shows Add Show only for `allowed`/`unknown`, so a viewer without a grant never
+ * sees it flash or linger while the read is loading or paused. The wizard alerts only on
+ * `denied`, so it never warns before the read settles.
+ */
+export type ClubShowCreateAccess = 'allowed' | 'denied' | 'unknown' | 'checking';
 
 const PENDING_POLL_MS = 1500;
 
@@ -51,5 +61,6 @@ export function useClubShowCreateAccess(clubId: string | undefined): ClubShowCre
 
   if (!userWithRoles || !clubId) return 'denied';
   if (canCreateShowForClub(userWithRoles, clubId)) return 'allowed';
-  return pending.data === false ? 'denied' : 'unknown';
+  if (pending.data === true) return 'unknown';
+  return pending.data === false ? 'denied' : 'checking';
 }

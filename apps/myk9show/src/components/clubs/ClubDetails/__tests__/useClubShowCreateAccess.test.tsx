@@ -49,10 +49,18 @@ describe('useClubShowCreateAccess', () => {
     h.pending.mockResolvedValue([{ id: 'm1' }]);
     const { result } = renderHook(() => useClubShowCreateAccess('new1'), { wrapper });
     await waitFor(() => expect(h.pending).toHaveBeenCalledWith('clubs', 'new1'));
-    expect(result.current).toBe('unknown');
+    await waitFor(() => expect(result.current).toBe('unknown'));
     const denied = renderHook(() => useClubShowCreateDenied('new1'), { wrapper });
     await waitFor(() => expect(h.pending).toHaveBeenCalledTimes(2));
     expect(denied.result.current).toBe(false);
+  });
+
+  it('is checking (no alert, not allowed) while the queue read has not settled', () => {
+    h.pending.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useClubShowCreateAccess('other'), { wrapper });
+    expect(result.current).toBe('checking');
+    const wizard = renderHook(() => useClubShowCreateDenied('other'), { wrapper });
+    expect(wizard.result.current).toBe(false);
   });
 
   it('still denies an ordinary unauthorized club (nothing queued) and allows an owned one', async () => {

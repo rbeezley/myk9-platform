@@ -141,9 +141,9 @@ tab they land on, never the redirect:
 
 **Outcome:** Secretary creates a show with trials, classes, judges, and entry dates, and publishes it.
 **Canonical route:** `/secretary/create-show/wizard` _(source-map re-verified 2026-09-01)_
-**Entry point:** Secretary Dashboard → Add Show
+**Entry point:** Secretary Dashboard → Add Show; a club's own page (`/clubs/:id`) also offers Add Show, shown only to viewers the wizard route admits (`CREATE_SHOW_WIZARD_ROLES` in `routes/createShowWizardAccess.ts`: secretary, site admin) who also hold create permission for that club (`canCreateShowForClub` in `components/clubs/ClubDetails/clubPermissions.ts`)
 **Alternate route:** `/shows/new` redirects here for callers using the conventional creation URL.
-**Note:** Source-map entry re-verified 2026-09-01 after adding the `/shows/new` redirect; the guide-facing show-creation flow is unchanged.
+**Note:** Re-verified 2026-09-30 (MYK9-887/889/890). Step 1's Host Club field (`HostClubField.tsx`) names the selected club ("Hosting club: …") and offers "Not the right club? Create New Club" as the exception; when the user holds no create grant for the chosen club it shows an advisory yellow notice (never blocks Next; the create RPC stays authoritative), silenced for a club just created via the `clubCreated=1` return flag. The route guard itself is unchanged, now sourced from `CREATE_SHOW_WIZARD_ROLES`. Earlier: re-verified 2026-09-01 after adding the `/shows/new` redirect.
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`
 
 ### 13. Monitor all shows (cross-show triage)

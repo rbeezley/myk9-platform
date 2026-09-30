@@ -47,6 +47,7 @@ export interface ShowEditFormData extends Record<string, unknown> {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee: string;
+  juniorHandlerFee?: string;
   assignedJudges: ShowJudgeAssignment[];
   // Additional optional fields
   startingArmbandNumber?: number;

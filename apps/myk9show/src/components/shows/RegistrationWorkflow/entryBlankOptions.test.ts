@@ -12,6 +12,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
         endDate: '2026-08-09',
         entryCloseDate: '2026-07-30',
         preEntryFee: '25',
+        juniorHandlerFee: '15',
         clubName: 'Prairie Dog Club',
         clubEmail: 'secretary@prairie.example',
       },
@@ -193,6 +194,12 @@ describe('buildRegistrationEntryBlankDownloads', () => {
           zip_code: '53703',
         },
       },
+    });
+    // The show is hand-projected into the builder's options, so a field added to the
+    // show can be dropped on the last hop: pin the fee on the real prop shape.
+    expect(result.downloads[0]?.options.show).toMatchObject({
+      pre_entry_fee: 25,
+      junior_handler_fee: 15,
     });
   });
 });

@@ -99,3 +99,13 @@ describe('areAssignedJudgesEqual', () => {
     ).toBe(false);
   });
 });
+
+describe('replicatedToShow — juniorHandlerFee', () => {
+  it('carries the fee as a string and reads an unset fee as undefined', () => {
+    expect(replicatedToShow({ ...baseRow, juniorHandlerFee: 15 }).juniorHandlerFee).toBe('15');
+    expect(replicatedToShow({ ...baseRow, juniorHandlerFee: null }).juniorHandlerFee).toBe(
+      undefined
+    );
+    expect(replicatedToShow(baseRow).juniorHandlerFee).toBe(undefined);
+  });
+});

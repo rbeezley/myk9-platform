@@ -296,6 +296,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     weight: dbDog.weight ? String(dbDog.weight) : undefined,
     height: dbDog.height ? String(dbDog.height) : undefined,
     ownerId: dbDog.owner_id as string,
+    ...(typeof dbDog.co_owner_id === 'string' ? { coOwnerId: dbDog.co_owner_id } : {}),
     ownerName: dbDog.owner
       ? `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim()
       : '',

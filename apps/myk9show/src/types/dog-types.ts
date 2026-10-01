@@ -157,6 +157,8 @@ export interface Dog {
   sex: 'male' | 'female'; // Required field
   age?: number | undefined; // Or consider dateOfBirth for more precision
   ownerId: string; // Owner ID
+  /** Co-owner person id (`dogs.co_owner_id`). Present only on dogs read from PostgREST; the offline replica does not carry it. */
+  coOwnerId?: string | undefined;
   ownerName?: string | undefined; // Owner name for easier display
   owner?: Owner | undefined; // Owner object (can be populated later)
   description?: string | undefined;

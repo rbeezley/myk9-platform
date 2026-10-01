@@ -52,7 +52,7 @@ const props = {
   onStatusChange: vi.fn(),
   onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
-  onRemoveEntry: vi.fn(),
+  onEntryRemoved: vi.fn(),
 };
 
 describe('junior badge through the money root', () => {

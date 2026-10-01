@@ -1241,52 +1241,6 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
   }
 };
 
-// Count a dog's live (non-soft-deleted) entries.
-//
-// Deliberately a DIRECT PostgREST head-count, NOT the replication layer:
-// entries replicate per-show, so a user who hasn't entered an /at-show session
-// has an empty local store and getEntriesByDog would return 0 — a false count.
-// This drives the delete-dog confirmation warning, which must be accurate
-// regardless of sync state. It is an authed action (not a public route) and not
-// offline-critical, so a direct read is appropriate.
-export const countActiveEntriesByDog = async (dogId: string): Promise<number> => {
-  const { count, error } = await supabase
-    .from('entries')
-    .select('id', { count: 'exact', head: true })
-    .eq('dog_id', dogId)
-    .is('deleted_at', null);
-  if (error) throw error;
-  return count ?? 0;
-};
-
-// Count a dog's live entries that BLOCK a delete (MK002).
-//
-// MYK9-822: an RPC, not a PostgREST filter. It calls
-// private.count_dog_blocking_entries — the SAME SECURITY DEFINER predicate
-// soft_delete_dog's guard calls — so this can never drift from the server the
-// way the old client-side `.or()` filter did. That filter had to omit
-// result_status (MYK9-799: migration
-// 20260620001929_restrict_authenticated_entry_results.sql revoked
-// `authenticated`'s column-SELECT grant on it, and naming an ungranted column
-// inside a PostgREST `or()` makes PostgREST refuse the WHOLE request with
-// 403), which made it a NARROWER predicate than the guard: an entry can carry
-// a settled result_status ('absent' or 'excused') without is_scored or
-// scoring_completed_at ever being set (20260712180000, 20260904160000;
-// replicatedRunQueue.ts documents a real staging row in that state). The RPC
-// runs SECURITY DEFINER, so it reads result_status directly and closes that
-// gap without widening the column grant.
-//
-// 'refunded' and 'waived' do not block: no money is being kept. A direct
-// RPC call for the same reason countActiveEntriesByDog above is a direct
-// head-count — a per-show-replicated local store cannot answer this honestly.
-export const countBlockingEntriesByDog = async (dogId: string): Promise<number> => {
-  const { data, error } = await supabase.rpc('count_blocking_entries_by_dog', {
-    p_dog_id: dogId,
-  });
-  if (error) throw error;
-  return data ?? 0;
-};
-
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({

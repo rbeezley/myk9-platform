@@ -596,15 +596,17 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
  * the delete to a different user than the authenticated session (which the
  * old app-layer path technically allowed via direct UPDATE).
  */
-export const deleteClass = async (id: string, _deletedBy?: string) => {
+export const deleteClass = async (
+  id: string,
+  _deletedBy?: string,
+  options: { override?: boolean } = {}
+) => {
   try {
     log('deleteClass', 'Soft deleting class via RPC', { id });
 
-    // Cast: generated supabase types don't yet include this RPC; matches the
-    // pattern used for `soft_delete_dog` in dogQueries.ts.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.rpc as any)('soft_delete_class', {
+    const { error } = await supabase.rpc('soft_delete_class', {
       p_class_id: id,
+      ...(options.override ? { p_override: true } : {}),
     });
 
     if (error) {

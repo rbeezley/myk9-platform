@@ -126,7 +126,6 @@ export interface ClubStoreState {
   selectClub: (id: string, userId?: string | null) => void;
   addClub: (club: Club) => Promise<string | undefined>;
   updateClub: (club: Club) => Promise<void>;
-  removeClub: (clubId: string) => Promise<void>;
 
   // Subscription management
   _unsubscribe: (() => void) | null;
@@ -324,26 +323,6 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update club';
       logger.error('Failed to update club', 'clubs', {}, error as Error);
-      set({ error: errorMessage });
-    }
-  },
-
-  /**
-   * Remove a club (from local cache)
-   */
-  removeClub: async (clubId: string) => {
-    try {
-      await replicatedClubsTable.deleteClubLocal(clubId);
-
-      // Update local state
-      set(state => ({
-        clubs: state.clubs.filter(c => c.id !== clubId),
-        selectedClubId: state.selectedClubId === clubId ? '' : state.selectedClubId,
-        selectedClubUserId: state.selectedClubId === clubId ? null : state.selectedClubUserId,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to remove club';
-      logger.error('Failed to remove club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     }
   },

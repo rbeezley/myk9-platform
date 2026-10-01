@@ -206,9 +206,18 @@ export const updateTrial = async (id: string, updates: DbTrialUpdate) => {
 // Soft delete a trial and everything under it, through soft_delete_trial. The
 // server stamps deleted_by from auth.uid() and refuses (MK010) a trial holding paid or
 // scored entries; a direct update of deleted_at is refused by the direct-write trigger.
-export const deleteTrial = async (id: string, deletedBy?: string) => {
+export const deleteTrial = async (
+  id: string,
+  deletedBy?: string,
+  options: { override?: boolean } = {}
+) => {
   void deletedBy;
-  return await supabase.rpc('soft_delete_trial', { p_trial_id: id }).single();
+  return await supabase
+    .rpc('soft_delete_trial', {
+      p_trial_id: id,
+      ...(options.override ? { p_override: true } : {}),
+    })
+    .single();
 };
 
 // Hard delete a trial (permanent removal)

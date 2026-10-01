@@ -7,12 +7,10 @@ import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
-  deleteEntry,
   getEntriesForExport,
   compEntry,
   uncompEntry,
   executeStatusChange,
-  executeRemoveEntry,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
@@ -73,7 +71,11 @@ interface UseEntryManagementActionsReturn {
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
-  handleRemoveEntry: (entryId: string) => Promise<void>;
+  /**
+   * The shared delete dialog removed this entry (soft delete, with Undo): drop it from the
+   * page's list. The server call and the replica purge already happened in the dialog.
+   */
+  handleEntryRemoved: (entryId: string) => void;
   handleSendDecisionEmail: (
     registrationId: string,
     message?: string,
@@ -519,19 +521,11 @@ export function useEntryManagementActions({
     [entriesRef, setEntries, setError, user]
   );
 
-  const handleRemoveEntry = useCallback(
-    async (entryId: string) => {
-      const currentEntries = entriesRef.current;
-      const entry = currentEntries.find(e => e.id === entryId);
-      const { removed } = await executeRemoveEntry(
-        { entryId, userId: user?.id, currentEntries },
-        { deleteEntry, patchEntries: setEntries, setError }
-      );
-      if (removed && entry) {
-        toast.success(`Removed ${entry.dogName} from ${entry.classes[0]?.name ?? 'the class'}`);
-      }
+  const handleEntryRemoved = useCallback(
+    (entryId: string) => {
+      setEntries(prev => prev.filter(entry => entry.id !== entryId));
     },
-    [setEntries, setError, user?.id]
+    [setEntries]
   );
 
   const statusToDecision = (
@@ -622,7 +616,7 @@ export function useEntryManagementActions({
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
-    handleRemoveEntry,
+    handleEntryRemoved,
     handleSendDecisionEmail,
   };
 }

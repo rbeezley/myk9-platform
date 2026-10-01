@@ -32,6 +32,7 @@ vi.mock('@myk9/core', () => ({
 }));
 
 import { ReplicatedEntriesTable, type ReplicatedEntry } from '../ReplicatedEntriesTable';
+import { deletePayload } from '../pendingDeletes';
 
 describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
   let table: ReplicatedEntriesTable;
@@ -92,13 +93,35 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
     expect(await table.hasPendingWritesForShow('show-2')).toBe(false);
   });
 
+  /**
+   * A DELETE an earlier client queued. No app path queues an entry DELETE any
+   * more (CRUD standard Phase 2: soft_delete_entry), but a device can still hold
+   * one, and the sync must keep honouring it.
+   */
+  const queuedDeleteFromEarlierClient = async (id: string) => {
+    const row = await table.get(id);
+    pending.push(
+      fromAny<PendingMutation, unknown>({
+        tableName: 'entries',
+        operation: 'DELETE',
+        rowId: id,
+        data: deletePayload(id, row),
+      })
+    );
+    await table.delete(id);
+  };
+
+  it('exposes no method that queues an entry DELETE (soft delete goes through the RPC)', () => {
+    expect('deleteEntry' in table).toBe(false);
+  });
+
   it('hands the sync engine this show’s server-backed deletes that are still queued', async () => {
     await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
     await seed({ id: 'e2', classId: 'c1', showId: 'show-2' });
     await seed({ id: 'local', classId: 'c1', showId: 'show-1', _localOnly: true }, true);
-    await table.deleteEntry('e1');
-    await table.deleteEntry('e2');
-    await table.deleteEntry('local');
+    await queuedDeleteFromEarlierClient('e1');
+    await queuedDeleteFromEarlierClient('e2');
+    await queuedDeleteFromEarlierClient('local');
 
     await table.sync('show-1');
 

@@ -5,7 +5,8 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 
 // MYK9-900: Setup's rows come from trialStore.trialClasses, not React Query. After a successful
-// delete the class must leave the store immediately, not after the ~60s background sync.
+// save the replica and the store refresh. (Delete is the shared dialog; its purge is tested in
+// features/delete/deletePurge.test.ts.)
 
 const replicatedDelete = vi.hoisted(() => vi.fn());
 const replicatedSync = vi.hoisted(() => vi.fn());
@@ -52,30 +53,6 @@ describe('useClassEditActions store refresh', () => {
     });
   });
 
-  it('removes the deleted class from the store as soon as the delete resolves', async () => {
-    const deleteClass = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() =>
-      useClassEditActions({ showId: 's1', updateClass: vi.fn(), deleteClass })
-    );
-
-    await result.current.removeClass('c1');
-
-    expect(deleteClass).toHaveBeenCalledWith('c1');
-    expect(replicatedDelete).toHaveBeenCalledWith('c1');
-    expect(useTrialStore.getState().trialClasses.t1.map(c => c.id)).toEqual(['c2']);
-  });
-
-  it('leaves the store untouched when the delete fails', async () => {
-    const deleteClass = vi.fn().mockRejectedValue(new Error('boom'));
-    const { result } = renderHook(() =>
-      useClassEditActions({ showId: 's1', updateClass: vi.fn(), deleteClass })
-    );
-
-    await expect(result.current.removeClass('c1')).rejects.toThrow('boom');
-
-    expect(useTrialStore.getState().trialClasses.t1.map(c => c.id)).toEqual(['c1', 'c2']);
-  });
-
   it('refreshes the replica and the store after a successful save', async () => {
     const loadTrialClasses = vi.fn().mockResolvedValue(undefined);
     useTrialStore.setState({ loadTrialClasses });
@@ -83,7 +60,6 @@ describe('useClassEditActions store refresh', () => {
       useClassEditActions({
         showId: 's1',
         updateClass: vi.fn().mockResolvedValue(undefined),
-        deleteClass: vi.fn(),
       })
     );
 
@@ -99,7 +75,6 @@ describe('useClassEditActions store refresh', () => {
         useClassEditActions({
           showId: 's1',
           updateClass: vi.fn().mockResolvedValue(undefined),
-          deleteClass: vi.fn(),
         })
       );
       await result.current.saveClass('c1', data as never, 't1', original);

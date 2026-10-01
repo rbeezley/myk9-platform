@@ -12,21 +12,16 @@ interface UseClassEditActionsOptions {
   /** The show the class belongs to; the judge assignment is saved against it. */
   showId: string | undefined;
   updateClass: (id: string, data: Partial<ClassData>) => Promise<unknown>;
-  deleteClass: (id: string) => Promise<void>;
 }
 
 /**
- * The one save and delete path for a class edited through `ClassEditPanel`, shared by
- * Class Details and the Setup row menu (MYK9-900). Both report success or failure with the
- * same toasts; navigation after a delete stays with the caller.
+ * The one save path for a class edited through `ClassEditPanel`, shared by Class Details and
+ * the Setup row menu (MYK9-900). Delete is the shared `DeleteObjectDialog` (features/delete),
+ * which owns the server call and the replica purge for every class surface.
  */
-export function useClassEditActions({
-  showId,
-  updateClass,
-  deleteClass,
-}: UseClassEditActionsOptions) {
-  // `updateClass` / `deleteClass` write straight to Supabase (no replicated path yet), so offline
-  // they say so up front instead of failing after the fact with a generic error.
+export function useClassEditActions({ showId, updateClass }: UseClassEditActionsOptions) {
+  // `updateClass` writes straight to Supabase (no replicated path yet), so offline it says so
+  // up front instead of failing after the fact with a generic error.
   const connectionHint = useConnectionHint();
 
   /**
@@ -94,41 +89,5 @@ export function useClassEditActions({
     }
   };
 
-  /** Resolves on success; REJECTS on failure so the delete dialog stays open and says why. */
-  const removeClass = async (classId: string): Promise<void> => {
-    if (connectionHint) {
-      throw new Error(`Can't delete this class: ${connectionHint.toLowerCase()}.`);
-    }
-    try {
-      await deleteClass(classId);
-      // The server delete (soft_delete_class RPC) is done. Setup's rows come from the replicated
-      // store, so drop the class from the local replica (no queued mutation: it is already
-      // deleted upstream) and reload the store, or it stays listed and actionable until the
-      // next background sync.
-      try {
-        await replicatedClassesTable.delete(classId);
-      } catch (replicaError) {
-        logger.warn('Failed to drop deleted class from the local replica', 'classes', {
-          classId,
-          error: replicaError instanceof Error ? replicaError.message : String(replicaError),
-        });
-      }
-      await useTrialStore.getState().loadTrialClasses();
-      // Guarantee the row goes even if the replica delete above failed.
-      useTrialStore.setState(state => ({
-        trialClasses: Object.fromEntries(
-          Object.entries(state.trialClasses).map(([trialId, classes]) => [
-            trialId,
-            classes.filter(cls => cls.id !== classId),
-          ])
-        ),
-      }));
-      toast.success('Class deleted successfully');
-    } catch (error) {
-      logger.error('Failed to delete class', 'classes', { classId }, error as Error);
-      throw error;
-    }
-  };
-
-  return { saveClass, removeClass };
+  return { saveClass };
 }

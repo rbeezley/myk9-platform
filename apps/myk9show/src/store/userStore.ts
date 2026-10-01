@@ -45,7 +45,6 @@ interface UserStore {
   // Local-First Actions
   addUser: (userData: UserInput) => Promise<User>;
   updateUser: (id: string, updates: Partial<UserInput>) => Promise<User | null>;
-  deleteUser: (id: string) => Promise<void>;
   getUserById: (id: string) => User | null;
 
   // Data Management
@@ -313,44 +312,6 @@ export const useUserStore = create<UserStore>()(
             }));
           }
 
-          throw error;
-        }
-      },
-
-      deleteUser: async (id: string): Promise<void> => {
-        try {
-          set({ isLoading: true, error: null });
-
-          const userExists = get().users.some(u => u.id === id);
-          if (!userExists) {
-            const error = `User with id ${id} not found`;
-            set({ error, isLoading: false });
-            return;
-          }
-
-          // Soft delete from database
-          const { deleteUser: deleteUserFromDb } = await import('@/services/database/users');
-          const { error: dbError } = await deleteUserFromDb(id);
-
-          if (dbError) {
-            // Preserve the DB error code (e.g. MK001 — owns-dogs guard) so callers
-            // can map it to an actionable message; a bare Error would drop it.
-            throw Object.assign(
-              new Error(dbError.message || 'Failed to delete user from database'),
-              dbError.code ? { code: dbError.code } : {}
-            );
-          }
-
-          // Remove from local state after successful DB delete
-          set(state => ({
-            users: state.users.filter(u => u.id !== id),
-            people: state.people.filter(u => u.id !== id),
-            isLoading: false,
-          }));
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
-          reportStoreError('deleteUser', 'userStore', error, { userId: id });
-          set({ error: errorMessage, isLoading: false });
           throw error;
         }
       },

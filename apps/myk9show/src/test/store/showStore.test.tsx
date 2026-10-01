@@ -244,25 +244,6 @@ describe('showStore (with database integration)', () => {
       });
     });
 
-    it('should delete a show', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUseDeleteShowMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
-      });
-
-      const { result } = renderHook(() => useShowStoreCompat(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        await result.current.deleteShow('show-1');
-      });
-
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'show-1' });
-    });
-
     it('should retrieve shows from database', () => {
       mockUseShowsQuery.mockReturnValue({
         data: mockShows,

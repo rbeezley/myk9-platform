@@ -75,7 +75,7 @@ const defaultProps = {
   onStatusChange: vi.fn(),
   onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
-  onRemoveEntry: vi.fn(),
+  onEntryRemoved: vi.fn(),
   onBulkStatusChange: vi.fn(),
   paymentLedger: {
     record: vi.fn().mockResolvedValue(true),

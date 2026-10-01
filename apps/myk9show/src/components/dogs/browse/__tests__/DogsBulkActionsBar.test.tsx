@@ -10,24 +10,39 @@ vi.mock('sonner', () => ({
 }));
 
 const updateDogMutateAsync = vi.fn();
-const forceDeleteDogMutateAsync = vi.fn().mockResolvedValue(undefined);
-const deleteDogMutateAsync = vi.fn();
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useUpdateDogMutation: () => ({
     mutateAsync: (...args: unknown[]) => updateDogMutateAsync(...args),
   }),
-  useDeleteDogMutation: () => ({
-    mutateAsync: (...args: unknown[]) => deleteDogMutateAsync(...args),
-  }),
-  useForceDeleteDogMutation: () => ({
-    mutateAsync: (...args: unknown[]) => forceDeleteDogMutateAsync(...args),
-  }),
 }));
 
+let mockIsSiteAdmin = false;
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'staff-1' } }),
+  useAuthContext: () => ({ user: { id: 'staff-1' }, hasRole: () => mockIsSiteAdmin }),
 }));
+
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+const preview = (paid: number) => ({
+  trials: 0,
+  classes: 0,
+  entries: paid + 1,
+  shows: 0,
+  dogs: 0,
+  paid,
+  scored: 0,
+  blocking: paid,
+});
 
 function dog(id: string, status: Dog['status'] = 'active'): Dog {
   return {
@@ -49,29 +64,22 @@ function setup(dogs: Dog[], canDelete = true) {
   return { ...utils, onClear };
 }
 
-/** The server's MK002 refusal, as it reaches the client. */
-function blockedError() {
-  return {
-    name: 'DatabaseError',
-    code: 'MK002',
-    message: 'This dog has paid or scored entries. Pull or refund them before deleting.',
-  };
-}
-
-/** Runs a bulk delete over `dogs` and confirms it. */
-async function bulkDelete(user: ReturnType<typeof setup>['user'], count: number) {
+/** Opens the bulk delete for `count` dogs; returns the shared dialog. */
+async function openBulkDelete(user: ReturnType<typeof setup>['user'], count: number) {
   await user.click(screen.getByRole('button', { name: /bulk actions/i }));
   await user.click(
     await screen.findByRole('menuitem', { name: new RegExp(`delete ${count} dogs?`, 'i') })
   );
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+  return screen.findByRole('dialog');
 }
 
 describe('DogsBulkActionsBar', () => {
   beforeEach(() => {
     updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
-    deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
-    forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    deleteMocks.preview.mockReset().mockResolvedValue(preview(0));
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
+    mockIsSiteAdmin = false;
   });
 
   it('renders nothing when no dogs are selected', () => {
@@ -121,22 +129,24 @@ describe('DogsBulkActionsBar', () => {
     expect(onClear).toHaveBeenCalled();
   });
 
-  it('delete opens a confirmation dialog and only dispatches after confirming', async () => {
-    const { user } = setup([dog('1'), dog('2')]);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /delete 2 dogs/i }));
+  it('delete opens the shared dialog and only deletes after confirming', async () => {
+    const { user, onClear } = setup([dog('1'), dog('2')]);
+    const dialog = await openBulkDelete(user, 2);
 
-    // Dialog is open; nothing dispatched yet.
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(deleteDogMutateAsync).not.toHaveBeenCalled();
+    // Dialog is open; nothing deleted yet.
+    expect(dialog).toHaveAccessibleName('Delete 2 dogs?');
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
 
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
     await waitFor(() => {
-      expect(deleteDogMutateAsync).toHaveBeenCalledWith({ id: '1', deletedBy: 'staff-1' });
-      expect(deleteDogMutateAsync).toHaveBeenCalledWith({ id: '2', deletedBy: 'staff-1' });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('dog', '1', { override: false });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('dog', '2', { override: false });
     });
-    expect(deleteDogMutateAsync).toHaveBeenCalledTimes(2);
+    expect(deleteMocks.remove).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(onClear).toHaveBeenCalled());
   });
 
   it('disables Clear while a bulk mutation is in flight so failed items stay selectable', async () => {
@@ -213,72 +223,47 @@ describe('DogsBulkActionsBar', () => {
 });
 
 /**
- * MYK9-584: the bar's only job with a blocked delete is to REPORT it upward.
- * It must not own the dialog — the optimistic delete prunes the selection and
- * the page unmounts this component, so a dialog owned here never renders. The
- * dialog's own behaviour is covered in blockedDeleteSurvivesUnmount.test.tsx.
+ * A dog with paid or scored entries is named in the dialog BEFORE anyone presses
+ * Delete (delete_preview), instead of after a server refusal (MYK9-584's report).
  */
 describe('DogsBulkActionsBar blocked deletes', () => {
   beforeEach(() => {
-    updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
-    deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
-    forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    deleteMocks.preview
+      .mockReset()
+      .mockImplementation(async (_kind: string, id: string) => preview(id === '2' ? 1 : 0));
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
+    mockIsSiteAdmin = false;
   });
 
-  function setupWithReport(dogs: Dog[]) {
-    const onBlockedDogs = vi.fn();
-    const onClear = vi.fn();
-    const utils = render(
-      <DogsBulkActionsBar
-        selectedDogs={dogs}
-        onClear={onClear}
-        canDelete
-        onBlockedDogs={onBlockedDogs}
-      />
+  it('names the blocked dog and keeps Delete off for a secretary', async () => {
+    const { user } = setup([dog('1'), dog('2')]);
+    const dialog = await openBulkDelete(user, 2);
+
+    expect(
+      await within(dialog).findByText(
+        'Dog 2 has paid or scored entries. Withdraw or Pull those entries first. Leave it out of the selection to delete the rest.'
+      )
+    ).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Delete 2 dogs' })).toBeDisabled();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
+  });
+
+  it('lets a site admin delete anyway only after ticking the override', async () => {
+    mockIsSiteAdmin = true;
+    const { user } = setup([dog('1'), dog('2')]);
+    const dialog = await openBulkDelete(user, 2);
+
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
+    await within(dialog).findByText(/Dog 2 has paid or scored entries/);
+    expect(confirm).toBeDisabled();
+
+    await user.click(within(dialog).getByRole('checkbox', { name: /delete anyway/i }));
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('dog', '2', { override: true })
     );
-    return { ...utils, onBlockedDogs, onClear };
-  }
-
-  it('reports every blocked dog upward', async () => {
-    deleteDogMutateAsync.mockRejectedValue(blockedError());
-    const { user, onBlockedDogs } = setupWithReport([dog('1'), dog('2')]);
-
-    await bulkDelete(user, 2);
-
-    await waitFor(() => expect(onBlockedDogs).toHaveBeenCalledTimes(1));
-    expect(onBlockedDogs.mock.calls[0]?.[0].map((d: Dog) => d.id)).toEqual(['1', '2']);
-  });
-
-  it('reports only the blocked subset when a batch is mixed', async () => {
-    deleteDogMutateAsync.mockImplementation(({ id }: { id: string }) =>
-      id === '2' ? Promise.reject(blockedError()) : Promise.resolve(undefined)
-    );
-    const { user, onBlockedDogs } = setupWithReport([dog('1'), dog('2')]);
-
-    await bulkDelete(user, 2);
-
-    await waitFor(() => expect(onBlockedDogs).toHaveBeenCalledTimes(1));
-    expect(onBlockedDogs.mock.calls[0]?.[0].map((d: Dog) => d.id)).toEqual(['2']);
-  });
-
-  it('does not report an ordinary failure as blocked', async () => {
-    deleteDogMutateAsync.mockRejectedValue(new Error('Network down'));
-    const { user, onBlockedDogs } = setupWithReport([dog('1')]);
-
-    await bulkDelete(user, 1);
-
-    await waitFor(() => expect(deleteDogMutateAsync).toHaveBeenCalled());
-    expect(onBlockedDogs).not.toHaveBeenCalled();
-  });
-
-  // The regression that started MYK9-584: suppressing the toast left the user
-  // with nothing when the dialog could not render. The toast must always fire.
-  it('still shows a toast when every dog was blocked', async () => {
-    deleteDogMutateAsync.mockRejectedValue(blockedError());
-    const { user } = setupWithReport([dog('1'), dog('2')]);
-
-    await bulkDelete(user, 2);
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
   });
 });

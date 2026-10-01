@@ -10,9 +10,9 @@ import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
 import type { Show } from '@/types/show-types';
 
-// The dialogs themselves are mocked to testid stubs; this suite verifies that
-// the imperative open* methods drive the right dialog open, and that the
-// delete-class copy reflects the entry count.
+// The panels and the shared delete dialog are mocked to testid stubs; this suite
+// verifies that the imperative open* methods drive the right one open, and that
+// both deletes go through the ONE shared dialog with the right kind and target.
 vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
   TrialEditPanel: ({ open }: { open: boolean }) =>
     open ? <div data-testid="edit-trial-panel" /> : null,
@@ -25,33 +25,30 @@ vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
       </div>
     ) : null,
 }));
-vi.mock('@/components/common/StandardDialog', () => ({
-  default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div data-testid="delete-trial-dialog">{children}</div> : null,
-}));
-vi.mock('@/components/ui/alert-dialog', () => ({
-  AlertDialog: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div data-testid="delete-class-dialog">{children}</div> : null,
-  AlertDialogAction: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
-  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
-  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+vi.mock('@/features/delete/DeleteObjectDialog', () => ({
+  DeleteObjectDialog: ({
+    kind,
+    targets,
+  }: {
+    kind: string;
+    targets: Array<{ id: string; name: string; detail?: string; context?: object }>;
+  }) => (
+    <div data-testid={`delete-${kind}-dialog`} data-target={JSON.stringify(targets)}>
+      {targets.map(target => target.name).join(', ')}
+    </div>
+  ),
 }));
 vi.mock('@/store/trialStore', () => {
   const state = {
     trials: [],
     updateTrial: vi.fn(),
-    deleteTrial: vi.fn(),
     loadTrialClasses: vi.fn(),
   };
   const hook = Object.assign(() => state, { getState: () => state });
   return { useTrialStore: hook };
 });
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ updateClass: vi.fn(), deleteClass: vi.fn() }),
+  useClassStoreCompat: () => ({ updateClass: vi.fn() }),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'u1' } }),
@@ -61,7 +58,9 @@ function makeTrial(): TrialWithClasses {
   return {
     id: 't1',
     type: 'Trial 1',
+    name: 'Saturday Trial 1',
     trialNumber: '1',
+    trialDate: '2026-05-09',
     showId: 's1',
     classes: [],
   } as unknown as TrialWithClasses;
@@ -77,7 +76,6 @@ function renderDialogs(overrides: Partial<TrialManagementDialogsProps> = {}) {
   const props: TrialManagementDialogsProps = {
     currentTrial: makeTrial(),
     parentShow: { id: 's1', organization: 'AKC' } as Show,
-    entryCountByClass: new Map(),
     ...overrides,
   };
   const rendered = render(<TrialManagementDialogs ref={ref} {...props} />, {
@@ -102,10 +100,17 @@ describe('TrialManagementDialogs', () => {
     expect(screen.getByTestId('edit-trial-panel')).toBeInTheDocument();
   });
 
-  it('openDeleteTrial() opens the delete-trial dialog', () => {
+  it('openDeleteTrial() opens the shared delete dialog for this trial', () => {
     const { ref } = renderDialogs();
     act(() => ref.current?.openDeleteTrial());
-    expect(screen.getByTestId('delete-trial-dialog')).toBeInTheDocument();
+    const dialog = screen.getByTestId('delete-trial-dialog');
+    const [target] = JSON.parse(dialog.dataset.target ?? '[]');
+    expect(target).toMatchObject({
+      id: 't1',
+      name: 'Saturday Trial 1',
+      context: { showId: 's1', trialId: 't1' },
+    });
+    expect(target.detail).toMatch(/^Saturday Trial 1 · May 9, 2026$/);
   });
 
   it('openEditClass() opens the class edit panel', () => {
@@ -114,20 +119,17 @@ describe('TrialManagementDialogs', () => {
     expect(screen.getByTestId('edit-class-panel')).toBeInTheDocument();
   });
 
-  it('openDeleteClass() opens the delete-class dialog with the entry-count warning', () => {
-    const { ref } = renderDialogs({ entryCountByClass: new Map([['c1', 3]]) });
+  it('openDeleteClass() opens the shared delete dialog for that class (same purge as Setup)', () => {
+    const { ref } = renderDialogs();
     act(() => ref.current?.openDeleteClass(makeClass()));
     const dialog = screen.getByTestId('delete-class-dialog');
-    expect(dialog).toBeInTheDocument();
-    expect(dialog).toHaveTextContent('This will also delete 3 entries for this class.');
-  });
-
-  it('omits the entry-count warning when the class has no entries', () => {
-    const { ref } = renderDialogs({ entryCountByClass: new Map() });
-    act(() => ref.current?.openDeleteClass(makeClass()));
-    expect(screen.getByTestId('delete-class-dialog')).not.toHaveTextContent(
-      'This will also delete'
-    );
+    const [target] = JSON.parse(dialog.dataset.target ?? '[]');
+    expect(target).toMatchObject({
+      id: 'c1',
+      name: 'Container Novice A',
+      detail: 'Novice Container · Saturday Trial 1',
+      context: { showId: 's1', trialId: 't1' },
+    });
   });
 
   it('invalidates class queries on the active routed client after an edit', async () => {

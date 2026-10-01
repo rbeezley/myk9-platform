@@ -20,7 +20,6 @@ describe('Show Integration - Import Validation', () => {
       useShowsWithEntryCountsQuery,
       useCreateShowMutation,
       useUpdateShowMutation,
-      useDeleteShowMutation,
       useShowManagement,
     } = await import('@/hooks/queries/useShowsDatabase');
 
@@ -35,7 +34,6 @@ describe('Show Integration - Import Validation', () => {
     expect(useShowsWithEntryCountsQuery).toBeDefined();
     expect(useCreateShowMutation).toBeDefined();
     expect(useUpdateShowMutation).toBeDefined();
-    expect(useDeleteShowMutation).toBeDefined();
     expect(useShowManagement).toBeDefined();
   });
 

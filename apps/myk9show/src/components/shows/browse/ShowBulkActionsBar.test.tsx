@@ -18,7 +18,22 @@ vi.mock('@/services/showDeletion', () => ({
 
 const purgeDeletedShow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: { getState: () => ({ purgeDeletedShow }) },
+  useShowStore: { getState: () => ({ purgeDeletedShow }), setState: vi.fn() },
+}));
+
+// The shared delete dialog reads its counts from delete_preview; nothing blocks here.
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: vi.fn().mockResolvedValue({
+    trials: 1,
+    classes: 2,
+    entries: 3,
+    shows: 0,
+    dogs: 0,
+    paid: 0,
+    scored: 0,
+    blocking: 0,
+  }),
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -77,6 +92,16 @@ describe('ShowBulkActionsBar', () => {
     return screen.getByRole('dialog');
   }
 
+  /** Opens the shared delete dialog and presses Delete once the counts are in. */
+  async function confirmBulkDelete(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    const confirm = within(
+      await screen.findByRole('dialog', { name: 'Delete 2 shows?' })
+    ).getByRole('button', { name: 'Delete 2 shows' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+  }
+
   it('bulk status change persists a DB-valid status for every selected show', async () => {
     const user = userEvent.setup();
     renderBar();
@@ -101,24 +126,20 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
-    );
+    await confirmBulkDelete(user);
 
     await waitFor(() => {
-      expect(deleteShow).toHaveBeenCalledWith('show-1');
-      expect(deleteShow).toHaveBeenCalledWith('show-2');
+      expect(deleteShow).toHaveBeenCalledWith('show-1', undefined, { override: false });
+      expect(deleteShow).toHaveBeenCalledWith('show-2', undefined, { override: false });
     });
-    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onBulkComplete).toHaveBeenCalledTimes(1));
   });
 
   it('drops every deleted show from the local copy, closes the dialog and refreshes', async () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+    await confirmBulkDelete(user);
 
     // The server soft-deleted them; the replica never delivers that, so each
     // must be purged locally or it stays in the list until a full sync.
@@ -142,8 +163,7 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+    await confirmBulkDelete(user);
 
     await waitFor(() => expect(purgeDeletedShow).toHaveBeenCalledWith('show-1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -160,12 +180,11 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+    await confirmBulkDelete(user);
 
-    expect(
-      await screen.findByText("You don't have permission to delete Summer Classic, Fall Trial.")
-    ).toBeInTheDocument();
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      "Summer Classic: You don't have permission to delete this show."
+    );
     expect(purgeDeletedShow).not.toHaveBeenCalled();
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
@@ -179,12 +198,11 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+    await confirmBulkDelete(user);
 
-    expect(
-      await screen.findByText('Summer Classic, Fall Trial are still saving. Try again in a moment.')
-    ).toBeInTheDocument();
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      'Summer Classic: This show is still saving. Try again in a moment.'
+    );
     expect(purgeDeletedShow).not.toHaveBeenCalled();
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
@@ -201,15 +219,12 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete shows/i })
-    );
+    await confirmBulkDelete(user);
 
     await waitFor(() => {
       expect(notifications.error).toHaveBeenCalledWith(
-        'Failed to delete 1 of 2 shows.',
-        expect.objectContaining({ description: expect.stringMatching(/re-select/i) })
+        '1 of 2 shows could not be deleted. The others were deleted.',
+        expect.objectContaining({ description: "We couldn't delete this show. Please try again." })
       );
     });
     // Refresh + clear selection so the succeeded subset reflects immediately
@@ -226,10 +241,11 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
-    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+    await confirmBulkDelete(user);
 
-    expect(await screen.findByText(/failed to delete the selected shows/i)).toBeInTheDocument();
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      "Summer Classic: We couldn't delete this show. Please try again."
+    );
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
 });

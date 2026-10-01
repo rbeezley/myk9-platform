@@ -1,13 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fromAny } from '@total-typescript/shoehorn';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import {
-  executeStatusChange,
-  executeBulkStatusChange,
-  executeRemoveEntry,
-} from './management-actions';
-import type { BulkStatusChangeAdapters, RemoveEntryAdapters } from './management-actions';
+import { executeStatusChange, executeBulkStatusChange } from './management-actions';
+import type { BulkStatusChangeAdapters } from './management-actions';
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -181,78 +176,5 @@ describe('executeBulkStatusChange', () => {
 
     expect(result.updated).toBe(false);
     expect(bulkUpdateStatus).not.toHaveBeenCalled();
-  });
-});
-
-// ─── executeRemoveEntry ──────────────────────────────────────────────────
-
-describe('executeRemoveEntry', () => {
-  let deleteEntry: ReturnType<typeof vi.fn<RemoveEntryAdapters['deleteEntry']>>;
-  let patchEntries: ReturnType<typeof vi.fn<RemoveEntryAdapters['patchEntries']>>;
-  let setError: ReturnType<typeof vi.fn<RemoveEntryAdapters['setError']>>;
-
-  beforeEach(() => {
-    deleteEntry = vi.fn().mockResolvedValue({ error: null });
-    patchEntries = vi.fn();
-    setError = vi.fn();
-  });
-
-  it('optimistically removes the entry from state before the DB call', async () => {
-    const entry = makeEntry();
-
-    await executeRemoveEntry(
-      { entryId: 'entry-1', currentEntries: [entry] },
-      { deleteEntry, patchEntries, setError }
-    );
-
-    const optimisticUpdater = patchEntries.mock.calls[0]?.[0];
-    expect(typeof optimisticUpdater).toBe('function');
-    expect(
-      fromAny<(entries: (typeof entry)[]) => (typeof entry)[], unknown>(optimisticUpdater)([entry])
-    ).toEqual([]);
-  });
-
-  it('rolls back to the snapshot when the DB call fails', async () => {
-    deleteEntry.mockResolvedValue({ error: new Error('db fail') });
-    const entry = makeEntry();
-
-    await executeRemoveEntry(
-      { entryId: 'entry-1', currentEntries: [entry] },
-      { deleteEntry, patchEntries, setError }
-    );
-
-    // patchEntries called twice: optimistic + rollback
-    expect(patchEntries).toHaveBeenCalledTimes(2);
-    // Second call restores the full snapshot (not an updater function — a direct value)
-    const rollbackArg = patchEntries.mock.calls[1]?.[0];
-    // Accept either a direct value or a function returning the snapshot
-    if (typeof rollbackArg === 'function') {
-      expect(rollbackArg([])).toEqual([entry]);
-    } else {
-      expect(rollbackArg).toEqual([entry]);
-    }
-  });
-
-  it('clears error and does not roll back on success', async () => {
-    const entry = makeEntry();
-
-    await executeRemoveEntry(
-      { entryId: 'entry-1', userId: 'sec-1', currentEntries: [entry] },
-      { deleteEntry, patchEntries, setError }
-    );
-
-    expect(patchEntries).toHaveBeenCalledTimes(1);
-    expect(setError).toHaveBeenCalledWith(null);
-    expect(deleteEntry).toHaveBeenCalledWith('entry-1', 'sec-1');
-  });
-
-  it('does nothing when the entry is not found in currentEntries', async () => {
-    await executeRemoveEntry(
-      { entryId: 'missing', currentEntries: [makeEntry()] },
-      { deleteEntry, patchEntries, setError }
-    );
-
-    expect(deleteEntry).not.toHaveBeenCalled();
-    expect(patchEntries).not.toHaveBeenCalled();
   });
 });

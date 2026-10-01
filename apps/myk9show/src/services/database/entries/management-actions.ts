@@ -24,15 +24,6 @@ export interface BulkStatusChangeAdapters {
   setError: (err: string | null) => void;
 }
 
-export interface RemoveEntryAdapters {
-  deleteEntry: (entryId: string, userId?: string) => Promise<{ error: unknown }>;
-  patchEntries: (
-    updaterOrSnapshot:
-      ((prev: EntryManagementEntry[]) => EntryManagementEntry[]) | EntryManagementEntry[]
-  ) => void;
-  setError: (err: string | null) => void;
-}
-
 // ─── executeStatusChange ──────────────────────────────────────────────────
 
 export interface StatusChangeParams {
@@ -150,50 +141,4 @@ export async function executeBulkStatusChange(
   );
 
   return { updated: true };
-}
-
-// ─── executeRemoveEntry ───────────────────────────────────────────────────
-
-export interface RemoveEntryParams {
-  entryId: string;
-  userId?: string | undefined;
-  currentEntries: EntryManagementEntry[];
-}
-
-/**
- * Orchestrates an entry soft-delete:
- *   1. Snapshot current entries
- *   2. Optimistic remove from local state
- *   3. Persist via deleteEntry
- *   4a. On success — clear error, return { removed: true }
- *   4b. On failure — restore snapshot, return { removed: false }
- */
-export async function executeRemoveEntry(
-  params: RemoveEntryParams,
-  adapters: RemoveEntryAdapters
-): Promise<{ removed: boolean }> {
-  const { entryId, userId, currentEntries } = params;
-  const { deleteEntry, patchEntries, setError } = adapters;
-
-  const entry = currentEntries.find(e => e.id === entryId);
-  if (!entry) return { removed: false };
-
-  const snapshot = currentEntries;
-  patchEntries(prev => prev.filter(e => e.id !== entryId));
-
-  try {
-    const { error: dbError } = await deleteEntry(entryId, userId);
-    if (dbError) {
-      patchEntries(snapshot);
-      setError((dbError as { message?: string } | null)?.message ?? 'Failed to remove entry');
-      return { removed: false };
-    }
-    setError(null);
-    return { removed: true };
-  } catch (err) {
-    patchEntries(snapshot);
-    setError('Failed to remove entry');
-    logger.error('Error removing entry:', 'secretary', {}, err as Error);
-    return { removed: false };
-  }
 }

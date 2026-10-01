@@ -6,10 +6,6 @@ import { ClassManagementPage } from '../ClassManagementPage';
 
 const useClassesByTrialQueryMock = vi.hoisted(() => vi.fn());
 const useUpdateClassMutationMock = vi.hoisted(() => vi.fn());
-const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
-// Bulk delete reuses useDeleteClassMutation.mutateAsync per class (soft delete +
-// full cache invalidations), same as single-class delete.
-const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
 const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
@@ -18,10 +14,31 @@ const toastErrorMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
 const deleteClassMock = vi.hoisted(() => vi.fn());
 
+// Bulk delete is the shared delete dialog (features/delete): its server and device halves.
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+const NOTHING_BLOCKS = {
+  trials: 0,
+  classes: 0,
+  entries: 0,
+  shows: 0,
+  dogs: 0,
+  paid: 0,
+  scored: 0,
+  blocking: 0,
+};
+
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
   useUpdateClassMutation: useUpdateClassMutationMock,
-  useDeleteClassMutation: useDeleteClassMutationMock,
   classKeys: {
     all: ['classes'],
     byTrial: (trialId: string) => ['classes', 'trial', trialId],
@@ -106,12 +123,9 @@ describe('ClassManagementPage judge assignment', () => {
     toastErrorMock.mockClear();
     useClassesByTrialQueryMock.mockReturnValue({ data: classRows, isLoading: false });
     useUpdateClassMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
-    deleteMutateAsyncMock.mockResolvedValue({ id: 'class-1', name: null });
-    useDeleteClassMutationMock.mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: deleteMutateAsyncMock,
-      isPending: false,
-    });
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
     useSecretaryShowEntriesQueryMock.mockReturnValue({
       data: [],
@@ -227,7 +241,7 @@ describe('ClassManagementPage judge assignment', () => {
 
   it('keeps the selection and does not clear it when a bulk delete fails', async () => {
     const user = userEvent.setup();
-    deleteMutateAsyncMock.mockRejectedValue(new Error('delete failed'));
+    deleteMocks.remove.mockRejectedValue({ code: '42501', message: 'Permission denied' });
 
     render(
       <Routes>
@@ -240,41 +254,18 @@ describe('ClassManagementPage judge assignment', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    await waitFor(() => expect(deleteMutateAsyncMock).toHaveBeenCalledWith({ id: 'class-1' }));
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'class-1', { override: false })
+    );
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "You don't have permission to delete this class."
+    );
     // Failure keeps the row selected so the secretary can retry — no window.confirm anywhere.
-    await waitFor(() => expect(screen.getByText('1 class selected')).toBeInTheDocument());
-  });
-
-  it('disables the bulk menu while a bulk delete is in flight (in-flight latch)', async () => {
-    const user = userEvent.setup();
-    let resolveDelete!: () => void;
-    deleteMutateAsyncMock.mockImplementation(
-      () =>
-        new Promise(resolve => {
-          resolveDelete = () => resolve({ id: 'class-1', name: null });
-        })
-    );
-
-    render(
-      <Routes>
-        <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
-      </Routes>,
-      { initialRoute: '/trials/trial-1/classes' }
-    );
-
-    await user.click(screen.getByRole('checkbox', { name: /select container novice a/i }));
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
-
-    await waitFor(() => expect(deleteMutateAsyncMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled();
-
-    resolveDelete();
-    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
+    expect(screen.getByText('1 class selected')).toBeInTheDocument();
   });
 
   it('keeps the trial in Add Classes when the trial store is cold (no show id yet)', () => {

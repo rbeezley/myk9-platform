@@ -1,19 +1,26 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClassManagementPage } from '../ClassManagementPage';
 
-// MYK9-900: the row delete asks through DeleteClassDialog (the same dialog Class Details
-// and Setup use), never window.confirm.
+// MYK9-900 / CRUD standard Phase 2: the row delete asks through the one shared delete dialog
+// (the same one Class Details, Setup and the trial page use), never window.confirm.
 
 const useClassesByTrialQueryMock = vi.hoisted(() => vi.fn());
-const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
-const deleteMutate = vi.hoisted(() => vi.fn());
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
   useUpdateClassMutation: () => ({ mutate: vi.fn() }),
-  useDeleteClassMutation: useDeleteClassMutationMock,
   classKeys: {
     all: ['classes'],
     byTrial: (trialId: string) => ['classes', 'trial', trialId],
@@ -81,52 +88,68 @@ describe('ClassManagementPage row delete (MYK9-900)', () => {
   const confirmSpy = vi.spyOn(window, 'confirm');
 
   beforeEach(() => {
-    deleteMutate.mockReset();
-    deleteMutate.mockResolvedValue(undefined);
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 0,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     confirmSpy.mockClear();
     confirmSpy.mockReturnValue(true);
     useClassesByTrialQueryMock.mockReturnValue({ data: classRows, isLoading: false });
-    useDeleteClassMutationMock.mockReturnValue({ mutateAsync: deleteMutate });
   });
 
-  it('opens the Delete Class dialog instead of window.confirm, and deletes only on confirm', async () => {
+  it('opens the shared dialog instead of window.confirm, and deletes only on confirm', async () => {
     const { user } = renderPage();
 
     await openDeleteFor(user, 'Container Novice A');
 
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText('Delete Class')).toBeVisible();
-    expect(within(dialog).getByText(/Container Novice A/)).toBeVisible();
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Delete the class Container Novice A?',
+    });
+    expect(within(dialog).getByText('Novice Container · Saturday Trial')).toBeVisible();
     expect(confirmSpy).not.toHaveBeenCalled();
-    expect(deleteMutate).not.toHaveBeenCalled();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(deleteMutate).toHaveBeenCalledTimes(1);
-    expect(deleteMutate).toHaveBeenCalledWith({ id: 'class-1' });
+    await waitFor(() => expect(deleteMocks.remove).toHaveBeenCalledTimes(1));
+    expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'class-1', { override: false });
     expect(confirmSpy).not.toHaveBeenCalled();
   });
 
   it('stays open and says why when the delete fails', async () => {
-    deleteMutate.mockRejectedValue(new Error('Server said no'));
+    deleteMocks.remove.mockRejectedValue({ code: '42501', message: 'Permission denied' });
     const { user } = renderPage();
 
     await openDeleteFor(user, 'Container Novice A');
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server said no');
-    expect(screen.getByRole('alertdialog')).toBeVisible();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "You don't have permission to delete this class."
+    );
+    expect(screen.getByRole('dialog')).toBeVisible();
   });
 
-  it('cancel closes the dialog without deleting', async () => {
+  it('Keep it closes the dialog without deleting', async () => {
     const { user } = renderPage();
 
     await openDeleteFor(user, 'Interior Novice A');
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Keep it' }));
 
-    expect(deleteMutate).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

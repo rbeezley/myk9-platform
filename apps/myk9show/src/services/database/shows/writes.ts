@@ -86,7 +86,17 @@ export const updateShow = async (id: string, updates: DbShowUpdate) => {
 };
 
 // Soft delete show
-export const deleteShow = async (id: string, deletedBy?: string) => {
+/** Options for the soft-delete RPCs that carry the paid/scored guard. */
+export interface SoftDeleteOptions {
+  /** Site-admin override of the MK010 guard; the server refuses it for anyone else. */
+  override?: boolean;
+}
+
+export const deleteShow = async (
+  id: string,
+  deletedBy?: string,
+  options: SoftDeleteOptions = {}
+) => {
   const startTime = Date.now();
 
   try {
@@ -102,8 +112,10 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
     // Use the existing SECURITY DEFINER RPC so show soft delete follows the
     // same RLS-safe pattern as dog soft delete while preserving permission
     // checks inside the database function.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.rpc as any)('soft_delete_show', { p_show_id: id });
+    const { error } = await supabase.rpc('soft_delete_show', {
+      p_show_id: id,
+      ...(options.override ? { p_override: true } : {}),
+    });
 
     const duration = Date.now() - startTime;
     logQuery('show', 'soft_delete', duration, error?.message);

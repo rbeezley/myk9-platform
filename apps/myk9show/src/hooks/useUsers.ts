@@ -97,16 +97,3 @@ export function useUpdatePerson() {
     },
   });
 }
-
-export function useDeletePerson() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (personId: string): Promise<void> => {
-      const { error } = await deleteUser(personId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
-}

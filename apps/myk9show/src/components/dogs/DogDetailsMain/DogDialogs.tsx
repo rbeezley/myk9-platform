@@ -2,12 +2,8 @@ import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
-import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
-import { toBlockingEntryCountState } from '@/components/dogs/common/blockingEntryCount';
-import {
-  useDogActiveEntryCountQuery,
-  useDogBlockingEntryCountQuery,
-} from '@/hooks/queries/useEntriesDatabase';
+import { DeleteObjectDialog, dogDeleteDetail } from '@/features/delete';
+import { getDogDisplayName } from '@/types/dog-types';
 import {
   convertDogToDogInput,
   formatDisplayDate,
@@ -33,14 +29,12 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   showCelebration: _showCelebration,
   userRole,
   people,
-  isDeleting,
-  canRestore,
-  canForceDelete,
   onEditPanelClose,
   onDeleteDialogClose,
   onStatusDialogOpen,
-  onDelete,
-  onForceDelete,
+  onDeleteStart,
+  onDeleted,
+  onDeleteFailed,
   onUpdate,
   onPhotoDialogOpen,
   onPhotoDrop,
@@ -55,26 +49,6 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
 }) => {
   const celebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Fetch the dog's live entry count only while the delete dialog is open, so the
-  // confirmation can warn that those entries will be removed by the cascade.
-  // MYK9-600 round-2 review: mapped, not read raw, for the same reason as the
-  // blocking count below. This one writes the "…and N entries." clause — the
-  // dialog's only statement of what the delete destroys — and React Query
-  // retains `data` through `enabled: false`, so reading `.data` directly
-  // reprinted the PREVIOUS open's N over an in-flight refetch. An omitted
-  // clause (undefined) claims nothing; a wrong N claims something false.
-  const activeCountQuery = useDogActiveEntryCountQuery(dog.id, isDeleteDialogOpen);
-  const activeCountState = toBlockingEntryCountState(activeCountQuery);
-  const activeEntryCount = activeCountState.status === 'ready' ? activeCountState.count : undefined;
-  // Separate count, not a filter over the one above: the delete-blocking
-  // predicate is the server's (MK002), and the two must be able to disagree —
-  // "3 entries, 1 of them paid" is the case the dialog has to describe.
-  // MYK9-600: the whole query result, not just `data`. A failed or in-flight
-  // count is NOT zero — discarding `isError` here is what let a count that
-  // never arrived render as "nothing blocks this delete".
-  const blockingCountQuery = useDogBlockingEntryCountQuery(dog.id, isDeleteDialogOpen);
-  const blockingEntryCount = toBlockingEntryCountState(blockingCountQuery);
 
   useEffect(() => {
     return () => {
@@ -163,35 +137,24 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
       </Suspense>
 
       {isDeleteDialogOpen && (
-        <DeleteDogDialog
-          open={isDeleteDialogOpen}
-          onClose={onDeleteDialogClose}
-          onDelete={async () => {
-            await onDelete?.();
-            onDeleteDialogClose();
+        // The shared delete dialog: counts and the paid/scored blocker from the
+        // server, the site-admin force-delete opt-in, and Undo (features/delete).
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) onDeleteDialogClose();
           }}
-          dog={dog}
-          isSubmitting={isDeleting ?? false}
-          activeEntryCount={activeEntryCount}
-          blockingEntryCount={blockingEntryCount}
-          onRetryBlockingCount={() => void blockingCountQuery.refetch?.()}
-          canRestore={canRestore ?? false}
-          canForceDelete={canForceDelete ?? false}
-          onForceDelete={
-            onForceDelete
-              ? async () => {
-                  // Mirrors onDelete above: the page owns the toast and the
-                  // navigate-away, and a rejection leaves the dialog open so a
-                  // failed override stays correctable. That only holds because
-                  // DogDetailPage keeps itself (and therefore this dialog)
-                  // mounted while a delete it started is in flight — the delete
-                  // mutations strip the dog from the cache optimistically
-                  // (MYK9-595).
-                  await onForceDelete();
-                  onDeleteDialogClose();
-                }
-              : undefined
-          }
+          kind="dog"
+          targets={[
+            {
+              id: dog.id,
+              name: getDogDisplayName(dog),
+              detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
+            },
+          ]}
+          onDeleteStart={onDeleteStart}
+          onDeleted={() => onDeleted?.(dog.id)}
+          onDeleteFailed={onDeleteFailed}
         />
       )}
 

@@ -26,7 +26,6 @@ export interface ClubStoreCompatState {
   addClubOptimistic: (clubInput: ClubInput) => Promise<string>;
   updateClubOptimistic: (clubId: string, updates: Partial<Club>) => Promise<void>;
   removeClub: (clubId: string) => void;
-  removeClubOptimistic: (clubId: string) => Promise<void>;
 
   // Search and filtering
   searchClubs: (term: string) => Club[];
@@ -52,7 +51,7 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
   const { data: statistics } = useClubStatisticsQuery();
 
   // Management operations
-  const { createClub, updateClub, deleteClub } = useClubManagement();
+  const { createClub, updateClub } = useClubManagement();
 
   // Memoized operations to prevent unnecessary re-renders
   const operations = useMemo(
@@ -111,10 +110,6 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
         // No-op: React Query handles optimistic updates
       },
 
-      removeClubOptimistic: async (clubId: string): Promise<void> => {
-        await deleteClub(clubId);
-      },
-
       // Search and filtering operations
       searchClubs: (term: string): Club[] => {
         if (!term.trim()) return clubs;
@@ -151,7 +146,7 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
         return false; // No pending changes when using database directly
       },
     }),
-    [clubs, activeClubs, statistics, createClub, updateClub, deleteClub]
+    [clubs, activeClubs, statistics, createClub, updateClub]
   );
 
   return {

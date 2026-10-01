@@ -429,67 +429,6 @@ describe('useDogStoreCompat.addDog — local-first', () => {
   });
 });
 
-/**
- * The IndexedDB cleanup this block used to pin here now lives inside
- * `useDeleteDogMutation`'s own `mutationFn` — the bulk-actions bar calls that
- * mutation DIRECTLY, so a cleanup that only ran in this wrapper left the
- * soft-deleted dog in the local replica and `getAllDogs` (replication-first)
- * refetched it straight back into the list. The guarantee itself is pinned
- * against the real mutation in `hooks/queries/useDogsDatabase.test.tsx`; this
- * mock cannot see inside it. What stays testable here is the delegation and
- * the error contract.
- */
-describe('useDogStoreCompat.deleteDog — delegates to the shared mutation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockDeleteMutateAsync.mockResolvedValue(undefined);
-    mockDeleteReplicatedDog.mockResolvedValue(undefined);
-  });
-
-  it('dispatches the delete mutation and invalidates the dogs list', async () => {
-    const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
-
-    await act(async () => {
-      await result.current.deleteDog('dog-123');
-    });
-
-    expect(mockDeleteMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'dog-123' }));
-    const mutationOrder = mockDeleteMutateAsync.mock.invocationCallOrder[0];
-    const laterInvalidateCall = invalidateSpy.mock.invocationCallOrder.find(
-      order => order > mutationOrder
-    );
-    expect(laterInvalidateCall).toBeDefined();
-
-    invalidateSpy.mockRestore();
-  });
-
-  it('propagates the error when the DB mutation fails', async () => {
-    mockDeleteMutateAsync.mockRejectedValue(new Error('DB delete failed'));
-
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
-
-    await act(async () => {
-      await expect(result.current.deleteDog('dog-123')).rejects.toThrow('DB delete failed');
-    });
-  });
-
-  it('preserves the server instruction when paid entries block deletion', async () => {
-    mockDeleteMutateAsync.mockRejectedValue({
-      code: 'MK002',
-      message: 'This dog has paid or scored entries. Pull or refund them before deleting.',
-    });
-
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
-
-    await act(async () => {
-      await expect(result.current.deleteDog('dog-123')).rejects.toThrow(
-        'This dog has paid or scored entries. Pull or refund them before deleting.'
-      );
-    });
-  });
-});
-
 // MYK9-90 review round 3, finding 3 — REALISTIC-DATA proof.
 //
 // `updateDog` returns a locally-mapped dog straight to `DogDialogs`, which

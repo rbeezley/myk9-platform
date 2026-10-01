@@ -9,8 +9,6 @@ import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
-import { BlockedDogDeleteDialog } from '@/components/dogs/browse/BlockedDogDeleteDialog';
-import { useBlockedDogDeletes } from '@/components/dogs/browse/useBlockedDogDeletes';
 import {
   activeDogViewId,
   buildDogViews,
@@ -47,7 +45,7 @@ const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { getUserRoles, userWithRoles, hasRole } = useAuthContext();
+  const { getUserRoles, userWithRoles } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
   // NOTE: this drives the page's chrome (title, card-only view, placeholder),
   // and it is NOT the same question as "is this roster only my own dogs" —
@@ -103,21 +101,12 @@ const BrowseDogsPage: React.FC = () => {
   // `dog:delete`. Without this the bulk Delete action would offer an operation the
   // `soft_delete_dog` RPC rejects per-dog (Codex finding).
   const canDeleteDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:delete');
-  // Override of the server's paid/scored refusal is site-admin only, matching
-  // is_platform_admin() inside force_delete_dog. This only decides whether the
-  // affordance is offered; the function enforces it regardless.
-  const canForceDeleteDogs = canDeleteDogs && hasRole(UserRole.SITE_ADMIN);
 
   const dogSelection = useBulkSelection({
     items: filteredDogs,
     getItemId: (dog: DogType) => dog.id,
     pruneToItems: true,
   });
-
-  // Owned by the PAGE, not the bulk bar. The optimistic delete prunes the
-  // selection, which unmounts the bar — a dialog owned there never rendered
-  // (MYK9-584). See useBlockedDogDeletes for the full reasoning.
-  const blockedDeletes = useBlockedDogDeletes(dogSelection.clearSelection);
 
   // Every filter change goes through here so the card view cannot be left
   // stranded on a page number the narrowed result set no longer has. Resetting
@@ -363,36 +352,12 @@ const BrowseDogsPage: React.FC = () => {
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
               canDelete={canDeleteDogs}
-              onBlockedDogs={blockedDeletes.reportBlocked}
             />
           )}
         </>
       )}
 
       {/* Create Dog Panel */}
-      {/* Gated ONLY on its own state, and deliberately outside the
-          loading/error fragment above. Anchoring it there was still wrong: a
-          failed delete now invalidates the dogs query, and if that refetch
-          errors, `hasError` flips and would unmount the very report explaining
-          the failure. This is the report of last resort — nothing about the
-          list's health may take it away (MYK9-584). */}
-      {blockedDeletes.blockedDogs.length > 0 && (
-        <BlockedDogDeleteDialog
-          // Keyed by reason so the acknowledgement RE-ARMS when a failed
-          // override re-seeds the list. Without the remount the checkbox stays
-          // ticked and "Delete anyway" is one click, repeatable, with no new
-          // information (MYK9-584 review).
-          key={blockedDeletes.reason}
-          dogs={blockedDeletes.blockedDogs}
-          reason={blockedDeletes.reason}
-          open
-          onClose={blockedDeletes.dismiss}
-          onForceDelete={blockedDeletes.forceDelete}
-          isSubmitting={blockedDeletes.isSubmitting}
-          canForceDelete={canForceDeleteDogs}
-        />
-      )}
-
       <AddDogPanel
         open={showCreateDogPanel}
         onClose={closeCreateDogPanel}

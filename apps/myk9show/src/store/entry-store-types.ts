@@ -125,7 +125,6 @@ export interface EntryStoreState {
     updates: Partial<ShowEntryInput>,
     userId: string
   ) => Promise<SyncableShowEntry | null>;
-  deleteEntry: (entryId: string) => Promise<void>;
   updateRegistration: (
     entryId: string,
     updates: Partial<RegistrationData>,

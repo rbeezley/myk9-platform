@@ -221,25 +221,6 @@ describe('dogStore (with database integration)', () => {
       });
     });
 
-    it('should delete a dog using database', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUseDeleteDogMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
-      });
-
-      const { result } = renderHook(() => useDogStoreCompat(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        await result.current.deleteDog('dog-1');
-      });
-
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'dog-1' });
-    });
-
     it('should retrieve dogs from database', () => {
       mockUseDogsQuery.mockReturnValue({
         data: mockDogs,

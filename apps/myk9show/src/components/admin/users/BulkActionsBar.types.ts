@@ -15,15 +15,4 @@ export interface BulkActionsBarProps {
 
 // Suspend / Reinstate are not dialogs here: they live in BulkAccountActions and
 // use the status-only update the row menu uses. 'role' opens BulkRoleEditPanel.
-export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
-
-export interface RelatedDataDetails {
-  entryCount: number;
-  dogCount: number;
-  canCascade: boolean;
-}
-
-export interface ErrorWithRelatedData extends Error {
-  code?: string;
-  details?: RelatedDataDetails;
-}
+export type DialogType = 'delete' | 'role' | null;

@@ -199,8 +199,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         onPhotoSave={state.handlePhotoSave}
         showDeleteDialog={state.showDeleteDialog}
         onDeleteDialogChange={state.setShowDeleteDialog}
-        onConfirmDelete={state.handleConfirmDelete}
-        isDeleting={state.isDeleting}
+        onClubDeleted={state.handleClubDeleted}
         showAddMemberDialog={state.showAddMemberDialog}
         onAddMemberDialogChange={state.setShowAddMemberDialog}
         members={state.clubMembers}

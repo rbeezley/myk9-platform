@@ -16,7 +16,7 @@ export interface EntryListCardProps {
   onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
-  onRemoveEntry: (entryId: string) => void;
+  onEntryRemoved: (entryId: string) => void;
   showCheckInStatus?: boolean | undefined;
   matchingEntryIds?: ReadonlySet<string> | undefined;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;

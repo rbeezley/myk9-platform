@@ -137,32 +137,6 @@ export const useEntryStore = create<EntryStoreState>()((set, get): EntryStoreSta
     }
   },
 
-  deleteEntry: async (entryId: string): Promise<void> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      const entryExists = get().entries.some(e => e.id === entryId);
-      if (!entryExists) {
-        const error = `Entry with id ${entryId} not found`;
-        set({ error, isLoading: false });
-        return;
-      }
-
-      // Delete from replicated table and queue DELETE mutation for Supabase
-      await replicatedEntriesTable.deleteEntry(entryId);
-
-      // Update local state
-      set(state => ({
-        entries: state.entries.filter(e => e.id !== entryId),
-        isLoading: false,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete entry';
-      set({ error: errorMessage, isLoading: false });
-      throw error;
-    }
-  },
-
   updateRegistration: async (
     entryId: string,
     updates: Partial<RegistrationData>,

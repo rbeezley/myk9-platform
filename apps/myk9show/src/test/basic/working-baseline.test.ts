@@ -41,12 +41,6 @@ vi.mock('@/mockData/mockShows', () => ({
   mockShows: [],
 }));
 
-// Mock cascadingDelete
-vi.mock('@/utils/cascadingDelete', () => ({
-  performCascadingDelete: vi.fn().mockReturnValue({ deletedTrials: 0, deletedClasses: 0 }),
-  previewCascadingDelete: vi.fn().mockReturnValue(null),
-}));
-
 // Mock authHelpers
 vi.mock('@/utils/authHelpers', () => ({
   getLastModifiedBy: vi.fn().mockReturnValue('test-user'),

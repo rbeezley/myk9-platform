@@ -573,27 +573,6 @@ describe('ReplicatedClubsTable', () => {
         expect(club1.id).not.toBe(club2.id);
       });
     });
-
-    describe('deleteClubLocal', () => {
-      it('should delete club from local cache', async () => {
-        const club: ReplicatedClub = {
-          id: 'club-1',
-          name: 'Test Club',
-          email: 'test@club.com',
-          phone: '555-1234',
-        };
-
-        await table.set('club-1', club);
-        await table.deleteClubLocal('club-1');
-
-        const result = await table.get('club-1');
-        expect(result).toBeNull();
-      });
-
-      it('should not throw when deleting non-existent club', async () => {
-        await expect(table.deleteClubLocal('nonexistent')).resolves.not.toThrow();
-      });
-    });
   });
 
   describe('Sync Operations', () => {
@@ -1590,7 +1569,10 @@ describe('ReplicatedClubsTable', () => {
       result = await table.get(newClub.id);
       expect(result?.phone).toBe('555-9999');
 
-      await table.deleteClubLocal(newClub.id);
+      // Removal from this device after a server soft delete is the plain local
+      // delete (features/delete purge); nothing queues a club DELETE.
+      expect('deleteClubLocal' in table).toBe(false);
+      await table.delete(newClub.id);
 
       result = await table.get(newClub.id);
       expect(result).toBeNull();

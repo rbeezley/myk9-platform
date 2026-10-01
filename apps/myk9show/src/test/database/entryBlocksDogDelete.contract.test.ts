@@ -2,8 +2,9 @@
  * Drift check between the delete-blocking predicate in TWO places:
  *
  *   * the server guard in soft_delete_dog (SQLSTATE MK002) — the authority;
- *   * count_blocking_entries_by_dog, the RPC the delete dialog calls to
- *     explain the refusal BEFORE the user clicks.
+ *   * delete_preview's dog branch (CRUD standard Phase 2), the read the shared
+ *     delete dialog makes to explain the refusal BEFORE the user clicks
+ *     (count_blocking_entries_by_dog, the earlier dialog's RPC, is checked too).
  *
  * Before MYK9-822 these were two independent copies of the same condition —
  * the server's SQL guard and a client-side PostgREST `.or()` filter — and
@@ -62,19 +63,6 @@ function sqlFunctionBody(migration: string, signature: string): string {
   return migration.slice(start, bodyEnd);
 }
 
-const reads = readFileSync(
-  resolve(repoRoot, 'apps/myk9show/src/services/database/entries/reads.ts'),
-  'utf8'
-);
-
-function clientFunctionBody(): string {
-  const start = reads.indexOf('export const countBlockingEntriesByDog');
-  expect(start).toBeGreaterThan(-1);
-  const end = reads.indexOf('\n};', start);
-  expect(end).toBeGreaterThan(start);
-  return reads.slice(start, end);
-}
-
 describe('delete-blocking entry predicate (MYK9-822)', () => {
   it("soft_delete_dog's MK002 guard calls the shared private predicate", () => {
     const migration = latestMigrationDefining("USING ERRCODE = 'MK002'");
@@ -107,16 +95,15 @@ describe('delete-blocking entry predicate (MYK9-822)', () => {
     }
   });
 
-  it('the client calls the RPC, never a hand-rolled PostgREST filter', () => {
-    // Regression guard for the bug this migration fixes: a PostgREST filter
-    // naming result_status inside an `or()` 403s the WHOLE request (MYK9-799)
-    // because authenticated has no column-SELECT grant on it. The RPC
-    // sidesteps that by running SECURITY DEFINER, so the client must never go
-    // back to composing its own filter over `entries`.
-    const body = clientFunctionBody();
-    expect(body).toContain(".rpc('count_blocking_entries_by_dog'");
-    expect(body).toContain('p_dog_id: dogId');
-    expect(body).not.toContain('.or(');
-    expect(body).not.toContain("supabase.from('entries')");
+  it("delete_preview's dog branch counts with the same shared predicate", () => {
+    // The shared delete dialog reads delete_preview (CRUD standard Phase 2), not
+    // a client filter, to say up front that a dog's delete will be refused.
+    const migration = latestMigrationDefining('CREATE OR REPLACE FUNCTION public.delete_preview');
+    const body = sqlFunctionBody(migration, 'public.delete_preview(p_scope text, p_id uuid)');
+    const dogBranch = body.slice(
+      body.indexOf("p_scope = 'dog'"),
+      body.indexOf("p_scope = 'person'")
+    );
+    expect(dogBranch).toContain('private.count_dog_blocking_entries(p_id)');
   });
 });

@@ -278,8 +278,8 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) =>
     showEditPanelMock.impl(props),
 }));
-vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({
-  default: () => null,
+vi.mock('@/features/delete/DeleteObjectDialog', () => ({
+  DeleteObjectDialog: () => null,
 }));
 // Mock tab content components
 vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({

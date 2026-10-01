@@ -1,6 +1,7 @@
 /**
  * Unit tests for BulkActionsBar component
- * Tests bulk operations, user deletion, and user interface interactions
+ * Tests bulk operations, user deletion (through the shared delete dialog), and
+ * user interface interactions
  */
 
 import React from 'react';
@@ -8,10 +9,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BulkActionsBar } from './BulkActionsBar';
-import {
-  useDeleteUserMutation,
-  usePermanentDeleteUserMutation,
-} from '@/hooks/queries/useUsersQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
@@ -24,22 +21,34 @@ vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({
   invokeAdminInvite: vi.fn().mockResolvedValue({ data: null }),
 }));
 
-// Mock the mutation hooks
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
-  useDeleteUserMutation: vi.fn(),
-  usePermanentDeleteUserMutation: vi.fn(),
   useUpdateUserMutation: vi.fn(() => ({ mutateAsync: vi.fn() })),
 }));
 
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+const preview = (dogs: number) => ({
+  trials: 0,
+  classes: 0,
+  entries: 0,
+  shows: 0,
+  dogs,
+  paid: 0,
+  scored: 0,
+  blocking: dogs,
+});
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
-}));
-
-// AdminDeleteUserDialog (rendered by this component) calls the owns-dogs guard
-// query; stub it so the dialog renders without a QueryClient. Bulk delete passes
-// no personId, so the guard is inert here anyway.
-vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
 }));
 
 // A clubs-list query — resolve empty so opening a dialog doesn't
@@ -64,8 +73,6 @@ vi.mock('@/services/rbac/RBACService', () => ({
   },
 }));
 
-const mockUseDeleteUserMutation = vi.mocked(useDeleteUserMutation);
-const mockUsePermanentDeleteUserMutation = vi.mocked(usePermanentDeleteUserMutation);
 const mockUseAuthContext = vi.mocked(useAuthContext);
 
 // Mock data
@@ -96,7 +103,7 @@ const mockSelectedUsers: SelectedUser[] = [
   },
 ];
 
-// Components rendered by this bar (AdminDeleteUserDialog) read via useQuery —
+// Components rendered by this bar (the delete dialog) read via useQuery —
 // wrap every render in a QueryClientProvider so those hooks don't throw
 // outside a provider.
 function render(ui: React.ReactElement) {
@@ -134,30 +141,12 @@ function selectedUsersText(): string {
 }
 
 describe('BulkActionsBar', () => {
-  const mockMutateAsync = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup the mutation hook mock
-    mockUseDeleteUserMutation.mockReturnValue({
-      mutateAsync: mockMutateAsync,
-      mutate: vi.fn(),
-      isPending: false,
-      isError: false,
-      error: null,
-      data: undefined,
-      reset: vi.fn(),
-      isIdle: true,
-      isSuccess: false,
-      failureCount: 0,
-      failureReason: null,
-      isPaused: false,
-      status: 'idle' as const,
-      submittedAt: 0,
-      variables: undefined,
-      context: undefined,
-    });
+    deleteMocks.preview.mockReset().mockResolvedValue(preview(0));
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
 
     // Default to non-admin (existing tests stay the same)
     mockUseAuthContext.mockReturnValue({
@@ -193,26 +182,6 @@ describe('BulkActionsBar', () => {
       refreshPermissions: vi.fn().mockResolvedValue(undefined),
       firstName: null,
       lastName: null,
-    });
-
-    // Setup permanent delete mutation mock
-    mockUsePermanentDeleteUserMutation.mockReturnValue({
-      mutateAsync: vi.fn(),
-      mutate: vi.fn(),
-      isPending: false,
-      isError: false,
-      error: null,
-      data: undefined,
-      reset: vi.fn(),
-      isIdle: true,
-      isSuccess: false,
-      failureCount: 0,
-      failureReason: null,
-      isPaused: false,
-      status: 'idle' as const,
-      submittedAt: 0,
-      variables: undefined,
-      context: undefined,
     });
   });
 
@@ -284,146 +253,73 @@ describe('BulkActionsBar', () => {
     expect(mockClear).toHaveBeenCalledOnce();
   });
 
-  // Every user of /admin/users is a SITE_ADMIN (the route is role-guarded), so
-  // these run against the admin dialog — the only one that can be reached. A
-  // second, non-admin dialog used to render here behind an `isAdmin` branch and
-  // told the reader a restorable delete "cannot be undone"; it was removed.
+  // Bulk delete is the shared DeleteObjectDialog (CRUD standard Phase 2): soft,
+  // with Undo, and a person who still owns dogs is named and blocked up front.
+  // Permanent purge lives on Admin -> Deleted Items, not here.
   describe('Bulk Delete functionality', () => {
-    it('opens the delete dialog with both delete modes described accurately', () => {
-      render(<BulkActionsBar {...defaultProps} />);
-
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      expect(screen.getByText('Delete Users')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Records are preserved and can be restored later/)
-      ).toBeInTheDocument();
-      expect(screen.getByText(/Removes all data and the login account/)).toBeInTheDocument();
-    });
-
-    it('names the users being deleted', () => {
+    it('asks through the shared dialog, naming the people and the buttons plainly', async () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      // Scoped to the dialog: the bulk bar behind it lists the same names.
-      const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByText('John Doe, Jane Smith')).toBeInTheDocument();
+      const dialog = await screen.findByRole('dialog', { name: 'Delete 2 people?' });
+      expect(within(dialog).getByText('John Doe and Jane Smith')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(within(dialog).getByRole('button', { name: 'Delete 2 people' })).toBeEnabled()
+      );
+      expect(deleteMocks.remove).not.toHaveBeenCalled();
     });
 
-    it('cancels delete operation when cancel button is clicked', () => {
+    it('Keep it closes the dialog without deleting', async () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
+      fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }));
 
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      fireEvent.click(cancelButton);
-
-      expect(screen.queryByText('Delete Users')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(deleteMocks.remove).not.toHaveBeenCalled();
     });
 
-    it('successfully deletes users when confirmed', async () => {
-      mockMutateAsync.mockResolvedValue(undefined);
-      const mockOnUsersDeleted = vi.fn();
-      const mockOnBulkComplete = vi.fn();
-
+    it('deletes every selected person and reports them as deleted', async () => {
+      const onUsersDeleted = vi.fn();
+      const onBulkComplete = vi.fn();
       render(
         <BulkActionsBar
           {...defaultProps}
-          onUsersDeleted={mockOnUsersDeleted}
-          onBulkComplete={mockOnBulkComplete}
+          onUsersDeleted={onUsersDeleted}
+          onBulkComplete={onBulkComplete}
         />
       );
 
-      // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
+      fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+      const dialog = await screen.findByRole('dialog');
+      const confirm = within(dialog).getByRole('button', { name: 'Delete 2 people' });
+      await waitFor(() => expect(confirm).toBeEnabled());
+      fireEvent.click(confirm);
 
-      // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
-      fireEvent.click(confirmButton);
-
-      await waitFor(() => {
-        // Source calls mutateAsync({ id: userId }) without cascadeDelete
-        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
-        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-2' });
-        expect(mockMutateAsync).toHaveBeenCalledTimes(2);
-      });
-
-      await waitFor(() => {
-        expect(mockOnUsersDeleted).toHaveBeenCalledWith(['user-1', 'user-2']);
-        expect(mockOnBulkComplete).toHaveBeenCalledOnce();
-      });
+      await waitFor(() => expect(onUsersDeleted).toHaveBeenCalledWith(['user-1', 'user-2']));
+      expect(onBulkComplete).toHaveBeenCalledWith(['user-1', 'user-2']);
+      expect(deleteMocks.remove).toHaveBeenCalledWith('person', 'user-1', { override: false });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('person', 'user-2', { override: false });
     });
 
-    it('handles delete errors gracefully', async () => {
-      mockMutateAsync.mockRejectedValue(new Error('Database connection failed'));
-
-      render(<BulkActionsBar {...defaultProps} />);
-
-      // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
-      fireEvent.click(confirmButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Database connection failed/)).toBeInTheDocument();
-      });
-    });
-
-    it('shows loading state during deletion', async () => {
-      // Mock a delay in deletion
-      mockMutateAsync.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(undefined), 100))
+    it('names a person who still owns dogs and keeps Delete off', async () => {
+      deleteMocks.preview.mockImplementation(async (_kind: string, id: string) =>
+        id === 'user-2' ? preview(2) : preview(0)
       );
-
       render(<BulkActionsBar {...defaultProps} />);
 
-      // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
+      fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+      const dialog = await screen.findByRole('dialog');
 
-      // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
-      fireEvent.click(confirmButton);
-
-      // Check loading state
-      expect(screen.getByText('Deleting...')).toBeInTheDocument();
-
-      await waitFor(() => {
-        expect(screen.queryByText('Deleting...')).not.toBeInTheDocument();
-      });
-    });
-
-    it('handles individual user deletion failures', async () => {
-      mockMutateAsync
-        .mockResolvedValueOnce(undefined) // First user succeeds
-        .mockRejectedValueOnce(
-          new Error(
-            'Cannot delete user: This user is associated with show entries. Please remove or reassign entries before deleting the user.'
-          )
-        ); // Second user fails
-
-      render(<BulkActionsBar {...defaultProps} />);
-
-      // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
-      fireEvent.click(confirmButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Cannot delete user: This user is associated with show entries/)
-        ).toBeInTheDocument();
-      });
+      expect(
+        await within(dialog).findByText(
+          'Jane Smith still owns dogs. Leave it out of the selection to delete the rest.'
+        )
+      ).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Delete 2 people' })).toBeDisabled();
     });
   });
 
@@ -478,111 +374,6 @@ describe('BulkActionsBar', () => {
       const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       deleteButton.focus();
       expect(deleteButton).toHaveFocus();
-    });
-  });
-
-  describe('Site Admin Delete', () => {
-    beforeEach(() => {
-      mockUseAuthContext.mockReturnValue({
-        user: null,
-        userWithRoles: null,
-        loading: false,
-        signIn: vi.fn(),
-        signUp: vi.fn(),
-        resendConfirmationEmail: vi.fn(),
-        signOut: vi.fn(),
-        signInWithGoogle: vi.fn(),
-        signInWithApple: vi.fn(),
-        resetPassword: vi.fn(),
-        updatePassword: vi.fn(),
-        updateProfile: vi.fn(),
-        hasRole: vi.fn().mockReturnValue(true),
-        hasPermission: vi.fn().mockReturnValue(true),
-        getUserRoles: vi.fn().mockReturnValue(['site_admin']),
-        switchUserRole: vi.fn(),
-        checkPermissionAsync: vi.fn().mockResolvedValue(true),
-        isAdmin: true,
-        isSecretary: false,
-        isExhibitor: false,
-        isJudge: false,
-        dbPermissions: [],
-        dbRoles: [],
-        rbacUserRoles: [],
-        rbacScopedPermissions: [],
-        rbacLoading: false,
-        rbacError: null,
-        rbacLastRefreshed: null,
-        rbacFromCacheAt: null,
-        refreshPermissions: vi.fn().mockResolvedValue(undefined),
-        firstName: null,
-        lastName: null,
-      });
-    });
-
-    it('shows AdminDeleteUserDialog with soft/permanent options for admins', () => {
-      render(<BulkActionsBar {...defaultProps} />);
-
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      // Should show the admin dialog with radio options
-      expect(screen.getByLabelText(/Deactivate/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Permanently delete/)).toBeInTheDocument();
-    });
-
-    it('calls soft delete when deactivate is chosen', async () => {
-      mockMutateAsync.mockResolvedValue(undefined);
-
-      render(<BulkActionsBar {...defaultProps} />);
-
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      // Deactivate is default
-      const confirmButton = screen.getByRole('button', { name: /deactivate/i });
-      fireEvent.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockMutateAsync).toHaveBeenCalled();
-      });
-    });
-
-    it('calls permanent delete when permanently delete is chosen', async () => {
-      const mockPermanentMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUsePermanentDeleteUserMutation.mockReturnValue({
-        mutateAsync: mockPermanentMutateAsync,
-        mutate: vi.fn(),
-        isPending: false,
-        isError: false,
-        error: null,
-        data: undefined,
-        reset: vi.fn(),
-        isIdle: true,
-        isSuccess: false,
-        failureCount: 0,
-        failureReason: null,
-        isPaused: false,
-        status: 'idle' as const,
-        submittedAt: 0,
-        variables: undefined,
-        context: undefined,
-      });
-
-      render(<BulkActionsBar {...defaultProps} />);
-
-      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
-      fireEvent.click(deleteButton);
-
-      const permanentRadio = screen.getByLabelText(/Permanently delete/);
-      fireEvent.click(permanentRadio);
-
-      const confirmButton = screen.getByRole('button', { name: /permanently delete/i });
-      fireEvent.click(confirmButton);
-
-      await waitFor(() => {
-        expect(mockPermanentMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
-        expect(mockPermanentMutateAsync).toHaveBeenCalledWith({ id: 'user-2' });
-      });
     });
   });
 });

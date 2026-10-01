@@ -1,6 +1,6 @@
 import { getStatusDescriptor } from '@/components/status';
 import { describe, it, expect, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 // Custom render wraps QueryClient/Auth/Router — EntryListCard always mounts
 // RefundEntryDialog, which now reads the policy snapshot via React Query.
@@ -18,6 +18,22 @@ vi.mock('@/components/common/CheckInStatusIndicator', () => ({
 vi.mock('@/components/entries/EmailStatusIcon', () => ({
   EmailStatusIcon: () => null,
 }));
+
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({
+  preview: vi.fn(),
+  remove: vi.fn(),
+  purge: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
   return {
@@ -58,7 +74,7 @@ const defaultProps = {
   onStatusChange: vi.fn(),
   onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
-  onRemoveEntry: vi.fn(),
+  onEntryRemoved: vi.fn(),
 };
 
 describe('EntryListCard - check-in button affordance', () => {
@@ -200,18 +216,33 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.getByText('Request payment…')).toBeInTheDocument();
   });
 
-  it('confirms before removing an entry from a class', async () => {
+  it('asks through the shared delete dialog before removing an entry', async () => {
+    deleteMocks.preview.mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 0,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    const onRemoveEntry = vi.fn();
-    render(<EntryListCard {...defaultProps} onRemoveEntry={onRemoveEntry} />);
+    const onEntryRemoved = vi.fn();
+    render(<EntryListCard {...defaultProps} onEntryRemoved={onEntryRemoved} />);
 
     await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
 
-    expect(screen.getByRole('alertdialog', { name: /remove entry/i })).toBeTruthy();
+    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Fido?' });
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: /^remove entry$/i }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(onRemoveEntry).toHaveBeenCalledWith('entry-1');
+    await waitFor(() => expect(onEntryRemoved).toHaveBeenCalledWith('entry-1'));
+    expect(deleteMocks.remove).toHaveBeenCalledWith('entry', 'entry-1', { override: false });
   });
   /**
    * MYK9-639: a destination whose paying source did not come back in the read

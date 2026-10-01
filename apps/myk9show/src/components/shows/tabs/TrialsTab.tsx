@@ -74,8 +74,6 @@ interface TrialRow {
   hasStarted?: boolean;
 }
 
-const EMPTY_ENTRY_COUNTS = new Map<string, number>();
-
 const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
   {
     accessorKey: 'trialDate',
@@ -408,7 +406,6 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           key={pendingTrialAction.requestId}
           currentTrial={pendingTrialAction.trial}
           parentShow={parentShow}
-          entryCountByClass={EMPTY_ENTRY_COUNTS}
           initialAction={pendingTrialAction.action}
           onActionFinished={() => finishTrialAction(pendingTrialAction.requestId)}
           onTrialDeleted={() => finishTrialAction(pendingTrialAction.requestId)}

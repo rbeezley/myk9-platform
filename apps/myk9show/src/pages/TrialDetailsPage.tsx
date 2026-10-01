@@ -407,7 +407,6 @@ const TrialDetailsPage: React.FC = () => {
           ref={dialogsRef}
           currentTrial={currentTrial}
           parentShow={parentShow}
-          entryCountByClass={entryCountByClass}
         />
       )}
     </PageShell>

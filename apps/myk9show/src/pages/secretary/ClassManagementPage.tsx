@@ -2,14 +2,10 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  useClassesByTrialQuery,
-  useDeleteClassMutation,
-  classKeys,
-} from '@/hooks/queries/useClassesDatabase';
+import { useClassesByTrialQuery, classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useClassManagementFilters } from '@/hooks/useClassManagementFilters';
-import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
+import { DeleteObjectDialog, classDeleteDetail } from '@/features/delete';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
@@ -69,7 +65,6 @@ export const ClassManagementPage: React.FC = () => {
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const deleteClassMutation = useDeleteClassMutation();
   const assignJudgeMutation = useMutation({
     mutationFn: ({ classId, judgeId }: { classId: string; judgeId: string }) => {
       if (!showId) throw new Error('Show is required before assigning judges.');
@@ -203,7 +198,7 @@ export const ClassManagementPage: React.FC = () => {
     [allClasses]
   );
 
-  const { bulkBusy, handleBulkDelete, handleBulkStatusChange } = useClassBulkActions({
+  const { bulkBusy, handleBulkStatusChange } = useClassBulkActions({
     classesById,
   });
 
@@ -228,7 +223,8 @@ export const ClassManagementPage: React.FC = () => {
     assignJudgeMutation.mutate({ classId, judgeId });
   };
 
-  // Delete asks through the same dialog Class Details and Setup use, never `window.confirm`.
+  // Delete asks through the one shared dialog (features/delete), the same delete and replica
+  // purge as Class Details, Setup and the trial page.
   const [classPendingDelete, setClassPendingDelete] = useState<DbClassRow | null>(null);
   const handleDelete = (classId: string) => {
     setClassPendingDelete(allClasses.find(cls => cls.id === classId) ?? null);
@@ -411,25 +407,35 @@ export const ClassManagementPage: React.FC = () => {
       {/* Rendered last so its in-flow height spacer lands BELOW the class list
           rather than in the middle of the page — the bar itself is `fixed`, so
           its on-screen position is unchanged by where it sits in the tree. */}
-      <DeleteClassDialog
-        open={classPendingDelete !== null}
-        onOpenChange={open => {
-          if (!open) setClassPendingDelete(null);
-        }}
-        currentClass={classPendingDelete && { ...classPendingDelete, trial: trialDisplayName }}
-        onConfirm={async () => {
-          if (classPendingDelete) {
-            await deleteClassMutation.mutateAsync({ id: classPendingDelete.id });
-          }
-        }}
-      />
+      {classPendingDelete && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setClassPendingDelete(null);
+          }}
+          kind="class"
+          targets={[
+            {
+              id: classPendingDelete.id,
+              name: classPendingDelete.name || 'Untitled class',
+              detail: classDeleteDetail({
+                level: classPendingDelete.level,
+                element: classPendingDelete.element,
+                trialLabel: trialDisplayName,
+              }),
+              context: { showId, trialId, classId: classPendingDelete.id },
+            },
+          ]}
+        />
+      )}
 
       <ClassBulkActionsBar
         selectedClasses={selection.selectedItems}
         bulkBusy={bulkBusy}
-        onBulkDelete={handleBulkDelete}
         onBulkStatusChange={handleBulkStatusChange}
         onClear={selection.clearSelection}
+        trialLabel={trialDisplayName}
+        context={{ showId, trialId }}
       />
     </div>
   );

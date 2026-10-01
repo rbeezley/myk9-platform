@@ -446,18 +446,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     logger.log(`[${this.getTableName()}] Created new club ${id}`);
     return newClub;
   }
-
-  /**
-   * Delete club locally (soft delete, queued for sync)
-   */
-  async deleteClubLocal(clubId: string): Promise<void> {
-    await this.queueMutation('DELETE', clubId, {
-      id: clubId,
-      deleted_at: new Date().toISOString(),
-    });
-    await this.delete(clubId);
-    logger.log(`[${this.getTableName()}] Deleted club ${clubId} from local cache`);
-  }
 }
 
 // Singleton export

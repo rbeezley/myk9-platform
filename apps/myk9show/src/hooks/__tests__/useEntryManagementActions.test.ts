@@ -264,8 +264,7 @@ describe('useEntryManagementActions', () => {
     ]);
   });
 
-  it('soft-deletes a removed entry with the secretary user id and removes it from local state', async () => {
-    vi.mocked(deleteEntry).mockResolvedValue({ data: null, error: null });
+  it('drops an entry the shared delete dialog removed from local state, with no server call', () => {
     const entry = makeEntry();
     const setEntries = vi.fn();
     const setError = vi.fn();
@@ -281,13 +280,12 @@ describe('useEntryManagementActions', () => {
       })
     );
 
-    await act(async () => {
-      await result.current.handleRemoveEntry('entry-1');
+    act(() => {
+      result.current.handleEntryRemoved('entry-1');
     });
 
-    expect(deleteEntry).toHaveBeenCalledWith('entry-1', 'secretary-1');
-    expect(setError).toHaveBeenCalledWith(null);
-
+    // The dialog already ran soft_delete_entry; this only patches the page's list.
+    expect(deleteEntry).not.toHaveBeenCalled();
     const updater = setEntries.mock.calls[0]?.[0];
     expect(typeof updater).toBe('function');
     expect(updater([entry])).toEqual([]);

@@ -137,7 +137,7 @@ function Harness({
       onOpenArmbandDialog={vi.fn()}
       onOpenCompDialog={vi.fn()}
       onUncompEntry={vi.fn()}
-      onRemoveEntry={vi.fn()}
+      onEntryRemoved={vi.fn()}
       onBulkStatusChange={vi.fn()}
       paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       onSendDecisionEmail={vi.fn().mockResolvedValue(undefined)}

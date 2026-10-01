@@ -7,7 +7,6 @@ import {
   getDeletedUserById,
   createUser,
   updateUser,
-  deleteUser,
   permanentDeleteUser,
   searchUsers,
   getUsersByRole,
@@ -149,29 +148,6 @@ const UserService = {
       throw Object.assign(new Error(result.error.message), { code: result.error.code });
     }
     return mapDbUserToUser(result.data);
-  },
-
-  delete: async (id: string, deletedBy?: string): Promise<void> => {
-    const result = await deleteUser(id, deletedBy);
-    if (result.error) {
-      // Create a more detailed error object for handling in the UI
-      interface ErrorWithDetails extends Error {
-        code?: string;
-        details?: {
-          entryCount: number;
-          dogCount: number;
-          canCascade: boolean;
-        };
-      }
-      const error = new Error(result.error.message) as ErrorWithDetails;
-      if (result.error.code !== undefined) {
-        error.code = result.error.code;
-      }
-      if (typeof result.error.details === 'object' && result.error.details !== null) {
-        error.details = result.error.details;
-      }
-      throw error;
-    }
   },
 
   permanentDelete: async (id: string): Promise<void> => {
@@ -344,24 +320,6 @@ export function useUpdateUserMutation() {
       });
 
       queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'admin'] });
-    },
-  });
-}
-
-export function useDeleteUserMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, deletedBy }: { id: string; deletedBy?: string }) =>
-      UserService.delete(id, deletedBy),
-    onSuccess: (_, variables) => {
-      const deletedId = variables.id;
-      queryClient.removeQueries({ queryKey: queryKeys.users.detail(deletedId) });
-
-      queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
-        if (!oldData) return [];
-        return oldData.filter(user => user.id !== deletedId);
-      });
     },
   });
 }

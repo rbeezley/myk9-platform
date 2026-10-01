@@ -46,7 +46,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onOpenEditEntry,
   onCompEntry,
   onUncompEntry,
-  onRemoveEntry,
+  onEntryRemoved,
   showCheckInStatus = true,
   matchingEntryIds,
   onBulkStatusChange,
@@ -218,7 +218,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       onOpenEditEntry={onOpenEditEntry}
                       onCompEntry={onCompEntry}
                       onUncompEntry={onUncompEntry}
-                      onRemoveEntry={onRemoveEntry}
+                      onEntryRemoved={onEntryRemoved}
                       showCheckInStatus={showCheckInStatus}
                       hidePaymentBadge={true}
                       hideHeader={true}

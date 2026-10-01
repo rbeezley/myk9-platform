@@ -45,7 +45,7 @@ describe('deleteShowRecord', () => {
 
     const result = await deleteShowRecord('s1', 'user-1');
 
-    expect(mocks.serverDelete).toHaveBeenCalledWith('s1', 'user-1');
+    expect(mocks.serverDelete).toHaveBeenCalledWith('s1', 'user-1', {});
     expect(result).toBe(serverResult);
   });
 });

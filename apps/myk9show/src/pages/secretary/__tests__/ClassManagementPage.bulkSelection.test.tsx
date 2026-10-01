@@ -11,10 +11,6 @@ import { ClassManagementPage } from '../ClassManagementPage';
 
 const useClassesByTrialQueryMock = vi.hoisted(() => vi.fn());
 const useUpdateClassMutationMock = vi.hoisted(() => vi.fn());
-const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
-// Bulk delete reuses useDeleteClassMutation.mutateAsync per class — same soft-delete
-// + full cache invalidations as single-class delete.
-const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
 const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
@@ -25,10 +21,31 @@ const deleteClassMock = vi.hoisted(() => vi.fn());
 // path as single-class delete), NOT the replicated table's raw hard DELETE.
 const softDeleteClassServiceMock = vi.hoisted(() => vi.fn());
 
+// Bulk delete is the shared delete dialog (features/delete): its server and device halves.
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+const NOTHING_BLOCKS = {
+  trials: 0,
+  classes: 0,
+  entries: 0,
+  shows: 0,
+  dogs: 0,
+  paid: 0,
+  scored: 0,
+  blocking: 0,
+};
+
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
   useUpdateClassMutation: useUpdateClassMutationMock,
-  useDeleteClassMutation: useDeleteClassMutationMock,
   classKeys: {
     all: ['classes'],
     byTrial: (trialId: string) => ['classes', 'trial', trialId],
@@ -123,12 +140,9 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     vi.clearAllMocks();
     useClassesByTrialQueryMock.mockReturnValue({ data: classRows, isLoading: false });
     useUpdateClassMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
-    deleteMutateAsyncMock.mockResolvedValue({ id: 'class-1', name: null });
-    useDeleteClassMutationMock.mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: deleteMutateAsyncMock,
-      isPending: false,
-    });
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     useJudgesWithQualificationsMock.mockReturnValue({ data: [] });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
     useSecretaryShowEntriesQueryMock.mockReturnValue({
@@ -267,33 +281,34 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     });
   });
 
-  it('bulk delete soft-deletes via the service RPC, not the replicated hard DELETE', async () => {
+  it('bulk delete soft-deletes every class through the shared dialog, never a hard DELETE', async () => {
     const { user } = renderPage();
     await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
 
-    // Destructive → confirmation dialog before dispatch.
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+    // Destructive: the shared dialog asks before anything is sent.
+    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 classes?' });
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
     await waitFor(() => {
-      expect(deleteMutateAsyncMock).toHaveBeenCalledWith({ id: 'class-1' });
-      expect(deleteMutateAsyncMock).toHaveBeenCalledWith({ id: 'class-2' });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'class-1', { override: false });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'class-2', { override: false });
     });
-    // Reuses the shared delete MUTATION (soft delete + full cache invalidation),
-    // not the replicated table's raw hard DELETE which would cascade-delete
-    // entries irrecoverably and skip the detail/statistics/entry invalidations.
     expect(deleteClassMock).not.toHaveBeenCalled();
+    expect(softDeleteClassServiceMock).not.toHaveBeenCalled();
   });
 
-  it('disables bulk controls while a bulk delete is in flight (in-flight latch)', async () => {
+  it('a bulk delete in flight cannot be sent twice', async () => {
     const resolvers: Array<() => void> = [];
-    deleteMutateAsyncMock.mockImplementation(
+    deleteMocks.remove.mockImplementation(
       () =>
-        new Promise(resolve => {
-          resolvers.push(() => resolve({ id: 'class-1', name: null }));
+        new Promise<void>(resolve => {
+          resolvers.push(resolve);
         })
     );
 
@@ -303,13 +318,14 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    // Bulk controls are disabled while busy, so a second dispatch cannot fire.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled()
-    );
-    expect(deleteMutateAsyncMock).toHaveBeenCalledTimes(2);
+    // While it runs, the action reads Deleting and is disabled; Keep it is too.
+    expect(await within(dialog).findByRole('button', { name: /Deleting/ })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeDisabled();
+    await waitFor(() => expect(deleteMocks.remove).toHaveBeenCalledTimes(2));
 
     resolvers.forEach(resolve => resolve());
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());

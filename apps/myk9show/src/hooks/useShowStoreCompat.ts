@@ -1,7 +1,6 @@
 // Compatibility layer for Show Store - provides showStore-like API using React Query
 import { useMemo } from 'react';
 import type { Show, ShowInput } from '@/types/show-types';
-import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import {
   useShowsQuery,
   useShowQuery,
@@ -21,8 +20,7 @@ import {
  */
 export const useShowStoreCompat = () => {
   const showsQuery = useShowsQuery();
-  const { createShow, updateShow, deleteShow, isCreating, isUpdating, isDeleting } =
-    useShowManagement();
+  const { createShow, updateShow, isCreating, isUpdating } = useShowManagement();
 
   // Memoize the store-like API to prevent unnecessary re-renders
   const storeAPI = useMemo(
@@ -30,7 +28,7 @@ export const useShowStoreCompat = () => {
       // Data state (from React Query)
       shows: showsQuery.data || [],
       selectedShowId: '', // This could be managed with additional state if needed
-      isLoading: showsQuery.isLoading || isCreating || isUpdating || isDeleting,
+      isLoading: showsQuery.isLoading || isCreating || isUpdating,
       error: showsQuery.error?.message || null,
 
       // Local-First Actions (now powered by React Query + Supabase)
@@ -42,15 +40,6 @@ export const useShowStoreCompat = () => {
       updateShow: async (id: string, updates: Partial<ShowInput>): Promise<Show | null> => {
         const updatedShow = await updateShow({ id, updates });
         return updatedShow;
-      },
-
-      deleteShow: async (id: string): Promise<void> => {
-        await deleteShow({ id });
-      },
-
-      deleteShowCascading: async (id: string): Promise<void> => {
-        // For now, same as deleteShow - cascading logic would be handled by database triggers
-        await deleteShow({ id });
       },
 
       getShowById: (id: string): Show | null => {
@@ -130,25 +119,12 @@ export const useShowStoreCompat = () => {
         updateShow({ id: show.id, updates: showInput }).catch(() => {});
       },
 
-      removeShow: (id: string) => {
-        deleteShow({ id }).catch(() => {});
-      },
-
-      removeShowCascading: (id: string) => {
-        deleteShow({ id }).catch(() => {});
-      },
-
-      previewCascadingDelete: (): CascadingDeletePreview | null => {
-        // previewCascadingDelete is not yet implemented with database backend
-        return null;
-      },
-
       // Selection (this could be enhanced with additional state management if needed)
       selectShow: () => {
         // selectShow is not implemented in compatibility layer - manage selection state in components
       },
     }),
-    [showsQuery, createShow, updateShow, deleteShow, isCreating, isUpdating, isDeleting]
+    [showsQuery, createShow, updateShow, isCreating, isUpdating]
   );
 
   return storeAPI;

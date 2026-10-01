@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatTrialLabel } from '@myk9/core';
@@ -7,17 +7,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
-import StandardDialog from '@/components/common/StandardDialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DeleteObjectDialog, classDeleteDetail, trialDeleteDetail } from '@/features/delete';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
@@ -35,8 +25,6 @@ export interface TrialManagementDialogsHandle {
 export interface TrialManagementDialogsProps {
   currentTrial: TrialWithClasses | undefined;
   parentShow: Show | undefined;
-  /** Per-class entry counts, for the delete-class confirmation copy. */
-  entryCountByClass: Map<string, number>;
   /**
    * Called after the trial is deleted, in place of the default navigation. A host that is
    * not the deleted trial's own page (Setup's Trials list) stays where it is.
@@ -62,24 +50,20 @@ export const TrialManagementDialogs = forwardRef<
   TrialManagementDialogsHandle,
   TrialManagementDialogsProps
 >(function TrialManagementDialogs(
-  { currentTrial, parentShow, entryCountByClass, onTrialDeleted, initialAction, onActionFinished },
+  { currentTrial, parentShow, onTrialDeleted, initialAction, onActionFinished },
   ref
 ) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthContext();
-  const { trials, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
-  const { updateClass, deleteClass } = useClassStoreCompat();
+  const { trials, updateTrial } = useTrialStore();
+  const { updateClass } = useClassStoreCompat();
 
   const showOrganization = parentShow?.organization;
 
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(initialAction === 'edit');
   const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(initialAction === 'delete');
-  const [deletingTrial, setDeletingTrial] = useState(false);
-  // Synchronous twin of `deletingTrial`: dismissal handlers read it in the same tick.
-  const deletingTrialRef = useRef(false);
-  const [deleteTrialError, setDeleteTrialError] = useState<string | null>(null);
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
@@ -107,38 +91,13 @@ export const TrialManagementDialogs = forwardRef<
     onActionFinished?.();
   };
   const closeDeleteTrial = () => {
-    // A delete in flight cannot be dismissed (Cancel, X, Escape, overlay all land here): its
-    // completion must find the dialog it started in.
-    if (deletingTrialRef.current) return;
-    setDeleteTrialError(null);
     setDeleteTrialDialogOpen(false);
     onActionFinished?.();
   };
 
-  const handleConfirmDeleteTrial = async () => {
-    if (!currentTrial) {
-      closeDeleteTrial();
-      return;
-    }
-    deletingTrialRef.current = true;
-    setDeletingTrial(true);
-    try {
-      setDeleteTrialError(null);
-      await deleteTrialAsync(currentTrial.id);
-    } catch (error) {
-      deletingTrialRef.current = false;
-      setDeletingTrial(false);
-      // Stay open and say why; closing here would read as a delete that never happened.
-      setDeleteTrialError(
-        error instanceof Error && error.message
-          ? error.message
-          : "We couldn't delete this trial. Please try again."
-      );
-      return;
-    }
-    // Deleted: release the latch so the dialog can close (and the host can move on).
-    deletingTrialRef.current = false;
-    setDeletingTrial(false);
+  // The shared dialog has deleted the trial (soft, with Undo) and purged it locally.
+  const handleTrialDeleted = () => {
+    if (!currentTrial) return;
     if (onTrialDeleted) {
       onTrialDeleted();
     } else if (showId && currentTrial.showId) {
@@ -151,23 +110,12 @@ export const TrialManagementDialogs = forwardRef<
         navigate('/shows', { replace: true });
       }
     }
-    closeDeleteTrial();
   };
 
-  const handleConfirmDeleteClass = () => {
-    if (selectedClassForDelete && currentTrial) {
-      const updatedClasses =
-        currentTrial.classes?.filter(cls => cls.id !== selectedClassForDelete.id) || [];
-      updateTrial(
-        currentTrial.id,
-        { ...currentTrial, classes: updatedClasses } as Partial<TrialInput>,
-        user?.id || 'unknown'
-      );
-      deleteClass(selectedClassForDelete.id);
-    }
-    setDeleteClassDialogOpen(false);
-    setSelectedClassForDelete(null);
-  };
+  const trialLabel = formatTrialLabel({
+    name: currentTrial?.name,
+    trialNumber: currentTrial?.trialNumber,
+  });
 
   return (
     <>
@@ -191,40 +139,28 @@ export const TrialManagementDialogs = forwardRef<
         }}
       />
 
-      <StandardDialog
-        open={deleteTrialDialogOpen}
-        onClose={closeDeleteTrial}
-        onSave={handleConfirmDeleteTrial}
-        title="Delete Trial"
-        description={null}
-        saveLabel={deletingTrial ? 'Deleting…' : 'Delete Trial'}
-        isSubmitting={deletingTrial}
-        cancelLabel="Cancel"
-        saveButtonProps={{ variant: 'destructive' }}
-        hideSave={false}
-      >
-        <div className="py-2 text-foreground space-y-3">
-          <p>
-            Are you sure you want to delete{' '}
-            <b>
-              {formatTrialLabel({
-                name: currentTrial?.name,
-                trialNumber: currentTrial?.trialNumber,
-              })}
-            </b>
-            ?
-          </p>
-          <p className="text-muted-foreground text-sm">
-            This will permanently delete the trial along with all of its classes and entries.
-          </p>
-          <p className="text-destructive text-sm font-medium">This action cannot be undone.</p>
-          {deleteTrialError && (
-            <p role="alert" className="text-sm font-medium text-destructive">
-              {deleteTrialError}
-            </p>
-          )}
-        </div>
-      </StandardDialog>
+      {deleteTrialDialogOpen && currentTrial && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) closeDeleteTrial();
+          }}
+          kind="trial"
+          targets={[
+            {
+              id: currentTrial.id,
+              name: trialLabel,
+              detail: trialDeleteDetail({
+                name: currentTrial.name,
+                trialNumber: currentTrial.trialNumber,
+                date: currentTrial.trialDate,
+              }),
+              context: { showId: currentTrial.showId, trialId: currentTrial.id },
+            },
+          ]}
+          onDeleted={handleTrialDeleted}
+        />
+      )}
 
       <ClassEditPanel
         open={editClassPanelOpen}
@@ -265,44 +201,37 @@ export const TrialManagementDialogs = forwardRef<
         }}
       />
 
-      <AlertDialog open={deleteClassDialogOpen} onOpenChange={setDeleteClassDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Class</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this class?
-              {selectedClassForDelete && (
-                <span className="block mt-2 font-medium text-foreground">
-                  {selectedClassForDelete.element} {selectedClassForDelete.level}{' '}
-                  {selectedClassForDelete.section}
-                </span>
-              )}
-              {(() => {
-                const entryCount = selectedClassForDelete
-                  ? (entryCountByClass.get(selectedClassForDelete.id) ?? 0)
-                  : 0;
-                if (entryCount === 0) return null;
-                return (
-                  <span className="block mt-2 text-destructive">
-                    This will also delete {entryCount} {entryCount === 1 ? 'entry' : 'entries'} for
-                    this class.
-                  </span>
-                );
-              })()}
-              <span className="block mt-2 text-destructive">This action cannot be undone.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDeleteClass}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteClassDialogOpen && selectedClassForDelete && currentTrial && (
+        // The same delete and purge as Setup and Class Details (features/delete).
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) {
+              setDeleteClassDialogOpen(false);
+              setSelectedClassForDelete(null);
+            }
+          }}
+          kind="class"
+          targets={[
+            {
+              id: selectedClassForDelete.id,
+              name: [
+                selectedClassForDelete.element,
+                selectedClassForDelete.level,
+                selectedClassForDelete.section,
+              ]
+                .filter(Boolean)
+                .join(' '),
+              detail: classDeleteDetail({
+                level: selectedClassForDelete.level,
+                element: selectedClassForDelete.element,
+                trialLabel,
+              }),
+              context: { showId: currentTrial.showId, trialId: currentTrial.id },
+            },
+          ]}
+        />
+      )}
     </>
   );
 });

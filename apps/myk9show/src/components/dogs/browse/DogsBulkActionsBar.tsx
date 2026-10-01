@@ -3,20 +3,17 @@
  * (design.md decision D2/D3, tasks.md slice 3.4), on the shared list-toolkit
  * `FloatingBulkBar` shell (MYK9-796) with a `RowActionMenu` resolved from
  * `dogActions` as its one action trigger. Status-change actions dispatch
- * directly through `useUpdateDogMutation`; delete opens a confirmation dialog
- * (destructive, so it keeps the extra step) before dispatching
- * `useDeleteDogMutation` for the confirmed subset.
+ * directly through `useUpdateDogMutation`; delete opens the shared
+ * `DeleteObjectDialog` (counts, paid/scored blockers named up front, Undo).
  */
 import { useRef, useState, useEffect } from 'react';
-import { DeleteConfirmationDialog } from '@/components/base';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
 import { FloatingBulkBar } from '@/components/list-toolkit';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { useUpdateDogMutation, useDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
+import { useUpdateDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 import { dogActions } from '@/components/dogs/common/dogActions';
-import { isBlockedByPaidOrScoredEntries } from '@/components/dogs/common/blockedDogDelete';
+import { DeleteObjectDialog, dogDeleteDetail } from '@/features/delete';
 
 const DOG_NOUN = ['dog', 'dogs'] as const;
 
@@ -29,28 +26,17 @@ interface DogsBulkActionsBarProps {
    * Per-dog ownership rejections still surface as honest partial-failures.
    */
   canDelete?: boolean;
-  /**
-   * Reports the dogs the server refused over paid/scored entries, so the PAGE
-   * can show them. This bar must not own that dialog: the optimistic delete
-   * prunes the selection, the page unmounts this component, and a dialog owned
-   * here would vanish before it rendered (MYK9-584).
-   */
-  onBlockedDogs?: (dogs: Dog[]) => void;
 }
 
 export function DogsBulkActionsBar({
   selectedDogs,
   onClear,
   canDelete = false,
-  onBlockedDogs,
 }: DogsBulkActionsBarProps) {
-  const { user } = useAuthContext();
   const updateDogMutation = useUpdateDogMutation();
-  const deleteDogMutation = useDeleteDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
 
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
-  const deleteDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
 
   // Latest selected-dog snapshot, read at RETRY time (which fires later, from the
   // toast) so a retry re-checks fresh status rather than the objects captured when
@@ -61,10 +47,7 @@ export function DogsBulkActionsBar({
     selectedDogsRef.current = selectedDogs;
   }, [selectedDogs]);
 
-  // Nothing selected means nothing to act on. This is a plain early return
-  // again: the blocked-delete dialog that once had to outlive the selection now
-  // lives on the page (MYK9-584), so this component owns no state that must
-  // survive its own unmount.
+  // Nothing selected means nothing to act on.
   if (selectedDogs.length === 0) return null;
 
   const count = selectedDogs.length;
@@ -94,35 +77,6 @@ export function DogsBulkActionsBar({
 
   const handleBulkDelete = (dogs: Dog[]) => setPendingDelete(dogs);
 
-  const confirmBulkDelete = async () => {
-    if (!pendingDelete) return;
-    const dogs = pendingDelete;
-    setPendingDelete(null);
-    await deleteDispatch.run(
-      dogs,
-      async d => {
-        await deleteDogMutation.mutateAsync(
-          user?.id ? { id: d.id, deletedBy: user.id } : { id: d.id }
-        );
-      },
-      {
-        onFullSuccess: onClear,
-        // Both halves or neither. Claiming strips the dog names and the reason
-        // from the toast's detail lines because the page's dialog carries them —
-        // so without a listener the user would get a bare count and no recourse.
-        // The two options are wired together, never one-sided (MYK9-584).
-        ...(onBlockedDogs
-          ? {
-              claimFailure: (_dog: Dog, error: unknown) => isBlockedByPaidOrScoredEntries(error),
-              // Fires on retries too, so a retried failure that comes back
-              // blocked still reaches the page rather than vanishing.
-              onClaimedFailures: onBlockedDogs,
-            }
-          : {}),
-      }
-    );
-  };
-
   const actions = toBulkActions(
     selectedDogs,
     // eslint-disable-next-line react-hooks/refs -- handleBulkSetStatus reads selectedDogsRef only inside the async retry (an event-handler path), never during render; toBulkActions stores it as onSelect and does not invoke it while rendering.
@@ -133,7 +87,7 @@ export function DogsBulkActionsBar({
     // eligibility. Status changes (dog:update) remain.
   ).filter(action => canDelete || action.id !== 'delete');
 
-  const isBusy = statusDispatch.isBusy || deleteDispatch.isBusy;
+  const isBusy = statusDispatch.isBusy;
 
   return (
     <>
@@ -141,19 +95,21 @@ export function DogsBulkActionsBar({
         <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
       </FloatingBulkBar>
 
-      <DeleteConfirmationDialog
-        open={pendingDelete !== null}
-        onOpenChange={open => {
-          if (!open) setPendingDelete(null);
-        }}
-        onConfirm={() => void confirmBulkDelete()}
-        entityName={
-          pendingDelete ? `${pendingDelete.length} dog${pendingDelete.length === 1 ? '' : 's'}` : ''
-        }
-        entityType="Dog"
-        isDeleting={deleteDispatch.isBusy}
-        warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots. This action cannot be undone."
-      />
+      {pendingDelete !== null && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setPendingDelete(null);
+          }}
+          kind="dog"
+          targets={pendingDelete.map(dog => ({
+            id: dog.id,
+            name: getDogDisplayName(dog),
+            detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
+          }))}
+          onDeleted={() => onClear()}
+        />
+      )}
     </>
   );
 }

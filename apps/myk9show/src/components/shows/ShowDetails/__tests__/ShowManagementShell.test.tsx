@@ -135,7 +135,7 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
       </div>
     ) : null,
 }));
-vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({ default: () => null }));
+vi.mock('@/features/delete/DeleteObjectDialog', () => ({ DeleteObjectDialog: () => null }));
 vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab" />,
 }));

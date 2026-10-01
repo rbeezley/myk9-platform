@@ -86,13 +86,18 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
 // Delete entry (soft delete) through soft_delete_entry: show managers only, refused
 // (MK010) when the entry is paid or scored (use Withdraw or Pull). The server stamps
 // deleted_by from auth.uid() and returns the row's new version.
-export const deleteEntry = async (id: string, deletedBy?: string) => {
+export const deleteEntry = async (
+  id: string,
+  deletedBy?: string,
+  options: { override?: boolean } = {}
+) => {
   const startTime = Date.now();
   void deletedBy;
 
   try {
     const { data: version, error } = await supabase.rpc('soft_delete_entry', {
       p_entry_id: id,
+      ...(options.override ? { p_override: true } : {}),
     });
 
     const duration = Date.now() - startTime;

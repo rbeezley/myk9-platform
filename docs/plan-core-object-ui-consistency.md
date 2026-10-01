@@ -19,6 +19,11 @@
 10. **Save confirmation:** always. "‹Name› saved" after an edit, "‹Name› added" after a create, on every path.
 11. **Detail layout:** one page width (`PageShell`) and one shared header (`DetailHero`: title, status badge, facts row; no action buttons, because page actions live only in the header Actions menu, per `plan-crud-standard.md` decision 5) for every detail page. This includes a calmer Person header.
 12. **Class lists:** merge Class Management into Setup → Classes. Judge assignment and bulk status move into the Setup tab; the Class Management route becomes a redirect to it. One concern, one page.
+13. **Add panels walk every tab** (2026-10-01). In create mode, a panel with tabs shows **"Next: ‹tab name›"** as its primary button on every tab but the last; only the last tab shows **"Add ‹Object›"**.
+    - **Validation:** Next checks the current tab's required fields first. If one is missing, the panel says which and stays on that tab.
+    - **Going back:** earlier tabs stay clickable for review; skipping ahead is not allowed. Cancel is on every tab.
+    - **Edit mode is unchanged:** Save is available on every tab.
+    - **Applies to:** Add Person (4 tabs), Add Club (3; this replaces today's always-enabled demoted "Create Club"), Add Dog (3), and any other tabbed Add panel. Add Show and Add Entry are already step wizards.
 
 ## Defaults from the audit (adopted unless changed)
 
@@ -64,7 +69,9 @@ Each phase is one PR (or a few small ones), independently verifiable. A phase is
 - One Person create form with email optional (decision 3, H3).
 - One set of date and time components in create and edit (M1).
 - Validation copy (M11) and the required marker (M13).
+- Add panels walk every tab (decision 13). Build it once in `EditPanelWrapper` and its tab helpers: create mode plus tabs gives Next until the last tab, with per-tab required-field checks. Build on the existing `ClubEditPanel` "Next: ‹tab›" pattern and `AddDogPanel/TabNavigation.tsx`.
 - Tests: an error on a hidden tab switches to that tab; mail-in Add Person saves without an email; create and edit render the same date control.
+- Tests: in create mode, Next shows on every tab but the last, and "Add ‹Object›" shows only on the last; Next is blocked with a message while the current tab has a missing required field; earlier tabs stay clickable; edit mode shows Save on every tab.
 
 **Phase 4: Lists.**
 

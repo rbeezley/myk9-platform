@@ -12,7 +12,7 @@ import {
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
-import { recordChargedEntryFee } from '../_shared/entryFeeRecord.ts';
+import { recordChargedEntryFee, recordChargedFeesForStamped } from '../_shared/entryFeeRecord.ts';
 import {
   calculatePlatformFeeCents,
   decodeStampedPlatformFeeRates,
@@ -1955,25 +1955,30 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     if (rootId && destinationFee != null && !entryFeesById.has(rootId)) {
       entryFeesById.set(rootId, destinationFee);
     }
-    // The ONE entry_fee write rule (_shared/entryFeeRecord): a stamped entry whose
-    // stored fee is NULL or 0 records the amount actually charged for it, so
-    // stripe-refund-entry can compute its refundable amount; a positive fee is never
-    // overwritten.
-    for (const stampedId of new Set(updatedEntryIds)) {
-      const chargedCents = entryFeesById.get(stampedId);
-      if (chargedCents == null) continue;
-      const feeRecord = await recordChargedEntryFee(supabase, stampedId, chargedCents);
-      if (feeRecord.error) {
-        console.error(`Could not record the charged fee on entry ${stampedId}:`, feeRecord.error);
-        await alertAdmin(
-          'Paid entry fee could not be recorded',
-          `<p>Entry <code>${stampedId}</code> was paid ${(chargedCents / 100).toFixed(2)} USD
+  }
+  // The ONE entry_fee write rule (_shared/entryFeeRecord), run ONCE per stamped
+  // entry after the root mapping above: a stamped entry whose stored fee is NULL or
+  // 0 records the amount actually charged, so stripe-refund-entry can compute its
+  // refundable amount; a positive fee (known from the entries already loaded) costs
+  // no request and is never overwritten.
+  {
+    const storedFeeById = new Map(entries.map(entry => [entry.id, entry.entry_fee]));
+    const feeRecords = await recordChargedFeesForStamped(supabase, {
+      stampedEntryIds: updatedEntryIds,
+      storedFeeById,
+      chargedCentsById: entryFeesById,
+    });
+    for (const { id: stampedId, error } of feeRecords.failed) {
+      const chargedCents = entryFeesById.get(stampedId) ?? 0;
+      console.error(`Could not record the charged fee on entry ${stampedId}:`, error);
+      await alertAdmin(
+        'Paid entry fee could not be recorded',
+        `<p>Entry <code>${stampedId}</code> was paid ${(chargedCents / 100).toFixed(2)} USD
          (session <code>${session.id}</code>) but its entry_fee could not be recorded:</p>
-         <pre>${feeRecord.error.message}</pre>
+         <pre>${error.message}</pre>
          <p>Recovery: set entry_fee to ${(chargedCents / 100).toFixed(2)} on that entry.</p>`,
-          { source: 'stripe-webhook', dedupeKey: `entry-fee-record-failed-${stampedId}` }
-        );
-      }
+        { source: 'stripe-webhook', dedupeKey: `entry-fee-record-failed-${stampedId}` }
+      );
     }
   }
   // Declared here rather than beside the snapshot below because the make-whole

@@ -57,7 +57,10 @@ describe('junior declaration wiring (MYK9-879)', () => {
     // ...but a NULL/0 fee is recorded through the ONE shared rule, on both existing-
     // entry paths (Finish Payment recovery and the payment-link stamp), and the
     // refund function reads the stored fee through the same module.
-    expect(webhook.match(/recordChargedEntryFee\(/g)?.length).toBe(2);
+    // Recovery records per line; the payment-link stamp records ONCE for all stamped
+    // entries, after the root mapping (never inside the per-entry loop).
+    expect(webhook.match(/recordChargedEntryFee\(/g)?.length).toBe(1);
+    expect(webhook.match(/recordChargedFeesForStamped\(/g)?.length).toBe(1);
     expect(read('stripe-refund-entry/index.ts')).toContain('storedFeeToCents(entry.entry_fee)');
     expect(webhook).toContain('organization');
     expect(read('stripe-checkout/index.ts')).toContain('organization');
@@ -65,7 +68,7 @@ describe('junior declaration wiring (MYK9-879)', () => {
     expect(link).toContain('entry_fee,');
     expect(link).toContain('organization');
     expect(read('_shared/cartItemPricing.ts')).toContain(
-      "'id, dog_id, class_id, entry_fee, junior_fee_declared, junior_fee_override_by'"
+      "'id, dog_id, class_id, entry_fee, moved_from_entry_id, junior_fee_declared, junior_fee_override_by'"
     );
   });
 

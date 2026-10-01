@@ -210,7 +210,7 @@ describe('loadStoredEntryJunior', () => {
     expect(c.calls).toEqual([
       {
         table: 'entries',
-        cols: 'id, dog_id, class_id, entry_fee, junior_fee_declared, junior_fee_override_by',
+        cols: 'id, dog_id, class_id, entry_fee, moved_from_entry_id, junior_fee_declared, junior_fee_override_by',
         ids: ['entry-1'],
       },
     ]);

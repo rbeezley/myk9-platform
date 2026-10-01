@@ -11,6 +11,12 @@ import { supabase } from '@/lib/supabase';
  * paused read shows no marker (it never claims "not declared" as a fact: the
  * badge is only ever added, and the entry's fee is still shown beside it).
  *
+ * The set is SHOW-WIDE, not limited to the visible rows, on purpose: the declaration
+ * lives on the entry that was PAID, and after a move-up the row on screen is the
+ * money-neutral destination. The list reads each row through its money root
+ * (`entry.moneyRootEntryId ?? entry.id`), so the root's id must be in this set
+ * even when the root is filtered out of the list (e.g. a class filter).
+ *
  * `entries.junior_fee_declared` is written only by the checkout webhook; row
  * access is the entries RLS the secretary already has. It reads no date of birth.
  */

@@ -164,6 +164,7 @@ export function findDriftedCartItems<T extends { id: string; entry_fee_cents: nu
 
 interface StoredEntryRow extends StoredEntryJunior {
   id: string;
+  moved_from_entry_id: string | null;
 }
 
 /** The slice of a supabase-js client this module needs, so tests can fake it. */
@@ -178,8 +179,24 @@ export interface StoredEntryJuniorClient {
   };
 }
 
+/** Same cap as the move-up chain walks elsewhere (moneyRoot.ts MONEY_ROOT_MAX_DEPTH). */
+const MAX_ROOT_HOPS = 16;
+
+const STORED_COLUMNS =
+  'id, dog_id, class_id, entry_fee, moved_from_entry_id, junior_fee_declared, junior_fee_override_by';
+
 /**
- * Reads the stored junior record of every entry a Finish Payment line points at.
+ * Reads the stored fee and junior record of every entry a Finish Payment line
+ * points at, resolved through the MONEY ROOT (MYK9-639).
+ *
+ * After a move-up the line points at the live destination, which is created
+ * money-neutral (fee 0, no declaration); the fee and the declaration stay on the
+ * entry the exhibitor actually paid for, the root at the end of the
+ * `moved_from_entry_id` chain. So the record returned under the NAMED entry id
+ * keeps that entry's dog and class (what the line is checked against) but carries
+ * the ROOT's fee and flags (what is charged). An entry with no move chain is its
+ * own root and reads exactly as before.
+ *
  * Run with the service-role client (junior_fee_override_by has no API column
  * grant). A read error is returned, not swallowed: the caller must fail closed,
  * because pricing without the record would charge the normal fee for an entry
@@ -193,18 +210,37 @@ export async function loadStoredEntryJunior(
   const stored = new Map<string, StoredEntryJunior>();
   if (entryIds.length === 0) return { stored, error: null };
 
-  const { data, error } = await client
-    .from('entries')
-    .select('id, dog_id, class_id, entry_fee, junior_fee_declared, junior_fee_override_by')
-    .in('id', entryIds);
-  if (error) return { stored, error };
-  for (const row of (data ?? []) as StoredEntryRow[]) {
-    stored.set(row.id, {
-      dog_id: row.dog_id,
-      class_id: row.class_id,
-      junior_fee_declared: row.junior_fee_declared,
-      junior_fee_override_by: row.junior_fee_override_by,
-      entry_fee: row.entry_fee,
+  const rows = new Map<string, StoredEntryRow>();
+  let wanted = entryIds;
+  for (let hop = 0; hop <= MAX_ROOT_HOPS && wanted.length > 0; hop += 1) {
+    const { data, error } = await client.from('entries').select(STORED_COLUMNS).in('id', wanted);
+    if (error) return { stored, error };
+    for (const row of (data ?? []) as StoredEntryRow[]) rows.set(row.id, row);
+    // Fetch the next ancestor of every row whose parent has not been read yet.
+    wanted = [
+      ...new Set(
+        [...rows.values()]
+          .map(row => row.moved_from_entry_id)
+          .filter((id): id is string => !!id && !rows.has(id))
+      ),
+    ];
+  }
+
+  for (const id of entryIds) {
+    const named = rows.get(id);
+    if (!named) continue;
+    let root = named;
+    for (let hop = 0; hop < MAX_ROOT_HOPS && root.moved_from_entry_id; hop += 1) {
+      const parent = rows.get(root.moved_from_entry_id);
+      if (!parent) break;
+      root = parent;
+    }
+    stored.set(id, {
+      dog_id: named.dog_id,
+      class_id: named.class_id,
+      junior_fee_declared: root.junior_fee_declared,
+      junior_fee_override_by: root.junior_fee_override_by,
+      entry_fee: root.entry_fee,
     });
   }
   return { stored, error: null };

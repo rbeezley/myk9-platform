@@ -73,3 +73,39 @@ export async function recordChargedEntryFee(
   if (error) return { recorded: false, error };
   return { recorded: (data ?? []).length > 0, error: null };
 }
+
+export interface StampedEntryFeeRecordResult {
+  /** Entries whose NULL/0 fee was written. */
+  recorded: string[];
+  /** Entries whose write failed (the caller alerts; a refund would read zero). */
+  failed: { id: string; error: { message: string } }[];
+}
+
+/**
+ * Records the charged fee on each STAMPED entry, once per entry, and only where it
+ * is needed: an entry whose stored fee is already positive (known from data the
+ * caller already loaded) costs no request at all. An entry whose stored fee is not
+ * known is attempted, since the UPDATE's own NULL-or-0 condition keeps that safe.
+ */
+export async function recordChargedFeesForStamped(
+  client: EntryFeeRecordClient,
+  input: {
+    stampedEntryIds: Iterable<string>;
+    /** entry id -> stored entries.entry_fee, for the entries the caller loaded. */
+    storedFeeById: ReadonlyMap<string, number | string | null | undefined>;
+    /** entry id -> cents actually charged for it. */
+    chargedCentsById: ReadonlyMap<string, number>;
+  }
+): Promise<StampedEntryFeeRecordResult> {
+  const result: StampedEntryFeeRecordResult = { recorded: [], failed: [] };
+  for (const id of new Set(input.stampedEntryIds)) {
+    const charged = input.chargedCentsById.get(id);
+    if (charged == null) continue;
+    const known = input.storedFeeById.has(id);
+    if (known && planEntryFeeRecord(input.storedFeeById.get(id), charged) === null) continue;
+    const { recorded, error } = await recordChargedEntryFee(client, id, charged);
+    if (error) result.failed.push({ id, error });
+    else if (recorded) result.recorded.push(id);
+  }
+  return result;
+}

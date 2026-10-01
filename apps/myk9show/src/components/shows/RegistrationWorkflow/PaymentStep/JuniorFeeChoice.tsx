@@ -11,8 +11,8 @@ interface JuniorFeeChoiceProps {
 
 /**
  * MYK9-878: the show secretary's explicit choice to charge the junior handler
- * fee on the entries being added. It is a fee choice, never derived from age
- * here; an owner who is a junior is priced by the server on its own.
+ * fee on the entries being added. It is the ONLY way slice B charges the junior
+ * fee: a fee choice the secretary makes, never derived from age or ownership.
  */
 export const JuniorFeeChoice: React.FC<JuniorFeeChoiceProps> = ({
   fee,
@@ -28,9 +28,8 @@ export const JuniorFeeChoice: React.FC<JuniorFeeChoiceProps> = ({
     <div className="space-y-1">
       <Label htmlFor="charge-junior-fee">Charge junior handler fee (${fee.toFixed(2)})</Label>
       <p className="text-xs text-muted-foreground">
-        Applies to every entry you are adding now, whatever the handler&apos;s age on file. Leave it
-        off for a dog&apos;s owner who is a junior with a birth date on file: that is priced
-        automatically.
+        Applies to every entry you are adding now. Use it when the handler is a junior. Your name is
+        recorded against the fee.
       </p>
     </div>
   </div>

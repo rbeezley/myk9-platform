@@ -7,9 +7,9 @@ import {
 
 /**
  * MYK9-878: the offline late-entry path carries the secretary's "charge junior
- * handler fee" choice. The junior fee for an owner who is a junior is decided by
- * the server when the queued insert lands (trg_entries_junior_fee); the client
- * only knows the explicit override, so that is all it prices or flags.
+ * handler fee" choice, the only way the junior fee is charged. The server
+ * verifies who asked and stamps it when the queued insert lands
+ * (trg_entries_junior_fee); the client prices and flags only that explicit choice.
  */
 
 const { createEntryMock } = vi.hoisted(() => ({ createEntryMock: vi.fn() }));
@@ -116,6 +116,26 @@ describe('submitOfflineLateEntry junior handler fee (MYK9-878)', () => {
       juniorFeeOverrideBy: JUNIOR_FEE_OVERRIDE_REQUEST,
     });
     expect(result.entryOutcomes[0]?.feeCents).toBe(1500);
+  });
+
+  it('never quotes a junior fee above the normal fee: junior 15, normal 10 is 10 (server LEAST)', async () => {
+    const result = await submitOfflineLateEntry(
+      params({
+        showFeeInfo: {
+          preEntryFee: '10',
+          dayOfShowFee: '10',
+          startDate: '2026-07-01',
+          juniorHandlerFee: '15',
+        },
+        paymentDetails: { receivedMethod: 'cash', chargeJuniorFee: true },
+      })
+    );
+
+    expect(createEntryMock.mock.calls[0]?.[0]).toMatchObject({
+      entryFee: 10,
+      juniorFeeOverrideBy: JUNIOR_FEE_OVERRIDE_REQUEST,
+    });
+    expect(result.entryOutcomes[0]?.feeCents).toBe(1000);
   });
 
   it('prices at the normal fee and sends no request when the secretary did not choose it', async () => {

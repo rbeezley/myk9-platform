@@ -80,14 +80,22 @@ export function getShowEntryFee(
   // passes it so the fee cannot be re-decided on a clock that has crossed
   // midnight since (MYK9-749). Omitted, the fee decides for itself.
   isDayOfShow?: boolean,
-  // MYK9-878: the secretary's explicit "charge junior handler fee" choice. The
-  // client never derives junior status (the date of birth is private); the
-  // server prices the owner-is-a-junior case itself.
+  // MYK9-878: the secretary's explicit "charge junior handler fee" choice, the
+  // only way the junior fee is charged. Never derived from age or ownership.
   chargeJuniorFee?: boolean
 ): number {
+  const normalFee = getNormalEntryFee(show, classEntryFee, isDayOfShow);
   const juniorFee = chargeJuniorFee ? parseJuniorHandlerFee(show) : null;
-  if (juniorFee !== null) return juniorFee;
+  // The same rule as `private.price_entry_fee`: LEAST(junior fee, normal fee), so a
+  // junior tier above the regular fee never quotes more than the regular fee.
+  return juniorFee !== null ? Math.min(juniorFee, normalFee) : normalFee;
+}
 
+function getNormalEntryFee(
+  show: ShowFeeInfo | undefined,
+  classEntryFee: number | undefined,
+  isDayOfShow: boolean | undefined
+): number {
   // Show-level fee with date-based tier
   if (show) {
     // ONE rule, shared with `entries.is_day_of_show` (MYK9-642). The app used to

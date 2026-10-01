@@ -81,6 +81,14 @@ describe('usePaymentMethodResolution canChargeJuniorFee', () => {
     expect(result.canChargeJuniorFee).toBe(false);
   });
 
+  it('is NOT offered to a secretary named only on this show (a show-scoped row grants nothing)', () => {
+    const result = setup({
+      roles: [UserRole.SECRETARY],
+      scopes: [{ scopeType: ScopeType.SHOW, scopeId: SHOW_ID, roleId: UserRole.SECRETARY }],
+    });
+    expect(result.canChargeJuniorFee).toBe(false);
+  });
+
   it('is offered to a site admin on any show', () => {
     const result = setup({ roles: [UserRole.SITE_ADMIN], scopes: [] });
     expect(result.canChargeJuniorFee).toBe(true);

@@ -5,9 +5,11 @@
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 -- (Behavioral SQL tests run only in CI; there is no container runtime locally.)
 --
--- Cases, each as the real caller, PostgREST-shaped (`authenticated`):
---   1. a junior exhibitor enters their own dog: stored fee + outcome fee are the
---      junior fee, even though the client sent the normal fee (the server wins);
+-- Cases, each as the real caller, PostgREST-shaped (`authenticated`). Richard dropped
+-- the automatic owner/age-derived arm (MYK9-664 oracle, Codex P1), so the junior fee is
+-- charged ONLY on an explicit secretary / site-admin override:
+--   1. a junior exhibitor (a real junior with a date of birth on file) enters their own
+--      dog with no override: the NORMAL fee, outcome says no junior fee applied;
 --   2. the secretary enters an adult-owned dog: the normal fee;
 --   3. the secretary OVERRIDES on that adult-owned dog: junior fee, stamped with
 --      the secretary's people.id, and the outcome says so;
@@ -15,10 +17,11 @@
 --      junior as the named handler: neither entry is junior-priced;
 --   5. the exhibitor asks for the override: refused 42501 (positive control: case 1);
 --   6. the secretary overrides on a show with NO junior fee: the normal fee, no stamp;
---   7. cash received follows the SERVER fee: the ledger row and the enrollment total
---      are the junior fee, not the client's normal fee;
+--   7. cash received follows the SERVER fee: with an override the ledger row and the
+--      enrollment total are the junior fee, not the client's normal fee;
 --   8. a client that sends LESS than the server fee is still refused (unchanged).
--- Junior = 15 on the trial date (AKC measures on the trial date); adult = 1980-01-01.
+-- Junior = 15 on the trial date; adult = 1980-01-01. The dates of birth are seeded on
+-- purpose: they must make no difference to any fee.
 
 BEGIN;
 
@@ -154,7 +157,7 @@ DECLARE
   unrelated_jr   CONSTANT uuid := '00000000-0000-0000-0000-000000878a03';
   result         jsonb;
 BEGIN
-  -- 1. the junior exhibitor, self-service. The client sends the NORMAL fee.
+  -- 1. the junior exhibitor, self-service, no override. The client sends the normal fee.
   PERFORM set_config('request.jwt.claim.sub', exhibitor_auth::text, true);
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', exhibitor_auth, 'role', 'authenticated')::text, true);
@@ -240,12 +243,13 @@ BEGIN
     '00000000-0000-0000-0000-000000878e06'::uuid, 'check');
   PERFORM set_config('myk9878.case6', result::text, true);
 
-  -- 7. cash received for the junior owner's dog: the ledger follows the server fee.
+  -- 7. cash received with an explicit override: the ledger follows the server fee.
   result := public.submit_show_entries(
     s1, '00000000-0000-0000-0000-000000878d04',
     jsonb_build_array(jsonb_build_object(
       'dog_id', jr_dog, 'class_id', '00000000-0000-0000-0000-000000878302',
-      'handler_name', 'MYK9-878 JuniorExhibitor', 'client_fee_cents', 3000)),
+      'handler_name', 'MYK9-878 JuniorExhibitor', 'client_fee_cents', 3000,
+      'junior_fee_override', true)),
     '00000000-0000-0000-0000-000000878e07'::uuid, 'cash',
     jsonb_build_object('method', 'cash', 'reference', 'MYK9-878'));
   PERFORM set_config('myk9878.case7', result::text, true);
@@ -269,13 +273,13 @@ CREATE FUNCTION pg_temp.outcome(case_key text, idx int, field text) RETURNS text
   SELECT (current_setting('myk9878.' || case_key)::jsonb -> 'outcomes' -> idx) ->> field;
 $$;
 
-SELECT pg_temp.expect('1 junior exhibitor: stored fee is the junior fee',
-  pg_temp.fee_of('case1', 0), '15.00');
-SELECT pg_temp.expect('1 junior exhibitor: outcome fee_cents is the junior fee',
-  pg_temp.outcome('case1', 0, 'fee_cents'), '1500');
-SELECT pg_temp.expect('1 junior exhibitor: outcome says the junior fee applied',
-  pg_temp.outcome('case1', 0, 'junior_fee_applied'), 'true');
-SELECT pg_temp.expect('1 junior exhibitor: derived, so no override stamp',
+SELECT pg_temp.expect('1 junior exhibitor, no override: stored fee is the normal fee',
+  pg_temp.fee_of('case1', 0), '30.00');
+SELECT pg_temp.expect('1 junior exhibitor, no override: outcome fee_cents is the normal fee',
+  pg_temp.outcome('case1', 0, 'fee_cents'), '3000');
+SELECT pg_temp.expect('1 junior exhibitor, no override: outcome says no junior fee applied',
+  pg_temp.outcome('case1', 0, 'junior_fee_applied'), 'false');
+SELECT pg_temp.expect('1 junior exhibitor, no override: no stamp',
   pg_temp.stamp_of('case1', 0), 'none');
 
 SELECT pg_temp.expect('2 adult-owned dog: normal fee',
@@ -307,6 +311,8 @@ SELECT pg_temp.expect('6 override on a show with no junior fee: no stamp',
   pg_temp.stamp_of('case6', 0), 'none');
 
 SELECT pg_temp.expect('7 cash: entry stored at the junior fee', pg_temp.fee_of('case7', 0), '15.00');
+SELECT pg_temp.expect('7 cash: stamped with the secretary''s people id',
+  pg_temp.stamp_of('case7', 0), '00000000-0000-0000-0000-000000878a04');
 SELECT pg_temp.expect('7 cash: the ledger row is the junior fee, not the client''s 30.00',
   (SELECT sum(amount)::numeric(10, 2)::text FROM public.show_payments
     WHERE enrollment_id = '00000000-0000-0000-0000-000000878d04'), '15.00');

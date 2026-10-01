@@ -6,8 +6,8 @@ import type { PaymentDetails } from '@/types/show-registration-types';
 /**
  * MYK9-878: the secretary's "charge junior handler fee" choice reaches the
  * submit_show_entries payload as a per-entry `junior_fee_override` request, and
- * the client's quoted fee is the junior fee. Which entries are junior BY AGE is
- * decided by the server from the dog's owner; the client never derives that.
+ * the client's quoted fee is the junior fee. The explicit override is the ONLY way
+ * the junior fee is charged: nothing is derived from age or ownership.
  */
 function makeParams(
   overrides: {

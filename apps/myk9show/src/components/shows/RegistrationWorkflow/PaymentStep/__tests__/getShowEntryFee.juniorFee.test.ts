@@ -34,6 +34,16 @@ describe('getShowEntryFee with the junior handler fee choice', () => {
     expect(getShowEntryFee({ ...show, juniorHandlerFee: 'abc' }, 30, true, true)).toBe(35);
   });
 
+  it('never exceeds the normal fee: junior 15, normal 10 quotes 10 (matches the server LEAST)', () => {
+    const cheap = { ...show, preEntryFee: '10', dayOfShowFee: '12' };
+    expect(getShowEntryFee(cheap, 30, false, true)).toBe(10);
+    expect(getShowEntryFee(cheap, 30, true, true)).toBe(12);
+    // No show-level fee: the class fee is the normal fee.
+    expect(
+      getShowEntryFee({ ...show, preEntryFee: '', dayOfShowFee: undefined }, 10, false, true)
+    ).toBe(10);
+  });
+
   it('accepts a formatted junior fee', () => {
     expect(getShowEntryFee({ ...show, juniorHandlerFee: '$15.00' }, 30, true, true)).toBe(15);
   });

@@ -13,7 +13,7 @@
 
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
+import { hasScopedClubRole } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
@@ -35,7 +35,7 @@ export interface PaymentMethodResolution {
   /**
    * MYK9-878: may explicitly charge the junior handler fee. Narrower than
    * `isOnBehalf`: the server accepts the override only from a secretary appointed
-   * at THIS show (or its club) or a site admin (`is_show_secretary`), so a club
+   * at the show's CLUB (user_roles.show_id NULL; a show-scoped row grants nothing) or a site admin (`is_show_secretary`), so a club
    * admin, or a secretary of some other club, is not offered it.
    */
   canChargeJuniorFee: boolean;
@@ -81,9 +81,7 @@ export function usePaymentMethodResolution(
     // is unknown.
     canChargeJuniorFee:
       isSiteAdmin ||
-      (isSecretary &&
-        (hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId) ||
-          hasScopedShowRole(userWithRoles, UserRole.SECRETARY, showId))),
+      (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)),
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined

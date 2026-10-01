@@ -4,33 +4,32 @@
 -- setting itself (shows.junior_handler_fee) shipped in slice A and changed no
 -- price; this is the first migration that reads it.
 --
--- DECISIONS (Richard, 2026-09-29/30; MYK9-875 comment):
---   * Junior status is decided by AGE ONLY (private.entry_handler_is_junior, the
---     MYK9-664 derivation: AKC under 18 on the trial date, UKC under 18 on
---     Jan 1 of the trial year, ASCA / unknown / no date of birth => NULL).
---   * A junior fee is derived ONLY when the entry's handler is the dog's
---     owner_id or co_owner_id. The "enrolled handler" and "existing entry"
---     arms of MYK9-875 are dropped: enrollments.handler_id is always the
---     registrant, and either arm let a show manager manufacture the
---     relationship by writing one row and then probing with a second (the
---     two-entry bootstrap).
---   * A show secretary or site admin may EXPLICITLY charge the junior fee for
---     any entry (a junior handling a parent's dog). That is a fee choice the
---     secretary makes; it never reads a date of birth, so it cannot be used as
---     the MYK9-664 age oracle. Who applied it is stored on the entry.
+-- DECISIONS (Richard, 2026-09-29/30; MYK9-875 comment; Codex P1 on #2611):
+--   * The junior fee is charged ONLY on an EXPLICIT override by a show secretary
+--     or site admin ("Charge junior handler fee"). It is a fee choice the
+--     secretary makes and records (entries.junior_fee_override_by); it never reads
+--     a date of birth. Nothing in this migration calls
+--     private.entry_handler_is_junior or reads people_private.
+--   * There is NO automatic, age- or ownership-derived junior pricing. An earlier
+--     design priced the dog's owner/co-owner who was a junior at the trial. It was
+--     dropped at Richard's direction: staff can manufacture "ownership" (a trial
+--     secretary may insert a dog with any owner_id), so that arm was an age oracle
+--     for any person (MYK9-664). With it gone, no caller can read an age-dependent
+--     price: for a given show and class the fee depends only on the show's fee
+--     settings and whether the override was explicitly requested.
 --   * NULL or 0 junior_handler_fee = no junior tier (slice A's convention,
---     mirroring day_of_show_fee). Unknown status => the normal fee. The junior
---     result is LEAST(junior fee, normal fee): never above the regular fee.
+--     mirroring day_of_show_fee); an override on such a show prices normally.
+--     The junior result is LEAST(junior fee, normal fee): never above the regular
+--     fee.
 --   * The fee is fixed at entry creation and stored on the entry, and a direct
 --     client UPDATE cannot change it (server-enforced below). Nothing
 --     downstream re-derives it. No refund is issued by anything here.
 --
--- ONE PRICING FUNCTION: private.price_entry_fee. EXECUTE is revoked from PUBLIC,
--- anon and authenticated (the MYK9-664 oracle rule: a price that varies with a
--- handler's age must not be callable with a chosen handler and trial date), and
--- the function is SECURITY INVOKER so even a mistaken grant would fail on
--- people_private. Its only callers are SECURITY DEFINER code owned by the
--- migration role: submit_show_entries and the entries trigger below.
+-- ONE PRICING FUNCTION: private.price_entry_fee(show, class, is_day_of_show,
+-- override). EXECUTE is revoked from PUBLIC, anon, authenticated and service_role
+-- (and the function is SECURITY INVOKER). Its only callers are SECURITY DEFINER
+-- code owned by the migration role: submit_show_entries and the entries trigger
+-- below.
 --
 -- TWO ENTRY POINTS, ONE FUNCTION:
 --   1. submit_show_entries (cash / check / waived / secretary_paid, online
@@ -71,12 +70,13 @@
 -- updates are not direct client writes and may still change the fee.
 -- The fee trigger never RAISES for an ordinary insert, never RAISES on a write
 -- it does not price, and only ever LOWERS a client-sent fee to the junior fee
+-- (and only for an explicit override)
 -- (it does not normalise other fees, so waived / overridden / desk-adjusted
 -- amounts keep working; a waived entry at fee 0 stays at 0).
 --
 -- THE OVERRIDE ON THE OFFLINE PATH. The replica has no column for a request, so
 -- a non-NULL entries.junior_fee_override_by on a direct insert IS the request
--- (any value; the client sends its own user id). The trigger verifies the caller
+-- (any value; the client sends the nil UUID). The trigger verifies the caller
 -- is the show secretary or a site admin (private.price_entry_fee raises 42501
 -- otherwise, so a non-secretary cannot even attempt it), then OVERWRITES the
 -- column with the caller's people.id. A direct UPDATE cannot change it.
@@ -102,7 +102,8 @@
 -- junior_fee_override_by, junior_fee_applied on the created outcome, and the
 -- removal of the three locals the moved fee chain made unused. Nothing else.
 --
--- Behavioral coverage: supabase/tests/myk9_878_junior_handler_fee_pricing_test.sql
+-- Behavioral coverage: supabase/tests/myk9_878_price_entry_fee_test.sql and
+-- supabase/tests/myk9_878_submit_entries_junior_fee_test.sql
 -- (behavioral SQL tests run only in CI - no container runtime locally).
 -- =============================================================================
 
@@ -120,8 +121,6 @@ COMMENT ON COLUMN public.entries.junior_fee_override_by IS
 CREATE OR REPLACE FUNCTION private.price_entry_fee(
   p_show_id         uuid,
   p_class_id        uuid,
-  p_dog_id          uuid,
-  p_handler_id      uuid,
   p_is_day_of_show  boolean,
   p_junior_override boolean,
   OUT fee                numeric,
@@ -137,7 +136,6 @@ DECLARE
   v_pre_fee    numeric;
   v_dos_fee    numeric;
   v_class_fee  numeric;
-  v_trial_id   uuid;
   v_normal     numeric;
 BEGIN
   SELECT s.junior_handler_fee, s.pre_entry_fee, s.day_of_show_fee
@@ -157,8 +155,8 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  SELECT c.entry_fee, c.trial_id
-    INTO v_class_fee, v_trial_id
+  SELECT c.entry_fee
+    INTO v_class_fee
     FROM public.classes c
     JOIN public.trials t ON t.id = c.trial_id
    WHERE c.id = p_class_id
@@ -180,41 +178,23 @@ BEGIN
   fee := v_normal;
   junior_fee_applied := false;
 
-  -- NULL or 0 = no junior tier.
-  IF v_junior_fee IS NULL OR v_junior_fee <= 0 THEN
-    RETURN;
-  END IF;
-
-  -- LEAST: a junior tier configured ABOVE the regular fee never produces a fee
-  -- above what the client can quote (and the RPC's client-fee check would refuse).
-  IF p_junior_override THEN
-    -- Never reads a date of birth.
-    fee := LEAST(v_junior_fee, v_normal);
-    junior_fee_applied := true;
-  ELSIF p_handler_id IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM public.dogs d
-           WHERE d.id = p_dog_id
-             AND p_handler_id IN (d.owner_id, d.co_owner_id)
-        )
-        AND COALESCE(
-          private.entry_handler_is_junior(p_handler_id, p_class_id, v_trial_id),
-          false
-        )
-  THEN
+  -- Explicit override on a show that HAS a junior tier (NULL or 0 = none). LEAST: a
+  -- junior tier configured above the regular fee never produces a fee above what the
+  -- client can quote. Never reads a date of birth.
+  IF p_junior_override AND v_junior_fee IS NOT NULL AND v_junior_fee > 0 THEN
     fee := LEAST(v_junior_fee, v_normal);
     junior_fee_applied := true;
   END IF;
 END;
 $$;
 
-COMMENT ON FUNCTION private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean) IS
-  'MYK9-878: the ONE place an entry is priced. Returns the stored fee and whether it is the junior handler fee. Junior only for the dog owner / co-owner who is a junior at the trial (MYK9-664 derivation), or on an explicit secretary / site-admin override that never reads a date of birth. No API role may execute it (oracle rule); callers are SECURITY DEFINER.';
+COMMENT ON FUNCTION private.price_entry_fee(uuid, uuid, boolean, boolean) IS
+  'MYK9-878: the ONE place an entry is priced. Returns the stored fee and whether it is the junior handler fee. Junior ONLY on an explicit secretary / site-admin override (never reads a date of birth; no age- or ownership-derived pricing). No API role may execute it; callers are SECURITY DEFINER.';
 
-REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean) FROM PUBLIC;
-REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean) FROM anon;
-REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean) FROM authenticated;
-REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean) FROM service_role;
+REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, boolean, boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, boolean, boolean) FROM anon;
+REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, boolean, boolean) FROM authenticated;
+REVOKE ALL ON FUNCTION private.price_entry_fee(uuid, uuid, boolean, boolean) FROM service_role;
 
 -- ---------------------------------------------------------------------------
 -- The offline / direct-insert path. Two triggers; see the header.
@@ -275,8 +255,7 @@ BEGIN
 
   SELECT * INTO v_priced
     FROM private.price_entry_fee(
-      NEW.show_id, NEW.class_id, NEW.dog_id, NEW.handler_id,
-      COALESCE(NEW.is_day_of_show, false), v_override
+      NEW.show_id, NEW.class_id, COALESCE(NEW.is_day_of_show, false), v_override
     );
 
   -- Only ever LOWERS the client's fee: a waived entry (fee 0) and any fee the
@@ -722,8 +701,7 @@ BEGIN
     -- charged the show's junior handler fee; see the header.
     SELECT * INTO v_priced
       FROM private.price_entry_fee(
-        p_show_id, v_class_id, v_dog_id, v_handler_person_id,
-        v_is_day_of_show, v_junior_override
+        p_show_id, v_class_id, v_is_day_of_show, v_junior_override
       );
     v_server_fee := v_priced.fee;
 
@@ -878,9 +856,9 @@ GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, te
 -- Fail the push rather than ship a callable pricing oracle or a readable stamp.
 DO $$
 BEGIN
-  IF has_function_privilege('anon', 'private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean)', 'EXECUTE')
-     OR has_function_privilege('service_role', 'private.price_entry_fee(uuid, uuid, uuid, uuid, boolean, boolean)', 'EXECUTE') THEN
+  IF has_function_privilege('anon', 'private.price_entry_fee(uuid, uuid, boolean, boolean)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'private.price_entry_fee(uuid, uuid, boolean, boolean)', 'EXECUTE')
+     OR has_function_privilege('service_role', 'private.price_entry_fee(uuid, uuid, boolean, boolean)', 'EXECUTE') THEN
     RAISE EXCEPTION 'an API role can execute private.price_entry_fee; it must not';
   END IF;
   IF has_column_privilege('anon', 'public.entries', 'junior_fee_override_by', 'SELECT')

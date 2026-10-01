@@ -19,8 +19,27 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 
 1. **Soft delete everywhere.** Every delete hides the item and keeps its data. The item and everything it cascaded to restore together as one unit. Permanent purge is a site-admin-only action on Admin → Deleted Items.
 2. **Money guard.** A secretary cannot delete a show, trial, class or entry that has paid or scored entries. The control says why and points to the right path: **Cancel show** for a show, **Withdraw** or **Pull** for an entry (Pull and Withdraw are never synonyms). The server enforces the same rule. A site admin may override.
-3. **Placement.** Delete is a red "Delete ‹object›" row at the bottom of each object's Edit panel. This extends the 2026-09-17 show decision to all seven objects. On lists, Delete stays in the row menu and the bulk bar, through the same dialog. Delete never appears in a header ⋮ or Actions menu.
+3. **Placement** (revised 2026-10-01). Delete is a **"Delete ‹object›" button in the Edit panel's footer, on the far left**, on the same row as Cancel and Save (which stay on the right). This replaces the earlier "red row at the bottom of the form", which you had to scroll to reach.
+   - **Style:** a clear gap separates it from Cancel and Save. It is a destructive outline or text button, never a filled red button, so it does not compete with Save.
+   - **Visibility:** shown in edit mode only, never when creating, and hidden from any viewer the server would refuse.
+   - **At phone width:** it drops to its own line below Cancel and Save, still on the left.
+   - **Built once:** a single `onDelete` option on the shared `EditPanelWrapper`, so every object's panel gets the same footer.
+   - On lists, Delete stays in the row menu and the bulk bar, through the same dialog. Delete never appears in a header ⋮ or the Actions menu.
 4. **Undo.** After a delete, the confirmation toast offers **Undo** to the person who deleted. After that, only a site admin restores, and every dialog says exactly that.
+   - **Every delete asks "are you sure" first** (2026-10-01). This holds for single deletes, row menus and bulk bars alike; there is no one-click delete anywhere. The dialog identifies the item in plain language:
+     - **Title** names the object type and the item: "Delete the show Heartland Scent Work Classic?", never "Delete item?" or "Confirm deletion".
+     - **One identifying detail**, so two similar items cannot be confused:
+       - show: dates and club;
+       - trial: `formatTrialLabel` and date;
+       - class: level, element and trial;
+       - entry: the dog's call name, the handler and the class;
+       - dog: call name and owner;
+       - person: name plus email or town;
+       - club: name and city.
+     - **What goes with it, as counts in words:** "This also removes its 2 trials, 10 classes and 14 entries."
+     - **What happens next:** "You can undo this for 10 minutes. After that, ask a myK9 administrator to restore it."
+     - **Buttons name the action:** "Delete show" and "Keep it". Never "OK", "Confirm" or "Yes".
+     - **Bulk:** the dialog lists up to 5 item names, then "and N more".
 5. **Page actions live in the header Actions menu only** (revised 2026-10-01, replacing "Edit in both places").
    - Every page-level action lives only in the header Actions menu, with no visible action buttons on detail pages. That covers Edit, every "Add …", status changes (publish, open entries), reports and export.
    - The menu is complete and uses the same grouped order on every page: **Edit ‹object›** first, then **Add …**, then status changes, then reports and export. Delete is never in the menu (decision 3).
@@ -43,16 +62,16 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 
 ## The standard
 
-| Piece              | Rule                                                                                                                                                                                                                 | Built from                                                         |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Server delete      | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon.                             | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002) |
-| Server restore     | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls).                               | `restore_show`, `restore_class`                                    |
-| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards.                                                                                        | new                                                                |
-| Client delete      | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast.                                                    | `DeleteDogDialog`, `purgeDeletedShow` (#2640)                      |
-| Dialog             | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts`                  |
-| Edit placement     | "Edit ‹object›" is the first item of the header Actions menu on every detail page (no header button); the first item of every list row menu.                                                                         | `features/actions/actionRegistry.ts` "Edit show details"           |
-| Delete placement   | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar.                                                                                                                                      | `ShowEditPanel.tsx` delete row                                     |
-| Gate               | The control's gate equals the RPC predicate, and is hidden when the server would refuse.                                                                                                                             | `useCanDeleteDog`, `canManageShowSurface`                          |
+| Piece              | Rule                                                                                                                                                                                                                                                                                                                                                                                                                         | Built from                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Server delete      | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon.                                                                                                                                                                                                                                     | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002)                             |
+| Server restore     | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls).                                                                                                                                                                                                                                       | `restore_show`, `restore_class`                                                                |
+| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards.                                                                                                                                                                                                                                                                                                | new                                                                                            |
+| Client delete      | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast.                                                                                                                                                                                                                                                            | `DeleteDogDialog`, `purgeDeletedShow` (#2640)                                                  |
+| Dialog             | One `DeleteObjectDialog` that takes the object type. It always asks "are you sure". The title names the type and item in plain words, plus one identifying detail. It shows what goes with the item (counts) and what happens next (Undo, then admin restore). Delete is disabled with a reason and a link to Cancel/Withdraw when blocked. Buttons read "Delete ‹object›" / "Keep it". All copy comes from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts`                                              |
+| Edit placement     | "Edit ‹object›" is the first item of the header Actions menu on every detail page (no header button); the first item of every list row menu.                                                                                                                                                                                                                                                                                 | `features/actions/actionRegistry.ts` "Edit show details"                                       |
+| Delete placement   | "Delete ‹object›" at the far left of the Edit panel footer (Cancel and Save on the right); plus the list row menu and bulk bar.                                                                                                                                                                                                                                                                                              | `EditPanelWrapper` footer (new `onDelete` option); replaces the `ShowEditPanel.tsx` bottom row |
+| Gate               | The control's gate equals the RPC predicate, and is hidden when the server would refuse.                                                                                                                                                                                                                                                                                                                                     | `useCanDeleteDog`, `canManageShowSurface`                                                      |
 
 ## Phases
 
@@ -73,14 +92,17 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Move trial delete and the class-page entry delete off the replication queue's hard `.delete()` and onto the soft RPCs.
 - Route Class Management and the trial-page class delete through the same purge so Setup never goes stale.
 - Tests: the dialog's three states (unknown, blocked, allowed), the Undo call, a replica purge test for each object, and a test that no code path calls a hard delete for these seven tables.
+- Tests: for each object, the confirm dialog title contains the object type and the item's name; the identifying detail renders; counts render in words; the buttons read "Delete ‹object›" and "Keep it"; no delete path (row, bulk, panel footer) completes without the dialog.
 
 **Phase 3: Placement and gates.**
 
-- Add the red Delete row to the Edit panels for club, trial, class, dog and person. Entry gets one in `EntryEditDialog`.
+- Add an `onDelete` option to `EditPanelWrapper` that renders "Delete ‹object›" at the far left of the footer (edit mode only, gated, destructive outline style, its own line at phone width). Use it on the show, club, trial, class, dog and person panels, and move the show panel's bottom-of-form row into the footer. Entry gets the same footer in `EntryEditDialog`, or moves onto the wrapper.
 - Remove Delete from every header ⋮ menu and remove the duplicate entry popover item.
 - Bulk bars use the shared dialog.
 - Align the person and club gates with the server.
-- Tests: render tests for each object asserting where Delete appears, and that it is absent from header menus. Gate tests for each role.
+- Tests:
+  - For each object: Delete renders in the footer's left slot in edit mode, is absent in create mode, is hidden for a viewer who cannot delete, and is absent from header and Actions menus.
+  - Gate tests for each role.
 
 **Phase 4: Page actions into the Actions menu.**
 

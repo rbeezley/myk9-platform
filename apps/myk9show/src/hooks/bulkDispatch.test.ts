@@ -49,6 +49,18 @@ describe('retryFailedItems', () => {
     expect(outcome.failed).toEqual([]);
   });
 
+  it('awaits an async eligibility check, asking once per item', async () => {
+    const failed = [item('a', true), item('b', false)];
+    const runItem = vi.fn(async () => undefined);
+    const check = vi.fn(async (i: ReturnType<typeof item>) => i.eligible);
+
+    const outcome = await retryFailedItems(failed, check, runItem);
+
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(outcome.succeeded.map(i => i.id)).toEqual(['a']);
+    expect(outcome.skipped.map(i => i.id)).toEqual(['b']);
+  });
+
   it('still folds failures among the retried (eligible) items', async () => {
     const failed = [item('a', true), item('b', true)];
     const outcome = await retryFailedItems(

@@ -97,6 +97,37 @@ describe('REPORT_STYLES', () => {
     expect(printPaddings.at(-1)).toBe('0.2in');
   });
 
+  it('sizes a printed flyer page inside the @page printable box so it never spills a sheet (MYK9-894)', () => {
+    // Letter is 11in tall but @page margins leave 11 - 2*0.4 = 10.2in. The
+    // screen rule's 11in min-height overflowed that, printing 4 sheets for the
+    // 2-page flyer. The winning (last) print min-height must fit the box, and
+    // consecutive flyer pages must still break onto separate sheets.
+    const root = postcss.parse(REPORT_STYLES);
+    const pageMargins: string[] = [];
+    root.walkAtRules('page', rule =>
+      rule.walkDecls('margin', decl => void pageMargins.push(decl.value))
+    );
+    const printableIn = 11 - 2 * parseFloat(pageMargins[0] ?? '');
+    const printMinHeights: string[] = [];
+    root.walkAtRules('media', media => {
+      if (!media.params.includes('print')) return;
+      media.walkRules(rule => {
+        if (!rule.selectors.includes('.flyer-page')) return;
+        rule.walkDecls('min-height', decl => void printMinHeights.push(decl.value));
+      });
+    });
+    const winning = printMinHeights.at(-1) ?? '';
+    expect(winning).toMatch(/^[\d.]+in$/);
+    expect(parseFloat(winning)).toBeLessThanOrEqual(printableIn);
+
+    const breaks: string[] = [];
+    root.walkRules(rule => {
+      if (!rule.selectors.includes('.flyer-page + .flyer-page')) return;
+      rule.walkDecls('page-break-before', decl => void breaks.push(decl.value));
+    });
+    expect(breaks).toEqual(['always']);
+  });
+
   it('contains report-page class with font and color settings', () => {
     expect(REPORT_STYLES).toContain('.report-page');
     expect(REPORT_STYLES).toContain('font-family');

@@ -491,9 +491,15 @@ body {
     print-color-adjust: exact;
   }
 
+  /* MYK9-894: the screen rule's min-height is a full 11in sheet, but the
+     printable box inside @page's 0.4in margins is only 10.2in, so every
+     flyer page overflowed and spilled a near-empty sheet. 10in is the
+     printable height less a 0.2in cushion for rounding; the footer still
+     sits at the bottom and content that is taller than that just grows. */
   .flyer-page {
     padding: 0.75in;
     max-width: none;
+    min-height: 10in;
   }
 
   .flyer-passcode-value {

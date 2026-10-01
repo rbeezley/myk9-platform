@@ -147,6 +147,52 @@ COMMENT ON FUNCTION private.count_delete_blocking_entries(text, uuid) IS
   'private.count_dog_blocking_entries. Internal: reachable only through the '
   'SECURITY DEFINER delete RPCs.';
 
+-- Row-locks every live entry a delete at that level would cascade to, in id
+-- order (a fixed order, so two concurrent deletes cannot deadlock). Blocking, not
+-- NOWAIT/SKIP LOCKED: a delete that races a payment or a score must wait for it
+-- and then see its result. Without this the guard counts the old values while
+-- another transaction marks an entry paid or scored, then the cascade UPDATE waits
+-- on that row's lock and tombstones a row that is by then paid or scored. Under
+-- READ COMMITTED the count that follows runs a fresh statement snapshot, so it
+-- sees whatever the awaited transaction committed. The locks are held to the end of
+-- the delete's transaction, so the cascade runs under them too.
+CREATE OR REPLACE FUNCTION private.lock_delete_scope_entries(p_scope text, p_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_scope NOT IN ('show', 'trial', 'class', 'entry') THEN
+    RAISE EXCEPTION 'lock_delete_scope_entries: unknown scope %', p_scope
+      USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM 1
+  FROM public.entries e
+  WHERE e.deleted_at IS NULL
+    AND CASE p_scope
+      WHEN 'entry' THEN e.id = p_id
+      WHEN 'class' THEN e.class_id = p_id
+      WHEN 'trial' THEN (
+        e.trial_id = p_id
+        OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_id)
+      )
+      ELSE (
+        e.show_id = p_id
+        OR e.class_id IN (
+          SELECT c.id
+          FROM public.classes c
+          JOIN public.trials t ON t.id = c.trial_id
+          WHERE t.show_id = p_id
+        )
+      )
+    END
+  ORDER BY e.id
+  FOR UPDATE OF e;
+END;
+$$;
+
 -- The guard every show/trial/class/entry delete RPC calls, after its own
 -- permission check and before any cascade write.
 CREATE OR REPLACE FUNCTION private.enforce_delete_money_guard(
@@ -162,6 +208,10 @@ AS $$
 DECLARE
   v_count integer;
 BEGIN
+  -- Lock first, count after, and lock on the override path too: the cascade that
+  -- follows must not race a concurrent payment or score either.
+  PERFORM private.lock_delete_scope_entries(p_scope, p_id);
+
   -- Refused even when nothing blocks: a client must not learn whether a row is
   -- blocked by flipping the flag.
   IF p_override IS TRUE AND NOT (SELECT public.is_site_admin()) THEN
@@ -239,6 +289,8 @@ COMMENT ON FUNCTION private.block_direct_soft_delete_write() IS
 REVOKE ALL ON FUNCTION private.count_delete_blocking_entries(text, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.enforce_delete_money_guard(text, uuid, boolean)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION private.lock_delete_scope_entries(text, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.can_undo_soft_delete(uuid, timestamptz)
   FROM PUBLIC, anon, authenticated, service_role;

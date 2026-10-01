@@ -1018,7 +1018,12 @@ BEGIN
     'public.restore_club(uuid)', 'public.restore_show(uuid)', 'public.restore_class(uuid)',
     'public.restore_dog(uuid)', 'public.restore_person(uuid)'
   ] LOOP
-    IF has_function_privilege('anon', v_fn, 'EXECUTE') OR has_function_privilege('public', v_fn, 'EXECUTE') THEN
+    IF has_function_privilege('anon', v_fn, 'EXECUTE') OR EXISTS (
+         SELECT 1 FROM pg_proc p
+         WHERE p.oid = v_fn::regprocedure
+           AND (p.proacl IS NULL
+                OR EXISTS (SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'))
+       ) THEN
       RAISE EXCEPTION 'FAIL anon or PUBLIC can execute %', v_fn;
     END IF;
     IF NOT has_function_privilege('authenticated', v_fn, 'EXECUTE')
@@ -1030,10 +1035,16 @@ BEGIN
 
   FOREACH v_fn IN ARRAY ARRAY[
     'private.count_delete_blocking_entries(text, uuid)', 'private.enforce_delete_money_guard(text, uuid, boolean)',
-    'private.can_undo_soft_delete(uuid, timestamptz)', 'private.block_direct_soft_delete_write()'
+    'private.can_undo_soft_delete(uuid, timestamptz)', 'private.block_direct_soft_delete_write()',
+    'private.lock_delete_scope_entries(text, uuid)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE') OR has_function_privilege('authenticated', v_fn, 'EXECUTE')
-       OR has_function_privilege('public', v_fn, 'EXECUTE') THEN
+       OR EXISTS (
+         SELECT 1 FROM pg_proc p
+         WHERE p.oid = v_fn::regprocedure
+           AND (p.proacl IS NULL
+                OR EXISTS (SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'))
+       ) THEN
       RAISE EXCEPTION 'FAIL a client role can execute internal helper %', v_fn;
     END IF;
   END LOOP;
@@ -1057,6 +1068,69 @@ BEGIN
     RAISE EXCEPTION 'FAIL the block trigger function must be SECURITY INVOKER';
   END IF;
   RAISE NOTICE 'PASS the direct-write block is on all seven tables and is SECURITY INVOKER';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 10. THE GUARD LOCKS BEFORE IT COUNTS. A single session cannot race itself, but
+--     row locks are observable: a locked tuple carries xmax = this transaction.
+--     Fresh rows (xmax 0 at insert) are used so earlier updates cannot fake it.
+--     The two-connection race itself is not reproducible in this harness.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+VALUES ('00000000-0000-0000-0000-000000915034', 'MYK9-915 Show Lock', 'AKC', current_date, current_date, 'draft', '00000000-0000-0000-0000-000000915021');
+INSERT INTO public.trials (id, show_id, name, date)
+VALUES ('00000000-0000-0000-0000-000000915044', '00000000-0000-0000-0000-000000915034', 'MYK9-915 Trial Lock', current_date);
+INSERT INTO public.classes (id, trial_id, name)
+VALUES ('00000000-0000-0000-0000-000000915056', '00000000-0000-0000-0000-000000915044', 'MYK9-915 K6'),
+       ('00000000-0000-0000-0000-000000915057', '00000000-0000-0000-0000-000000915044', 'MYK9-915 K7');
+INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id)
+SELECT e.id, e.class_id, '00000000-0000-0000-0000-000000915044', '00000000-0000-0000-0000-000000915034', e.dog_id
+FROM (VALUES
+  ('00000000-0000-0000-0000-000000915091'::uuid, '00000000-0000-0000-0000-000000915056'::uuid, '00000000-0000-0000-0000-000000915061'::uuid),
+  ('00000000-0000-0000-0000-000000915092'::uuid, '00000000-0000-0000-0000-000000915057'::uuid, '00000000-0000-0000-0000-000000915062'::uuid),
+  ('00000000-0000-0000-0000-000000915093'::uuid, '00000000-0000-0000-0000-000000915057'::uuid, '00000000-0000-0000-0000-000000915063'::uuid)
+) AS e(id, class_id, dog_id);
+
+DO $$
+DECLARE
+  v_locked uuid[];
+BEGIN
+  IF (SELECT count(*) FROM public.entries WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0) <> 0 THEN
+    RAISE EXCEPTION 'FIXTURE the lock-probe entries are already locked';
+  END IF;
+
+  -- class scope: only K6's entry is locked; K7's are not.
+  PERFORM private.enforce_delete_money_guard('class', '00000000-0000-0000-0000-000000915056', false);
+  SELECT array_agg(id ORDER BY id) INTO v_locked FROM public.entries
+  WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0;
+  IF v_locked IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000915091']::uuid[] THEN
+    RAISE EXCEPTION 'FAIL class-scope guard locked % instead of only the class''s entry', v_locked;
+  END IF;
+  RAISE NOTICE 'PASS the class guard row-locks exactly the class''s live entries before counting';
+
+  -- trial scope reaches the rest.
+  PERFORM private.enforce_delete_money_guard('trial', '00000000-0000-0000-0000-000000915044', false);
+  IF (SELECT count(*) FROM public.entries WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0) <> 3 THEN
+    RAISE EXCEPTION 'FAIL trial-scope guard did not lock all three entries';
+  END IF;
+  RAISE NOTICE 'PASS the trial guard row-locks every live entry under it';
+END;
+$$;
+
+-- The override path locks too (a site admin's cascade must not race a payment).
+INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id)
+VALUES ('00000000-0000-0000-0000-000000915094', '00000000-0000-0000-0000-000000915057', '00000000-0000-0000-0000-000000915044',
+        '00000000-0000-0000-0000-000000915034', '00000000-0000-0000-0000-000000915064');
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+
+DO $$
+BEGIN
+  PERFORM private.enforce_delete_money_guard('entry', '00000000-0000-0000-0000-000000915094', true);
+  IF (SELECT xmax::text::bigint FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915094') = 0 THEN
+    RAISE EXCEPTION 'FAIL the override path returned without locking the entry';
+  END IF;
+  RAISE NOTICE 'PASS the override path row-locks before it returns';
 END;
 $$;
 

@@ -12695,6 +12695,7 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
+          created_by: string | null
           default_withdrawal_policy_notes: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
@@ -12938,6 +12939,7 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
+          created_by: string | null
           default_withdrawal_policy_notes: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
@@ -13955,7 +13957,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      restore_club: {
+        Args: { p_club_id: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       restore_dog: { Args: { p_dog_id: string }; Returns: Json }
+      restore_entry: { Args: { p_entry_id: string }; Returns: undefined }
       restore_person: {
         Args: { p_person_id: string }
         Returns: {
@@ -14064,6 +14074,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      restore_trial: {
+        Args: { p_trial_id: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       reverse_move_up_entry: {
         Args: { p_destination_entry_id: string }
         Returns: string
@@ -14142,8 +14159,22 @@ export type Database = {
         Returns: boolean
       }
       sign_in_email_drift: { Args: never; Returns: Json }
-      soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }
+      soft_delete_class: {
+        Args: { p_class_id: string; p_override?: boolean }
+        Returns: undefined
+      }
+      soft_delete_club: {
+        Args: { p_club_id: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
+      soft_delete_entry: {
+        Args: { p_entry_id: string; p_override?: boolean }
+        Returns: number
+      }
       soft_delete_person: {
         Args: { p_person_id: string }
         Returns: {
@@ -14175,7 +14206,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
+      soft_delete_show: {
+        Args: { p_override?: boolean; p_show_id: string }
+        Returns: undefined
+      }
+      soft_delete_trial: {
+        Args: { p_override?: boolean; p_trial_id: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       stamp_show_refund_entries: {
         Args: { p_entry_ids: string[]; p_notes: string }
         Returns: number

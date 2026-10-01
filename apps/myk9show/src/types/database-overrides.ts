@@ -26,7 +26,7 @@
  * callers (it only ever accepts more), but it is a claim about the server, so
  * it must be read off the migration, not assumed.
  */
-import type { Database as GeneratedDatabase } from '@myk9/supabase';
+import type { Database as GeneratedDatabase, Json } from '@myk9/supabase';
 
 type GeneratedPublic = GeneratedDatabase['public'];
 type GeneratedFunctions = GeneratedPublic['Functions'];
@@ -254,25 +254,14 @@ type GetSecretaryLiveEntryCount = {
 };
 
 /**
- * CRUD standard Phase 1 (MYK9-915, `20261001214300`): the trial/entry/club
- * soft-delete and restore RPCs. Hand-declared until `supabase gen types` picks
- * them up, the same way `get_secretary_live_entry_count` is. The trial and club
- * functions `RETURNS TABLE (id uuid, name text)`; `soft_delete_entry` returns the
- * entry's new `version` (not the row: that would bypass the column-level SELECT
- * allowlist on `entries`); `restore_entry` returns nothing. `p_override` is the
- * site-admin override of the paid/scored guard (MK010); anyone else passing
- * `true` is refused, so the client never sends it outside an admin override flow.
+ * CRUD standard Phase 2 (`20261001233700`): `delete_preview(p_scope, p_id)`, the
+ * counts and blockers the shared delete dialog reads before Delete is enabled.
+ * Hand-declared until the migration is applied and `supabase gen types` picks it
+ * up (the Phase 1 soft-delete/restore RPCs are already in the generated file).
+ * Returns jsonb; `features/delete/deletePreview.ts` parses it field by field.
  */
-type CrudStandardFunctions = {
-  soft_delete_trial: {
-    Args: { p_trial_id: string; p_override?: boolean };
-    Returns: { id: string; name: string }[];
-  };
-  restore_trial: { Args: { p_trial_id: string }; Returns: { id: string; name: string }[] };
-  soft_delete_club: { Args: { p_club_id: string }; Returns: { id: string; name: string }[] };
-  restore_club: { Args: { p_club_id: string }; Returns: { id: string; name: string }[] };
-  soft_delete_entry: { Args: { p_entry_id: string; p_override?: boolean }; Returns: number };
-  restore_entry: { Args: { p_entry_id: string }; Returns: undefined };
+type DeletePreviewFunctions = {
+  delete_preview: { Args: { p_scope: string; p_id: string }; Returns: Json };
 };
 
 /** The generated `Database` with the corrections above applied. */
@@ -289,7 +278,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_club_officials'
       | 'get_secretary_live_entry_count'
       | keyof ClubMembershipRequestFunctions
-      | keyof CrudStandardFunctions
+      | keyof DeletePreviewFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
       update_own_entry_jump_height: UpdateOwnEntryJumpHeight;
@@ -301,6 +290,6 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions &
-      CrudStandardFunctions;
+      DeletePreviewFunctions;
   };
 };

@@ -42,6 +42,12 @@ interface FilterSummaryInput {
   /** The view that means "no narrowing" and is left out of the sentence. Defaults to the first. */
   defaultViewId?: string;
   fields?: readonly ListFilterField[];
+  /**
+   * Plain-language parts for any filter the page still applies that has no view
+   * or field of its own (a param kept for a stale link), so nothing narrows the
+   * list silently. Listed after the fields, before the search.
+   */
+  extra?: readonly string[];
 }
 
 /**
@@ -55,6 +61,7 @@ export function summarizeFilters({
   activeViewId = null,
   defaultViewId = views[0]?.id,
   fields = [],
+  extra = [],
 }: FilterSummaryInput): string[] {
   const parts: string[] = [];
   const view = views.find(candidate => candidate.id === activeViewId);
@@ -62,6 +69,7 @@ export function summarizeFilters({
   for (const field of fields) {
     if (isFieldActive(field)) parts.push(`${field.label}: ${describeFieldValue(field)}`);
   }
+  parts.push(...extra);
   const term = search?.trim();
   if (term) parts.push(`matching \u201c${term}\u201d`);
   return parts;

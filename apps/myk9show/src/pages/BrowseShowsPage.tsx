@@ -42,6 +42,7 @@ import {
   ListViewTabs,
   summarizeFilters,
 } from '@/components/list-toolkit';
+import { ALL_MONTHS_KEY } from '@/components/shows/browse/monthScrubber.helpers';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -504,6 +505,16 @@ const BrowseShowsPage: React.FC = () => {
               filterSummary={summarizeFilters({
                 search: filters.search,
                 fields: filterFields,
+                // Applied by the filter hook but shown by no field: the month
+                // scrubber below, a stale ?organization= link, and ?status= on
+                // tabs without the managing views.
+                extra: [
+                  ...(filters.month !== ALL_MONTHS_KEY ? [`Month: ${filters.month}`] : []),
+                  ...(filters.organization !== 'all' ? [`Registry: ${filters.organization}`] : []),
+                  ...(!isManagingTab && filters.status !== 'all'
+                    ? [`Status: ${filters.status}`]
+                    : []),
+                ],
                 ...(isManagingTab
                   ? { views: managingViews, activeViewId: activeManagingViewId(filters.status) }
                   : {}),

@@ -32,7 +32,6 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
-  writeCockpitPaymentStatus,
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitView,
@@ -170,7 +169,6 @@ const EntryManagementPage: React.FC = () => {
       previous => {
         let next = writeCockpitSearch(previous, '');
         next = writeCockpitScope(next, null, null);
-        next = writeCockpitPaymentStatus(next, null);
         return writeCockpitView(next, 'all');
       },
       { replace: true }
@@ -410,7 +408,7 @@ const EntryManagementPage: React.FC = () => {
           onSearchChange={cockpit.setSearch}
           onDensityChange={cockpit.setDensity}
           onClearAll={handleClearEntryFilters}
-          result={{ shown: cockpit.page.total, total: cockpit.queueCounts.all }}
+          result={{ shown: cockpit.page.total, total: cockpit.queueTotals.registrationCount }}
         />
       )}
 

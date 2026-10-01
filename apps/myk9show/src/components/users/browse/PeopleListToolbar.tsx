@@ -64,7 +64,20 @@ export function PeopleListToolbar({
         total={people.length}
         noun={PEOPLE_NOUN}
         filtered={hasActiveFilters}
-        filterSummary={summarizeFilters({ search: filters.search, views, activeViewId })}
+        filterSummary={summarizeFilters({
+          search: filters.search,
+          views,
+          activeViewId,
+          // Role and login have no field; a combination no view matches (a stale
+          // link) must still be named so Show all explains it.
+          extra:
+            activeViewId === null
+              ? [
+                  ...(filters.role !== 'all' ? [`Role: ${filters.role}`] : []),
+                  ...(filters.login === 'none' ? ['No login'] : []),
+                ]
+              : [],
+        })}
         onShowAll={onClearAll}
       >
         {resultLineExtra}

@@ -1,9 +1,7 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import type { PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   classifyEntryAttention,
-  getEffectivePaymentStatus,
   type EntryAttentionReason,
 } from '@/features/entry-operations/attentionClassification';
 
@@ -188,8 +186,6 @@ export interface BuildShowRegistrationPageOptions {
   search?: string;
   classId?: string | null;
   trialClassIds?: readonly string[];
-  /** Unfiltered when omitted or `null` — bypassed under search, same as classId/trialClassIds. */
-  paymentStatus?: PaymentStatus | null;
   pageIndex: number;
   pageSize?: number;
 }
@@ -267,47 +263,21 @@ function scopeShowRegistrationGroupsByClassOrTrial(
   return groups;
 }
 
-/**
- * Keeps whole registrations that hold at least one entry at `paymentStatus`.
- * A `null`/`undefined` status is unfiltered — same "omit the key, don't scope"
- * convention as `trialClassIds` elsewhere in this module.
- *
- * Filters against the EFFECTIVE status (`getEffectivePaymentStatus`) — the same
- * one the registration row displays — not the raw entry status. An enrollment
- * paid by check can sit under an entry row still carrying the generic `paid`
- * mapping; filtering the raw value would exclude a registration that reads
- * "Paid by check" from a "Paid by check" filter (Codex finding on MYK9-795).
- */
-export function scopeShowRegistrationGroupsByPayment(
-  groups: ShowRegistrationGroup[],
-  paymentStatus: PaymentStatus | null | undefined
-): ShowRegistrationGroup[] {
-  if (!paymentStatus) return groups;
-  return groups.filter(group =>
-    group.entries.some(entry => getEffectivePaymentStatus(entry) === paymentStatus)
-  );
-}
-
 export function scopeShowRegistrationGroups(
   groups: ShowRegistrationGroup[],
   classId: string | null | undefined,
-  trialClassIds: readonly string[] | undefined,
-  paymentStatus?: PaymentStatus | null
+  trialClassIds: readonly string[] | undefined
 ): ShowRegistrationGroup[] {
-  return scopeShowRegistrationGroupsByPayment(
-    scopeShowRegistrationGroupsByClassOrTrial(groups, classId, trialClassIds),
-    paymentStatus
-  );
+  return scopeShowRegistrationGroupsByClassOrTrial(groups, classId, trialClassIds);
 }
 
 export function getScopedShowRegistrationQueueCounts(
   groups: ShowRegistrationGroup[],
   classId: string | null | undefined,
-  trialClassIds: readonly string[] | undefined,
-  paymentStatus?: PaymentStatus | null
+  trialClassIds: readonly string[] | undefined
 ): ShowRegistrationQueueCounts {
   return getShowRegistrationQueueCounts(
-    scopeShowRegistrationGroups(groups, classId, trialClassIds, paymentStatus)
+    scopeShowRegistrationGroups(groups, classId, trialClassIds)
   );
 }
 
@@ -346,8 +316,7 @@ export function buildShowRegistrationPage(
     const scopedGroups = scopeShowRegistrationGroups(
       groups,
       options.classId,
-      options.trialClassIds,
-      options.paymentStatus
+      options.trialClassIds
     );
     effectiveGroups = selectShowRegistrationQueue(scopedGroups, options.queue);
   }

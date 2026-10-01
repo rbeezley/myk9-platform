@@ -2,7 +2,6 @@ import {
   isOperationalViewDensity,
   type OperationalViewDensity,
 } from '@/features/operational-views/operationalViews';
-import { PaymentStatus } from '@/types/show-registration-types';
 import {
   SHOW_REGISTRATION_QUEUES,
   type ShowRegistrationGroup,
@@ -30,8 +29,6 @@ export interface EntryManagementCockpitState {
   density: OperationalViewDensity;
   trialId: string | null;
   classId: string | null;
-  /** Registration-view-only filter (MYK9-795). Always `null` on the Exceptions tab. */
-  paymentStatus: PaymentStatus | null;
   registrationKey: string | null;
 }
 
@@ -65,15 +62,6 @@ function isShowRegistrationQueue(value: string | null): value is ShowRegistratio
 
 function isEntryManagementException(value: string | null): value is EntryManagementException {
   return ENTRY_MANAGEMENT_EXCEPTIONS.includes(value as EntryManagementException);
-}
-
-function isPaymentStatus(value: string | null): value is PaymentStatus {
-  return value !== null && (Object.values(PaymentStatus) as string[]).includes(value);
-}
-
-function getPaymentStatus(source: URLSearchParams): PaymentStatus | null {
-  const raw = source.get('paymentStatus');
-  return isPaymentStatus(raw) ? raw : null;
 }
 
 function getLegacyException(source: URLSearchParams): EntryManagementException | null {
@@ -137,7 +125,6 @@ export function normalizeEntryManagementCockpitParams(
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
   const trialId = tab === 'registrations' ? source.get('trial') : null;
   const classId = tab === 'registrations' ? source.get('class') : null;
-  const paymentStatus = tab === 'registrations' ? getPaymentStatus(source) : null;
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;
   const params = new URLSearchParams();
 
@@ -150,7 +137,6 @@ export function normalizeEntryManagementCockpitParams(
     if (density !== 'comfortable') params.set('density', density);
     if (trialId) params.set('trial', trialId);
     if (classId) params.set('class', classId);
-    if (paymentStatus) params.set('paymentStatus', paymentStatus);
     if (registrationKey) params.set('registration', registrationKey);
   }
 
@@ -164,7 +150,6 @@ export function normalizeEntryManagementCockpitParams(
       density,
       trialId,
       classId,
-      paymentStatus,
       registrationKey,
     },
   };
@@ -213,17 +198,6 @@ export function writeCockpitScope(
   return next;
 }
 
-export function writeCockpitPaymentStatus(
-  source: URLSearchParams,
-  paymentStatus: PaymentStatus | null
-): URLSearchParams {
-  const next = new URLSearchParams(source);
-  if (paymentStatus) next.set('paymentStatus', paymentStatus);
-  else next.delete('paymentStatus');
-  next.delete('registration');
-  return next;
-}
-
 export function writeCockpitDensity(
   source: URLSearchParams,
   density: OperationalViewDensity
@@ -251,7 +225,6 @@ export function writeCockpitTab(
   next.delete('search');
   next.delete('trial');
   next.delete('class');
-  next.delete('paymentStatus');
   next.delete('registration');
   return next;
 }

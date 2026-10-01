@@ -129,3 +129,36 @@ describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
     expect(optionText(/Move-ups/)).toBe('Move-ups (5)');
   });
 });
+
+describe('EntryManagementPage status sentence (MYK9-906)', () => {
+  const sentence = () =>
+    screen
+      .getAllByRole('status')
+      .map(el => el.textContent)
+      .find(text => text?.startsWith('Showing'));
+
+  it('keeps the whole-show total as the denominator while a class scope narrows the list', async () => {
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries?queue=all&class=class-9' });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+  });
+
+  it('keeps the same denominator when a search is added to the scope', async () => {
+    render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?queue=all&class=class-9&search=nomatch',
+    });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+  });
+
+  it('ignores the retired paymentStatus param: a stale link shows the unfiltered list', async () => {
+    render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?queue=all&paymentStatus=paid_online',
+    });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toBe('Showing all 3 registrations.');
+  });
+});

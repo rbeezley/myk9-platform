@@ -42,7 +42,7 @@ export function useEntryManagementCockpit({
   canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
-  const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}|${state.paymentStatus ?? ''}`;
+  const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {
     setPageState({ viewKey, pageIndex: 0 });
@@ -61,19 +61,9 @@ export function useEntryManagementCockpit({
         // fact. Omitting the key leaves the groups unscoped, and the cockpit
         // renders an explicit "scope unavailable" notice instead.
         ...(state.trialId && trialClassIds ? { trialClassIds } : {}),
-        paymentStatus: state.paymentStatus,
         pageIndex,
       }),
-    [
-      groups,
-      pageIndex,
-      state.classId,
-      state.paymentStatus,
-      state.queue,
-      state.search,
-      state.trialId,
-      trialClassIds,
-    ]
+    [groups, pageIndex, state.classId, state.queue, state.search, state.trialId, trialClassIds]
   );
   const selection = useBulkSelection({
     items: builtPage.effectiveGroups,
@@ -96,10 +86,9 @@ export function useEntryManagementCockpit({
         : getScopedShowRegistrationQueueCounts(
             groups,
             state.classId,
-            state.trialId && trialClassIds ? trialClassIds : undefined,
-            state.paymentStatus
+            state.trialId && trialClassIds ? trialClassIds : undefined
           ),
-    [groups, state.classId, state.paymentStatus, state.search, state.trialId, trialClassIds]
+    [groups, state.classId, state.search, state.trialId, trialClassIds]
   );
   // WHOLE-SHOW totals, and said so only when they are true of what is on
   // screen (MYK9-635). A scope cannot be applied to them honestly: the class
@@ -112,8 +101,7 @@ export function useEntryManagementCockpit({
   // withheld while a scope or a search is active. The chips and the queue's own
   // "Showing X-Y of N" describe the filtered view.
   const queueTotals = useMemo(() => summarizeShowRegistrationTotals(groups), [groups]);
-  const queueTotalsDescribeWholeShow =
-    !state.search && !state.classId && !state.trialId && !state.paymentStatus;
+  const queueTotalsDescribeWholeShow = !state.search && !state.classId && !state.trialId;
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??

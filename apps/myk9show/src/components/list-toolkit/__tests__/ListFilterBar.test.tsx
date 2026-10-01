@@ -61,6 +61,14 @@ describe('ListFilterBar', () => {
     expect(onChange).toHaveBeenCalledWith('secretary');
   });
 
+  it('keeps every option a 44px target', async () => {
+    renderBar([roleField('steward')]);
+    await userEvent.click(screen.getByRole('combobox', { name: 'Role' }));
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(4); // Any, stale value, two options
+    for (const option of options) expect(option.className).toContain('min-h-11');
+  });
+
   it('picking the "all" option clears the field', async () => {
     const onChange = vi.fn();
     renderBar([roleField('judge', onChange)]);

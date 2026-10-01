@@ -19,7 +19,6 @@ const BASE_STATE: EntryManagementCockpitState = {
   density: 'comfortable',
   trialId: null,
   classId: null,
-  paymentStatus: null,
   registrationKey: null,
 };
 

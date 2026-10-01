@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PaymentStatus } from '@/types/show-registration-types';
 import {
   entryManagementViewId,
   normalizeEntryManagementCockpitParams,
   writeCockpitException,
   writeCockpitFocus,
-  writeCockpitPaymentStatus,
   writeCockpitQueue,
   writeCockpitScope,
   writeCockpitSearch,
@@ -155,44 +153,12 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(writeCockpitTab(exceptions, 'registrations').toString()).toBe('');
   });
 
-  // MYK9-795: the new payment-status filter for the registration-queue views.
-  describe('paymentStatus', () => {
-    it('round-trips through normalize/write and clears focus like the other scope filters', () => {
-      const written = writeCockpitPaymentStatus(
-        params('registration=r1'),
-        PaymentStatus.PAID_ONLINE
-      );
-      expect(written.toString()).toBe('paymentStatus=paid_online');
-
-      const normalized = normalizeEntryManagementCockpitParams(written);
-      expect(normalized.state.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
-      expect(normalized.params.toString()).toBe('paymentStatus=paid_online');
-    });
-
-    it('clears back to unfiltered', () => {
-      const written = writeCockpitPaymentStatus(params('paymentStatus=pending'), null);
-      expect(written.has('paymentStatus')).toBe(false);
-    });
-
-    it('rejects an unsupported value rather than trusting the URL', () => {
-      const normalized = normalizeEntryManagementCockpitParams(params('paymentStatus=bogus'));
-      expect(normalized.state.paymentStatus).toBeNull();
-    });
-
-    it('never applies on the Exceptions tab', () => {
-      const normalized = normalizeEntryManagementCockpitParams(
-        params('tab=waitlist&paymentStatus=pending')
-      );
-      expect(normalized.state.paymentStatus).toBeNull();
-      expect(normalized.params.toString()).toBe('tab=exceptions&exception=waitlist');
-    });
-
-    it('is cleared by switching to the Exceptions tab', () => {
-      const next = writeCockpitTab(
-        writeCockpitPaymentStatus(params(), PaymentStatus.PENDING),
-        'exceptions'
-      );
-      expect(next.has('paymentStatus')).toBe(false);
+  // MYK9-906: the Payment status filter was cut; a stale link must not narrow the list.
+  describe('retired paymentStatus param', () => {
+    it('is ignored and dropped from the normalized URL', () => {
+      const normalized = normalizeEntryManagementCockpitParams(params('paymentStatus=paid_online'));
+      expect(normalized.state).not.toHaveProperty('paymentStatus');
+      expect(normalized.params.toString()).toBe('');
     });
   });
 

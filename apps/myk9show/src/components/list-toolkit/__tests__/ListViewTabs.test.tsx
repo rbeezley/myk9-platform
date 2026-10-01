@@ -60,4 +60,14 @@ describe('ListViewTabs', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it('keeps every option a 44px target', async () => {
+    const { user } = render(
+      <ListViewTabs label="User views" activeId={null} onSelect={vi.fn()} views={VIEWS} />
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(VIEWS.length + 1); // + Custom
+    for (const option of options) expect(option.className).toContain('min-h-11');
+  });
 });

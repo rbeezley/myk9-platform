@@ -24,6 +24,12 @@ import { activeUserViewId, buildUserViews, userViewFilters } from './userListVie
 
 const USER_NOUN = ['user', 'users'] as const;
 
+const LOGIN_LABELS: Record<Exclude<UserFilter['login'], 'all'>, string> = {
+  recent30: 'within 30 days',
+  dormant90: 'not in 90+ days',
+  never: 'never',
+};
+
 interface UserListToolbarProps<T extends User> {
   /** The whole roster, for view and option counts. */
   users: T[];
@@ -119,7 +125,23 @@ export function UserListToolbar<T extends User>({
         total={users.length}
         noun={USER_NOUN}
         filtered={hasActiveFilters}
-        filterSummary={summarizeFilters({ search: searchTerm, views, activeViewId, fields })}
+        filterSummary={summarizeFilters({
+          search: searchTerm,
+          views,
+          activeViewId,
+          fields,
+          // Status and Last sign-in have no field since MYK9-906; a value no view
+          // matches (a stale link) must still be named so Show all explains it.
+          extra:
+            activeViewId === null
+              ? [
+                  ...(filters.status !== 'all' ? [`Status: ${filters.status}`] : []),
+                  ...(filters.login !== 'all'
+                    ? [`Last sign-in: ${LOGIN_LABELS[filters.login]}`]
+                    : []),
+                ]
+              : [],
+        })}
         onShowAll={onClearAll}
         selectAll={{ selectedCount, onSelectAll: onSelectAllMatching }}
       />

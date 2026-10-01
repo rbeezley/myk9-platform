@@ -69,6 +69,20 @@ describe('PeopleListToolbar', () => {
     expect(onFiltersChange).toHaveBeenLastCalledWith({ ...DEFAULT_PEOPLE_FILTERS, search: 'x' });
   });
 
+  it('names a role/login combination that matches no view, so Show all explains it', () => {
+    renderToolbar({
+      matchCount: 0,
+      hasActiveFilters: true,
+      filters: { ...DEFAULT_PEOPLE_FILTERS, role: 'judge', login: 'none' },
+    });
+    expect(screen.getByRole('combobox', { name: 'Show: People views' })).toHaveTextContent(
+      'Custom'
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 0 of 2 people (Role: judge, No login).'
+    );
+  });
+
   it('has no Role or Location filter field (cut by MYK9-906; the role views cover Role)', () => {
     renderToolbar();
     expect(screen.queryByRole('combobox', { name: 'Role' })).not.toBeInTheDocument();

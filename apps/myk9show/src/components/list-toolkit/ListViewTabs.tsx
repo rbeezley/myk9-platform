@@ -60,12 +60,12 @@ export function ListViewTabs({ views, activeId, onSelect, label, className }: Li
         </SelectTrigger>
         <SelectContent>
           {activeId === null && (
-            <SelectItem value={CUSTOM_ID} disabled>
+            <SelectItem value={CUSTOM_ID} disabled className="min-h-11">
               Custom
             </SelectItem>
           )}
           {views.map(view => (
-            <SelectItem key={view.id} value={view.id}>
+            <SelectItem key={view.id} value={view.id} className="min-h-11">
               {optionText(view)}
             </SelectItem>
           ))}

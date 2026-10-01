@@ -121,7 +121,6 @@ function Harness({
     density: 'comfortable',
     trialId: options.trialId ?? null,
     classId: options.classId ?? null,
-    paymentStatus: null,
     registrationKey: null,
   };
   const cockpit = useEntryManagementCockpit({ groups: registrationGroups, state });

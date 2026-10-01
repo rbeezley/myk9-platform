@@ -68,12 +68,16 @@ function OptionsControl({ field }: { field: ListOptionsFilterField }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL_VALUE}>{allLabel}</SelectItem>
+          <SelectItem value={ALL_VALUE} className="min-h-11">
+            {allLabel}
+          </SelectItem>
           {stale && field.value !== null && (
-            <SelectItem value={field.value}>{field.value}</SelectItem>
+            <SelectItem value={field.value} className="min-h-11">
+              {field.value}
+            </SelectItem>
           )}
           {field.options.map(option => (
-            <SelectItem key={option.value} value={option.value}>
+            <SelectItem key={option.value} value={option.value} className="min-h-11">
               {optionText(option.label, option.count)}
             </SelectItem>
           ))}

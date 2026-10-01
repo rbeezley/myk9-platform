@@ -1,7 +1,18 @@
-import { render, screen, within } from '@testing-library/react';
+import { render as rtlRender, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
+
+// ClassesTab's manager layer reads React Query hooks even for viewers it then ignores.
+const render = (ui: ReactElement) =>
+  rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: () => ({ data: undefined }) }));
+vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
+  useJudgesWithQualifications: () => ({ data: undefined }),
+}));
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({

@@ -48,8 +48,7 @@ function person(id: string, patch: Partial<AdminUser> = {}): AdminUser {
 
 function retryAction(): { onClick: () => void } {
   const options = vi.mocked(toast.error).mock.calls[0]?.[1] as
-    | { action?: { onClick: () => void } }
-    | undefined;
+    { action?: { onClick: () => void } } | undefined;
   if (!options?.action) throw new Error('no Retry failed action on the toast');
   return options.action;
 }

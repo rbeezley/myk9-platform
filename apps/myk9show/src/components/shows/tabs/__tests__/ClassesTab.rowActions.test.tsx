@@ -127,6 +127,16 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
     ).toBeVisible();
   });
 
+  it('shows Add Classes only when the viewer manages THIS show, whatever the global permission', () => {
+    const first = renderTab();
+    expect(screen.getByRole('button', { name: 'Add Classes' })).toBeVisible();
+    first.unmount();
+
+    mockCanManage = false;
+    renderTab();
+    expect(screen.queryByRole('button', { name: 'Add Classes' })).not.toBeInTheDocument();
+  });
+
   it('shows no menu while the show scope is still resolving or unavailable', () => {
     mockScopeStatus = 'resolving';
     const first = renderTab();

@@ -6,7 +6,6 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
-import { useRBAC } from '@/hooks/useRBAC';
 import { formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -71,7 +70,6 @@ function classTrialPart(cls: ClassInfo): string {
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
-  const { hasPermission } = useRBAC();
   const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
     'classes',
     userHasEntries ? 'cards' : 'table'
@@ -82,11 +80,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // "Mine" — that scoping is now one pressable view among four, not a
   // silent default). See `classesTabViews.ts`.
   const [viewId, setViewId] = useState('all');
-  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
-  // Row Edit / Delete (MYK9-900) are gated on THIS show's owning club (the scope the show
-  // shell's Edit show button uses); the global permission above is not club-scoped, and this
-  // tab also renders on the public show page. Resolving / unavailable read as no menu.
-  const canManageRows = useShowManageScope(showId).canManage;
+  // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
+  // club, the scope the show shell's Edit show button uses. The global permission is not
+  // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
+  // read as no.
+  const canManageThisShow = useShowManageScope(showId).canManage;
   // Row Edit / Delete (MYK9-900): the existing class panel and dialog, opened in place.
   const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const viewMode =
@@ -232,7 +230,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       }
     );
 
-    if (canManageRows) {
+    if (canManageThisShow) {
       cols.push({
         id: 'actions',
         header: () => <span className="sr-only">Actions</span>,
@@ -244,7 +242,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     }
 
     return cols;
-  }, [hideRing, canManageRows]);
+  }, [hideRing, canManageThisShow]);
 
   if (classes.length === 0) {
     return (
@@ -253,7 +251,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         title="No classes scheduled"
         description="Classes for this show haven't been set up yet."
         action={
-          canManage
+          canManageThisShow
             ? {
                 label: 'Add Classes',
                 onClick: () => navigate(getAddClassesHref(showId)),
@@ -280,7 +278,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         />
         <div className="flex items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManage && (
+          {canManageThisShow && (
             <Button
               size="sm"
               onClick={() => navigate(getAddClassesHref(showId))}
@@ -336,7 +334,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
-                  {...(canManageRows ? { actions: classRowMenu(cls) } : {})}
+                  {...(canManageThisShow ? { actions: classRowMenu(cls) } : {})}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
                   }
@@ -346,7 +344,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           </div>
         ))
       )}
-      {canManageRows && pendingAction && (
+      {canManageThisShow && pendingAction && (
         <SetupClassDialogs
           showId={showId}
           pending={pendingAction}

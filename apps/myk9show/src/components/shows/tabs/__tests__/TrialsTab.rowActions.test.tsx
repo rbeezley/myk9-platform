@@ -85,6 +85,16 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     expect(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' })).toBeVisible();
   });
 
+  it('shows Add Trial only when the viewer manages THIS show, whatever the global permission', () => {
+    const first = renderTab();
+    expect(screen.getByRole('button', { name: 'Add Trial' })).toBeVisible();
+    first.unmount();
+
+    mockCanManage = false;
+    renderTab();
+    expect(screen.queryByRole('button', { name: 'Add Trial' })).not.toBeInTheDocument();
+  });
+
   it('shows no menu while the show scope is still resolving or unavailable', () => {
     mockScopeStatus = 'resolving';
     const first = renderTab();

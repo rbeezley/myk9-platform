@@ -8,7 +8,6 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ListViewTabs } from '@/components/list-toolkit';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { useRBAC } from '@/hooks/useRBAC';
 import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
@@ -123,15 +122,14 @@ const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
 
 export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const navigate = useNavigate();
-  const { hasPermission } = useRBAC();
 
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
-  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
-  // Row Edit / Delete (MYK9-900) are gated on THIS show's owning club (the scope the show
-  // shell's Edit show button uses); the global permission above is not club-scoped, and this
-  // tab also renders on the public show page. Resolving / unavailable read as no menu.
-  const canManageRows = useShowManageScope(showId).canManage;
+  // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
+  // club, the scope the show shell's Edit show button uses. The global permission is not
+  // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
+  // read as no.
+  const canManageThisShow = useShowManageScope(showId).canManage;
   // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
   const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
   const [actionTrialId, setActionTrialId] = useState<string | null>(null);
@@ -155,7 +153,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   );
   const trialColumns = useMemo<ColumnDef<TrialRow, unknown>[]>(
     () =>
-      canManageRows
+      canManageThisShow
         ? [
             ...baseTrialColumns,
             {
@@ -169,7 +167,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           ]
         : baseTrialColumns,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
-    [canManageRows]
+    [canManageThisShow]
   );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
@@ -211,7 +209,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         )}
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManage && (
+          {canManageThisShow && (
             <Button size="sm" onClick={openWizard} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Add Trial
@@ -225,7 +223,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           icon={Calendar}
           title="No Trials"
           description="No trials have been created for this show yet."
-          action={canManage ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null}
+          action={canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null}
         />
       ) : filteredTrials.length === 0 && trials.length > 0 ? (
         <EmptyState
@@ -305,7 +303,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           className="shrink-0 text-xs"
                           variant="outline"
                         />
-                        {canManageRows && (
+                        {canManageThisShow && (
                           <div className="ml-auto -my-2 -mr-2">
                             {trialRowMenu(trial.id, trialLabel)}
                           </div>
@@ -362,7 +360,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}
-      {canManageRows && (
+      {canManageThisShow && (
         <TrialManagementDialogs
           ref={dialogsRef}
           currentTrial={actionTrial}

@@ -1,4 +1,5 @@
 import type { PaymentMethodResolution } from './usePaymentMethodResolution';
+import type { JuniorHandlerDeclaration } from './JuniorHandlerDeclaration';
 import type {
   ClassSelectionData,
   PaymentMethod,
@@ -56,6 +57,11 @@ export interface PaymentStepProps {
   waitlistClassIds?: ReadonlySet<string> | undefined;
   /** Selected classes that are full and cannot accept a wait-list request. */
   blockedClassIds?: ReadonlySet<string> | undefined;
+  /**
+   * MYK9-879: the exhibitor's per-dog junior-handler declarations, owned by the
+   * page so the entries panel prices the same set. Omitted = no control.
+   */
+  juniorDeclaration?: JuniorHandlerDeclaration | undefined;
 }
 
 /** A single class entry within a dog's fee breakdown. */

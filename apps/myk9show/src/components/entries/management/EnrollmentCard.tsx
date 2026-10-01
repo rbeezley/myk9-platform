@@ -52,6 +52,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onBulkStatusChange,
   paymentLedger,
   emailStatusMap,
+  juniorDeclaredEntryIds,
   onResendEmail,
   isResendDisabled,
   onSendDecisionEmail,
@@ -222,6 +223,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       hidePaymentBadge={true}
                       hideHeader={true}
                       emailStatusMap={emailStatusMap}
+                      juniorDeclaredEntryIds={juniorDeclaredEntryIds}
                       onResendEmail={onResendEmail}
                       isResendDisabled={isResendDisabled}
                       lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
+import { useJuniorDeclaredEntryIds } from '@/hooks/useJuniorDeclaredEntryIds';
 import type { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { EntryRegistrationQueue } from './EntryRegistrationQueue';
@@ -130,6 +131,7 @@ export function EntryManagementCockpit({
     [entries]
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
+  const { data: juniorDeclaredEntryIds } = useJuniorDeclaredEntryIds(showId);
   const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
   const isResendDisabled = (registrationId: string) =>
@@ -335,6 +337,7 @@ export function EntryManagementCockpit({
               onBulkStatusChange={onBulkStatusChange}
               paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
+              juniorDeclaredEntryIds={juniorDeclaredEntryIds}
               onResendEmail={handleResendEmail}
               isResendDisabled={isResendDisabled}
               onSendDecisionEmail={onSendDecisionEmail}

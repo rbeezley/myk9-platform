@@ -20,6 +20,8 @@ export interface EntryListCardProps {
   showCheckInStatus?: boolean | undefined;
   matchingEntryIds?: ReadonlySet<string> | undefined;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
+  /** MYK9-879: entries whose junior fee was charged on the exhibitor's declaration. */
+  juniorDeclaredEntryIds?: ReadonlySet<string> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   hidePaymentBadge?: boolean | undefined;

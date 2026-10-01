@@ -35,6 +35,7 @@ function cartItem(
     entry_fee_cents: 2500,
     jump_height: null,
     special_requests: null,
+    junior_fee_declared: false,
     created_at: '2026-06-28T00:00:00.000Z',
     ...overrides,
   };

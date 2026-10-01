@@ -105,6 +105,26 @@ describe('useClubDetailsState permissions (MYK9-359)', () => {
     expect(result.current.canDeleteClub).toBe(false);
   });
 
+  it('shows Edit to a secretary who just created the club once a refresh adds the club_admin scope, and not before (MYK9-905)', () => {
+    // Before the creator's grant is picked up: secretary only, as a non-creator secretary stays.
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_B)]
+    );
+    const { result, rerender } = renderState(CLUB_A);
+    expect(result.current.canEditClub).toBe(false);
+
+    // The RBAC refresh lands the trigger-issued club_admin row for the new club.
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.SECRETARY, CLUB_B), clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+    rerender();
+    expect(result.current.canEditClub).toBe(true);
+    // Still not an editor of the other club.
+    expect(renderState(CLUB_B).result.current.canEditClub).toBe(false);
+  });
+
   it('denies a club_admin of a DIFFERENT club', () => {
     mockAuth.userWithRoles = userWith(
       [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],

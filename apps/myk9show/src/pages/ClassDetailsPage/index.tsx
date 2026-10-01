@@ -126,19 +126,20 @@ const ClassDetailsPage: React.FC = () => {
   const exhibitorRawEntries = showReleasedResults ? releasedResults.rawEntries : dbRawEntries;
 
   // Handlers
+  // Rejects when the delete fails: DeleteClassDialog stays open and shows why, and we do not
+  // navigate away from a class that still exists.
   const handleConfirmDeleteClass = async () => {
-    if (classId && (await removeClass(classId))) {
-      startTransition(() => {
-        if (trialId) {
-          navigate(`/trials/${trialId}`);
-        } else if (currentClass?.trialId) {
-          navigate(`/trials/${currentClass.trialId}`);
-        } else {
-          navigate('/classes');
-        }
-      });
-    }
-    dialogs.closeDeleteDialog();
+    if (!classId) return;
+    await removeClass(classId);
+    startTransition(() => {
+      if (trialId) {
+        navigate(`/trials/${trialId}`);
+      } else if (currentClass?.trialId) {
+        navigate(`/trials/${currentClass.trialId}`);
+      } else {
+        navigate('/classes');
+      }
+    });
   };
 
   const handleDeleteEntry = (entryId: string) => {
@@ -180,11 +181,11 @@ const ClassDetailsPage: React.FC = () => {
     }
   };
 
+  // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
     if (classId && currentClass) {
       await saveClass(classId, data as Partial<ClassData>, currentClass.trialId);
     }
-    dialogs.closeEditClassPanel();
   };
 
   // Breadcrumbs
@@ -395,7 +396,7 @@ const ClassDetailsPage: React.FC = () => {
               onSave={async classData => {
                 if (currentClass?.id) {
                   const updatedClass = { ...currentClass, ...classData };
-                  handleSaveClassEdit(updatedClass);
+                  await handleSaveClassEdit(updatedClass);
                 }
               }}
             />

@@ -29,15 +29,18 @@ export function useClassEditActions({
   // they say so up front instead of failing after the fact with a generic error.
   const connectionHint = useConnectionHint();
 
-  /** `data` is the full merged class (existing fields plus the panel's edits). */
+  /**
+   * `data` is the full merged class (existing fields plus the panel's edits). Resolves on
+   * success; REJECTS on failure (offline or a failed write) so the edit panel stays open with
+   * the user's edits and shows the reason.
+   */
   const saveClass = async (
     classId: string,
     data: Partial<ClassData>,
     trialId: string | undefined
-  ): Promise<boolean> => {
+  ): Promise<void> => {
     if (connectionHint) {
-      toast.error(`Can't save this class: ${connectionHint.toLowerCase()}.`);
-      return false;
+      throw new Error(`Can't save this class: ${connectionHint.toLowerCase()}.`);
     }
     try {
       // Save the judge assignment FIRST (with replication sync) before updateClass,
@@ -69,27 +72,23 @@ export function useClassEditActions({
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
 
       toast.success('Class updated successfully');
-      return true;
     } catch (error) {
       logger.error('Failed to update class', 'classes', { classId }, error as Error);
-      toast.error('Failed to update class');
-      return false;
+      throw error;
     }
   };
 
-  const removeClass = async (classId: string): Promise<boolean> => {
+  /** Resolves on success; REJECTS on failure so the delete dialog stays open and says why. */
+  const removeClass = async (classId: string): Promise<void> => {
     if (connectionHint) {
-      toast.error(`Can't delete this class: ${connectionHint.toLowerCase()}.`);
-      return false;
+      throw new Error(`Can't delete this class: ${connectionHint.toLowerCase()}.`);
     }
     try {
       await deleteClass(classId);
       toast.success('Class deleted successfully');
-      return true;
     } catch (error) {
       logger.error('Failed to delete class', 'classes', { classId }, error as Error);
-      toast.error('Failed to delete class');
-      return false;
+      throw error;
     }
   };
 

@@ -44,17 +44,12 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
     }
   }, [unresolved, onClose]);
 
+  // Both reject on failure: the panel stays open with the edits, and the dialog stays open
+  // with the reason. On success the panel closes itself and the dialog calls onOpenChange(false).
   const handleSave = async (data: Partial<ClassData>) => {
-    if (
-      currentClass &&
-      (await saveClass(currentClass.id, { ...currentClass, ...data }, currentClass.trialId))
-    ) {
-      onClose();
+    if (currentClass) {
+      await saveClass(currentClass.id, { ...currentClass, ...data }, currentClass.trialId);
     }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (await removeClass(pending.classId)) onClose();
   };
 
   if (!currentClass) return null;
@@ -76,7 +71,7 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
         if (!open) onClose();
       }}
       currentClass={currentClass}
-      onConfirm={handleConfirmDelete}
+      onConfirm={() => removeClass(pending.classId)}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 import { useTrialStore } from '@/store/trialStore';
@@ -99,7 +99,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('confirming Delete while offline says it needs a connection and keeps the dialog', async () => {
+  it('confirming Delete while offline keeps the dialog open and says it needs a connection', async () => {
     mockConnectionHint = 'Needs a connection';
     const { user } = renderTab();
 
@@ -108,8 +108,36 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/needs a connection/i);
     expect(deleteClass).not.toHaveBeenCalled();
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/needs a connection/i));
+    expect(screen.getByRole('alertdialog')).toBeVisible();
+  });
+
+  it('a failed delete keeps the dialog open with an error', async () => {
+    deleteClass.mockRejectedValue(new Error('Server said no'));
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server said no');
+    expect(screen.getByRole('alertdialog')).toBeVisible();
+  });
+
+  it('a successful delete closes the dialog', async () => {
+    deleteClass.mockResolvedValue(undefined);
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' })
+    );
+
+    expect(deleteClass).toHaveBeenCalledWith('c1');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
   it('a class that cannot be resolved anywhere shows an error instead of doing nothing', async () => {

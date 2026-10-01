@@ -413,9 +413,10 @@ export const ClassManagementPage: React.FC = () => {
           if (!open) setClassPendingDelete(null);
         }}
         currentClass={classPendingDelete && { ...classPendingDelete, trial: trialDisplayName }}
-        onConfirm={() => {
-          if (classPendingDelete) deleteClassMutation.mutate({ id: classPendingDelete.id });
-          setClassPendingDelete(null);
+        onConfirm={async () => {
+          if (classPendingDelete) {
+            await deleteClassMutation.mutateAsync({ id: classPendingDelete.id });
+          }
         }}
       />
 

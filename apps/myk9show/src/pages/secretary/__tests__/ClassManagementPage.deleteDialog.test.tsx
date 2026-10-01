@@ -81,11 +81,12 @@ describe('ClassManagementPage row delete (MYK9-900)', () => {
   const confirmSpy = vi.spyOn(window, 'confirm');
 
   beforeEach(() => {
-    deleteMutate.mockClear();
+    deleteMutate.mockReset();
+    deleteMutate.mockResolvedValue(undefined);
     confirmSpy.mockClear();
     confirmSpy.mockReturnValue(true);
     useClassesByTrialQueryMock.mockReturnValue({ data: classRows, isLoading: false });
-    useDeleteClassMutationMock.mockReturnValue({ mutate: deleteMutate });
+    useDeleteClassMutationMock.mockReturnValue({ mutateAsync: deleteMutate });
   });
 
   it('opens the Delete Class dialog instead of window.confirm, and deletes only on confirm', async () => {
@@ -104,6 +105,18 @@ describe('ClassManagementPage row delete (MYK9-900)', () => {
     expect(deleteMutate).toHaveBeenCalledTimes(1);
     expect(deleteMutate).toHaveBeenCalledWith({ id: 'class-1' });
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it('stays open and says why when the delete fails', async () => {
+    deleteMutate.mockRejectedValue(new Error('Server said no'));
+    const { user } = renderPage();
+
+    await openDeleteFor(user, 'Container Novice A');
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server said no');
+    expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 
   it('cancel closes the dialog without deleting', async () => {

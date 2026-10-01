@@ -21,6 +21,7 @@ import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
+import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentMethodSelectorProps } from './types';
 import type { PaymentDetails } from '@/types/show-registration-types';
@@ -95,13 +96,19 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   acceptedMethods,
   allowCardCheckout = true,
   cardCheckoutUnavailableReason,
+  juniorFee = null,
+  getInitialDetails,
 }) => {
-  const [checkNumber, setCheckNumber] = useState('');
-  const [paymentDate, setPaymentDate] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
-  const [groupReference, setGroupReference] = useState('');
-  const [paymentNotes, setPaymentNotes] = useState('');
-  const [receivedMethod, setReceivedMethod] = useState<PaymentDetails['receivedMethod']>();
+  const [initialDetails] = useState(() => getInitialDetails?.());
+  const [chargeJuniorFee, setChargeJuniorFee] = useState(initialDetails?.chargeJuniorFee === true);
+  const [checkNumber, setCheckNumber] = useState(initialDetails?.checkNumber ?? '');
+  const [paymentDate, setPaymentDate] = useState(initialDetails?.paymentDate ?? '');
+  const [paymentReference, setPaymentReference] = useState(initialDetails?.paymentReference ?? '');
+  const [groupReference, setGroupReference] = useState(initialDetails?.groupReference ?? '');
+  const [paymentNotes, setPaymentNotes] = useState(initialDetails?.paymentNotes ?? '');
+  const [receivedMethod, setReceivedMethod] = useState<PaymentDetails['receivedMethod']>(
+    initialDetails?.receivedMethod
+  );
 
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
@@ -116,6 +123,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       groupReference,
       paymentNotes,
       ...(receivedMethod ? { receivedMethod } : {}),
+      ...(chargeJuniorFee ? { chargeJuniorFee } : {}),
       ...patch,
     });
   };
@@ -148,6 +156,11 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const handleReceivedMethodChange = (value: 'cash' | 'check') => {
     setReceivedMethod(value);
     notifyDetailsChange({ receivedMethod: value });
+  };
+
+  const handleJuniorFeeChange = (value: boolean) => {
+    setChargeJuniorFee(value);
+    notifyDetailsChange({ chargeJuniorFee: value });
   };
 
   const handleSelect = (value: PaymentMethod) => {
@@ -389,6 +402,14 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   />
                 </div>
               </div>
+            )}
+
+            {juniorFee !== null && (
+              <JuniorFeeChoice
+                fee={juniorFee}
+                checked={chargeJuniorFee}
+                onCheckedChange={handleJuniorFeeChange}
+              />
             )}
           </div>
         </div>

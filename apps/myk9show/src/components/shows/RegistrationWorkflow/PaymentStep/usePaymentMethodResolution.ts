@@ -12,6 +12,9 @@
  */
 
 import { useShowStore } from '@/store/showStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { hasScopedClubRole } from '@/utils/roleScopes';
+import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 import type { Show } from '@/types/show-types';
@@ -29,6 +32,13 @@ export interface PaymentMethodResolution {
   cardCheckoutUnavailableReason: string | undefined;
   /** Staff entering on an exhibitor's behalf. Also gates the entry agreement. */
   isOnBehalf: boolean;
+  /**
+   * MYK9-878: may explicitly charge the junior handler fee. Narrower than
+   * `isOnBehalf`: the server accepts the override only from a secretary appointed
+   * at the show's CLUB (user_roles.show_id NULL; a show-scoped row grants nothing) or a site admin (`is_show_secretary`), so a club
+   * admin, or a secretary of some other club, is not offered it.
+   */
+  canChargeJuniorFee: boolean;
   /** The show record this lookup already resolved — reused for fees and the
    *  entry agreement rather than looked up a second time. */
   show: Show | undefined;
@@ -40,6 +50,7 @@ export function usePaymentMethodResolution(
 ): PaymentMethodResolution {
   const { shows = [] } = useShowStore();
   const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
+  const { userWithRoles } = useAuthContext();
   // On-behalf organizers cannot pay by card: Stripe checkout runs under the
   // logged-in user and stripe-checkout 403s any cart they don't own. They
   // record check/cash/secretary_paid/waived instead.
@@ -65,6 +76,12 @@ export function usePaymentMethodResolution(
     accountCheckPending:
       !isOnBehalf && (clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching),
     isOnBehalf,
+    // Scoped like every other club-staff gate (utils/roleScopes): a global
+    // secretary role says nothing about THIS show's club. Denied while the club
+    // is unknown.
+    canChargeJuniorFee:
+      isSiteAdmin ||
+      (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)),
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined

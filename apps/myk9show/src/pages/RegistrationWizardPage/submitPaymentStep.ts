@@ -52,6 +52,7 @@ export interface PaymentStepShowFeeInfo {
   entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
   entryWindowTimezone?: string | undefined;
+  juniorHandlerFee?: string | undefined;
 }
 
 export interface SubmitPaymentStepContext {

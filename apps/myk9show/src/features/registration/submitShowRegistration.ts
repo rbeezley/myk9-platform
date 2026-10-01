@@ -1,5 +1,8 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
-import type { ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import {
+  parseJuniorHandlerFee,
+  type ShowFeeInfo,
+} from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { claimNextArmband } from '@/services/database/armbands';
 import {
   submitShowEntries,
@@ -118,12 +121,17 @@ export async function submitShowRegistration({
     throw new Error('Invariant: submitShowRegistration called with credit_card payment method');
   }
 
+  // MYK9-878: the secretary's explicit choice, honoured only where the show has a
+  // junior tier. The server re-checks who is asking and never takes this as age.
+  const chargeJuniorFee =
+    paymentDetails?.chargeJuniorFee === true && parseJuniorHandlerFee(showFeeInfo) !== null;
   const entryInputs = registrationToEntries(
     showId,
     classSelections,
     handlerAssignments,
     classes,
-    showFeeInfo
+    showFeeInfo,
+    chargeJuniorFee
   );
   const feeTotal = entryInputs.reduce(
     (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
@@ -162,6 +170,7 @@ export async function submitShowRegistration({
         handlerName: entry.registrationData.handler,
         paymentMethod: submitMethod,
         clientFeeCents: Math.round((entry.registrationData.entryFee ?? 0) * 100),
+        ...(chargeJuniorFee ? { juniorFeeOverride: true } : {}),
       })),
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod: submitMethod,
@@ -219,11 +228,28 @@ export async function submitShowRegistration({
     }
   }
 
-  const surfacedOutcomes = submissionOutcomes?.some(
-    outcome => outcome.outcome !== 'created' || outcome.capacityOverride
-  )
-    ? submissionOutcomes
-    : undefined;
+  // The confirmation and receipts total the committed `fee_cents` of the outcomes
+  // when they are present, and the wizard's live total (normal fees) when not. So
+  // the outcomes must survive whenever the committed fee can differ from that live
+  // total: a junior-fee override (the live total never knows the junior fee), or any
+  // entry the server committed at a fee other than the one quoted. (MYK9-878)
+  const quotedCents = new Map(
+    entryInputs.map(entry => [
+      `${entry.dogId}:${entry.classId}`,
+      Math.round((entry.registrationData.entryFee ?? 0) * 100),
+    ])
+  );
+  const committedFeeDiffers = (submissionOutcomes ?? []).some(
+    outcome =>
+      outcome.outcome === 'created' &&
+      outcome.feeCents !== quotedCents.get(`${outcome.dogId}:${outcome.classId}`)
+  );
+  const surfacedOutcomes =
+    chargeJuniorFee ||
+    committedFeeDiffers ||
+    submissionOutcomes?.some(outcome => outcome.outcome !== 'created' || outcome.capacityOverride)
+      ? submissionOutcomes
+      : undefined;
 
   return {
     aborted: false,

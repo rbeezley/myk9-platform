@@ -35,6 +35,18 @@ export interface ShowFeeInfo {
   entryCloseDate?: string | undefined;
   /** IANA zone of the show's first trial, so "today" matches the server guard. */
   entryWindowTimezone?: string | undefined;
+  /** `shows.junior_handler_fee`. Blank, 0 or unparseable = no junior tier. */
+  juniorHandlerFee?: string | undefined;
+}
+
+/**
+ * The show's junior handler fee as a number, or null when there is no junior
+ * tier. Zero means "no tier", the same convention as the day-of fee and the
+ * server (`private.price_entry_fee`).
+ */
+export function parseJuniorHandlerFee(show: Pick<ShowFeeInfo, 'juniorHandlerFee'> | undefined) {
+  const fee = parseFloat((show?.juniorHandlerFee ?? '').replace(/[$,]/g, ''));
+  return Number.isFinite(fee) && fee > 0 ? fee : null;
 }
 
 /** Adapt the wizard's fee inputs to the shared day-of-show rule. */
@@ -67,7 +79,22 @@ export function getShowEntryFee(
   // A judgement the caller already made and records with the entry. A batch
   // passes it so the fee cannot be re-decided on a clock that has crossed
   // midnight since (MYK9-749). Omitted, the fee decides for itself.
-  isDayOfShow?: boolean
+  isDayOfShow?: boolean,
+  // MYK9-878: the secretary's explicit "charge junior handler fee" choice, the
+  // only way the junior fee is charged. Never derived from age or ownership.
+  chargeJuniorFee?: boolean
+): number {
+  const normalFee = getNormalEntryFee(show, classEntryFee, isDayOfShow);
+  const juniorFee = chargeJuniorFee ? parseJuniorHandlerFee(show) : null;
+  // The same rule as `private.price_entry_fee`: LEAST(junior fee, normal fee), so a
+  // junior tier above the regular fee never quotes more than the regular fee.
+  return juniorFee !== null ? Math.min(juniorFee, normalFee) : normalFee;
+}
+
+function getNormalEntryFee(
+  show: ShowFeeInfo | undefined,
+  classEntryFee: number | undefined,
+  isDayOfShow: boolean | undefined
 ): number {
   // Show-level fee with date-based tier
   if (show) {

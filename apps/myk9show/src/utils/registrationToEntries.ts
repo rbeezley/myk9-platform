@@ -24,7 +24,8 @@ export function registrationToEntries(
   classSelections: ClassSelectionData[],
   handlerAssignments: Record<string, HandlerInfo>,
   classes: ClassLike[],
-  show?: ShowFeeInfo
+  show?: ShowFeeInfo,
+  chargeJuniorFee?: boolean
 ): ShowEntryInput[] {
   const entries: ShowEntryInput[] = [];
   const classesMap = new Map(classes.map(c => [c.id, c]));
@@ -34,7 +35,7 @@ export function registrationToEntries(
       const handlerKey = makeHandlerKey(selection.dogId, cls.classId);
       const handler = handlerAssignments[handlerKey];
       const classData = classesMap.get(cls.classId);
-      const fee = getShowEntryFee(show, classData?.entryFee);
+      const fee = getShowEntryFee(show, classData?.entryFee, undefined, chargeJuniorFee);
 
       entries.push({
         showId,

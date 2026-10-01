@@ -1,6 +1,7 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import {
   getShowEntryFee,
+  parseJuniorHandlerFee,
   showDayOfShowContext,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
@@ -28,6 +29,14 @@ import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
+
+/**
+ * MYK9-878: a direct insert carries the secretary's "charge junior handler fee"
+ * choice as a non-NULL `entries.junior_fee_override_by`. The value is only a
+ * request marker (the nil UUID): `trg_entries_junior_fee` checks the caller is the
+ * show secretary or a site admin, then overwrites it with their people id.
+ */
+export const JUNIOR_FEE_OVERRIDE_REQUEST = '00000000-0000-0000-0000-000000000000';
 
 interface ClassLike {
   id: string;
@@ -127,10 +136,20 @@ export async function submitOfflineLateEntry({
   // even if the clock crosses midnight mid-loop.
   const entryIsDayOfShow = isDayOfShowEntry(showDayOfShowContext(showFeeInfo));
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
+  // MYK9-878: only where the show has a junior tier, and never on a waived entry.
+  const chargeJuniorFee =
+    paymentMethod !== 'waived' &&
+    paymentDetails?.chargeJuniorFee === true &&
+    parseJuniorHandlerFee(showFeeInfo) !== null;
   const feeFor = (classId: string) =>
     paymentMethod === 'waived'
       ? 0
-      : getShowEntryFee(showFeeInfo, classesById.get(classId)?.entryFee, entryIsDayOfShow);
+      : getShowEntryFee(
+          showFeeInfo,
+          classesById.get(classId)?.entryFee,
+          entryIsDayOfShow,
+          chargeJuniorFee
+        );
   // MYK9-677: money received at the desk names cash or check, refused before
   // any row is written. The entry then carries that method, which is what the
   // server's ledger trigger reads when this entry syncs.
@@ -235,6 +254,7 @@ export async function submitOfflineLateEntry({
         entryStatus: 'confirmed',
         entry_status: 'confirmed',
         entryFee,
+        ...(chargeJuniorFee ? { juniorFeeOverrideBy: JUNIOR_FEE_OVERRIDE_REQUEST } : {}),
         armband: reservation.armband,
         jumpHeight: selectedClass.jumpHeight,
         moveUpRequested: selectedClass.moveUpRequested,

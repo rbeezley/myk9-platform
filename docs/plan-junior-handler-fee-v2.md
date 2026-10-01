@@ -50,19 +50,29 @@ Decided by Richard, 2026-09-29 (all recommendations accepted):
 - **Derive once, store, never re-derive.** One trusted server function prices an entry at creation
   and the fee is stored on the entry. Checkout, webhook, payment links and refunds read the stored
   fee.
-- **Privacy boundary:** a junior fee is priced only for the dog's owner or co-owner, or a handler who
-  enrolled themselves through the exhibitor flow. Whether "enrolled" needs provenance (MYK9-875) is
-  settled inside slice B.
+- **Privacy boundary:** _superseded in slice B._ The junior fee is charged only on an explicit
+  secretary / site-admin override; nothing derives it from age or ownership (see "Settled in
+  slice B").
 - **The fee is fixed at entry creation**, then frozen.
 - **`unknown` status** (no date of birth on file, or ASCA) prices at the normal tier, and an ASCA show
   hides the setting.
 - **Self-asserted date of birth and number:** out of scope for this fee; file separately.
 
-## Open before slice B
+## Settled in slice B (Richard, 2026-09-30, MYK9-875 and the Codex P1 on #2611)
 
-Slice A needs none of the decisions above beyond what is recorded. Slice B still has one open
-design point: whether enrollments need provenance so that "enrolled" can be trusted (MYK9-875). Settle
-it at the start of slice B, not before.
+**Explicit secretary override only.** Slice B charges the junior fee ONLY when the show secretary
+(club-appointed) or a site admin explicitly chooses "Charge junior handler fee" for an entry. The
+override never reads a date of birth, is recorded (`entries.junior_fee_override_by`), and a
+non-secretary asking is refused. There is no automatic age- or ownership-derived pricing.
+
+History: the first design derived the fee for a dog's owner or co-owner who was a junior at the
+trial (and, before that, via enrollments and prior entries). Each variant let a show manager
+manufacture the relationship (a trial secretary can insert a dog with any `owner_id`) and read
+back an age-dependent price, i.e. the MYK9-664 age oracle. The owner-derived arm was dropped at
+Richard's direction; nothing in slice B calls `private.entry_handler_is_junior` or reads
+`people_private`. The junior result is `LEAST(junior fee, normal fee)`; a junior fee of 0 or
+NULL is no tier; the stored fee is frozen against direct client UPDATEs. Migration
+`20260930214300_myk9_878_*` implements it.
 
 ## Slices
 
@@ -87,8 +97,8 @@ of pricing, so it can ship before or after slice B. Until it ships, a secretary 
 show edit panel after creating the show.
 
 **Slice B — staff and desk entries (show-day path).** `submit_show_entries` (cash, check,
-waived) and the offline insert path price a junior entry using the single derivation function
-from decision 1, subject to decision 2. This is the highest-priority path for show-day
+waived) and the offline insert path charge the junior fee on an explicit secretary override, through
+one trusted pricing function (see "Settled in slice B": the age/ownership-derived design was dropped). This is the highest-priority path for show-day
 reliability and needs no Stripe changes.
 
 **Slice C — exhibitor card checkout.** Quote and charge the stored/derived fee through the

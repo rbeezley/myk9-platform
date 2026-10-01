@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PaymentStatus, EntryStatus, type PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { calculateTotalFees } from './utils';
+import { calculateTotalFees, parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
@@ -25,6 +25,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
+  getPaymentDetails,
   onPaymentStatusChange,
   onEntryStatusChange,
   onAgreementChange,
@@ -63,6 +64,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     accountCheckPending,
     cardCheckoutUnavailableReason,
     isOnBehalf,
+    canChargeJuniorFee,
     show,
   } = paymentResolution;
 
@@ -201,9 +203,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         paymentMethod={effectivePaymentMethod}
         onPaymentMethodChange={handlePaymentMethodSelect}
         onPaymentDetailsChange={onPaymentDetailsChange}
+        getInitialDetails={getPaymentDetails}
         acceptedMethods={acceptedMethods}
         allowCardCheckout={cardCheckoutAvailable}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
+        juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
       />
 
       {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}

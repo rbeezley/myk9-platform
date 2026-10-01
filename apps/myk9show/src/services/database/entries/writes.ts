@@ -406,6 +406,8 @@ export async function submitShowEntries(params: {
     handlerName: string;
     paymentMethod: string;
     clientFeeCents: number;
+    /** MYK9-878: a secretary / site admin charges the show's junior handler fee. */
+    juniorFeeOverride?: boolean | undefined;
   }>;
   submissionId: string;
   paymentMethod: string;
@@ -435,6 +437,7 @@ export async function submitShowEntries(params: {
     payment_method: e.paymentMethod,
     client_fee_cents: e.clientFeeCents,
     submission_source: submissionSource,
+    ...(e.juniorFeeOverride ? { junior_fee_override: true } : {}),
   }));
 
   const { data, error } = await supabase.rpc(

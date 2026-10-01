@@ -42,6 +42,8 @@ export interface ReplicatedEntry {
   capacityOverride?: boolean | undefined;
   capacity_override?: boolean | undefined;
   isDayOfShow?: boolean | undefined;
+  /** MYK9-878: write-only request marker; the server stamps who applied it. */
+  juniorFeeOverrideBy?: string | undefined;
   isInRing?: boolean | undefined;
   is_in_ring?: boolean | undefined;
   runOrder?: number | undefined;
@@ -274,6 +276,7 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
       : entry.moved_from_entry_id != null
         ? { moved_from_entry_id: entry.moved_from_entry_id }
         : {}),
+    ...(entry.juniorFeeOverrideBy ? { junior_fee_override_by: entry.juniorFeeOverrideBy } : {}),
     submitted_at: entry.submittedAt ?? null,
     registration_id: fk(entry.registrationId),
     trial_id: fk(entry.trialId ?? entry.trial_id),

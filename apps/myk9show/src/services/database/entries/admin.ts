@@ -33,15 +33,15 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
   void restoredBy;
 
   try {
+    // restore_entry: a site admin, or the deleter inside the Undo window. The row is
+    // then read back (it is visible again) for the relations callers invalidate on.
+    const { error: restoreError } = await supabase.rpc('restore_entry', { p_entry_id: id });
+    if (restoreError) {
+      throw createDatabaseError(restoreError, 'entries', 'restore');
+    }
+
     const { data, error } = await supabase
       .from('entries')
-      .update({
-        deleted_at: null,
-        deleted_by: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .not('deleted_at', 'is', null)
       .select(
         `
         ${AUTHENTICATED_ENTRY_READ_COLUMNS},
@@ -58,6 +58,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
         )
       `
       )
+      .eq('id', id)
       .single();
 
     const duration = Date.now() - startTime;

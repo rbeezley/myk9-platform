@@ -253,6 +253,28 @@ type GetSecretaryLiveEntryCount = {
   Returns: number;
 };
 
+/**
+ * CRUD standard Phase 1 (MYK9-915, `20261001214300`): the trial/entry/club
+ * soft-delete and restore RPCs. Hand-declared until `supabase gen types` picks
+ * them up, the same way `get_secretary_live_entry_count` is. The trial and club
+ * functions `RETURNS TABLE (id uuid, name text)`; `soft_delete_entry` returns the
+ * entry's new `version` (not the row: that would bypass the column-level SELECT
+ * allowlist on `entries`); `restore_entry` returns nothing. `p_override` is the
+ * site-admin override of the paid/scored guard (MK010); anyone else passing
+ * `true` is refused, so the client never sends it outside an admin override flow.
+ */
+type CrudStandardFunctions = {
+  soft_delete_trial: {
+    Args: { p_trial_id: string; p_override?: boolean };
+    Returns: { id: string; name: string }[];
+  };
+  restore_trial: { Args: { p_trial_id: string }; Returns: { id: string; name: string }[] };
+  soft_delete_club: { Args: { p_club_id: string }; Returns: { id: string; name: string }[] };
+  restore_club: { Args: { p_club_id: string }; Returns: { id: string; name: string }[] };
+  soft_delete_entry: { Args: { p_entry_id: string; p_override?: boolean }; Returns: number };
+  restore_entry: { Args: { p_entry_id: string }; Returns: undefined };
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
@@ -267,6 +289,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_club_officials'
       | 'get_secretary_live_entry_count'
       | keyof ClubMembershipRequestFunctions
+      | keyof CrudStandardFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
       update_own_entry_jump_height: UpdateOwnEntryJumpHeight;
@@ -277,6 +300,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       get_secretary_live_entry_count: GetSecretaryLiveEntryCount;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
-    } & ClubMembershipRequestFunctions;
+    } & ClubMembershipRequestFunctions &
+      CrudStandardFunctions;
   };
 };

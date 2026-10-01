@@ -167,7 +167,11 @@ export function getUserShowContext(
   const userRoles = user.roles || [];
 
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);
-  const directlyManaged = getUserManagedShows(userId, shows, userRoles).map(s => s.id);
+  // Pass the club scopes: without them getUserManagedShows reads a club-scoped
+  // secretary as a global one and lists every club's shows under Managing.
+  const directlyManaged = getUserManagedShows(userId, shows, userRoles, user.scopes ?? []).map(
+    s => s.id
+  );
   const adminManaged = getAdminManagedShows(shows, userRoles).map(s => s.id);
   const managedShows = [...new Set([...directlyManaged, ...adminManaged])];
   const judgeAssignments = getUserJudgeAssignments(userId, shows).map(s => s.id);

@@ -242,7 +242,7 @@ The five housekeeping items in today's `···` menu (Edit show, Copy link, Prev
 
 ### Placement rule (Richard, 2026-09-17)
 
-An action lives in the header Actions menu when its target is the whole page (the show, this exhibitor's entries at this show). It stays beside the content when the user must first pick which item it applies to (this class row, this entry row, this dog). The same verb never appears in both places. A status banner with a call to action (money due, waiting on payment) keeps its own button and that verb is NOT repeated in the menu. Consequence for MYK9-631: "Pay" stays on the banner and leaves the exhibitor menu.
+An action lives in the header Actions menu when its target is the whole page (the show, this exhibitor's entries at this show). It stays beside the content when the user must first pick which item it applies to (this class row, this entry row, this dog). The same verb never appears in both places, with one deliberate exception: **Edit** is both a visible header button and the first Actions item on every detail page ([`plan-crud-standard.md`](plan-crud-standard.md), owner decision 2026-10-01). A status banner with a call to action (money due, waiting on payment) keeps its own button and that verb is NOT repeated in the menu. Consequence for MYK9-631: "Pay" stays on the banner and leaves the exhibitor menu.
 
 **Exception: Edit show (Richard, 2026-10-01, MYK9-904).** A plainly labelled "Edit show" button sits in the show page header (`ShowManagementShell`, managers only) and opens the same Show Edit panel, while "Edit show details" also stays in the Actions menu because the command palette reads that registry. Deliberate, for discoverability by non-technical secretaries; no other verb gets this treatment.
 

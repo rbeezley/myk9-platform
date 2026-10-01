@@ -9,7 +9,7 @@ import { UserRole } from '@/types/auth-types';
 
 const h = vi.hoisted(() => ({
   roles: [] as string[],
-  pickerProps: null as null | { onCreateJudge?: unknown },
+  pickerProps: null as null | { onCreateJudge?: unknown; onSaveCredentials?: unknown },
 }));
 
 vi.mock('@/store/wizardStore', () => ({
@@ -69,7 +69,7 @@ vi.mock('@/features/maps/VenueAddressAutocomplete', () => ({
 }));
 vi.mock('@/components/common/LazyComponents', () => ({ VenuePinMap: () => null }));
 vi.mock('../JudgesPicker', () => ({
-  JudgesPicker: (props: { onCreateJudge?: unknown }) => {
+  JudgesPicker: (props: { onCreateJudge?: unknown; onSaveCredentials?: unknown }) => {
     h.pickerProps = props;
     return null;
   },
@@ -88,11 +88,13 @@ describe('ShowDetailsStep: who may create a judge inline (MYK9-908)', () => {
     render(<ShowDetailsStep />);
     expect(h.pickerProps).not.toBeNull();
     expect(h.pickerProps?.onCreateJudge).toBeUndefined();
+    expect(h.pickerProps?.onSaveCredentials).toBeUndefined();
   });
 
   it.each([UserRole.SECRETARY, UserRole.SITE_ADMIN])('passes the create handler to %s', role => {
     h.roles = [role];
     render(<ShowDetailsStep />);
     expect(h.pickerProps?.onCreateJudge).toBeTypeOf('function');
+    expect(h.pickerProps?.onSaveCredentials).toBeTypeOf('function');
   });
 });

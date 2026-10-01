@@ -137,7 +137,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   const { handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge } =
     useShowDetailsStepActions();
   // A club admin can open the wizard but not write qualifications (RLS), so only
-  // secretaries and site admins are offered "Add new judge".
+  // secretaries and site admins are offered "Add new judge" or "add credentials".
   const canWriteJudgeQualifications = useCanWriteJudgeQualifications();
 
   const createClubHref = React.useMemo(() => {
@@ -233,7 +233,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
             onCreatePerson={handleCreateOfficialPerson}
             onAddJudge={handleAddJudge}
             onRemoveJudge={removeJudgeFromShow}
-            onSaveCredentials={handleSaveJudgeCredentials}
+            onSaveCredentials={canWriteJudgeQualifications ? handleSaveJudgeCredentials : undefined}
             onCreateJudge={canWriteJudgeQualifications ? handleCreateNewJudge : undefined}
           />
         </div>

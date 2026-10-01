@@ -22,7 +22,11 @@ export interface JudgesPickerProps {
   people: User[];
   onAddJudge: (personId: string) => void;
   onRemoveJudge: (personId: string) => void;
-  onSaveCredentials: (personId: string, data: SaveCredentialsData) => Promise<void>;
+  /**
+   * Omit when the user cannot write judge qualifications: only people who already
+   * have a judge number are offered, and nobody is asked for credentials.
+   */
+  onSaveCredentials?: ((personId: string, data: SaveCredentialsData) => Promise<void>) | undefined;
   /** Omit when the user cannot write judge qualifications: no "Add new judge" is offered. */
   onCreateJudge?: ((data: CreateJudgeData) => Promise<string>) | undefined;
 }
@@ -66,7 +70,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   const handleSelect = (person: User, groupKey: string) => {
     if (groupKey === GROUP_QUALIFIED && person.judgeInfo?.judgeNumber) {
       onAddJudge(person.id);
-    } else {
+    } else if (onSaveCredentials) {
       // Either not yet qualified, or qualified but missing a judge number —
       // collect credentials before adding.
       setFormState({ type: 'credentials', person });
@@ -80,7 +84,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   };
 
   const handleSaveCredentials = async () => {
-    if (formState.type !== 'credentials') return;
+    if (formState.type !== 'credentials' || !onSaveCredentials) return;
     if (!judgeNumber.trim() || !email.trim()) return;
     setSaving(true);
     setSaveError(null);
@@ -183,9 +187,17 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             {
               groupKey: GROUP_QUALIFIED,
               label: 'Qualified Judges: Credentials on File',
-              items: qualified,
+              // Without the right to write qualifications, a person missing a judge
+              // number cannot be completed here, so they are not offered.
+              items: onSaveCredentials
+                ? qualified
+                : qualified.filter(person => person.judgeInfo?.judgeNumber),
             },
-            { groupKey: GROUP_OTHERS, label: 'All People: No Credentials Yet', items: others },
+            {
+              groupKey: GROUP_OTHERS,
+              label: 'All People: No Credentials Yet',
+              items: onSaveCredentials ? others : [],
+            },
           ]}
           renderItem={renderJudgeRow}
           selectedItemIds={selectedIds}
@@ -209,7 +221,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
       )}
 
       {/* Credentials form — existing person */}
-      {formState.type === 'credentials' && credPerson && (
+      {formState.type === 'credentials' && credPerson && onSaveCredentials && (
         <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
           <div>
             <p className="text-sm font-semibold">

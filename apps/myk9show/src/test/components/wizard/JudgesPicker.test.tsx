@@ -201,6 +201,40 @@ describe('JudgesPicker', () => {
     );
   });
 
+  it('offers add-credentials (people with no credentials yet) when onSaveCredentials is provided', () => {
+    renderWithProviders(
+      <JudgesPicker
+        selectedJudges={[]}
+        people={[qualifiedJudge, unqualified]}
+        onAddJudge={vi.fn()}
+        onRemoveJudge={vi.fn()}
+        onSaveCredentials={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /search and add judges/i }));
+    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/Bob Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/tap to add credentials/i)).toBeInTheDocument();
+  });
+
+  it('offers only already-qualified judges, no add-credentials, without onSaveCredentials', () => {
+    const onAddJudge = vi.fn();
+    renderWithProviders(
+      <JudgesPicker
+        selectedJudges={[]}
+        people={[qualifiedJudge, unqualified]}
+        onAddJudge={onAddJudge}
+        onRemoveJudge={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /search and add judges/i }));
+    expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
+    expect(screen.queryByText(/Bob Smith/)).toBeNull();
+    expect(screen.queryByText(/tap to add credentials/i)).toBeNull();
+    fireEvent.click(screen.getByText(/Alice Smith/));
+    expect(onAddJudge).toHaveBeenCalledWith('1');
+  });
+
   it('offers no "Add new judge" when onCreateJudge is not provided (cannot write qualifications)', () => {
     renderWithProviders(
       <JudgesPicker

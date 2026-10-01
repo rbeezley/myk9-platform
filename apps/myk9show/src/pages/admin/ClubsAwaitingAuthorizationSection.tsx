@@ -26,6 +26,12 @@ export function ClubsAwaitingAuthorizationSection() {
 
   const awaiting = useMemo(() => clubs.filter(club => club.authorizedAt === null), [clubs]);
   const loading = readiness === 'loading' && clubs.length === 0;
+  // A failed or offline sync must never read as "nothing to authorize": with
+  // no clubs on the device there is no answer, and with cached clubs the
+  // answer is only as fresh as the last sync.
+  const notRefreshed = readiness === 'unavailable' || readiness === 'offline';
+  const unavailable = notRefreshed && clubs.length === 0;
+  const retry = () => void ensureClubsReady({ force: true });
 
   return (
     <section className="mb-8 space-y-3" aria-labelledby="clubs-awaiting-authorization-heading">
@@ -39,10 +45,28 @@ export function ClubsAwaitingAuthorizationSection() {
         </p>
       </div>
 
+      {notRefreshed && !unavailable && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Couldn't refresh clubs, so this list is from this device's last sync.{' '}
+          <Button variant="link" className="h-auto p-0 align-baseline" onClick={retry}>
+            Try again
+          </Button>
+        </p>
+      )}
+
       {loading ? (
         <p role="status" className="text-base text-muted-foreground">
           Loading clubs…
         </p>
+      ) : unavailable ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p role="alert" className="text-base text-muted-foreground">
+            Couldn't load clubs, so we can't tell which ones still need authorizing.
+          </p>
+          <Button variant="outline" size="sm" className="min-h-11 shrink-0" onClick={retry}>
+            Try again
+          </Button>
+        </div>
       ) : awaiting.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border bg-card px-4 py-3 text-base text-muted-foreground">
           All clubs are authorized.

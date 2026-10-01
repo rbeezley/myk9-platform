@@ -19,7 +19,10 @@ function makeClub(overrides: Partial<Club> & { id: string; name: string }): Club
   } as Club;
 }
 
-function seed(clubs: Club[], clubReadiness: 'loading' | 'fresh' = 'fresh') {
+function seed(
+  clubs: Club[],
+  clubReadiness: 'loading' | 'fresh' | 'offline' | 'unavailable' = 'fresh'
+) {
   useClubStore.setState({
     clubs,
     clubReadiness,
@@ -63,6 +66,29 @@ describe('ClubsAwaitingAuthorizationSection', () => {
 
     expect(screen.getByText('All clubs are authorized.')).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it.each(['unavailable', 'offline'] as const)(
+    'never says every club is authorized when clubs could not load (%s)',
+    async readiness => {
+      seed([], readiness);
+
+      const { user } = render(<ClubsAwaitingAuthorizationSection />);
+
+      expect(screen.queryByText('All clubs are authorized.')).not.toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load clubs");
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(useClubStore.getState().ensureClubsReady).toHaveBeenCalledWith({ force: true });
+    }
+  );
+
+  it('marks a cached list as unrefreshed when the sync failed', () => {
+    seed([makeClub({ id: 'p-1', name: 'Pending Club', authorizedAt: null })], 'unavailable');
+
+    render(<ClubsAwaitingAuthorizationSection />);
+
+    expect(screen.getByRole('status')).toHaveTextContent("this device's last sync");
+    expect(screen.getByRole('link', { name: /Open Pending Club/ })).toBeInTheDocument();
   });
 
   it('shows a loading line before any clubs have loaded', () => {

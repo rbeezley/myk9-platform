@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -162,6 +163,33 @@ export function ShowManagementShell(props: ShowManagementShellProps) {
   return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
 }
 
+/**
+ * INTENT: a plainly labelled Edit show button (MYK9-904) so a non-technical
+ * secretary finds the editor without opening the Actions menu. Deliberate
+ * exception to MYK9-630's "same verb never in both places": Edit stays in the
+ * Actions menu too, because the command palette reads that registry. The shell
+ * only mounts for managers, so no extra gate here.
+ */
+function ShowPageHeaderActions({
+  showId,
+  armbandCount,
+  onEdit,
+}: {
+  showId: string | undefined;
+  armbandCount: number | undefined;
+  onEdit: () => void;
+}) {
+  return (
+    <>
+      {(armbandCount ?? 0) > 0 && showId ? <ArmbandLookup showId={showId} /> : null}
+      <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+        <Pencil className="h-4 w-4" aria-hidden="true" />
+        Edit show
+      </Button>
+    </>
+  );
+}
+
 function AuthorizedShowManagementShell({
   show,
   showId,
@@ -265,7 +293,11 @@ function AuthorizedShowManagementShell({
               breadcrumbs={breadcrumbs}
               title={show.name || 'Show Details'}
               actions={
-                (armbandCount ?? 0) > 0 && show?.id ? <ArmbandLookup showId={show.id} /> : undefined
+                <ShowPageHeaderActions
+                  showId={show.id}
+                  armbandCount={armbandCount}
+                  onEdit={openEditPanel}
+                />
               }
             />
 

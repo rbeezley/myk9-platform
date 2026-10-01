@@ -21,6 +21,11 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 2. **Money guard.** A secretary cannot delete a show, trial, class or entry that has paid or scored entries. The control says why and points to the right path: **Cancel show** for a show, **Withdraw** or **Pull** for an entry (Pull and Withdraw are never synonyms). The server enforces the same rule. A site admin may override.
 3. **Placement.** Delete is a red "Delete ‹object›" row at the bottom of each object's Edit panel. This extends the 2026-09-17 show decision to all seven objects. On lists, Delete stays in the row menu and the bulk bar, through the same dialog. Delete never appears in a header ⋮ or Actions menu.
 4. **Undo.** After a delete, the confirmation toast offers **Undo** to the person who deleted. After that, only a site admin restores, and every dialog says exactly that.
+5. **Edit in both places.** Every detail page (club, show, trial, class, dog, person) has a visible, labelled **Edit** button in the top-right of the page header, AND "Edit ‹object›" as the **first** item of the header Actions menu. Both open the object's Edit panel.
+   - The button is there for findability: the target secretary is not very computer literate, and the show page's Phase 6 button (MYK9-904) was added because Edit inside Actions was too hidden.
+   - The menu item is there for consistency: the Actions menu is on every page, so a user who looks there always finds Edit first.
+   - Edit is the one deliberate exception to the placement rule's "the same verb never appears in both places" (`plan-secretary-show-actions.md`); it is amended to say so. Delete is in neither place (decision 3).
+   - At narrow widths the button may shrink to an icon with an accessible label; it never disappears into a menu only.
 
 ## Defaults (change before Phase 1 if you disagree)
 
@@ -28,11 +33,10 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 - **Type-to-confirm** only for show and club, the widest-reaching deletes. Every other object uses a plain confirm with a preview of what goes with it.
 - **Club delete**: site admin only. It is refused while the club has live shows. The client control and the server must agree.
 - **Dog and person**: keep today's server rules (dog: owner, co-owner or admin; person: admin, self, or a show manager for people in their shows). Hide the control whenever the server would refuse it, as the dog page already does.
-- **Edit placement**: the same spot on every object.
-  - **Detail page**: one labelled **Edit** button in the top-right of the page header (same position, label, size and style for club, show, trial, class, dog and person). It opens that object's Edit panel. It never sits only in a ⋮ menu, and never as an unlabelled icon. The show's duplicate "Edit show details" item in the header Actions menu goes (the Phase 6 exception ends), so Edit lives in one place.
-  - **List row**: **Edit** is the first item of the row menu, opening the same panel.
+- **Edit on lists and entries**:
+  - **List row**: **Edit** is the first item of the row menu, opening the same panel as the detail page.
   - **Entry** (no detail page): Edit is the first item of the entry's row menu on Entry Management and the class page, opening `EntryEditDialog`. The unlabelled pencil goes.
-  - This replaces the six shapes found today: ghost button (club), outline button (trial, class), button plus an Actions duplicate (show), ⋮-only for exhibitors with a separate button for secretaries (dog), ⋮-only (person), and an unlabelled pencil (entry).
+  - Together with decision 5, this replaces the six shapes found today: ghost button (club), outline button (trial, class), button plus an Actions duplicate (show), ⋮-only for exhibitors with a separate button for secretaries (dog), ⋮-only (person), and an unlabelled pencil (entry).
 - **Entry**: one Remove control per entry row. The duplicate "Remove Entry" in the status popover goes.
 - **Create doors**: out of scope. The consolidation plan owns them.
 
@@ -45,7 +49,7 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 | Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards. | new |
 | Client delete | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast. | `DeleteDogDialog`, `purgeDeletedShow` (#2640) |
 | Dialog | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts` |
-| Edit placement | Labelled **Edit** button top-right of every detail page header; first item of every list row menu. | `ShowPageHeaderActions.tsx` "Edit show" button |
+| Edit placement | Labelled **Edit** button top-right of every detail page header, plus "Edit ‹object›" first in the header Actions menu; first item of every list row menu. | `ShowPageHeaderActions.tsx` "Edit show" button, `actionRegistry.ts` "Edit show details" |
 | Delete placement | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar. | `ShowEditPanel.tsx` delete row |
 | Gate | The control's gate equals the RPC predicate, and is hidden when the server would refuse. | `useCanDeleteDog`, `canManageShowSurface` |
 
@@ -76,9 +80,11 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 
 **Phase 4: Edit placement.**
 - Put one labelled Edit button in the same top-right header position on the club, show, trial, class, dog and person detail pages, built from one shared header-action component so the position cannot drift.
-- Remove the other shapes: the club ghost button, the dog secretary-only button and ⋮ Edit, the person ⋮ Edit, the show's duplicate Actions-menu item, and the entry pencil.
+- Register "Edit ‹object›" as the first header Actions item for club, show, trial, class, dog and person in the route-context action registry (`features/actions/actionRegistry.ts`), gated exactly like the button.
+- Remove the other shapes: the club ghost button, the dog secretary-only button and ⋮ Edit, the person ⋮ Edit, and the entry pencil.
+- Amend the placement rule in `plan-secretary-show-actions.md` to name Edit as the one verb that appears in both places.
 - Make Edit the first row-menu item on every list.
-- Tests: a render test for each detail page asserting one Edit button in the header slot and no Edit in any ⋮ or Actions menu, and a row-menu order test for each list.
+- Tests: for each detail page, a render test asserting exactly one Edit button in the header slot and "Edit ‹object›" as the first Actions item, both opening the same panel and both hidden for a viewer who cannot edit; no Edit in any other ⋮ menu; and a row-menu order test for each list.
 
 **Phase 5: Verification walk.**
 - Owner walk on a test show: delete and Undo each object as a secretary; confirm a paid or scored object is blocked with the right pointer; restore as a site admin; confirm counts and lists are fresh without a reload.

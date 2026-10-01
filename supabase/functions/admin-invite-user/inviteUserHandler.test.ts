@@ -25,7 +25,9 @@ function chain<T>(data: T, error: unknown = null) {
 interface MockOptions {
   callerPerson?: { id: string } | null;
   /** The target person row returned for body.personId (MYK9-134). */
-  targetPerson?: { auth_user_id: string | null } | null;
+  targetPerson?: { auth_user_id: string | null; email?: string | null } | null;
+  /** A failed target-person lookup (as opposed to a missing row). */
+  targetError?: unknown;
   /** auth.admin.getUserById result for that person's identity. */
   identityUser?: { user: { email: string; last_sign_in_at?: string | null } | null } | null;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
@@ -61,7 +63,10 @@ function makeSupabase(opts: MockOptions = {}) {
       // issued when body.personId is set) is the invite target.
       const isTarget = peopleCall++ > 0;
       if (isTarget) {
-        return chain(opts.targetPerson === undefined ? null : opts.targetPerson);
+        return chain(
+          opts.targetPerson === undefined ? null : opts.targetPerson,
+          opts.targetError ?? null
+        );
       }
       return chain(opts.callerPerson === undefined ? { id: 'caller-1' } : opts.callerPerson);
     }
@@ -504,9 +509,9 @@ describe('inviteUserHandler — identity vs contact email (MYK9-134)', () => {
     expect(generateLink).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'invite' }));
   });
 
-  it('falls back to the requested email when the person has no identity yet', async () => {
+  it("uses the person row's email when the person has no identity yet", async () => {
     const { supabase, generateLink, getUserById } = makeSupabase({
-      targetPerson: { auth_user_id: null },
+      targetPerson: { auth_user_id: null, email: 'fresh@example.test' },
     });
     const { deps } = makeDeps();
 
@@ -555,7 +560,10 @@ describe('inviteUserHandler — truthful delivery address + fail-closed lookup',
   it('aborts when the person lookup errors instead of inviting the contact email', async () => {
     // Failing open here re-enters the duplicate-identity path this resolution
     // exists to prevent — on a transient database blip.
-    const { supabase, generateLink } = makeSupabase({ targetPerson: null });
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: null,
+      targetError: { message: 'connection reset' },
+    });
     const { deps, sendEmail } = makeDeps();
 
     await expect(
@@ -620,7 +628,9 @@ describe('inviteUserHandler — onlyIfNeverSignedIn (bulk)', () => {
   });
 
   it('sends a first invite to a person with no identity yet', async () => {
-    const { supabase } = makeSupabase({ targetPerson: { auth_user_id: null } });
+    const { supabase } = makeSupabase({
+      targetPerson: { auth_user_id: null, email: 'pat@example.test' },
+    });
     const { deps, sendEmail } = makeDeps();
 
     const result = await invoke(supabase, deps, bulkBody);
@@ -646,5 +656,64 @@ describe('inviteUserHandler — onlyIfNeverSignedIn (bulk)', () => {
 
     expect(result).toMatchObject({ outcome: 'reinvited' });
     expect(sendEmail).toHaveBeenCalledOnce();
+  });
+});
+
+// MYK9-835: a bulk batch queues calls, so an email the client captured at
+// dispatch can be stale when its call runs. With a personId the server reads the
+// person row itself.
+describe('inviteUserHandler — server-authoritative address (personId)', () => {
+  it("mails the row's CURRENT email, not a stale client email, for an unlinked person", async () => {
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: null, email: 'current@example.test' },
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'stale@example.test',
+      personId: 'person-1',
+    });
+
+    expect(result).toMatchObject({ outcome: 'invited', deliveredTo: 'current@example.test' });
+    expect(generateLink).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'current@example.test' })
+    );
+    expect(JSON.parse(sendEmail.mock.calls[0]![0].body as string).to).toBe('current@example.test');
+  });
+
+  it('returns not_found and sends nothing when the person row no longer exists', async () => {
+    const { supabase, generateLink } = makeSupabase({ targetPerson: null });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'stale@example.test',
+      personId: 'person-1',
+    });
+
+    expect(result).toEqual({ ok: true, outcome: 'not_found' });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unlinked person whose row has no email, rather than using the client email', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: null, email: null },
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, { email: 'stale@example.test', personId: 'person-1' })
+    ).rejects.toMatchObject({ status: 400 });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('still invites the request email when there is no personId (brand-new invite)', async () => {
+    const { supabase } = makeSupabase();
+    const { deps } = makeDeps();
+
+    const result = await invoke(supabase, deps, { email: 'brand.new@example.test' });
+
+    expect(result).toMatchObject({ outcome: 'invited', deliveredTo: 'brand.new@example.test' });
   });
 });

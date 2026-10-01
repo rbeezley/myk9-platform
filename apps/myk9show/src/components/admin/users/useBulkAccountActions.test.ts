@@ -207,7 +207,7 @@ describe('useBulkAccountActions', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('reports a restore the server refuses as not-deleted as already restored, not failed', async () => {
+  it('surfaces a restore refusal as an ordinary failure with the server message', async () => {
     restoreUser.mockResolvedValue({
       error: { code: 'P0002', message: 'Person not found or not deleted' },
     });
@@ -220,7 +220,24 @@ describe('useBulkAccountActions', () => {
       await result.current.run('restore');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('1 already restored', undefined);
+    // P0002 covers "not deleted" AND "no longer exists", so it is not guessed at.
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as { description?: string };
+    expect(options.description).toContain('Person not found or not deleted');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('reports an invitee the server says no longer exists as skipped, not failed', async () => {
+    invokeAdminInvite.mockResolvedValue({ data: { ok: true, outcome: 'not_found' } });
+    const roster = rosterOf(user('a'));
+    const { result } = renderHook(() =>
+      useBulkAccountActions({ selectedIds: ['a'], usersById: roster, onClearSelection: vi.fn() })
+    );
+
+    await act(async () => {
+      await result.current.run('invite');
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('1 no longer exists — not invited', undefined);
     expect(toast.error).not.toHaveBeenCalled();
   });
 

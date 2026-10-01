@@ -35,7 +35,7 @@ export interface SendInvitationArgs {
 }
 
 export interface InviteResponse {
-  outcome?: 'invited' | 'reinvited' | 'skipped';
+  outcome?: 'invited' | 'reinvited' | 'skipped' | 'not_found';
   reason?: 'already_signed_in';
   /** The address the link actually went to — may differ from the contact email. */
   deliveredTo?: string;

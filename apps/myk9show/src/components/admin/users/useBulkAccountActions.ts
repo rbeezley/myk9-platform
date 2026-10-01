@@ -14,11 +14,13 @@
  * re-dispatches the failed ids and reports what the server did.
  *
  * - Send invitation passes `onlyIfNeverSignedIn`; `admin-invite-user` declines
- *   (no email) for anyone who has since signed in.
+ *   (no email) for anyone who has since signed in, and addresses the person's
+ *   CURRENT row email, so a queued call never mails a stale address.
  * - Suspend / Reinstate write an absolute status, which the people trigger
  *   treats as a no-op when it already holds (`people_protect_status`).
- * - Restore: `restore_person` raises P0002 for a person who is not deleted
- *   (20260617120000), reported as already restored.
+ * - Restore: `restore_person` raises P0002 "Person not found or not deleted";
+ *   that covers two different states, so it surfaces as an ordinary failure
+ *   with the server's message rather than being guessed at.
  *
  * Runs go through `useBulkDispatch`, which reports one summary toast and offers
  * "Retry failed" for any person the action could not reach.
@@ -85,11 +87,14 @@ export function useBulkAccountActions({
       if (data?.outcome === 'skipped') {
         throw new BulkItemSkippedError('already signed in — not re-invited');
       }
+      // The server read the person row itself (never the email captured at
+      // dispatch) and it no longer exists: nothing was sent.
+      if (data?.outcome === 'not_found') {
+        throw new BulkItemSkippedError('no longer exists — not invited');
+      }
     },
     restore: async id => {
       const { error } = await restoreUser(id);
-      // P0002: the server found the person not deleted — already restored.
-      if (error?.code === 'P0002') throw new BulkItemSkippedError('already restored');
       if (error) throw error;
     },
   };

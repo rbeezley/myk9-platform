@@ -296,6 +296,22 @@ describe('useShowDetailsStepActions', () => {
       expect(id).toBe('person-2');
     });
 
+    it('says the person was created but the qualification was not when the qualification write fails', async () => {
+      mockCreateUser.mockResolvedValue({ data: { id: 'person-3' }, error: null });
+      mockCreateJudgeQualification.mockRejectedValue(new Error('network down'));
+      const { result } = renderHook(() => useShowDetailsStepActions());
+
+      await expect(
+        result.current.handleCreateNewJudge({
+          firstName: 'Jane',
+          lastName: 'Doe',
+          organization: 'AKC',
+          judgeNumber: 'J456',
+          email: 'jane@example.com',
+        })
+      ).rejects.toThrow(/Jane Doe was added as a person, but their AKC judge qualification/);
+    });
+
     it('throws on createUser result.error', async () => {
       const error = new Error('create failed');
       mockCreateUser.mockResolvedValue({ data: null, error });

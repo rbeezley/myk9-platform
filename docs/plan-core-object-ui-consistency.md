@@ -32,7 +32,7 @@ These come from [`audits/2026-10-01-duplicate-actions-audit.md`](audits/2026-10-
 14. **Show-day add entries:** the "Add entries" / "Add late entry" tool stays on the show-day screens as a fast path. Its labels match the Actions menu.
 15. **Cancel show and Close out show:** both go in the Actions menu, status group. Cancel opens one flow that includes Refund all entries. The bulk "Mark Completed" / "Mark Cancelled" buttons and the Edit panel's status dropdown are removed. The status pill becomes a read-only chip.
 16. **Status banners keep their button** ("Finish payment", "Premium not published", the Overview publish cards). A banner names a problem and offers its one fix. The same action is also in the Actions menu.
-17. **Scoring result words:** "Withdrawn" → "Pulled" and "Absent" → "No show". "Withdraw" stays reserved for in-season / judge-change withdrawals.
+17. **Ring result words** (revised 2026-10-01). Results keep the registry's words **Absent** and **Excused**. "Withdrawn" is removed as a ring result choice, because a withdrawal is decided before the class, not in the ring. A Pulled or Withdrawn entry gets the result Absent automatically, from its entry status, and the screen shows the reason in plain words: "Absent · Pulled" or "Absent · Withdrawn (In season)". The judge or steward never chooses between them. Pull and Withdraw stay entry decisions only. Verify the result codes against the AKC, UKC and ASCA rulebooks before building.
 18. **Dashboard tiles go:** "Add Show" and "Add Entry" live only in the Actions menu. On the dashboard, Add Entry asks which show first. The dashboard keeps status and attention items.
 19. **"Close entries now" / "Open entries now"** are added to the show Actions menu, status group. They set the close or open date to now, through the same path as Edit show. Use the confirm-dialog rules: the show is named in plain words, and the dialog says what changes for exhibitors.
 20. **Class Requirements** become an inline section on the class page, visible to everyone, and leave the ⋮ menu.
@@ -135,11 +135,11 @@ Each phase is one PR (or a few small ones), independently verifiable. A phase is
 - **Show status:** decision 15.
 - **Close/Open entries now:** decision 19.
 - **Dashboard tiles:** decision 18.
-- **Result words:** decision 17.
+- **Result words:** decision 17. Remove the Withdrawn result choice; derive Absent and its reason from the entry status; keep Absent and Excused.
 - **Requirements:** decision 20.
 - **Tests:**
   - for each collapsed group, the non-home entry points navigate to the home with the expected params, or are absent;
-  - result-word render tests;
+  - a Pulled entry and a Withdrawn entry render "Absent · Pulled" and "Absent · Withdrawn (In season)"; Withdrawn is not offered as a result choice;
   - Close/Open entries now writes the date through the shared path;
   - the orphan routes redirect or return not found.
 

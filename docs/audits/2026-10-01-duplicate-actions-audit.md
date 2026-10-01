@@ -94,5 +94,5 @@ Recorded as decisions 14–20 in [`plan-core-object-ui-consistency.md`](../plan-
 3. Banners keep their button.
 4. Dashboard tiles go; Actions menu only.
 5. Add "Close entries now" / "Open entries now" to Actions.
-6. Result words become "Pulled" / "No show".
+6. Results keep Absent and Excused. Withdrawn is removed as a result choice, and a Pulled or Withdrawn entry shows "Absent · Pulled" or "Absent · Withdrawn (In season)" (revised after discussion).
 7. Requirements become an inline section.

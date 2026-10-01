@@ -167,6 +167,11 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         return;
       }
       setPendingTrialAction({ trial, action, requestId: request });
+    } catch {
+      // Any unexpected failure reads the same as "not found": say so, never fail silently.
+      if (request === latestActionRequest.current) {
+        toast.error("We couldn't load this trial. Please refresh and try again.");
+      }
     } finally {
       if (request === latestActionRequest.current) setHydratingTrialId(null);
     }

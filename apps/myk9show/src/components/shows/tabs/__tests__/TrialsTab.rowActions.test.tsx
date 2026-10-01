@@ -443,4 +443,49 @@ describe('TrialsTab row actions with a cold trial store', () => {
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  describe('store read failures', () => {
+    const throwingTrials = {
+      find: () => {
+        throw new Error('store read failed');
+      },
+      some: () => {
+        throw new Error('store read failed');
+      },
+    } as never;
+
+    const openEdit = async (user: ReturnType<typeof renderTab>['user']) => {
+      await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+    };
+    const expectErrorUnlocked = async () => {
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/couldn't load this trial/i))
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByLabelText('Trial actions for Sunday Trial 2')).toBeEnabled()
+      );
+      expect(screen.getByLabelText('Trial actions for Saturday Trial 1')).toBeEnabled();
+    };
+
+    it('the first read throwing shows the error, no dialog, menu unlocked', async () => {
+      useTrialStore.setState({ trials: throwingTrials, loadTrials: vi.fn(async () => undefined) });
+      const { user } = renderTab();
+      await openEdit(user);
+      await expectErrorUnlocked();
+    });
+
+    it('the second read throwing shows the error, no dialog, menu unlocked', async () => {
+      useTrialStore.setState({
+        trials: [],
+        loadTrials: vi.fn(async () => {
+          useTrialStore.setState({ trials: throwingTrials });
+        }),
+      });
+      const { user } = renderTab();
+      await openEdit(user);
+      await expectErrorUnlocked();
+    });
+  });
 });

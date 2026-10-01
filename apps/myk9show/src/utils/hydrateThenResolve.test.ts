@@ -40,4 +40,43 @@ describe('hydrateThenResolve', () => {
     expect(result).toBeNull();
     expect(reload).not.toHaveBeenCalled();
   });
+
+  it('never rejects: a throwing first read resolves via hydration, or null', async () => {
+    let calls = 0;
+    const result = await hydrateThenResolve({
+      readStore: () => {
+        calls += 1;
+        if (calls === 1) throw new Error('IndexedDB init failed');
+        return 'second';
+      },
+      sync: async () => undefined,
+      reload: async () => undefined,
+    });
+    expect(result).toBe('second');
+  });
+
+  it('never rejects: a rejecting read on both attempts resolves null', async () => {
+    const result = await hydrateThenResolve({
+      readStore: async () => {
+        throw new Error('IndexedDB read failed');
+      },
+      sync: async () => undefined,
+      reload: async () => undefined,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('never rejects: a throwing second read resolves null', async () => {
+    let calls = 0;
+    const result = await hydrateThenResolve({
+      readStore: () => {
+        calls += 1;
+        if (calls === 2) throw new Error('boom');
+        return null;
+      },
+      sync: async () => undefined,
+      reload: async () => undefined,
+    });
+    expect(result).toBeNull();
+  });
 });

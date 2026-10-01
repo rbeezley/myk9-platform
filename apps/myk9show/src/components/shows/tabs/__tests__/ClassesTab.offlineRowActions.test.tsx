@@ -36,6 +36,8 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [], updateClass, deleteClass }),
 }));
 const replicatedSync = vi.hoisted(() => vi.fn());
+// Scripted replica read failures (IndexedDB init/read errors): consumed one per getClassById call.
+const readScript = vi.hoisted(() => ({ calls: [] as Array<'throw' | 'pass'> }));
 // The Setup editor reads the class from the authenticated REPLICA in raw DB form (status
 // 'in_progress'), so these tests serve the replica from whatever the test put in trialStore.
 vi.mock('@/services/replication', async importOriginal => {
@@ -46,6 +48,7 @@ vi.mock('@/services/replication', async importOriginal => {
       ...actual.replicatedClassesTable,
       sync: replicatedSync,
       getClassById: async (id: string) => {
+        if (readScript.calls.shift() === 'throw') throw new Error('IndexedDB read failed');
         // Imported lazily: trialStore itself imports this (mocked) module.
         const { useTrialStore: store } = await import('@/store/trialStore');
         for (const [trialId, classes] of Object.entries(store.getState().trialClasses)) {
@@ -143,6 +146,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
   beforeEach(() => {
     toastError.mockClear();
     replicatedSync.mockReset().mockResolvedValue(undefined);
+    readScript.calls = [];
     useTrialStore.setState({ loadTrialClasses: async () => undefined });
     deleteClass.mockReset();
     updateClass.mockReset();
@@ -319,5 +323,40 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     finishers[0]?.();
     expect(await screen.findByRole('dialog')).toBeVisible();
     expect(replicatedSync).toHaveBeenCalledTimes(1);
+  });
+
+  describe('replica read failures', () => {
+    const openEdit = async (user: ReturnType<typeof renderTab>['user']) => {
+      await user.click(
+        screen.getByRole('button', { name: 'Class actions for Containers Novice A' })
+      );
+      await user.click(await screen.findByRole('menuitem', { name: 'Edit Class' }));
+    };
+    const expectErrorUnlocked = async () => {
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/couldn't load this class/i))
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      // Not stuck: the menu is usable again and carries its normal label.
+      await waitFor(() =>
+        expect(screen.getByLabelText('Class actions for Containers Novice A')).toBeEnabled()
+      );
+      expect(screen.getByLabelText('Class actions for Interior Advanced B')).toBeEnabled();
+    };
+
+    it('the first read throwing (and the retry too) shows the error, no dialog, menu unlocked', async () => {
+      readScript.calls = ['throw', 'throw'];
+      const { user } = renderTab();
+      await openEdit(user);
+      await expectErrorUnlocked();
+    });
+
+    it('the second read throwing shows the error, no dialog, menu unlocked', async () => {
+      useTrialStore.setState({ trialClasses: {} });
+      readScript.calls = ['pass', 'throw'];
+      const { user } = renderTab();
+      await openEdit(user);
+      await expectErrorUnlocked();
+    });
   });
 });

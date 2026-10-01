@@ -162,6 +162,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         return;
       }
       setPendingAction({ action, classSnapshot, trialId: cls.trialId, requestId: request });
+    } catch {
+      // Any unexpected failure reads the same as "not found": say so, never fail silently.
+      if (request === latestActionRequest.current) {
+        toast.error("We couldn't load this class. Please refresh and try again.");
+      }
     } finally {
       if (request === latestActionRequest.current) setHydratingClassId(null);
     }

@@ -33,6 +33,7 @@ import {
   ONBOARDING_STATUS_FILTERS,
 } from './adminStatusPresentation';
 import { ClubAccessRequestsSection } from './ClubAccessRequestsSection';
+import { ClubsAwaitingAuthorizationSection } from './ClubsAwaitingAuthorizationSection';
 
 type OnboardingStatus = OnboardingRequest['status'];
 type OnboardingStatusFilter = OnboardingStatus | 'all';
@@ -233,6 +234,8 @@ export default function OnboardingInboxPage() {
       </div>
 
       <ClubAccessRequestsSection />
+
+      <ClubsAwaitingAuthorizationSection />
 
       <ListViewTabs
         label="Filter club onboarding requests"

@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 import { useTrialStore } from '@/store/trialStore';
-import type { TrialClass } from '@/components/trials/types/trial.types';
+import type { SyncableTrialClass } from '@/store/trial-store-types';
 
 // MYK9-900 (Codex P2): after an offline reload the React Query class list is empty/paused, but
 // Setup still shows the class from the replicated trialStore. Edit and Delete must resolve it
@@ -37,7 +37,11 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 }));
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 
-const replicatedClass: TrialClass = {
+const replicatedClass: SyncableTrialClass = {
+  _version: 1,
+  _lastModified: new Date('2026-05-01T00:00:00Z'),
+  _lastModifiedBy: 'user-1',
+  _syncStatus: 'synced',
   id: 'c1',
   element: 'Containers',
   level: 'Novice',

@@ -529,7 +529,14 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
   // live rows and never delivers a tombstone, so without this the show stays
   // in IndexedDB and the lists forever.
   purgeDeletedShow: async (id: string): Promise<void> => {
-    await replicatedShowsTable.delete(id);
+    // Runs only after the server delete succeeded, so it never throws: a
+    // replica failure is reported and the store still drops the show, and
+    // every caller can treat the delete as done.
+    try {
+      await replicatedShowsTable.delete(id);
+    } catch (error) {
+      reportStoreError('purgeDeletedShow', 'showStore', error, { showId: id });
+    }
     set(state => ({
       shows: state.shows.filter(s => s.id !== id),
       selectedShowId: state.selectedShowId === id ? '' : state.selectedShowId,

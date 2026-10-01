@@ -49,14 +49,4 @@ describe('useDeleteShowMutation — replica purge ordering', () => {
     });
     expect(invalidate).toHaveBeenCalled();
   });
-
-  it('still reports the delete as successful when the local purge fails', async () => {
-    mocks.purge.mockRejectedValue(new Error('idb unavailable'));
-    const { result, invalidate } = setup();
-
-    await act(async () => {
-      await expect(result.current.mutateAsync({ id: 'show-1' })).resolves.toEqual({ id: 'show-1' });
-    });
-    expect(invalidate).toHaveBeenCalled();
-  });
 });

@@ -70,4 +70,12 @@ describe('showStore.deleteShow', () => {
     expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['gone']);
     expect(useShowStore.getState().selectedShowId).toBe('gone');
   });
+
+  it('purgeDeletedShow never throws: a replica failure still drops the show from the store', async () => {
+    mocks.replicaDelete.mockRejectedValueOnce(new Error('idb unavailable'));
+
+    await expect(useShowStore.getState().purgeDeletedShow('kept')).resolves.toBeUndefined();
+
+    expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['gone']);
+  });
 });

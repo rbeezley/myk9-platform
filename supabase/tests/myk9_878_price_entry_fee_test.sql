@@ -156,10 +156,13 @@ values
   ('00000000-0000-0000-0000-000000878407', 'MYK9-878 NJ', 'NJ', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000878001', NULL);
 
+-- ONE registration per dog: dog_registrations_one_primary_per_dog is a partial unique index
+-- on (dog_id) WHERE is_primary, and dog_registrations_live_dog_org_unique allows one live row
+-- per (dog, org). Every entry below is on an AKC trial, which is all
+-- trg_entries_require_dog_registration needs (an AKC registration number).
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
-select d.id, o.org, 'SR87' || substr(d.id::text, 34) || (case o.org when 'AKC' then '01' else '02' end), true
+select d.id, 'AKC', 'SR87' || substr(d.id::text, 34) || '01', true
 from public.dogs d
-cross join (values ('AKC'), ('ASCA')) as o(org)
 where d.id::text like '00000000-0000-0000-0000-0000008784%';
 
 -- Everything below reads as the secretary, PostgREST-shaped.

@@ -11,6 +11,7 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
 const mockDeleteEntry = vi.hoisted(() => vi.fn());
 
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('./useClassDetailsData', () => ({
   useClassDetailsData: mockUseClassDetailsData,
 }));

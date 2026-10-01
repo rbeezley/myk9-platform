@@ -6,7 +6,7 @@
  * hook owns the two rules that are easy to get wrong:
  *
  *  1. Never initialize over unsaved work. The initialization key includes the
- *     class count so classes replicating in late still refresh the draft — but
+ *     trial ids and class count so trials and classes replicating in late still refresh the draft — but
  *     `loadDraft()` overwrites whatever the secretary has typed since, so a
  *     late arrival must not cost her an edit in progress.
  *  2. Report a failed officials read as UNKNOWN, not as "no officials". The
@@ -31,6 +31,12 @@ interface UseEditModeInitializationArgs {
   existingClasses: SyncableClassData[];
   people: User[];
   isDirty: boolean;
+  /**
+   * False while the show's trials are not known on this device yet. A draft built from a
+   * "not yet loaded" empty trial list would be recorded as initialized and the trials
+   * arriving later would never reach it (add-classes builds its trials from this list).
+   */
+  trialsReady?: boolean;
   loadDraft: (draft: ReturnType<typeof buildEditModeDraft>) => void;
 }
 
@@ -76,13 +82,14 @@ export function useEditModeInitialization({
   existingClasses,
   people,
   isDirty,
+  trialsReady = true,
   loadDraft,
 }: UseEditModeInitializationArgs): EditModeInitializationState {
   const initializedRef = useRef<string | null>(null);
   const [officialsUnavailable, setOfficialsUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!editMode) return;
+    if (!editMode || !trialsReady) return;
 
     const existingShow =
       editModeResolution.state === 'resolved' ? editModeResolution.show : undefined;
@@ -94,7 +101,9 @@ export function useEditModeInitialization({
     const initializationKey =
       editMode.mode === 'add-trials'
         ? `${editMode.showId}:${editMode.mode}`
-        : `${editMode.showId}:${editMode.mode}:${classCount}`;
+        : // The trial ids are part of the key: a trial arriving with zero classes changes
+          // neither the class count nor anything else, and would otherwise never rebuild.
+          `${editMode.showId}:${editMode.mode}:${[...showTrialIds].sort().join(',')}:${classCount}`;
 
     if (
       shouldSkipInitialization({
@@ -133,7 +142,16 @@ export function useEditModeInitialization({
         // demand officials that may already exist.
         setOfficialsUnavailable(true);
       });
-  }, [editMode, editModeResolution, existingTrials, existingClasses, people, isDirty, loadDraft]);
+  }, [
+    editMode,
+    editModeResolution,
+    existingTrials,
+    existingClasses,
+    people,
+    isDirty,
+    trialsReady,
+    loadDraft,
+  ]);
 
   return {
     officialsUnavailable,

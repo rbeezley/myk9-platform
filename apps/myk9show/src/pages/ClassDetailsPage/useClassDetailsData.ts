@@ -16,6 +16,7 @@
 import { useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
+import { resolveClassFromStores } from '@/hooks/resolveClassFromStores';
 import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
 import { useClassEntriesRaw, type RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { usePublicClassById } from '@/hooks/queries/usePublicClassById';
@@ -156,14 +157,7 @@ export function useClassDetailsData() {
   // wizard exist in IndexedDB before they've synced to Supabase.
   const classFromStore = useMemo(() => {
     if (!classId || !readsDeviceStores) return null;
-    const fromQuery = classes.find(cls => cls.id === classId);
-    if (fromQuery) return fromQuery;
-    // Search replication-layer classes grouped by trial
-    for (const trialCls of Object.values(replicatedTrialClasses)) {
-      const found = trialCls.find(cls => cls.id === classId);
-      if (found) return found as unknown as (typeof classes)[number];
-    }
-    return null;
+    return resolveClassFromStores(classId, classes, replicatedTrialClasses);
   }, [classId, classes, replicatedTrialClasses, readsDeviceStores]);
 
   // Cold-session fallback. A true guest's replicated class store is empty (guest sync is

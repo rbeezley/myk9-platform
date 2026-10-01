@@ -12,7 +12,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
-import { useOverlayStackEntry } from '@/hooks/useOverlayStackEntry';
 import type { DogStatus } from '@/types/dog-types';
 
 interface DogStatusDialogProps {
@@ -129,11 +128,6 @@ const DogStatusDialog: React.FC<DogStatusDialogProps> = ({
   currentDeceasedDate,
   onSave,
 }) => {
-  // This dialog is reachable from inside the Edit Dog SlideOverPanel, so it has
-  // to claim the top of the shared overlay stack while open — without it the
-  // panel behind stays "topmost" and one Escape closes the panel, not this.
-  useOverlayStackEntry(open, 'dog-status-dialog');
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">

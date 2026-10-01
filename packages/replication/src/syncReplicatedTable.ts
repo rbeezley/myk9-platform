@@ -99,6 +99,16 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * MYK9-775 (judge_assignments).
    */
   cleanupStaleRowsOnFullSync?: boolean;
+  /**
+   * Independent proof that the scope really holds zero server rows, from a
+   * source NOT subject to the RLS the fetch and `getRemoteRowCount` read
+   * through. The count and the fetch share one policy, so a transient RLS gap
+   * reads as a complete empty fetch (0 of 0). Stale cleanup therefore never
+   * runs on a zero-row fetch over a scope that still holds server-backed rows
+   * unless this returns true. Omit it (or return false / throw) and the cleanup
+   * is skipped: stale rows linger until a non-empty full sync (MYK9-880).
+   */
+  verifyScopeEmpty?: (context: RemoteRowCountContext) => Promise<boolean>;
   afterSuccessfulSync?: (context: {
     scope: SyncScope;
     serverIds: Set<string>;
@@ -356,6 +366,18 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       );
     }
 
+    // MYK9-880: a zero-row fetch is not proof of an empty scope. The count and
+    // the fetch share one RLS, so an RLS gap returns 0 and 0 -- "complete".
+    // Over a warm replica that needs independent proof; otherwise skip cleanup.
+    const scopeEmptyIsProven = async (): Promise<boolean> => {
+      if (serverIds.size > 0 || countServerBackedRows(localRows) === 0) return true;
+      try {
+        return (await adapter.verifyScopeEmpty?.({ scope })) === true;
+      } catch {
+        return false;
+      }
+    };
+
     let staleCleanupCompleted = false;
     if (adapter.shouldCleanupStaleRows) {
       rowsAffected += await table.removeStaleEntries(serverIds);
@@ -368,7 +390,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // cleaning up after it would delete the newest (MYK9-775 review P2). No
       // server count, no cleanup.
       expectedRemoteRows !== undefined &&
-      serverIds.size >= expectedRemoteRows
+      serverIds.size >= expectedRemoteRows &&
+      (await scopeEmptyIsProven())
     ) {
       const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
       if (keep) {

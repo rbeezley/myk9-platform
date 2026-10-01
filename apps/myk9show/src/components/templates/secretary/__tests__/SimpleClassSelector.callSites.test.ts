@@ -10,8 +10,8 @@
  * silent too.
  *
  * There were three consumers and the third was missed twice: I wired the wizard and the
- * dialog, and Codex found `AddClassesToTrialPanel` still bare. (The dialog has since been
- * deleted as unused, MYK9-706.) A structural rule is the only thing that fails when a new
+ * dialog, and Codex found `AddClassesToTrialPanel` still bare. (Both have since been
+ * deleted: the dialog as unused, MYK9-706, the panel by MYK9-899.) A structural rule is the only thing that fails when a new
  * one appears.
  */
 import { describe, expect, it } from 'vitest';
@@ -55,7 +55,6 @@ describe('every SimpleClassSelector mount offers a way to add a judge', () => {
     expect(files).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/components\/shows\/wizard\/steps\/ClassSelectionStep\.tsx$/),
-        expect.stringMatching(/components\/classes\/AddClassesToTrialPanel\.tsx$/),
       ])
     );
   });

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -8,6 +9,7 @@ import {
 } from '@/hooks/queries/useClassesDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useClassManagementFilters } from '@/hooks/useClassManagementFilters';
+import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
@@ -231,10 +233,10 @@ export const ClassManagementPage: React.FC = () => {
     assignJudgeMutation.mutate({ classId, judgeId });
   };
 
+  // Delete asks through the same dialog Class Details and Setup use, never `window.confirm`.
+  const [classPendingDelete, setClassPendingDelete] = useState<DbClassRow | null>(null);
   const handleDelete = (classId: string) => {
-    if (confirm('Are you sure you want to delete this class?')) {
-      deleteClassMutation.mutate({ id: classId });
-    }
+    setClassPendingDelete(allClasses.find(cls => cls.id === classId) ?? null);
   };
 
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
@@ -242,12 +244,15 @@ export const ClassManagementPage: React.FC = () => {
   const waitlistHref = showId
     ? `/shows/${showId}/entries?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
     : '/secretary/entries?tab=waitlist';
-  const createHref =
-    showId && trialId
-      ? `/shows/${showId}/classes/${trialId}/create`
-      : trialId
-        ? `/trials/${trialId}/classes/create`
-        : '/secretary/dashboard';
+  // The one class-create flow is the show wizard's add-classes mode, opened on this trial.
+  // Cold store on `/trials/:trialId/classes`: the show id is not known yet. The legacy create
+  // URL resolves the trial through the by-id query and then lands on the same flow, so the
+  // trial is never dropped.
+  const createHref = showId
+    ? getAddClassesHref(showId, trialId)
+    : trialId
+      ? `/trials/${trialId}/classes/create`
+      : '/secretary/dashboard';
   // Copy-link href: built from the canonical href builder (never a
   // hand-assembled query string) so a copied URL only ever carries
   // normalized, supported Class Management params.
@@ -423,6 +428,19 @@ export const ClassManagementPage: React.FC = () => {
       {/* Rendered last so its in-flow height spacer lands BELOW the class list
           rather than in the middle of the page — the bar itself is `fixed`, so
           its on-screen position is unchanged by where it sits in the tree. */}
+      <DeleteClassDialog
+        open={classPendingDelete !== null}
+        onOpenChange={open => {
+          if (!open) setClassPendingDelete(null);
+        }}
+        currentClass={classPendingDelete && { ...classPendingDelete, trial: trialDisplayName }}
+        onConfirm={async () => {
+          if (classPendingDelete) {
+            await deleteClassMutation.mutateAsync({ id: classPendingDelete.id });
+          }
+        }}
+      />
+
       <ClassBulkActionsBar
         selectedClasses={selection.selectedItems}
         bulkBusy={bulkBusy}

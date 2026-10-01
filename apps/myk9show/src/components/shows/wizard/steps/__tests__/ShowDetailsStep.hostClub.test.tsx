@@ -63,7 +63,7 @@ vi.mock('@/store/userStore', () => ({
 }));
 vi.mock('@/hooks/useUserClubIds', () => ({ useUserClubIds: () => null }));
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: h.userWithRoles }),
+  useAuthContext: () => ({ userWithRoles: h.userWithRoles, hasRole: () => false }),
 }));
 vi.mock('../CloneFromShowCombobox', () => ({ CloneFromShowCombobox: () => null }));
 vi.mock('../CloneStatusBanner', () => ({ CloneStatusBanner: () => null }));

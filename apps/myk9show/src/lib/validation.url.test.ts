@@ -4,57 +4,57 @@ import { commonValidations, normalizeWebsiteUrl } from './validation';
 describe('normalizeWebsiteUrl', () => {
   it('prepends https:// to a bare domain', () => {
     expect(normalizeWebsiteUrl('myclub.org')).toEqual({
-      value: 'https://myclub.org',
+      value: 'https://myclub.org/',
       valid: true,
     });
   });
 
   it('prepends https:// to a bare www domain, keeping the www', () => {
     expect(normalizeWebsiteUrl('www.myclub.org')).toEqual({
-      value: 'https://www.myclub.org',
+      value: 'https://www.myclub.org/',
       valid: true,
     });
   });
 
   it('keeps an existing https:// value as-is', () => {
     expect(normalizeWebsiteUrl('https://myclub.org')).toEqual({
-      value: 'https://myclub.org',
+      value: 'https://myclub.org/',
       valid: true,
     });
   });
 
   it('keeps an existing http:// value as-is', () => {
     expect(normalizeWebsiteUrl('http://myclub.org')).toEqual({
-      value: 'http://myclub.org',
+      value: 'http://myclub.org/',
       valid: true,
     });
   });
 
-  it('keeps an uppercase or mixed-case scheme instead of prepending another', () => {
+  it('lowercases an uppercase or mixed-case scheme instead of prepending another', () => {
     expect(normalizeWebsiteUrl('HTTP://myclub.org')).toEqual({
-      value: 'HTTP://myclub.org',
+      value: 'http://myclub.org/',
       valid: true,
     });
     expect(normalizeWebsiteUrl('Https://myclub.org')).toEqual({
-      value: 'Https://myclub.org',
+      value: 'https://myclub.org/',
       valid: true,
     });
   });
 
   it('trims surrounding whitespace before normalizing', () => {
     expect(normalizeWebsiteUrl('  myclub.org  ')).toEqual({
-      value: 'https://myclub.org',
+      value: 'https://myclub.org/',
       valid: true,
     });
   });
 
-  it('keeps valid URLs with spaces in paths and queries', () => {
+  it('percent-encodes spaces in paths and queries', () => {
     expect(normalizeWebsiteUrl('https://example.org/dog show')).toEqual({
-      value: 'https://example.org/dog show',
+      value: 'https://example.org/dog%20show',
       valid: true,
     });
     expect(normalizeWebsiteUrl('https://example.org/?q=dog show')).toEqual({
-      value: 'https://example.org/?q=dog show',
+      value: 'https://example.org/?q=dog%20show',
       valid: true,
     });
   });
@@ -108,6 +108,17 @@ describe('normalizeWebsiteUrl', () => {
     });
   });
 
+  it('rejects userinfo that would spoof the displayed domain', () => {
+    for (const spoof of [
+      'https://good-club.org@evil.com',
+      'https://good-club.org\n@evil.com',
+      'good-club.org\t@evil.com',
+      'https://user:pass@good-club.org',
+    ]) {
+      expect(normalizeWebsiteUrl(spoof).valid).toBe(false);
+    }
+  });
+
   it('reports invalid for an https:// hostname with no dot', () => {
     const result = normalizeWebsiteUrl('https://word');
     expect(result.valid).toBe(false);
@@ -116,11 +127,11 @@ describe('normalizeWebsiteUrl', () => {
 
 describe('commonValidations.url', () => {
   it('normalizes a bare domain to https:// on parse', () => {
-    expect(commonValidations.url.parse('myclub.org')).toBe('https://myclub.org');
+    expect(commonValidations.url.parse('myclub.org')).toBe('https://myclub.org/');
   });
 
   it('keeps an existing https:// value on parse', () => {
-    expect(commonValidations.url.parse('https://myclub.org')).toBe('https://myclub.org');
+    expect(commonValidations.url.parse('https://myclub.org')).toBe('https://myclub.org/');
   });
 
   it('throws for a bare word that is still not a valid URL after normalizing', () => {

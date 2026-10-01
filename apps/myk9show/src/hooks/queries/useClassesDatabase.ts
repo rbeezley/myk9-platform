@@ -1,7 +1,7 @@
 // React Query hooks for Class database operations - Phase 2.5: Class Store Integration
 // Provides type-safe, cached database operations for classes and entries
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   getAllClasses,
@@ -41,6 +41,23 @@ export const classKeys = {
   statistics: () => [...classKeys.all, 'statistics'] as const,
   deleted: () => [...classKeys.all, 'deleted'] as const,
 };
+
+/**
+ * Mark the class caches stale after classes are created, so every page that reads them
+ * refetches instead of waiting out `staleTime`. The one definition of "what a class create
+ * invalidates": `useCreateClassMutation` and the show wizard's class writes both call it.
+ * `trialIds` are the trials that gained classes.
+ */
+export function invalidateClassCaches(
+  queryClient: QueryClient,
+  trialIds: readonly string[] = []
+): void {
+  queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+  for (const trialId of new Set(trialIds)) {
+    queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
+  }
+  queryClient.invalidateQueries({ queryKey: classKeys.statistics() });
+}
 
 export const entryKeys = {
   all: ['entries'] as const,
@@ -192,16 +209,8 @@ export const useCreateClassMutation = () => {
       return data;
     },
     onSuccess: newClass => {
-      // Invalidate and refetch class lists
-      queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-
-      // Add the new class to trial-specific cache if trial_id exists
-      if (newClass?.trial_id) {
-        queryClient.invalidateQueries({ queryKey: classKeys.byTrial(newClass.trial_id) });
-      }
-
-      // Update statistics
-      queryClient.invalidateQueries({ queryKey: classKeys.statistics() });
+      // Lists, the trial's cache and statistics (shared with the wizard's class writes)
+      invalidateClassCaches(queryClient, newClass?.trial_id ? [newClass.trial_id] : []);
 
       // Set the new class in cache
       if (newClass?.id) {

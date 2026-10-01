@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
+import { NewJudgeFormError } from './NewJudgeForm';
 import { personEmailsMatch } from '@/utils/personIdentity';
 
 export function useShowDetailsStepActions() {
@@ -95,15 +96,23 @@ export function useShowDetailsStepActions() {
       });
       if (result.error) throw result.error;
       const personId = result.data!.id;
-      await createJudgeQualification({
-        person_id: personId,
-        organization: data.organization,
-        qualification_level: 'General',
-        disciplines: [],
-        judge_number: data.judgeNumber,
-        date_obtained: new Date().toISOString().split('T')[0],
-        is_active: true,
-      });
+      try {
+        await createJudgeQualification({
+          person_id: personId,
+          organization: data.organization,
+          qualification_level: 'General',
+          disciplines: [],
+          judge_number: data.judgeNumber,
+          date_obtained: new Date().toISOString().split('T')[0],
+          is_active: true,
+        });
+      } catch {
+        // The person already exists at this point. Do not let the form's generic
+        // "Failed to save" invite a retry that would create them a second time.
+        throw new NewJudgeFormError(
+          `${data.firstName} ${data.lastName} was added as a person, but their ${data.organization} judge qualification could not be saved. Add it from their profile under People instead of creating them again.`
+        );
+      }
       await loadPeople();
       return personId;
     },

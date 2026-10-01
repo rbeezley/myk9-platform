@@ -1,3 +1,8 @@
+import {
+  getReviewBlockingErrors,
+  type ValidationScope,
+} from '@/pages/secretary/ShowCreationWizard/showCreationWizardValidation';
+import { isWizardStepAllowed } from '@/pages/secretary/ShowCreationWizard/show-creation-wizard-types';
 import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +19,7 @@ import { countLabel } from '@/utils/pluralize';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
 import { ReviewJuniorHandlerFee } from './ReviewJuniorHandlerFee';
-import { ReviewEntryWindowNotice, ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
+import { ReviewErrorCard, ReviewReadinessNotices } from './ReviewNoticeCards';
 
 interface ReviewStepProps {
   className?: string;
@@ -33,6 +38,8 @@ interface ReviewStepProps {
   officialsUnknown?: boolean | undefined;
   /** Shared naming and show-level trial context created by the wizard page. */
   trialView: WizardTrialView;
+  /** What Review must satisfy; `class-selection` (add-classes) evaluates only the class rules. */
+  scope?: ValidationScope;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -43,8 +50,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   submitLabel = 'Add Show',
   officialsUnknown = false,
   trialView,
+  scope = 'full',
 }) => {
-  const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
+  const { show, trials, judgeDetails, markStepCompleted, setCurrentStep, allowedSteps } =
+    useWizardStore();
+  // Edit modes can lock steps (add-classes: no Show Details / Trials). Their edit links and
+  // the notices that only link to them are not offered, rather than rendered as dead buttons.
+  const canEditDetails = scope === 'full' && isWizardStepAllowed(allowedSteps, 0);
+  const canEditTrials = isWizardStepAllowed(allowedSteps, 1);
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
   const effectiveTrialNames = useMemo(
@@ -59,35 +72,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   const totalJudges = show.judgeIds.length;
 
-  // Derive validation errors from current state (no useState needed)
-  const errors = useMemo(() => {
-    const result: string[] = [];
-
-    if (!show.name.trim()) result.push('Show name is required');
-    if (!show.startDate || !show.endDate) result.push('Show dates are required');
-    if (!show.location?.trim()) result.push('Location is required');
-    if (!show.clubId) result.push('Club selection is required');
-    // Unknown is not absent: when the officials read failed, these arrays prove
-    // nothing, so they must not block the save.
-    if (!officialsUnknown) {
-      if (show.officials.chairman.length === 0) result.push('Show chairman is required');
-      if (show.officials.secretary.length === 0) result.push('Show secretary is required');
-    }
-    if (trials.length === 0) result.push('At least one trial is required');
-    if (totalClasses === 0) result.push('At least one class must be configured');
-
-    return result;
-  }, [
-    show.name,
-    show.startDate,
-    show.endDate,
-    show.location,
-    show.clubId,
-    show.officials,
-    trials,
-    totalClasses,
-    officialsUnknown,
-  ]);
+  // Derive validation errors from current state (no useState needed). One choke point shared
+  // with the step validators; add-classes only ever evaluates the class rules.
+  const errors = useMemo(
+    () => getReviewBlockingErrors({ show, trials, officialsUnknown, scope }),
+    [show, trials, officialsUnknown, scope]
+  );
 
   const reportBlockingErrors = () => {
     const [first] = errors;
@@ -141,41 +131,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
           {/* Validation Errors */}
           {errors.length > 0 && <ReviewErrorCard errors={errors} />}
 
-          {/* Unassigned pool judges — non-blocking warning */}
-          {unassignedPoolJudgeNames.length > 0 && (
-            <ReviewWarningCard
-              title={
-                unassignedPoolJudgeNames.length === 1
-                  ? '1 judge is not assigned to any class'
-                  : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`
-              }
-              actionLabel="Assign judges to classes"
-              onAction={() => setCurrentStep(2)}
-            >
-              {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge dashboard
-              until assigned to a class. Go back to Classes to assign them, or continue and assign
-              judges later.
-            </ReviewWarningCard>
-          )}
-
-          <ReviewEntryWindowNotice
+          <ReviewReadinessNotices
+            unassignedPoolJudgeNames={unassignedPoolJudgeNames}
             entryOpenDate={show.entryOpenDate}
             entryCloseDate={show.entryCloseDate}
-            onSetWindow={() => setCurrentStep(0)}
+            missingVenuePin={missingVenuePin}
+            canEditDetails={canEditDetails}
+            onGoToStep={setCurrentStep}
           />
-
-          {/* MYK9-686: location text with no pin is allowed, but never silent. */}
-          {missingVenuePin && (
-            <ReviewWarningCard
-              title="No map pin"
-              actionLabel="Place the map pin"
-              onAction={() => setCurrentStep(0)}
-              data-testid="review-missing-pin-warning"
-            >
-              This show won’t appear on the Find Shows map. Go back to Basics and locate the address
-              or click the map.
-            </ReviewWarningCard>
-          )}
 
           {/* Overview Stats — flat warm-paper summary; ink counts on card-white,
               no saturated gradients (DESIGN.md: warm-paper palette, not cold glass). */}
@@ -258,10 +221,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   <Building2 className="h-5 w-5" />
                   Show Details
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                {canEditDetails && (
+                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -358,10 +323,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   Trials & Classes Review
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit Trials
-                  </Button>
+                  {canEditTrials && (
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit Trials
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)}>
                     <Edit className="h-4 w-4 mr-1" />
                     Edit Classes

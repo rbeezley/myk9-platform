@@ -8,6 +8,7 @@ import { useDogsQuery } from './useDogsDatabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import { useViewerId } from '@/hooks/useViewerId';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import type { ResultStatus } from '@/components/common/ResultBadge';
 
 export interface ExhibitorResult {
@@ -37,6 +38,10 @@ export interface ExhibitorResult {
 }
 
 const PAGE_SIZE = 1000;
+/** Live-ish refresh for an open dog page. React Query skips ticks on a hidden
+ *  tab (refetchIntervalInBackground: false) and parks them offline
+ *  (networkMode: 'online'); both are set explicitly below. */
+const OPEN_DOG_PAGE_POLL_MS = 30_000;
 
 async function fetchExhibitorResults(dogIds: string[]) {
   if (dogIds.length === 0) return [];
@@ -113,9 +118,14 @@ async function fetchExhibitorResults(dogIds: string[]) {
     finalPlacement: row.final_placement as number | null,
     scoringCompletedAt: row.scoring_completed_at as string | null,
     showName: (row.show_name as string) || 'Unknown Show',
-    showDate: row.trial_id
-      ? (trialDates.get(row.trial_id as string) ?? '')
-      : (row.show_start_date as string) || '',
+    // A trial row the viewer cannot read must not blank the date: fall back to
+    // the show start date. '' means no date is known at all; date parsers
+    // downstream (titles, stats) need a date or '', so the view labels that
+    // case itself (PastResultsSection).
+    showDate:
+      (row.trial_id ? trialDates.get(row.trial_id as string) : undefined) ||
+      (row.show_start_date as string) ||
+      '',
     resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
 }
@@ -135,6 +145,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
 export function useExhibitorResults(dogId?: string) {
   const viewerId = useViewerId();
   const dogsQuery = useDogsQuery();
+  const profileQuery = useExhibitorProfile();
   const dogs = dogsQuery.data ?? [];
   const dogIds = dogs
     .map((d: Record<string, unknown>) => d.id as string)
@@ -146,17 +157,30 @@ export function useExhibitorResults(dogId?: string) {
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,
-    ...(dogId ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}),
+    networkMode: 'online',
+    ...(dogId
+      ? {
+          staleTime: 0,
+          refetchOnMount: 'always' as const,
+          refetchInterval: OPEN_DOG_PAGE_POLL_MS,
+          refetchIntervalInBackground: false,
+        }
+      : {}),
   });
-  const rosterUnavailable =
+  // A roster that is pending but neither loading nor fetching is either
+  // disabled (waiting on the owner profile: still loading) or paused/offline
+  // (Retry). Only the profile query's own loading state tells them apart.
+  const rosterIdle =
     dogsQuery.isPending && !dogsQuery.isLoading && dogsQuery.fetchStatus !== 'fetching';
+  const rosterAwaitingProfile = rosterIdle && profileQuery.isLoading;
+  const rosterUnavailable = rosterIdle && !rosterAwaitingProfile;
   const resultsUnavailable =
     dogIds.length > 0 && resultsQuery.isPending && resultsQuery.fetchStatus === 'paused';
 
   return {
     ...resultsQuery,
     // A disabled result query is idle, not proof that the dog has no scores.
-    isLoading: dogsQuery.isLoading || resultsQuery.isLoading,
+    isLoading: dogsQuery.isLoading || rosterAwaitingProfile || resultsQuery.isLoading,
     isError: dogsQuery.isError || resultsQuery.isError || rosterUnavailable || resultsUnavailable,
     retry: async () => {
       if (dogsQuery.isError || rosterUnavailable) {

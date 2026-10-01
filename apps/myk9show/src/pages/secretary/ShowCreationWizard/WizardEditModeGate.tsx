@@ -20,12 +20,15 @@ import { Button } from '@/components/ui/button';
 
 interface WizardEditModeGateProps {
   state: 'loading' | 'unavailable';
+  /** `trials`: the show is known but its trials are not on this device yet (add-classes). */
+  waitingFor?: 'show' | 'trials';
   onRetry: () => void;
   onLeave: () => void;
 }
 
 export const WizardEditModeGate: React.FC<WizardEditModeGateProps> = ({
   state,
+  waitingFor = 'show',
   onRetry,
   onLeave,
 }) => {
@@ -37,7 +40,9 @@ export const WizardEditModeGate: React.FC<WizardEditModeGateProps> = ({
         aria-live="polite"
       >
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">Loading this show…</p>
+        <p className="text-sm text-muted-foreground">
+          {waitingFor === 'trials' ? 'Loading this show’s trials…' : 'Loading this show…'}
+        </p>
       </div>
     );
   }
@@ -50,11 +55,14 @@ export const WizardEditModeGate: React.FC<WizardEditModeGateProps> = ({
       <AlertTriangle className="h-7 w-7 text-warning" aria-hidden="true" />
       <div className="max-w-md space-y-1">
         <h2 className="text-base font-semibold text-foreground">
-          We couldn&rsquo;t open this show
+          {waitingFor === 'trials'
+            ? 'We couldn’t load this show’s trials'
+            : 'We couldn’t open this show'}
         </h2>
         <p className="text-sm text-muted-foreground">
-          The show didn&rsquo;t load, so we can&rsquo;t safely add to it — saving now could
-          overwrite it. Check your connection and try again.
+          {waitingFor === 'trials'
+            ? 'Without its trials there is nothing to add classes to. Check your connection and try again.'
+            : 'The show didn’t load, so we can’t safely add to it — saving now could overwrite it. Check your connection and try again.'}
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">

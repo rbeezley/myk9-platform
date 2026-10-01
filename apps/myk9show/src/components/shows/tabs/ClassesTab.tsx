@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
@@ -6,7 +6,6 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
-import { useRBAC } from '@/hooks/useRBAC';
 import { formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -14,6 +13,12 @@ import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/status';
 import { ListViewTabs } from '@/components/list-toolkit';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { SetupRowActionsMenu } from './SetupRowActionsMenu';
+import { toast } from 'sonner';
+import { SetupClassDialogs } from './SetupClassDialogs';
+import { resolveSetupClass, type SetupClassAction } from './setupClassSnapshot';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import {
   activeClassesTabViewId,
   buildClassesTabViews,
@@ -67,7 +72,6 @@ function classTrialPart(cls: ClassInfo): string {
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
-  const { hasPermission } = useRBAC();
   const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
     'classes',
     userHasEntries ? 'cards' : 'table'
@@ -78,7 +82,13 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // "Mine" — that scoping is now one pressable view among four, not a
   // silent default). See `classesTabViews.ts`.
   const [viewId, setViewId] = useState('all');
-  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
+  // club, the scope the show shell's Edit show button uses. The global permission is not
+  // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
+  // read as no.
+  const canManageThisShow = useShowManageScope(showId).canManage;
+  // Row Edit / Delete (MYK9-900): the existing class panel and dialog, opened in place.
+  const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const viewMode =
     userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
 
@@ -132,6 +142,45 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           .join(' \u2014 '),
       })),
     [filteredClasses]
+  );
+
+  // Resolve the class BEFORE any dialog mounts (replicated store, else the by-id read Class
+  // Details uses for a cold session), and keep that snapshot: the dialogs never re-resolve.
+  const [hydratingClassId, setHydratingClassId] = useState<string | null>(null);
+  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
+  // from the latest request is ignored, so a slow earlier request can never replace the dialog
+  // the user is editing in.
+  const latestActionRequest = useRef(0);
+  const openClassAction = async (cls: ClassInfo, action: SetupClassAction['action']) => {
+    const request = ++latestActionRequest.current;
+    setHydratingClassId(cls.id);
+    try {
+      const classSnapshot = await resolveSetupClass(cls.id, cls.trialId);
+      if (request !== latestActionRequest.current) return;
+      if (!classSnapshot) {
+        toast.error("We couldn't load this class. Please refresh and try again.");
+        return;
+      }
+      setPendingAction({ action, classSnapshot, trialId: cls.trialId, requestId: request });
+    } catch {
+      // Any unexpected failure reads the same as "not found": say so, never fail silently.
+      if (request === latestActionRequest.current) {
+        toast.error("We couldn't load this class. Please refresh and try again.");
+      }
+    } finally {
+      if (request === latestActionRequest.current) setHydratingClassId(null);
+    }
+  };
+
+  const classRowMenu = (cls: ClassInfo) => (
+    <SetupRowActionsMenu
+      subject="Class"
+      rowLabel={[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
+      busy={hydratingClassId === cls.id}
+      locked={hydratingClassId !== null || pendingAction !== null}
+      onEdit={() => void openClassAction(cls, 'edit')}
+      onDelete={() => void openClassAction(cls, 'delete')}
+    />
   );
 
   const classColumns = useMemo<ColumnDef<ClassTableRow, unknown>[]>(() => {
@@ -213,8 +262,20 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       }
     );
 
+    if (canManageThisShow) {
+      cols.push({
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        enableHiding: false,
+        meta: { interactive: true, exportDisabled: true },
+        cell: ({ row }) => classRowMenu(row.original),
+      });
+    }
+
     return cols;
-  }, [hideRing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- classRowMenu only closes over stable setters and hydratingClassId
+  }, [hideRing, canManageThisShow, hydratingClassId, pendingAction]);
 
   if (classes.length === 0) {
     return (
@@ -223,11 +284,10 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         title="No classes scheduled"
         description="Classes for this show haven't been set up yet."
         action={
-          canManage
+          canManageThisShow
             ? {
                 label: 'Add Classes',
-                onClick: () =>
-                  navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`),
+                onClick: () => navigate(getAddClassesHref(showId)),
                 icon: Plus,
               }
             : null
@@ -251,12 +311,10 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         />
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManage && (
+          {canManageThisShow && (
             <Button
               size="sm"
-              onClick={() =>
-                navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`)
-              }
+              onClick={() => navigate(getAddClassesHref(showId))}
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" />
@@ -309,6 +367,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
+                  {...(canManageThisShow ? { actions: classRowMenu(cls) } : {})}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
                   }
@@ -317,6 +376,19 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             </div>
           </div>
         ))
+      )}
+      {canManageThisShow && pendingAction && (
+        <SetupClassDialogs
+          key={pendingAction.requestId}
+          showId={showId}
+          pending={pendingAction}
+          // Tied to THIS action: a late close from an earlier one must not clear a newer one.
+          onClose={() =>
+            setPendingAction(current =>
+              current?.requestId === pendingAction.requestId ? null : current
+            )
+          }
+        />
       )}
     </div>
   );

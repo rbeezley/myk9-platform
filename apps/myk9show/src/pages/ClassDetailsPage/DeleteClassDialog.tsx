@@ -2,9 +2,10 @@
  * Delete Class Confirmation Dialog
  */
 
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,13 +13,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { ClassData } from './types';
+
+/** The fields the dialog names; a full `ClassData` fits, and so does a Class Management row. */
+export interface DeleteClassDialogClass {
+  element?: string | null | undefined;
+  level?: string | null | undefined;
+  section?: string | null | undefined;
+  trial?: string | null | undefined;
+}
 
 interface DeleteClassDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentClass: ClassData | null;
-  onConfirm: () => void;
+  currentClass: DeleteClassDialogClass | null;
+  /**
+   * Runs the delete. The dialog stays open while it runs, closes (via `onOpenChange(false)`)
+   * only when it resolves, and stays open with the error when it rejects.
+   */
+  onConfirm: () => void | Promise<void>;
 }
 
 export function DeleteClassDialog({
@@ -27,8 +39,36 @@ export function DeleteClassDialog({
   currentClass,
   onConfirm,
 }: DeleteClassDialogProps) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setPending(true);
+    setError(null);
+    try {
+      await onConfirm();
+      onOpenChange(false);
+    } catch (confirmError) {
+      setError(
+        confirmError instanceof Error && confirmError.message
+          ? confirmError.message
+          : "We couldn't delete this class. Please try again."
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={next => {
+        // A delete in flight cannot be dismissed out from under itself.
+        if (pending) return;
+        if (!next) setError(null);
+        onOpenChange(next);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Class</AlertDialogTitle>
@@ -37,20 +77,24 @@ export function DeleteClassDialog({
             <span className="block mt-2 font-medium text-foreground">
               {currentClass?.element} {currentClass?.level} {currentClass?.section}
             </span>
-            <span className="block text-sm text-muted-foreground">from {currentClass?.trial}</span>
+            {currentClass?.trial && (
+              <span className="block text-sm text-muted-foreground">from {currentClass.trial}</span>
+            )}
             <span className="block mt-2 text-destructive">
               This action cannot be undone. All entries will also be deleted.
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {error && (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Delete
-          </AlertDialogAction>
+          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+          <Button variant="destructive" size="lg" onClick={handleConfirm} disabled={pending}>
+            {pending ? 'Deleting...' : 'Delete'}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

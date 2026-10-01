@@ -13,10 +13,18 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-let mockHasPermission = (_p: string) => false;
+// The global permission is held for every test: it is not club-scoped and must not decide
+// anything here. Only the show-scoped answer does (MYK9-900).
+let mockCanManageThisShow = false;
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({
-    hasPermission: (p: string) => mockHasPermission(p),
+    hasPermission: (p: string) => p === 'admin:manage' || p === 'show:manage',
+  }),
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: 'resolved',
+    canManage: mockCanManageThisShow,
   }),
 }));
 
@@ -82,7 +90,7 @@ function makeTrial(overrides: Partial<Trial> & { id: string }): Trial {
 describe('TrialsTab', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    mockHasPermission = () => false;
+    mockCanManageThisShow = false;
     mockViewMode = 'cards';
   });
 
@@ -232,8 +240,8 @@ describe('TrialsTab', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('shows Add Trial button when user has manage permission', () => {
-    mockHasPermission = (p: string) => p === 'admin:manage';
+  it('shows Add Trial button when the viewer manages this show', () => {
+    mockCanManageThisShow = true;
     const trials = [makeTrial({ id: 't1' })];
     const stats = { t1: { classCount: 0, entryCount: 0, completedClasses: 0 } };
 
@@ -242,7 +250,7 @@ describe('TrialsTab', () => {
     expect(screen.getByText('Add Trial')).toBeInTheDocument();
   });
 
-  it('hides Add Trial button when user lacks permissions', () => {
+  it('hides Add Trial button when the viewer holds the global permission but does not manage this show', () => {
     const trials = [makeTrial({ id: 't1' })];
     const stats = { t1: { classCount: 0, entryCount: 0, completedClasses: 0 } };
 

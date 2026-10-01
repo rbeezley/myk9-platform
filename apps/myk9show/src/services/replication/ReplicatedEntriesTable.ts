@@ -27,6 +27,7 @@ import {
 import { logger } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryEmptyProof';
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { deletePayload, PendingDeletes } from './pendingDeletes';
@@ -420,6 +421,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       // the result view can hide secretary-deleted entries entirely. Scope the
       // cleanup above so entries cached for other shows survive this pass.
       cleanupStaleRowsOnFullSync: true,
+      // The coverage count reads the same RLS-filtered view as the fetch, so an
+      // RLS gap reads 0 of 0. A zero-row fetch over a warm replica only cleans
+      // up when the manager-authorized SECURITY DEFINER count confirms the show
+      // is empty; exhibitors and offline devices get false, so the replica is
+      // kept (MYK9-880).
+      verifyScopeEmpty: () => verifySecretaryEmptyShow(showScopeId),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       shouldSkipRemoteRow: remote => {
         const entryId = String(remote.id);

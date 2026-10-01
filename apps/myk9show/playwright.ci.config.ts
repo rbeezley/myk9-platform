@@ -53,7 +53,6 @@ const REGRESSION_SPECS = [
   // in the focused UAT specs below.
   '**/uat/secretary/entry-management-cockpit.spec.ts',
   '**/secretary/show-creation-wizard.spec.ts',
-  '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',
   '**/my-entries-page-ui.spec.ts',
   // Exhibitor-authed. That used to bar a spec from PR_SMOKE_SPECS outright,

@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, type NavigateFunction } from 'react-router-dom';
+import type { SelfNavigationRef } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import type { ShowPasscodes } from '@myk9/core';
@@ -20,6 +21,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { invalidateClassCaches } from '@/hooks/queries/useClassesDatabase';
 import { saveWizardShowJudges, wizardEditJudgeBaseline } from './saveWizardShowJudges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
@@ -37,13 +39,22 @@ import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 import {
   normalizeWizardClassSelections,
+  assertAddClassesCreatesNoTrials,
   type NormalizedWizardClassSelection,
 } from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
+  /** Resolved launching trial (`resolveFocusTrialId`): where an edit-mode save returns to. */
+  focusTrialId?: string | null | undefined;
   trialView: WizardTrialView;
   setIsLoading: (loading: boolean) => void;
+  /**
+   * The page's unsaved-changes guard counter. A successful save navigates on the secretary's
+   * behalf, so it raises this around `navigate` and the guard does not prompt for the very
+   * work that was just saved.
+   */
+  selfNavigationRef?: SelfNavigationRef | undefined;
   /**
    * Called once the show row exists. `passcodes` carries the freshly-generated
    * plaintexts from insert_show_passcodes — exactly once. Null if the passcode
@@ -60,8 +71,10 @@ interface UseShowCreationWizardActionsOptions {
 
 export function useShowCreationWizardActions({
   editMode,
+  focusTrialId = null,
   trialView,
   setIsLoading,
+  selfNavigationRef,
   onCreated,
 }: UseShowCreationWizardActionsOptions) {
   const isSavingRef = useRef(false);
@@ -69,7 +82,18 @@ export function useShowCreationWizardActions({
   // parent's inline onCreated arrow changes reference on every render.
   const onCreatedRef = useRef(onCreated);
   onCreatedRef.current = onCreated;
-  const navigate = useNavigate();
+  const routerNavigate = useNavigate();
+  const navigate = useCallback(
+    ((...args: Parameters<NavigateFunction>) => {
+      if (selfNavigationRef) selfNavigationRef.current += 1;
+      try {
+        return routerNavigate(...args);
+      } finally {
+        if (selfNavigationRef) selfNavigationRef.current -= 1;
+      }
+    }) as NavigateFunction,
+    [routerNavigate, selfNavigationRef]
+  );
   const queryClient = useQueryClient();
 
   const { show, trials, judgeDetails, resetWizard } = useWizardStore();
@@ -210,6 +234,11 @@ export function useShowCreationWizardActions({
         setIsLoading(true);
         // Validate every class this save will write before the show/trial writers below can
         // mutate data. Stored classes loaded for add-classes mode are retained, not re-validated.
+        assertAddClassesCreatesNoTrials(
+          editMode,
+          trials,
+          existingTrials.filter(t => t.showId === editMode?.showId).map(t => t.id)
+        );
         const normalizedClasses = normalizeWizardClassSelections(
           show.organization,
           trials,
@@ -241,6 +270,7 @@ export function useShowCreationWizardActions({
           loadTrialClasses().catch(() => {
             /* non-critical */
           });
+          invalidateClassCaches(queryClient);
 
           // A draft save INSERTS a real show, so the wizard releases it whether
           // completion continues through the overlay or directly to show detail.
@@ -255,6 +285,7 @@ export function useShowCreationWizardActions({
             // Create-only path: this whole branch is gated on
             // `!editMode?.showId && isOnline` above.
             editMode,
+            returnTrialId: focusTrialId,
             showId: realShowId,
             showName: savedShow.name,
             passcodes,
@@ -341,6 +372,10 @@ export function useShowCreationWizardActions({
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap, normalizedClasses);
+        // Same invalidation the retired Add Classes mutation did, right after the local class
+        // writes (online or offline) and before anything below can fail or navigate: pages
+        // that read the class caches must refetch, not wait out staleTime.
+        invalidateClassCaches(queryClient, Object.values(trialIdMap));
 
         // Persist judge assignments to judge_assignments table
         const judgesSaved = await saveWizardShowJudges({
@@ -399,6 +434,7 @@ export function useShowCreationWizardActions({
           status,
           shouldShowCompletion,
           editMode,
+          returnTrialId: focusTrialId,
           showId: realShowId,
           showName: savedShow.name,
           passcodes: null,

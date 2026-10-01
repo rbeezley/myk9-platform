@@ -5,13 +5,20 @@ import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
 import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigurationStep';
 import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionStep';
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
-import type { EditMode } from './show-creation-wizard-types';
+import {
+  getAllowedWizardSteps,
+  isWizardStepAllowed,
+  type EditMode,
+} from './show-creation-wizard-types';
 import { getSubmitLabel } from './wizardLabels';
+import { getValidationScope } from './showCreationWizardValidation';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 
 interface WizardStepContentProps {
   currentStep: number;
   editMode: EditMode | undefined;
+  /** Resolved launching trial (`resolveFocusTrialId`); null opens the first trial. */
+  focusTrialId?: string | null;
   trialView: WizardTrialView;
   existingTrialsReady: boolean;
   existingClasses: SyncableClassData[];
@@ -36,8 +43,9 @@ interface WizardStepContentProps {
  * labels) are derived here so the page body stays declarative.
  */
 export const WizardStepContent: React.FC<WizardStepContentProps> = ({
-  currentStep,
+  currentStep: requestedStep,
   editMode,
+  focusTrialId = null,
   trialView,
   existingTrialsReady,
   existingClasses,
@@ -52,6 +60,12 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   persistedOrganization,
 }) => {
   const stepProps = { className: '' };
+  // Defensive: a restored draft or stale step index must never render a step the edit mode
+  // forbids (add-classes cannot show Trials, so it cannot create or remove one).
+  const allowed = getAllowedWizardSteps(editMode);
+  const currentStep = isWizardStepAllowed(allowed, requestedStep)
+    ? requestedStep
+    : (allowed?.[0] ?? requestedStep);
   switch (currentStep) {
     case 0:
       return (
@@ -91,6 +105,9 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
               : undefined
           }
           trialView={trialView}
+          {...(focusTrialId ? { focusTrialId } : {})}
+          ignoreEmptyTrials={editMode?.mode === 'add-classes'}
+          {...(editMode?.mode === 'add-classes' ? { addJudgeToShowId: editMode.showId } : {})}
         />
       );
     case 3:
@@ -103,6 +120,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
           trialView={trialView}
+          scope={getValidationScope(editMode)}
         />
       );
     default:

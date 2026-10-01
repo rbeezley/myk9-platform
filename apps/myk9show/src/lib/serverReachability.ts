@@ -105,6 +105,17 @@ export function markServerUnreachable(): void {
   scheduleProbe(REACHABILITY_FIRST_PROBE_MS);
 }
 
+/**
+ * The one place a failed Supabase request (read or write) feeds the flag: only a
+ * transport-level failure counts. RLS, auth and 5xx errors reached the server.
+ */
+export function markUnreachableIfTransportFailure(result: {
+  error?: unknown;
+  status?: number | null;
+}): void {
+  if (result.error && isTransportFailure(result)) markServerUnreachable();
+}
+
 const WINDOW_WAKE_EVENTS = ['online', 'focus'] as const;
 
 function subscribe(listener: () => void) {

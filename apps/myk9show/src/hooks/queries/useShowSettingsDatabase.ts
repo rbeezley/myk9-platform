@@ -11,6 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
+import { markUnreachableIfTransportFailure } from '@/lib/serverReachability';
 import {
   resolveVisibilityCascade,
   resolveCheckinCascade,
@@ -128,14 +129,21 @@ function visibilityQueryRetry(failureCount: number, error: unknown): boolean {
   return failureCount < 1;
 }
 
+/** Throw a failed read, first telling the reachability flag if it never reached the server (MYK9-866). */
+function throwIfReadFailed(result: { error?: unknown; status?: number | null }): void {
+  if (!result.error) return;
+  markUnreachableIfTransportFailure(result);
+  throw result.error;
+}
+
 async function fetchShowSettings(showId: string): Promise<ShowSettings> {
-  const { data, error } = await untypedSupabase
+  const result = await untypedSupabase
     .from('show_visibility_settings')
     .select('*')
     .eq('show_id', showId)
     .maybeSingle();
-
-  if (error) throw error;
+  throwIfReadFailed(result);
+  const { data } = result;
 
   if (!data) {
     return getDefaultShowSettings();
@@ -167,21 +175,18 @@ export interface TrialOverrideEntry {
 }
 
 async function fetchTrialOverrides(showId: string): Promise<TrialOverrideEntry[]> {
-  const { data: trials, error: trialsError } = await supabase
-    .from('trials')
-    .select('id')
-    .eq('show_id', showId);
-
-  if (trialsError) throw trialsError;
+  const trialsResult = await supabase.from('trials').select('id').eq('show_id', showId);
+  throwIfReadFailed(trialsResult);
+  const { data: trials } = trialsResult;
   if (!trials?.length) return [];
 
   const trialIds = trials.map(t => t.id);
-  const { data: overrides, error } = await untypedSupabase
+  const overridesResult = await untypedSupabase
     .from('trial_visibility_overrides')
     .select('*')
     .in('trial_id', trialIds);
-
-  if (error) throw error;
+  throwIfReadFailed(overridesResult);
+  const { data: overrides } = overridesResult;
   if (!overrides) return [];
 
   return (overrides as OverrideRow[]).map(row => ({
@@ -211,21 +216,21 @@ export interface ClassOverrideEntry {
 
 async function fetchClassOverrides(showId: string): Promise<ClassOverrideEntry[]> {
   // Get all classes for this show's trials in one query
-  const { data: classes, error: classesError } = await supabase
+  const classesResult = await supabase
     .from('classes')
     .select('id, trial_id, trials!inner(show_id)')
     .eq('trials.show_id', showId);
-
-  if (classesError) throw classesError;
+  throwIfReadFailed(classesResult);
+  const { data: classes } = classesResult;
   if (!classes?.length) return [];
 
   const classIds = classes.map(c => c.id);
-  const { data: overrides, error } = await untypedSupabase
+  const overridesResult = await untypedSupabase
     .from('class_visibility_overrides')
     .select('*')
     .in('class_id', classIds);
-
-  if (error) throw error;
+  throwIfReadFailed(overridesResult);
+  const { data: overrides } = overridesResult;
   if (!overrides) return [];
 
   const classTrialMap = new Map(classes.map(c => [c.id, c.trial_id]));
@@ -276,9 +281,9 @@ async function fetchClassEffectiveSettings(
       .maybeSingle(),
   ]);
 
-  if (showResult.error) throw showResult.error;
-  if (trialResult.error) throw trialResult.error;
-  if (classResult.error) throw classResult.error;
+  throwIfReadFailed(showResult);
+  throwIfReadFailed(trialResult);
+  throwIfReadFailed(classResult);
 
   const showSettings = showResult.data
     ? rowToVisibilitySettings(showResult.data as ShowSettingsRow)

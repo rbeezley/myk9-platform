@@ -1,6 +1,7 @@
 import React from 'react';
 import { Mail, Phone, Globe, MapPin } from 'lucide-react';
 import { Club } from '@/types/club-types';
+import { getSafeWebsiteLink } from '@/lib/websiteUrl';
 import { normalizeContactDestinations } from './contactDestinations';
 
 interface AboutTabProps {
@@ -66,7 +67,7 @@ export const AboutTab: React.FC<AboutTabProps> = ({ club }) => {
                   rel="noopener noreferrer"
                   className="text-sm text-foreground hover:text-primary transition-colors"
                 >
-                  {club.website?.trim()}
+                  {getSafeWebsiteLink(contact.website)?.label}
                 </a>
               </div>
             </div>

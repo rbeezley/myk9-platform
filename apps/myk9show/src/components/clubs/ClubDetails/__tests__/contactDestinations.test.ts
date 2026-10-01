@@ -33,6 +33,12 @@ describe('normalizeContactDestinations', () => {
     );
   });
 
+  it('drops a stored website carrying userinfo that spoofs the domain', () => {
+    expect(
+      normalizeContactDestinations({ website: 'https://good-club.org\t@evil.com' }).website
+    ).toBeNull();
+  });
+
   it.each(['javascript:alert(1)', 'data:text/html,unsafe', 'ftp://example.com'])(
     'rejects unsupported website scheme %s',
     website => {

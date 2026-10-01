@@ -72,7 +72,7 @@ describe('RequestAccessPage', () => {
     fireEvent.change(websiteInput, { target: { value: 'myclub.org' } });
     fireEvent.blur(websiteInput);
 
-    expect(websiteInput).toHaveValue('https://myclub.org');
+    expect(websiteInput).toHaveValue('https://myclub.org/');
   });
 
   it('saves a bare www domain website as https:// on submit', async () => {
@@ -91,13 +91,13 @@ describe('RequestAccessPage', () => {
     await waitFor(() => {
       expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
         clubName: 'Heartland Dog Club',
-        website: 'https://www.myclub.org',
+        website: 'https://www.myclub.org/',
         note: '',
       });
     });
   });
 
-  it('keeps a real https:// website value unchanged on submit', async () => {
+  it('saves a real https:// website value in canonical form on submit', async () => {
     vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
     render(<RequestAccessPage />, { initialRoute: '/request-access' });
 
@@ -113,7 +113,7 @@ describe('RequestAccessPage', () => {
     await waitFor(() => {
       expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
         clubName: 'Heartland Dog Club',
-        website: 'https://myclub.org',
+        website: 'https://myclub.org/',
         note: '',
       });
     });

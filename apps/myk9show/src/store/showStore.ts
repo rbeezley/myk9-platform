@@ -17,7 +17,7 @@ import {
   replicatedJudgeAssignmentsTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
-import { supabase } from '@/services/database/supabaseClient';
+import { deleteShowRecord as softDeleteShow } from '@/services/showDeletion';
 import { resyncTrialRegistry } from '@/services/database/trials';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import {
@@ -216,6 +216,7 @@ interface ShowStore {
   updateShow: (id: string, updates: Partial<ShowInput>) => Promise<Show | null>;
   deleteShow: (id: string) => Promise<void>;
   deleteShowCascading: (id: string) => Promise<void>;
+  purgeDeletedShow: (id: string) => Promise<void>;
   getShowById: (id: string) => Show | null;
   getShowsByClub: (clubId: string) => Show[];
 
@@ -502,22 +503,17 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Soft delete via RPC — bypasses RLS WITH CHECK restriction on deleted_at
-      const { error } = await supabase.rpc('soft_delete_show', { p_show_id: id });
+      // Soft delete via the SECURITY DEFINER RPC (bypasses the RLS WITH CHECK
+      // restriction on deleted_at). An already-deleted show comes back as a
+      // success, so the local copy below is still dropped.
+      const { error } = await softDeleteShow(id);
 
       if (error) {
         throw new Error(`Soft delete failed: ${error.message}`);
       }
 
-      // Remove from local IndexedDB cache
-      await replicatedShowsTable.delete(id);
-
-      // Remove from Zustand state
-      set(state => ({
-        shows: state.shows.filter(s => s.id !== id),
-        isLoading: false,
-        selectedShowId: state.selectedShowId === id ? '' : state.selectedShowId,
-      }));
+      await get().purgeDeletedShow(id);
+      set({ isLoading: false });
 
       reportInfo('store', 'Show soft-deleted', { showId: id });
     } catch (error) {
@@ -526,6 +522,25 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       set({ error: errorMessage, isLoading: false });
       throw error;
     }
+  },
+
+  // The one post-delete step every delete path shares: the server has the show
+  // soft-deleted, so drop the local copy. The shows replica's sync only pulls
+  // live rows and never delivers a tombstone, so without this the show stays
+  // in IndexedDB and the lists forever.
+  purgeDeletedShow: async (id: string): Promise<void> => {
+    // Runs only after the server delete succeeded, so it never throws: a
+    // replica failure is reported and the store still drops the show, and
+    // every caller can treat the delete as done.
+    try {
+      await replicatedShowsTable.delete(id);
+    } catch (error) {
+      reportStoreError('purgeDeletedShow', 'showStore', error, { showId: id });
+    }
+    set(state => ({
+      shows: state.shows.filter(s => s.id !== id),
+      selectedShowId: state.selectedShowId === id ? '' : state.selectedShowId,
+    }));
   },
 
   deleteShowCascading: async (id: string): Promise<void> => {

@@ -3,13 +3,22 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowBulkActionsBar } from './ShowBulkActionsBar';
-import { updateShow, deleteShow } from '@/services/database/shows';
+import { updateShow } from '@/services/database/shows';
+import { deleteShowRecord as deleteShow } from '@/services/showDeletion';
 import { notifications } from '@/lib/notifications';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 vi.mock('@/services/database/shows', () => ({
   updateShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
-  deleteShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
+}));
+
+vi.mock('@/services/showDeletion', () => ({
+  deleteShowRecord: vi.fn().mockResolvedValue({ data: {}, error: null }),
+}));
+
+const purgeDeletedShow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@/store/showStore', () => ({
+  useShowStore: { getState: () => ({ purgeDeletedShow }) },
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -41,6 +50,7 @@ describe('ShowBulkActionsBar', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    purgeDeletedShow.mockResolvedValue(undefined);
     vi.mocked(updateShow).mockResolvedValue({ data: {}, error: null } as Awaited<
       ReturnType<typeof updateShow>
     >);
@@ -101,6 +111,82 @@ describe('ShowBulkActionsBar', () => {
       expect(deleteShow).toHaveBeenCalledWith('show-2');
     });
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops every deleted show from the local copy, closes the dialog and refreshes', async () => {
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+
+    // The server soft-deleted them; the replica never delivers that, so each
+    // must be purged locally or it stays in the list until a full sync.
+    await waitFor(() => {
+      expect(purgeDeletedShow).toHaveBeenCalledWith('show-1');
+      expect(purgeDeletedShow).toHaveBeenCalledWith('show-2');
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
+    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the dialog and purges the show when the server reports it already deleted', async () => {
+    // writes.deleteShow reports "Show not found" as a success (see its test).
+    vi.mocked(deleteShow).mockResolvedValue({
+      data: { id: 'show-1' },
+      error: null,
+      alreadyDeleted: true,
+    } as unknown as Awaited<ReturnType<typeof deleteShow>>);
+
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+
+    await waitFor(() => expect(purgeDeletedShow).toHaveBeenCalledWith('show-1'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
+    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the shows the user may not delete and keeps them listed on Permission denied', async () => {
+    vi.mocked(deleteShow).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Permission denied'), { code: '42501' }),
+    } as unknown as Awaited<ReturnType<typeof deleteShow>>);
+
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+
+    expect(
+      await screen.findByText("You don't have permission to delete Summer Classic, Fall Trial.")
+    ).toBeInTheDocument();
+    expect(purgeDeletedShow).not.toHaveBeenCalled();
+    expect(onBulkComplete).not.toHaveBeenCalled();
+  });
+
+  it('tells the user a show with unsynced work is still saving, and keeps it listed', async () => {
+    vi.mocked(deleteShow).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Show is still saving'), { code: 'SHOW_STILL_SAVING' }),
+    } as unknown as Awaited<ReturnType<typeof deleteShow>>);
+
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+
+    expect(
+      await screen.findByText('Summer Classic, Fall Trial are still saving. Try again in a moment.')
+    ).toBeInTheDocument();
+    expect(purgeDeletedShow).not.toHaveBeenCalled();
+    expect(onBulkComplete).not.toHaveBeenCalled();
   });
 
   it('surfaces partial failures as a toast and refreshes so retries cannot re-hit succeeded shows', async () => {

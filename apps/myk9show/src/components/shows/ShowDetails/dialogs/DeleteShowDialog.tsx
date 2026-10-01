@@ -8,6 +8,10 @@ import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import {
+  classifyShowDeleteError,
+  showDeleteFailureMessage,
+} from '@/services/database/shows/deleteOutcome';
 import { permanentDeleteRefusalMessage } from '@/services/database/permanentDeleteRefusal';
 
 export interface DeleteShowDialogProps {
@@ -60,7 +64,13 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       onOpenChange(false);
     } catch (error) {
       logger.error('Failed to delete show:', 'shows', {}, error as Error);
-      toast.error(permanentDeleteRefusalMessage(error) ?? getUserFriendlyError(error));
+      toast.error(
+        permanentDeleteRefusalMessage(error) ??
+          showDeleteFailureMessage([
+            { name: showName || 'This show', kind: classifyShowDeleteError(error) },
+          ]) ??
+          getUserFriendlyError(error)
+      );
     } finally {
       setIsDeleting(false);
     }

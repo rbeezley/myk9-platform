@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type MutationManager,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
@@ -20,6 +21,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { getLiveShowCount } from './liveShowCount';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
@@ -132,8 +134,15 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
+  private showMutationManager: MutationManager | null = null;
+
   constructor() {
     super('shows', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.showMutationManager = manager;
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -254,6 +263,11 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
       ...this.getRowRefetchAdapter(),
+      getRemoteRowCount: ({ scope }) => getLiveShowCount(scope.value),
+      // A soft-deleted show is filtered out of every fetch, so it is never
+      // overwritten or removed here. Once a full fetch proves complete against
+      // the count above, rows the server no longer returns leave the replica.
+      cleanupStaleRowsOnFullSync: true,
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')
@@ -416,6 +430,22 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;
+  }
+
+  /**
+   * True while this show has work the server has not confirmed: created here
+   * (`_localOnly`) or any mutation still queued for it, which may be mid-upload
+   * or committed with the response lost. A server delete then cannot tell
+   * "not found" from "not uploaded yet", so callers must wait. Reads only;
+   * never touches the queue. Throws if the queue cannot be read.
+   */
+  async hasUnsyncedWork(showId: string): Promise<boolean> {
+    const row = await this.get(showId);
+    if ((row as { _localOnly?: boolean } | null)?._localOnly === true) return true;
+    const manager = this.showMutationManager;
+    if (!manager) return false;
+    const pending = await manager.getPendingMutationsForRow(this.getTableName(), showId);
+    return pending.length > 0;
   }
 
   /**

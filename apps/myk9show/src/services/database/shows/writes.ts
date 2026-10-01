@@ -1,6 +1,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 import type { TablesUpdate } from '@/types/supabase';
+import { classifyShowDeleteError } from './deleteOutcome';
 
 // Create new show
 export const createShow = async (showData: DbShowInsert) => {
@@ -108,6 +109,16 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
     logQuery('show', 'soft_delete', duration, error?.message);
 
     if (error) {
+      // Already soft-deleted (a prior attempt landed, or another device did it):
+      // the show is gone, which is what the caller asked for. Report success so
+      // the caller still drops it from its lists instead of showing a failure.
+      if (classifyShowDeleteError(error) === 'already-deleted') {
+        return {
+          data: { id, deleted_at: updateData.deleted_at as string, deleted_by: null },
+          error: null,
+          alreadyDeleted: true,
+        };
+      }
       throw createDatabaseError(error, 'show', 'soft_delete');
     }
 

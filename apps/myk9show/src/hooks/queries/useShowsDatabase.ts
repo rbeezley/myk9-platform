@@ -5,12 +5,13 @@ import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { usePublicShowDetailQuery } from './publicShowDetailQuery';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
+import { useShowStore } from '@/store/showStore';
+import { deleteShowRecord } from '@/services/showDeletion';
 import {
   getAllShows,
   getShowById,
   createShow,
   updateShow,
-  deleteShow,
   hardDeleteShow,
   restoreShow,
   getDeletedShows,
@@ -330,8 +331,10 @@ export const useDeleteShowMutation = () => {
 
   return useMutation({
     mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      const { error } = await deleteShow(id, deletedBy);
+      const { error } = await deleteShowRecord(id, deletedBy);
       if (error) throw error;
+      // Purge the replica before onSuccess invalidates (queries read it first).
+      await useShowStore.getState().purgeDeletedShow(id);
       return { id };
     },
     onMutate: async ({ id: deletedId }) => {

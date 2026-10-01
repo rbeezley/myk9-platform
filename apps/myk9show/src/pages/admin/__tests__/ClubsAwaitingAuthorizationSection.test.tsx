@@ -82,13 +82,29 @@ describe('ClubsAwaitingAuthorizationSection', () => {
     }
   );
 
-  it('marks a cached list as unrefreshed when the sync failed', () => {
+  it('marks a cached list as unrefreshed when the sync failed, with the same retry', async () => {
     seed([makeClub({ id: 'p-1', name: 'Pending Club', authorizedAt: null })], 'unavailable');
+
+    const { user } = render(<ClubsAwaitingAuthorizationSection />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent("this device's last sync");
+    expect(screen.getByRole('link', { name: /Open Pending Club/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(useClubStore.getState().ensureClubsReady).toHaveBeenCalledWith({ force: true });
+  });
+
+  it('does not claim every club is authorized from a stale cache', () => {
+    seed(
+      [makeClub({ id: 'ok-1', name: 'Authorized Club', authorizedAt: '2026-09-01T00:00:00Z' })],
+      'offline'
+    );
 
     render(<ClubsAwaitingAuthorizationSection />);
 
-    expect(screen.getByRole('status')).toHaveTextContent("this device's last sync");
-    expect(screen.getByRole('link', { name: /Open Pending Club/ })).toBeInTheDocument();
+    expect(screen.queryByText('All clubs are authorized.')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No clubs were awaiting authorization at the last sync.')
+    ).toBeInTheDocument();
   });
 
   it('shows a loading line before any clubs have loaded', () => {

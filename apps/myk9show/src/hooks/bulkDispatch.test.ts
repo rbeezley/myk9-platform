@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { dispatchBulk, retryFailedItems, summarizeBulkOutcome, errorReason } from './bulkDispatch';
+import {
+  BulkItemSkippedError,
+  dispatchBulk,
+  retryFailedItems,
+  summarizeBulkOutcome,
+  errorReason,
+} from './bulkDispatch';
 
 interface Item {
   id: string;
@@ -47,18 +53,6 @@ describe('retryFailedItems', () => {
     expect(outcome.succeeded.map(i => i.id).sort()).toEqual(['a', 'c']);
     expect(outcome.skipped.map(i => i.id)).toEqual(['b']);
     expect(outcome.failed).toEqual([]);
-  });
-
-  it('awaits an async eligibility check, asking once per item', async () => {
-    const failed = [item('a', true), item('b', false)];
-    const runItem = vi.fn(async () => undefined);
-    const check = vi.fn(async (i: ReturnType<typeof item>) => i.eligible);
-
-    const outcome = await retryFailedItems(failed, check, runItem);
-
-    expect(check).toHaveBeenCalledTimes(2);
-    expect(outcome.succeeded.map(i => i.id)).toEqual(['a']);
-    expect(outcome.skipped.map(i => i.id)).toEqual(['b']);
   });
 
   it('still folds failures among the retried (eligible) items', async () => {
@@ -118,5 +112,39 @@ describe('errorReason', () => {
     expect(errorReason(undefined)).toBe('Unknown error');
     expect(errorReason({})).toBe('Unknown error');
     expect(errorReason({ message: '   ' })).toBe('Unknown error');
+  });
+});
+
+describe('server-declined items (BulkItemSkippedError)', () => {
+  it('folds a declined item into `declined`, neither succeeded nor failed', async () => {
+    const outcome = await dispatchBulk([item('a'), item('b'), item('c')], async i => {
+      if (i.id === 'b') throw new BulkItemSkippedError('already signed in');
+      if (i.id === 'c') throw new Error('boom');
+    });
+    expect(outcome.succeeded.map(i => i.id)).toEqual(['a']);
+    expect(outcome.failed.map(f => f.item.id)).toEqual(['c']);
+    expect(outcome.declined).toEqual([{ item: item('b'), reason: 'already signed in' }]);
+  });
+
+  it('leaves `declined` absent when the server declined nothing', async () => {
+    const outcome = await dispatchBulk([item('a')], async () => undefined);
+    expect(outcome.declined).toBeUndefined();
+  });
+
+  it('summarises declines honestly, without counting them as attempted', () => {
+    const declined = [{ item: item('b'), reason: 'already signed in' }];
+    expect(
+      summarizeBulkOutcome(2, { succeeded: [item('a')], failed: [], declined }, i => i.id).title
+    ).toBe('Updated 1 — 1 already signed in');
+    expect(summarizeBulkOutcome(1, { succeeded: [], failed: [], declined }, i => i.id).title).toBe(
+      '1 already signed in'
+    );
+    expect(
+      summarizeBulkOutcome(
+        3,
+        { succeeded: [item('a')], failed: [{ item: item('c'), error: new Error('x') }], declined },
+        i => i.id
+      ).title
+    ).toBe('1 of 2 succeeded — 1 failed; 1 already signed in');
   });
 });

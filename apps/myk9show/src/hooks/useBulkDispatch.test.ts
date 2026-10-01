@@ -14,7 +14,6 @@ vi.mock('sonner', () => ({
 
 import { toast } from 'sonner';
 import { useBulkDispatch } from './useBulkDispatch';
-import { BulkVerificationUnavailableError } from './bulkDispatch';
 
 interface Item {
   id: string;
@@ -132,7 +131,7 @@ describe('useBulkDispatch', () => {
 
   it('a throwing eligibility check reports instead of rejecting, and releases the latch', async () => {
     let broken = true;
-    const applicableWhen = vi.fn(async () => {
+    const applicableWhen = vi.fn(() => {
       if (broken) throw new Error('registry offline');
       return true;
     });
@@ -150,7 +149,6 @@ describe('useBulkDispatch', () => {
     await act(async () => {
       retryActionFromCall().onClick(mouseEvent());
     });
-
     await waitFor(() =>
       expect(toast.error).toHaveBeenLastCalledWith(expect.stringContaining('registry offline'))
     );
@@ -164,34 +162,6 @@ describe('useBulkDispatch', () => {
       retryActionFromCall().onClick(mouseEvent());
     });
     await waitFor(() => expect(runItem).toHaveBeenCalledOnce());
-  });
-
-  it('an unverifiable eligibility check runs nothing and re-offers Retry with the reason', async () => {
-    const applicableWhen = vi.fn(async () => {
-      throw new BulkVerificationUnavailableError('Could not check the list.');
-    });
-    const { result } = renderHook(() =>
-      useBulkDispatch<Item>({ getLabel: i => i.id, applicableWhen })
-    );
-    const runItem = vi.fn(async () => {
-      throw new Error('boom');
-    });
-    await act(async () => {
-      await result.current.run([item('a')], runItem);
-    });
-    runItem.mockClear();
-
-    await act(async () => {
-      retryActionFromCall().onClick(mouseEvent());
-    });
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
-    const reshown = vi.mocked(toast.error).mock.calls[1]?.[1] as
-      { description?: string; action?: RetryAction } | undefined;
-    expect(reshown?.description).toContain('Could not check the list.');
-    expect(reshown?.action?.label).toBe('Retry failed');
-    expect(toast.info).not.toHaveBeenCalled();
-    expect(runItem).not.toHaveBeenCalled();
   });
 
   it('attaches an Undo action to the full-success toast when buildUndo is provided', async () => {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -26,7 +27,7 @@ interface MockOptions {
   /** The target person row returned for body.personId (MYK9-134). */
   targetPerson?: { auth_user_id: string | null } | null;
   /** auth.admin.getUserById result for that person's identity. */
-  identityUser?: { user: { email: string } | null } | null;
+  identityUser?: { user: { email: string; last_sign_in_at?: string | null } | null } | null;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
   rbacError?: unknown;
   /** Queued generateLink results, consumed in call order. */
@@ -548,7 +549,7 @@ describe('inviteUserHandler — truthful delivery address + fail-closed lookup',
       personId: 'person-1',
     });
 
-    expect(result.deliveredTo).toBe('old.address@example.test');
+    expect(result).toMatchObject({ deliveredTo: 'old.address@example.test' });
   });
 
   it('aborts when the person lookup errors instead of inviting the contact email', async () => {
@@ -575,5 +576,75 @@ describe('inviteUserHandler — truthful delivery address + fail-closed lookup',
       invoke(supabase, deps, { email: 'pat@example.test', personId: 'person-1' })
     ).rejects.toMatchObject({ status: 503 });
     expect(generateLink).not.toHaveBeenCalled();
+  });
+});
+
+// Bulk invites (initial dispatch AND retry) send onlyIfNeverSignedIn: the SERVER
+// reads the live auth record, so a person who signed in after the batch was
+// selected is never emailed, whatever the client last saw.
+describe('inviteUserHandler — onlyIfNeverSignedIn (bulk)', () => {
+  const bulkBody = {
+    email: 'pat@example.test',
+    personId: 'person-1',
+    onlyIfNeverSignedIn: true,
+  };
+
+  it('skips, with no link and no email, when the account has signed in', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: {
+        user: { email: 'pat@example.test', last_sign_in_at: '2026-09-30T00:00:00Z' },
+      },
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, bulkBody);
+
+    expect(result).toEqual({ ok: true, outcome: 'skipped', reason: 'already_signed_in' });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends when the account exists but has never signed in', async () => {
+    const { supabase } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: { user: { email: 'pat@example.test', last_sign_in_at: null } },
+      linkResults: [{ data: MAGIC_LINK, error: null }],
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, bulkBody);
+
+    expect(result).toMatchObject({ outcome: 'reinvited', deliveredTo: 'pat@example.test' });
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
+  it('sends a first invite to a person with no identity yet', async () => {
+    const { supabase } = makeSupabase({ targetPerson: { auth_user_id: null } });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, bulkBody);
+
+    expect(result).toMatchObject({ outcome: 'invited' });
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
+  it('leaves a single resend unchanged: without the flag a signed-in account is re-invited', async () => {
+    const { supabase } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: {
+        user: { email: 'pat@example.test', last_sign_in_at: '2026-09-30T00:00:00Z' },
+      },
+      linkResults: [{ data: MAGIC_LINK, error: null }],
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'pat@example.test',
+      personId: 'person-1',
+    });
+
+    expect(result).toMatchObject({ outcome: 'reinvited' });
+    expect(sendEmail).toHaveBeenCalledOnce();
   });
 });

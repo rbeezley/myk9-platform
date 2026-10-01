@@ -8,15 +8,17 @@
  * - Restore: `restoreUser`, shared with the row menu and Deleted Items.
  *
  * The selection this hook receives is ids only (MYK9-835). `usersById` is the
- * live roster query's current data, used for the initial targets. A "Retry
- * failed" run fires later from a toast, AFTER every run has cleared the
- * selection and unmounted this hook's bar — so nothing this component owns (a
- * ref, a closure) can be trusted to still be current (Codex P1 on 794a83820).
- * The retry's `applicableWhen` therefore refetches the roster query, which
- * outlives the bar, and re-resolves eligibility from that fresh data before any
- * person is acted on: a status change, a sign-in, or the person leaving the
- * roster between dispatch and retry is skipped, not re-run. If the roster cannot
- * be refreshed, nobody is retried (an invitation is an email to a real person).
+ * live roster, used to decide which people each action is OFFERED for. It is
+ * display only: the SERVER decides whether an action still applies, so a "Retry
+ * failed" fired minutes later from a toast (after this bar has unmounted) simply
+ * re-dispatches the failed ids and reports what the server did.
+ *
+ * - Send invitation passes `onlyIfNeverSignedIn`; `admin-invite-user` declines
+ *   (no email) for anyone who has since signed in.
+ * - Suspend / Reinstate write an absolute status, which the people trigger
+ *   treats as a no-op when it already holds (`people_protect_status`).
+ * - Restore: `restore_person` raises P0002 for a person who is not deleted
+ *   (20260617120000), reported as already restored.
  *
  * Runs go through `useBulkDispatch`, which reports one summary toast and offers
  * "Retry failed" for any person the action could not reach.
@@ -26,13 +28,12 @@ import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
-import { BulkVerificationUnavailableError } from '@/hooks/bulkDispatch';
+import { BulkItemSkippedError } from '@/hooks/bulkDispatch';
 import { useUpdateUserMutation, type AdminUser } from '@/hooks/queries/useUsersQuery';
 import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
 import { invokeAdminInvite } from '@/components/users/UserDetails/useSendUserInvitation';
-import { readLiveRoster, refreshLiveRoster } from './liveRoster';
-import { accountTargets, isEligible, nameOf, type AccountAction } from './bulkAccountTargets';
+import { accountTargets, nameOf, type AccountAction } from './bulkAccountTargets';
 
 export type { AccountAction as BulkAccountAction } from './bulkAccountTargets';
 
@@ -59,7 +60,7 @@ export function useBulkAccountActions({
   const queryClient = useQueryClient();
   const updateUser = useUpdateUserMutation();
   const dispatch = useBulkDispatch<string>({
-    getLabel: id => nameOf(id, readLiveRoster(queryClient) ?? usersById),
+    getLabel: id => nameOf(id, usersById),
   });
   // Suspend and Send invitation reach people outside this screen, so they confirm first.
   const [confirming, setConfirming] = useState<AccountAction | null>(null);
@@ -72,19 +73,23 @@ export function useBulkAccountActions({
       await updateUser.mutateAsync({ id, updates: { status: 'active' } });
     },
     invite: async id => {
-      // Read the CURRENT record, not one captured at selection time — a retry
-      // must send whatever name/roles the person has NOW.
-      const target = (readLiveRoster(queryClient) ?? usersById).get(id);
+      const target = usersById.get(id);
       if (!target) throw new Error('This person is no longer on the roster.');
-      await invokeAdminInvite({
+      const { data } = await invokeAdminInvite({
         personId: id,
         email: target.email,
         firstName: target.firstName,
         roleNames: (target.roles ?? []).map(String),
+        onlyIfNeverSignedIn: true,
       });
+      if (data?.outcome === 'skipped') {
+        throw new BulkItemSkippedError('already signed in — not re-invited');
+      }
     },
     restore: async id => {
       const { error } = await restoreUser(id);
+      // P0002: the server found the person not deleted — already restored.
+      if (error?.code === 'P0002') throw new BulkItemSkippedError('already restored');
       if (error) throw error;
     },
   };
@@ -108,29 +113,18 @@ export function useBulkAccountActions({
     }, 0);
   };
   const refreshing = (worker: (id: string) => Promise<void>) => async (id: string) => {
-    await worker(id);
+    try {
+      await worker(id);
+    } catch (error) {
+      // A server-declined item means the roster this bar showed was stale.
+      if (error instanceof BulkItemSkippedError) scheduleRefresh();
+      throw error;
+    }
     scheduleRefresh();
   };
 
   const run = async (action: AccountAction) => {
-    const outcome = await dispatch.run(targets[action], refreshing(workers[action]), {
-      // A retry fires later, from the toast, when this component may be gone.
-      // Re-resolve THIS action's eligibility against a roster refetched now —
-      // not anything captured at dispatch — so a person who signed in, changed
-      // status, or left the roster in between is skipped, not re-run (MYK9-835).
-      // No refreshable roster means no one can be confirmed eligible: nobody is
-      // acted on, and the retry says it COULD NOT VERIFY rather than claiming
-      // anyone is ineligible.
-      applicableWhen: async id => {
-        const fresh = await refreshLiveRoster(queryClient);
-        if (!fresh) {
-          throw new BulkVerificationUnavailableError(
-            "Couldn't refresh the user list — nothing was retried."
-          );
-        }
-        return isEligible(action, id, fresh, currentUserId);
-      },
-    });
+    const outcome = await dispatch.run(targets[action], refreshing(workers[action]));
     // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;
     setConfirming(null);

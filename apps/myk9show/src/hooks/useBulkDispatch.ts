@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
 import {
-  BulkVerificationUnavailableError,
   dispatchBulk,
   errorReason,
   retryFailedItems,
@@ -23,7 +22,7 @@ export interface UseBulkDispatchOptions<T> {
    * longer pass are reported as skipped rather than re-attempted. Defaults to
    * "always eligible" (every failed item is retried).
    */
-  applicableWhen?: (item: T) => boolean | Promise<boolean>;
+  applicableWhen?: (item: T) => boolean;
 }
 
 export interface BulkDispatchRunOptions<T> {
@@ -44,7 +43,7 @@ export interface BulkDispatchRunOptions<T> {
    * must not re-run on an entry another actor has since moved to a different status.
    * Items that no longer pass are reported as skipped rather than re-attempted.
    */
-  applicableWhen?: (item: T) => boolean | Promise<boolean>;
+  applicableWhen?: (item: T) => boolean;
   /**
    * Lets the caller take ownership of reporting a subset of failures in its own
    * UI. Claimed items are excluded from the toast's DETAIL LINES and its "Retry
@@ -107,7 +106,7 @@ export function useBulkDispatch<T>({
       runItem: (item: T) => Promise<void>,
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
-      runApplicableWhen?: (item: T) => boolean | Promise<boolean>,
+      runApplicableWhen?: (item: T) => boolean,
       claimFailure?: (item: T, error: unknown) => boolean,
       onClaimedFailures?: (items: T[]) => void
     ) => {
@@ -189,14 +188,7 @@ export function useBulkDispatch<T>({
                       buildUndo,
                       onFullSuccess,
                       claimFailure,
-                      onClaimedFailures,
-                      // The click is already dismissing THIS toast; refreshing
-                      // its id would update a toast on its way out and lose the
-                      // report. Start a new one (fresh id) instead.
-                      note => {
-                        toastId = undefined;
-                        showFailureToast(note);
-                      }
+                      onClaimedFailures
                     );
                   },
                 },
@@ -214,12 +206,11 @@ export function useBulkDispatch<T>({
     async (
       failedItems: T[],
       runItem: (item: T) => Promise<void>,
-      runApplicableWhen?: (item: T) => boolean | Promise<boolean>,
+      runApplicableWhen?: (item: T) => boolean,
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
       claimFailure?: (item: T, error: unknown) => boolean,
-      onClaimedFailures?: (items: T[]) => void,
-      reshowFailure?: (note: string) => void
+      onClaimedFailures?: (items: T[]) => void
     ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -247,7 +238,11 @@ export function useBulkDispatch<T>({
           // and the caller's prior-state map covers these items too).
           showSummary(
             retriedCount,
-            { succeeded: outcome.succeeded, failed: outcome.failed },
+            {
+              succeeded: outcome.succeeded,
+              failed: outcome.failed,
+              ...(outcome.declined ? { declined: outcome.declined } : {}),
+            },
             runItem,
             buildUndo,
             onFullSuccess,
@@ -258,14 +253,9 @@ export function useBulkDispatch<T>({
         }
       } catch (error) {
         // `retry` runs from a toast click as `void retry(...)`, so a throw here
-        // would be an unhandled rejection with no feedback. Nothing ran.
-        if (error instanceof BulkVerificationUnavailableError && reshowFailure) {
-          // Could not verify eligibility: nobody was acted on, so put the failure
-          // report (and its Retry action) back with the reason.
-          reshowFailure(error.message);
-        } else {
-          toast.error(`Retry could not run: ${errorReason(error)}`);
-        }
+        // (e.g. a throwing `applicableWhen`) would be an unhandled rejection with
+        // no feedback. Nothing ran; say so, and the `finally` frees the latch.
+        toast.error(`Retry could not run: ${errorReason(error)}`);
       } finally {
         inFlightRef.current = false;
         setIsBusy(false);

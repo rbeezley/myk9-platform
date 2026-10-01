@@ -25,10 +25,18 @@ export interface SendInvitationArgs {
   email: string | null | undefined;
   firstName?: string | null | undefined;
   roleNames?: string[] | undefined;
+  /**
+   * Bulk sends set this: the SERVER then declines (outcome 'skipped', no email)
+   * for an account that has already signed in, judged from the live auth
+   * record rather than any client snapshot. A single resend leaves it unset and
+   * keeps re-inviting by design.
+   */
+  onlyIfNeverSignedIn?: boolean | undefined;
 }
 
-interface InviteResponse {
-  outcome?: 'invited' | 'reinvited';
+export interface InviteResponse {
+  outcome?: 'invited' | 'reinvited' | 'skipped';
+  reason?: 'already_signed_in';
   /** The address the link actually went to — may differ from the contact email. */
   deliveredTo?: string;
 }
@@ -42,6 +50,7 @@ export async function invokeAdminInvite({
   email,
   firstName,
   roleNames,
+  onlyIfNeverSignedIn,
 }: SendInvitationArgs): Promise<{ data: InviteResponse | null }> {
   if (!email) {
     throw new Error('NO_EMAIL');
@@ -55,6 +64,7 @@ export async function invokeAdminInvite({
       // address was edited after signup can no longer be found by it. The
       // function resolves the identity from this instead. MYK9-134.
       personId,
+      ...(onlyIfNeverSignedIn ? { onlyIfNeverSignedIn: true } : {}),
     },
   });
   if (error) throw error;

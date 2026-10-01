@@ -6,9 +6,25 @@
  * See openspec/changes/inline-bulk-actions-and-editable-status/design.md decision D3.
  */
 
+/**
+ * Thrown by an item worker when the SERVER declined the action because the item's
+ * precondition no longer holds (e.g. the person has since signed in, so a bulk
+ * invitation was not sent). Not a failure and never retried: the item is folded
+ * into `outcome.declined` and the summary reports it with the message as the
+ * reason. The server, not a client snapshot, is the authority on this.
+ */
+export class BulkItemSkippedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BulkItemSkippedError';
+  }
+}
+
 export interface BulkDispatchOutcome<T> {
   succeeded: T[];
   failed: Array<{ item: T; error: unknown }>;
+  /** Items the server declined (see BulkItemSkippedError). Absent when none were. */
+  declined?: Array<{ item: T; reason: string }>;
 }
 
 export interface BulkRetryOutcome<T> extends BulkDispatchOutcome<T> {
@@ -61,15 +77,18 @@ export async function dispatchBulk<T>(
   );
   const succeeded: T[] = [];
   const failed: Array<{ item: T; error: unknown }> = [];
+  const declined: Array<{ item: T; reason: string }> = [];
   items.forEach((item, index) => {
     const result = results[index];
     if (result?.status === 'fulfilled') {
       succeeded.push(item);
+    } else if (result?.status === 'rejected' && result.reason instanceof BulkItemSkippedError) {
+      declined.push({ item, reason: result.reason.message });
     } else {
       failed.push({ item, error: result?.status === 'rejected' ? result.reason : undefined });
     }
   });
-  return { succeeded, failed };
+  return declined.length > 0 ? { succeeded, failed, declined } : { succeeded, failed };
 }
 
 /**
@@ -77,31 +96,15 @@ export async function dispatchBulk<T>(
  * items that became ineligible since the first attempt (e.g. another user changed
  * their status) are reported as `skipped`, not re-attempted and not counted as errors.
  */
-/**
- * Thrown by an `applicableWhen` that could not decide (e.g. the live data it
- * needs is unreachable). Distinct from `false`, which means "checked, and no
- * longer eligible": the retry runs NOTHING, reports the message instead of a
- * misleading "skipped", and keeps the Retry action available.
- */
-export class BulkVerificationUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'BulkVerificationUnavailableError';
-  }
-}
-
 export async function retryFailedItems<T>(
   failedItems: readonly T[],
-  applicableWhen: (item: T) => boolean | Promise<boolean>,
+  applicableWhen: (item: T) => boolean,
   runItem: (item: T) => Promise<void>
 ): Promise<BulkRetryOutcome<T>> {
-  // Each item is asked ONCE, all together, so an async check that refreshes live
-  // data (MYK9-835: the admin roster) shares a single fetch across the batch.
-  const verdicts = await Promise.all(failedItems.map(item => applicableWhen(item)));
-  const eligible = failedItems.filter((_item, index) => verdicts[index]);
-  const skipped = failedItems.filter((_item, index) => !verdicts[index]);
-  const { succeeded, failed } = await dispatchBulk(eligible, runItem);
-  return { succeeded, failed, skipped };
+  const eligible = failedItems.filter(applicableWhen);
+  const skipped = failedItems.filter(item => !applicableWhen(item));
+  const { succeeded, failed, declined } = await dispatchBulk(eligible, runItem);
+  return { succeeded, failed, ...(declined ? { declined } : {}), skipped };
 }
 
 export function errorReason(error: unknown): string {
@@ -131,15 +134,37 @@ export function summarizeBulkOutcome<T>(
   outcome: BulkDispatchOutcome<T>,
   getLabel: (item: T) => string
 ): BulkOutcomeSummary {
+  const declined = outcome.declined ?? [];
+  // "2 already signed in — not re-invited", grouped by the server's reason.
+  const declinedText = [
+    ...declined.reduce(
+      (counts, { reason }) => counts.set(reason, (counts.get(reason) ?? 0) + 1),
+      new Map<string, number>()
+    ),
+  ]
+    .map(([reason, count]) => `${count} ${reason}`)
+    .join('; ');
   if (outcome.failed.length === 0) {
+    if (declined.length === 0) {
+      return {
+        fullSuccess: true,
+        title: total === 1 ? 'Updated 1 item' : `Updated all ${total} items`,
+      };
+    }
     return {
       fullSuccess: true,
-      title: total === 1 ? 'Updated 1 item' : `Updated all ${total} items`,
+      title:
+        outcome.succeeded.length > 0
+          ? `Updated ${outcome.succeeded.length} — ${declinedText}`
+          : declinedText,
     };
   }
+  const attempted = total - declined.length;
   return {
     fullSuccess: false,
-    title: `${outcome.succeeded.length} of ${total} succeeded — ${outcome.failed.length} failed`,
+    title:
+      `${outcome.succeeded.length} of ${attempted} succeeded — ${outcome.failed.length} failed` +
+      (declined.length > 0 ? `; ${declinedText}` : ''),
     details: outcome.failed.map(({ item, error }) => `${getLabel(item)}: ${errorReason(error)}`),
   };
 }

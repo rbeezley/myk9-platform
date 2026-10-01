@@ -148,6 +148,7 @@ describe('BulkAccountActions', () => {
       email: 'new@example.com',
       firstName: 'new',
       roleNames: [],
+      onlyIfNeverSignedIn: true,
     });
   });
 

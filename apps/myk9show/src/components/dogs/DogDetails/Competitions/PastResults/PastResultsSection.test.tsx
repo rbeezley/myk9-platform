@@ -64,6 +64,11 @@ function renderSection(results: ExhibitorResult[]) {
 }
 
 describe('PastResultsSection — platform results release gate', () => {
+  it('labels a result with no known date instead of leaving it blank', () => {
+    renderSection([platformResult({ showDate: '' })]);
+    expect(screen.getByText('Date unavailable')).toBeInTheDocument();
+  });
+
   it('does not claim there are no results while the dog roster is loading', () => {
     mockExhibitorResults.mockReturnValue({
       data: [],

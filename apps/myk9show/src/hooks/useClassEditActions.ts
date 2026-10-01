@@ -63,7 +63,14 @@ export function useClassEditActions({
       // Now update class — its onSuccess invalidation will refetch fresh judge data
       await updateClass(classId, data);
 
-      useTrialStore.getState().loadTrialClasses();
+      // Setup's rows come from the replicated store, not React Query: refresh the replica from
+      // the server write (best-effort; the write itself already succeeded), then the store.
+      try {
+        await replicatedClassesTable.sync('');
+      } catch {
+        // Offline sync failure is not a save failure; background sync will converge.
+      }
+      await useTrialStore.getState().loadTrialClasses();
       // Invalidate specific query keys for classes (safety net after fresh refetch)
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
       if (trialId) {
@@ -85,6 +92,28 @@ export function useClassEditActions({
     }
     try {
       await deleteClass(classId);
+      // The server delete (soft_delete_class RPC) is done. Setup's rows come from the replicated
+      // store, so drop the class from the local replica (no queued mutation: it is already
+      // deleted upstream) and reload the store, or it stays listed and actionable until the
+      // next background sync.
+      try {
+        await replicatedClassesTable.delete(classId);
+      } catch (replicaError) {
+        logger.warn('Failed to drop deleted class from the local replica', 'classes', {
+          classId,
+          error: replicaError instanceof Error ? replicaError.message : String(replicaError),
+        });
+      }
+      await useTrialStore.getState().loadTrialClasses();
+      // Guarantee the row goes even if the replica delete above failed.
+      useTrialStore.setState(state => ({
+        trialClasses: Object.fromEntries(
+          Object.entries(state.trialClasses).map(([trialId, classes]) => [
+            trialId,
+            classes.filter(cls => cls.id !== classId),
+          ])
+        ),
+      }));
       toast.success('Class deleted successfully');
     } catch (error) {
       logger.error('Failed to delete class', 'classes', { classId }, error as Error);

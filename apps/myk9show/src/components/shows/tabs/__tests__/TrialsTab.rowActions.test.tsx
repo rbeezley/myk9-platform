@@ -1,6 +1,8 @@
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TrialsTab } from '../TrialsTab';
+import { useTrialStore } from '@/store/trialStore';
+import type { SyncableTrial } from '@/store/trial-store-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 // MYK9-900: Setup → Trials rows get Edit / Delete that open the SAME TrialEditPanel and
@@ -14,6 +16,9 @@ vi.mock('react-router-dom', async () => {
 
 // The global permission is NOT club-scoped, so it is held constantly here; only the show-scoped
 // answer varies.
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
+
 let mockCanManage = true;
 let mockScopeStatus: 'resolved' | 'resolving' | 'unavailable' = 'resolved';
 vi.mock('@/hooks/useRBAC', () => ({
@@ -67,6 +72,15 @@ const stats = {
   t2: { classCount: 4, entryCount: 8, completedClasses: 0 },
 };
 
+const syncable = (trial: Trial): SyncableTrial => ({
+  ...trial,
+  _version: 1,
+  _lastModified: new Date('2026-05-01T00:00:00Z'),
+  _lastModifiedBy: 'user-1',
+  _syncStatus: 'synced',
+});
+const seedStore = () => useTrialStore.setState({ trials: trials.map(syncable) });
+
 const renderTab = () => render(<TrialsTab trials={trials} showId="s1" trialStats={stats} />);
 
 describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
@@ -75,6 +89,7 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = view;
+    seedStore();
   });
 
   it('shows a row menu for every trial to a manager', () => {
@@ -156,6 +171,7 @@ describe('TrialsTab Edit trial initializes from the selected trial', () => {
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = 'cards';
+    seedStore();
   });
 
   async function openScheduling(user: ReturnType<typeof renderTab>['user'], trialLabel: string) {
@@ -179,5 +195,46 @@ describe('TrialsTab Edit trial initializes from the selected trial', () => {
     const second = await openScheduling(user, 'Sunday Trial 2');
     expect(within(second).queryByText('Pick a date')).not.toBeInTheDocument();
     expect(within(second).getByText(/May 10(th)?, 2026/)).toBeVisible();
+  });
+});
+
+// Codex round 5: with a cold trial store (rows fed by the server read) the actions hydrate the
+// store first, and an unresolvable trial errors instead of opening a dialog that silently no-ops.
+describe('TrialsTab row actions with a cold trial store', () => {
+  beforeEach(() => {
+    toastError.mockClear();
+    mockCanManage = true;
+    mockScopeStatus = 'resolved';
+    mockViewMode = 'cards';
+    useTrialStore.setState({ trials: [] });
+  });
+
+  it('hydrates the store from the replica, then opens Edit for that trial', async () => {
+    const loadTrials = vi.fn(async () => {
+      useTrialStore.setState({ trials: trials.map(syncable) });
+    });
+    useTrialStore.setState({ loadTrials });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+
+    const panel = await screen.findByRole('dialog');
+    expect(loadTrials).toHaveBeenCalledTimes(1);
+    expect(within(panel).getByDisplayValue('Sunday Trial 2')).toBeVisible();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('shows an error and opens nothing when the trial cannot be resolved', async () => {
+    useTrialStore.setState({ loadTrials: vi.fn(async () => undefined) });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/couldn't load this trial/i))
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

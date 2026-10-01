@@ -13,7 +13,9 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
+import { toast } from 'sonner';
 import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
@@ -133,17 +135,36 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     action: 'edit' | 'delete';
   } | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
-  const pendingTrial = pendingTrialAction
-    ? trials.find(trial => trial.id === pendingTrialAction.trialId)
-    : undefined;
-  const editTrial = (trialId: string) => setPendingTrialAction({ trialId, action: 'edit' });
-  const deleteTrial = (trialId: string) => setPendingTrialAction({ trialId, action: 'delete' });
+  // The edit/delete actions write through the trial STORE, which is not always the source of
+  // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
+  // never open a dialog for a trial the store cannot resolve.
+  const [hydratingTrialId, setHydratingTrialId] = useState<string | null>(null);
+  const pendingTrial = useTrialStore(state =>
+    pendingTrialAction
+      ? state.trials.find(trial => trial.id === pendingTrialAction.trialId)
+      : undefined
+  );
+  const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
+    const inStore = () => useTrialStore.getState().trials.some(trial => trial.id === trialId);
+    setHydratingTrialId(trialId);
+    try {
+      if (!inStore()) await useTrialStore.getState().loadTrials();
+      if (!inStore()) {
+        toast.error("We couldn't load this trial. Please refresh and try again.");
+        return;
+      }
+      setPendingTrialAction({ trialId, action });
+    } finally {
+      setHydratingTrialId(null);
+    }
+  };
   const trialRowMenu = (trialId: string, label: string) => (
     <SetupRowActionsMenu
       subject="Trial"
       rowLabel={label}
-      onEdit={() => editTrial(trialId)}
-      onDelete={() => deleteTrial(trialId)}
+      busy={hydratingTrialId === trialId}
+      onEdit={() => void openTrialAction(trialId, 'edit')}
+      onDelete={() => void openTrialAction(trialId, 'delete')}
     />
   );
   const trialColumns = useMemo<ColumnDef<TrialRow, unknown>[]>(
@@ -162,7 +183,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           ]
         : baseTrialColumns,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
-    [canManageThisShow]
+    [canManageThisShow, hydratingTrialId]
   );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);

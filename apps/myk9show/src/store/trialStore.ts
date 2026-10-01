@@ -111,11 +111,11 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
+      // An unknown trial must FAIL, not resolve: a caller (the edit panel) closes on success, so
+      // a silent null reads as "saved" while nothing was written.
       const currentTrial = get().trials.find(t => t.id === id);
       if (!currentTrial) {
-        const error = `Trial with id ${id} not found`;
-        set({ error, isLoading: false });
-        return null;
+        throw new Error(`Trial with id ${id} not found`);
       }
 
       // Get current replicated data and update
@@ -197,9 +197,8 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
 
       const trialExists = get().trials.some(t => t.id === id);
       if (!trialExists) {
-        const error = `Trial with id ${id} not found`;
-        set({ error, isLoading: false });
-        return;
+        // Throw, never resolve: the delete dialog closes on success.
+        throw new Error(`Trial with id ${id} not found`);
       }
 
       // Delete from replicated table and queue DELETE mutation for Supabase

@@ -43,6 +43,8 @@ describe('DashboardQuickLinks', () => {
     expect(screen.queryByRole('link', { name: /Add Entry/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Add Entry/i }));
     const dialog = await screen.findByRole('dialog');
+    // Many shows must scroll inside the viewport, not push links off-screen.
+    expect(dialog).toHaveClass('max-h-[calc(100dvh-2rem)]', 'overflow-y-auto');
     expect(within(dialog).getByRole('link', { name: 'Spring Trial' })).toHaveAttribute(
       'href',
       '/secretary/register/a'

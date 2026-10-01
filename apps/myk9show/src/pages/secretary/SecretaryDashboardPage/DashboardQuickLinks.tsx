@@ -63,7 +63,7 @@ export function DashboardQuickLinks({ entryShows }: DashboardQuickLinksProps) {
         </p>
       )}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add entry to which show?</DialogTitle>
             <DialogDescription>Pick the show you are keying an entry for.</DialogDescription>

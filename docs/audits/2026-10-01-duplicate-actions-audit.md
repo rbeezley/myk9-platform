@@ -84,3 +84,15 @@ Already-correct links (don't touch): notification and toast links, dashboard att
 5. "Close entries now" / "Open entries now": menu items, or keep them date-driven in Edit?
 6. Scoring result values "Withdrawn" / "Absent": rename to fit Pull ≠ Withdraw (for example "Pulled", "No show")?
 7. Class page "Requirements": a menu item or an inline link?
+
+## Owner answers (2026-10-01)
+
+Recorded as decisions 14–20 in [`plan-core-object-ui-consistency.md`](../plan-core-object-ui-consistency.md):
+
+1. Keep the show-day add-entries tool.
+2. Cancel show and Close out show both go in the Actions menu.
+3. Banners keep their button.
+4. Dashboard tiles go; Actions menu only.
+5. Add "Close entries now" / "Open entries now" to Actions.
+6. Results keep Absent and Excused. Withdrawn is removed as a result choice, and a Pulled or Withdrawn entry shows "Absent · Pulled" or "Absent · Withdrawn (In season)" (revised after discussion).
+7. Requirements become an inline section.

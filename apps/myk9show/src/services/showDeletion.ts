@@ -16,7 +16,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
  */
 export async function deleteShowRecord(id: string, deletedBy?: string) {
   try {
-    if ((await replicatedShowsTable.hasUnsyncedWork(id))) {
+    if (await replicatedShowsTable.hasUnsyncedWork(id)) {
       const error = Object.assign(createDatabaseError(new Error('Show is still saving'), 'show'), {
         code: SHOW_STILL_SAVING,
       });

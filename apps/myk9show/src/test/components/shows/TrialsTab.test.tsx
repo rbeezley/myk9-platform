@@ -161,9 +161,27 @@ describe('TrialsTab', () => {
 
     const { user } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    await user.click(screen.getByRole('button', { name: /^Completed/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Trial views' }));
+    await user.click(await screen.findByRole('option', { name: /^Completed/ }));
     expect(screen.getByText('Derived Complete')).toBeInTheDocument();
     expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
+  });
+
+  it('lets the toolbar row wrap so the view select, toggle and Add Trial fit a phone', () => {
+    const trials = [
+      makeTrial({ id: 't1', status: 'Scheduled' }),
+      makeTrial({ id: 't2', status: 'Completed' }),
+    ];
+    const stats = {
+      t1: { classCount: 2, entryCount: 8, completedClasses: 2 },
+      t2: { classCount: 2, entryCount: 8, completedClasses: 0 },
+    };
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+
+    const row = screen
+      .getByRole('combobox', { name: 'Show: Trial views' })
+      .closest('div')?.parentElement;
+    expect(row?.className).toContain('flex-wrap');
   });
 
   it('hides scored text when completedClasses is 0', () => {

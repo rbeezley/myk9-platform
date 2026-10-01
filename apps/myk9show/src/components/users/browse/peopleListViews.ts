@@ -16,7 +16,7 @@ import {
   type PeopleFilters,
 } from '@/hooks/useBrowsePeopleData';
 
-type PeopleViewFilterPatch = Pick<PeopleFilters, 'role' | 'location' | 'login'>;
+type PeopleViewFilterPatch = Pick<PeopleFilters, 'role' | 'login'>;
 
 interface PeopleViewDefinition {
   id: string;
@@ -38,7 +38,6 @@ export function peopleViewFilterPatch(id: string): PeopleViewFilterPatch {
   const view = PEOPLE_VIEWS.find(v => v.id === id) ?? PEOPLE_VIEWS[0];
   return {
     role: DEFAULT_PEOPLE_FILTERS.role,
-    location: DEFAULT_PEOPLE_FILTERS.location,
     login: DEFAULT_PEOPLE_FILTERS.login,
     ...view.patch,
   };
@@ -49,11 +48,7 @@ export function activePeopleViewId(filters: PeopleFilters): string | null {
   return (
     PEOPLE_VIEWS.find(view => {
       const patch = peopleViewFilterPatch(view.id);
-      return (
-        filters.role === patch.role &&
-        filters.location === patch.location &&
-        filters.login === patch.login
-      );
+      return filters.role === patch.role && filters.login === patch.login;
     })?.id ?? null
   );
 }

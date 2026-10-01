@@ -45,12 +45,10 @@ let mockBrowseDogsReturn = {
   isLoading: false,
   hasError: false,
   handleRetry: vi.fn(),
-  filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'all' },
+  filters: { search: '', status: 'all' },
   setFilters: vi.fn(),
   hasActiveFilters: false,
   clearAllFilters: vi.fn(),
-  availableBreeds: ['Golden Retriever', 'Border Collie'],
-  availableOwners: ['Jane Doe'],
 };
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
@@ -154,12 +152,10 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       isLoading: false,
       hasError: false,
       handleRetry: vi.fn(),
-      filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'all' },
+      filters: { search: '', status: 'all' },
       setFilters: vi.fn(),
       hasActiveFilters: false,
       clearAllFilters: vi.fn(),
-      availableBreeds: ['Golden Retriever', 'Border Collie'],
-      availableOwners: ['Jane Doe'],
     };
   });
 
@@ -350,15 +346,15 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.queryByText('DN12345678')).not.toBeInTheDocument();
   });
 
-  it('uses "Sex" consistently for the filter and table column', async () => {
-    const user = userEvent.setup();
+  it('offers no Breed, Sex or Owner filter (cut by MYK9-906); search still covers them', () => {
     localStorage.setItem('view-pref-dogs', 'cards');
-
     renderPage();
-    await user.click(screen.getByRole('button', { name: /^filter$/i }));
 
-    expect(screen.getByRole('button', { name: 'Sex' })).toBeInTheDocument();
-    expect(screen.queryByText('Gender')).not.toBeInTheDocument();
+    for (const name of ['Breed', 'Sex', 'Owner']) {
+      expect(screen.queryByRole('combobox', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: /^filter$/i })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search dogs by name, breed, or owner...')).toBeVisible();
   });
 
   it('renders SearchBar with correct placeholder', () => {
@@ -378,77 +374,47 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
   it('renders the result line showing correct numbers', () => {
     renderPage();
 
-    // 1 of 1 dog
-    expect(screen.getByText(/1 dog/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Showing all 1 dog.');
   });
 
   describe('list-toolkit views and filters', () => {
-    it('renders the All/Active/Retired/Deceased view tabs', () => {
-      renderPage();
-
-      const nav = screen.getByRole('navigation', { name: 'Dog views' });
-      expect(nav).toHaveTextContent('All');
-      expect(nav).toHaveTextContent('Active');
-      expect(nav).toHaveTextContent('Retired');
-      expect(nav).toHaveTextContent('Deceased');
-    });
-
-    it('selecting a view tab sets the status filter', async () => {
+    it('offers All/Active/Retired/Deceased in a labelled "Show" select with counts', async () => {
       const user = userEvent.setup();
       renderPage();
 
-      await user.click(screen.getByRole('button', { name: /^retired/i }));
+      const select = screen.getByRole('combobox', { name: 'Show: Dog views' });
+      expect(select).toHaveTextContent(/^All \(/);
+      await user.click(select);
+      for (const label of ['Active', 'Retired', 'Deceased']) {
+        expect(await screen.findByRole('option', { name: new RegExp(`^${label}`) })).toBeVisible();
+      }
+    });
+
+    it('picking a view sets the status filter', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('combobox', { name: 'Show: Dog views' }));
+      await user.click(await screen.findByRole('option', { name: /^Retired/ }));
 
       expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
       const updater = mockBrowseDogsReturn.setFilters.mock.calls[0][0];
       expect(updater(mockBrowseDogsReturn.filters)).toMatchObject({ status: 'retired' });
     });
 
-    it('offers Owner as a filter field for a secretary', async () => {
+    it('says what is shown in a sentence and "Show all dogs" clears the filters', async () => {
       const user = userEvent.setup();
-      renderPage();
-
-      await user.click(screen.getByRole('button', { name: /^filter$/i }));
-
-      expect(screen.getByRole('button', { name: 'Owner' })).toBeInTheDocument();
-    });
-
-    it('does not offer Owner as a filter field for an exhibitor-only roster', async () => {
-      const user = userEvent.setup();
-      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
-      renderPage();
-
-      await user.click(screen.getByRole('button', { name: /^filter$/i }));
-
-      expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
-    });
-
-    // Codex review, PR #2561: a stale ?owner= from a shared link or an
-    // earlier staff view must not keep silently narrowing an own-dogs-only
-    // roster once the field that set it is gone from the menu.
-    it('clears a stale owner filter once the Owner field is hidden', () => {
-      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
       mockBrowseDogsReturn = {
         ...mockBrowseDogsReturn,
-        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
+        filters: { search: 'rex', status: 'retired' },
+        hasActiveFilters: true,
+        dogs: [...mockBrowseDogsReturn.dogs, ...mockBrowseDogsReturn.dogs],
       };
-
       renderPage();
 
-      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
-      const updater = mockBrowseDogsReturn.setFilters.mock.calls[0][0];
-      expect(updater(mockBrowseDogsReturn.filters)).toMatchObject({ owner: 'all' });
-    });
-
-    it('leaves an active owner filter alone when the field is offered', () => {
-      mockBrowseDogsReturn = {
-        ...mockBrowseDogsReturn,
-        filters: { search: '', breed: 'all', sex: 'all', status: 'all', owner: 'Jane Doe' },
-      };
-
-      renderPage();
-
-      expect(mockBrowseDogsReturn.setFilters).not.toHaveBeenCalled();
+      expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 dogs.');
+      await user.click(screen.getByRole('button', { name: 'Show all dogs' }));
+      expect(mockBrowseDogsReturn.clearAllFilters).toHaveBeenCalledOnce();
     });
   });
 

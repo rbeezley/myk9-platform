@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
@@ -223,7 +224,7 @@ describe('TasksTab — personal-only', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it('hides completed tasks by default and shows them on toggle', () => {
+  it('hides completed tasks by default and shows them on toggle', async () => {
     const doneTask = makeTask({
       id: 'done-1',
       title: 'Old task',
@@ -240,8 +241,31 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
 
     expect(screen.queryByText('Old task')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Task views' }));
+    await userEvent.click(
+      within(await screen.findByRole('listbox')).getByRole('option', { name: /^All/ })
+    );
     expect(screen.getByText('Old task')).toBeInTheDocument();
+  });
+
+  it('states the Open view and search, and "Show all tasks" clears both', async () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [
+        makeTask({ id: 't-1', title: 'Call vet' }),
+        makeTask({ id: 't-2', title: 'Done thing', status: 'done', dueDate: undefined }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    fireEvent.change(screen.getByPlaceholderText('Search tasks...'), { target: { value: 'call' } });
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 tasks.');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show all tasks' }));
+    expect(screen.getByText('Done thing')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search tasks...')).toHaveValue('');
   });
 
   it('search narrows the task list by title', () => {
@@ -264,7 +288,7 @@ describe('TasksTab — personal-only', () => {
     expect(screen.getByText('Print armbands')).toBeInTheDocument();
   });
 
-  it('the Open/All view tabs count open tasks and every task respectively', () => {
+  it('the Open/All views count open tasks and every task respectively', async () => {
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [
         makeTask({ id: 't-1', title: 'Open task', status: 'todo' }),
@@ -276,8 +300,12 @@ describe('TasksTab — personal-only', () => {
     } as unknown as ReturnType<typeof useSecretaryTasks>);
 
     render(<TasksTab clubId="club-1" />, { wrapper });
-    expect(screen.getByRole('button', { name: 'Open1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'All2' })).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: 'Show: Task views' });
+    expect(select).toHaveTextContent('Open (1)');
+    await userEvent.click(select);
+    expect(
+      within(await screen.findByRole('listbox')).getByRole('option', { name: 'All (2)' })
+    ).toBeInTheDocument();
   });
 
   it('reserves min-height in the loading skeleton to prevent CLS', () => {
@@ -319,9 +347,12 @@ describe('TasksTab — personal-only', () => {
   it('Add Task opens TaskAddForm in locked-personal mode (no show selector visible)', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
     fireEvent.click(screen.getByText('+ Add Task'));
-    // TaskAddForm is rendered; lockedShowId={null} means no combobox
+    // TaskAddForm is rendered; lockedShowId={null} means no show selector — the
+    // only combobox left is the page's own "Show:" view select.
     expect(screen.getByPlaceholderText('Task title…')).toBeInTheDocument();
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('combobox').map(el => el.getAttribute('aria-label'))).toEqual([
+      'Show: Task views',
+    ]);
   });
 
   it('passes lockShowEdit + hideShowChip to TaskRows so edits cannot move tasks across scopes', () => {
@@ -376,5 +407,26 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
     fireEvent.click(screen.getByLabelText(/Delete "Trash me"/i));
     expect(deleteMutate).toHaveBeenCalledWith('task-x', expect.any(Object));
+  });
+
+  it('shows no sentence while loading or after a failed load', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+    const { unmount } = render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
   });
 });

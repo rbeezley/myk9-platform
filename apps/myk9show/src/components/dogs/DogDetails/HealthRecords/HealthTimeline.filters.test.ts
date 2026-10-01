@@ -86,27 +86,10 @@ describe('filterHealthEvents', () => {
     expect(result.map(e => e.id)).toEqual(['visit-1']);
   });
 
-  it('filters by year', () => {
-    const result = filterHealthEvents(events, {
-      ...defaultHealthTimelineFilters,
-      selectedYear: 2025,
-    });
-    expect(result.map(e => e.id)).toEqual(['visit-1']);
-  });
-
-  it('filters by a year-boundary date (Dec 31)', () => {
-    const result = filterHealthEvents(events, {
-      ...defaultHealthTimelineFilters,
-      selectedYear: 2024,
-    });
-    expect(result.map(e => e.id)).toEqual(['med-1']);
-  });
-
-  it('ANDs search, type, and year filters together', () => {
+  it('ANDs search and type filters together', () => {
     const filters: HealthTimelineFilters = {
       searchTerm: 'chen',
       filterType: 'vet_visit',
-      selectedYear: 2025,
     };
     expect(filterHealthEvents(events, filters).map(e => e.id)).toEqual(['visit-1']);
   });
@@ -115,7 +98,6 @@ describe('filterHealthEvents', () => {
     const filters: HealthTimelineFilters = {
       searchTerm: 'chen',
       filterType: 'vaccination',
-      selectedYear: 2025,
     };
     expect(filterHealthEvents(events, filters)).toEqual([]);
   });
@@ -138,12 +120,6 @@ describe('hasActiveHealthTimelineFilters', () => {
     ).toBe(true);
   });
 
-  it('is true when a year filter is active', () => {
-    expect(
-      hasActiveHealthTimelineFilters({ ...defaultHealthTimelineFilters, selectedYear: 2025 })
-    ).toBe(true);
-  });
-
   it('ignores whitespace-only search terms', () => {
     expect(
       hasActiveHealthTimelineFilters({ ...defaultHealthTimelineFilters, searchTerm: '   ' })
@@ -162,7 +138,7 @@ describe('hasActiveHealthTimelineFilters', () => {
   it('is true when a search term is added on top of the vaccinationsOnly baseline', () => {
     expect(
       hasActiveHealthTimelineFilters(
-        { searchTerm: 'rabies', filterType: 'vaccination', selectedYear: null },
+        { searchTerm: 'rabies', filterType: 'vaccination' },
         'vaccination'
       )
     ).toBe(true);

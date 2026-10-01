@@ -139,21 +139,15 @@ afterEach(() => {
 // ── /dogs ───────────────────────────────────────────────────────────────────
 
 describe('useBrowseDogsData URL filters', () => {
-  it('seeds search, breed, and sex from the query string', () => {
-    const { wrapper } = setupWrapper('/dogs?search=bell&breed=Border%20Collie&sex=female');
+  it('seeds search and status from the query string', () => {
+    const { wrapper } = setupWrapper('/dogs?search=bell&status=retired');
     const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
 
-    expect(result.current.filters).toEqual({
-      search: 'bell',
-      breed: 'Border Collie',
-      sex: 'female',
-      status: 'all',
-      owner: 'all',
-    });
+    expect(result.current.filters).toEqual({ search: 'bell', status: 'retired' });
   });
 
-  it('applies the URL-seeded filter to the roster on the very first render', () => {
-    const { wrapper } = setupWrapper('/dogs?breed=Border%20Collie');
+  it('applies the URL-seeded search to the roster on the very first render', () => {
+    const { wrapper } = setupWrapper('/dogs?search=collie');
     const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
 
     expect(result.current.filteredDogs.map(d => d.id)).toEqual(['dog-2']);
@@ -161,16 +155,16 @@ describe('useBrowseDogsData URL filters', () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  it('writes a chip filter to the URL while preserving ?add=true', () => {
+  it('writes a status view to the URL while preserving ?add=true', () => {
     const { wrapper, probe } = setupWrapper('/dogs?add=true');
     const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
 
     act(() => {
-      result.current.setFilters(prev => ({ ...prev, sex: 'female' }));
+      result.current.setFilters(prev => ({ ...prev, status: 'retired' }));
     });
 
     const params = new URLSearchParams(probe.search);
-    expect(params.get('sex')).toBe('female');
+    expect(params.get('status')).toBe('retired');
     expect(params.get('add')).toBe('true');
   });
 
@@ -191,7 +185,7 @@ describe('useBrowseDogsData URL filters', () => {
   });
 
   it('clears every filter param — and nothing else — via clearAllFilters', () => {
-    const { wrapper, probe } = setupWrapper('/dogs?add=true&breed=Border%20Collie&sex=female');
+    const { wrapper, probe } = setupWrapper('/dogs?add=true&status=retired&search=max');
     const { result } = renderHook(() => useBrowseDogsData(), { wrapper });
 
     act(() => {
@@ -199,8 +193,8 @@ describe('useBrowseDogsData URL filters', () => {
     });
 
     const params = new URLSearchParams(probe.search);
-    expect(params.has('breed')).toBe(false);
-    expect(params.has('sex')).toBe(false);
+    expect(params.has('status')).toBe(false);
+    expect(params.has('search')).toBe(false);
     expect(params.get('add')).toBe('true');
     expect(result.current.hasActiveFilters).toBe(false);
   });
@@ -216,7 +210,6 @@ describe('useBrowsePeopleData URL filters', () => {
     expect(result.current.filters).toEqual({
       search: 'ada',
       role: 'judge',
-      location: 'all',
       login: 'all',
     });
     expect(result.current.filteredPeople.map(p => p.id)).toEqual(['p-1']);
@@ -235,6 +228,17 @@ describe('useBrowsePeopleData URL filters', () => {
     expect(params.get('add')).toBe('true');
   });
 
+  it('drops a role no view offers and a sign-in restriction that cannot combine with a role', () => {
+    const stale = setupWrapper('/people?role=steward');
+    const a = renderHook(() => useBrowsePeopleData(), { wrapper: stale.wrapper });
+    expect(a.result.current.filters.role).toBe('all');
+    expect(a.result.current.hasActiveFilters).toBe(false);
+
+    const both = setupWrapper('/people?role=judge&login=none');
+    const b = renderHook(() => useBrowsePeopleData(), { wrapper: both.wrapper });
+    expect(b.result.current.filters).toMatchObject({ role: 'judge', login: 'all' });
+  });
+
   it('accepts the "none" login value but falls back for anything else', () => {
     const { wrapper: noneWrapper } = setupWrapper('/people?login=none');
     const { result: noneResult } = renderHook(() => useBrowsePeopleData(), {
@@ -248,47 +252,31 @@ describe('useBrowsePeopleData URL filters', () => {
     });
     expect(garbageResult.current.filters.login).toBe('all');
   });
-
-  it('writes the location filter to the URL', () => {
-    const { wrapper, probe } = setupWrapper('/people');
-    const { result } = renderHook(() => useBrowsePeopleData(), { wrapper });
-
-    act(() => {
-      result.current.setFilters(prev => ({ ...prev, location: 'CA' }));
-    });
-
-    expect(new URLSearchParams(probe.search).get('location')).toBe('CA');
-  });
 });
 
 // ── /clubs ──────────────────────────────────────────────────────────────────
 
 describe('useBrowseClubsData URL filters', () => {
-  it('seeds search and clubType from the query string', () => {
-    const { wrapper } = setupWrapper('/clubs?search=retriever&clubType=all-breed');
+  it('seeds search from the query string', () => {
+    const { wrapper } = setupWrapper('/clubs?search=retriever');
     const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
-    expect(result.current.filters).toEqual({ search: 'retriever', clubType: 'all-breed' });
+    expect(result.current.filters).toEqual({ search: 'retriever' });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  it('falls back to the default for a clubType outside CLUB_TYPES', () => {
-    const { wrapper } = setupWrapper('/clubs?clubType=notathing');
-    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
-
-    expect(result.current.filters.clubType).toBe('all');
-    expect(result.current.hasActiveFilters).toBe(false);
-  });
-
-  it('writes the clubType filter to the URL', () => {
+  it('writes the search filter to the URL', () => {
     const { wrapper, probe } = setupWrapper('/clubs');
     const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
     act(() => {
-      result.current.setFilters(prev => ({ ...prev, clubType: 'specialty' }));
+      result.current.setFilters(prev => ({ ...prev, search: 'agility' }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
     });
 
-    expect(new URLSearchParams(probe.search).get('clubType')).toBe('specialty');
+    expect(new URLSearchParams(probe.search).get('search')).toBe('agility');
   });
 });
 
@@ -323,6 +311,31 @@ describe('useBrowseShowsFilters URL filters', () => {
     expect(params.get('entryStatus')).toBe('open');
     expect(params.get('tab')).toBe('managing');
     expect(params.get('view')).toBe('cards');
+  });
+
+  it('reads an unknown or tab-inert ?status= and a retired ?organization= as unfiltered', () => {
+    // Nothing may narrow the list by a param the page has no control to show and
+    // reset (MYK9-906): status is the Managing tab's view only.
+    const unknown = setupWrapper('/shows?tab=managing&status=bogus');
+    const a = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'managing' }), {
+      wrapper: unknown.wrapper,
+    });
+    expect(a.result.current.filters.status).toBe('all');
+    expect(a.result.current.hasActiveFilters).toBe(false);
+
+    const inert = setupWrapper('/shows?status=draft&organization=AKC');
+    const b = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'all' }), {
+      wrapper: inert.wrapper,
+    });
+    expect(b.result.current.filters.status).toBe('all');
+    expect(b.result.current.hasActiveFilters).toBe(false);
+
+    const managing = setupWrapper('/shows?tab=managing&status=draft');
+    const c = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'managing' }), {
+      wrapper: managing.wrapper,
+    });
+    expect(c.result.current.filters.status).toBe('draft');
+    expect(c.result.current.hasActiveFilters).toBe(true);
   });
 
   it('falls back to the default for a month the app cannot act on', () => {

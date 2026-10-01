@@ -63,19 +63,20 @@ function sameDay(left: Date | null, right: Date | null): boolean {
   return left.toDateString() === right.toDateString();
 }
 
-function sameFilters(left: UserFilter, right: UserFilter): boolean {
-  return (
-    left.role === right.role &&
-    left.status === right.status &&
-    left.login === right.login &&
-    left.showDeleted === right.showDeleted &&
-    sameDay(left.dateRange.start, right.dateRange.start) &&
-    sameDay(left.dateRange.end, right.dateRange.end)
-  );
-}
-
-export function activeUserViewId(filters: UserFilter, now: number): string | null {
-  return USER_VIEWS.find(view => sameFilters(view.filters(now), filters))?.id ?? null;
+/**
+ * The view the Show select reads, from the view-state axes alone (status and
+ * sign-in recency, or the "New" date window). Role, Removed users and a custom
+ * Created range are visible fields of their own and never turn the view into
+ * "Custom" — otherwise a status or sign-in restriction would sit hidden behind
+ * that label. The URL codec guarantees status and sign-in never combine.
+ */
+export function activeUserViewId(filters: UserFilter, now: number): string {
+  if (filters.status === 'suspended') return 'suspended';
+  if (filters.login === 'recent30') return 'recent';
+  if (filters.login === 'dormant90') return 'dormant';
+  if (filters.login === 'never') return 'never';
+  const { start, end } = filters.dateRange;
+  return end === null && sameDay(start, daysAgo(now, 7)) ? 'new' : 'all';
 }
 
 export function userViewFilters(id: string, now: number): UserFilter {

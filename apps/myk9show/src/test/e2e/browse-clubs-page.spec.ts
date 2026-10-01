@@ -27,7 +27,7 @@ test.describe('Browse Clubs Page', () => {
     });
 
     test('should display result count', async ({ page }) => {
-      await expect(page.locator('text=/\\d+ of \\d+ clubs?/')).toBeVisible();
+      await expect(page.getByText(/^Showing (all )?\d+( of \d+)? clubs?\.$/)).toBeVisible();
     });
   });
 
@@ -75,29 +75,12 @@ test.describe('Browse Clubs Page', () => {
       await page.waitForTimeout(400);
 
       // If clubs match, result count should reflect the filter
-      const countText = page.locator('text=/\\d+ of \\d+ clubs?/');
-      await expect(countText).toBeVisible();
+      await expect(page.getByText(/^Showing (all )?\d+( of \d+)? clubs?\.$/)).toBeVisible();
     });
 
-    test('should show active filter chip when searching', async ({ page }) => {
-      const searchInput = page.locator('input[placeholder*="Search clubs"]');
-      await searchInput.fill('test');
-      await page.waitForTimeout(400);
-
-      // Should show a filter chip with the search text
-      const filterChip = page.locator('text=/test/i').first();
-      await expect(filterChip).toBeVisible();
-    });
-
-    test('should show Filters button', async ({ page }) => {
-      await expect(page.locator('button:has-text("Filters")')).toBeVisible();
-    });
-
-    test('should expand filter panel on click', async ({ page }) => {
-      await page.locator('button:has-text("Filters")').click();
-
-      // Club Type dropdown should appear
-      await expect(page.locator('text=All Types')).toBeVisible();
+    test('should offer no Club Type filter (cut by MYK9-906)', async ({ page }) => {
+      await expect(page.getByRole('combobox', { name: 'Club Type' })).toHaveCount(0);
+      await expect(page.locator('button:has-text("Filters")')).toHaveCount(0);
     });
 
     test('should show no results message when search has no matches', async ({ page }) => {
@@ -117,8 +100,8 @@ test.describe('Browse Clubs Page', () => {
       await searchInput.fill('test');
       await page.waitForTimeout(400);
 
-      // Click "Clear all" if visible
-      const clearAll = page.locator('button:has-text("Clear all")');
+      // Click "Show all clubs" if visible
+      const clearAll = page.getByRole('button', { name: 'Show all clubs' });
       if (await clearAll.isVisible()) {
         await clearAll.click();
         await page.waitForTimeout(300);

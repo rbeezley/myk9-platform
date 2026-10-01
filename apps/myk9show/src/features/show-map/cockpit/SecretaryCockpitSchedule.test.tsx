@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -154,18 +154,15 @@ const snapshotWithMixedStates: SecretaryCockpitSnapshot = {
 };
 
 describe('SecretaryCockpitSchedule view tabs', () => {
-  it('shows a live count on every view, computed from the Classes already on the page', () => {
-    renderSchedule(snapshotWithMixedStates, 'all');
+  it('shows a live count on every view, computed from the Classes already on the page', async () => {
+    const { user } = renderSchedule(snapshotWithMixedStates, 'all');
 
-    const tabs = within(screen.getByLabelText('Schedule filters'));
-    expect(tabs.getByRole('button', { name: /^All/ })).toHaveTextContent('All3');
-    expect(tabs.getByRole('button', { name: /^In progress/ })).toHaveTextContent('In progress1');
-    expect(tabs.getByRole('button', { name: /^Needs attention/ })).toHaveTextContent(
-      'Needs attention1'
-    );
-    expect(tabs.getByRole('button', { name: /^Needs closeout/ })).toHaveTextContent(
-      'Needs closeout1'
-    );
+    const select = screen.getByRole('combobox', { name: 'Show: Schedule filters' });
+    expect(select).toHaveTextContent('All (3)');
+    await user.click(select);
+    expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Needs attention (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Needs closeout (1)' })).toBeInTheDocument();
   });
 
   it('narrows the schedule by calling onFilterChange, matching the prop contract from before the ListViewTabs swap', async () => {
@@ -189,8 +186,8 @@ describe('SecretaryCockpitSchedule view tabs', () => {
       />
     );
 
-    const tabs = within(screen.getByLabelText('Schedule filters'));
-    await user.click(tabs.getByRole('button', { name: /^Needs attention/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    await user.click(await screen.findByRole('option', { name: /^Needs attention/ }));
 
     expect(onFilterChange).toHaveBeenCalledWith('needs-attention');
   });
@@ -237,8 +234,9 @@ describe('SecretaryCockpitSchedule offline', () => {
     // nothing here ever fetches, so going offline changes nothing about them.
     expect(screen.getByText('Container Novice')).toBeInTheDocument();
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    const tabs = within(screen.getByLabelText('Schedule filters'));
-    expect(tabs.getByRole('button', { name: /^In progress/ })).toHaveTextContent('In progress1');
+    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
 
     // The per-row expected-start control still queues its update through the
     // replicated mutation path while offline (design.md §2.4: unchanged by

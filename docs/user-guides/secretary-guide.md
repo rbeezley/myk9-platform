@@ -84,7 +84,7 @@ The wizard creates all three in one pass. **Dashboard → Add Show.**
 
 ![Entry Management with the Needs review queue selected and Review registration on each row](../screenshots/S-07.png)
 
-The chips across the top are queues — _Needs review_, _Missing information_, _Payment due_, _All registrations_. The active one is highlighted; the counts beside each tell you what's waiting.
+The **Show:** menu across the top lists the queues — _Needs review_, _Missing info_, _Payment due_, _All_ — with the count of each in brackets, so you can see what's waiting. A short sentence under the filters says how many you're looking at ("Showing 12 of 214 registrations."); choose **Show all registrations** to get back to everything.
 
 ## 4 · Enter a mail-in or paper entry
 

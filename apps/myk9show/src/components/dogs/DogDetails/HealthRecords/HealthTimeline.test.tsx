@@ -266,38 +266,44 @@ describe('HealthTimeline filters via the shared list toolkit', () => {
     expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
   });
 
-  it('narrows the timeline by type through the "+ Filter" menu', async () => {
+  it('states type and search in a sentence and "Show all health records" clears both', async () => {
     const user = userEvent.setup();
     render(<HealthTimeline dogId="dog-123" events={events} />);
 
-    await user.click(screen.getByRole('button', { name: /^filter$/i }));
-    await user.click(screen.getByRole('button', { name: 'Type' }));
-    await user.click(screen.getByRole('button', { name: 'Vet Visit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
+    await user.click(await screen.findByRole('option', { name: 'Vet Visit' }));
+    fireEvent.change(screen.getByLabelText(/search health records/i), {
+      target: { value: 'checkup' },
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 health records.');
+
+    await user.click(screen.getByRole('button', { name: 'Show all health records' }));
+    expect(screen.getByText('Rabies Vaccination')).toBeInTheDocument();
+    expect(screen.getByLabelText(/search health records/i)).toHaveValue('');
+  });
+
+  it('narrows the timeline by type with the always-visible Type select', async () => {
+    const user = userEvent.setup();
+    render(<HealthTimeline dogId="dog-123" events={events} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
+    await user.click(await screen.findByRole('option', { name: 'Vet Visit' }));
 
     expect(screen.getByText('Annual Checkup')).toBeInTheDocument();
     expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
   });
 
-  it('narrows the timeline by year through the "+ Filter" menu', async () => {
-    const user = userEvent.setup();
+  it('has no Year filter: the timeline already groups by year', () => {
     render(<HealthTimeline dogId="dog-123" events={events} />);
 
-    await user.click(screen.getByRole('button', { name: /^filter$/i }));
-    await user.click(screen.getByRole('button', { name: 'Year' }));
-    await user.click(screen.getByRole('button', { name: '2025' }));
-
-    expect(screen.getByText('Annual Checkup')).toBeInTheDocument();
-    expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Year' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /2025/ })).toBeInTheDocument();
   });
 
-  it('omits Type from the filter menu in vaccinations-only mode', async () => {
-    const user = userEvent.setup();
+  it('omits Type in vaccinations-only mode', () => {
     render(<HealthTimeline dogId="dog-123" events={events} vaccinationsOnly />);
 
-    await user.click(screen.getByRole('button', { name: /^filter$/i }));
-
-    expect(screen.queryByRole('button', { name: 'Type' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Year' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Type' })).not.toBeInTheDocument();
   });
 });
 

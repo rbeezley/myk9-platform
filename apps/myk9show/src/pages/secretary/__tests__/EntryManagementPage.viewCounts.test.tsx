@@ -115,13 +115,50 @@ vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
 
 describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
   it('shows one registration in Needs review, Missing info, and Payment due, and all three under All', async () => {
-    render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+    const view = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
 
-    const views = await screen.findByRole('navigation', { name: 'Entry views' });
-    expect(within(views).getByRole('button', { name: /Needs review/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /Missing info/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /Payment due/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /^All/ })).toHaveTextContent('3');
-    expect(within(views).getByRole('button', { name: /Move-ups/ })).toHaveTextContent('5');
+    const { user } = view;
+    const select = await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    await user.click(select);
+    const listbox = await screen.findByRole('listbox');
+    const optionText = (name: RegExp) => within(listbox).getByRole('option', { name }).textContent;
+    expect(optionText(/Needs review/)).toBe('Needs review (1)');
+    expect(optionText(/Missing info/)).toBe('Missing info (1)');
+    expect(optionText(/Payment due/)).toBe('Payment due (1)');
+    expect(optionText(/^All/)).toBe('All (3)');
+    expect(optionText(/Move-ups/)).toBe('Move-ups (5)');
+  });
+});
+
+describe('EntryManagementPage status sentence (MYK9-906)', () => {
+  const sentence = () =>
+    screen
+      .getAllByRole('status')
+      .map(el => el.textContent)
+      .find(text => text?.startsWith('Showing'));
+
+  it('keeps the whole-show total as the denominator while a class scope narrows the list', async () => {
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries?queue=all&class=class-9' });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+  });
+
+  it('keeps the same denominator when a search is added to the scope', async () => {
+    render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?queue=all&class=class-9&search=nomatch',
+    });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+  });
+
+  it('ignores the retired paymentStatus param: a stale link shows the unfiltered list', async () => {
+    render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?queue=all&paymentStatus=paid_online',
+    });
+
+    await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    expect(sentence()).toBe('Showing all 3 registrations.');
   });
 });

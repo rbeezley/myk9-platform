@@ -64,19 +64,13 @@ describe('Class Management views', () => {
     expect(activeClassManagementViewId({ status: 'all', element: 'all', search: '' })).toBe('all');
   });
 
-  it('a view is active only on an exact match — a coexisting element filter reads as custom', () => {
+  it('the view is the status alone: a coexisting element or search never hides it as "Custom"', () => {
     expect(
-      activeClassManagementViewId({ status: 'not_started', element: 'Container', search: '' })
-    ).toBeNull();
-    expect(activeClassManagementViewId({ status: 'not_started', element: 'all', search: '' })).toBe(
-      'not_started'
+      activeClassManagementViewId({ status: 'not_started', element: 'Container', search: 'x' })
+    ).toBe('not_started');
+    expect(activeClassManagementViewId({ status: 'all', element: 'all', search: 'novice' })).toBe(
+      'all'
     );
-  });
-
-  it('a view is active only on an exact match — a coexisting search term reads as custom', () => {
-    expect(
-      activeClassManagementViewId({ status: 'all', element: 'all', search: 'novice' })
-    ).toBeNull();
   });
 
   it('selecting a view resets element and search to the view preset', () => {

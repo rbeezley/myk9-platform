@@ -13,6 +13,8 @@ One set of list controls for every large admin table (Users first, then Dogs and
 3. **Result line** — "214 of 4,812 users" and "Select all 214 matching", so bulk actions reach past the current page.
 4. **Floating bulk bar** — bottom centre, fixed, appears on the first selection; always in view wherever the admin has scrolled.
 
+> **MYK9-906 changed the presentation** (see [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md) Phase 9). The behaviour above is unchanged; how it looks is not: view tabs are a labelled **Show:** select with the count inside each option ("Pending (12)") and read "Custom" when the filters match no view; every filter field is always visible as a labelled select ("Class: [Any class ▾]", date ranges as a "Created: [Any time ▾]" popover) instead of removable chips behind a "+ Filter" menu; and the result line is a short sentence ("Showing 12 of 214 entries.") with a **Show all entries** button that clears search, view and fields. It states count and noun only: the dropdowns already show every active filter, and any URL param that narrows a list without a visible control is normalized away when read. Thirteen rarely-used fields were cut at the same time. Each page decides "filtered" from the same applied state that filters its list and resets it in one update; the sentence stays hidden until the data has loaded.
+
 Filter state stays in the URL (existing `userListParams.ts` codec), so every filtered list is a link.
 
 ## Duplication check

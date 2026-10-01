@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getDogBreedLabel, getDogDisplayName, type Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import {
   buildDogSearchText,
   DEFAULT_DOG_FILTERS,
@@ -16,10 +16,7 @@ export type { DogFilters };
 // WARNING: a value missing from this list is ERASED, not ignored — the param is
 // stripped and the filter falls back to its default. Adding a chip option
 // without adding it here does not degrade the deep link, it DESTROYS it.
-// `breed` and `owner` are derived from the roster, so they have no static
-// list to check against.
 const ALLOWED_FILTER_VALUES = {
-  sex: ['male', 'female'],
   status: ['active', 'retired', 'deceased'],
 } as const;
 
@@ -33,8 +30,6 @@ export interface BrowseDogsData {
   setFilters: React.Dispatch<React.SetStateAction<DogFilters>>;
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
-  availableBreeds: string[];
-  availableOwners: string[];
 }
 
 export function useBrowseDogsData(): BrowseDogsData {
@@ -51,27 +46,6 @@ export function useBrowseDogsData(): BrowseDogsData {
   const [filters, setFilters] = useUrlFilters<DogFilters>(DEFAULT_DOG_FILTERS, {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
-
-  // Derive unique breeds from actual data
-  const availableBreeds = useMemo(() => {
-    const breeds = new Set<string>();
-    for (const dog of dogs) {
-      const breed = getDogBreedLabel(dog);
-      if (breed !== 'Breed not set') breeds.add(breed);
-    }
-    return [...breeds].sort((a, b) => a.localeCompare(b));
-  }, [dogs]);
-
-  // Staff-only filter field (`dogBrowseFilterFields.ts` gates its rendering);
-  // harmless to compute unconditionally since it's just names off the roster
-  // this call already has.
-  const availableOwners = useMemo(() => {
-    const owners = new Set<string>();
-    for (const dog of dogs) {
-      if (dog.ownerName) owners.add(dog.ownerName);
-    }
-    return [...owners].sort((a, b) => a.localeCompare(b));
-  }, [dogs]);
 
   // Sorted once per data change, NOT per keystroke. The sort does not depend on
   // `filters` at all, but it used to sit at the end of the filter memo, so every
@@ -110,7 +84,5 @@ export function useBrowseDogsData(): BrowseDogsData {
     setFilters,
     hasActiveFilters,
     clearAllFilters,
-    availableBreeds,
-    availableOwners,
   };
 }

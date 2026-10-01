@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ListFilterBar } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import TrainingDeleteConfirmDialog from './TrainingDeleteConfirmDialog';
 import { TrainingEntryForm } from './TrainingEntryForm';
 import { progressLabels } from './TrainingJournal.constants';
@@ -176,7 +176,14 @@ export function EnhancedTrainingJournal({
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search training sessions..."
             fields={[]}
-            {...(searchTerm ? { onClearAll: () => setSearchTerm('') } : {})}
+          />
+          <ListResultLine
+            className="mt-3"
+            shown={filteredEntries.length}
+            total={entries.length}
+            noun={['training session', 'training sessions']}
+            filtered={searchTerm.trim() !== ''}
+            onShowAll={() => setSearchTerm('')}
           />
         </CardContent>
       </Card>

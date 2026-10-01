@@ -8,7 +8,6 @@ import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
 import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
-import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
@@ -21,7 +20,7 @@ import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAf
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -64,24 +63,6 @@ const BrowseClubsPage: React.FC = () => {
     clearAllFilters,
     clubShowCounts,
   } = useBrowseClubsData();
-
-  const filterFields: ListFilterField[] = useMemo(
-    () => [
-      {
-        kind: 'options',
-        key: 'clubType',
-        label: 'Club Type',
-        value: filters.clubType === 'all' ? null : filters.clubType,
-        onChange: value => setFilters(prev => ({ ...prev, clubType: value ?? 'all' })),
-        options: CLUB_TYPES.map(type => ({
-          value: type.value,
-          label: type.label,
-          count: clubs.filter(club => club.clubType === type.value).length,
-        })),
-      },
-    ],
-    [clubs, filters.clubType, setFilters]
-  );
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(() => [{ label: 'Clubs', href: '/clubs' }], []);
@@ -233,14 +214,14 @@ const BrowseClubsPage: React.FC = () => {
               searchValue={filters.search}
               onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
               searchPlaceholder="Search clubs by name, city, or state..."
-              fields={filterFields}
-              onClearAll={clearAllFilters}
+              fields={[]}
             />
             <ListResultLine
               shown={filteredClubs.length}
               total={clubs.length}
               noun={['club', 'clubs']}
               filtered={hasActiveFilters}
+              onShowAll={clearAllFilters}
             >
               <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
             </ListResultLine>

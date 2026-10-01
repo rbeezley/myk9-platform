@@ -9,6 +9,7 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
+  patchSearchParams,
   type ListView,
 } from '@/components/list-toolkit';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
@@ -347,10 +348,13 @@ export default function RoleRequestsPage() {
       />
 
       <ListResultLine
+        ready={!loading && !error}
         shown={filteredRequests.length}
         total={requests.length}
         noun={REQUEST_NOUN}
-        filtered={hasSearch || filter !== DEFAULT_STATUS_FILTER}
+        filtered={hasSearch || filter !== 'all'}
+        // One URL update: two setters would each clone the same snapshot.
+        onShowAll={() => patchSearchParams(setSearchParams, { status: 'all', q: null })}
       />
 
       {error && (

@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { downloadFile, exportToCSV } from '@/lib/export';
-import { ListFilterBar } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
 import {
@@ -149,7 +149,6 @@ export function HealthTimeline({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   // Container width (not viewport width) drives reflow: the Dog Details
   // main column can be narrow even at desktop viewport sizes when a sidebar
@@ -158,8 +157,8 @@ export function HealthTimeline({
   const isNarrow = containerWidth !== null && containerWidth < 480;
 
   const activeFilters: HealthTimelineFilters = useMemo(
-    () => ({ searchTerm, filterType, selectedYear }),
-    [searchTerm, filterType, selectedYear]
+    () => ({ searchTerm, filterType }),
+    [searchTerm, filterType]
   );
   const baselineFilterType = vaccinationsOnly ? 'vaccination' : 'all';
   const filtersActive = hasActiveHealthTimelineFilters(activeFilters, baselineFilterType);
@@ -167,13 +166,26 @@ export function HealthTimeline({
   const clearFilters = () => {
     setSearchTerm('');
     setFilterType(vaccinationsOnly ? 'vaccination' : 'all');
-    setSelectedYear(null);
   };
 
   const handleFilterFieldChange = (patch: Partial<HealthTimelineFilters>) => {
     if ('filterType' in patch && patch.filterType !== undefined) setFilterType(patch.filterType);
-    if ('selectedYear' in patch) setSelectedYear(patch.selectedYear ?? null);
   };
+
+  const filterFields = buildHealthTimelineFilterFields({
+    filters: activeFilters,
+    eventTypeOptions: Object.entries(eventTypeConfig).map(([key, config]) => ({
+      value: key,
+      label: config.label,
+    })),
+    vaccinationsOnly,
+    onChange: handleFilterFieldChange,
+  });
+  // The whole set the filters narrow: in vaccinations-only mode that is the
+  // vaccinations, not every record on the dog.
+  const wholeSet = vaccinationsOnly
+    ? events.filter(event => event.type === 'vaccination').length
+    : events.length;
 
   const filteredEvents = useMemo(() => {
     return filterHealthEvents(events, activeFilters).sort(
@@ -196,14 +208,6 @@ export function HealthTimeline({
   const years = Object.keys(eventsByYear)
     .map(Number)
     .sort((a, b) => b - a);
-
-  // Options for the year filter must come from the full (unfiltered) event
-  // set, not `years`, or picking a year would remove every other year from
-  // the dropdown.
-  const availableYears = useMemo(
-    () => Array.from(new Set(events.map(event => event.date.getFullYear()))).sort((a, b) => b - a),
-    [events]
-  );
 
   const getExportFilename = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -298,17 +302,7 @@ export function HealthTimeline({
                 searchValue={searchTerm}
                 onSearchChange={setSearchTerm}
                 searchPlaceholder="Search health records..."
-                fields={buildHealthTimelineFilterFields({
-                  filters: activeFilters,
-                  eventTypeOptions: Object.entries(eventTypeConfig).map(([key, config]) => ({
-                    value: key,
-                    label: config.label,
-                  })),
-                  availableYears,
-                  vaccinationsOnly,
-                  onChange: handleFilterFieldChange,
-                })}
-                {...(filtersActive ? { onClearAll: clearFilters } : {})}
+                fields={filterFields}
               />
             </div>
 
@@ -322,6 +316,14 @@ export function HealthTimeline({
               <Filter className="h-4 w-4" />
             </Button>
           </div>
+          <ListResultLine
+            className="mt-3"
+            shown={filteredEvents.length}
+            total={wholeSet}
+            noun={['health record', 'health records']}
+            filtered={filtersActive}
+            onShowAll={clearFilters}
+          />
         </CardContent>
       </Card>
 

@@ -10,8 +10,7 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
-import type { PaymentStatus } from '@/types/show-registration-types';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
@@ -34,10 +33,12 @@ interface EntryManagementViewToolbarProps {
   density: OperationalViewDensity;
   onSelectView: (viewId: EntryManagementViewId) => void;
   onScopeChange: (trialId: string | null, classId?: string | null) => void;
-  onPaymentStatusChange: (status: PaymentStatus | null) => void;
   onSearchChange: (value: string) => void;
   onDensityChange: (density: OperationalViewDensity) => void;
   onClearAll: () => void;
+  /** Registrations on screen after every filter, and in the show's whole queue. */
+  /** Null until the entries have loaded successfully: no sentence before then. */
+  result: { shown: number; total: number } | null;
 }
 
 export function EntryManagementViewToolbar({
@@ -48,15 +49,20 @@ export function EntryManagementViewToolbar({
   density,
   onSelectView,
   onScopeChange,
-  onPaymentStatusChange,
   onSearchChange,
   onDensityChange,
   onClearAll,
+  result,
 }: EntryManagementViewToolbarProps) {
   const views = buildEntryManagementViews(counts);
   const activeId = entryManagementViewId(state);
   const isRegistrationsView = state.tab === 'registrations';
-
+  const filterFields = buildEntryManagementFilterFields({
+    state,
+    trials,
+    trialClasses,
+    onScopeChange,
+  });
   return (
     <div className="flex flex-col gap-3">
       <ListViewTabs
@@ -72,14 +78,7 @@ export function EntryManagementViewToolbar({
               searchValue={state.search}
               onSearchChange={onSearchChange}
               searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
-              fields={buildEntryManagementFilterFields({
-                state,
-                trials,
-                trialClasses,
-                onScopeChange,
-                onPaymentStatusChange,
-              })}
-              onClearAll={onClearAll}
+              fields={filterFields}
             />
           </div>
           <Popover>
@@ -95,6 +94,20 @@ export function EntryManagementViewToolbar({
             </PopoverContent>
           </Popover>
         </div>
+      )}
+      {isRegistrationsView && result && (
+        <ListResultLine
+          shown={result.shown}
+          total={result.total}
+          noun={['registration', 'registrations']}
+          filtered={
+            state.search.trim() !== '' ||
+            activeId !== 'all' ||
+            state.trialId !== null ||
+            state.classId !== null
+          }
+          onShowAll={onClearAll}
+        />
       )}
     </div>
   );

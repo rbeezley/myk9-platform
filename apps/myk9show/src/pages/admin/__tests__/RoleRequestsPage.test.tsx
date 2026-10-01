@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render, userEvent } from '@/test/utils/testUtils';
 import RoleRequestsPage from '../RoleRequestsPage';
 
@@ -26,6 +27,10 @@ vi.mock('@/lib/notifications', () => ({
     error: vi.fn(),
   },
 }));
+
+function SearchProbe() {
+  return <p data-testid="search">{useLocation().search}</p>;
+}
 
 describe('RoleRequestsPage', () => {
   beforeEach(() => {
@@ -115,8 +120,11 @@ describe('RoleRequestsPage', () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
     // Approved requests live behind the "Approved" view.
-    await screen.findByRole('button', { name: /^Approved/ });
-    await userEvent.setup().click(screen.getByRole('button', { name: /^Approved/ }));
+    const approvedUser = userEvent.setup();
+    await approvedUser.click(
+      await screen.findByRole('combobox', { name: /show: filter role requests/i })
+    );
+    await approvedUser.click(await screen.findByRole('option', { name: /^Approved/ }));
 
     expect(await screen.findByText(/Best Club/)).toBeInTheDocument();
   });
@@ -265,7 +273,8 @@ describe('RoleRequestsPage', () => {
 
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    await user.click(await screen.findByRole('button', { name: /^Approved/ }));
+    await user.click(await screen.findByRole('combobox', { name: /show: filter role requests/i }));
+    await user.click(await screen.findByRole('option', { name: /^Approved/ }));
     await user.click(await screen.findByRole('button', { name: 'View details' }));
 
     expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
@@ -273,14 +282,11 @@ describe('RoleRequestsPage', () => {
     expect(screen.getByText('Club-wide access')).toBeInTheDocument();
   });
 
-  it('marks the active status filter with aria-pressed for assistive tech', async () => {
+  it('shows the active status view in the labelled Show select', async () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    const pendingFilter = await screen.findByRole('button', { name: /^Pending/ });
-    expect(pendingFilter).toHaveAttribute('aria-pressed', 'true');
-
-    const allFilter = screen.getByRole('button', { name: /^All/ });
-    expect(allFilter).toHaveAttribute('aria-pressed', 'false');
+    const select = await screen.findByRole('combobox', { name: /show: filter role requests/i });
+    expect(select).toHaveTextContent(/^Pending/);
   });
 
   it('offers a retry when loading requests fails', async () => {
@@ -297,5 +303,40 @@ describe('RoleRequestsPage', () => {
 
     expect(await screen.findByText('No requests waiting for review')).toBeInTheDocument();
     expect(getAllRoleRequests).toHaveBeenCalledTimes(2);
+  });
+
+  it('"Show all requests" clears status and search in ONE URL update', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <RoleRequestsPage />
+        <SearchProbe />
+      </>,
+      { initialRoute: '/admin/role-requests?status=approved&q=pat' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all requests' }));
+
+    // `status=all` is the explicit "everything" view (the default is pending);
+    // the search param must be gone, which two stacked setters would not do.
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?status=all'));
+    expect(screen.getByTestId('search').textContent).not.toContain('q=');
+  });
+
+  it('shows no sentence while loading, and none beside a load error', async () => {
+    getAllRoleRequests.mockReturnValueOnce(new Promise(() => undefined));
+    const first = render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    first.unmount();
+
+    getAllRoleRequests.mockRejectedValueOnce(new Error('boom'));
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+  });
+
+  it('reads an unknown ?status= as the default Pending view the select shows', async () => {
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests?status=bogus' });
+    expect(await screen.findByText('Showing 1 of 1 request.')).toBeDefined();
   });
 });

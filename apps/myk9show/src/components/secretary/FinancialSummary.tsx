@@ -16,7 +16,11 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Download, DollarSign, Users, Tag, Gift } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
-import { ListFilterBar, type ListOptionsFilterField } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  type ListOptionsFilterField,
+} from '@/components/list-toolkit';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
 import { filterFinancialEntries } from './financialSummaryFilters';
 import { resolveShowFinancialRows } from './showFinancialSummaryCalc';
@@ -296,11 +300,9 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         </CardContent>
       </Card>
 
-      {/* Entry Table.
-          No `ListResultLine` here: `UnresolvedMoneyRootNotice` above already
-          owns this card's one `role="status"` live region (MYK9-639), and the
-          kit's own rule is exactly one per list — the owner-approved scope for
-          this card is the payment-status filter alone. */}
+      {/* Entry Table. The sentence below is not its own live region
+          (`announce={false}`): `UnresolvedMoneyRootNotice` above already owns
+          this card's one `role="status"` (MYK9-639). */}
       <Card>
         <CardHeader className="flex flex-col gap-3 pb-3">
           <CardTitle className="text-base">Entry Details</CardTitle>
@@ -309,6 +311,17 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search entries..."
             fields={[paymentStatusField]}
+          />
+          <ListResultLine
+            announce={false}
+            shown={filteredEntries.length}
+            total={entries.length}
+            noun={['entry', 'entries']}
+            filtered={searchTerm.trim() !== '' || statusFilter !== null}
+            onShowAll={() => {
+              setSearchTerm('');
+              setStatusFilter(null);
+            }}
           />
         </CardHeader>
         <CardContent>

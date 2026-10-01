@@ -31,7 +31,7 @@ const DOG_VIEWS: readonly DogViewDefinition[] = [
 ];
 
 function sameFilters(a: DogFilters, b: DogFilters): boolean {
-  return a.breed === b.breed && a.sex === b.sex && a.owner === b.owner && a.status === b.status;
+  return a.status === b.status;
 }
 
 export function activeDogViewId(filters: DogFilters): string | null {

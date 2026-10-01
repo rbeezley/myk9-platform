@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BrowseShowsPage from '@/pages/BrowseShowsPage';
@@ -222,7 +223,6 @@ const defaultFilters: ShowFilters = {
   entryStatus: 'all',
   month: 'all',
   radius: 'all',
-  organization: 'all',
   club: 'all',
   status: 'all',
 };
@@ -881,13 +881,19 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
-      });
+      const select = await screen.findByRole('combobox', { name: 'Show: Show views' });
+      // The Draft view is selected, so the trigger reads Draft's own count.
+      expect(select).toHaveTextContent(/^Draft \(1\)/);
+      await userEvent.click(select);
+      const listbox = await screen.findByRole('listbox');
       // Two completed shows exist regardless of the Draft view being selected.
-      expect(screen.getByRole('button', { name: /^Completed/ }).textContent).toContain('2');
-      expect(screen.getByRole('button', { name: /^Cancelled/ }).textContent).toContain('1');
-      expect(screen.getByRole('button', { name: /^All/ }).textContent).toContain('4');
+      expect(within(listbox).getByRole('option', { name: /^Completed/ }).textContent).toBe(
+        'Completed (2)'
+      );
+      expect(within(listbox).getByRole('option', { name: /^Cancelled/ }).textContent).toBe(
+        'Cancelled (1)'
+      );
+      expect(within(listbox).getByRole('option', { name: /^All/ }).textContent).toBe('All (4)');
     });
   });
 });

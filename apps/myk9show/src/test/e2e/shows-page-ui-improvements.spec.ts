@@ -6,7 +6,7 @@ import { signInAsSecretary } from './helpers/testUsers';
  * E2E Tests for Shows Page UI/UX Improvements
  *
  * Tests the following features:
- * - Collapsible filter panel with active filter chips
+ * - Labelled filter selects and the short result sentence
  * - Quick stats summary bar
  * - View mode toggle tooltips
  * - Urgency ribbons for closing soon shows
@@ -25,134 +25,25 @@ async function navigateToBrowseShows(page: Page) {
   await page.waitForSelector('[role="tablist"]', { timeout: 10000 });
 }
 
-test.describe('Shows Page - Collapsible Filter Panel', () => {
+test.describe('Shows Page - Labelled Filters', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToBrowseShows(page);
   });
 
-  test('should show search bar always visible', async ({ page }) => {
-    // Search input should always be visible
-    const searchInput = page.locator('input[placeholder*="Search"]');
-    await expect(searchInput).toBeVisible();
+  test('should show search bar and labelled filter selects', async ({ page }) => {
+    await expect(page.locator('input[placeholder*="Search"]')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Discipline' })).toBeVisible();
   });
 
-  test('should have Filters button that expands filter panel', async ({ page }) => {
-    // Find the Filters button
-    const filtersButton = page.locator('button:has-text("Filters")');
-    await expect(filtersButton).toBeVisible();
+  test('should state the result count and clear it with Show all', async ({ page }) => {
+    await page.getByRole('combobox', { name: 'Discipline' }).click();
+    await page.getByRole('option', { name: 'Agility' }).click();
 
-    // Click to expand filters
-    await filtersButton.click();
+    await expect(page.getByText(/^Showing \d+ of \d+ shows?\.$/)).toBeVisible();
 
-    // Wait for collapsible animation
-    await page.waitForTimeout(300);
-
-    // Filter dropdowns should now be visible
-    const disciplineSelect = page.locator(
-      'button:has-text("Discipline"), button:has-text("All Disciplines")'
-    );
-    await expect(disciplineSelect).toBeVisible();
-  });
-
-  test('should collapse filter panel when clicking Filters button again', async ({ page }) => {
-    const filtersButton = page.locator('button:has-text("Filters")');
-
-    // Open filters
-    await filtersButton.click();
-    await page.waitForTimeout(300);
-
-    // Close filters
-    await filtersButton.click();
-    await page.waitForTimeout(300);
-
-    // Discipline dropdown should be hidden (inside collapsed panel)
-    // Note: The content is still in DOM but hidden via animation
-    const _filterPanel = page.locator('[data-state="closed"]').filter({ hasText: 'Discipline' });
-    // Just verify the button still works - the panel state is managed by the Collapsible component
-  });
-
-  test('should show active filter count badge when filters are applied', async ({ page }) => {
-    // Open filters
-    const filtersButton = page.locator('button:has-text("Filters")');
-    await filtersButton.click();
-    await page.waitForTimeout(300);
-
-    // Select a discipline filter
-    const disciplineSelect = page.locator('button:has-text("All Disciplines")').first();
-    await disciplineSelect.click();
-
-    // Select Agility
-    await page.locator('[role="option"]:has-text("Agility")').click();
-
-    // The Filters button should now show a count badge
-    const _filterBadge = filtersButton.locator('.bg-secondary, [class*="Badge"]');
-    // Check that there's an indication of active filters
-    await expect(filtersButton).toContainText('1');
-  });
-});
-
-test.describe('Shows Page - Active Filter Chips', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-    await navigateToBrowseShows(page);
-  });
-
-  test('should show filter chip when discipline filter is applied', async ({ page }) => {
-    // Open filters and select Agility
-    await page.locator('button:has-text("Filters")').click();
-    await page.waitForTimeout(300);
-
-    await page.locator('button:has-text("All Disciplines")').first().click();
-    await page.locator('[role="option"]:has-text("Agility")').click();
-
-    // Filter chip should appear
-    const filterChip = page.locator('text=Agility').filter({ has: page.locator('svg') });
-    await expect(filterChip.first()).toBeVisible();
-  });
-
-  test('should remove filter when clicking X on filter chip', async ({ page }) => {
-    // Apply a filter
-    await page.locator('button:has-text("Filters")').click();
-    await page.waitForTimeout(300);
-
-    await page.locator('button:has-text("All Disciplines")').first().click();
-    await page.locator('[role="option"]:has-text("Agility")').click();
-
-    // Find and click the chip to remove it
-    const filterChip = page.locator('[class*="Badge"]:has-text("Agility")').first();
-    await filterChip.click();
-
-    // The chip should disappear
-    await expect(page.locator('[class*="Badge"]:has-text("Agility")')).not.toBeVisible();
-  });
-
-  test('should show Clear all button when filters are active', async ({ page }) => {
-    // Apply a filter
-    await page.locator('button:has-text("Filters")').click();
-    await page.waitForTimeout(300);
-
-    await page.locator('button:has-text("All Disciplines")').first().click();
-    await page.locator('[role="option"]:has-text("Agility")').click();
-
-    // Clear all button should appear
-    const clearAllButton = page.locator('button:has-text("Clear all")');
-    await expect(clearAllButton).toBeVisible();
-  });
-
-  test('should clear all filters when clicking Clear all', async ({ page }) => {
-    // Apply a filter
-    await page.locator('button:has-text("Filters")').click();
-    await page.waitForTimeout(300);
-
-    await page.locator('button:has-text("All Disciplines")').first().click();
-    await page.locator('[role="option"]:has-text("Agility")').click();
-
-    // Click Clear all
-    await page.locator('button:has-text("Clear all")').click();
-
-    // Filter chips should be gone
-    await expect(page.locator('[class*="Badge"]:has-text("Agility")')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Show all shows' }).click();
+    await expect(page.getByText(/^Showing (all )?\d+ shows?\.$/)).toBeVisible();
   });
 });
 

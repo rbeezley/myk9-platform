@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { createPortal } from 'react-dom';
 import { render, screen, fireEvent, userEvent } from '@/test/utils/testUtils';
 import { BulkBarButton, FloatingBulkBar } from '../FloatingBulkBar';
-import { ListResultLine } from '../ListResultLine';
-import { ListViewTabs } from '../ListViewTabs';
 import { describeDateRange, fromDateInputValue, toDateInputValue } from '../filterFieldState';
 
 const NOUN = ['user', 'users'] as const;
@@ -81,80 +79,6 @@ describe('FloatingBulkBar portals', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'In a dialog' }), { key: 'Escape' });
     expect(onClear).not.toHaveBeenCalled();
     portalTarget.remove();
-  });
-});
-
-describe('ListViewTabs', () => {
-  it('marks the active view, applies a pressed view, and links an off-page one', async () => {
-    const onSelect = vi.fn();
-    render(
-      <ListViewTabs
-        label="User views"
-        activeId="all"
-        onSelect={onSelect}
-        views={[
-          { id: 'all', label: 'All', count: 4812 },
-          { id: 'never', label: 'Never signed in', count: 312 },
-          { id: 'requests', label: 'Role requests', href: '/admin/role-requests' },
-        ]}
-      />
-    );
-    expect(screen.getByRole('button', { name: /All/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /All/ })).toHaveTextContent((4812).toLocaleString());
-    await userEvent.click(screen.getByRole('button', { name: /Never signed in/ }));
-    expect(onSelect).toHaveBeenCalledWith('never');
-    expect(screen.getByRole('link', { name: 'Role requests' })).toHaveAttribute(
-      'href',
-      '/admin/role-requests'
-    );
-  });
-});
-
-describe('ListResultLine', () => {
-  it('announces "N in view" unfiltered and "N match, of M" filtered', () => {
-    const { rerender } = render(
-      <ListResultLine shown={1} total={1} noun={NOUN} filtered={false} />
-    );
-    expect(screen.getByRole('status')).toHaveTextContent('1 user in view');
-    rerender(<ListResultLine shown={2} total={10} noun={NOUN} filtered />);
-    expect(screen.getByRole('status')).toHaveTextContent('2 users match, of 10');
-  });
-
-  it('offers "Select all" only for a partial selection', async () => {
-    const onSelectAll = vi.fn();
-    const { rerender } = render(
-      <ListResultLine
-        shown={40}
-        total={90}
-        noun={NOUN}
-        filtered
-        selectAll={{ selectedCount: 0, onSelectAll }}
-      />
-    );
-    expect(screen.queryByRole('button', { name: /select all/i })).not.toBeInTheDocument();
-
-    rerender(
-      <ListResultLine
-        shown={40}
-        total={90}
-        noun={NOUN}
-        filtered
-        selectAll={{ selectedCount: 3, onSelectAll }}
-      />
-    );
-    await userEvent.click(screen.getByRole('button', { name: 'Select all 40 users' }));
-    expect(onSelectAll).toHaveBeenCalledOnce();
-
-    rerender(
-      <ListResultLine
-        shown={40}
-        total={90}
-        noun={NOUN}
-        filtered
-        selectAll={{ selectedCount: 40, onSelectAll }}
-      />
-    );
-    expect(screen.queryByRole('button', { name: /select all/i })).not.toBeInTheDocument();
   });
 });
 

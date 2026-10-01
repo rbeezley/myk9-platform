@@ -8,7 +8,7 @@
  * show, so a Trial 1 → Trial 2 move-up puts the fee in one card's scope and the
  * run in another's.
  */
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 
@@ -94,12 +94,29 @@ describe('FinancialSummary (per trial)', () => {
         rawEntry({ id: 'pending-1', payment_status: 'pending', dog: { call_name: 'Birch' } }),
       ]);
 
-      await user.click(screen.getByRole('button', { name: /filter/i }));
-      await user.click(screen.getByRole('button', { name: /^Payment status$/ }));
-      await user.click(screen.getByRole('button', { name: /^Pending/ }));
+      await user.click(screen.getByRole('combobox', { name: 'Payment status' }));
+      await user.click(await screen.findByRole('option', { name: /^Pending/ }));
 
       expect(screen.getByText('Birch')).toBeInTheDocument();
       expect(screen.queryByText('Acorn')).not.toBeInTheDocument();
+    });
+
+    it('states search and status in a sentence and "Show all entries" clears both', async () => {
+      const { user } = renderSummary([
+        rawEntry({ id: 'paid-1', payment_status: 'paid', dog: { call_name: 'Acorn' } }),
+        rawEntry({ id: 'pending-1', payment_status: 'pending', dog: { call_name: 'Birch' } }),
+      ]);
+
+      await user.click(screen.getByRole('combobox', { name: 'Payment status' }));
+      await user.click(await screen.findByRole('option', { name: /^Pending/ }));
+      await user.type(screen.getByPlaceholderText('Search entries...'), 'Birch');
+
+      expect(screen.getByText('Showing 1 of 2 entries.')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+      expect(screen.getByText('Acorn')).toBeInTheDocument();
+      expect(screen.getByText('Birch')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search entries...')).toHaveValue('');
     });
 
     it('searches across dog, owner, handler and class', async () => {
@@ -120,13 +137,9 @@ describe('FinancialSummary (per trial)', () => {
         rawEntry({ id: 'b', payment_status: 'paid', comped: true }),
       ]);
 
-      await user.click(screen.getByRole('button', { name: /filter/i }));
-      await user.click(screen.getByRole('button', { name: /^Payment status$/ }));
-      const menu = screen.getByRole('group', { name: /payment status/i });
-      const paidOption = within(menu).getByRole('button', { name: /^Paid/ });
-      expect(paidOption).toHaveTextContent('1');
-      const compedOption = within(menu).getByRole('button', { name: /^Comped/ });
-      expect(compedOption).toHaveTextContent('1');
+      await user.click(screen.getByRole('combobox', { name: 'Payment status' }));
+      expect(await screen.findByRole('option', { name: 'Paid (1)' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Comped (1)' })).toBeInTheDocument();
     });
   });
 });

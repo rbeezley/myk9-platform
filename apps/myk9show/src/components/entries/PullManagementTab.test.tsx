@@ -89,5 +89,9 @@ describe('PullManagementTab — processed entry status', () => {
 
     expect(screen.queryByText('Buddy')).toBeNull();
     expect(screen.getByText('No pulls match your search')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 1 pulled entry.');
+
+    await user.click(screen.getByRole('button', { name: 'Show all pulled entries' }));
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
   });
 });

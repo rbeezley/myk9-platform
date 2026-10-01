@@ -133,13 +133,18 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
         name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
       })
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /Needs review/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^All/ })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Entry views' })).toBeVisible();
+    // MYK9-906: the views are a labelled "Show:" select, with the count in each option.
+    const viewSelect = page.getByRole('combobox', { name: 'Show: Entry views' });
+    await expect(viewSelect).toBeVisible();
+    await viewSelect.click();
+    await expect(page.getByRole('option', { name: /^Needs review/ })).toBeVisible();
+    await expect(page.getByRole('option', { name: /^All/ })).toBeVisible();
+    await expect(page.getByRole('option', { name: /^Waitlist/ })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
+    await page.getByRole('option', { name: /^Waitlist/ }).click();
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
-    await page.getByRole('button', { name: /^All/ }).click();
+    await viewSelect.click();
+    await page.getByRole('option', { name: /^All/ }).click();
     await expect(
       page.getByRole('textbox', {
         name: 'Search exhibitor, dog, handler, armband, confirmation, class…',

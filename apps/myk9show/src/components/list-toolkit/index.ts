@@ -10,3 +10,4 @@ export type {
   ListDateRangeFilterField,
   ListDateRange,
 } from './types';
+export { patchSearchParams } from './patchSearchParams';

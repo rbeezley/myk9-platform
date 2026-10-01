@@ -2,9 +2,7 @@
  * Class Management's built-in views (list-toolkit rollout, MYK9-811) — the
  * same four presets `ClassLifecyclePresetTiles` rendered as stat cards, now
  * `ListViewTabs`. A view is active only when the filters match it exactly
- * (status AND element AND search all at the preset's default) — any further
- * narrowing reads as a custom filter, matching `activeUserViewId`
- * (`pages/admin/userListViews.ts`).
+ * (status alone, see `activeClassManagementViewId`).
  */
 
 import type { ListView } from '@/components/list-toolkit';
@@ -39,12 +37,13 @@ const CLASS_MANAGEMENT_VIEWS: readonly ClassManagementViewDefinition[] = [
   { id: 'completed', label: 'Completed', state: preset('completed') },
 ];
 
-function sameState(a: ClassManagementFilterState, b: ClassManagementFilterState): boolean {
-  return a.status === b.status && a.element === b.element && a.search === b.search;
-}
-
-export function activeClassManagementViewId(state: ClassManagementFilterState): string | null {
-  return CLASS_MANAGEMENT_VIEWS.find(view => sameState(view.state(), state))?.id ?? null;
+/**
+ * The view the Show select reads: the lifecycle status alone. Element and search
+ * are a visible field and the search box, so they never turn the view into
+ * "Custom" (which would hide the status behind that label).
+ */
+export function activeClassManagementViewId(state: ClassManagementFilterState): string {
+  return CLASS_MANAGEMENT_VIEWS.find(view => view.id === state.status)?.id ?? 'all';
 }
 
 export function classManagementViewState(id: string): ClassManagementFilterState {

@@ -64,9 +64,8 @@ describe('ActivityLogFeed', () => {
     mockResult([makeEntry()]);
     render(<ActivityLogFeed trialId="trial-1" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Type' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Score events' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Type' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Score events' }));
 
     expect(useActivityLog).toHaveBeenLastCalledWith(
       'trial-1',
@@ -86,5 +85,32 @@ describe('ActivityLogFeed', () => {
     mockResult([]);
     render(<ActivityLogFeed trialId="trial-1" />);
     expect(screen.getByText('No activity yet')).toBeInTheDocument();
+  });
+
+  it('counts only LOADED rows (Type is server-side, search is client-side) and Show all clears both', async () => {
+    mockResult([
+      makeEntry({ id: 'e-1', description: 'Moved to Judging', actor_name: 'Alice Secretary' }),
+      makeEntry({ id: 'e-2', description: 'Score submitted', actor_name: 'Bob Judge' }),
+    ]);
+    render(<ActivityLogFeed trialId="trial-1" />);
+
+    await userEvent.type(screen.getByPlaceholderText('Search activity...'), 'Bob');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 loaded activity entries.');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show all loaded activity entries' }));
+    expect(screen.getByText('Moved to Judging')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search activity...')).toHaveValue('');
+    expect(useActivityLog).toHaveBeenLastCalledWith('trial-1', {});
+  });
+
+  it('shows no sentence while the first page is loading, and "Showing all" once loaded', () => {
+    mockResult([], { isLoading: true });
+    const { unmount } = render(<ActivityLogFeed trialId="trial-1" />);
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    unmount();
+
+    mockResult([makeEntry()]);
+    render(<ActivityLogFeed trialId="trial-1" />);
+    expect(screen.getByText('Showing all 1 loaded activity entry.')).toBeInTheDocument();
   });
 });

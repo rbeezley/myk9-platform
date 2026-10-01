@@ -11,25 +11,16 @@ import {
 import { useClubStore } from '@/store/clubStore';
 import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
-import { CLUB_TYPES, type Club } from '@/types/club-types';
+import type { Club } from '@/types/club-types';
 import { filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
   search: string;
-  clubType: string;
 }
 
 const INITIAL_FILTERS: ClubFilters = {
   search: '',
-  clubType: 'all',
 };
-
-// WARNING: a value missing from this list is ERASED, not ignored — the param is
-// stripped and the filter falls back to its default. Adding a chip option
-// without adding it here does not degrade the deep link, it DESTROYS it.
-const ALLOWED_FILTER_VALUES = {
-  clubType: CLUB_TYPES.map(type => type.value),
-} as const;
 
 export interface BrowseClubsData {
   clubs: Club[];
@@ -110,9 +101,7 @@ export function useBrowseClubsData(): BrowseClubsData {
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<ClubFilters>(INITIAL_FILTERS, {
-    allowedValues: ALLOWED_FILTER_VALUES,
-  });
+  const [filters, setFilters] = useUrlFilters<ClubFilters>(INITIAL_FILTERS);
 
   // Signed-in browse uses the narrow club-only readiness path over the
   // replica. Guests never reach it (see the INTENT above).
@@ -132,7 +121,7 @@ export function useBrowseClubsData(): BrowseClubsData {
     return counts;
   }, [shows]);
 
-  // Filter clubs by search text and club type
+  // Filter clubs by search text
   const filteredClubs = useMemo(() => {
     let result = visibleClubs;
 
@@ -147,16 +136,11 @@ export function useBrowseClubsData(): BrowseClubsData {
       );
     }
 
-    // Club type filter
-    if (filters.clubType && filters.clubType !== 'all') {
-      result = result.filter(club => club.clubType === filters.clubType);
-    }
-
     // Sort alphabetically by name
     return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [visibleClubs, filters]);
 
-  const hasActiveFilters = filters.search.trim() !== '' || filters.clubType !== 'all';
+  const hasActiveFilters = filters.search.trim() !== '';
 
   const clearAllFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);

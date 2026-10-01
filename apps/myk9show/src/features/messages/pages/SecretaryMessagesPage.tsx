@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
 import { ScheduledLifecycleEmailsPanel } from '@/features/lifecycle-emails';
 import { EmailDeliveryHistory } from '@/features/email-delivery-history';
-import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type { ListFilterField, ListView } from '@/components/list-toolkit';
 
 const ALL_SHOWS = 'all';
@@ -230,8 +230,16 @@ export default function SecretaryMessagesPage() {
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search conversations..."
             fields={[showField]}
-            onClearAll={clearFilters}
           />
+          {!isEmailView && (
+            <ListResultLine
+              shown={visibleThreads.length}
+              total={threads.length}
+              noun={['conversation', 'conversations']}
+              filtered={hasActiveFilters}
+              onShowAll={clearFilters}
+            />
+          )}
         </div>
         {isEmailView ? (
           <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">

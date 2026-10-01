@@ -220,6 +220,11 @@ export function ShowDeskPeopleRoster({
         total={roster.length}
         noun={EXHIBITOR_NOUN}
         filtered={isFiltered}
+        onShowAll={() => {
+          setView('all');
+          setSearch('');
+          setExpandedId(null);
+        }}
       />
 
       {actionError && (

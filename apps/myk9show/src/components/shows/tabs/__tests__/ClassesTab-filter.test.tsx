@@ -45,22 +45,26 @@ function renderTab(classes: ReturnType<typeof makeClass>[]) {
 }
 
 // The bespoke, self-hiding `StatusFilter` was replaced by the shared
-// list-toolkit `ListViewTabs` (MYK9-811): a fixed All/Pending/Completed/Mine
-// set, always shown, matching every other kit-rollout surface (Users,
+// list-toolkit `ListViewTabs` (MYK9-811, a labelled select since MYK9-906): a
+// fixed All/Pending/Completed/Mine set, always shown, matching every other kit-rollout surface (Users,
 // Class Management) rather than hiding itself when every row shares a status.
 describe('ClassesTab views (list toolkit)', () => {
-  it('always shows the view tabs, even when every class shares a status', () => {
+  it('always shows the Show select, even when every class shares a status', async () => {
+    const user = userEvent.setup();
     renderTab([makeClass(), makeClass()]);
-    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
   });
 
-  it('shows the view tabs when classes have mixed statuses', () => {
+  it('offers every view when classes have mixed statuses', async () => {
+    const user = userEvent.setup();
     renderTab([makeClass({ status: 'Scheduled' }), makeClass({ status: 'Completed' })]);
-    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    expect(await screen.findByRole('option', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
   });
 
   it('filters to show only pending classes', async () => {
@@ -69,7 +73,8 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('button', { name: /^Pending/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(await screen.findByRole('option', { name: /^Pending/ }));
     expect(screen.getByText('Interior')).toBeInTheDocument();
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
   });
@@ -80,7 +85,8 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('button', { name: /^Completed/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(await screen.findByRole('option', { name: /^Completed/ }));
     expect(screen.queryByText('Interior')).not.toBeInTheDocument();
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
@@ -91,9 +97,11 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('button', { name: /^Pending/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(await screen.findByRole('option', { name: /^Pending/ }));
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
 });

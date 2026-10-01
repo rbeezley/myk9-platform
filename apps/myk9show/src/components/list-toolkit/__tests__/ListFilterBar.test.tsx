@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within, userEvent } from '@/test/utils/testUtils';
+import { render, screen, userEvent } from '@/test/utils/testUtils';
 import { ListFilterBar } from '../ListFilterBar';
-import type { ListDateRange, ListFilterField } from '../types';
+import type { ListDateRange, ListFilterField, ListOptionsFilterField } from '../types';
 
-function roleField(value: string | null, onChange = vi.fn()): ListFilterField {
+function roleField(value: string | null, onChange = vi.fn()): ListOptionsFilterField {
   return {
     kind: 'options',
     key: 'role',
@@ -41,57 +41,54 @@ function renderBar(
 }
 
 describe('ListFilterBar', () => {
-  it('shows an active field as a "Field: value" chip and removes it with its own button', async () => {
-    const onChange = vi.fn();
-    renderBar([roleField('judge', onChange)]);
+  it('shows every field up front as a labelled select, with no "+ Filter" menu', () => {
+    renderBar([roleField(null), createdField({ start: null, end: null })]);
 
-    expect(screen.getByRole('button', { name: 'Role: Judge. Change' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Remove role filter' }));
-
-    expect(onChange).toHaveBeenCalledWith(null);
+    expect(screen.getByRole('combobox', { name: 'Role' })).toHaveTextContent('Any role');
+    expect(screen.getByRole('button', { name: /^Created: any time/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Filter' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Remove/ })).not.toBeInTheDocument();
   });
 
-  it('shows a stale value raw, so a filter the list no longer offers stays visible and removable', () => {
-    renderBar([roleField('steward')]);
-    expect(screen.getByRole('button', { name: 'Role: steward. Change' })).toBeInTheDocument();
-  });
-
-  it('offers only inactive fields under "+ Filter", with counts, and applies a pick', async () => {
+  it('applies a pick, with counts in the option text', async () => {
     const onChange = vi.fn();
-    renderBar([
-      roleField(null, onChange),
-      createdField({ start: new Date(2026, 0, 1), end: null }),
-    ]);
+    renderBar([roleField(null, onChange)]);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    const menu = screen.getByRole('group', { name: 'Filter by' });
-    // Created is already a chip, so it is not offered again.
-    expect(
-      within(menu)
-        .getAllByRole('button')
-        .map(b => b.textContent)
-    ).toEqual(['Role']);
-
-    await userEvent.click(within(menu).getByRole('button', { name: 'Role' }));
-    const options = screen.getByRole('group', { name: 'Role' });
-    expect(within(options).getByRole('button', { name: /Judge\s*12/ })).toBeInTheDocument();
-    await userEvent.click(within(options).getByRole('button', { name: /Secretary/ }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Role' }));
+    expect(await screen.findByRole('option', { name: 'Judge (12)' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('option', { name: 'Secretary (3)' }));
 
     expect(onChange).toHaveBeenCalledWith('secretary');
   });
 
-  it('picking the selected option again clears it', async () => {
+  it('keeps every option a 44px target', async () => {
+    renderBar([roleField('steward')]);
+    await userEvent.click(screen.getByRole('combobox', { name: 'Role' }));
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(4); // Any, stale value, two options
+    for (const option of options) expect(option.className).toContain('min-h-11');
+  });
+
+  it('picking the "all" option clears the field', async () => {
     const onChange = vi.fn();
     renderBar([roleField('judge', onChange)]);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Role: Judge. Change' }));
-    const judge = within(screen.getByRole('group', { name: 'Role' })).getByRole('button', {
-      name: /Judge/,
-    });
-    expect(judge).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(judge);
+    const select = screen.getByRole('combobox', { name: 'Role' });
+    expect(select).toHaveTextContent('Judge (12)');
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole('option', { name: 'Any role' }));
 
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it("uses a field's own wording for the unfiltered option", () => {
+    renderBar([{ ...roleField(null), allLabel: 'All roles' }]);
+    expect(screen.getByRole('combobox', { name: 'Role' })).toHaveTextContent('All roles');
+  });
+
+  it('shows a stale value raw, so a filter the list no longer offers stays visible', () => {
+    renderBar([roleField('steward')]);
+    expect(screen.getByRole('combobox', { name: 'Role' })).toHaveTextContent('steward');
   });
 
   it('edits a date range as local calendar days, keeping the other end', async () => {
@@ -100,8 +97,7 @@ describe('ListFilterBar', () => {
     renderBar([createdField({ start: null, end }, onChange)]);
 
     await userEvent.click(screen.getByRole('button', { name: /^Created: before/ }));
-    const from = screen.getByLabelText('From');
-    await userEvent.type(from, '2026-06-01');
+    await userEvent.type(screen.getByLabelText('From'), '2026-06-01');
 
     const last = onChange.mock.calls.at(-1)?.[0] as ListDateRange;
     expect(last.end).toBe(end);
@@ -110,10 +106,9 @@ describe('ListFilterBar', () => {
     expect(last.start?.getDate()).toBe(1);
   });
 
-  // Codex P2 (2ebcad645): setting the first bound makes the field active, so
-  // the parent stops listing it as available — the "+ Filter" editor must not
-  // vanish before the second bound can be entered.
-  it('keeps the date editor open under "+ Filter" after the first bound is set', async () => {
+  // Codex P2 (2ebcad645): setting the first bound makes the field active; the
+  // editor must not vanish before the second bound can be entered.
+  it('keeps the date editor open after the first bound is set', async () => {
     function Harness() {
       const [range, setRange] = useState<ListDateRange>({ start: null, end: null });
       return (
@@ -121,29 +116,23 @@ describe('ListFilterBar', () => {
           searchValue=""
           onSearchChange={vi.fn()}
           searchPlaceholder="Search people"
-          fields={[roleField(null), createdField(range, setRange)]}
+          fields={[createdField(range, setRange)]}
         />
       );
     }
     render(<Harness />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    await userEvent.click(
-      within(screen.getByRole('group', { name: 'Filter by' })).getByRole('button', {
-        name: 'Created',
-      })
-    );
+    await userEvent.click(screen.getByRole('button', { name: /^Created: any time/ }));
     await userEvent.type(screen.getByLabelText('From'), '2026-06-01');
 
-    // Still editing Created: the To input is there to fill in.
     expect(screen.getByLabelText('To')).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Filter by' })).not.toBeInTheDocument();
   });
 
-  it('removing a date-range chip clears both ends', async () => {
+  it('"Any time" clears both ends of an active date range', async () => {
     const onChange = vi.fn();
     renderBar([createdField({ start: new Date(2026, 0, 1), end: new Date(2026, 1, 1) }, onChange)]);
-    await userEvent.click(screen.getByRole('button', { name: 'Remove created filter' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Created:/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Any time' }));
     expect(onChange).toHaveBeenCalledWith({ start: null, end: null });
   });
 

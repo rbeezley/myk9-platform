@@ -19,7 +19,6 @@ const BASE_STATE: EntryManagementCockpitState = {
   density: 'comfortable',
   trialId: null,
   classId: null,
-  paymentStatus: null,
   registrationKey: null,
 };
 
@@ -42,10 +41,10 @@ function renderToolbar(
       density={overrides.density ?? BASE_STATE.density}
       onSelectView={vi.fn()}
       onScopeChange={vi.fn()}
-      onPaymentStatusChange={vi.fn()}
       onSearchChange={vi.fn()}
       onDensityChange={onDensityChange}
       onClearAll={vi.fn()}
+      result={{ shown: 0, total: 0 }}
     />
   );
   return { onDensityChange };

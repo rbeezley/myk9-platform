@@ -7,8 +7,6 @@ import type { User } from '@/types/user-types';
 export interface PeopleFilters {
   search: string;
   role: string;
-  /** A state value, or 'all'. Data-derived — see `availableLocations`. */
-  location: string;
   /** 'all' or 'none' (a person with no linked `people.auth_user_id`). */
   login: string;
 }
@@ -16,7 +14,6 @@ export interface PeopleFilters {
 export const DEFAULT_PEOPLE_FILTERS: PeopleFilters = {
   search: '',
   role: 'all',
-  location: 'all',
   login: 'all',
 };
 
@@ -29,8 +26,6 @@ export interface BrowsePeopleData {
   setFilters: React.Dispatch<React.SetStateAction<PeopleFilters>>;
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
-  availableRoles: string[];
-  availableLocations: string[];
 }
 
 /**
@@ -52,10 +47,6 @@ export function filterPeople(people: User[], filters: PeopleFilters): User[] {
     result = result.filter(person => person.roles?.includes(filters.role as never));
   }
 
-  if (filters.location !== 'all') {
-    result = result.filter(person => person.state === filters.location);
-  }
-
   if (filters.login === 'none') {
     result = result.filter(person => !person.user_id);
   }
@@ -67,47 +58,37 @@ export function filterPeople(people: User[], filters: PeopleFilters): User[] {
   });
 }
 
-const URL_FILTER_OPTIONS = { allowedValues: { login: ['none'] as readonly string[] } };
+// The role views (`peopleListViews.ts`) are the only control for role, so only
+// their roles are accepted; anything else reads as 'all' instead of narrowing the
+// list by something the page cannot show and reset.
+const VIEW_ROLES: readonly string[] = ['secretary', 'judge', 'exhibitor', 'club_admin'];
+const URL_FILTER_OPTIONS = {
+  allowedValues: { role: VIEW_ROLES, login: ['none'] as readonly string[] },
+};
 
 export function useBrowsePeopleData(): BrowsePeopleData {
   const { people, isLoading, error } = useRoleBasedPeople();
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<PeopleFilters>(
+  const [rawFilters, setFilters] = useUrlFilters<PeopleFilters>(
     DEFAULT_PEOPLE_FILTERS,
     URL_FILTER_OPTIONS
   );
-
-  // Derive unique roles and locations from actual data — a closed vocabulary
-  // would show options with nobody behind them.
-  const availableRoles = useMemo(() => {
-    const roles = new Set<string>();
-    for (const person of people) {
-      if (person.roles) {
-        for (const role of person.roles) {
-          roles.add(role);
-        }
-      }
-    }
-    return [...roles].sort((a, b) => a.localeCompare(b));
-  }, [people]);
-
-  const availableLocations = useMemo(() => {
-    const locations = new Set<string>();
-    for (const person of people) {
-      if (person.state) locations.add(person.state);
-    }
-    return [...locations].sort((a, b) => a.localeCompare(b));
-  }, [people]);
+  // Role and "No login" are alternative views, never combined (no preset covers
+  // both), so a role wins and the sign-in restriction reads as off.
+  const filters = useMemo<PeopleFilters>(
+    () =>
+      rawFilters.role !== 'all' && rawFilters.login !== 'all'
+        ? { ...rawFilters, login: 'all' }
+        : rawFilters,
+    [rawFilters]
+  );
 
   const filteredPeople = useMemo(() => filterPeople(people, filters), [people, filters]);
 
   const hasActiveFilters =
-    filters.search.trim() !== '' ||
-    filters.role !== 'all' ||
-    filters.location !== 'all' ||
-    filters.login !== 'all';
+    filters.search.trim() !== '' || filters.role !== 'all' || filters.login !== 'all';
 
   const clearAllFilters = useCallback(() => {
     setFilters(DEFAULT_PEOPLE_FILTERS);
@@ -122,7 +103,5 @@ export function useBrowsePeopleData(): BrowsePeopleData {
     setFilters,
     hasActiveFilters,
     clearAllFilters,
-    availableRoles,
-    availableLocations,
   };
 }

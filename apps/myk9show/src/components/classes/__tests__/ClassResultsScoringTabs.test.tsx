@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../ClassResultsTable';
@@ -176,28 +176,34 @@ describe('ClassResultsTable scoring tabs', () => {
   const rawUnscoredB = makeRawEntry('entry-2', false);
   const allRawEntries = [rawUnscoredA, rawUnscoredB, rawScoredA, rawScoredB];
 
-  // The result views moved onto the shared list-toolkit `ListViewTabs`
-  // (MYK9-811) — plain buttons (`aria-pressed`), not ARIA tabs.
-  it('renders Pending, Completed, and All views', () => {
+  // The result views are the shared list toolkit's labelled "Show:" select
+  // (MYK9-906) with the counts inside the option text.
+  async function pickView(name: string) {
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await userEvent.click(await screen.findByRole('option', { name: new RegExp(`^${name}`) }));
+  }
+
+  it('renders Pending, Completed, and All views', async () => {
     renderTable(allEntries, allRawEntries);
-    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();
   });
 
   it('defaults to the Pending view', () => {
     renderTable(allEntries, allRawEntries);
-    const pendingView = screen.getByRole('button', { name: /^Pending/ });
-    expect(pendingView).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Show: Result views' })).toHaveTextContent(
+      /^Pending/
+    );
   });
 
-  it('shows badge counts on Pending and Completed views', () => {
+  it('shows counts inside the Pending and Completed options', async () => {
     renderTable(allEntries, allRawEntries);
     // Pending: 2 unscored entries, Completed: 2 scored entries
-    const nav = screen.getByRole('navigation', { name: /result views/i });
-    const badges = within(nav).getAllByText(/^[0-9]+$/);
-    const badgeValues = badges.map(b => b.textContent);
-    expect(badgeValues).toContain('2');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    expect(await screen.findByRole('option', { name: 'Pending (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Completed (2)' })).toBeInTheDocument();
   });
 
   it('shows only unscored entries in Pending tab (default)', () => {
@@ -211,7 +217,7 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('shows only scored entries when Completed tab is selected', async () => {
     renderTable(allEntries, allRawEntries);
-    await userEvent.click(screen.getByText('Completed'));
+    await pickView('Completed');
     expect(screen.queryByText('Rex')).not.toBeInTheDocument();
     expect(screen.queryByText('Luna')).not.toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
@@ -220,7 +226,7 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('shows all entries when All tab is selected', async () => {
     renderTable(allEntries, allRawEntries);
-    await userEvent.click(screen.getByText('All'));
+    await pickView('All');
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Luna')).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
@@ -240,17 +246,18 @@ describe('ClassResultsTable scoring tabs', () => {
     renderTable(entries, [rawScoredA, rawScoredB]);
     // Pending tab (default) should be empty, switch to Completed
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByText('Completed'));
+    await pickView('Completed');
     expect(screen.getByText('Bella')).toBeInTheDocument();
     expect(screen.getByText('Max')).toBeInTheDocument();
   });
 
-  it('handles empty entries list', () => {
+  it('handles empty entries list', async () => {
     renderTable([]);
-    // Views should still render
-    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Completed/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    // The view select should still render
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();
   });
 
   it('detects scored entries via rawEntries is_scored flag', () => {

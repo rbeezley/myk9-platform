@@ -1,6 +1,6 @@
 /**
  * `ListFilterBar` field definitions for the Health Timeline (MYK9-796) —
- * replaces the native type/year `<select>`s. Type is omitted entirely (not
+ * replaces the native type `<select>`. (The Year filter was cut by MYK9-906: the timeline already groups by year.) Type is omitted entirely (not
  * merely disabled) in `vaccinationsOnly` mode, matching the old select's
  * `!vaccinationsOnly` guard.
  */
@@ -15,7 +15,6 @@ export interface HealthEventTypeOption {
 export interface BuildHealthTimelineFilterFieldsOptions {
   filters: HealthTimelineFilters;
   eventTypeOptions: readonly HealthEventTypeOption[];
-  availableYears: readonly number[];
   vaccinationsOnly: boolean;
   onChange: (patch: Partial<HealthTimelineFilters>) => void;
 }
@@ -23,7 +22,6 @@ export interface BuildHealthTimelineFilterFieldsOptions {
 export function buildHealthTimelineFilterFields({
   filters,
   eventTypeOptions,
-  availableYears,
   vaccinationsOnly,
   onChange,
 }: BuildHealthTimelineFilterFieldsOptions): ListFilterField[] {
@@ -39,15 +37,6 @@ export function buildHealthTimelineFilterFields({
       options: eventTypeOptions.map(option => ({ value: option.value, label: option.label })),
     });
   }
-
-  fields.push({
-    kind: 'options',
-    key: 'year',
-    label: 'Year',
-    value: filters.selectedYear === null ? null : String(filters.selectedYear),
-    onChange: value => onChange({ selectedYear: value ? Number(value) : null }),
-    options: availableYears.map(year => ({ value: String(year), label: String(year) })),
-  });
 
   return fields;
 }

@@ -4,13 +4,11 @@ import type { HealthEvent } from './HealthTimeline';
 export interface HealthTimelineFilters {
   searchTerm: string;
   filterType: string;
-  selectedYear: number | null;
 }
 
 export const defaultHealthTimelineFilters: HealthTimelineFilters = {
   searchTerm: '',
   filterType: 'all',
-  selectedYear: null,
 };
 
 /**
@@ -25,17 +23,13 @@ export function hasActiveHealthTimelineFilters(
   filters: HealthTimelineFilters,
   baselineFilterType: string = 'all'
 ): boolean {
-  return (
-    filters.searchTerm.trim() !== '' ||
-    filters.filterType !== baselineFilterType ||
-    filters.selectedYear !== null
-  );
+  return filters.searchTerm.trim() !== '' || filters.filterType !== baselineFilterType;
 }
 
-/** Search + type + year filters, ANDed together, applied to the loaded event set. */
+/** Search + type filters, ANDed together, applied to the loaded event set. */
 export function filterHealthEvents(
   events: HealthEvent[],
-  { searchTerm, filterType, selectedYear }: HealthTimelineFilters
+  { searchTerm, filterType }: HealthTimelineFilters
 ): HealthEvent[] {
   let filtered = events;
 
@@ -52,10 +46,6 @@ export function filterHealthEvents(
 
   if (filterType !== 'all') {
     filtered = filtered.filter(event => event.type === filterType);
-  }
-
-  if (selectedYear !== null) {
-    filtered = filtered.filter(event => event.date.getFullYear() === selectedYear);
   }
 
   return filtered;

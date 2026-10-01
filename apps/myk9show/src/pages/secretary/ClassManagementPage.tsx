@@ -167,6 +167,9 @@ export const ClassManagementPage: React.FC = () => {
     search: searchTerm,
   };
 
+  const classViews = buildClassManagementViews(allClasses);
+  const activeViewId = activeClassManagementViewId(classViewFilterState);
+
   const handleSelectView = (id: string) => {
     selection.clearSelection();
     applyViewState(classManagementViewState(id));
@@ -311,8 +314,8 @@ export const ClassManagementPage: React.FC = () => {
         <CardContent className="flex flex-col gap-3 pt-6">
           <ListViewTabs
             label="Class views"
-            views={buildClassManagementViews(allClasses)}
-            activeId={activeClassManagementViewId(classViewFilterState)}
+            views={classViews}
+            activeId={activeViewId}
             onSelect={handleSelectView}
           />
           <ListFilterBar
@@ -320,13 +323,14 @@ export const ClassManagementPage: React.FC = () => {
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search classes..."
             fields={[elementField]}
-            onClearAll={clearFilters}
           />
           <ListResultLine
+            ready={!isLoading}
             shown={filteredClasses.length}
             total={allClasses.length}
             noun={CLASS_NOUN}
             filtered={statusFilter !== 'all' || elementFilter !== 'all' || searchTerm !== ''}
+            onShowAll={clearFilters}
           />
 
           {/* Display density (tasks.md 3.2) */}

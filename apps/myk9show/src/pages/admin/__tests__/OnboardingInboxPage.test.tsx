@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render, userEvent } from '@/test/utils/testUtils';
 import OnboardingInboxPage from '../OnboardingInboxPage';
 
@@ -107,7 +108,10 @@ describe('OnboardingInboxPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByText(/No pending requests/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^contacted/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: /show: filter club onboarding/i }));
+    expect(
+      within(await screen.findByRole('listbox')).getByRole('option', { name: /^contacted/i })
+    ).toBeInTheDocument();
   });
 
   it('keeps an unsaved edit in one row when a different row is saved', async () => {
@@ -163,9 +167,12 @@ describe('OnboardingInboxPage', () => {
     render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });
 
     expect(await screen.findByText('Tri-State Kennel Club')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^contacted/i }));
+    await user.click(screen.getByRole('combobox', { name: /show: filter club onboarding/i }));
+    await user.click(
+      within(await screen.findByRole('listbox')).getByRole('option', { name: /^contacted/i })
+    );
 
-    expect(screen.getByText(/No contacted requests/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No contacted requests/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /view all 1 request/i }));
     expect(screen.getByText('Tri-State Kennel Club')).toBeInTheDocument();
   });
@@ -198,5 +205,24 @@ describe('OnboardingInboxPage', () => {
       'Long Waiting Club',
       'Tri-State Kennel Club',
     ]);
+  });
+
+  it('"Show all club requests" clears status and search in ONE URL update', async () => {
+    const user = userEvent.setup();
+    function SearchProbe() {
+      return <p data-testid="search">{useLocation().search}</p>;
+    }
+    render(
+      <>
+        <OnboardingInboxPage />
+        <SearchProbe />
+      </>,
+      { initialRoute: '/admin/onboarding?status=contacted&q=zzz' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all club requests' }));
+
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?status=all'));
+    expect(screen.getByTestId('search').textContent).not.toContain('q=');
   });
 });

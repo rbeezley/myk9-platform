@@ -371,6 +371,7 @@ const UserManagementPage: React.FC = () => {
           />
 
           <UserListToolbar
+            ready={!isLoading}
             users={users}
             now={now}
             matchCount={sortedUsers.length}

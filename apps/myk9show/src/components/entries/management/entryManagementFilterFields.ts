@@ -1,27 +1,15 @@
 /**
  * `ListFilterBar` field definitions for the registration-queue views
- * (MYK9-795) — replaces `TrialClassFilters` (trial + class) and adds the new
- * payment-status filter. `payment_status` already exists on
- * `EntryManagementEntry`; no new query.
+ * (MYK9-795) — replaces `TrialClassFilters` (trial + class). The standalone
+ * Payment status field was cut by MYK9-906: the "Payment due" view covers it.
  */
 import { formatTrialLabel } from '@myk9/core';
 import type { ListFilterField } from '@/components/list-toolkit';
-import { PaymentStatus } from '@/types/show-registration-types';
 import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
 } from '@/hooks/useEntryManagementTrialScope';
 import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
-
-const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  [PaymentStatus.PENDING]: 'Pending',
-  [PaymentStatus.PAID_ONLINE]: 'Paid online',
-  [PaymentStatus.PAID_BY_CHECK]: 'Paid by check',
-  [PaymentStatus.PAID_BY_CASH]: 'Paid by cash',
-  [PaymentStatus.REFUNDED]: 'Refunded',
-  [PaymentStatus.PARTIAL_REFUND]: 'Partially refunded',
-  [PaymentStatus.WAIVED]: 'Waived',
-};
 
 function formatTrialOptionLabel(trial: EntryManagementTrial): string {
   const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
@@ -40,7 +28,6 @@ export interface BuildEntryManagementFilterFieldsOptions {
   trials: readonly EntryManagementTrial[];
   trialClasses: readonly EntryManagementTrialClass[];
   onScopeChange: (trialId: string | null, classId?: string | null) => void;
-  onPaymentStatusChange: (status: PaymentStatus | null) => void;
 }
 
 export function buildEntryManagementFilterFields({
@@ -48,13 +35,13 @@ export function buildEntryManagementFilterFields({
   trials,
   trialClasses,
   onScopeChange,
-  onPaymentStatusChange,
 }: BuildEntryManagementFilterFieldsOptions): ListFilterField[] {
   return [
     {
       kind: 'options',
       key: 'trial',
       label: 'Trial',
+      allLabel: 'All trials',
       value: state.trialId,
       onChange: trialId => onScopeChange(trialId, null),
       options: trials.map(trial => ({ value: trial.id, label: formatTrialOptionLabel(trial) })),
@@ -63,6 +50,7 @@ export function buildEntryManagementFilterFields({
       kind: 'options',
       key: 'class',
       label: 'Class',
+      allLabel: 'All classes',
       // `trialClasses` is already scoped to `state.trialId` by
       // `useEntryManagementTrialClasses` (empty when no trial is selected), so
       // this field naturally has nothing to offer until a trial is picked —
@@ -73,17 +61,6 @@ export function buildEntryManagementFilterFields({
       options: trialClasses.map(entryClass => ({
         value: entryClass.id,
         label: entryClass.name ?? 'Unnamed class',
-      })),
-    },
-    {
-      kind: 'options',
-      key: 'payment',
-      label: 'Payment status',
-      value: state.paymentStatus,
-      onChange: value => onPaymentStatusChange(value as PaymentStatus | null),
-      options: Object.values(PaymentStatus).map(status => ({
-        value: status,
-        label: PAYMENT_STATUS_LABELS[status],
       })),
     },
   ];

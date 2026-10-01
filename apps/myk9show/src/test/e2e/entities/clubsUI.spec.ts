@@ -143,11 +143,8 @@ test.describe('Clubs UI — Browse Page', () => {
     await gotoClubsBrowse(page);
     await expect(page.getByRole('button', { name: 'New Club' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
-    // Scope the chip to the FilterChips region; target view toggles by exact
+    // The Club Type filter was cut (MYK9-906); target view toggles by exact
     // aria-label ("Table view" not "Table", which also matches "Reset table view").
-    await expect(
-      page.getByTestId('filter-chips').getByRole('button', { name: /Club Type/ })
-    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
   });

@@ -481,7 +481,6 @@ const BrowseShowsPage: React.FC = () => {
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
                 searchPlaceholder="Search shows or locations"
                 fields={filterFields}
-                onClearAll={clearAllFilters}
                 className="flex-1"
               />
               <ShowLocationField
@@ -497,6 +496,7 @@ const BrowseShowsPage: React.FC = () => {
               total={tabShows.length}
               noun={['show', 'shows']}
               filtered={hasActiveFilters}
+              onShowAll={clearAllFilters}
               {...(isManagingTab
                 ? {
                     selectAll: {

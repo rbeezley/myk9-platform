@@ -14,7 +14,8 @@
  * reachable repro for the same root cause the fix addresses.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within, fireEvent, act } from '@testing-library/react';
+import { render, screen, within, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/user-types';
@@ -104,7 +105,7 @@ describe('UserManagementPage — one shared clock for view counts and filtering'
     vi.useRealTimers();
   });
 
-  it('keeps the "Signed in, last 30 days" count in agreement with the rows it shows across a day boundary and a roster update', () => {
+  it('keeps the "Signed in, last 30 days" count in agreement with the rows it shows across a day boundary and a roster update', async () => {
     const t0 = new Date('2026-02-01T10:00:00.000Z').getTime();
     vi.setSystemTime(t0);
 
@@ -117,8 +118,18 @@ describe('UserManagementPage — one shared clock for view counts and filtering'
 
     const { rerender } = renderPage();
 
-    const views = screen.getByRole('navigation', { name: 'User views' });
-    fireEvent.click(within(views).getByRole('button', { name: /Signed in, last 30 days/ }));
+    // Base UI's select needs real timers to open; the page already captured its
+    // clock at mount, so hand real timers over for the pick and take fake ones back.
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    await user.click(
+      within(await screen.findByRole('listbox')).getByRole('option', {
+        name: /Signed in, last 30 days/,
+      })
+    );
+    vi.useFakeTimers();
+    vi.setSystemTime(t0);
 
     // Advance two days — userA is now 31 days out from "now" and should age
     // out of the 30-day window.
@@ -145,11 +156,11 @@ describe('UserManagementPage — one shared clock for view counts and filtering'
       );
     });
 
-    const badgeButton = within(views).getByRole('button', { name: /Signed in, last 30 days/ });
-    const badgeCount = Number(badgeButton.textContent?.match(/(\d+)\s*$/)?.[1]);
+    const viewSelect = screen.getByRole('combobox', { name: 'Show: User views' });
+    const badgeCount = Number(viewSelect.textContent?.match(/\((\d+)\)\s*$/)?.[1]);
 
     const status = screen.getByRole('status');
-    const shownCount = Number(status.textContent?.match(/^(\d+)/)?.[1]);
+    const shownCount = Number(status.textContent?.match(/^Showing (\d+)/)?.[1]);
 
     // Only userB should still be inside the 30-day window relative to the
     // current time — both the tab's own count and the rows actually shown

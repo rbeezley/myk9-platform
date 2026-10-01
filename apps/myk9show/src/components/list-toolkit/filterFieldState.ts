@@ -1,6 +1,6 @@
 /**
- * Pure helpers behind ListFilterBar: which fields are active, and what their
- * chips say. Kept apart from the component so the wording is testable without
+ * Pure helpers behind ListFilterBar: which fields are active, and how a date
+ * range reads. Kept apart from the component so the wording is testable without
  * a DOM.
  */
 
@@ -22,17 +22,6 @@ export function describeDateRange({ start, end }: ListDateRange): string {
   if (start) return `after ${formatDay(start)}`;
   if (end) return `before ${formatDay(end)}`;
   return 'any time';
-}
-
-/**
- * The value half of an active chip ("Judge", "after Jul 3, 2026"). A value the
- * field no longer offers still shows — raw — so a stale URL is visible and
- * removable rather than silently filtering.
- */
-export function describeFieldValue(field: ListFilterField): string {
-  if (field.kind === 'dateRange') return describeDateRange(field.value);
-  if (field.value === null) return '';
-  return field.options.find(option => option.value === field.value)?.label ?? field.value;
 }
 
 /** `yyyy-mm-dd` for an `<input type="date">`, in local time. */

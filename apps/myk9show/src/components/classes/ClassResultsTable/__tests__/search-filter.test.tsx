@@ -224,7 +224,8 @@ describe('ClassResultsTable search/filter', () => {
   it('filters entries by dog name', async () => {
     const { user } = renderTable();
     // Switch to All tab so all entries are visible
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Rex');
@@ -237,7 +238,8 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by handler name', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Bob');
@@ -248,7 +250,8 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by armband number', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, '202');
@@ -259,7 +262,8 @@ describe('ClassResultsTable search/filter', () => {
 
   it('search is case-insensitive', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'rex');
@@ -282,7 +286,8 @@ describe('ClassResultsTable search/filter', () => {
 
   it('clears search when clear button is clicked', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'Rex');
@@ -319,7 +324,8 @@ describe('ClassResultsTable search/filter', () => {
 
   it('returns no results when search has no matches', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
     await user.type(searchInput, 'zzzznonexistent');
@@ -327,5 +333,17 @@ describe('ClassResultsTable search/filter', () => {
     expect(screen.queryByText('Rex')).not.toBeInTheDocument();
     expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
     expect(screen.queryByText('Max')).not.toBeInTheDocument();
+  });
+
+  it('states the view and search in a sentence and "Show all entries" resets both', async () => {
+    const { user } = renderTable();
+    await user.type(screen.getByLabelText('Search by dog, handler, or armband...'), 'Max');
+
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 3 entries.');
+    await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+    expect(screen.getByLabelText('Search by dog, handler, or armband...')).toHaveValue('');
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
   });
 });

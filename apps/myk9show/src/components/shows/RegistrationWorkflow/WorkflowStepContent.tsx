@@ -5,6 +5,7 @@ import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
 import { PaymentStep } from './PaymentStep';
+import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
 import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -101,6 +102,7 @@ interface WorkflowStepContentProps {
   waiveFees?: boolean | undefined;
   feeOverride?: number | null | undefined;
   onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
+  juniorDeclaration?: JuniorHandlerDeclaration | undefined;
   onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
 
@@ -141,6 +143,7 @@ export function WorkflowStepContent({
   waiveFees,
   feeOverride,
   onWaiveFeesChange,
+  juniorDeclaration,
   onFeeOverrideChange,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
@@ -447,6 +450,7 @@ export function WorkflowStepContent({
             waiveFees={waiveFees}
             feeOverride={feeOverride}
             onWaiveFeesChange={onWaiveFeesChange}
+            juniorDeclaration={juniorDeclaration}
             onFeeOverrideChange={onFeeOverrideChange}
             capacityReady={capacityReady}
             capacityError={capacityError}

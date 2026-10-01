@@ -85,6 +85,11 @@ export interface NewCartItem {
   jumpHeight?: string | undefined;
   specialRequests?: string | undefined;
   entryFeeCents: number;
+  /**
+   * MYK9-879: the exhibitor declared the handler is a junior. Sent with the line
+   * so checkout charges the junior fee; the server re-prices and verifies it.
+   */
+  juniorFeeDeclared?: boolean | undefined;
 }
 
 // Waitlist entry returned from the add_to_waitlist RPC

@@ -232,6 +232,7 @@ export function cartItemsFromFeeBreakdown(
       class_id: klass.classId,
       handler_id: null,
       entry_fee_cents: Math.round(klass.fee * 100),
+      junior_fee_declared: false,
       jump_height: null,
       special_requests: null,
       created_at: '',

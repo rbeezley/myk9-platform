@@ -14,6 +14,7 @@ import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
+import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAfterClubUpload';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -27,7 +28,7 @@ const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { user, userWithRoles } = useAuthContext();
+  const { user, userWithRoles, refreshPermissions } = useAuthContext();
   const isAuthenticated = !!user;
 
   // Keep the affordance aligned with migration 160's clubs_insert policy.
@@ -98,6 +99,9 @@ const BrowseClubsPage: React.FC = () => {
 
         if (createdId) {
           selectClub(createdId);
+          // MYK9-905: the creator's club_admin grant is issued server-side once the club
+          // uploads; refresh role scopes then so Edit appears without a reload.
+          void refreshScopesAfterClubUpload(createdId, refreshPermissions);
           const returnTo = searchParams.get('returnTo');
           if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
             const target = new URL(returnTo, window.location.origin);
@@ -120,7 +124,7 @@ const BrowseClubsPage: React.FC = () => {
         notifications.error('Failed to create club');
       }
     },
-    [addClub, selectClub, navigate, searchParams]
+    [addClub, selectClub, navigate, searchParams, refreshPermissions]
   );
 
   const actionButton = useMemo(

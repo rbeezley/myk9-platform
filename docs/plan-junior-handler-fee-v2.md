@@ -39,7 +39,8 @@ From MYK9-662, Richard, 2026-09-18:
 
 - The fee is **per show**, one "junior handler fee" beside the regular entry fee.
 - It changes the **entry fee only**. The platform/processing split (MYK9-229) is untouched.
-- Junior status is **derived**, never set by hand. Do not add a flag.
+- Junior status is **derived**, never set by hand. Do not add a flag. _(Superseded for the online
+  path in slice C: the exhibitor self-declares; see "Settled in slice C".)_
 - `discounts` stays empty: this is a second fee, not a discount line.
 - Refunds are **never automatic** (MYK9-876). Any refund needs human approval.
 - The reduced fee is decided by **age only**, per the rulebooks. It never requires a junior handler
@@ -74,6 +75,38 @@ Richard's direction; nothing in slice B calls `private.entry_handler_is_junior` 
 NULL is no tier; the stored fee is frozen against direct client UPDATEs. Migration
 `20260930214300_myk9_878_*` implements it.
 
+## Settled in slice C (Richard, 2026-09-30, MYK9-879 comments)
+
+**The exhibitor self-declares, for the online card path.** In the registration wizard the
+registrant ticks "Handler is under 18 (junior handler fee)" for a dog entry, and card checkout
+charges `LEAST(junior fee, normal fee)` for that dog's classes. These are club trials; the
+secretary can call out misuse, so the declaration is recorded and shown to the secretary in
+Entries Management (a "Junior fee (declared)" badge on the entry row, no new page).
+
+- **It is about the HANDLER's age, not the dog's owner.** A parent owns the dog and registers it;
+  the child handles it. The server honors the declaration whenever the show has a junior tier
+  (`junior_handler_fee` > 0, not ASCA in the UI) and never looks at who owns the dog. The existing
+  rule that an exhibitor may only enter dogs they own or co-own is unchanged and is not part of
+  this slice.
+- **No date of birth is read anywhere**, and junior status is never derived. This replaces the
+  plan's "age only" rule for the online path; the secretary's desk override (slice B) is unchanged.
+- **Stored, then frozen.** The declaration is stored on the cart line
+  (`entry_cart_items.junior_fee_declared`) and recorded on the entry
+  (`entries.junior_fee_declared`, a separate column from slice B's `junior_fee_override_by`
+  secretary stamp, which never carries a non-secretary). A direct client write cannot set or
+  change the entry column. Any line that settles an EXISTING entry (Finish Payment, the
+  secretary payment link, the webhook's verification) charges that entry's frozen
+  `entries.entry_fee` and never recomputes or rewrites it, so a later change to the show's fees or
+  junior tier cannot re-price it; only NEW cart lines are priced from the tiers and the declaration.
+  Declarations persist with the wizard draft (and are restored from the cart lines' flags on
+  rehydrate). The server honors no declaration on an ASCA show.
+- **One pricing function for the three Stripe paths.** `_shared/authoritativeFee.ts` takes the
+  junior tier and the declaration and applies the same LEAST cap as `private.price_entry_fee` and
+  the client's `getShowEntryFee`; `_shared/cartItemPricing.ts` prices cart lines for stripe-checkout
+  and stripe-webhook, and existing entries for the secretary payment link.
+- **No refund code added.** Nothing in this slice calls `stripe.refunds.create`; MYK9-872, 873,
+  874 and 876 stay separate (see the PR).
+
 ## Slices
 
 Ship each as its own small PR, each with one independent (Codex) review at the end, never a
@@ -101,9 +134,11 @@ waived) and the offline insert path charge the junior fee on an explicit secreta
 one trusted pricing function (see "Settled in slice B": the age/ownership-derived design was dropped). This is the highest-priority path for show-day
 reliability and needs no Stripe changes.
 
-**Slice C — exhibitor card checkout.** Quote and charge the stored/derived fee through the
-existing checkout, reusing the frozen fee snapshot that already exists rather than adding a new
-one. The wizard's running-total preview (MYK9-838) belongs here.
+**Slice C — exhibitor card checkout.** Quote and charge the exhibitor's declared junior fee
+through the existing checkout (see "Settled in slice C"), reusing the frozen fee snapshot
+(`entry_cart_items.entry_fee_cents`, verified against the authoritative price) rather than adding
+a new one. The wizard's running-total preview (MYK9-838) belongs here and equals what checkout
+charges.
 
 ## Salvage from PR #2546
 

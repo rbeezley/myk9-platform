@@ -485,6 +485,7 @@ export const useCartStore = create<CartState>()(
               class_id: item.classId,
               handler_id: item.handlerId || null,
               entry_fee_cents: item.entryFeeCents,
+              ...(item.juniorFeeDeclared ? { junior_fee_declared: true } : {}),
               jump_height: item.jumpHeight || null,
               special_requests: item.specialRequests || null,
             };

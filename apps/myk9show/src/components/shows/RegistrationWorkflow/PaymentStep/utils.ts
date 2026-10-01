@@ -49,6 +49,18 @@ export function parseJuniorHandlerFee(show: Pick<ShowFeeInfo, 'juniorHandlerFee'
   return Number.isFinite(fee) && fee > 0 ? fee : null;
 }
 
+/**
+ * Whether the exhibitor can declare the handler is a junior at card checkout
+ * (MYK9-879): the show has a junior tier and is not ASCA (the setting is hidden
+ * there, since ASCA junior status cannot be derived). The same rule the control
+ * uses to show itself, so what is offered is what the server will honor.
+ */
+export function canDeclareJuniorHandler(
+  show: (Pick<ShowFeeInfo, 'juniorHandlerFee'> & { organization?: string | undefined }) | undefined
+): boolean {
+  return show?.organization !== 'ASCA' && parseJuniorHandlerFee(show) !== null;
+}
+
 /** Adapt the wizard's fee inputs to the shared day-of-show rule. */
 export function showDayOfShowContext(show: ShowFeeInfo): DayOfShowEntryContext {
   return {
@@ -136,7 +148,11 @@ export function calculateTotalFees(
   dogs: DogLike[],
   classes: ClassLike[],
   show?: ShowFeeInfo,
-  nonPayableClassIds: NonPayableClassIds = new Set()
+  nonPayableClassIds: NonPayableClassIds = new Set(),
+  // MYK9-879: dogs whose handler the exhibitor declared a junior. One declaration
+  // per dog covers every class that dog is entered in, the same grain the cart
+  // and checkout use, so this preview is the amount checkout charges.
+  juniorHandlerDogIds: ReadonlySet<string> = new Set()
 ): FeeCalculationResult {
   let subtotal = 0;
   const breakdown: FeeBreakdownItem[] = [];
@@ -152,7 +168,9 @@ export function calculateTotalFees(
         return {
           classId: sc.classId,
           className: classData?.className || 'Unknown Class',
-          fee: isWaitlist ? 0 : getShowEntryFee(show, classData?.entryFee),
+          fee: isWaitlist
+            ? 0
+            : getShowEntryFee(show, classData?.entryFee, undefined, juniorHandlerDogIds.has(dogId)),
           ...(isWaitlist ? { isWaitlist: true } : {}),
         };
       });

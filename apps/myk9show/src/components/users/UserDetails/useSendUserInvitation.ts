@@ -19,6 +19,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
+import { inviteNotSentMessage } from './inviteOutcome';
 
 export interface SendInvitationArgs {
   personId: string;
@@ -82,6 +83,13 @@ export function useSendUserInvitation() {
   const mutation = useMutation({
     mutationFn: invokeAdminInvite,
     onSuccess: ({ data }) => {
+      // A 200 can still mean nothing was sent (person gone / already signed in).
+      const notSent = inviteNotSentMessage(data);
+      if (notSent) {
+        notifications.error(notSent);
+        queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+        return;
+      }
       // Name the address the backend ACTUALLY delivered to. It differs from the
       // contact email whenever that address drifted from the auth identity, and
       // announcing the wrong one would be the same lie this feature exists to

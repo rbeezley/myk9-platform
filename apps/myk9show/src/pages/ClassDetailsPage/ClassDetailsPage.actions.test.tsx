@@ -55,12 +55,8 @@ vi.mock('./DeleteClassDialog', () => ({
   DeleteClassDialog: () => <div data-testid="delete-class-dialog" />,
 }));
 
-vi.mock('./EditEntryDialog', () => ({
-  EditEntryDialog: () => null,
-}));
-
-vi.mock('./DeleteEntryDialog', () => ({
-  DeleteEntryDialog: () => null,
+vi.mock('@/components/entries/RemoveEntryDialog', () => ({
+  RemoveEntryDialog: () => null,
 }));
 
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
@@ -165,21 +161,16 @@ describe('ClassDetailsPage header actions', () => {
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
-      editEntryDialogOpen: false,
       deleteDialogOpen: false,
-      editEntryId: null,
       deleteEntryDialogOpen: false,
       entryToDelete: null,
       openEditClassPanel: vi.fn(),
       openDeleteDialog: vi.fn(),
       closeDeleteDialog: vi.fn(),
       closeEditClassPanel: vi.fn(),
-      closeEditEntryDialog: vi.fn(),
       closeDeleteEntryDialog: vi.fn(),
       setDeleteDialogOpen: vi.fn(),
-      setEditEntryDialogOpen: vi.fn(),
       setDeleteEntryDialogOpen: vi.fn(),
-      openEditEntryDialog: vi.fn(),
       openDeleteEntryDialog: vi.fn(),
     });
     mockUseClassDetailsData.mockReturnValue({

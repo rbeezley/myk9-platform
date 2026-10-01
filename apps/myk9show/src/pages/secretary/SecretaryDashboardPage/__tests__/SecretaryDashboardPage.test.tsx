@@ -21,6 +21,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     firstName: 'Sam',
     isAdmin: false,
+    hasRole: () => false,
     userWithRoles: {
       scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
     },
@@ -98,18 +99,13 @@ describe('SecretaryDashboardPage', () => {
       'href',
       '/secretary/create-show/wizard'
     );
-    expect(screen.getByRole('link', { name: /Add Dog/i })).toHaveAttribute(
-      'href',
-      '/dogs?add=true'
-    );
-    expect(screen.getByRole('link', { name: /Add Person/i })).toHaveAttribute(
-      'href',
-      '/people?add=true'
-    );
+    expect(screen.getByRole('button', { name: /Add Entry/i })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: /Add Dog/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Add Person/i })).not.toBeInTheDocument();
     const quickLinks = screen.getByRole('navigation', { name: /Dashboard quick links/i });
     expect(quickLinks).toBeInTheDocument();
     expect(quickLinks.querySelector('[data-testid="dashboard-quick-links-row"]')).toHaveClass(
-      'grid-cols-3'
+      'grid-cols-2'
     );
     expect(screen.queryByText('Open dogs')).not.toBeInTheDocument();
     expect(screen.queryByText('Open people')).not.toBeInTheDocument();

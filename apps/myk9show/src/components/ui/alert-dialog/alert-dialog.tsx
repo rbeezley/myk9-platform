@@ -4,6 +4,7 @@ import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
+import { OverlayStackMarker } from '@/components/ui/OverlayStackMarker';
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -54,7 +55,7 @@ AlertDialogOverlay.displayName = 'AlertDialogOverlay';
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Popup>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Popup
@@ -70,7 +71,10 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
-    />
+    >
+      <OverlayStackMarker label="alert-dialog" />
+      {children}
+    </AlertDialogPrimitive.Popup>
   </AlertDialogPortal>
 ));
 AlertDialogContent.displayName = 'AlertDialogContent';

@@ -19,6 +19,15 @@ vi.mock('react-router-dom', async () => {
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
 
+const replicatedTrialsSync = vi.hoisted(() => vi.fn());
+vi.mock('@/services/replication', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication')>();
+  return {
+    ...actual,
+    replicatedTrialsTable: { ...actual.replicatedTrialsTable, sync: replicatedTrialsSync },
+  };
+});
+
 let mockCanManage = true;
 let mockScopeStatus: 'resolved' | 'resolving' | 'unavailable' = 'resolved';
 vi.mock('@/hooks/useRBAC', () => ({
@@ -294,13 +303,14 @@ describe('TrialsTab trial save and delete failures', () => {
 describe('TrialsTab row actions with a cold trial store', () => {
   beforeEach(() => {
     toastError.mockClear();
+    replicatedTrialsSync.mockReset().mockResolvedValue(undefined);
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = 'cards';
     useTrialStore.setState({ trials: [] });
   });
 
-  it('hydrates the store from the replica, then opens Edit for that trial', async () => {
+  it("syncs the show's trials into the replica, reloads the store, then opens Edit", async () => {
     const loadTrials = vi.fn(async () => {
       useTrialStore.setState({ trials: trials.map(syncable) });
     });
@@ -311,9 +321,35 @@ describe('TrialsTab row actions with a cold trial store', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
 
     const panel = await screen.findByRole('dialog');
+    expect(replicatedTrialsSync).toHaveBeenCalledWith('s1', expect.anything());
     expect(loadTrials).toHaveBeenCalledTimes(1);
     expect(within(panel).getByDisplayValue('Sunday Trial 2')).toBeVisible();
     expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('a failed sync (offline) shows the error and opens nothing', async () => {
+    replicatedTrialsSync.mockRejectedValue(new Error('offline'));
+    useTrialStore.setState({ loadTrials: vi.fn(async () => undefined) });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/couldn't load this trial/i))
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('with the trial already in the store nothing is synced', async () => {
+    seedStore();
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(replicatedTrialsSync).not.toHaveBeenCalled();
   });
 
   it('locks every other row menu while one trial resolves', async () => {

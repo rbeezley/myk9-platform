@@ -1,3 +1,4 @@
+import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
 import { resolveClassFromStores } from '@/hooks/resolveClassFromStores';
 import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
@@ -28,13 +29,9 @@ export async function resolveSetupClass(
   classId: string,
   trialId: string
 ): Promise<SetupClassSnapshot | null> {
-  const warm = fromStore(classId);
-  if (warm) return warm;
-  try {
-    await replicatedClassesTable.sync(trialId, { forceFullSync: true });
-    await useTrialStore.getState().loadTrialClasses();
-  } catch {
-    // Fall through: the re-read below decides.
-  }
-  return fromStore(classId);
+  return hydrateThenResolve({
+    readStore: () => fromStore(classId),
+    sync: () => replicatedClassesTable.sync(trialId, { forceFullSync: true }),
+    reload: () => useTrialStore.getState().loadTrialClasses(),
+  });
 }

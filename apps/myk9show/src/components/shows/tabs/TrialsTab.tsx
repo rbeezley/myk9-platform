@@ -14,6 +14,8 @@ import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
 import { toast } from 'sonner';
+import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
+import { replicatedTrialsTable } from '@/services/replication';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
@@ -148,12 +150,16 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const latestActionRequest = useRef(0);
   const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
     const request = ++latestActionRequest.current;
-    const fromStore = () => useTrialStore.getState().trials.find(trial => trial.id === trialId);
     setHydratingTrialId(trialId);
     try {
-      if (!fromStore()) await useTrialStore.getState().loadTrials();
+      // The store first; if the trial is not there, sync this show's trials into the replica and
+      // reload the store (offline or a failed sync falls through to the error below).
+      const trial = await hydrateThenResolve({
+        readStore: () => useTrialStore.getState().trials.find(t => t.id === trialId),
+        sync: () => replicatedTrialsTable.sync(showId, { forceFullSync: true }),
+        reload: () => useTrialStore.getState().loadTrials(),
+      });
       if (request !== latestActionRequest.current) return;
-      const trial = fromStore();
       if (!trial) {
         toast.error("We couldn't load this trial. Please refresh and try again.");
         return;

@@ -68,6 +68,51 @@ const storeClasses = vi.hoisted(() => [
     judgeId: 'j1',
   },
 ]);
+const replicatedSync = vi.hoisted(() => vi.fn());
+// The Setup editor reads the class from the authenticated REPLICA in raw DB form (status
+// 'in_progress'), so these tests serve the replica from whatever the test put in trialStore.
+vi.mock('@/services/replication', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication')>();
+  return {
+    ...actual,
+    replicatedClassesTable: {
+      ...actual.replicatedClassesTable,
+      sync: replicatedSync,
+      getClassById: async (id: string) => {
+        // Imported lazily: trialStore itself imports this (mocked) module.
+        const { useTrialStore: store } = await import('@/store/trialStore');
+        for (const [trialId, classes] of Object.entries(store.getState().trialClasses)) {
+          const cls = classes.find(c => c.id === id);
+          if (cls) {
+            return {
+              id: cls.id,
+              trialId,
+              name: `${cls.level} ${cls.element}`,
+              element: cls.element,
+              level: cls.level,
+              section: cls.section,
+              classStatus: 'in_progress',
+              judgeId: cls.judgeId,
+              judgeName: cls.judgeName,
+              startTime: cls.startTime,
+            };
+          }
+        }
+        return null;
+      },
+    },
+    replicatedTrialsTable: {
+      ...actual.replicatedTrialsTable,
+      getTrialById: async () => ({
+        id: 't1',
+        name: 'Saturday Trial',
+        date: '2026-05-09',
+        trialNumber: '1',
+        status: 'upcoming',
+      }),
+    },
+  };
+});
 vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: storeClasses, updateClass, deleteClass }),
 }));

@@ -12,11 +12,11 @@ export async function hydrateThenResolve<T>({
   sync,
   reload,
 }: {
-  readStore: () => T | null | undefined;
+  readStore: () => T | null | undefined | Promise<T | null | undefined>;
   sync: () => Promise<unknown>;
   reload: () => Promise<unknown>;
 }): Promise<T | null> {
-  const warm = readStore();
+  const warm = await readStore();
   if (warm) return warm;
   try {
     await sync();
@@ -24,5 +24,5 @@ export async function hydrateThenResolve<T>({
   } catch {
     // Fall through: the re-read below decides.
   }
-  return readStore() ?? null;
+  return (await readStore()) ?? null;
 }

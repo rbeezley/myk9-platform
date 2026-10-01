@@ -54,7 +54,21 @@ vi.mock('@/pages/ClassDetailsPage/DeleteClassDialog', () => ({
 
 const renderDialogs = () =>
   render(
-    <SetupClassDialogs showId="s1" pending={{ classId: 'c1', action: 'edit' }} onClose={onClose} />
+    <SetupClassDialogs
+      showId="s1"
+      pending={{
+        action: 'edit',
+        classSnapshot: {
+          id: 'c1',
+          trialId: 't1',
+          element: 'Containers',
+          level: 'Novice',
+          section: 'A',
+          judgeId: 'j1',
+        } as never,
+      }}
+      onClose={onClose}
+    />
   );
 
 describe('SetupClassDialogs save contract', () => {

@@ -43,35 +43,37 @@ vi.mock('@/hooks/useViewPreference', () => ({
 
 const deleteClass = vi.hoisted(() => vi.fn());
 const updateClass = vi.hoisted(() => vi.fn());
+const storeClasses = vi.hoisted(() => [
+  {
+    id: 'c1',
+    trialId: 't1',
+    trial: 'Saturday Trial',
+    element: 'Containers',
+    level: 'Novice',
+    section: 'A',
+    status: 'Scheduled',
+    judge: 'Test Judge',
+    judgeId: 'j1',
+  },
+  {
+    id: 'c2',
+    trialId: 't1',
+    trial: 'Saturday Trial',
+    element: 'Interior',
+    level: 'Advanced',
+    section: 'B',
+    status: 'Scheduled',
+    judge: 'Test Judge',
+    judgeId: 'j1',
+  },
+]);
+// The tab resolves a row's class itself (replicated store, else this by-id read) before any
+// dialog mounts; the cold replica here means the by-id read answers.
+vi.mock('@/services/database/classes', () => ({
+  getPublicClassById: async (id: string) => storeClasses.find(c => c.id === id) ?? null,
+}));
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({
-    classes: [
-      {
-        id: 'c1',
-        trialId: 't1',
-        trial: 'Saturday Trial',
-        element: 'Containers',
-        level: 'Novice',
-        section: 'A',
-        status: 'Scheduled',
-        judge: 'Test Judge',
-        judgeId: 'j1',
-      },
-      {
-        id: 'c2',
-        trialId: 't1',
-        trial: 'Saturday Trial',
-        element: 'Interior',
-        level: 'Advanced',
-        section: 'B',
-        status: 'Scheduled',
-        judge: 'Test Judge',
-        judgeId: 'j1',
-      },
-    ],
-    updateClass,
-    deleteClass,
-  }),
+  useClassStoreCompat: () => ({ classes: storeClasses, updateClass, deleteClass }),
 }));
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 

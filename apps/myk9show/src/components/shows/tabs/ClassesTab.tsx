@@ -15,7 +15,9 @@ import { StatusBadge } from '@/components/status';
 import { ListViewTabs } from '@/components/list-toolkit';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
-import { SetupClassDialogs, type SetupClassAction } from './SetupClassDialogs';
+import { toast } from 'sonner';
+import { SetupClassDialogs } from './SetupClassDialogs';
+import { resolveSetupClass, type SetupClassAction } from './setupClassSnapshot';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import {
   activeClassesTabViewId,
@@ -142,12 +144,30 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     [filteredClasses]
   );
 
+  // Resolve the class BEFORE any dialog mounts (replicated store, else the by-id read Class
+  // Details uses for a cold session), and keep that snapshot: the dialogs never re-resolve.
+  const [hydratingClassId, setHydratingClassId] = useState<string | null>(null);
+  const openClassAction = async (classId: string, action: SetupClassAction['action']) => {
+    setHydratingClassId(classId);
+    try {
+      const classSnapshot = await resolveSetupClass(classId);
+      if (!classSnapshot) {
+        toast.error("We couldn't load this class. Please refresh and try again.");
+        return;
+      }
+      setPendingAction({ action, classSnapshot });
+    } finally {
+      setHydratingClassId(null);
+    }
+  };
+
   const classRowMenu = (cls: ClassInfo) => (
     <SetupRowActionsMenu
       subject="Class"
       rowLabel={[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
-      onEdit={() => setPendingAction({ classId: cls.id, action: 'edit' })}
-      onDelete={() => setPendingAction({ classId: cls.id, action: 'delete' })}
+      busy={hydratingClassId === cls.id}
+      onEdit={() => void openClassAction(cls.id, 'edit')}
+      onDelete={() => void openClassAction(cls.id, 'delete')}
     />
   );
 
@@ -242,7 +262,8 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     }
 
     return cols;
-  }, [hideRing, canManageThisShow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- classRowMenu only closes over stable setters and hydratingClassId
+  }, [hideRing, canManageThisShow, hydratingClassId]);
 
   if (classes.length === 0) {
     return (

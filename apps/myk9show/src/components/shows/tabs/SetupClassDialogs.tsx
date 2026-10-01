@@ -1,17 +1,9 @@
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
 import type { ClassData } from '@/components/classes/types/classTypes';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { resolveClassFromStores } from '@/hooks/resolveClassFromStores';
-import { useTrialStore } from '@/store/trialStore';
+import { snapshotTrialId, type SetupClassAction } from './setupClassSnapshot';
 import { useClassEditActions } from '@/hooks/useClassEditActions';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-
-export interface SetupClassAction {
-  classId: string;
-  action: 'edit' | 'delete';
-}
 
 interface SetupClassDialogsProps {
   showId: string;
@@ -20,44 +12,27 @@ interface SetupClassDialogsProps {
 }
 
 /**
- * The existing class edit panel and delete dialog, opened from a Setup row
- * (MYK9-900). Saves and deletes go through `useClassEditActions`, the same hook
- * Class Details uses, so saves, deletes and the offline message are identical.
- * Mounted only while an action is pending so the page does not subscribe to
- * class and entry queries it never reads.
+ * The existing class edit panel and delete dialog, opened from a Setup row (MYK9-900), working
+ * on the snapshot the tab resolved when the action started; nothing here re-resolves the class
+ * (a successful delete removes it from the stores while the confirm is still finishing). Saves
+ * and deletes go through `useClassEditActions`, the same hook Class Details uses. Mounted only
+ * while an action is pending so the page does not subscribe to class and entry queries it
+ * never reads.
  */
 export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialogsProps) {
-  const { classes, updateClass, deleteClass } = useClassStoreCompat();
+  const { updateClass, deleteClass } = useClassStoreCompat();
   const { saveClass, removeClass } = useClassEditActions({ showId, updateClass, deleteClass });
-  // Resolved ONCE, when the row action starts (this component mounts per action), and kept:
-  // a successful delete removes the class from the stores while the confirm is still finishing,
-  // so re-resolving reactively would report "couldn't load" after a success. The query list is
-  // online-only and empty after a cold offline reload, while Setup still shows the class from
-  // the replicated store, so the snapshot falls back to the same replicated lookup Class Details
-  // uses.
-  const [currentClass] = useState(() =>
-    resolveClassFromStores(pending.classId, classes, useTrialStore.getState().trialClasses)
-  );
-
-  // Never a silent no-op: a class that cannot be found at action start says so and closes. This
-  // can only fire at start, since the snapshot never changes afterwards.
-  useEffect(() => {
-    if (currentClass === null) {
-      toast.error("We couldn't load this class. Please refresh and try again.");
-      onClose();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at action start
-  }, []);
+  const currentClass = pending.classSnapshot;
 
   // Both reject on failure: the panel stays open with the edits, and the dialog stays open
   // with the reason. On success the panel closes itself and the dialog calls onOpenChange(false).
   const handleSave = async (data: Partial<ClassData>) => {
-    if (currentClass) {
-      await saveClass(currentClass.id, { ...currentClass, ...data }, currentClass.trialId);
-    }
+    await saveClass(
+      currentClass.id,
+      { ...currentClass, ...data } as Partial<ClassData>,
+      snapshotTrialId(currentClass)
+    );
   };
-
-  if (!currentClass) return null;
 
   return pending.action === 'edit' ? (
     <ClassEditPanel
@@ -76,7 +51,7 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
         if (!open) onClose();
       }}
       currentClass={currentClass}
-      onConfirm={() => removeClass(pending.classId)}
+      onConfirm={() => removeClass(currentClass.id)}
     />
   );
 }

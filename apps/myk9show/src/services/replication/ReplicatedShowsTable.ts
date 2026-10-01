@@ -21,6 +21,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { getLiveShowCount } from './liveShowCount';
 import { verifyShowsAllDeleted } from '@/services/database/shows/emptyScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
@@ -263,37 +264,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
       ...this.getRowRefetchAdapter(),
-      // The count the engine compares the replica against, filtered exactly as
-      // the fetch below is. It is how a device notices it holds MORE shows than
-      // the server (one soft-deleted elsewhere), which the live-only incremental
-      // fetch can never deliver as a tombstone. Id column, never `*`, on a
-      // column-allowlisted table (docs/lessons/README.md#postgrest-count-column).
-      getRemoteRowCount: async ({ scope }) => {
-        try {
-          let query = supabase
-            .from('shows')
-            .select('id', { count: 'exact', head: true })
-            .is('deleted_at', null);
-          if (scope.value) query = query.eq('club_id', scope.value);
-          const { count, error } = await query;
-          if (error) {
-            logger.warn(
-              `[${this.getTableName()}] Shows coverage count unavailable; continuing sync`,
-              'replication',
-              { message: error.message }
-            );
-            return undefined;
-          }
-          return count ?? 0;
-        } catch (error) {
-          logger.warn(
-            `[${this.getTableName()}] Shows coverage count unavailable; continuing sync`,
-            'replication',
-            { message: error instanceof Error ? error.message : String(error) }
-          );
-          return undefined;
-        }
-      },
+      getRemoteRowCount: ({ scope }) => getLiveShowCount(scope.value),
       // A soft-deleted show is filtered out of every fetch, so it is never
       // overwritten or removed here. Once a full fetch proves complete against
       // the count above, rows the server no longer returns leave the replica.

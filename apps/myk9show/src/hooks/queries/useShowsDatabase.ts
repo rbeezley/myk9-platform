@@ -5,6 +5,7 @@ import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { usePublicShowDetailQuery } from './publicShowDetailQuery';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
+import { useShowStore } from '@/store/showStore';
 import {
   getAllShows,
   getShowById,
@@ -358,6 +359,10 @@ export const useDeleteShowMutation = () => {
       }
     },
     onSuccess: ({ id }) => {
+      // Drop the replicated copy too: a soft-deleted show is never re-pulled,
+      // so it would otherwise stay in the local replica and the store lists.
+      void useShowStore.getState().purgeDeletedShow(id);
+
       // Remove from detail cache
       queryClient.removeQueries({ queryKey: showQueryKeys.detail(id) });
 

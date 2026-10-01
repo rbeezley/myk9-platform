@@ -10,6 +10,11 @@ import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { updateShow, deleteShow } from '@/services/database/shows';
+import {
+  classifyShowDeleteError,
+  showDeletePermissionMessage,
+} from '@/services/database/shows/deleteOutcome';
+import { useShowStore } from '@/store/showStore';
 import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -153,17 +158,38 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         showIds: selectedShows.map(s => s.id),
       });
 
-      const results = await Promise.all(selectedShows.map(show => deleteShow(show.id)));
-      const failedCount = results.filter(result => result.error).length;
+      const results = await Promise.all(
+        selectedShows.map(async show => ({ show, result: await deleteShow(show.id) }))
+      );
+      const failures = results.filter(({ result }) => result.error);
+      const failedCount = failures.length;
+
+      // A delete that landed (or found the show already deleted) leaves every
+      // list now, not on the next sync: the replica never delivers tombstones.
+      const { purgeDeletedShow } = useShowStore.getState();
+      await Promise.all(
+        results.filter(({ result }) => !result.error).map(({ show }) => purgeDeletedShow(show.id))
+      );
+
+      const deniedNames = failures
+        .filter(({ result }) => classifyShowDeleteError(result.error) === 'permission-denied')
+        .map(({ show }) => show.name);
+      const failureMessage =
+        deniedNames.length === failedCount && failedCount > 0
+          ? showDeletePermissionMessage(deniedNames)
+          : null;
+
       if (failedCount === selectedShows.length) {
-        setError('Failed to delete the selected shows. Please try again.');
+        setError(failureMessage ?? 'Failed to delete the selected shows. Please try again.');
         return;
       }
       if (failedCount > 0) {
         // Partial failure: refresh + clear selection so already-deleted shows
         // drop out of the list and a retry can't re-delete them.
         notifications.error(`Failed to delete ${failedCount} of ${selectedShows.length} shows.`, {
-          description: 'The other shows were deleted. Re-select the failed shows to retry.',
+          description: failureMessage
+            ? `${failureMessage} The other shows were deleted.`
+            : 'The other shows were deleted. Re-select the failed shows to retry.',
         });
         closeDialog();
         onBulkComplete();
@@ -310,8 +336,8 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
           <DialogHeader>
             <DialogTitle>Delete Shows</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedShows.length} selected show
-              {selectedShows.length !== 1 ? 's' : ''}? This action cannot be undone.
+              Delete {selectedShows.length} selected show
+              {selectedShows.length !== 1 ? 's' : ''}?
             </DialogDescription>
           </DialogHeader>
 
@@ -326,8 +352,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This will permanently delete all show data including entries, results, and
-                configuration.
+                This removes the show, its trials, classes and entries from myK9Show.
               </AlertDescription>
             </Alert>
 

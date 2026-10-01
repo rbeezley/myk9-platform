@@ -9,7 +9,8 @@
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { updateShow, deleteShow } from '@/services/database/shows';
+import { updateShow } from '@/services/database/shows';
+import { deleteShowRecord } from '@/services/showDeletion';
 import {
   classifyShowDeleteError,
   showDeletePermissionMessage,
@@ -159,7 +160,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       });
 
       const results = await Promise.all(
-        selectedShows.map(async show => ({ show, result: await deleteShow(show.id) }))
+        selectedShows.map(async show => ({ show, result: await deleteShowRecord(show.id) }))
       );
       const failures = results.filter(({ result }) => result.error);
       const failedCount = failures.length;

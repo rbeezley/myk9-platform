@@ -12,6 +12,7 @@ import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTab
 const server = vi.hoisted(() => ({
   rows: [] as Array<Record<string, unknown>>,
   liveCount: 0,
+  rpc: vi.fn(),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -28,6 +29,7 @@ vi.mock('@/services/database/supabaseClient', () => {
   };
   return {
     supabase: {
+      rpc: server.rpc,
       from: () => ({
         select: (_cols: string, opts?: { head?: boolean }) =>
           builder(opts?.head ? 'count' : 'rows'),
@@ -78,6 +80,7 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
     table = new ReplicatedShowsTable();
     server.rows = [];
     server.liveCount = 0;
+    server.rpc.mockReset();
   });
 
   afterEach(async () => {
@@ -96,5 +99,63 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
 
     expect(await table.get('deleted-show')).toBeNull();
     expect(await table.get('live-show')).not.toBeNull();
+  });
+
+  describe('when the last show of the scope is deleted elsewhere (count 0, fetch 0)', () => {
+    beforeEach(async () => {
+      await table.set('deleted-a', show('deleted-a'));
+      await table.set('deleted-b', show('deleted-b'));
+      server.rows = [];
+      server.liveCount = 0;
+      // Stale cleanup spares rows synced at or after the fetch start; real
+      // replica rows are older than the sync, so let the clock move on.
+      await new Promise(resolve => setTimeout(resolve, 5));
+      // Local-only create, not on the server: never part of the proof.
+      await table.set('draft-local', { ...show('draft-local'), _localOnly: true }, true);
+    });
+
+    it('clears the replica once the independent liveness read confirms every show is deleted', async () => {
+      server.rpc.mockResolvedValue({
+        data: [
+          { show_id: 'deleted-a', is_live: false },
+          { show_id: 'deleted-b', is_live: false },
+        ],
+        error: null,
+      });
+
+      await table.sync('');
+
+      expect(server.rpc).toHaveBeenCalledWith('get_manageable_show_liveness', {
+        p_show_ids: expect.arrayContaining(['deleted-a', 'deleted-b']),
+      });
+      expect(await table.get('deleted-a')).toBeNull();
+      expect(await table.get('deleted-b')).toBeNull();
+      expect(await table.get('draft-local')).not.toBeNull();
+    });
+
+    it.each([
+      ['the liveness read errors', { data: null, error: { message: 'boom' } }],
+      [
+        'a show is still live',
+        {
+          data: [
+            { show_id: 'deleted-a', is_live: false },
+            { show_id: 'deleted-b', is_live: true },
+          ],
+          error: null,
+        },
+      ],
+      [
+        'a show is missing from the answer (not manageable)',
+        { data: [{ show_id: 'deleted-a', is_live: false }], error: null },
+      ],
+    ])('keeps every row when %s', async (_name, response) => {
+      server.rpc.mockResolvedValue(response);
+
+      await table.sync('');
+
+      expect(await table.get('deleted-a')).not.toBeNull();
+      expect(await table.get('deleted-b')).not.toBeNull();
+    });
   });
 });

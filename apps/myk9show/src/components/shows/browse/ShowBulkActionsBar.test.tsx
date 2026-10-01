@@ -3,13 +3,17 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowBulkActionsBar } from './ShowBulkActionsBar';
-import { updateShow, deleteShow } from '@/services/database/shows';
+import { updateShow } from '@/services/database/shows';
+import { deleteShowRecord as deleteShow } from '@/services/showDeletion';
 import { notifications } from '@/lib/notifications';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 vi.mock('@/services/database/shows', () => ({
   updateShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
-  deleteShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
+}));
+
+vi.mock('@/services/showDeletion', () => ({
+  deleteShowRecord: vi.fn().mockResolvedValue({ data: {}, error: null }),
 }));
 
 const purgeDeletedShow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));

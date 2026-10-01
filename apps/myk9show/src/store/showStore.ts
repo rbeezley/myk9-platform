@@ -17,7 +17,7 @@ import {
   replicatedJudgeAssignmentsTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
-import { deleteShow as softDeleteShow } from '@/services/database/shows/writes';
+import { deleteShowRecord as softDeleteShow } from '@/services/showDeletion';
 import { resyncTrialRegistry } from '@/services/database/trials';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import {

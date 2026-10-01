@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   replicaDelete: vi.fn(),
 }));
 
-vi.mock('@/services/database/shows/writes', () => ({ deleteShow: mocks.softDelete }));
+vi.mock('@/services/showDeletion', () => ({ deleteShowRecord: mocks.softDelete }));
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { delete: mocks.replicaDelete, subscribe: vi.fn(() => () => {}) },
 }));

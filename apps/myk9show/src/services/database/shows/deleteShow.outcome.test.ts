@@ -3,10 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const rpc = vi.hoisted(() => vi.fn());
 
-vi.mock('../supabaseClient', async () => {
-  const { createDatabaseError } = await import('../databaseError');
-  return { supabase: { rpc }, logQuery: vi.fn(), createDatabaseError };
-});
+import { createDatabaseError } from '../databaseError';
+
+vi.mock('../supabaseClient', () => ({ supabase: { rpc }, logQuery: vi.fn(), createDatabaseError }));
 
 import { deleteShow } from './writes';
 import { classifyShowDeleteError } from './deleteOutcome';

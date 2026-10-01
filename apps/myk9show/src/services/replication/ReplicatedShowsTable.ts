@@ -13,6 +13,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  type MutationManager,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
@@ -20,6 +21,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { verifyShowsAllDeleted } from '@/services/database/shows/emptyScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
@@ -132,8 +134,15 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
+  private showMutationManager: MutationManager | null = null;
+
   constructor() {
     super('shows', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.showMutationManager = manager;
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -289,6 +298,22 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       // overwritten or removed here. Once a full fetch proves complete against
       // the count above, rows the server no longer returns leave the replica.
       cleanupStaleRowsOnFullSync: true,
+      // The count and the fetch share shows_select, so the last show of a scope
+      // deleted elsewhere reads 0 and 0, the same as an RLS gap. Clearing then
+      // needs a second source: a direct read confirming each server-backed show
+      // still held here is soft-deleted. Anything short of that keeps the rows.
+      verifyScopeEmpty: async ({ scope }) => {
+        try {
+          const rows = await this.getAllOrThrow();
+          const ids = rows
+            .filter(r => (scope.value ? r.clubId === scope.value : true))
+            .filter(r => (r as { _localOnly?: boolean })._localOnly !== true)
+            .map(r => r.id);
+          return await verifyShowsAllDeleted(ids);
+        } catch {
+          return false;
+        }
+      },
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')
@@ -451,6 +476,23 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;
+  }
+
+  /**
+   * A show created on this device whose INSERT has not uploaded does not exist
+   * on the server, so a server-side delete of it reports "not found" and would
+   * leave the INSERT queued to resurrect it. When such an INSERT is queued,
+   * discard every queued mutation for the show (the replication package's own
+   * API) and return true; the caller then purges the local row and must not
+   * call the server. False means there is no pending local create.
+   */
+  async discardPendingLocalCreate(showId: string): Promise<boolean> {
+    const manager = this.showMutationManager;
+    if (!manager) return false;
+    const pending = await manager.getPendingMutationsForRow(this.getTableName(), showId);
+    if (!pending.some(m => m.operation === 'INSERT')) return false;
+    await manager.discardPendingMutationsForRow(this.getTableName(), showId);
+    return true;
   }
 
   /**

@@ -17,6 +17,8 @@ import type { WizardTrialView } from '@/utils/wizardTrialNames';
 interface WizardStepContentProps {
   currentStep: number;
   editMode: EditMode | undefined;
+  /** Resolved launching trial (`resolveFocusTrialId`); null opens the first trial. */
+  focusTrialId?: string | null;
   trialView: WizardTrialView;
   existingTrialsReady: boolean;
   existingClasses: SyncableClassData[];
@@ -43,6 +45,7 @@ interface WizardStepContentProps {
 export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   currentStep: requestedStep,
   editMode,
+  focusTrialId = null,
   trialView,
   existingTrialsReady,
   existingClasses,
@@ -102,7 +105,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
               : undefined
           }
           trialView={trialView}
-          {...(editMode?.trialId ? { focusTrialId: editMode.trialId } : {})}
+          {...(focusTrialId ? { focusTrialId } : {})}
           ignoreEmptyTrials={editMode?.mode === 'add-classes'}
           {...(editMode?.mode === 'add-classes' ? { addJudgeToShowId: editMode.showId } : {})}
         />

@@ -2,6 +2,7 @@ import {
   getAllowedWizardSteps,
   getPreviousAllowedStep,
 } from './ShowCreationWizard/show-creation-wizard-types';
+import { resolveFocusTrialId } from './ShowCreationWizard/editModeResolution';
 import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
 import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -81,8 +82,7 @@ const ShowCreationWizardPage: React.FC = () => {
   // string into an EditModeType.
   const editMode: EditMode | undefined = parseEditMode(
     searchParams.get('showId'),
-    searchParams.get('mode'),
-    searchParams.get('trialId')
+    searchParams.get('mode')
   );
 
   const {
@@ -119,6 +119,19 @@ const ShowCreationWizardPage: React.FC = () => {
     showName: show.name,
     trialCount: trials.length,
   });
+
+  // The launching trial, resolved ONCE against the draft's own trials. Every consumer below
+  // (picker focus, Save/Close/Back return, actions) reads this, never the raw URL param.
+  const rawFocusTrialId = searchParams.get('trialId');
+  const focusTrialId = useMemo(
+    () =>
+      resolveFocusTrialId(
+        editMode,
+        rawFocusTrialId,
+        trials.map(trial => trial.id)
+      ),
+    [editMode, rawFocusTrialId, trials]
+  );
 
   const { trials: existingTrials } = useTrialStore();
   const existingTrialsRead = useAddTrialsExistingTrials(
@@ -160,6 +173,7 @@ const ShowCreationWizardPage: React.FC = () => {
   // Initialize wizard actions
   const { handleCreateShow } = useShowCreationWizardActions({
     editMode,
+    focusTrialId,
     trialView,
     setIsLoading,
     selfNavigationRef,
@@ -222,11 +236,12 @@ const ShowCreationWizardPage: React.FC = () => {
     retryWritableShow();
   }, [resetInitialization, retryWritableShow]);
 
-  // Launched from a trial, closing returns there (where the retired Add Classes panel left
-  // her); every other entry point keeps going to the shows list.
-  const closeTarget = editMode?.trialId
-    ? getEditModeReturnPath(editMode, editMode.showId)
-    : '/shows';
+  // add-classes closes where Save returns: the launching trial (where the retired Add Classes
+  // panel left her) when it resolves, otherwise the show. Other modes keep the shows list.
+  const closeTarget =
+    editMode?.mode === 'add-classes'
+      ? getEditModeReturnPath(editMode.showId, focusTrialId)
+      : '/shows';
 
   // Handle wizard close
   const handleClose = useCallback(() => {
@@ -494,6 +509,7 @@ const ShowCreationWizardPage: React.FC = () => {
                   <WizardStepContent
                     currentStep={currentStep}
                     editMode={editMode}
+                    focusTrialId={focusTrialId}
                     trialView={trialView}
                     existingTrialsReady={existingTrialsReady}
                     existingClasses={existingClasses}

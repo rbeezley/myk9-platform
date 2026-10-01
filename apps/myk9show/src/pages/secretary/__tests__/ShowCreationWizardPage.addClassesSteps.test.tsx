@@ -23,8 +23,14 @@ vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () 
 }));
 
 vi.mock('@/pages/secretary/ShowCreationWizard/WizardStepContent', () => ({
-  WizardStepContent: ({ currentStep }: { currentStep: number }) => (
-    <div data-testid="step-content">{`step-${currentStep}`}</div>
+  WizardStepContent: ({
+    currentStep,
+    focusTrialId,
+  }: {
+    currentStep: number;
+    focusTrialId?: string | null;
+  }) => (
+    <div data-testid="step-content">{`step-${currentStep} focus-${focusTrialId ?? 'none'}`}</div>
   ),
 }));
 
@@ -65,19 +71,38 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     expect(useWizardStore.getState().currentStep).toBe(stepNow);
   });
 
-  it('add-classes: Back from Classes leaves the wizard instead of reaching Trials', async () => {
-    search = 'showId=show-1&mode=add-classes&trialId=trial-1';
+  async function backFromClasses(trialIdsInShow: string[]) {
     const { user } = render(<ShowCreationWizardPage />);
     await waitFor(() => expect(useWizardStore.getState().allowedSteps).toEqual([2, 3]));
     openAt(2);
+    useWizardStore.setState({
+      trials: trialIdsInShow.map(id => ({
+        id,
+        dateTime: '',
+        eventNumber: '',
+        classes: [],
+      })) as never,
+    });
     await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('step-2'));
 
     // The header's Back and the step navigation's Back; the latter is the step Back.
     const backButtons = screen.getAllByRole('button', { name: /^back$/i });
     await user.click(backButtons[backButtons.length - 1]!);
-
     expect(useWizardStore.getState().currentStep).toBe(2);
+  }
+
+  it("add-classes: Back from Classes leaves to the launching trial when it is the show's", async () => {
+    search = 'showId=show-1&mode=add-classes&trialId=trial-1';
+    await backFromClasses(['trial-1', 'trial-2']);
+    expect(screen.getByTestId('step-content')).toHaveTextContent('focus-trial-1');
     expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+  });
+
+  it('add-classes: a deleted or foreign trialId falls back everywhere (picker and Back)', async () => {
+    search = 'showId=show-1&mode=add-classes&trialId=gone';
+    await backFromClasses(['trial-1', 'trial-2']);
+    expect(screen.getByTestId('step-content')).toHaveTextContent('focus-none');
+    expect(navigate).toHaveBeenCalledWith('/shows/show-1');
   });
 
   it('add-classes: the step rail has no clickable Show Details or Trials step', async () => {

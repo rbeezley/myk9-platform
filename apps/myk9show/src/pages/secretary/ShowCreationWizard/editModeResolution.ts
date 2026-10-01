@@ -65,16 +65,24 @@ export function resolveEditMode({
  */
 const SUPPORTED_EDIT_MODES = ['add-trials', 'add-classes'] as const;
 
-export function parseEditMode(
-  showId: string | null,
-  mode: string | null,
-  trialId?: string | null
-): EditMode | undefined {
+export function parseEditMode(showId: string | null, mode: string | null): EditMode | undefined {
   if (!showId || !mode) return undefined;
   const match = SUPPORTED_EDIT_MODES.find(supported => supported === mode);
-  if (!match) return undefined;
-  // Only `add-classes` has a per-trial focus; add-trials works on the whole show.
-  return match === 'add-classes' && trialId
-    ? { showId, mode: match, trialId }
-    : { showId, mode: match };
+  return match ? { showId, mode: match } : undefined;
+}
+
+/**
+ * The ONE place the `?trialId=` focus is resolved. add-classes launched from a trial carries
+ * that trial's id in the URL; a bookmarked or foreign id must not steer anything. It counts
+ * only when it is one of `loadedTrialIds` (the wizard draft's trials, i.e. the show's own),
+ * and is null otherwise -- including while the draft has not loaded yet. The class picker's
+ * focus, Save, Close and Back all take this value, never the raw URL param.
+ */
+export function resolveFocusTrialId(
+  editMode: EditMode | undefined,
+  rawTrialId: string | null | undefined,
+  loadedTrialIds: readonly string[]
+): string | null {
+  if (editMode?.mode !== 'add-classes' || !rawTrialId) return null;
+  return loadedTrialIds.includes(rawTrialId) ? rawTrialId : null;
 }

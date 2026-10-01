@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { Show } from '@/types/show-types';
-import { resolveEditMode, parseEditMode } from '../editModeResolution';
+import { resolveEditMode, parseEditMode, resolveFocusTrialId } from '../editModeResolution';
 
 const show = { id: 'show-1', name: 'Spring Trial' } as Show;
 
@@ -80,24 +80,30 @@ describe('parseEditMode', () => {
     expect(parseEditMode('show-1', mode)).toBeUndefined();
   });
 
-  it('carries trialId for add-classes only (MYK9-899)', () => {
-    expect(parseEditMode('show-1', 'add-classes', 'trial-1')).toEqual({
-      showId: 'show-1',
-      mode: 'add-classes',
-      trialId: 'trial-1',
-    });
-    expect(parseEditMode('show-1', 'add-classes', '')).toEqual({
-      showId: 'show-1',
-      mode: 'add-classes',
-    });
-    expect(parseEditMode('show-1', 'add-trials', 'trial-1')).toEqual({
-      showId: 'show-1',
-      mode: 'add-trials',
-    });
-  });
-
   it('requires both halves', () => {
     expect(parseEditMode(null, 'add-trials')).toBeUndefined();
     expect(parseEditMode('show-1', null)).toBeUndefined();
+  });
+});
+
+describe('resolveFocusTrialId (MYK9-899)', () => {
+  const addClasses = { showId: 'show-1', mode: 'add-classes' } as const;
+
+  it('keeps a trial that belongs to the loaded show', () => {
+    expect(resolveFocusTrialId(addClasses, 't2', ['t1', 't2'])).toBe('t2');
+  });
+
+  it('is null for a deleted or foreign trial id', () => {
+    expect(resolveFocusTrialId(addClasses, 'gone', ['t1', 't2'])).toBeNull();
+  });
+
+  it('is null while the draft has not loaded (no trials yet)', () => {
+    expect(resolveFocusTrialId(addClasses, 't2', [])).toBeNull();
+  });
+
+  it('is null without a trial id, and outside add-classes', () => {
+    expect(resolveFocusTrialId(addClasses, null, ['t1'])).toBeNull();
+    expect(resolveFocusTrialId({ showId: 'show-1', mode: 'add-trials' }, 't1', ['t1'])).toBeNull();
+    expect(resolveFocusTrialId(undefined, 't1', ['t1'])).toBeNull();
   });
 });

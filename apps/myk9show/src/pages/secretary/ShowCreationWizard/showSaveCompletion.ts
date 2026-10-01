@@ -21,6 +21,8 @@ interface FinishShowSaveOptions {
    * the button's label knew it was an edit and the handler behind it did not.
    */
   editMode: EditMode | undefined;
+  /** The RESOLVED launching trial (null when none or not a member of the show). */
+  returnTrialId?: string | null | undefined;
   showId: string;
   showName: string;
   passcodes: ShowPasscodes | null;
@@ -31,11 +33,11 @@ interface FinishShowSaveOptions {
 
 /**
  * Where an edit-mode wizard (add-classes / add-trials) returns the secretary. Launched from a
- * trial (`trialId`), she goes back to that trial -- where the retired Add Classes panel left
+ * trial (a resolved focus trial id, see `resolveFocusTrialId`), she goes back to that trial -- where the retired Add Classes panel left
  * her -- rather than the show page. Otherwise the show page, as before.
  */
-export function getEditModeReturnPath(editMode: EditMode, showId: string): string {
-  return editMode.trialId ? `/shows/${showId}/trials/${editMode.trialId}` : `/shows/${showId}`;
+export function getEditModeReturnPath(showId: string, focusTrialId: string | null): string {
+  return focusTrialId ? `/shows/${showId}/trials/${focusTrialId}` : `/shows/${showId}`;
 }
 
 export async function createDraftShow(
@@ -48,6 +50,7 @@ export function finishShowSave({
   status,
   shouldShowCompletion,
   editMode,
+  returnTrialId = null,
   showId,
   showName,
   passcodes,
@@ -61,7 +64,7 @@ export function finishShowSave({
   // codes while `show_passcodes` held rows for it, and offered the destructive
   // regenerate CTA on a live show (confirmed in the browser 2026-09-05).
   if (editMode?.showId) {
-    navigate(getEditModeReturnPath(editMode, showId));
+    navigate(getEditModeReturnPath(showId, returnTrialId));
   } else if (shouldShowCompletion && onCreated) {
     onCreated(showId, showName, passcodes, passcodeError);
   } else if (status === 'draft') {

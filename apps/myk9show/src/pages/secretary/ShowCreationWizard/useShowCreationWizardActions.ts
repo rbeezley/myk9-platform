@@ -44,6 +44,8 @@ import {
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
+  /** Resolved launching trial (`resolveFocusTrialId`): where an edit-mode save returns to. */
+  focusTrialId?: string | null | undefined;
   trialView: WizardTrialView;
   setIsLoading: (loading: boolean) => void;
   /**
@@ -68,6 +70,7 @@ interface UseShowCreationWizardActionsOptions {
 
 export function useShowCreationWizardActions({
   editMode,
+  focusTrialId = null,
   trialView,
   setIsLoading,
   selfNavigationRef,
@@ -280,6 +283,7 @@ export function useShowCreationWizardActions({
             // Create-only path: this whole branch is gated on
             // `!editMode?.showId && isOnline` above.
             editMode,
+            returnTrialId: focusTrialId,
             showId: realShowId,
             showName: savedShow.name,
             passcodes,
@@ -424,6 +428,7 @@ export function useShowCreationWizardActions({
           status,
           shouldShowCompletion,
           editMode,
+          returnTrialId: focusTrialId,
           showId: realShowId,
           showName: savedShow.name,
           passcodes: null,

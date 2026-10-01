@@ -45,7 +45,7 @@ function renderGuard(trials: WizardTrial[]) {
         element: (
           <UnsavedChangesRouteGuardProvider>
             <WizardEditModeGuard
-              editMode={{ showId: 's1', mode: 'add-classes', trialId: 'trial-1' }}
+              editMode={{ showId: 's1', mode: 'add-classes' }}
               isDirty
               trials={trials}
               persistedClasses={stored}
@@ -78,13 +78,11 @@ describe('WizardEditModeGuard in add-classes mode', () => {
 });
 
 describe('getEditModeReturnPath', () => {
-  it('returns to the launching trial', () => {
-    expect(getEditModeReturnPath({ showId: 's1', mode: 'add-classes', trialId: 't9' }, 's1')).toBe(
-      '/shows/s1/trials/t9'
-    );
+  it('returns to the resolved launching trial', () => {
+    expect(getEditModeReturnPath('s1', 't9')).toBe('/shows/s1/trials/t9');
   });
 
-  it('returns to the show without a trial', () => {
-    expect(getEditModeReturnPath({ showId: 's1', mode: 'add-classes' }, 's1')).toBe('/shows/s1');
+  it('returns to the show without a resolved trial', () => {
+    expect(getEditModeReturnPath('s1', null)).toBe('/shows/s1');
   });
 });

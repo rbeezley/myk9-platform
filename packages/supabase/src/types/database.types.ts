@@ -2090,6 +2090,7 @@ export type Database = {
           judge_signature: string | null
           judge_signature_timestamp: string | null
           jump_height: string | null
+          junior_fee_override_by: string | null
           last_synced_at: string | null
           license_key: string | null
           local_id: string | null
@@ -2187,6 +2188,7 @@ export type Database = {
           judge_signature?: string | null
           judge_signature_timestamp?: string | null
           jump_height?: string | null
+          junior_fee_override_by?: string | null
           last_synced_at?: string | null
           license_key?: string | null
           local_id?: string | null
@@ -2284,6 +2286,7 @@ export type Database = {
           judge_signature?: string | null
           judge_signature_timestamp?: string | null
           jump_height?: string | null
+          junior_fee_override_by?: string | null
           last_synced_at?: string | null
           license_key?: string | null
           local_id?: string | null
@@ -13374,6 +13377,10 @@ export type Database = {
           paid_tier: string
           scored_show_count: number
         }[]
+      }
+      get_secretary_live_entry_count: {
+        Args: { p_show_id: string }
+        Returns: number
       }
       get_show_access_codes: {
         Args: { p_show_id: string }

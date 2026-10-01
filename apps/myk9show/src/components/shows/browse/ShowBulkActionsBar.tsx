@@ -13,7 +13,7 @@ import { updateShow } from '@/services/database/shows';
 import { deleteShowRecord } from '@/services/showDeletion';
 import {
   classifyShowDeleteError,
-  showDeletePermissionMessage,
+  showDeleteFailureMessage,
 } from '@/services/database/shows/deleteOutcome';
 import { useShowStore } from '@/store/showStore';
 import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
@@ -172,13 +172,12 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         results.filter(({ result }) => !result.error).map(({ show }) => purgeDeletedShow(show.id))
       );
 
-      const deniedNames = failures
-        .filter(({ result }) => classifyShowDeleteError(result.error) === 'permission-denied')
-        .map(({ show }) => show.name);
-      const failureMessage =
-        deniedNames.length === failedCount && failedCount > 0
-          ? showDeletePermissionMessage(deniedNames)
-          : null;
+      const failureMessage = showDeleteFailureMessage(
+        failures.map(({ show, result }) => ({
+          name: show.name,
+          kind: classifyShowDeleteError(result.error),
+        }))
+      );
 
       if (failedCount === selectedShows.length) {
         setError(failureMessage ?? 'Failed to delete the selected shows. Please try again.');

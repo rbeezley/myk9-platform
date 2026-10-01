@@ -9,7 +9,10 @@
  * - "Permission denied": the caller may not delete this show. A real failure.
  */
 
-export type ShowDeleteFailure = 'already-deleted' | 'permission-denied' | 'failed';
+export type ShowDeleteFailure = 'already-deleted' | 'permission-denied' | 'still-saving' | 'failed';
+
+/** Set on the error returned when a show still has unsynced work, so no delete was attempted. */
+export const SHOW_STILL_SAVING = 'SHOW_STILL_SAVING';
 
 const messageOf = (error: unknown): string =>
   error && typeof error === 'object' && 'message' in error
@@ -18,12 +21,31 @@ const messageOf = (error: unknown): string =>
 
 export function classifyShowDeleteError(error: unknown): ShowDeleteFailure {
   const message = messageOf(error);
+  // Matched by message too: showStore.deleteShow rethrows a plain Error, dropping the code.
+  if (
+    (error as { code?: unknown } | null)?.code === SHOW_STILL_SAVING ||
+    /still saving/i.test(message)
+  )
+    return 'still-saving';
   if (/show not found/i.test(message)) return 'already-deleted';
   if (/permission denied/i.test(message)) return 'permission-denied';
   return 'failed';
 }
 
-/** Plain-language failure copy; null when the failure has no specific wording. */
-export function showDeletePermissionMessage(names: string[]): string {
-  return `You don't have permission to delete ${names.join(', ')}.`;
+/**
+ * Plain-language copy when every failed show failed the same specific way;
+ * null otherwise (the caller keeps its generic wording).
+ */
+export function showDeleteFailureMessage(
+  failures: { name: string; kind: ShowDeleteFailure }[]
+): string | null {
+  if (failures.length === 0) return null;
+  const kind = failures[0]?.kind;
+  if (!failures.every(f => f.kind === kind)) return null;
+  const names = failures.map(f => f.name).join(', ');
+  if (kind === 'permission-denied') return `You don't have permission to delete ${names}.`;
+  if (kind === 'still-saving') {
+    return `${names} ${failures.length === 1 ? 'is' : 'are'} still saving. Try again in a moment.`;
+  }
+  return null;
 }

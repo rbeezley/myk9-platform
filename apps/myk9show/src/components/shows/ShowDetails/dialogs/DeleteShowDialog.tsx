@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import {
   classifyShowDeleteError,
-  showDeletePermissionMessage,
+  showDeleteFailureMessage,
 } from '@/services/database/shows/deleteOutcome';
 import { permanentDeleteRefusalMessage } from '@/services/database/permanentDeleteRefusal';
 
@@ -66,9 +66,10 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       logger.error('Failed to delete show:', 'shows', {}, error as Error);
       toast.error(
         permanentDeleteRefusalMessage(error) ??
-          (classifyShowDeleteError(error) === 'permission-denied'
-            ? showDeletePermissionMessage([showName || 'this show'])
-            : getUserFriendlyError(error))
+          showDeleteFailureMessage([
+            { name: showName || 'This show', kind: classifyShowDeleteError(error) },
+          ]) ??
+          getUserFriendlyError(error)
       );
     } finally {
       setIsDeleting(false);

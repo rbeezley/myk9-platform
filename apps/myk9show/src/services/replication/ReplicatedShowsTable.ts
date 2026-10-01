@@ -22,7 +22,6 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getLiveShowCount } from './liveShowCount';
-import { verifyShowsAllDeleted } from '@/services/database/shows/emptyScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
@@ -269,22 +268,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       // overwritten or removed here. Once a full fetch proves complete against
       // the count above, rows the server no longer returns leave the replica.
       cleanupStaleRowsOnFullSync: true,
-      // The count and the fetch share shows_select, so the last show of a scope
-      // deleted elsewhere reads 0 and 0, the same as an RLS gap. Clearing then
-      // needs a second source: a direct read confirming each server-backed show
-      // still held here is soft-deleted. Anything short of that keeps the rows.
-      verifyScopeEmpty: async ({ scope }) => {
-        try {
-          const rows = await this.getAllOrThrow();
-          const ids = rows
-            .filter(r => (scope.value ? r.clubId === scope.value : true))
-            .filter(r => (r as { _localOnly?: boolean })._localOnly !== true)
-            .map(r => r.id);
-          return await verifyShowsAllDeleted(ids);
-        } catch {
-          return false;
-        }
-      },
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')
@@ -450,20 +433,19 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   }
 
   /**
-   * A show created on this device whose INSERT has not uploaded does not exist
-   * on the server, so a server-side delete of it reports "not found" and would
-   * leave the INSERT queued to resurrect it. When such an INSERT is queued,
-   * discard every queued mutation for the show (the replication package's own
-   * API) and return true; the caller then purges the local row and must not
-   * call the server. False means there is no pending local create.
+   * True while this show has work the server has not confirmed: created here
+   * (`_localOnly`) or any mutation still queued for it, which may be mid-upload
+   * or committed with the response lost. A server delete then cannot tell
+   * "not found" from "not uploaded yet", so callers must wait. Reads only;
+   * never touches the queue. Throws if the queue cannot be read.
    */
-  async discardPendingLocalCreate(showId: string): Promise<boolean> {
+  async hasUnsyncedWork(showId: string): Promise<boolean> {
+    const row = await this.get(showId);
+    if ((row as { _localOnly?: boolean } | null)?._localOnly === true) return true;
     const manager = this.showMutationManager;
     if (!manager) return false;
     const pending = await manager.getPendingMutationsForRow(this.getTableName(), showId);
-    if (!pending.some(m => m.operation === 'INSERT')) return false;
-    await manager.discardPendingMutationsForRow(this.getTableName(), showId);
-    return true;
+    return pending.length > 0;
   }
 
   /**

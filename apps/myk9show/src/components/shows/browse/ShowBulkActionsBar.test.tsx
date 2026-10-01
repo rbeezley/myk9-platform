@@ -170,6 +170,25 @@ describe('ShowBulkActionsBar', () => {
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
 
+  it('tells the user a show with unsynced work is still saving, and keeps it listed', async () => {
+    vi.mocked(deleteShow).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Show is still saving'), { code: 'SHOW_STILL_SAVING' }),
+    } as unknown as Awaited<ReturnType<typeof deleteShow>>);
+
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
+    await user.click(within(dialog()).getByRole('button', { name: /delete shows/i }));
+
+    expect(
+      await screen.findByText('Summer Classic, Fall Trial are still saving. Try again in a moment.')
+    ).toBeInTheDocument();
+    expect(purgeDeletedShow).not.toHaveBeenCalled();
+    expect(onBulkComplete).not.toHaveBeenCalled();
+  });
+
   it('surfaces partial failures as a toast and refreshes so retries cannot re-hit succeeded shows', async () => {
     vi.mocked(deleteShow).mockImplementation(async id =>
       id === 'show-2'

@@ -1,20 +1,26 @@
 import { deleteShow } from '@/services/database/shows/writes';
 import { createDatabaseError } from '@/services/database/databaseError';
+import { SHOW_STILL_SAVING } from '@/services/database/shows/deleteOutcome';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 
 /**
- * Delete a show on the server, unless it only exists on this device.
+ * The one server-delete step every delete path calls (then
+ * `useShowStore.purgeDeletedShow`).
  *
- * A show created here whose INSERT is still queued is unknown to the server:
- * the delete RPC would answer "Show not found" (which otherwise reads as
- * "already deleted"), and the queued INSERT would later upload and bring the
- * show back. So that case cancels the queued mutations and never calls the
- * server. Every delete path calls this, then `useShowStore.purgeDeletedShow`.
+ * A show with unsynced work (created here, or any queued mutation) may not be
+ * on the server yet, or may be committed with its response lost, so the delete
+ * RPC's "Show not found" would be ambiguous and a later upload could bring the
+ * show back. Such a show is refused without calling the server or touching the
+ * queue; the caller tells the user it is still saving. A queue that cannot be
+ * read is an error, never a pass.
  */
 export async function deleteShowRecord(id: string, deletedBy?: string) {
   try {
-    if (await replicatedShowsTable.discardPendingLocalCreate(id)) {
-      return { data: { id }, error: null, discardedLocalCreate: true };
+    if ((await replicatedShowsTable.hasUnsyncedWork(id))) {
+      const error = Object.assign(createDatabaseError(new Error('Show is still saving'), 'show'), {
+        code: SHOW_STILL_SAVING,
+      });
+      return { data: null, error };
     }
   } catch (error) {
     return { data: null, error: createDatabaseError(error, 'show', 'soft_delete') };

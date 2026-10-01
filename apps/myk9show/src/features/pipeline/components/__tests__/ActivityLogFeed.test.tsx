@@ -86,4 +86,22 @@ describe('ActivityLogFeed', () => {
     render(<ActivityLogFeed trialId="trial-1" />);
     expect(screen.getByText('No activity yet')).toBeInTheDocument();
   });
+
+  it('counts only LOADED rows (Type is server-side, search is client-side) and Show all clears both', async () => {
+    mockResult([
+      makeEntry({ id: 'e-1', description: 'Moved to Judging', actor_name: 'Alice Secretary' }),
+      makeEntry({ id: 'e-2', description: 'Score submitted', actor_name: 'Bob Judge' }),
+    ]);
+    render(<ActivityLogFeed trialId="trial-1" />);
+
+    await userEvent.type(screen.getByPlaceholderText('Search activity...'), 'Bob');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 1 of 2 loaded activity entries (matching \u201cBob\u201d).'
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show all loaded activity entries' }));
+    expect(screen.getByText('Moved to Judging')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search activity...')).toHaveValue('');
+    expect(useActivityLog).toHaveBeenLastCalledWith('trial-1', {});
+  });
 });

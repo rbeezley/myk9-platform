@@ -334,4 +334,18 @@ describe('ClassResultsTable search/filter', () => {
     expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
     expect(screen.queryByText('Max')).not.toBeInTheDocument();
   });
+
+  it('states the view and search in a sentence and "Show all entries" resets both', async () => {
+    const { user } = renderTable();
+    await user.type(screen.getByLabelText('Search by dog, handler, or armband...'), 'Max');
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /^Showing 1 of 3 entries \(Pending, matching/
+    );
+    await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+    expect(screen.getByLabelText('Search by dog, handler, or armband...')).toHaveValue('');
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
 });

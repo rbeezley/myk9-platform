@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render, userEvent } from '@/test/utils/testUtils';
 import OnboardingInboxPage from '../OnboardingInboxPage';
 
@@ -204,5 +205,24 @@ describe('OnboardingInboxPage', () => {
       'Long Waiting Club',
       'Tri-State Kennel Club',
     ]);
+  });
+
+  it('"Show all club requests" clears status and search in ONE URL update', async () => {
+    const user = userEvent.setup();
+    function SearchProbe() {
+      return <p data-testid="search">{useLocation().search}</p>;
+    }
+    render(
+      <>
+        <OnboardingInboxPage />
+        <SearchProbe />
+      </>,
+      { initialRoute: '/admin/onboarding?status=contacted&q=zzz' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all club requests' }));
+
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?status=all'));
+    expect(screen.getByTestId('search').textContent).not.toContain('q=');
   });
 });

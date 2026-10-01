@@ -146,13 +146,16 @@ describe('EnhancedTrainingJournal search via the shared list toolkit', () => {
     expect(screen.queryByText('Interior search')).not.toBeInTheDocument();
   });
 
-  it('clears the search with "Clear all"', () => {
+  it('says what is shown and clears the search with "Show all training sessions"', () => {
     render(<EnhancedTrainingJournal entries={[entry, other]} />);
 
     fireEvent.change(screen.getByLabelText(/search training sessions/i), {
       target: { value: 'container' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 1 of 2 training sessions (matching \u201ccontainer\u201d).'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show all training sessions' }));
 
     expect(screen.getByText('Container drill')).toBeInTheDocument();
     expect(screen.getByText('Interior search')).toBeInTheDocument();

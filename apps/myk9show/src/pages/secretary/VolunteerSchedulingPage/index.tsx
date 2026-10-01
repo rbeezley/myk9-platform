@@ -22,7 +22,13 @@ import { VolunteerPool } from '@/components/volunteers/VolunteerPool';
 import { VolunteerDialog } from '@/components/volunteers/VolunteerDialog';
 import { ClassVolunteerCard } from '@/components/volunteers/ClassVolunteerCard';
 import { GeneralDutyCard } from '@/components/volunteers/GeneralDutyCard';
-import { ListFilterBar, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+} from '@/components/list-toolkit';
+import { GENERAL_DUTY_ROLES } from '@/types/volunteer';
 import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useVolunteerFilters } from './useVolunteerFilters';
@@ -211,9 +217,22 @@ export default function VolunteerSchedulingPage() {
           onSearchChange={setSearch}
           searchPlaceholder="Search classes, volunteers..."
           fields={[trialField]}
-          onClearAll={() => {
+        />
+        <ListResultLine
+          shown={filteredClasses.length + filteredDutyRoles.length}
+          total={classInfos.length + GENERAL_DUTY_ROLES.length}
+          noun={['class or duty', 'classes and duties']}
+          filtered={search !== '' || trialFilter !== 'all' || unfilledOnly}
+          filterSummary={summarizeFilters({
+            search,
+            views,
+            activeViewId: unfilledOnly ? 'unfilled' : 'all',
+            fields: [trialField],
+          })}
+          onShowAll={() => {
             setSearch('');
             setTrialFilter('all');
+            setUnfilledOnly(false);
           }}
         />
       </div>

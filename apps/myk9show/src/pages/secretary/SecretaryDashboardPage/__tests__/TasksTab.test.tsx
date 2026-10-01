@@ -248,6 +248,28 @@ describe('TasksTab — personal-only', () => {
     expect(screen.getByText('Old task')).toBeInTheDocument();
   });
 
+  it('states the Open view and search, and "Show all tasks" clears both', async () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [
+        makeTask({ id: 't-1', title: 'Call vet' }),
+        makeTask({ id: 't-2', title: 'Done thing', status: 'done', dueDate: undefined }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    fireEvent.change(screen.getByPlaceholderText('Search tasks...'), { target: { value: 'call' } });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 1 of 2 tasks (Open, matching \u201ccall\u201d).'
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show all tasks' }));
+    expect(screen.getByText('Done thing')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search tasks...')).toHaveValue('');
+  });
+
   it('search narrows the task list by title', () => {
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [

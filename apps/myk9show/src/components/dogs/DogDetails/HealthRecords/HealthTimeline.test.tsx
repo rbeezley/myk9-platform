@@ -266,6 +266,24 @@ describe('HealthTimeline filters via the shared list toolkit', () => {
     expect(screen.queryByText('Rabies Vaccination')).not.toBeInTheDocument();
   });
 
+  it('states type and search in a sentence and "Show all health records" clears both', async () => {
+    const user = userEvent.setup();
+    render(<HealthTimeline dogId="dog-123" events={events} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Type' }));
+    await user.click(await screen.findByRole('option', { name: 'Vet Visit' }));
+    fireEvent.change(screen.getByLabelText(/search health records/i), {
+      target: { value: 'checkup' },
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 1 of 2 health records (Type: Vet Visit, matching \u201ccheckup\u201d).'
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show all health records' }));
+    expect(screen.getByText('Rabies Vaccination')).toBeInTheDocument();
+    expect(screen.getByLabelText(/search health records/i)).toHaveValue('');
+  });
+
   it('narrows the timeline by type with the always-visible Type select', async () => {
     const user = userEvent.setup();
     render(<HealthTimeline dogId="dog-123" events={events} />);

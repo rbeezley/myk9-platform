@@ -22,6 +22,11 @@ interface ListResultLineProps {
     selectedCount: number;
     onSelectAll: () => void;
   };
+  /**
+   * Whether the sentence is its own polite live region (default). Pass `false`
+   * only where the surrounding card already owns its one `role="status"`.
+   */
+  announce?: boolean;
   /** Right-aligned extras (sort note, column controls). */
   children?: ReactNode;
   className?: string;
@@ -58,6 +63,7 @@ export function ListResultLine({
   filterSummary,
   onShowAll,
   selectAll,
+  announce = true,
   children,
   className,
 }: ListResultLineProps) {
@@ -66,7 +72,10 @@ export function ListResultLine({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-sm', className)}>
-      <p role="status" aria-live="polite" className="text-muted-foreground">
+      <p
+        {...(announce ? { role: 'status', 'aria-live': 'polite' as const } : {})}
+        className="text-muted-foreground"
+      >
         {statusSentence({ shown, total, noun, filtered, filterSummary })}
       </p>
       {filtered && (

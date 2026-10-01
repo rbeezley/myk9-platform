@@ -13,7 +13,13 @@ import { DataTable } from '@/components/ui/data-table';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { RunOrderDialog } from '../RunOrderDialog';
 import { useRunOrderPreset } from './useRunOrderPreset';
-import { ListFilterBar, ListViewTabs, type ListView } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+  type ListView,
+} from '@/components/list-toolkit';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow } from './types';
 import type { CheckInStatus } from '@myk9/core';
@@ -277,6 +283,22 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               onSearchChange={setSearchQuery}
               searchPlaceholder="Search by dog, handler, or armband..."
               fields={[]}
+            />
+            <ListResultLine
+              shown={filteredRows.length}
+              total={rows.length}
+              noun={['entry', 'entries']}
+              filtered={scoringTab !== 'all' || searchQuery !== ''}
+              filterSummary={summarizeFilters({
+                search: searchQuery,
+                views: scoringViews,
+                activeViewId: scoringTab,
+                defaultViewId: 'all',
+              })}
+              onShowAll={() => {
+                setScoringTab('all');
+                setSearchQuery('');
+              }}
             />
           </div>
 

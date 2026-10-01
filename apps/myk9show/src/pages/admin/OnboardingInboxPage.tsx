@@ -12,7 +12,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
-import { ListFilterBar, ListViewTabs, type ListView } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  patchSearchParams,
+  summarizeFilters,
+  type ListView,
+} from '@/components/list-toolkit';
 import { formatShortCalendarDate, formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
@@ -241,6 +248,23 @@ export default function OnboardingInboxPage() {
         searchPlaceholder="Search by club, organization, or contact"
         fields={[]}
       />
+
+      {!loading && !loadFailed && (
+        <ListResultLine
+          shown={filteredRequests.length}
+          total={requests.length}
+          noun={['club request', 'club requests']}
+          filtered={filter !== 'all' || normalizedSearchTerm !== ''}
+          filterSummary={summarizeFilters({
+            search: searchTerm,
+            views,
+            activeViewId: filter,
+            defaultViewId: 'all',
+          })}
+          // One URL update: two setters would each clone the same snapshot.
+          onShowAll={() => patchSearchParams(setSearchParams, { status: 'all', q: null })}
+        />
+      )}
 
       {loadFailed && (
         <div

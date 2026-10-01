@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { downloadFile, exportToCSV } from '@/lib/export';
-import { ListFilterBar } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
 import {
@@ -172,6 +172,21 @@ export function HealthTimeline({
     if ('filterType' in patch && patch.filterType !== undefined) setFilterType(patch.filterType);
   };
 
+  const filterFields = buildHealthTimelineFilterFields({
+    filters: activeFilters,
+    eventTypeOptions: Object.entries(eventTypeConfig).map(([key, config]) => ({
+      value: key,
+      label: config.label,
+    })),
+    vaccinationsOnly,
+    onChange: handleFilterFieldChange,
+  });
+  // The whole set the filters narrow: in vaccinations-only mode that is the
+  // vaccinations, not every record on the dog.
+  const wholeSet = vaccinationsOnly
+    ? events.filter(event => event.type === 'vaccination').length
+    : events.length;
+
   const filteredEvents = useMemo(() => {
     return filterHealthEvents(events, activeFilters).sort(
       (a, b) => b.date.getTime() - a.date.getTime()
@@ -287,16 +302,7 @@ export function HealthTimeline({
                 searchValue={searchTerm}
                 onSearchChange={setSearchTerm}
                 searchPlaceholder="Search health records..."
-                fields={buildHealthTimelineFilterFields({
-                  filters: activeFilters,
-                  eventTypeOptions: Object.entries(eventTypeConfig).map(([key, config]) => ({
-                    value: key,
-                    label: config.label,
-                  })),
-                  vaccinationsOnly,
-                  onChange: handleFilterFieldChange,
-                })}
-                {...(filtersActive ? { onClearAll: clearFilters } : {})}
+                fields={filterFields}
               />
             </div>
 
@@ -310,6 +316,15 @@ export function HealthTimeline({
               <Filter className="h-4 w-4" />
             </Button>
           </div>
+          <ListResultLine
+            className="mt-3"
+            shown={filteredEvents.length}
+            total={wholeSet}
+            noun={['health record', 'health records']}
+            filtered={filtersActive}
+            filterSummary={summarizeFilters({ search: searchTerm, fields: filterFields })}
+            onShowAll={clearFilters}
+          />
         </CardContent>
       </Card>
 

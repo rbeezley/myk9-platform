@@ -101,6 +101,26 @@ describe('FinancialSummary (per trial)', () => {
       expect(screen.queryByText('Acorn')).not.toBeInTheDocument();
     });
 
+    it('states search and status in a sentence and "Show all entries" clears both', async () => {
+      const { user } = renderSummary([
+        rawEntry({ id: 'paid-1', payment_status: 'paid', dog: { call_name: 'Acorn' } }),
+        rawEntry({ id: 'pending-1', payment_status: 'pending', dog: { call_name: 'Birch' } }),
+      ]);
+
+      await user.click(screen.getByRole('combobox', { name: 'Payment status' }));
+      await user.click(await screen.findByRole('option', { name: /^Pending/ }));
+      await user.type(screen.getByPlaceholderText('Search entries...'), 'Birch');
+
+      expect(
+        screen.getByText(/^Showing 1 of 2 entries \(Payment status: Pending, matching/)
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+      expect(screen.getByText('Acorn')).toBeInTheDocument();
+      expect(screen.getByText('Birch')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search entries...')).toHaveValue('');
+    });
+
     it('searches across dog, owner, handler and class', async () => {
       const { user } = renderSummary([
         rawEntry({ id: 'a', dog: { call_name: 'Acorn' } }),

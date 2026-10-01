@@ -12,6 +12,12 @@ export interface CreateJudgeData {
   email: string;
 }
 
+/**
+ * Throw from `onSubmit` to show THIS message instead of the generic failure line.
+ * Reserved for refusals the user can act on; raw backend errors stay hidden.
+ */
+export class NewJudgeFormError extends Error {}
+
 interface NewJudgeFormProps {
   /**
    * Runs the create (and whatever the caller does with the result). The form owns
@@ -76,8 +82,12 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
         judgeNumber: judgeNumber.trim(),
         email: email.trim(),
       });
-    } catch {
-      if (mountedRef.current) setSaveError('Failed to save. Please try again.');
+    } catch (err) {
+      if (mountedRef.current) {
+        setSaveError(
+          err instanceof NewJudgeFormError ? err.message : 'Failed to save. Please try again.'
+        );
+      }
     } finally {
       inFlightRef.current = false;
       if (mountedRef.current) setSaving(false);

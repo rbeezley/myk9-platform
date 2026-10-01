@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -56,11 +56,18 @@ interface Roster {
 const roster: Roster = { current: [] };
 const setValueSpy = vi.fn();
 
+const saveSpy = vi.fn();
+const orgControl = { set: (_org: string) => undefined as void };
+
 /** Holds the form state like useFormValidation does: setValue takes a value or an updater. */
 const PanelHarness: React.FC<{ organization: string; client: QueryClient }> = ({
-  organization,
+  organization: initialOrganization,
   client,
 }) => {
+  const [organization, setOrganization] = useState(initialOrganization);
+  useEffect(() => {
+    orgControl.set = setOrganization;
+  }, []);
   const [assignedJudges, setAssignedJudges] = useState(roster.current);
   const latest = useRef(assignedJudges);
   const [form] = useState(() => ({
@@ -82,6 +89,10 @@ const PanelHarness: React.FC<{ organization: string; client: QueryClient }> = ({
       <MemoryRouter>
         <EditPanelContext.Provider value={value}>
           <ShowEditForm initialTab="judges" />
+          {/* Stands in for the panel footer's Save, which sits outside ShowEditForm. */}
+          <button type="button" onClick={saveSpy}>
+            Save Changes
+          </button>
         </EditPanelContext.Provider>
       </MemoryRouter>
     </QueryClientProvider>
@@ -127,136 +138,64 @@ function deferredCreate() {
   return { resolve: (id: string) => act(async () => resolve(id)), reject };
 }
 
-describe('ShowEditForm Judges tab: panel-owned inline judge create (MYK9-908)', () => {
+describe('ShowEditForm Judges tab: modal inline judge create (MYK9-908)', () => {
   beforeEach(() => {
     harness.createJudge.mockReset();
     harness.judges = [OLIVE];
     roster.current = [];
     setValueSpy.mockReset();
+    saveSpy.mockReset();
   });
 
-  it('assigns and lists the judge when the user switches tabs mid-create and comes back', async () => {
+  async function startPendingCreate() {
     const create = deferredCreate();
     const user = userEvent.setup();
-    const { invalidate } = renderPanel();
+    const view = renderPanel();
     await fillForm(user);
     await user.click(screen.getByRole('button', { name: 'Add Judge' }));
+    return { create, user, ...view };
+  }
 
-    // Leaving the tab unmounts the form that started the create.
-    await user.click(screen.getByRole('tab', { name: /fees/i }));
-    expect(screen.queryByRole('button', { name: 'Add Judge' })).toBeNull();
+  it('cannot be dismissed by Escape, overlay, X or Cancel while the create is pending', async () => {
+    const { user } = await startPendingCreate();
 
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const overlay = document.querySelector('[data-open][class*="bg-black"]');
+    expect(overlay).not.toBeNull();
+    await user.click(overlay as Element);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(screen.getByLabelText(/first name/i)).toHaveValue('Jane');
+  });
+
+  it('makes the rest of the panel inert while pending: tabs and Save are unreachable', async () => {
+    await startPendingCreate();
+
+    expect(screen.queryByRole('tab', { name: /fees/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull();
+    // jsdom does no hit-testing, so assert what blocks a real pointer or Tab: the
+    // content outside the modal is hidden from the accessibility tree and inert.
+    const save = screen.getByText('Save Changes');
+    expect(save.closest('[inert],[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('assigns, invalidates and closes the dialog on success', async () => {
+    const { create, invalidate } = await startPendingCreate();
     await create.resolve('new-judge-id');
-    await waitFor(() =>
-      expect(roster.current).toEqual([
-        expect.objectContaining({ judgeId: 'new-judge-id', judgeName: 'Jane Doe' }),
-      ])
-    );
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['judges', 'withQualifications'] });
 
-    await user.click(screen.getByRole('tab', { name: /judges/i }));
-    expect(screen.getByRole('checkbox', { name: /jane doe/i })).toBeChecked();
-    expect(screen.getByRole('button', { name: /add a new judge/i })).toBeEnabled();
-  });
-
-  it('shows "Creating judge..." on returning to the tab while the create is still pending', async () => {
-    deferredCreate();
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-    await user.click(screen.getByRole('tab', { name: /fees/i }));
-    await user.click(screen.getByRole('tab', { name: /judges/i }));
-
-    expect(screen.getByRole('status')).toHaveTextContent(/creating judge/i);
-    expect(screen.getByRole('button', { name: /add a new judge/i })).toBeDisabled();
-  });
-
-  it('shows the failure on returning to the tab when the create failed while away', async () => {
-    const create = deferredCreate();
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-    await user.click(screen.getByRole('tab', { name: /fees/i }));
-    await act(async () => create.reject(new Error('boom')));
-    await user.click(screen.getByRole('tab', { name: /judges/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to add the judge/i);
-    expect(roster.current).toEqual([]);
-  });
-
-  it('assigns nothing when the panel closes while the create is pending', async () => {
-    const create = deferredCreate();
-    const user = userEvent.setup();
-    const { unmount } = renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-    unmount();
-    await create.resolve('late-id');
-
-    expect(setValueSpy).not.toHaveBeenCalled();
-    expect(roster.current).toEqual([]);
-  });
-
-  it('keeps a judge toggled while the create is pending', async () => {
-    const create = deferredCreate();
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-
-    await user.click(screen.getByRole('checkbox', { name: /olive other/i }));
-    expect(roster.current).toEqual([expect.objectContaining({ judgeId: 'other-judge' })]);
-
-    await create.resolve('new-judge-id');
-    await waitFor(() => expect(roster.current).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(roster.current).toEqual([
-      expect.objectContaining({ judgeId: 'other-judge' }),
       expect.objectContaining({ judgeId: 'new-judge-id', judgeName: 'Jane Doe' }),
     ]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['judges', 'withQualifications'] });
+    expect(screen.getByRole('checkbox', { name: /jane doe/i })).toBeChecked();
+    expect(screen.getByRole('tab', { name: /fees/i })).toBeInTheDocument();
   });
 
-  it('does not add a judge who is already on the roster', async () => {
-    harness.createJudge.mockResolvedValue('dup-id');
-    roster.current = [{ judgeId: 'dup-id', judgeName: 'Jane Doe' }];
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-
-    await waitFor(() => expect(setValueSpy).toHaveBeenCalled());
-    expect(roster.current).toHaveLength(1);
-  });
-
-  it('blocks a double submit and disables Cancel while pending', async () => {
-    deferredCreate();
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-
-    expect(harness.createJudge).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Add Judge' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-  });
-
-  it('keeps the form open with what was typed after a failed create', async () => {
-    harness.createJudge.mockRejectedValue(new Error('boom'));
-    const user = userEvent.setup();
-    renderPanel();
-    await fillForm(user);
-    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
-
-    expect(await screen.findByText(/failed to save/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/first name/i)).toHaveValue('Jane');
-    expect(screen.getByLabelText(/email/i)).toHaveValue('jane@example.com');
-    expect(screen.getByRole('button', { name: 'Add Judge' })).toBeEnabled();
-    expect(setValueSpy).not.toHaveBeenCalled();
-  });
-
-  it('closes the form and assigns the judge on success without leaving the panel', async () => {
+  it('creates under the current organization and sends exactly what was typed', async () => {
     harness.createJudge.mockResolvedValue('new-judge-id');
     const user = userEvent.setup();
     renderPanel();
@@ -272,12 +211,53 @@ describe('ShowEditForm Judges tab: panel-owned inline judge create (MYK9-908)', 
         email: 'jane@example.com',
       })
     );
-    await waitFor(() =>
-      expect(roster.current).toEqual([
-        expect.objectContaining({ judgeId: 'new-judge-id', judgeName: 'Jane Doe' }),
-      ])
-    );
-    expect(screen.getByRole('button', { name: /add a new judge/i })).toBeInTheDocument();
+  });
+
+  it('skips the assignment with a message if the show organization changed under the create', async () => {
+    const { create } = await startPendingCreate();
+    act(() => orgControl.set('UKC'));
+    await create.resolve('new-judge-id');
+
+    expect(await screen.findByText(/show's organization changed/i)).toBeInTheDocument();
+    expect(setValueSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('does not add a judge who is already on the roster', async () => {
+    harness.createJudge.mockResolvedValue('dup-id');
+    roster.current = [{ judgeId: 'dup-id', judgeName: 'Jane Doe' }];
+    const user = userEvent.setup();
+    renderPanel();
+    await fillForm(user);
+    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
+
+    await waitFor(() => expect(setValueSpy).toHaveBeenCalled());
+    expect(roster.current).toHaveLength(1);
+  });
+
+  it('blocks a double submit', async () => {
+    const { user } = await startPendingCreate();
+    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
+
+    expect(harness.createJudge).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Add Judge' })).toBeDisabled();
+  });
+
+  it('keeps the dialog open with what was typed after a failed create, then allows closing', async () => {
+    harness.createJudge.mockRejectedValue(new Error('boom'));
+    const user = userEvent.setup();
+    renderPanel();
+    await fillForm(user);
+    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
+
+    expect(await screen.findByText(/failed to save/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/first name/i)).toHaveValue('Jane');
+    expect(screen.getByLabelText(/email/i)).toHaveValue('jane@example.com');
+    expect(screen.getByRole('button', { name: 'Add Judge' })).toBeEnabled();
+    expect(setValueSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('locks the new judge to the show organization with no organization choice (UKC)', async () => {

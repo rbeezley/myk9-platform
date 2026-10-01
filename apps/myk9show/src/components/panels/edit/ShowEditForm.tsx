@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, Users, UserCheck, DollarSign, FileText } from 'lucide-react';
+import { Calendar, Users, UserCheck, DollarSign, FileText, Plus } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -25,7 +25,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
-import { ShowEditAddJudge } from './ShowEditAddJudge';
+import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
 import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
 
@@ -142,8 +142,8 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
       }));
   }, [judges, data.organization]);
 
-  // The create-then-assign operation is owned here, above the Tabs: the Judges
-  // tab unmounts on a tab switch and must not take a pending create with it.
+  // The create-then-assign operation and its modal dialog are owned here, above
+  // the Tabs, so they do not depend on the Judges tab staying mounted.
   const judgeCreate = useShowEditJudgeCreate(form, data.organization);
 
   // Handle judge assignment toggle
@@ -242,15 +242,16 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {data.organization && (
-                <div className="mb-4">
-                  <ShowEditAddJudge
-                    organization={judgeCreate.supportedOrg}
-                    onCreate={judgeCreate.createAndAssignJudge}
-                    pending={judgeCreate.pending}
-                    error={judgeCreate.error}
-                  />
-                </div>
+              {judgeCreate.supportedOrg && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mb-4"
+                  onClick={() => judgeCreate.onOpenChange(true)}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Add a new judge
+                </Button>
               )}
               {data.organization ? (
                 availableJudges.length > 0 ? (
@@ -364,6 +365,14 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           handleValueChange={handleValueChange}
         />
       </Tabs>
+      {judgeCreate.supportedOrg && (
+        <ShowEditAddJudgeDialog
+          organization={judgeCreate.supportedOrg}
+          open={judgeCreate.open}
+          onOpenChange={judgeCreate.onOpenChange}
+          onCreate={judgeCreate.createAndAssignJudge}
+        />
+      )}
     </div>
   );
 };

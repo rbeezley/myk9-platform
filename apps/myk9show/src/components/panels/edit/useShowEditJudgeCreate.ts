@@ -1,21 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShowDetailsStepActions } from '@/components/shows/wizard/steps/useShowDetailsStepActions';
 import { JUDGE_FORM_ORGS } from '@/components/shows/wizard/steps/OrgAndJudgeNumberFields';
-import type { CreateJudgeData } from '@/components/shows/wizard/steps/NewJudgeForm';
+import {
+  NewJudgeFormError,
+  type CreateJudgeData,
+} from '@/components/shows/wizard/steps/NewJudgeForm';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 /**
- * Owns "create a judge and assign them to this show" for the Show Edit panel
+ * "Create a judge and assign them to this show" for the Show Edit panel
  * (MYK9-908).
  *
- * The operation lives HERE, at panel level, not in the form that collects the
- * input: the Judges tab (and the form inside it) unmounts whenever the user
- * switches tabs, and an operation owned by something that unmounts either drops
- * its result or appends to a stale roster (MYK9-903 rounds 1-3). Only the panel
- * closing makes the result moot, so only that stops the assignment.
+ * The create runs inside a MODAL dialog that cannot be dismissed while it is
+ * pending, so nothing else in the panel can change underneath it: no tab switch,
+ * no organization edit, no Save, no closing the panel. That removes the races
+ * the earlier non-modal design had to guard one by one (MYK9-903 rounds 1-3,
+ * MYK9-908 review).
  */
 export function useShowEditJudgeCreate(
   form: FormValidation<ShowEditFormData> | undefined,
@@ -23,35 +26,38 @@ export function useShowEditJudgeCreate(
 ) {
   const queryClient = useQueryClient();
   const { handleCreateNewJudge } = useShowDetailsStepActions();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const inFlightRef = useRef(false);
-  const panelOpenRef = useRef(true);
-  useEffect(() => {
-    panelOpenRef.current = true;
-    return () => {
-      panelOpenRef.current = false;
-    };
-  }, []);
+  const [open, setOpen] = useState(false);
+  const pendingRef = useRef(false);
+  // Always the form's CURRENT organization, for the post-create invariant check.
+  const organizationRef = useRef(organization);
+  organizationRef.current = organization;
 
-  // Inline create is offered only for the orgs the judge form supports. The new
-  // judge is created under the SHOW's organization: the Judges tab lists only
-  // judges qualified for it, so any other org would assign a judge who then
-  // vanishes from the list, unremovable.
+  // Inline create is offered only for the orgs the judge form supports. The judge
+  // is created under the SHOW's organization: the Judges tab lists only judges
+  // qualified for it, so any other org would assign a judge who then vanishes.
   const supportedOrg = JUDGE_FORM_ORGS.find(org => org === organization);
+
+  const onOpenChange = useCallback((next: boolean) => {
+    // A create is in flight: Escape, overlay click and the X must not close it.
+    if (!next && pendingRef.current) return;
+    setOpen(next);
+  }, []);
 
   const createAndAssignJudge = useCallback(
     async (input: CreateJudgeData): Promise<void> => {
-      if (!supportedOrg || inFlightRef.current) return;
-      inFlightRef.current = true;
-      setPending(true);
-      setError(null);
+      if (!supportedOrg || pendingRef.current) return;
+      pendingRef.current = true;
       try {
         const judgeId = await handleCreateNewJudge({ ...input, organization: supportedOrg });
         void queryClient.invalidateQueries({ queryKey: ['judges', 'withQualifications'] });
-        if (!panelOpenRef.current) return;
-        // An updater over the LATEST roster: toggles made while the create was
-        // pending must survive, and a judge already assigned is not added twice.
+        // Invariant: the modal makes this unreachable. If it ever breaks, assigning
+        // would put a judge on the roster the filtered list cannot show or remove.
+        if (organizationRef.current !== supportedOrg) {
+          throw new NewJudgeFormError(
+            `The judge was created, but the show's organization changed. Find them in the ${supportedOrg} list and assign them there.`
+          );
+        }
+        // An updater over the LATEST roster; a judge already assigned is not added twice.
         form?.setValue('assignedJudges', (previous: unknown) => {
           const roster = (previous as ShowJudgeAssignment[] | undefined) ?? [];
           if (roster.some(judge => judge.judgeId === judgeId)) return roster;
@@ -66,16 +72,13 @@ export function useShowEditJudgeCreate(
             },
           ];
         });
-      } catch (err) {
-        if (panelOpenRef.current) setError('Failed to add the judge. Please try again.');
-        throw err;
       } finally {
-        inFlightRef.current = false;
-        if (panelOpenRef.current) setPending(false);
+        pendingRef.current = false;
       }
+      setOpen(false);
     },
     [supportedOrg, handleCreateNewJudge, queryClient, form]
   );
 
-  return { supportedOrg, createAndAssignJudge, pending, error };
+  return { supportedOrg, open, onOpenChange, createAndAssignJudge };
 }

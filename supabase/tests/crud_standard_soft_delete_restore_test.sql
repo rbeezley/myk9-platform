@@ -1034,9 +1034,9 @@ BEGIN
   RAISE NOTICE 'PASS soft-delete and restore RPCs: authenticated + service_role only';
 
   FOREACH v_fn IN ARRAY ARRAY[
-    'private.count_delete_blocking_entries(text, uuid)', 'private.enforce_delete_money_guard(text, uuid, boolean)',
-    'private.can_undo_soft_delete(uuid, timestamptz)', 'private.block_direct_soft_delete_write()',
-    'private.lock_delete_scope_entries(text, uuid)'
+    'private.is_blocking_entry(text, boolean, timestamptz, text)', 'private.require_override_allowed(boolean)',
+    'private.raise_if_blocked(text, integer, boolean)',
+    'private.can_undo_soft_delete(uuid, timestamptz)', 'private.block_direct_soft_delete_write()'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE') OR has_function_privilege('authenticated', v_fn, 'EXECUTE')
        OR EXISTS (
@@ -1072,65 +1072,224 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 10. THE GUARD LOCKS BEFORE IT COUNTS. A single session cannot race itself, but
---     row locks are observable: a locked tuple carries xmax = this transaction.
---     Fresh rows (xmax 0 at insert) are used so earlier updates cannot fake it.
---     The two-connection race itself is not reproducible in this harness.
+-- 10. THE GUARD IS THE RETURNING OF THE TOMBSTONING UPDATE. A single session
+--     cannot race a concurrent payment or insert, and two-connection tests are
+--     not feasible in this harness, so the concurrency itself is NOT tested here.
+--     What is tested: the predicate's arms, and that a blocking entry which is the
+--     ONLY row reaching the UPDATE still refuses the delete and rolls it back.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
-VALUES ('00000000-0000-0000-0000-000000915034', 'MYK9-915 Show Lock', 'AKC', current_date, current_date, 'draft', '00000000-0000-0000-0000-000000915021');
-INSERT INTO public.trials (id, show_id, name, date)
-VALUES ('00000000-0000-0000-0000-000000915044', '00000000-0000-0000-0000-000000915034', 'MYK9-915 Trial Lock', current_date);
-INSERT INTO public.classes (id, trial_id, name)
-VALUES ('00000000-0000-0000-0000-000000915056', '00000000-0000-0000-0000-000000915044', 'MYK9-915 K6'),
-       ('00000000-0000-0000-0000-000000915057', '00000000-0000-0000-0000-000000915044', 'MYK9-915 K7');
-INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id)
-SELECT e.id, e.class_id, '00000000-0000-0000-0000-000000915044', '00000000-0000-0000-0000-000000915034', e.dog_id
-FROM (VALUES
-  ('00000000-0000-0000-0000-000000915091'::uuid, '00000000-0000-0000-0000-000000915056'::uuid, '00000000-0000-0000-0000-000000915061'::uuid),
-  ('00000000-0000-0000-0000-000000915092'::uuid, '00000000-0000-0000-0000-000000915057'::uuid, '00000000-0000-0000-0000-000000915062'::uuid),
-  ('00000000-0000-0000-0000-000000915093'::uuid, '00000000-0000-0000-0000-000000915057'::uuid, '00000000-0000-0000-0000-000000915063'::uuid)
-) AS e(id, class_id, dog_id);
-
 DO $$
-DECLARE
-  v_locked uuid[];
 BEGIN
-  IF (SELECT count(*) FROM public.entries WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0) <> 0 THEN
-    RAISE EXCEPTION 'FIXTURE the lock-probe entries are already locked';
+  IF NOT private.is_blocking_entry('paid', false, NULL, 'pending')
+     OR NOT private.is_blocking_entry('pending', true, NULL, 'pending')
+     OR NOT private.is_blocking_entry('pending', false, now(), 'pending')
+     OR NOT private.is_blocking_entry('pending', false, NULL, 'absent')
+     OR private.is_blocking_entry('pending', false, NULL, 'pending')
+     OR private.is_blocking_entry('refunded', false, NULL, 'pending')
+     OR private.is_blocking_entry('waived', false, NULL, NULL)
+     OR private.is_blocking_entry(NULL, NULL, NULL, NULL) THEN
+    RAISE EXCEPTION 'FAIL private.is_blocking_entry does not match the paid/scored arms';
   END IF;
-
-  -- class scope: only K6's entry is locked; K7's are not.
-  PERFORM private.enforce_delete_money_guard('class', '00000000-0000-0000-0000-000000915056', false);
-  SELECT array_agg(id ORDER BY id) INTO v_locked FROM public.entries
-  WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0;
-  IF v_locked IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000915091']::uuid[] THEN
-    RAISE EXCEPTION 'FAIL class-scope guard locked % instead of only the class''s entry', v_locked;
-  END IF;
-  RAISE NOTICE 'PASS the class guard row-locks exactly the class''s live entries before counting';
-
-  -- trial scope reaches the rest.
-  PERFORM private.enforce_delete_money_guard('trial', '00000000-0000-0000-0000-000000915044', false);
-  IF (SELECT count(*) FROM public.entries WHERE id::text LIKE '00000000-0000-0000-0000-00000091509%' AND xmax::text::bigint <> 0) <> 3 THEN
-    RAISE EXCEPTION 'FAIL trial-scope guard did not lock all three entries';
-  END IF;
-  RAISE NOTICE 'PASS the trial guard row-locks every live entry under it';
+  RAISE NOTICE 'PASS is_blocking_entry: paid, scored, scoring completed and a settled result block; pending, refunded, waived and NULL do not';
 END;
 $$;
 
--- The override path locks too (a site admin's cascade must not race a payment).
-INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id)
-VALUES ('00000000-0000-0000-0000-000000915094', '00000000-0000-0000-0000-000000915057', '00000000-0000-0000-0000-000000915044',
-        '00000000-0000-0000-0000-000000915034', '00000000-0000-0000-0000-000000915064');
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+VALUES ('00000000-0000-0000-0000-000000915035', 'MYK9-915 Show P2', 'AKC', current_date, current_date, 'draft', '00000000-0000-0000-0000-000000915021');
+INSERT INTO public.trials (id, show_id, name, date)
+VALUES ('00000000-0000-0000-0000-000000915045', '00000000-0000-0000-0000-000000915035', 'MYK9-915 Trial P2', current_date);
+INSERT INTO public.classes (id, trial_id, name)
+VALUES ('00000000-0000-0000-0000-000000915058', '00000000-0000-0000-0000-000000915045', 'MYK9-915 K9'),
+       ('00000000-0000-0000-0000-000000915060', '00000000-0000-0000-0000-000000915045', 'MYK9-915 K8 paid-only');
+INSERT INTO public.dogs (id, call_name, breed, owner_id)
+SELECT ('00000000-0000-0000-0000-0000009150' || n)::uuid, 'MYK9-915 Dog ' || n, 'Border Collie', '00000000-0000-0000-0000-000000915014'
+FROM generate_series(69, 71) AS n;
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
+SELECT ('00000000-0000-0000-0000-0000009150' || n)::uuid, 'AKC', 'SW9915' || n, 'MYK9-915 Dog ' || n
+FROM generate_series(69, 71) AS n;
+-- Ea (dog 69) and Eb (dog 70) in K9; Ep (PAID, the only entry in K8).
+INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id, payment_status)
+VALUES
+  ('00000000-0000-0000-0000-000000915095', '00000000-0000-0000-0000-000000915058', '00000000-0000-0000-0000-000000915045', '00000000-0000-0000-0000-000000915035', '00000000-0000-0000-0000-000000915069', 'pending'),
+  ('00000000-0000-0000-0000-000000915096', '00000000-0000-0000-0000-000000915058', '00000000-0000-0000-0000-000000915045', '00000000-0000-0000-0000-000000915035', '00000000-0000-0000-0000-000000915070', 'pending'),
+  ('00000000-0000-0000-0000-000000915097', '00000000-0000-0000-0000-000000915060', '00000000-0000-0000-0000-000000915045', '00000000-0000-0000-0000-000000915035', '00000000-0000-0000-0000-000000915071', 'paid');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
 
 DO $$
 BEGIN
-  PERFORM private.enforce_delete_money_guard('entry', '00000000-0000-0000-0000-000000915094', true);
-  IF (SELECT xmax::text::bigint FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915094') = 0 THEN
-    RAISE EXCEPTION 'FAIL the override path returned without locking the entry';
+  BEGIN PERFORM public.soft_delete_class('00000000-0000-0000-0000-000000915060');
+    RAISE EXCEPTION 'FAIL the only-paid class was deleted';
+  EXCEPTION WHEN sqlstate 'MK010' THEN RAISE NOTICE 'PASS a class whose only entry is paid is refused (MK010)'; END;
+  BEGIN PERFORM public.soft_delete_trial('00000000-0000-0000-0000-000000915045');
+    RAISE EXCEPTION 'FAIL a trial with one paid entry among clean ones was deleted';
+  EXCEPTION WHEN sqlstate 'MK010' THEN RAISE NOTICE 'PASS one paid entry among clean ones refuses the trial (MK010)'; END;
+  BEGIN PERFORM public.soft_delete_show('00000000-0000-0000-0000-000000915035');
+    RAISE EXCEPTION 'FAIL a show with one paid entry among clean ones was deleted';
+  EXCEPTION WHEN sqlstate 'MK010' THEN RAISE NOTICE 'PASS one paid entry among clean ones refuses the show (MK010)'; END;
+END;
+$$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.entries WHERE show_id = '00000000-0000-0000-0000-000000915035' AND deleted_at IS NULL) <> 3
+     OR (SELECT count(*) FROM public.classes WHERE trial_id = '00000000-0000-0000-0000-000000915045' AND deleted_at IS NULL) <> 2
+     OR (SELECT deleted_at FROM public.trials WHERE id = '00000000-0000-0000-0000-000000915045') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL a refused delete left tombstones behind (the RAISE must roll back the entries UPDATE)';
   END IF;
-  RAISE NOTICE 'PASS the override path row-locks before it returns';
+  RAISE NOTICE 'PASS the MK010 raise rolls back the cascade UPDATE that detected it';
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
+
+SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915060', true);
+SELECT count(*) FROM public.restore_class('00000000-0000-0000-0000-000000915060');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915097') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the admin override round trip left the paid entry deleted';
+  END IF;
+  RAISE NOTICE 'PASS the admin override deletes the paid-only class and restore brings it back';
+END;
+$$;
+
+-- Take the paid entry out of the way of the next section.
+DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915097';
+
+-- ---------------------------------------------------------------------------
+-- 11. RESTORE LEAVES ENTRIES OF DELETED DOGS TOMBSTONED (class, trial, show).
+--     Ea's dog is deleted after the container; the restore brings back Eb but not
+--     Ea, and does not refuse. restore_entry then brings Ea back once the dog is
+--     live (a site admin: the secretary's Undo window is per entry deleted_at).
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
+SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915058');
+RESET ROLE;
+UPDATE public.dogs SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT count(*) FROM public.restore_class('00000000-0000-0000-0000-000000915058');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.classes WHERE id = '00000000-0000-0000-0000-000000915058') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_class refused or skipped the class itself';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915096') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_class did not bring back the entry whose dog is live';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NULL THEN
+    RAISE EXCEPTION 'FAIL restore_class resurrected an entry whose dog is deleted';
+  END IF;
+  RAISE NOTICE 'PASS restore_class restores the live dog''s entry and leaves the deleted dog''s entry tombstoned';
+END;
+$$;
+
+UPDATE public.dogs SET deleted_at = NULL WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
+SELECT public.restore_entry('00000000-0000-0000-0000-000000915095');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_entry could not bring the entry back once its dog was live (%)', 'class';
+  END IF;
+  RAISE NOTICE 'PASS restore_entry brings the entry back after the dog is restored (after class)';
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
+SELECT count(*) FROM public.soft_delete_trial('00000000-0000-0000-0000-000000915045');
+RESET ROLE;
+UPDATE public.dogs SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT count(*) FROM public.restore_trial('00000000-0000-0000-0000-000000915045');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.trials WHERE id = '00000000-0000-0000-0000-000000915045') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_trial refused or skipped the trial itself';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915096') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_trial did not bring back the entry whose dog is live';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NULL THEN
+    RAISE EXCEPTION 'FAIL restore_trial resurrected an entry whose dog is deleted';
+  END IF;
+  RAISE NOTICE 'PASS restore_trial restores the live dog''s entry and leaves the deleted dog''s entry tombstoned';
+END;
+$$;
+
+UPDATE public.dogs SET deleted_at = NULL WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
+SELECT public.restore_entry('00000000-0000-0000-0000-000000915095');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_entry could not bring the entry back once its dog was live (%)', 'trial';
+  END IF;
+  RAISE NOTICE 'PASS restore_entry brings the entry back after the dog is restored (after trial)';
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
+SELECT public.soft_delete_show('00000000-0000-0000-0000-000000915035');
+RESET ROLE;
+UPDATE public.dogs SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT count(*) FROM public.restore_show('00000000-0000-0000-0000-000000915035');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.shows WHERE id = '00000000-0000-0000-0000-000000915035') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_show refused or skipped the show itself';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915096') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_show did not bring back the entry whose dog is live';
+  END IF;
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NULL THEN
+    RAISE EXCEPTION 'FAIL restore_show resurrected an entry whose dog is deleted';
+  END IF;
+  RAISE NOTICE 'PASS restore_show restores the live dog''s entry and leaves the deleted dog''s entry tombstoned';
+END;
+$$;
+
+UPDATE public.dogs SET deleted_at = NULL WHERE id = '00000000-0000-0000-0000-000000915069';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
+SELECT public.restore_entry('00000000-0000-0000-0000-000000915095');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915095') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL restore_entry could not bring the entry back once its dog was live (%)', 'show';
+  END IF;
+  RAISE NOTICE 'PASS restore_entry brings the entry back after the dog is restored (after show)';
 END;
 $$;
 

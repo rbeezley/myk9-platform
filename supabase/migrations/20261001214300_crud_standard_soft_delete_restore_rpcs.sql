@@ -12,16 +12,25 @@
 --          and a club was soft-deleted/restored by a direct UPDATE that
 --          clubs_update let a club admin make.
 --
---  2. GUARD  private.count_delete_blocking_entries(scope, id) is the ONE
---          predicate for "this delete would strand money or results", scoped by
---          show | trial | class | entry. It is the same predicate as
---          private.count_dog_blocking_entries (MK002), generalised. The
---          show/trial/class/entry delete RPCs refuse with MK010 when it is
---          non-zero. A site admin may pass p_override => true; anyone else
---          passing true is refused (42501) even when nothing blocks, so a
---          client cannot probe by flipping the flag.
---          The override issues no refund: a paid entry's Stripe charge stays
---          captured, exactly as with force_delete_dog.
+--  2. GUARD  The show/trial/class/entry delete RPCs refuse with MK010 when a
+--          paid or scored entry would be tombstoned. The check is NOT a separate
+--          count: the entries cascade runs FIRST, as an UPDATE whose RETURNING
+--          evaluates private.is_blocking_entry (same arms as
+--          private.count_dog_blocking_entries, MK002) on exactly the rows it
+--          tombstoned, and a RAISE rolls the whole delete back. An earlier
+--          count-then-delete (and a lock-then-count) shape was abandoned: both
+--          judged rows other than the ones the cascade then deleted. Under READ
+--          COMMITTED the UPDATE reads a snapshot taken at statement start and
+--          re-checks any row a concurrent transaction updated (EvalPlanQual), so a
+--          payment committed just before or during the statement is seen.
+--          A site admin may pass p_override => true; anyone else passing true is
+--          refused (42501) even when nothing blocks. The override issues no
+--          refund: a paid entry's Stripe charge stays captured, exactly as with
+--          force_delete_dog.
+--          KNOWN GAP: an entry INSERTED after the cascade statement starts is not
+--          tombstoned and is not checked, so it can live under a deleted parent;
+--          this migration does not make entries_insert or the RPCs refuse a
+--          deleted class or show.
 --
 --  3. SIGNATURES  soft_delete_show(uuid) and soft_delete_class(uuid) gain a
 --          trailing `p_override boolean DEFAULT false`. CREATE OR REPLACE with
@@ -91,141 +100,65 @@ BEGIN;
 -- 1. Private helpers
 -- ---------------------------------------------------------------------------
 
--- The ONE money/scored predicate (same arms as count_dog_blocking_entries),
--- scoped to everything a delete at that level would cascade to. Counts by both
--- the entry's own show/trial/class columns and the class chain the cascade
--- actually walks, so a row the cascade would hide is never missed.
-CREATE OR REPLACE FUNCTION private.count_delete_blocking_entries(p_scope text, p_id uuid)
-RETURNS integer
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_count integer;
-BEGIN
-  IF p_scope NOT IN ('show', 'trial', 'class', 'entry') THEN
-    RAISE EXCEPTION 'count_delete_blocking_entries: unknown scope %', p_scope
-      USING ERRCODE = '22023';
-  END IF;
-
-  SELECT count(*)::integer INTO v_count
-  FROM public.entries e
-  WHERE e.deleted_at IS NULL
-    AND (
-      e.payment_status = 'paid'
-      OR e.is_scored IS TRUE
-      OR e.scoring_completed_at IS NOT NULL
-      OR (e.result_status IS NOT NULL AND e.result_status <> 'pending')
-    )
-    AND CASE p_scope
-      WHEN 'entry' THEN e.id = p_id
-      WHEN 'class' THEN e.class_id = p_id
-      WHEN 'trial' THEN (
-        e.trial_id = p_id
-        OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_id)
-      )
-      ELSE (
-        e.show_id = p_id
-        OR e.class_id IN (
-          SELECT c.id
-          FROM public.classes c
-          JOIN public.trials t ON t.id = c.trial_id
-          WHERE t.show_id = p_id
-        )
-      )
-    END;
-
-  RETURN v_count;
-END;
-$$;
-
-COMMENT ON FUNCTION private.count_delete_blocking_entries(text, uuid) IS
-  'CRUD standard Phase 1: the ONE predicate for "deleting this show/trial/class/'
-  'entry would strand a paid or scored entry". Same arms as '
-  'private.count_dog_blocking_entries. Internal: reachable only through the '
-  'SECURITY DEFINER delete RPCs.';
-
--- Row-locks every live entry a delete at that level would cascade to, in id
--- order (a fixed order, so two concurrent deletes cannot deadlock). Blocking, not
--- NOWAIT/SKIP LOCKED: a delete that races a payment or a score must wait for it
--- and then see its result. Without this the guard counts the old values while
--- another transaction marks an entry paid or scored, then the cascade UPDATE waits
--- on that row's lock and tombstones a row that is by then paid or scored. Under
--- READ COMMITTED the count that follows runs a fresh statement snapshot, so it
--- sees whatever the awaited transaction committed. The locks are held to the end of
--- the delete's transaction, so the cascade runs under them too.
-CREATE OR REPLACE FUNCTION private.lock_delete_scope_entries(p_scope text, p_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  IF p_scope NOT IN ('show', 'trial', 'class', 'entry') THEN
-    RAISE EXCEPTION 'lock_delete_scope_entries: unknown scope %', p_scope
-      USING ERRCODE = '22023';
-  END IF;
-
-  PERFORM 1
-  FROM public.entries e
-  WHERE e.deleted_at IS NULL
-    AND CASE p_scope
-      WHEN 'entry' THEN e.id = p_id
-      WHEN 'class' THEN e.class_id = p_id
-      WHEN 'trial' THEN (
-        e.trial_id = p_id
-        OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_id)
-      )
-      ELSE (
-        e.show_id = p_id
-        OR e.class_id IN (
-          SELECT c.id
-          FROM public.classes c
-          JOIN public.trials t ON t.id = c.trial_id
-          WHERE t.show_id = p_id
-        )
-      )
-    END
-  ORDER BY e.id
-  FOR UPDATE OF e;
-END;
-$$;
-
--- The guard every show/trial/class/entry delete RPC calls, after its own
--- permission check and before any cascade write.
-CREATE OR REPLACE FUNCTION private.enforce_delete_money_guard(
-  p_scope text,
-  p_id uuid,
-  p_override boolean
+-- The ONE money/scored predicate (same arms as count_dog_blocking_entries). It is
+-- evaluated in the RETURNING clause of the very UPDATE that tombstones entries,
+-- so it judges exactly the rows the cascade deletes, as that statement reads them.
+CREATE OR REPLACE FUNCTION private.is_blocking_entry(
+  p_payment_status text,
+  p_is_scored boolean,
+  p_scoring_completed_at timestamptz,
+  p_result_status text
 )
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT COALESCE(
+    p_payment_status = 'paid'
+    OR p_is_scored IS TRUE
+    OR p_scoring_completed_at IS NOT NULL
+    OR (p_result_status IS NOT NULL AND p_result_status <> 'pending'),
+    false
+  );
+$$;
+
+COMMENT ON FUNCTION private.is_blocking_entry(text, boolean, timestamptz, text) IS
+  'CRUD standard Phase 1: the ONE paid-or-scored predicate for the show/trial/'
+  'class/entry delete RPCs, evaluated in the RETURNING of the tombstoning UPDATE. '
+  'Same arms as private.count_dog_blocking_entries (MK002).';
+
+-- Called first by every show/trial/class/entry delete: anyone but a site admin
+-- passing p_override => true is refused, even when nothing blocks, so a client
+-- cannot learn whether a row is blocked by flipping the flag.
+CREATE OR REPLACE FUNCTION private.require_override_allowed(p_override boolean)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-DECLARE
-  v_count integer;
 BEGIN
-  -- Lock first, count after, and lock on the override path too: the cascade that
-  -- follows must not race a concurrent payment or score either.
-  PERFORM private.lock_delete_scope_entries(p_scope, p_id);
-
-  -- Refused even when nothing blocks: a client must not learn whether a row is
-  -- blocked by flipping the flag.
   IF p_override IS TRUE AND NOT (SELECT public.is_site_admin()) THEN
     RAISE EXCEPTION 'Only a site admin may override the paid or scored guard'
       USING ERRCODE = '42501';
   END IF;
+END;
+$$;
 
-  IF p_override IS TRUE THEN
-    RETURN;
-  END IF;
-
-  v_count := private.count_delete_blocking_entries(p_scope, p_id);
-
-  IF v_count > 0 THEN
+-- Called right after the entries UPDATE with the number of tombstoned rows that
+-- were paid or scored. The RAISE rolls back the whole delete, including the
+-- tombstones that statement just wrote.
+CREATE OR REPLACE FUNCTION private.raise_if_blocked(
+  p_scope text,
+  p_blocked integer,
+  p_override boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_blocked > 0 AND p_override IS NOT TRUE THEN
     RAISE EXCEPTION '%',
       CASE p_scope
         WHEN 'show' THEN 'This show has paid or scored entries. Cancel the show instead of deleting it.'
@@ -233,15 +166,14 @@ BEGIN
         ELSE format('This %s has paid or scored entries. Withdraw or Pull those entries first.', p_scope)
       END
       USING ERRCODE = 'MK010',
-            DETAIL = format('scope=%s blocking_entries=%s', p_scope, v_count);
+            DETAIL = format('scope=%s blocking_entries=%s', p_scope, p_blocked);
   END IF;
 END;
 $$;
 
-COMMENT ON FUNCTION private.enforce_delete_money_guard(text, uuid, boolean) IS
-  'CRUD standard Phase 1: MK010 refusal for the show/trial/class/entry delete '
-  'RPCs; a site admin passes p_override => true to proceed, anyone else passing '
-  'true is refused with 42501.';
+COMMENT ON FUNCTION private.raise_if_blocked(text, integer, boolean) IS
+  'CRUD standard Phase 1: MK010 refusal; a site admin passing p_override => true '
+  'proceeds. Internal.';
 
 -- Undo: the deleter, within 10 minutes. deleted_by references auth.users, so it
 -- is compared with auth.uid() (people.id is NOT an auth uid).
@@ -286,11 +218,11 @@ COMMENT ON FUNCTION private.block_direct_soft_delete_write() IS
   'DEFINER (current_user = their owner) so they pass; postgres and service_role '
   'fixtures and seeds pass too.';
 
-REVOKE ALL ON FUNCTION private.count_delete_blocking_entries(text, uuid)
+REVOKE ALL ON FUNCTION private.is_blocking_entry(text, boolean, timestamptz, text)
   FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION private.enforce_delete_money_guard(text, uuid, boolean)
+REVOKE ALL ON FUNCTION private.require_override_allowed(boolean)
   FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION private.lock_delete_scope_entries(text, uuid)
+REVOKE ALL ON FUNCTION private.raise_if_blocked(text, integer, boolean)
   FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.can_undo_soft_delete(uuid, timestamptz)
   FROM PUBLIC, anon, authenticated, service_role;
@@ -313,6 +245,7 @@ DECLARE
   v_club_id UUID;
   v_show_exists BOOLEAN := FALSE;
   v_rows_affected INT;
+  v_blocked INT;
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
 BEGIN
@@ -335,16 +268,28 @@ BEGIN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
-  PERFORM private.enforce_delete_money_guard('show', p_show_id, p_override);
+  PERFORM private.require_override_allowed(p_override);
 
-  UPDATE public.entries
-  SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
-  WHERE class_id IN (
-    SELECT c.id FROM public.classes c
-    JOIN public.trials t ON c.trial_id = t.id
-    WHERE t.show_id = p_show_id
+  -- Entries FIRST, and the guard is the RETURNING of this very statement: it
+  -- judges exactly the rows being tombstoned, including one a concurrent
+  -- transaction committed just before the statement's snapshot or updated while
+  -- it ran (EvalPlanQual re-reads the updated row). A raise rolls everything back.
+  WITH tombstoned AS (
+    UPDATE public.entries e
+    SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
+    WHERE e.deleted_at IS NULL
+      AND (
+        e.show_id = p_show_id
+        OR e.class_id IN (
+          SELECT c.id FROM public.classes c
+          JOIN public.trials t ON c.trial_id = t.id
+          WHERE t.show_id = p_show_id
+        )
+      )
+    RETURNING private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status) AS blocking
   )
-  AND deleted_at IS NULL;
+  SELECT count(*) FILTER (WHERE blocking) INTO v_blocked FROM tombstoned;
+  PERFORM private.raise_if_blocked('show', v_blocked, p_override);
 
   UPDATE public.classes
   SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
@@ -379,6 +324,7 @@ CREATE FUNCTION public.soft_delete_class(p_class_id uuid, p_override boolean DEF
 AS $function$
 DECLARE
   v_trial_id UUID;
+  v_blocked INT;
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
 BEGIN
@@ -404,13 +350,18 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  PERFORM private.enforce_delete_money_guard('class', p_class_id, p_override);
+  PERFORM private.require_override_allowed(p_override);
 
-  -- Cascade soft delete in reverse FK order: entries -> class.
-  UPDATE public.entries
-  SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
-  WHERE class_id = p_class_id
-    AND deleted_at IS NULL;
+  -- Entries first; the guard is this statement's RETURNING (see soft_delete_show).
+  WITH tombstoned AS (
+    UPDATE public.entries e
+    SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
+    WHERE e.class_id = p_class_id
+      AND e.deleted_at IS NULL
+    RETURNING private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status) AS blocking
+  )
+  SELECT count(*) FILTER (WHERE blocking) INTO v_blocked FROM tombstoned;
+  PERFORM private.raise_if_blocked('class', v_blocked, p_override);
 
   UPDATE public.classes
   SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
@@ -432,6 +383,7 @@ AS $function$
 DECLARE
   v_show_id uuid;
   v_name text;
+  v_blocked integer;
   v_now timestamptz := now();
   v_user_id uuid := auth.uid();
 BEGIN
@@ -448,16 +400,22 @@ BEGIN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
-  PERFORM private.enforce_delete_money_guard('trial', p_trial_id, p_override);
+  PERFORM private.require_override_allowed(p_override);
 
-  -- One stamp across the cascade: entries -> classes -> trial.
-  UPDATE public.entries e
-  SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
-  WHERE e.deleted_at IS NULL
-    AND (
-      e.trial_id = p_trial_id
-      OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_trial_id)
-    );
+  -- One stamp across the cascade, entries first; the guard is this statement's
+  -- RETURNING (see soft_delete_show).
+  WITH tombstoned AS (
+    UPDATE public.entries e
+    SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
+    WHERE e.deleted_at IS NULL
+      AND (
+        e.trial_id = p_trial_id
+        OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_trial_id)
+      )
+    RETURNING private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status) AS blocking
+  )
+  SELECT count(*) FILTER (WHERE blocking) INTO v_blocked FROM tombstoned;
+  PERFORM private.raise_if_blocked('trial', v_blocked, p_override);
 
   UPDATE public.classes c
   SET deleted_at = v_now, deleted_by = v_user_id, updated_at = v_now
@@ -485,6 +443,7 @@ DECLARE
   v_show_id uuid;
   v_found boolean;
   v_version integer;
+  v_blocking boolean;
   v_now timestamptz := now();
 BEGIN
   -- show_id is populated on every live row today; the fallback through the
@@ -504,12 +463,23 @@ BEGIN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
-  PERFORM private.enforce_delete_money_guard('entry', p_entry_id, p_override);
+  PERFORM private.require_override_allowed(p_override);
 
-  UPDATE public.entries e
-  SET deleted_at = v_now, deleted_by = (SELECT auth.uid()), updated_at = v_now
-  WHERE e.id = p_entry_id AND e.deleted_at IS NULL
-  RETURNING e.version INTO v_version;
+  -- The guard is this statement's RETURNING (see soft_delete_show): the row is
+  -- judged as the UPDATE actually read it, after any concurrent payment or score.
+  WITH tombstoned AS (
+    UPDATE public.entries e
+    SET deleted_at = v_now, deleted_by = (SELECT auth.uid()), updated_at = v_now
+    WHERE e.id = p_entry_id AND e.deleted_at IS NULL
+    RETURNING e.version AS version, private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status) AS blocking
+  )
+  SELECT t.version, t.blocking INTO v_version, v_blocking FROM tombstoned t;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Entry not found or already deleted' USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM private.raise_if_blocked('entry', CASE WHEN v_blocking THEN 1 ELSE 0 END, p_override);
 
   RETURN v_version;
 END;
@@ -600,13 +570,16 @@ BEGIN
   SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
   WHERE c.trial_id = p_trial_id AND c.deleted_at = v_deleted_at;
 
+  -- Only entries whose dog is live: an entry whose dog was deleted after this
+  -- trial stays tombstoned (restore_entry brings it back once the dog is).
   UPDATE public.entries e
   SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
   WHERE e.deleted_at = v_deleted_at
     AND (
       e.trial_id = p_trial_id
       OR e.class_id IN (SELECT c.id FROM public.classes c WHERE c.trial_id = p_trial_id)
-    );
+    )
+    AND (e.dog_id IS NULL OR EXISTS (SELECT 1 FROM public.dogs d WHERE d.id = e.dog_id AND d.deleted_at IS NULL));
 
   RETURN QUERY SELECT p_trial_id, v_name;
 END;
@@ -741,14 +714,19 @@ BEGIN
   WHERE trial_id IN (SELECT id FROM public.trials WHERE show_id = p_show_id)
     AND deleted_at = v_deleted_at;
 
-  UPDATE public.entries
+  -- Same row set soft_delete_show tombstones, minus entries whose dog is deleted.
+  UPDATE public.entries e
   SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
-  WHERE class_id IN (
-    SELECT c.id FROM public.classes c
-    JOIN public.trials t ON c.trial_id = t.id
-    WHERE t.show_id = p_show_id
-  )
-  AND deleted_at = v_deleted_at;
+  WHERE e.deleted_at = v_deleted_at
+    AND (
+      e.show_id = p_show_id
+      OR e.class_id IN (
+        SELECT c.id FROM public.classes c
+        JOIN public.trials t ON c.trial_id = t.id
+        WHERE t.show_id = p_show_id
+      )
+    )
+    AND (e.dog_id IS NULL OR EXISTS (SELECT 1 FROM public.dogs d WHERE d.id = e.dog_id AND d.deleted_at IS NULL));
 
   RETURN QUERY SELECT * FROM public.shows WHERE id = p_show_id;
 END;
@@ -789,9 +767,11 @@ BEGIN
   SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
   WHERE id = p_class_id;
 
-  UPDATE public.entries
+  -- Entries whose dog is deleted stay tombstoned (restore_entry later).
+  UPDATE public.entries e
   SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
-  WHERE class_id = p_class_id AND deleted_at = v_deleted_at;
+  WHERE e.class_id = p_class_id AND e.deleted_at = v_deleted_at
+    AND (e.dog_id IS NULL OR EXISTS (SELECT 1 FROM public.dogs d WHERE d.id = e.dog_id AND d.deleted_at IS NULL));
 
   RETURN QUERY SELECT * FROM public.classes WHERE id = p_class_id;
 END;

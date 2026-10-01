@@ -9,7 +9,7 @@
  * keeps exactly one variant active, so the active query IS the visible roster.
  */
 
-import type { QueryClient, QueryFunction } from '@tanstack/react-query';
+import { onlineManager, type QueryClient, type QueryFunction } from '@tanstack/react-query';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { queryKeys } from '@/lib/queryClient';
 
@@ -43,6 +43,13 @@ export async function refreshLiveRoster(
 ): Promise<Map<string, AdminUser> | null> {
   const queries = activeRosterQueries(queryClient);
   if (queries.length === 0) return null;
+  // Never wait on anything that cannot run right now. Offline — or a roster
+  // fetch React Query already left PAUSED (an invalidation while offline) —
+  // would hold the dispatch latch until connectivity returns, and fetchQuery
+  // would dedupe onto the paused fetch, ignoring the options below.
+  if (!onlineManager.isOnline() || queries.some(query => query.state.fetchStatus === 'paused')) {
+    return null;
+  }
   // Fail fast: no retry/backoff, and networkMode 'always' so an offline fetch
   // rejects immediately instead of pausing and holding the dispatch latch. A
   // failed refresh is "could not verify"; the next retry issues a NEW fetch. A

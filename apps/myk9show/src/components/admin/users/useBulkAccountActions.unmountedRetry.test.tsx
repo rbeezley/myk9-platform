@@ -77,11 +77,15 @@ describe('bulk retry after the bar unmounted', () => {
         return server;
       },
     });
+    // The app's QueryClientProvider keeps the client mounted, which is what
+    // resumes paused fetches on reconnect.
+    queryClient.mount();
     unsubscribe = observer.subscribe(() => {});
   });
 
   afterEach(() => {
     onlineManager.setOnline(true);
+    queryClient.unmount();
   });
 
   /** The last toast.error call's options, i.e. what the user is looking at. */
@@ -224,6 +228,44 @@ describe('bulk retry after the bar unmounted', () => {
     // The network and server recover: the NEW toast's Retry issues a new fetch.
     onlineManager.setOnline(true);
     serverMode = 'ok';
+    mutateAsync.mockResolvedValue({});
+    await act(async () => {
+      latestFailureToast()?.action?.onClick();
+    });
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not wait on a roster fetch already paused by going offline, and recovers', async () => {
+    mutateAsync.mockRejectedValue(new Error('boom'));
+    await dispatchThenUnmount('suspend');
+
+    // Offline, then something invalidates the roster: React Query leaves that
+    // fetch PAUSED. Retry must not dedupe onto it and sit on the latch.
+    onlineManager.setOnline(false);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryCache().findAll({ queryKey: queryKeys.users.all })[0]?.state.fetchStatus
+      ).toBe('paused')
+    );
+
+    mutateAsync.mockClear();
+    await act(async () => {
+      retryAction().onClick();
+    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expectCouldntRefresh();
+
+    // Back online with the server healthy: the new toast's Retry (so the latch
+    // was released) goes through.
+    onlineManager.setOnline(true);
+    // React Query resumes the paused roster fetch on reconnect.
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryCache().findAll({ queryKey: queryKeys.users.all })[0]?.state.fetchStatus
+      ).toBe('idle')
+    );
     mutateAsync.mockResolvedValue({});
     await act(async () => {
       latestFailureToast()?.action?.onClick();

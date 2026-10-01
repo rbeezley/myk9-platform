@@ -25,6 +25,18 @@
     - **Edit mode is unchanged:** Save is available on every tab.
     - **Applies to:** Add Person (4 tabs), Add Club (3; this replaces today's always-enabled demoted "Create Club"), Add Dog (3), and any other tabbed Add panel. Add Show and Add Entry are already step wizards.
 
+### Duplicate-actions decisions (2026-10-01)
+
+These come from [`audits/2026-10-01-duplicate-actions-audit.md`](audits/2026-10-01-duplicate-actions-audit.md). Every action has one home; every other entry point is a link, a justified show-day fast path, or deleted, as the audit's table says.
+
+14. **Show-day add entries:** the "Add entries" / "Add late entry" tool stays on the show-day screens as a fast path. Its labels match the Actions menu.
+15. **Cancel show and Close out show:** both go in the Actions menu, status group. Cancel opens one flow that includes Refund all entries. The bulk "Mark Completed" / "Mark Cancelled" buttons and the Edit panel's status dropdown are removed. The status pill becomes a read-only chip.
+16. **Status banners keep their button** ("Finish payment", "Premium not published", the Overview publish cards). A banner names a problem and offers its one fix. The same action is also in the Actions menu.
+17. **Scoring result words:** "Withdrawn" → "Pulled" and "Absent" → "No show". "Withdraw" stays reserved for in-season / judge-change withdrawals.
+18. **Dashboard tiles go:** "Add Show" and "Add Entry" live only in the Actions menu. On the dashboard, Add Entry asks which show first. The dashboard keeps status and attention items.
+19. **"Close entries now" / "Open entries now"** are added to the show Actions menu, status group. They set the close or open date to now, through the same path as Edit show. Use the confirm-dialog rules: the show is named in plain words, and the dialog says what changes for exhibitors.
+20. **Class Requirements** become an inline section on the class page, visible to everyone, and leave the ⋮ menu.
+
 ## Defaults from the audit (adopted unless changed)
 
 - Not-found and no-access: one `NotFoundState` whose button leads to the parent list. No silent redirects (H8).
@@ -107,6 +119,29 @@ Each phase is one PR (or a few small ones), independently verifiable. A phase is
 - About 250 strings that use "Registration" to mean an entry become "Entry". Dog registry strings keep "Registration".
 - Measure against the real strings first, then do a mechanical sweep in reviewed batches.
 - Tests: a behavior test on the key surfaces (Entry Management header, the registration wizard title and confirmation, My Entries), not a grep.
+
+**Phase 9: Duplicate actions** (decisions 14–20, audit D1–D7).
+
+- **Bugs first:** the three behavior-divergence bugs are filed separately. Pull fields, approve status and move-up targets are each their own issue.
+- **Collapse each remaining group to its home, per the audit table:**
+  - one Withdraw dialog (D5);
+  - one class-status vocabulary, with ringside mapped one-to-one (D6);
+  - one club Add member form (D7);
+  - payment and refund labels;
+  - message vs "Send decision email";
+  - waitlist Accept routed to Offer Spot;
+  - the legacy Entries check-in dropdown deleted.
+- **Orphan pages:** move the only copies of venue WiFi, venue map pin, waitlist settings and Refund all entries to their homes (Refund all entries goes into the Cancel flow). Then delete `/secretary/settings`, the pipeline pages, `SecretaryClassDashboard` and `BulkResultEntry`, plus the unused `ShowCompletionWorkflow` and `EntryRowActionMenu`. Grep code and `*.md` for links first.
+- **Show status:** decision 15.
+- **Close/Open entries now:** decision 19.
+- **Dashboard tiles:** decision 18.
+- **Result words:** decision 17.
+- **Requirements:** decision 20.
+- **Tests:**
+  - for each collapsed group, the non-home entry points navigate to the home with the expected params, or are absent;
+  - result-word render tests;
+  - Close/Open entries now writes the date through the shared path;
+  - the orphan routes redirect or return not found.
 
 **Phase 8: Verification walk.**
 

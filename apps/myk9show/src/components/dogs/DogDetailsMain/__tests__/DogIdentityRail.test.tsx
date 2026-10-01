@@ -168,7 +168,11 @@ describe('DogIdentityRail', () => {
     expect(link).toHaveAttribute('href', '/people/owner-1');
     fireEvent.click(link);
     expect(JSON.parse(screen.getByTestId('nav-state').textContent ?? 'null')).toEqual({
-      backTo: { href: '/dogs/dog-1', label: 'Maple' },
+      backTo: {
+        href: '/dogs/dog-1',
+        label: 'Maple',
+        parent: { label: 'Dogs', href: '/dogs' },
+      },
     });
   });
 

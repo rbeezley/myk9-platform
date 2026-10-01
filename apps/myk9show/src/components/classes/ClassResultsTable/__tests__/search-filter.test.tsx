@@ -215,6 +215,11 @@ describe('ClassResultsTable search/filter', () => {
     expect(screen.getByLabelText('Search by dog, handler, or armband...')).toBeInTheDocument();
   });
 
+  it('has exactly one search box (the table brings none of its own)', () => {
+    renderTable();
+    expect(screen.getAllByPlaceholderText(/search/i)).toHaveLength(1);
+  });
+
   it('shows placeholder text in the search input', () => {
     renderTable();
     const input = screen.getByLabelText('Search by dog, handler, or armband...');

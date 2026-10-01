@@ -234,3 +234,21 @@ describe('AppointSecretaryDialog', () => {
     expect(appointed).toEqual(['p-outsider']);
   });
 });
+
+describe('AppointSecretaryDialog title', () => {
+  it('is titled "Appoint Secretary", not "Appoint Show Secretary"', () => {
+    render(
+      <AppointSecretaryDialog
+        open
+        onClose={() => {}}
+        onAppoint={() => {}}
+        people={people}
+        appointedIds={new Set()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Appoint Secretary' })).toBeInTheDocument();
+    expect(screen.queryByText(/appoint show secretary/i)).not.toBeInTheDocument();
+  });
+});

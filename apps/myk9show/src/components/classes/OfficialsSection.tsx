@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -243,14 +244,11 @@ export function FeeFields({
         <Label htmlFor="preEntryFee" className="text-sm font-medium">
           Pre-Entry Fee
         </Label>
-        <Input
+        <CurrencyInput
           id="preEntryFee"
-          value={classData.preEntryFee || ''}
-          onChange={e => onFieldChange('preEntryFee', parseFloat(e.target.value) || 0)}
-          placeholder="Enter pre entry fee"
-          type="number"
-          min="0"
-          step="0.01"
+          value={classData.preEntryFee}
+          onChange={value => onFieldChange('preEntryFee', value)}
+          placeholder="0.00"
           className="h-11"
         />
       </div>
@@ -258,14 +256,11 @@ export function FeeFields({
         <Label htmlFor="dayOfShowFee" className="text-sm font-medium">
           Day-of-Show Fee
         </Label>
-        <Input
+        <CurrencyInput
           id="dayOfShowFee"
-          value={classData.dayOfShowFee || ''}
-          onChange={e => onFieldChange('dayOfShowFee', parseFloat(e.target.value) || 0)}
-          placeholder="Enter day of show fee"
-          type="number"
-          min="0"
-          step="0.01"
+          value={classData.dayOfShowFee}
+          onChange={value => onFieldChange('dayOfShowFee', value)}
+          placeholder="0.00"
           className="h-11"
         />
       </div>

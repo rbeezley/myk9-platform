@@ -60,7 +60,7 @@
 **Rough steps (qa-draft):**
 
 1. From the Dashboard, click **Add Show**. (A club's own page also has **Add Show**, for club admins, appointed secretaries and site admins who have create permission for that club.)
-2. **Step 1 — Show Details:** Enter the show name, sanctioning organization (AKC / UKC / Other), start and end dates, entry fee, and entry open/close dates. Pick the **Host Club** from the list. If you opened the wizard from that club's page it is already selected ("Hosting club: …"), so there is nothing to create; use **Not the right club? Create New Club** only when the club is missing. If you are not a club admin or appointed secretary for the chosen club, a yellow notice says so and to ask a club admin to appoint you. Click **Next**.
+2. **Step 1 — Show Details:** Enter the show name, sanctioning organization (AKC / UKC / Other), start and end dates, entry fee, and entry open/close dates. Pick the **Host Club** from the list. If you opened the wizard from that club's page it is already selected ("Hosting club: …"), so there is nothing to create; use **Not the right club? Add Club** only when the club is missing. If you are not a club admin or appointed secretary for the chosen club, a yellow notice says so and to ask a club admin to appoint you. Click **Next**.
 3. **Step 2 — Trial Configuration:** Add each trial with its date/time and event number. Click **Next**.
 4. **Step 3 — Class Selection:** For each trial, select classes and assign a judge to each. Click **Next**.
 5. **Step 4 — Review:** Scan the full structure for errors. Click **Create and Publish**.

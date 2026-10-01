@@ -214,7 +214,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       });
 
       if (error || !data) {
-        throw new Error(error?.message || 'Unable to create exhibitor.');
+        throw new Error(error?.message || 'Unable to add person.');
       }
 
       const newExhibitor: User = {
@@ -229,9 +229,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     } catch (error) {
       logger.error('Error creating exhibitor:', 'shows', {}, error as Error);
       setCreateError(
-        error instanceof Error
-          ? error.message
-          : 'We could not create that exhibitor. Please try again.'
+        error instanceof Error ? error.message : 'We could not add that person. Please try again.'
       );
     } finally {
       setIsCreating(false);
@@ -276,7 +274,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
-              Create New
+              New Person
             </TabsTrigger>
             <TabsTrigger value="duplicates" className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -378,7 +376,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
                   We found {duplicates.length} potential duplicate(s). Please check the "Possible
-                  Duplicates" tab to ensure you're not creating a duplicate exhibitor.
+                  Duplicates" tab to ensure you're not adding a duplicate person.
                 </AlertDescription>
               </Alert>
             )}
@@ -396,7 +394,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
                 <p>No potential duplicates found.</p>
-                <p className="text-sm">You can proceed with creating the new exhibitor.</p>
+                <p className="text-sm">You can proceed with adding the new person.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -456,7 +454,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
 
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    None of these match? Continue creating a new exhibitor.
+                    None of these match? Continue adding a new person.
                   </p>
                   <Button variant="outline" onClick={() => setActiveTab('create')}>
                     Add Person Anyway

@@ -3,6 +3,7 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 import { render, screen } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { RESPONSIVE_CLASSES, type ResponsiveBreakpoint } from '@/components/ui/data-table/types';
+import { DOG_STATUS_BADGES } from '@/components/dogs/common/dogStatusBadges';
 import { DogsTableView, type DogsTableSelection } from '../DogsTableView';
 
 // MYK9-592: the row and header checkboxes sit inside a clickable row / header
@@ -503,13 +504,23 @@ describe('DogsTableView', () => {
 });
 
 describe('DogsTableView status badges', () => {
-  // One source for the lifecycle badge: the same DOG_STATUS_BADGES the card and the detail rail wear.
-  it.each([
-    ['retired', 'Retired', 'bg-warning/10'],
-    ['deceased', 'Deceased', 'bg-muted'],
-    ['active', 'Active', 'bg-success/10'],
-  ] as const)('shows %s as the shared badge', (status, label, bg) => {
+  // One source for the lifecycle badge. Changing the shared entry must change the table, so a
+  // private copy of the labels and classes in the table cannot pass this.
+  it('renders each status from the shared DOG_STATUS_BADGES entry', () => {
+    const original = DOG_STATUS_BADGES['retired'];
+    DOG_STATUS_BADGES['retired'] = { label: 'Retired (shared)', className: 'text-xs bg-info/10' };
+    try {
+      render(<DogsTableView dogs={[{ ...dogs[0], status: 'retired' } as Dog]} />);
+      expect(screen.getByText('Retired (shared)')).toHaveClass('bg-info/10');
+      expect(screen.queryByText('Retired')).not.toBeInTheDocument();
+    } finally {
+      if (original) DOG_STATUS_BADGES['retired'] = original;
+    }
+  });
+
+  it.each(['active', 'deceased'] as const)('shows %s with its shared label', status => {
     render(<DogsTableView dogs={[{ ...dogs[0], status } as Dog]} />);
-    expect(screen.getByText(label)).toHaveClass(bg);
+    const entry = DOG_STATUS_BADGES[status];
+    expect(screen.getByText(entry?.label ?? '')).toBeInTheDocument();
   });
 });

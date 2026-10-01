@@ -21,7 +21,7 @@ describe('HostClubField club-management handoff', () => {
       />
     );
 
-    expect(screen.getByRole('link', { name: /create new club/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /add club/i })).toHaveAttribute(
       'href',
       '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard'
     );
@@ -57,15 +57,16 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
     expect(screen.getByText(/Hosting club: Summit K9 Masters/)).toBeInTheDocument();
     expect(screen.getByText(/nothing to create/i)).toBeInTheDocument();
     // The create action stays reachable, but phrased as the exception.
-    expect(
-      screen.getByRole('link', { name: /not the right club\? create new club/i })
-    ).toHaveAttribute('href', '/clubs?create=true');
+    expect(screen.getByRole('link', { name: /not the right club\? add club/i })).toHaveAttribute(
+      'href',
+      '/clubs?create=true'
+    );
   });
 
-  it('frames Create New Club as the not-listed path before a club is chosen', () => {
+  it('frames Add Club as the not-listed path before a club is chosen', () => {
     renderField({ clubId: undefined });
     expect(screen.getByText(/only create a new club if yours is not listed/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /club not listed\? create new club/i })).toBeVisible();
+    expect(screen.getByRole('link', { name: /club not listed\? add club/i })).toBeVisible();
   });
 
   it('explains missing create permission inline only when denied', () => {

@@ -408,7 +408,7 @@ export class ShowCreationWizardPage {
       await this.page.keyboard.press('Escape');
       await this.page.waitForTimeout(100);
 
-      // Try to use "Create New Club" button
+      // Try to use "Add Club" button
       await this.createNewClub();
     }
   }
@@ -417,7 +417,7 @@ export class ShowCreationWizardPage {
    * Creates a new club using the panel
    */
   private async createNewClub() {
-    const createButton = this.page.locator('button:has-text("Create New Club")');
+    const createButton = this.page.locator('button:has-text("Add Club")');
     if (!(await createButton.isVisible().catch(() => false))) {
       return; // Button not found
     }

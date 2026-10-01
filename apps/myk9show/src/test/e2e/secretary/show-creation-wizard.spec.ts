@@ -55,7 +55,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       'Show Dates': page.getByRole('button', { name: /Show Dates/i }),
       'Entry Period': page.getByRole('button', { name: /Entry Period/i }),
       'Locate address': page.getByRole('button', { name: /Locate address/i }),
-      Chair: page.getByRole('button', { name: /Chair/i }),
+      Chair: page.getByRole('button', { name: /^(?:Select )?Chair\b/i }),
     };
     for (const [name, control] of Object.entries(controls)) {
       const box = await control.boundingBox();
@@ -345,7 +345,7 @@ async function selectFirstSecretary(page: Page) {
 }
 
 async function selectFirstOfficial(page: Page, label: string, searchPlaceholder: string) {
-  const trigger = page.getByRole('button', { name: new RegExp(label, 'i') });
+  const trigger = page.getByRole('button', { name: new RegExp(`^(?:Select )?${label}\\b`, 'i') });
   await expect(trigger).toBeVisible();
   await trigger.click();
 

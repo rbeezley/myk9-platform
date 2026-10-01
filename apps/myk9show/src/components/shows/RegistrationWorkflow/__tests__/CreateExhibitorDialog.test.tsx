@@ -269,6 +269,9 @@ describe('CreateExhibitorDialog wording', () => {
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
-    expect(screen.queryByText(/create (new )?exhibitor/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /new person/i })).toBeInTheDocument();
+    // No "exhibitor" or "create/creating" anywhere in what the secretary reads.
+    const copy = screen.getByRole('dialog').textContent ?? '';
+    expect(copy).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
   });
 });

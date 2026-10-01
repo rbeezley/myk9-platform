@@ -319,7 +319,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
 }) => {
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit Person';
-  const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
+  const subtitle = isCreateMode ? 'Add a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
 

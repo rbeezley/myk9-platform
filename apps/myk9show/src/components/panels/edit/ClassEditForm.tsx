@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -406,15 +407,14 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField label="Pre-Entry Fee" fieldId="preEntryFee" error={preEntryFeeError}>
-                    <Input
+                    <CurrencyInput
                       id="preEntryFee"
-                      type="number"
-                      value={data.preEntryFee || ''}
-                      onChange={handleInputChange('preEntryFee')}
-                      onBlur={handleBlur('preEntryFee')}
-                      placeholder="Enter pre entry fee"
-                      min="0"
-                      step="0.01"
+                      value={data.preEntryFee}
+                      onChange={value => {
+                        form?.setValue('preEntryFee', value);
+                        form?.touchField('preEntryFee');
+                      }}
+                      placeholder="0.00"
                       className={cn(preEntryFeeError && 'border-destructive')}
                       aria-invalid={!!preEntryFeeError}
                       aria-describedby={preEntryFeeError ? 'preEntryFee-error' : undefined}
@@ -426,15 +426,14 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     fieldId="dayOfShowFee"
                     error={dayOfShowFeeError}
                   >
-                    <Input
+                    <CurrencyInput
                       id="dayOfShowFee"
-                      type="number"
-                      value={data.dayOfShowFee || ''}
-                      onChange={handleInputChange('dayOfShowFee')}
-                      onBlur={handleBlur('dayOfShowFee')}
-                      placeholder="Enter day of show fee"
-                      min="0"
-                      step="0.01"
+                      value={data.dayOfShowFee}
+                      onChange={value => {
+                        form?.setValue('dayOfShowFee', value);
+                        form?.touchField('dayOfShowFee');
+                      }}
+                      placeholder="0.00"
                       className={cn(dayOfShowFeeError && 'border-destructive')}
                       aria-invalid={!!dayOfShowFeeError}
                       aria-describedby={dayOfShowFeeError ? 'dayOfShowFee-error' : undefined}

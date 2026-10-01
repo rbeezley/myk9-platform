@@ -171,7 +171,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       logger.info('Person deleted', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to delete user', { description: getErrorMessage(error) });
+      notifications.error('Failed to delete person', { description: getErrorMessage(error) });
     } finally {
       setIsDeletingUser(false);
     }
@@ -186,12 +186,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       leaveAfterDelete();
     } catch (error) {
       logger.error(
-        'Failed to permanently delete user',
+        'Failed to permanently delete person',
         'users',
         { userId: person.id },
         error as Error
       );
-      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete user'));
+      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete person'));
     } finally {
       setIsDeletingUser(false);
     }

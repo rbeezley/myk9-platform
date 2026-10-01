@@ -25,7 +25,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Find the Chair picker trigger and open it
-    const chairmanTrigger = page.getByRole('button', { name: /Chair/i });
+    const chairmanTrigger = page.getByRole('button', { name: /^(?:Select )?Chair\b/i });
     await chairmanTrigger.click();
 
     // The popover should appear — it should have at least one of the two group headers:
@@ -46,8 +46,8 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Open the chairman picker and expand its inline "Add new" form.
-    await page.getByRole('button', { name: /Chair/i }).click();
-    await page.getByRole('button', { name: /Add new Chair/i }).click();
+    await page.getByRole('button', { name: /^(?:Select )?Chair\b/i }).click();
+    await page.getByRole('button', { name: /^Add new Chair\b/i }).click();
 
     // The create form must collect full contact info — email AND phone are
     // surfaced on the premium/reports, so both are required alongside the name.
@@ -57,7 +57,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.getByPlaceholder('(555) 123-4567')).toBeVisible();
 
     // Save stays disabled until every field (including phone) is filled.
-    const save = page.getByRole('button', { name: /Add Chair/i });
+    const save = page.getByRole('button', { name: /^Add Chair\b/i });
     await page.getByPlaceholder('First name').fill('Pat');
     await page.getByPlaceholder('Last name').fill('Chair');
     await page.getByPlaceholder('email@example.com').fill('pat.chair@example.com');

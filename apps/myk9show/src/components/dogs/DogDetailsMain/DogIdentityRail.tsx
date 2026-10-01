@@ -95,7 +95,13 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         <Link
           to={`/people/${owner.id}`}
           // The person's breadcrumb returns to this dog, not to the People list.
-          state={{ backTo: { href: `/dogs/${dog.id}`, label: getDogDisplayName(dog) } }}
+          state={{
+            backTo: {
+              href: `/dogs/${dog.id}`,
+              label: getDogDisplayName(dog),
+              parent: { label: 'Dogs', href: '/dogs' },
+            },
+          }}
           className="text-sm font-semibold hover:text-primary transition-colors"
         >
           {owner.name}

@@ -31,11 +31,18 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 const invalidateQueries = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+// Stands in for the mounted roster query: what a refetch would return right now.
+const liveRoster = vi.hoisted(() => ({ people: [] as unknown[] }));
 vi.mock('@tanstack/react-query', async importOriginal => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>();
   return {
     ...actual,
-    useQueryClient: () => ({ invalidateQueries }),
+    useQueryClient: () => ({
+      invalidateQueries,
+      getQueryCache: () => ({
+        findAll: () => [{ fetch: async () => undefined, state: { data: liveRoster.people } }],
+      }),
+    }),
   };
 });
 
@@ -72,6 +79,7 @@ function rosterOf(...users: AdminUser[]): Map<string, AdminUser> {
 describe('useBulkAccountActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    liveRoster.people = [user('a'), user('b')];
     hasPermission.mockReturnValue(true);
     mutateAsync.mockResolvedValue({});
     invokeAdminInvite.mockResolvedValue({ data: null });
@@ -163,6 +171,7 @@ describe('useBulkAccountActions', () => {
 
     // Someone else already suspended "b" before the retry fires.
     const updated = rosterOf(user('a'), user('b', { status: 'suspended' }));
+    liveRoster.people = [...updated.values()];
     rerender({ usersById: updated });
 
     mutateAsync.mockClear();
@@ -194,6 +203,7 @@ describe('useBulkAccountActions', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
 
     const signedIn = rosterOf(user('a', { lastSignInAt: '2026-09-26T00:00:00Z' }));
+    liveRoster.people = [...signedIn.values()];
     rerender({ usersById: signedIn });
 
     invokeAdminInvite.mockClear();

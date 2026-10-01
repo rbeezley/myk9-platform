@@ -8,19 +8,21 @@
  * - Restore: `restoreUser`, shared with the row menu and Deleted Items.
  *
  * The selection this hook receives is ids only (MYK9-835). `usersById` is the
- * live roster query's current data; a ref keeps the freshest copy available to
- * a "Retry failed" run, which fires later from a toast, after this hook's own
- * closures from the original click are gone. Every worker and the dispatch's
- * `applicableWhen` read through that ref, so a status change, a sign-in, or the
- * person leaving the roster between the initial dispatch and a retry is picked
- * up automatically — never a stale decision from click time (Codex P2 on
- * f3968c58b, the finding that got the original version cut from #2526).
+ * live roster query's current data, used for the initial targets. A "Retry
+ * failed" run fires later from a toast, AFTER every run has cleared the
+ * selection and unmounted this hook's bar — so nothing this component owns (a
+ * ref, a closure) can be trusted to still be current (Codex P1 on 794a83820).
+ * The retry's `applicableWhen` therefore refetches the roster query, which
+ * outlives the bar, and re-resolves eligibility from that fresh data before any
+ * person is acted on: a status change, a sign-in, or the person leaving the
+ * roster between dispatch and retry is skipped, not re-run. If the roster cannot
+ * be refreshed, nobody is retried (an invitation is an email to a real person).
  *
  * Runs go through `useBulkDispatch`, which reports one summary toast and offers
  * "Retry failed" for any person the action could not reach.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
@@ -28,6 +30,7 @@ import { useUpdateUserMutation, type AdminUser } from '@/hooks/queries/useUsersQ
 import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
 import { invokeAdminInvite } from '@/components/users/UserDetails/useSendUserInvitation';
+import { readLiveRoster, refreshLiveRoster } from './liveRoster';
 import { accountTargets, isEligible, nameOf, type AccountAction } from './bulkAccountTargets';
 
 export type { AccountAction as BulkAccountAction } from './bulkAccountTargets';
@@ -47,19 +50,6 @@ export function useBulkAccountActions({
   const currentUserId = userWithRoles?.databaseUserId ?? user?.id;
   const canChangeStatus = hasPermission('admin:manage');
 
-  // Toast-driven retries fire after later renders may have produced a fresher
-  // roster — a closure over `usersById` at dispatch time would still read the
-  // dispatch-time map. The ref always points at the latest (mirrors
-  // useClassBulkActions' classesByIdRef / DogsBulkActionsBar's selectedDogsRef).
-  const usersByIdRef = useRef(usersById);
-  useEffect(() => {
-    usersByIdRef.current = usersById;
-  }, [usersById]);
-  const currentUserIdRef = useRef(currentUserId);
-  useEffect(() => {
-    currentUserIdRef.current = currentUserId;
-  }, [currentUserId]);
-
   const targets = useMemo(
     () => accountTargets(selectedIds, usersById, currentUserId),
     [selectedIds, usersById, currentUserId]
@@ -68,7 +58,7 @@ export function useBulkAccountActions({
   const queryClient = useQueryClient();
   const updateUser = useUpdateUserMutation();
   const dispatch = useBulkDispatch<string>({
-    getLabel: id => nameOf(id, usersByIdRef.current),
+    getLabel: id => nameOf(id, readLiveRoster(queryClient) ?? usersById),
   });
   // Suspend and Send invitation reach people outside this screen, so they confirm first.
   const [confirming, setConfirming] = useState<AccountAction | null>(null);
@@ -83,7 +73,7 @@ export function useBulkAccountActions({
     invite: async id => {
       // Read the CURRENT record, not one captured at selection time — a retry
       // must send whatever name/roles the person has NOW.
-      const target = usersByIdRef.current.get(id);
+      const target = (readLiveRoster(queryClient) ?? usersById).get(id);
       if (!target) throw new Error('This person is no longer on the roster.');
       await invokeAdminInvite({
         personId: id,
@@ -123,12 +113,15 @@ export function useBulkAccountActions({
 
   const run = async (action: AccountAction) => {
     const outcome = await dispatch.run(targets[action], refreshing(workers[action]), {
-      // A retry fires later, from the toast. Re-resolve THIS action's
-      // eligibility against the freshest roster (through the ref) rather than
-      // trusting whatever was true when the batch was first dispatched — a
-      // person who signed in, changed status, or left the roster in between is
-      // skipped, not re-run (MYK9-835).
-      applicableWhen: id => isEligible(action, id, usersByIdRef.current, currentUserIdRef.current),
+      // A retry fires later, from the toast, when this component may be gone.
+      // Re-resolve THIS action's eligibility against a roster refetched now —
+      // not anything captured at dispatch — so a person who signed in, changed
+      // status, or left the roster in between is skipped, not re-run (MYK9-835).
+      // No refreshable roster means no one can be confirmed eligible: skip all.
+      applicableWhen: async id => {
+        const fresh = await refreshLiveRoster(queryClient);
+        return !!fresh && isEligible(action, id, fresh, currentUserId);
+      },
     });
     // null = a batch is already in flight; nothing ran, so change nothing.
     if (outcome === null) return;

@@ -79,11 +79,14 @@ export async function dispatchBulk<T>(
  */
 export async function retryFailedItems<T>(
   failedItems: readonly T[],
-  applicableWhen: (item: T) => boolean,
+  applicableWhen: (item: T) => boolean | Promise<boolean>,
   runItem: (item: T) => Promise<void>
 ): Promise<BulkRetryOutcome<T>> {
-  const eligible = failedItems.filter(applicableWhen);
-  const skipped = failedItems.filter(item => !applicableWhen(item));
+  // Each item is asked ONCE, all together, so an async check that refreshes live
+  // data (MYK9-835: the admin roster) shares a single fetch across the batch.
+  const verdicts = await Promise.all(failedItems.map(item => applicableWhen(item)));
+  const eligible = failedItems.filter((_item, index) => verdicts[index]);
+  const skipped = failedItems.filter((_item, index) => !verdicts[index]);
   const { succeeded, failed } = await dispatchBulk(eligible, runItem);
   return { succeeded, failed, skipped };
 }

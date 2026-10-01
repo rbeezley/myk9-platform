@@ -22,7 +22,7 @@ export interface UseBulkDispatchOptions<T> {
    * longer pass are reported as skipped rather than re-attempted. Defaults to
    * "always eligible" (every failed item is retried).
    */
-  applicableWhen?: (item: T) => boolean;
+  applicableWhen?: (item: T) => boolean | Promise<boolean>;
 }
 
 export interface BulkDispatchRunOptions<T> {
@@ -43,7 +43,7 @@ export interface BulkDispatchRunOptions<T> {
    * must not re-run on an entry another actor has since moved to a different status.
    * Items that no longer pass are reported as skipped rather than re-attempted.
    */
-  applicableWhen?: (item: T) => boolean;
+  applicableWhen?: (item: T) => boolean | Promise<boolean>;
   /**
    * Lets the caller take ownership of reporting a subset of failures in its own
    * UI. Claimed items are excluded from the toast's DETAIL LINES and its "Retry
@@ -106,7 +106,7 @@ export function useBulkDispatch<T>({
       runItem: (item: T) => Promise<void>,
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
-      runApplicableWhen?: (item: T) => boolean,
+      runApplicableWhen?: (item: T) => boolean | Promise<boolean>,
       claimFailure?: (item: T, error: unknown) => boolean,
       onClaimedFailures?: (items: T[]) => void
     ) => {
@@ -206,7 +206,7 @@ export function useBulkDispatch<T>({
     async (
       failedItems: T[],
       runItem: (item: T) => Promise<void>,
-      runApplicableWhen?: (item: T) => boolean,
+      runApplicableWhen?: (item: T) => boolean | Promise<boolean>,
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
       claimFailure?: (item: T, error: unknown) => boolean,

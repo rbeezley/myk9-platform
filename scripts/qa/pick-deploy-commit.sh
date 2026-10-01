@@ -25,10 +25,16 @@ requested="${REQUESTED_SHA:-}"
 max_behind="${MAX_BEHIND:-50}"
 main_ref="${MAIN_REF:-origin/main}"
 
-# True when main has a successful CI push run for exactly this commit.
+# Returns 0 when main has a successful CI push run for exactly this commit and
+# 1 when it does not. A failed GitHub query EXITS the script (status 2): callers
+# use this inside `if`, where bash suspends `set -e`, so treating an API error as
+# "not green" would silently pick an older commit and roll production back.
 is_green() {
   local found
-  found="$(gh run list --workflow CI --branch main --event push --status success --commit "$1" --limit 1 --json headSha --jq '.[].headSha')"
+  if ! found="$(gh run list --workflow CI --branch main --event push --status success --commit "$1" --limit 1 --json headSha --jq '.[].headSha')"; then
+    echo "GitHub query for CI runs on $1 failed; refusing to guess which commit is green." >&2
+    exit 2
+  fi
   [[ "$found" == "$1" ]]
 }
 

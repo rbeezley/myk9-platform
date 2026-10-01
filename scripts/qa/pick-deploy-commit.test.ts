@@ -62,17 +62,20 @@ function makeRepo(mainCommits: number): Fixture {
 function run(
   fx: Fixture,
   green: string[],
-  env: Record<string, string> = {}
+  env: Record<string, string> = {},
+  failFor: string[] = []
 ): { status: number | null; stdout: string; stderr: string; output: string } {
   const bin = mkdtempSync(join(tmpdir(), 'gh-stub-'));
   dirs.push(bin);
   const listing = join(bin, 'green.txt');
   writeFileSync(listing, green.map(s => `${s}\n`).join(''));
+  const failing = join(bin, 'failing.txt');
+  writeFileSync(failing, failFor.map(s => `${s}\n`).join(''));
   // Stub for: gh run list ... --commit <sha> ... --jq '.[].headSha' -> prints
   // <sha> only when it is in the test's green set, like the per-commit query.
   writeFileSync(
     join(bin, 'gh'),
-    `#!/usr/bin/env bash\nsha=""\nwhile [ $# -gt 0 ]; do [ "$1" = "--commit" ] && sha="$2"; shift; done\n[ -n "$sha" ] && grep -Fx -- "$sha" "${listing}" || true\n`
+    `#!/usr/bin/env bash\nsha=""\nwhile [ $# -gt 0 ]; do [ "$1" = "--commit" ] && sha="$2"; shift; done\nif grep -Fxq -- "$sha" "${failing}"; then echo "HTTP 502" >&2; exit 1; fi\n[ -n "$sha" ] && grep -Fx -- "$sha" "${listing}" || true\n`
   );
   chmodSync(join(bin, 'gh'), 0o755);
   const out = join(bin, 'github-output');
@@ -171,6 +174,23 @@ describe('pick-deploy-commit.sh', () => {
     const onlySide = run(fx, [fx.sideSha]);
     expect(onlySide.status).toBe(1);
     expect(onlySide.stderr).toContain('first-parent');
+  });
+
+  it('aborts instead of picking an older commit when a GitHub query fails', () => {
+    const fx = makeRepo(12);
+    // main's tip is green, but the query for it fails: the old commit must not win.
+    const r = run(fx, [fx.shas[11]!, fx.shas[10]!], {}, [fx.shas[11]!]);
+    expect(r.status).toBe(2);
+    expect(r.output).toBe('');
+    expect(r.stderr).toContain('refusing to guess');
+  });
+
+  it('aborts an explicit pin when its GitHub query fails', () => {
+    const fx = makeRepo(12);
+    const pinned = fx.shas[5]!;
+    const r = run(fx, [pinned], { REQUESTED_SHA: pinned }, [pinned]);
+    expect(r.status).toBe(2);
+    expect(r.output).toBe('');
   });
 
   it('fails when nothing on main is green', () => {

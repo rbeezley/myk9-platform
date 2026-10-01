@@ -234,6 +234,8 @@ describe('secretary entry status replication', () => {
         check_in_status: 'pulled',
         withdrawalReason: 'Handler withdrew',
         withdrawal_reason: 'Handler withdrew',
+        withdrawalReasonCode: null,
+        withdrawal_reason_code: null,
       },
       undefined
     );

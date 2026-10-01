@@ -233,10 +233,14 @@ function buildReplicatedEntryStatusUpdate(
 
   // MYK9-632: an explicit `null` is meaningful — a Pull clears the reason code a
   // previous Withdraw left on the row, so the stored reason can never disagree
-  // with the stored act. Only `undefined` means "do not touch".
-  if (withdrawalReasonCode !== undefined) {
-    updateData.withdrawalReasonCode = withdrawalReasonCode;
-    updateData.withdrawal_reason_code = withdrawalReasonCode;
+  // with the stored act. Only `undefined` means "do not touch", EXCEPT on a Pull:
+  // MYK9-918 makes every Pull (Entry Management and Show Day) clear the code
+  // here, in the one builder, so no caller can forget it.
+  const reasonCode =
+    status === 'scratched' && withdrawalReasonCode === undefined ? null : withdrawalReasonCode;
+  if (reasonCode !== undefined) {
+    updateData.withdrawalReasonCode = reasonCode;
+    updateData.withdrawal_reason_code = reasonCode;
   }
 
   return updateData;

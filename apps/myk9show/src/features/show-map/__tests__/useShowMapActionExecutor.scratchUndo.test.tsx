@@ -95,6 +95,7 @@ describe('useShowMapActionExecutor — scratch/no-show undo', () => {
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: 'Bring paper form',
       previousWithdrawalReason: null,
+      previousWithdrawalReasonCode: null,
     });
 
     const { result } = renderHook(() => useShowMapActionExecutor({ showId: 'show-1' }), {
@@ -123,6 +124,7 @@ describe('useShowMapActionExecutor — scratch/no-show undo', () => {
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: 'Bring paper form',
       previousWithdrawalReason: null,
+      previousWithdrawalReasonCode: null,
     });
     undoShowMapScratchMock.mockResolvedValue(undefined);
 
@@ -149,6 +151,7 @@ describe('useShowMapActionExecutor — scratch/no-show undo', () => {
         previousCheckInStatus: 'checked-in',
         previousSpecialRequests: 'Bring paper form',
         previousWithdrawalReason: null,
+        previousWithdrawalReasonCode: null,
       })
     );
     // MYK9-632: the word is Pull everywhere a person reads it.
@@ -162,6 +165,7 @@ describe('useShowMapActionExecutor — scratch/no-show undo', () => {
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: null,
       previousWithdrawalReason: null,
+      previousWithdrawalReasonCode: null,
     });
     undoShowMapScratchMock.mockRejectedValue(new Error('replica unavailable'));
 

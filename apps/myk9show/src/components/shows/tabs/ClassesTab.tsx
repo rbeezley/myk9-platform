@@ -14,6 +14,8 @@ import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/status';
 import { ListViewTabs } from '@/components/list-toolkit';
+import { SetupRowActionsMenu } from './SetupRowActionsMenu';
+import { SetupClassDialogs, type SetupClassAction } from './SetupClassDialogs';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import {
   activeClassesTabViewId,
@@ -80,6 +82,8 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // silent default). See `classesTabViews.ts`.
   const [viewId, setViewId] = useState('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  // Row Edit / Delete (MYK9-900): the existing class panel and dialog, opened in place.
+  const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const viewMode =
     userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
 
@@ -133,6 +137,15 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           .join(' \u2014 '),
       })),
     [filteredClasses]
+  );
+
+  const classRowMenu = (cls: ClassInfo) => (
+    <SetupRowActionsMenu
+      subject="Class"
+      rowLabel={[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
+      onEdit={() => setPendingAction({ classId: cls.id, action: 'edit' })}
+      onDelete={() => setPendingAction({ classId: cls.id, action: 'delete' })}
+    />
   );
 
   const classColumns = useMemo<ColumnDef<ClassTableRow, unknown>[]>(() => {
@@ -214,8 +227,19 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       }
     );
 
+    if (canManage) {
+      cols.push({
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        enableHiding: false,
+        meta: { interactive: true, exportDisabled: true },
+        cell: ({ row }) => classRowMenu(row.original),
+      });
+    }
+
     return cols;
-  }, [hideRing]);
+  }, [hideRing, canManage]);
 
   if (classes.length === 0) {
     return (
@@ -307,6 +331,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
+                  {...(canManage ? { actions: classRowMenu(cls) } : {})}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
                   }
@@ -315,6 +340,13 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             </div>
           </div>
         ))
+      )}
+      {canManage && pendingAction && (
+        <SetupClassDialogs
+          showId={showId}
+          pending={pendingAction}
+          onClose={() => setPendingAction(null)}
+        />
       )}
     </div>
   );

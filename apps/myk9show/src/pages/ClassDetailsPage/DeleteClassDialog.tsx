@@ -12,12 +12,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { ClassData } from './types';
+
+/** The fields the dialog names; a full `ClassData` fits, and so does a Class Management row. */
+export interface DeleteClassDialogClass {
+  element?: string | null | undefined;
+  level?: string | null | undefined;
+  section?: string | null | undefined;
+  trial?: string | null | undefined;
+}
 
 interface DeleteClassDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentClass: ClassData | null;
+  currentClass: DeleteClassDialogClass | null;
   onConfirm: () => void;
 }
 

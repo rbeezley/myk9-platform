@@ -37,6 +37,11 @@ export interface TrialManagementDialogsProps {
   parentShow: Show | undefined;
   /** Per-class entry counts, for the delete-class confirmation copy. */
   entryCountByClass: Map<string, number>;
+  /**
+   * Called after the trial is deleted, in place of the default navigation. A host that is
+   * not the deleted trial's own page (Setup's Trials list) stays where it is.
+   */
+  onTrialDeleted?: () => void;
 }
 
 /**
@@ -48,7 +53,10 @@ export interface TrialManagementDialogsProps {
 export const TrialManagementDialogs = forwardRef<
   TrialManagementDialogsHandle,
   TrialManagementDialogsProps
->(function TrialManagementDialogs({ currentTrial, parentShow, entryCountByClass }, ref) {
+>(function TrialManagementDialogs(
+  { currentTrial, parentShow, entryCountByClass, onTrialDeleted },
+  ref
+) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -85,7 +93,9 @@ export const TrialManagementDialogs = forwardRef<
   const handleConfirmDeleteTrial = async () => {
     if (currentTrial) {
       await deleteTrialAsync(currentTrial.id);
-      if (showId && currentTrial.showId) {
+      if (onTrialDeleted) {
+        onTrialDeleted();
+      } else if (showId && currentTrial.showId) {
         navigate(`/shows/${currentTrial.showId}`);
       } else {
         const remainingTrials = trials.filter(t => t.id !== currentTrial.id);

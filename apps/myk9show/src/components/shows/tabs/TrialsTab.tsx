@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,12 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
+import { useShowStore } from '@/store/showStore';
+import {
+  TrialManagementDialogs,
+  type TrialManagementDialogsHandle,
+} from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 import {
   activeTrialsTabViewId,
   buildTrialsTabViews,
@@ -66,7 +72,9 @@ interface TrialRow {
   hasStarted?: boolean;
 }
 
-const trialColumns: ColumnDef<TrialRow, unknown>[] = [
+const EMPTY_ENTRY_COUNTS = new Map<string, number>();
+
+const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
   {
     accessorKey: 'trialDate',
     header: 'Date',
@@ -119,6 +127,45 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
+  const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
+  const [actionTrialId, setActionTrialId] = useState<string | null>(null);
+  const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
+  const actionTrial = trials.find(trial => trial.id === actionTrialId);
+  const editTrial = (trialId: string) => {
+    setActionTrialId(trialId);
+    dialogsRef.current?.openEditTrial();
+  };
+  const deleteTrial = (trialId: string) => {
+    setActionTrialId(trialId);
+    dialogsRef.current?.openDeleteTrial();
+  };
+  const trialRowMenu = (trialId: string, label: string) => (
+    <SetupRowActionsMenu
+      subject="Trial"
+      rowLabel={label}
+      onEdit={() => editTrial(trialId)}
+      onDelete={() => deleteTrial(trialId)}
+    />
+  );
+  const trialColumns = useMemo<ColumnDef<TrialRow, unknown>[]>(
+    () =>
+      canManage
+        ? [
+            ...baseTrialColumns,
+            {
+              id: 'actions',
+              header: () => <span className="sr-only">Actions</span>,
+              enableSorting: false,
+              enableHiding: false,
+              meta: { interactive: true, exportDisabled: true },
+              cell: ({ row }) => trialRowMenu(row.original.id, row.original.name),
+            },
+          ]
+        : baseTrialColumns,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
+    [canManage]
+  );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
 
@@ -193,6 +240,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredTrials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
+            const trialLabel = formatTrialLabel({
+              name: trial.name,
+              trialNumber: trial.trialNumber,
+            });
             const stats = trialStats[trial.id] || EMPTY_STATS;
             const trialCompositeStatus = deriveTrialStatusKey({
               trialStatus: trial.status,
@@ -241,7 +292,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                       {/* Row 1: Name + status badge */}
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-semibold text-card-foreground truncate">
-                          {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
+                          {trialLabel}
                         </h3>
                         <StatusBadge
                           family="trial"
@@ -249,6 +300,11 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           className="shrink-0 text-xs"
                           variant="outline"
                         />
+                        {canManage && (
+                          <div className="ml-auto -my-2 -mr-2">
+                            {trialRowMenu(trial.id, trialLabel)}
+                          </div>
+                        )}
                       </div>
 
                       {/* Row 2: Type + time */}
@@ -299,6 +355,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           columns={trialColumns}
           data={tableData}
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
+        />
+      )}
+      {canManage && (
+        <TrialManagementDialogs
+          ref={dialogsRef}
+          currentTrial={actionTrial}
+          parentShow={parentShow}
+          entryCountByClass={EMPTY_ENTRY_COUNTS}
+          onTrialDeleted={() => setActionTrialId(null)}
         />
       )}
     </div>

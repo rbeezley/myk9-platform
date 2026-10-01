@@ -1,5 +1,5 @@
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@/hooks/queries/useClassesDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useClassManagementFilters } from '@/hooks/useClassManagementFilters';
+import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
@@ -224,10 +225,10 @@ export const ClassManagementPage: React.FC = () => {
     assignJudgeMutation.mutate({ classId, judgeId });
   };
 
+  // Delete asks through the same dialog Class Details and Setup use, never `window.confirm`.
+  const [classPendingDelete, setClassPendingDelete] = useState<DbClassRow | null>(null);
   const handleDelete = (classId: string) => {
-    if (confirm('Are you sure you want to delete this class?')) {
-      deleteClassMutation.mutate({ id: classId });
-    }
+    setClassPendingDelete(allClasses.find(cls => cls.id === classId) ?? null);
   };
 
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
@@ -406,6 +407,18 @@ export const ClassManagementPage: React.FC = () => {
       {/* Rendered last so its in-flow height spacer lands BELOW the class list
           rather than in the middle of the page — the bar itself is `fixed`, so
           its on-screen position is unchanged by where it sits in the tree. */}
+      <DeleteClassDialog
+        open={classPendingDelete !== null}
+        onOpenChange={open => {
+          if (!open) setClassPendingDelete(null);
+        }}
+        currentClass={classPendingDelete && { ...classPendingDelete, trial: trialDisplayName }}
+        onConfirm={() => {
+          if (classPendingDelete) deleteClassMutation.mutate({ id: classPendingDelete.id });
+          setClassPendingDelete(null);
+        }}
+      />
+
       <ClassBulkActionsBar
         selectedClasses={selection.selectedItems}
         bulkBusy={bulkBusy}

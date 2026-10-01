@@ -44,7 +44,7 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
           </div>
         </div>
         <div>
-          <div className="text-sm text-muted-foreground mb-1 font-semibold">Chairman</div>
+          <div className="text-sm text-muted-foreground mb-1 font-semibold">Chair</div>
           <div className="font-medium">{resolvePersonName(showData.chairman)}</div>
         </div>
         <div>

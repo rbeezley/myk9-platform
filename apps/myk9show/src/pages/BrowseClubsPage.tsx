@@ -137,7 +137,7 @@ const BrowseClubsPage: React.FC = () => {
       canCreateClub ? (
         <Button onClick={() => setCreatePanelRequested(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Club
+          Add Club
         </Button>
       ) : null,
     [canCreateClub]
@@ -158,7 +158,7 @@ const BrowseClubsPage: React.FC = () => {
           }
           action={
             canCreateClub
-              ? { label: 'New Club', onClick: () => setCreatePanelRequested(true), icon: Plus }
+              ? { label: 'Add Club', onClick: () => setCreatePanelRequested(true), icon: Plus }
               : null
           }
         />
@@ -201,7 +201,7 @@ const BrowseClubsPage: React.FC = () => {
       {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
       {isOffline && !isLoading && !hasError && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
+          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
           <ClubsOfflineState
             description="Connect to the internet to browse clubs."
             onRetry={handleRetry}
@@ -212,7 +212,7 @@ const BrowseClubsPage: React.FC = () => {
       {/* Normal content */}
       {!isLoading && !hasError && !isOffline && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
+          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
 
           <div className="flex flex-col gap-3">
             <ListFilterBar

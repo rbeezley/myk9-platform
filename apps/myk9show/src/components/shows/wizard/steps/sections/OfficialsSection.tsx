@@ -49,7 +49,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <OfficialPicker
-          label="Show Chairman"
+          label="Chair"
           required
           selectedPersonId={selectedChairmanId}
           people={people}
@@ -61,7 +61,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           onCreatePerson={onCreatePerson}
         />
         <OfficialPicker
-          label="Show Secretary"
+          label="Secretary"
           required
           selectedPersonId={selectedSecretaryId}
           people={people}

@@ -298,8 +298,8 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
       'Show name is required',
       'Location is required',
       'Club selection is required',
-      'Show chairman is required',
-      'Show secretary is required',
+      'Please select a chair',
+      'Please select a secretary',
       'Entry open date is required',
     ]) {
       expect(messages).toContain(required);

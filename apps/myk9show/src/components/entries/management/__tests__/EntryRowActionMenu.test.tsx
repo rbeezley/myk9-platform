@@ -217,3 +217,10 @@ describe('EntryRowActionMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /refund payment/i })).not.toBeInTheDocument();
   });
 });
+
+describe('EntryRowActionMenu trigger size', () => {
+  it('is a 44px touch target', () => {
+    render(<EntryRowActionMenu entry={makeEntry()} onStatusChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /actions for bravo/i })).toHaveClass('h-11', 'w-11');
+  });
+});

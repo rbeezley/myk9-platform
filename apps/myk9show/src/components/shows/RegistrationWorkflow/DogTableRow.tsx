@@ -80,7 +80,7 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   // under a row that already reads Maple (MYK9-485 review round 1).
   const registeredName = getDogDistinctRegisteredName(dog);
   if (registeredName) tooltipDetails.push({ label: 'Registered Name', value: registeredName });
-  if (dog.gender) tooltipDetails.push({ label: 'Gender', value: dog.gender });
+  if (dog.gender) tooltipDetails.push({ label: 'Sex', value: dog.gender });
   if (dog.dateOfBirth)
     tooltipDetails.push({ label: 'Date of Birth', value: formatDateMMDDYYYY(dog.dateOfBirth) });
   if (dog.color) tooltipDetails.push({ label: 'Color', value: dog.color });

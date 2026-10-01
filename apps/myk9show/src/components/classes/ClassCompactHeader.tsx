@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { formatFee } from '@/utils/format';
 import type { ClassData } from './types/classTypes';
@@ -55,9 +56,11 @@ export function ClassCompactHeader({
   // Build class display name from element + level (hides level for Detective)
   const className_ = formatClassTitle(classData) || 'Class';
 
-  // Trial display value — trialNumber is the name (e.g., "Saturday Trial 1"),
+  // Trial display value — the one shared trial label (name, then trial number);
   // trialType is the sport (e.g., "Scent Work") which we don't want here
-  const trialDisplay = parentTrial?.trialNumber || parentTrial?.name || '\u2014';
+  const trialDisplay = parentTrial
+    ? formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber })
+    : '\u2014';
 
   // Build metadata fields
   const metadataFields: MetadataItemProps[] = [

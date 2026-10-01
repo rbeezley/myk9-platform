@@ -153,7 +153,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             <Progress value={getProgress()} className="w-full" />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span className={flowState.step === 'exhibitor' ? 'font-semibold' : ''}>
-                Create Exhibitor
+                Add Person
               </span>
               <span className={flowState.step === 'dogs' ? 'font-semibold' : ''}>Add Dog(s)</span>
               <span className={flowState.step === 'review' ? 'font-semibold' : ''}>
@@ -168,10 +168,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             {flowState.step === 'exhibitor' && (
               <div className="text-center space-y-4">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Create New Exhibitor</h3>
+                  <h3 className="text-lg font-semibold">Add Person</h3>
                   <p className="text-muted-foreground">
-                    First, let's create the exhibitor profile. This person will own the dog(s) being
-                    registered.
+                    First, let's add the person. This person will own the dog(s) being registered.
                   </p>
                 </div>
 
@@ -181,7 +180,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                     className="flex items-center gap-2"
                   >
                     <UserIcon className="h-4 w-4" />
-                    Create Exhibitor Profile
+                    Add Person
                   </Button>
                 )}
 
@@ -189,7 +188,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                   <div className="p-4 border rounded-lg bg-success/10 border-success/20">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <CheckCircle className="h-5 w-5 text-success" />
-                      <span className="font-semibold text-success">Exhibitor Created</span>
+                      <span className="font-semibold text-success">Person Added</span>
                     </div>
                     <p className="text-sm">
                       {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
@@ -292,7 +291,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold">Review & Complete</h3>
                   <p className="text-muted-foreground">
-                    Please review the exhibitor and dog information before completing the setup.
+                    Please review the person and dog information before completing the setup.
                   </p>
                 </div>
 
@@ -301,7 +300,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                   <div className="space-y-3">
                     <h4 className="font-medium flex items-center gap-2">
                       <UserIcon className="h-4 w-4" />
-                      Exhibitor Information
+                      Person Information
                     </h4>
                     <div className="p-4 border border-border rounded-lg bg-muted">
                       <div className="grid grid-cols-2 gap-4">
@@ -378,12 +377,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    {/* MYK9-832 #6: the exhibitor and dog(s) are already saved by this
+                    {/* MYK9-832 #6: the person and dog(s) are already saved by this
                         point (CreateExhibitorDialog / AddDogPanel write on their own
                         Save) — Complete Setup only carries them into this
                         registration, and Cancel does NOT remove the saved rows. */}
-                    The exhibitor and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'}{' '}
-                    already been saved. Complete Setup to use them for this registration.
+                    The person and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'} already
+                    been saved. Complete Setup to use them for this registration.
                   </AlertDescription>
                 </Alert>
               </div>

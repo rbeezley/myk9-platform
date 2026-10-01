@@ -82,11 +82,11 @@ export const TrialInfo = ({ trial, onEdit, onDelete, onAddPhoto }: TrialInfoProp
           <p className="mt-1">{formatStartTime(trial.plannedStartTime ?? null) || 'Not set'}</p>
         </div>
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Time Started</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Actual Start</h3>
           <p className="mt-1">{formatTime(trial.timeStarted)}</p>
         </div>
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Time Ended</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Actual Finish</h3>
           <p className="mt-1">{formatTime(trial.timeEnded)}</p>
         </div>
       </div>

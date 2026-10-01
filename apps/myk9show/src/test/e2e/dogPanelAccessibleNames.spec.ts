@@ -75,8 +75,8 @@ for (const vp of VIEWPORTS) {
         .click();
       await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
 
-      const gender = page.getByRole('combobox', { name: /^Gender/ });
-      await expect(gender).toMatchAriaSnapshot(`- combobox "Gender (required)"`);
+      const gender = page.getByRole('combobox', { name: /^Sex/ });
+      await expect(gender).toMatchAriaSnapshot(`- combobox "Sex (required)"`);
       await expect(page.getByRole('button', { name: 'Change Photo' })).toBeVisible();
 
       await gender.focus();

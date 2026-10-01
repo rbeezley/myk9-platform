@@ -119,7 +119,7 @@ describe('ShowDetailsStep — Payment Methods section', () => {
       initialRoute: '/secretary/create-show/wizard?source=club-handoff',
     });
 
-    expect(screen.getByRole('link', { name: /create new club/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /add club/i })).toHaveAttribute(
       'href',
       '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff'
     );

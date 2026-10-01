@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { getDogDisplayName, getDogBreedLabel, type Dog, type DogStatus } from '@/types/dog-types';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
+import { DOG_STATUS_BADGES } from '@/components/dogs/common/dogStatusBadges';
 
 /** Minimal selection surface (a subset of `useBulkSelection`) for the select column —
  * mirrors `EntriesTableSelection` (design.md decision D2: DataTable opt-in bridged
@@ -123,27 +124,13 @@ const SELECT_COLUMN: DisplayColumnDef<Dog, unknown> = {
 };
 
 function getStatusBadge(status: DogStatus | undefined) {
-  switch (status) {
-    case 'retired':
-      return (
-        <Badge variant="secondary" className="text-xs bg-warning/10 text-warning ">
-          Retired
-        </Badge>
-      );
-    case 'deceased':
-      // Tokens, not raw gray — see the note in DogsGridView's STATUS_BADGES.
-      return (
-        <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
-          Deceased
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="secondary" className="text-xs bg-success/10 text-success ">
-          Active
-        </Badge>
-      );
-  }
+  const badge = DOG_STATUS_BADGES[status ?? 'active'] ?? DOG_STATUS_BADGES['active'];
+  if (!badge) return null;
+  return (
+    <Badge variant="secondary" className={badge.className}>
+      {badge.label}
+    </Badge>
+  );
 }
 
 function getSexBadge(sex: string | undefined) {

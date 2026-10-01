@@ -152,7 +152,7 @@ const BrowsePeoplePage: React.FC = () => {
             {canCreatePeople && (
               <Button onClick={openCreatePersonDialog}>
                 <Plus className="h-4 w-4 mr-2" />
-                New Person
+                Add Person
               </Button>
             )}
           </CardContent>
@@ -209,7 +209,6 @@ const BrowsePeoplePage: React.FC = () => {
           {/* Normal content */}
           {(!isLoading || people.length > 0) && (
             <>
-              <h1 className="sr-only">People</h1>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Breadcrumb
                   items={breadcrumbItems}
@@ -220,10 +219,11 @@ const BrowsePeoplePage: React.FC = () => {
                 {canCreatePeople && (
                   <Button onClick={openCreatePersonDialog} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
-                    New Person
+                    Add Person
                   </Button>
                 )}
               </div>
+              <h1 className="text-2xl font-semibold text-foreground">People</h1>
 
               <PeopleListToolbar
                 people={people}

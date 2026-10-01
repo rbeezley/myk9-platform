@@ -433,7 +433,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="Time Started" fieldId="timeStarted">
+                  <FormField label="Actual Start" fieldId="timeStarted">
                     <Input
                       id="timeStarted"
                       value={form.data.timeStarted || ''}
@@ -442,7 +442,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                     />
                   </FormField>
 
-                  <FormField label="Time Ended" fieldId="timeEnded">
+                  <FormField label="Actual Finish" fieldId="timeEnded">
                     <Input
                       id="timeEnded"
                       value={form.data.timeEnded || ''}
@@ -488,21 +488,6 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                   value={form.data.image || ''}
                   onChange={handleInputChange('image')}
                   placeholder="https://example.com/trial-image.jpg"
-                />
-              </FormField>
-
-              <FormField
-                label="Show ID"
-                fieldId="showId"
-                hint="The show this trial belongs to (read-only)"
-              >
-                <Input
-                  id="showId"
-                  value={form.data.showId}
-                  onChange={handleInputChange('showId')}
-                  placeholder="Associated show identifier"
-                  className="bg-muted text-muted-foreground"
-                  disabled
                 />
               </FormField>
             </CardContent>

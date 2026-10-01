@@ -180,7 +180,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             </FormField>
           </div>
 
-          <FormField label="Hosting Club" fieldId="clubId" required error={clubError}>
+          <FormField label="Host Club" fieldId="clubId" required error={clubError}>
             <Select value={data.clubId} onValueChange={handleSelectChange('clubId')}>
               <SelectTrigger
                 className={clubError ? 'border-destructive' : ''}

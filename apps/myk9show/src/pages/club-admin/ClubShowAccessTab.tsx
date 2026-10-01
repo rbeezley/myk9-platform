@@ -87,7 +87,7 @@ export const AppointSecretaryDialog: React.FC<AppointDialogProps> = ({
             <KeyRound className="h-4 w-4 text-primary" />
           </div>
           <DialogTitle className="text-lg font-semibold text-foreground">
-            Appoint Show Secretary
+            Appoint Secretary
           </DialogTitle>
         </div>
         <div className="space-y-4 pt-2">

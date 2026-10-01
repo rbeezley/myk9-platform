@@ -261,7 +261,7 @@ describe('TrialDetailsPage', () => {
     renderPage();
 
     expect(screen.queryByRole('status', { name: 'Loading trial details' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('hero-name')).toHaveTextContent('Scent Work');
+    expect(screen.getByTestId('hero-name')).toHaveTextContent('Trial 1');
     // The fallback query was enabled with the URL trial id…
     expect(trialQueryCalls).toContain('trial-1');
     // …and the parent show resolved through the anon-safe show-by-id query.
@@ -317,7 +317,7 @@ describe('TrialDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByTestId('hero-name')).toHaveTextContent('Scent Work');
+    expect(screen.getByTestId('hero-name')).toHaveTextContent('Trial 1');
     // Store had the trial + show, so both by-id fallbacks stay disabled.
     expect(trialQueryCalls.every(arg => arg === undefined)).toBe(true);
     expect(showQueryCalls.every(arg => arg === '')).toBe(true);

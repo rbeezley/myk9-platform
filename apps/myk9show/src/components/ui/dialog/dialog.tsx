@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
+import { OverlayStackMarker } from '@/components/ui/OverlayStackMarker';
 
 const Dialog = DialogPrimitive.Root;
 
@@ -104,6 +105,7 @@ const DialogContent = React.forwardRef<
       )}
       {...props}
     >
+      <OverlayStackMarker label="dialog" />
       {children}
       {/* p-3.5/-m-3.5: the padding carries a 44px touch target around the
           16px icon without moving it. */}

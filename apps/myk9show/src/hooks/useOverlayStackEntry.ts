@@ -4,10 +4,11 @@ import { popOpenOverlay, pushOpenOverlay, releaseBodyScrollIfNoOverlays } from '
 /**
  * Registers a modal surface in the shared open-overlay stack for as long as it
  * is open, so `SlideOverPanel`'s topmost-only Escape handling accounts for it
- * (MYK9-523). `SlideOverPanel` and `CommonDialog` each inline this effect; a
- * Radix `Dialog` has no membership of its own, so any Radix dialog that can be
- * raised OVER a panel has to opt in — otherwise the panel behind it is still
- * "topmost" and one Escape closes the panel instead of the dialog.
+ * (MYK9-523). `SlideOverPanel` and `CommonDialog` each inline this effect. The
+ * shared `Dialog`/`AlertDialog` content registers through `OverlayStackMarker`
+ * (MYK9-910), so a dialog built from them needs no opt-in; this hook is for
+ * any OTHER modal surface raised over a panel — otherwise the panel behind it
+ * is still "topmost" and one Escape closes the panel instead of the surface.
  *
  * Deliberately depends ONLY on `open`: re-pushing an already-open id would move
  * it to the top of the stack and steal Escape from a surface that actually

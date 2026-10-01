@@ -255,7 +255,10 @@ describe('ShowManagementShell', () => {
     renderShell();
     const header = screen.getByTestId('page-header-actions');
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
-    fireEvent.click(within(header).getByRole('button', { name: 'Edit show' }));
+    const button = within(header).getByRole('button', { name: 'Edit show' });
+    // Default size is h-11 (44px, INTENT's touch floor); `sm` is 32px.
+    expect(button).toHaveClass('h-11');
+    fireEvent.click(button);
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 

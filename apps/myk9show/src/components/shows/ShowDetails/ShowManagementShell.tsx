@@ -182,7 +182,7 @@ function ShowPageHeaderActions({
   return (
     <>
       {(armbandCount ?? 0) > 0 && showId ? <ArmbandLookup showId={showId} /> : null}
-      <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+      <Button type="button" variant="outline" onClick={onEdit}>
         <Pencil className="h-4 w-4" aria-hidden="true" />
         Edit show
       </Button>

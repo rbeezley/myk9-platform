@@ -29,6 +29,7 @@ import {
   type CreatedShow,
   getEditModeTitle,
   getValidationMessagesForStep,
+  getValidationScope,
   WizardSuccessOverlay,
   WizardValidationBanner,
   WizardHeader,
@@ -151,6 +152,8 @@ const ShowCreationWizardPage: React.FC = () => {
   );
   const { classes: existingClasses } = useClassStoreCompat();
   // Add-classes mode loads the show's stored classes into the draft; validation retains them.
+  // The one validation scope every wizard surface below reads (add-classes: class rules only).
+  const validationScope = getValidationScope(editMode);
   const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
   const { people, loadPeople } = useUserStore();
 
@@ -290,7 +293,7 @@ const ShowCreationWizardPage: React.FC = () => {
       trialView,
       retainedClasses,
       { requireEntryWindow },
-      editMode?.mode
+      validationScope
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -351,7 +354,7 @@ const ShowCreationWizardPage: React.FC = () => {
     trialView,
     retainedClasses,
     { requireEntryWindow },
-    editMode?.mode
+    validationScope
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
@@ -448,7 +451,7 @@ const ShowCreationWizardPage: React.FC = () => {
               />
             )}
 
-            {officialsUnavailable && (
+            {officialsUnavailable && validationScope === 'full' && (
               <div
                 className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground sm:px-6"
                 role="alert"

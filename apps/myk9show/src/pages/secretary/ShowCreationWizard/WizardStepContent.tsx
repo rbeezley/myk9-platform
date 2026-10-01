@@ -11,6 +11,7 @@ import {
   type EditMode,
 } from './show-creation-wizard-types';
 import { getSubmitLabel } from './wizardLabels';
+import { getValidationScope } from './showCreationWizardValidation';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 
 interface WizardStepContentProps {
@@ -116,6 +117,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
           trialView={trialView}
+          scope={getValidationScope(editMode)}
         />
       );
     default:

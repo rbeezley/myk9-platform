@@ -1,7 +1,7 @@
 /**
  * Validation logic for the Show Creation Wizard
  */
-import type { EditModeType } from './show-creation-wizard-types';
+import type { EditMode } from './show-creation-wizard-types';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
@@ -39,6 +39,50 @@ interface Trial {
     customizations: Record<string, unknown>;
     judgeId?: string | undefined;
   }>;
+}
+
+/**
+ * What a wizard run must satisfy. `full` is show creation / add-trials: every requirement.
+ * `class-selection` is add-classes on an EXISTING show with a FIXED trial set: only the class
+ * rules apply. Basics, officials, venue, entry window, map pin and trials belong to the show
+ * (already saved, unreachable here), so none of them may block adding classes.
+ * Every wizard validation surface takes its scope from `getValidationScope`.
+ */
+export type ValidationScope = 'full' | 'class-selection';
+
+export function getValidationScope(editMode: Pick<EditMode, 'mode'> | undefined): ValidationScope {
+  return editMode?.mode === 'add-classes' ? 'class-selection' : 'full';
+}
+
+/**
+ * The blocking list Review shows and Create/Save gates on. Same choke point as the step
+ * validators: in `class-selection` scope only "something to save" can block.
+ */
+export function getReviewBlockingErrors(input: {
+  show: ShowData;
+  trials: readonly { classes: readonly unknown[] }[];
+  /** True when the show's officials could not be READ; unknown is not absent. */
+  officialsUnknown: boolean;
+  scope: ValidationScope;
+}): string[] {
+  const { show, trials, officialsUnknown, scope } = input;
+  const result: string[] = [];
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+
+  if (scope === 'full') {
+    if (!show.name.trim()) result.push('Show name is required');
+    if (!show.startDate || !show.endDate) result.push('Show dates are required');
+    if (!show.location?.trim()) result.push('Location is required');
+    if (!show.clubId) result.push('Club selection is required');
+    if (!officialsUnknown) {
+      if (show.officials.chairman.length === 0) result.push('Show chairman is required');
+      if (show.officials.secretary.length === 0) result.push('Show secretary is required');
+    }
+    if (trials.length === 0) result.push('At least one trial is required');
+  }
+  if (totalClasses === 0) result.push('At least one class must be configured');
+
+  return result;
 }
 
 export interface ShowDetailsValidationOptions {
@@ -140,19 +184,18 @@ export function getClassValidationMessages(
   organization: string,
   persistedClasses: readonly PersistedClassIdentity[] = [],
   /**
-   * `add-classes`: the secretary is adding to existing trials, so a trial she did not
-   * touch (e.g. one whose last class was deleted) must not block Next. Only the
-   * "something to save" and registry checks apply. Create / add-trials still require
-   * every trial to have a class.
+   * `class-selection` scope (add-classes): the trial set is fixed to the show's existing
+   * trials, so a trial she did not touch (e.g. one whose last class was deleted) must not
+   * block Next. Only the "something to save" and registry checks apply.
    */
-  editModeType?: EditModeType
+  scope: ValidationScope = 'full'
 ): string[] {
   const messages: string[] = [];
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
     messages.push('At least one class must be added to the trials');
-  } else if (editModeType !== 'add-classes') {
+  } else if (scope === 'full') {
     // Ensure every trial has at least one class
     trials.forEach(trial => {
       if (trial.classes.length === 0) {
@@ -186,8 +229,11 @@ export function getValidationMessagesForStep(
   /** Add-classes mode: the show's stored classes, retained rather than re-validated. */
   persistedClasses: readonly PersistedClassIdentity[] = [],
   showDetailsOptions: ShowDetailsValidationOptions = {},
-  editModeType?: EditModeType
+  scope: ValidationScope = 'full'
 ): string[] {
+  // The single choke point for add-classes: show-creation steps (Basics, Trials) and Review
+  // are out of scope, so only the class step evaluates anything.
+  if (scope === 'class-selection' && step !== 2) return [];
   switch (step) {
     case 0:
       return getShowDetailsValidationMessages(show, showDetailsOptions);
@@ -199,7 +245,7 @@ export function getValidationMessagesForStep(
         trialView,
         show.organization,
         persistedClasses,
-        editModeType
+        scope
       );
     case 3:
       // Review step shows its own validation

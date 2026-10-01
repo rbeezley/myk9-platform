@@ -69,14 +69,19 @@ vi.mock('@/services/database/classes', () => ({
 
 vi.mock('sonner', () => ({ toast: { error: toastErrorMock, success: vi.fn() } }));
 
+const coldTrialStore = vi.hoisted(() => ({ value: false }));
+
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: (selector: (state: { getTrialById: (trialId: string) => unknown }) => unknown) =>
     selector({
-      getTrialById: () => ({
-        id: 'trial-1',
-        showId: 'show-1',
-        name: 'Saturday Trial',
-      }),
+      getTrialById: () =>
+        coldTrialStore.value
+          ? undefined
+          : {
+              id: 'trial-1',
+              showId: 'show-1',
+              name: 'Saturday Trial',
+            },
     }),
 }));
 
@@ -270,6 +275,23 @@ describe('ClassManagementPage judge assignment', () => {
 
     resolveDelete();
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
+  });
+
+  it('keeps the trial in Add Classes when the trial store is cold (no show id yet)', () => {
+    coldTrialStore.value = true;
+    try {
+      render(
+        <Routes>
+          <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
+        </Routes>,
+        { initialRoute: '/trials/trial-1/classes' }
+      );
+      const href = screen.getAllByRole('link', { name: 'Add Classes' })[0]!.getAttribute('href');
+      expect(href).toBe('/trials/trial-1/classes/create');
+      expect(href).not.toContain('dashboard');
+    } finally {
+      coldTrialStore.value = false;
+    }
   });
 
   it('uses show-scoped workbench links instead of browser-history back navigation', () => {

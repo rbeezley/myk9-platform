@@ -1,3 +1,7 @@
+import {
+  getReviewBlockingErrors,
+  type ValidationScope,
+} from '@/pages/secretary/ShowCreationWizard/showCreationWizardValidation';
 import { isWizardStepAllowed } from '@/pages/secretary/ShowCreationWizard/show-creation-wizard-types';
 import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -34,6 +38,8 @@ interface ReviewStepProps {
   officialsUnknown?: boolean | undefined;
   /** Shared naming and show-level trial context created by the wizard page. */
   trialView: WizardTrialView;
+  /** What Review must satisfy; `class-selection` (add-classes) evaluates only the class rules. */
+  scope?: ValidationScope;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -44,12 +50,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   submitLabel = 'Add Show',
   officialsUnknown = false,
   trialView,
+  scope = 'full',
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep, allowedSteps } =
     useWizardStore();
   // Edit modes can lock steps (add-classes: no Show Details / Trials). Their edit links and
   // the notices that only link to them are not offered, rather than rendered as dead buttons.
-  const canEditDetails = isWizardStepAllowed(allowedSteps, 0);
+  const canEditDetails = scope === 'full' && isWizardStepAllowed(allowedSteps, 0);
   const canEditTrials = isWizardStepAllowed(allowedSteps, 1);
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
@@ -65,35 +72,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   const totalJudges = show.judgeIds.length;
 
-  // Derive validation errors from current state (no useState needed)
-  const errors = useMemo(() => {
-    const result: string[] = [];
-
-    if (!show.name.trim()) result.push('Show name is required');
-    if (!show.startDate || !show.endDate) result.push('Show dates are required');
-    if (!show.location?.trim()) result.push('Location is required');
-    if (!show.clubId) result.push('Club selection is required');
-    // Unknown is not absent: when the officials read failed, these arrays prove
-    // nothing, so they must not block the save.
-    if (!officialsUnknown) {
-      if (show.officials.chairman.length === 0) result.push('Show chairman is required');
-      if (show.officials.secretary.length === 0) result.push('Show secretary is required');
-    }
-    if (trials.length === 0) result.push('At least one trial is required');
-    if (totalClasses === 0) result.push('At least one class must be configured');
-
-    return result;
-  }, [
-    show.name,
-    show.startDate,
-    show.endDate,
-    show.location,
-    show.clubId,
-    show.officials,
-    trials,
-    totalClasses,
-    officialsUnknown,
-  ]);
+  // Derive validation errors from current state (no useState needed). One choke point shared
+  // with the step validators; add-classes only ever evaluates the class rules.
+  const errors = useMemo(
+    () => getReviewBlockingErrors({ show, trials, officialsUnknown, scope }),
+    [show, trials, officialsUnknown, scope]
+  );
 
   const reportBlockingErrors = () => {
     const [first] = errors;

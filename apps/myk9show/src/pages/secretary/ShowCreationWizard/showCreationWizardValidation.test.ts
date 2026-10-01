@@ -11,6 +11,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  getReviewBlockingErrors,
+  getValidationScope,
   getShowDetailsValidationMessages,
   getValidationMessagesForStep,
 } from './showCreationWizardValidation';
@@ -191,7 +193,7 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
       trialView,
       [],
       {},
-      'add-classes'
+      'class-selection'
     );
     expect(messages).toEqual([]);
   });
@@ -204,9 +206,104 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
       trialView,
       [],
       {},
-      'add-classes'
+      'class-selection'
     );
     expect(messages).toContain('At least one class must be added to the trials');
+  });
+});
+
+describe('validation scope: add-classes evaluates only the class rules (MYK9-899)', () => {
+  // Every show-creation requirement, violated at once.
+  const brokenShow = baseShow({
+    name: '',
+    location: '',
+    clubId: '',
+    startDate: '',
+    endDate: '',
+    entryOpenDate: '',
+    entryCloseDate: '',
+    officials: { chairman: [], secretary: [] },
+  });
+  const trial = {
+    id: 'trial-1',
+    dateTime: '',
+    eventNumber: '',
+    trialType: 'scent_work',
+    classes: [
+      {
+        templateId: 't',
+        customizations: {
+          className: 'Container Novice A',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+        },
+      },
+    ],
+  };
+  const trialView = {
+    effectiveNamesByTrialId: new Map([['trial-1', '']]),
+    persistedTrialCount: 1,
+    hasAnyTrials: true,
+  };
+  const scope = getValidationScope({ mode: 'add-classes' });
+
+  it('maps edit modes to scopes', () => {
+    expect(scope).toBe('class-selection');
+    expect(getValidationScope({ mode: 'add-trials' })).toBe('full');
+    expect(getValidationScope(undefined)).toBe('full');
+  });
+
+  it.each([0, 1, 2, 3])('no show-creation requirement blocks step %i', step => {
+    expect(
+      getValidationMessagesForStep(
+        step,
+        brokenShow,
+        [trial] as never,
+        trialView,
+        [],
+        { requireEntryWindow: true },
+        scope
+      )
+    ).toEqual([]);
+  });
+
+  it('Review blocks nothing about the show; only an empty class set blocks', () => {
+    expect(
+      getReviewBlockingErrors({ show: brokenShow, trials: [trial], officialsUnknown: false, scope })
+    ).toEqual([]);
+    expect(
+      getReviewBlockingErrors({
+        show: brokenShow,
+        trials: [{ classes: [] }],
+        officialsUnknown: false,
+        scope,
+      })
+    ).toEqual(['At least one class must be configured']);
+  });
+
+  it('full scope still enforces every requirement on the same show (control)', () => {
+    const messages = [
+      ...getValidationMessagesForStep(0, brokenShow, [trial] as never, trialView, [], {
+        requireEntryWindow: true,
+      }),
+      ...getReviewBlockingErrors({
+        show: brokenShow,
+        trials: [trial],
+        officialsUnknown: false,
+        scope: 'full',
+      }),
+    ].join(' | ');
+    for (const required of [
+      'Show name is required',
+      'Location is required',
+      'Club selection is required',
+      'Show chairman is required',
+      'Show secretary is required',
+      'Entry open date is required',
+    ]) {
+      expect(messages).toContain(required);
+    }
   });
 });
 

@@ -61,7 +61,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)           |
 | [plan-admin-users-ux-fixes-2026-08-18.md](plan-admin-users-ux-fixes-2026-08-18.md)                               | Active    | Admin Users UX Fixes                                                               |
 | [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md)                                         | Active    | AI Natural-Language Access Plan                                                    |
-| [plan-crud-standard.md](plan-crud-standard.md) | Active | One Standard for Create, Edit and Delete |
+| [plan-crud-standard.md](plan-crud-standard.md)                                                                   | Active    | One Standard for Create, Edit and Delete                                           |
 | [plan-junior-handler-fee-v2.md](plan-junior-handler-fee-v2.md)                                                   | Active    | Junior handler entry fee — restart plan (MYK9-662 v2)                              |
 | [plan-list-toolkit.md](plan-list-toolkit.md)                                                                     | Active    | List Toolkit — shared search, filter and bulk actions                              |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Active    | MYK9-110 cross-project recovery rehearsal — execution plan                         |

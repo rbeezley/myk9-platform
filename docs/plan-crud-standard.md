@@ -42,22 +42,23 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 
 ## The standard
 
-| Piece | Rule | Built from |
-| --- | --- | --- |
-| Server delete | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon. | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002) |
-| Server restore | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls). | `restore_show`, `restore_class` |
-| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards. | new |
-| Client delete | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast. | `DeleteDogDialog`, `purgeDeletedShow` (#2640) |
-| Dialog | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts` |
-| Edit placement | Labelled **Edit** button top-right of every detail page header, plus "Edit ‹object›" first in the header Actions menu; first item of every list row menu. | `ShowPageHeaderActions.tsx` "Edit show" button, `actionRegistry.ts` "Edit show details" |
-| Delete placement | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar. | `ShowEditPanel.tsx` delete row |
-| Gate | The control's gate equals the RPC predicate, and is hidden when the server would refuse. | `useCanDeleteDog`, `canManageShowSurface` |
+| Piece              | Rule                                                                                                                                                                                                                 | Built from                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Server delete      | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon.                             | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002)                      |
+| Server restore     | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls).                               | `restore_show`, `restore_class`                                                         |
+| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards.                                                                                        | new                                                                                     |
+| Client delete      | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast.                                                    | `DeleteDogDialog`, `purgeDeletedShow` (#2640)                                           |
+| Dialog             | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts`                                       |
+| Edit placement     | Labelled **Edit** button top-right of every detail page header, plus "Edit ‹object›" first in the header Actions menu; first item of every list row menu.                                                            | `ShowPageHeaderActions.tsx` "Edit show" button, `actionRegistry.ts` "Edit show details" |
+| Delete placement   | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar.                                                                                                                                      | `ShowEditPanel.tsx` delete row                                                          |
+| Gate               | The control's gate equals the RPC predicate, and is hidden when the server would refuse.                                                                                                                             | `useCanDeleteDog`, `canManageShowSurface`                                               |
 
 ## Phases
 
 Each phase is one PR, independently verifiable. A phase is not complete until its tests pass. Server phases need a `db push` with owner confirmation.
 
 **Phase 1: Server foundation.**
+
 - Add `soft_delete_trial`, `soft_delete_entry` and `soft_delete_club`.
 - Add the missing `restore_trial`, `restore_entry` and `restore_club`.
 - Add the money and scored guard (one private counting function, scoped by show, trial, class or entry) to the show, trial, class and entry delete RPCs, with a coded refusal and a site-admin override.
@@ -66,12 +67,14 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Tests: one behavioral SQL test per RPC covering cascade, guard, override, the trigger block and the restore window. Verify grants on the live database after the push.
 
 **Phase 2: One client delete path.**
+
 - Build the shared delete service and `DeleteObjectDialog`, with honest copy and an Undo toast.
 - Move trial delete and the class-page entry delete off the replication queue's hard `.delete()` and onto the soft RPCs.
 - Route Class Management and the trial-page class delete through the same purge so Setup never goes stale.
 - Tests: the dialog's three states (unknown, blocked, allowed), the Undo call, a replica purge test for each object, and a test that no code path calls a hard delete for these seven tables.
 
 **Phase 3: Placement and gates.**
+
 - Add the red Delete row to the Edit panels for club, trial, class, dog and person. Entry gets one in `EntryEditDialog`.
 - Remove Delete from every header ⋮ menu and remove the duplicate entry popover item.
 - Bulk bars use the shared dialog.
@@ -79,6 +82,7 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Tests: render tests for each object asserting where Delete appears, and that it is absent from header menus. Gate tests for each role.
 
 **Phase 4: Edit placement.**
+
 - Put one labelled Edit button in the same top-right header position on the club, show, trial, class, dog and person detail pages, built from one shared header-action component so the position cannot drift.
 - Register "Edit ‹object›" as the first header Actions item for club, show, trial, class, dog and person in the route-context action registry (`features/actions/actionRegistry.ts`), gated exactly like the button.
 - Remove the other shapes: the club ghost button, the dog secretary-only button and ⋮ Edit, the person ⋮ Edit, and the entry pencil.
@@ -87,6 +91,7 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Tests: for each detail page, a render test asserting exactly one Edit button in the header slot and "Edit ‹object›" as the first Actions item, both opening the same panel and both hidden for a viewer who cannot edit; no Edit in any other ⋮ menu; and a row-menu order test for each list.
 
 **Phase 5: Verification walk.**
+
 - Owner walk on a test show: delete and Undo each object as a secretary; confirm a paid or scored object is blocked with the right pointer; restore as a site admin; confirm counts and lists are fresh without a reload.
 - Record the walk on the parent issue.
 

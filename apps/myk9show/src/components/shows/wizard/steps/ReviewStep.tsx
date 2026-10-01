@@ -15,7 +15,7 @@ import { countLabel } from '@/utils/pluralize';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
 import { ReviewJuniorHandlerFee } from './ReviewJuniorHandlerFee';
-import { ReviewEntryWindowNotice, ReviewErrorCard, ReviewWarningCard } from './ReviewNoticeCards';
+import { ReviewErrorCard, ReviewReadinessNotices } from './ReviewNoticeCards';
 
 interface ReviewStepProps {
   className?: string;
@@ -147,43 +147,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
           {/* Validation Errors */}
           {errors.length > 0 && <ReviewErrorCard errors={errors} />}
 
-          {/* Unassigned pool judges — non-blocking warning */}
-          {unassignedPoolJudgeNames.length > 0 && (
-            <ReviewWarningCard
-              title={
-                unassignedPoolJudgeNames.length === 1
-                  ? '1 judge is not assigned to any class'
-                  : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`
-              }
-              actionLabel="Assign judges to classes"
-              onAction={() => setCurrentStep(2)}
-            >
-              {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge dashboard
-              until assigned to a class. Go back to Classes to assign them, or continue and assign
-              judges later.
-            </ReviewWarningCard>
-          )}
-
-          {canEditDetails && (
-            <ReviewEntryWindowNotice
-              entryOpenDate={show.entryOpenDate}
-              entryCloseDate={show.entryCloseDate}
-              onSetWindow={() => setCurrentStep(0)}
-            />
-          )}
-
-          {/* MYK9-686: location text with no pin is allowed, but never silent. */}
-          {canEditDetails && missingVenuePin && (
-            <ReviewWarningCard
-              title="No map pin"
-              actionLabel="Place the map pin"
-              onAction={() => setCurrentStep(0)}
-              data-testid="review-missing-pin-warning"
-            >
-              This show won’t appear on the Find Shows map. Go back to Basics and locate the address
-              or click the map.
-            </ReviewWarningCard>
-          )}
+          <ReviewReadinessNotices
+            unassignedPoolJudgeNames={unassignedPoolJudgeNames}
+            entryOpenDate={show.entryOpenDate}
+            entryCloseDate={show.entryCloseDate}
+            missingVenuePin={missingVenuePin}
+            canEditDetails={canEditDetails}
+            onGoToStep={setCurrentStep}
+          />
 
           {/* Overview Stats — flat warm-paper summary; ink counts on card-white,
               no saturated gradients (DESIGN.md: warm-paper palette, not cold glass). */}

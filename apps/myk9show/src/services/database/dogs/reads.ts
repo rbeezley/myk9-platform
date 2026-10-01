@@ -25,8 +25,10 @@ const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id
 
 /**
  * Filter replicated dogs by ownership (owner or co-owner).
- * Note: ReplicatedDog only has `ownerId` — co_owner_id is not replicated.
- * Co-owned dogs that are not primary-owned will be caught by the PostgREST fallback.
+ * The filter itself is owner-only. ReplicatedDog now carries `coOwnerId`
+ * (MYK9-912; already-synced devices pick it up on the 24h full sync), but a
+ * co-owned dog the viewer does not primary-own is still caught by the PostgREST
+ * fallback, not by this filter.
  */
 function filterByOwnership(dogs: ReplicatedDog[], personId: string): ReplicatedDog[] {
   return selectOwnedDogs(dogs, personId);

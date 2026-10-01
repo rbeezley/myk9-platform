@@ -227,4 +227,19 @@ describe('useCanDeleteDog (mirrors the soft_delete_dog RPC gate)', () => {
     const { result } = renderHook(() => useCanDeleteDog('legacy-dog'));
     expect(result.current).toBe(true);
   });
+
+  // MYK9-912: co-owner drives the dog-page VIEW, never destructive rights.
+  it('keeps delete owner-only: a secretary who co-owns the dog cannot, the owner can', () => {
+    withRole(role => role === UserRole.SECRETARY || role === UserRole.EXHIBITOR);
+    const coOwned = { ...makeDog('co-dog', 'legacy-person'), coOwnerId: 'person-1' };
+    const owned = makeDog('owned-dog', 'person-1');
+    vi.mocked(useDogStoreCompat).mockReturnValue({
+      dogs: [coOwned, owned],
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useDogStoreCompat>);
+
+    expect(renderHook(() => useCanDeleteDog('co-dog')).result.current).toBe(false);
+    expect(renderHook(() => useCanDeleteDog('owned-dog')).result.current).toBe(true);
+  });
 });

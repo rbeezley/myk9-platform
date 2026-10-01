@@ -57,7 +57,7 @@ import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
 
-const ShowCreationWizardPage: React.FC = () => {
+const ShowCreationWizardPageContent: React.FC = () => {
   const navigate = useNavigate();
   // Raised around the wizard's own navigations (save, confirmed discard) so the edit-mode
   // unsaved-changes guard does not prompt for work the secretary just saved or discarded.
@@ -585,6 +585,21 @@ const ShowCreationWizardPage: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+};
+
+/**
+ * Keys the whole wizard by its edit target. Query-string navigation between shows (or modes)
+ * keeps this route mounted, so every latch, ref and effect guard below (trials-readiness
+ * latch, self-navigation counter, init guard, scroll/validation state) would otherwise carry
+ * the previous show's state into the next one. A remount makes that impossible by
+ * construction. Create mode has no target and keeps one stable key.
+ */
+const ShowCreationWizardPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const target = parseEditMode(searchParams.get('showId'), searchParams.get('mode'));
+  return (
+    <ShowCreationWizardPageContent key={target ? `${target.mode}:${target.showId}` : 'create'} />
   );
 };
 

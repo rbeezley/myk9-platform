@@ -143,4 +143,23 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     expect(await screen.findByText(/loading this show’s trials/i)).toBeInTheDocument();
     expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
   });
+
+  it('add-classes: moving to another show by query string re-gates and drops show A state', async () => {
+    const showB = { id: 'show-2', name: 'Other', organization: 'AKC' } as Show;
+    useShowStore.setState({ shows: [targetShow, showB] });
+    search = 'showId=show-1&mode=add-classes';
+    const { rerender } = render(<ShowCreationWizardPage />);
+    await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+
+    // Show B's trials are not loaded yet. Show A's draft must not be on screen.
+    search = 'showId=show-2&mode=add-classes';
+    trialsRead.value = { ready: false, readStatus: 'loading', readError: null, retry: undefined };
+    rerender(<ShowCreationWizardPage />);
+    expect(await screen.findByText(/loading this show’s trials/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
+
+    trialsRead.value = { ready: true, readStatus: 'ready', readError: null, retry: undefined };
+    rerender(<ShowCreationWizardPage />);
+    await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+  });
 });

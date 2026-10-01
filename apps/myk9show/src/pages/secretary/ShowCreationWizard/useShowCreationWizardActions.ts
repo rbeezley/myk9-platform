@@ -21,6 +21,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { invalidateClassCaches } from '@/hooks/queries/useClassesDatabase';
 import { saveWizardShowJudges, wizardEditJudgeBaseline } from './saveWizardShowJudges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
@@ -269,6 +270,7 @@ export function useShowCreationWizardActions({
           loadTrialClasses().catch(() => {
             /* non-critical */
           });
+          invalidateClassCaches(queryClient);
 
           // A draft save INSERTS a real show, so the wizard releases it whether
           // completion continues through the overlay or directly to show detail.
@@ -370,6 +372,10 @@ export function useShowCreationWizardActions({
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap, normalizedClasses);
+        // Same invalidation the retired Add Classes mutation did, right after the local class
+        // writes (online or offline) and before anything below can fail or navigate: pages
+        // that read the class caches must refetch, not wait out staleTime.
+        invalidateClassCaches(queryClient, Object.values(trialIdMap));
 
         // Persist judge assignments to judge_assignments table
         const judgesSaved = await saveWizardShowJudges({

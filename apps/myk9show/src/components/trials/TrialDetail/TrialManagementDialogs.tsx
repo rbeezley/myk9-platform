@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatTrialLabel } from '@myk9/core';
@@ -76,6 +76,9 @@ export const TrialManagementDialogs = forwardRef<
 
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(initialAction === 'edit');
   const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(initialAction === 'delete');
+  const [deletingTrial, setDeletingTrial] = useState(false);
+  // Synchronous twin of `deletingTrial`: dismissal handlers read it in the same tick.
+  const deletingTrialRef = useRef(false);
   const [deleteTrialError, setDeleteTrialError] = useState<string | null>(null);
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
@@ -104,6 +107,9 @@ export const TrialManagementDialogs = forwardRef<
     onActionFinished?.();
   };
   const closeDeleteTrial = () => {
+    // A delete in flight cannot be dismissed (Cancel, X, Escape, overlay all land here): its
+    // completion must find the dialog it started in.
+    if (deletingTrialRef.current) return;
     setDeleteTrialError(null);
     setDeleteTrialDialogOpen(false);
     onActionFinished?.();
@@ -114,10 +120,14 @@ export const TrialManagementDialogs = forwardRef<
       closeDeleteTrial();
       return;
     }
+    deletingTrialRef.current = true;
+    setDeletingTrial(true);
     try {
       setDeleteTrialError(null);
       await deleteTrialAsync(currentTrial.id);
     } catch (error) {
+      deletingTrialRef.current = false;
+      setDeletingTrial(false);
       // Stay open and say why; closing here would read as a delete that never happened.
       setDeleteTrialError(
         error instanceof Error && error.message
@@ -126,6 +136,9 @@ export const TrialManagementDialogs = forwardRef<
       );
       return;
     }
+    // Deleted: release the latch so the dialog can close (and the host can move on).
+    deletingTrialRef.current = false;
+    setDeletingTrial(false);
     if (onTrialDeleted) {
       onTrialDeleted();
     } else if (showId && currentTrial.showId) {
@@ -184,7 +197,8 @@ export const TrialManagementDialogs = forwardRef<
         onSave={handleConfirmDeleteTrial}
         title="Delete Trial"
         description={null}
-        saveLabel="Delete Trial"
+        saveLabel={deletingTrial ? 'Deleting…' : 'Delete Trial'}
+        isSubmitting={deletingTrial}
         cancelLabel="Cancel"
         saveButtonProps={{ variant: 'destructive' }}
         hideSave={false}

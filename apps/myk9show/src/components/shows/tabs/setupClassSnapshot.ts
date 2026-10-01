@@ -18,6 +18,8 @@ export interface SetupClassAction {
   classSnapshot: SetupClassSnapshot;
   /** The class's trial, for cache invalidation. */
   trialId: string;
+  /** The request that started this action; a stale completion must not clear a newer one. */
+  requestId: number;
 }
 
 /**

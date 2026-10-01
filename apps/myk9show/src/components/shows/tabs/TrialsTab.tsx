@@ -139,6 +139,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const [pendingTrialAction, setPendingTrialAction] = useState<{
     trial: SyncableTrial;
     action: 'edit' | 'delete';
+    /** The request that started this action; a stale completion must not clear a newer one. */
+    requestId: number;
   } | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
   // The edit/delete actions write through the trial STORE, which is not always the source of
@@ -164,11 +166,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         toast.error("We couldn't load this trial. Please refresh and try again.");
         return;
       }
-      setPendingTrialAction({ trial, action });
+      setPendingTrialAction({ trial, action, requestId: request });
     } finally {
       if (request === latestActionRequest.current) setHydratingTrialId(null);
     }
   };
+  // Tied to the request that started the action: a late completion from an earlier one must not
+  // clear a newer selection (and discard its edits).
+  const finishTrialAction = (requestId: number) =>
+    setPendingTrialAction(current => (current?.requestId === requestId ? null : current));
   const trialRowMenu = (trialId: string, label: string) => (
     <SetupRowActionsMenu
       subject="Trial"
@@ -394,13 +400,13 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         // Mounted per selection with the trial and action together (and keyed by trial), so the
         // edit form initializes from THIS trial rather than opening against a late-arriving one.
         <TrialManagementDialogs
-          key={pendingTrialAction.trial.id}
+          key={pendingTrialAction.requestId}
           currentTrial={pendingTrialAction.trial}
           parentShow={parentShow}
           entryCountByClass={EMPTY_ENTRY_COUNTS}
           initialAction={pendingTrialAction.action}
-          onActionFinished={() => setPendingTrialAction(null)}
-          onTrialDeleted={() => setPendingTrialAction(null)}
+          onActionFinished={() => finishTrialAction(pendingTrialAction.requestId)}
+          onTrialDeleted={() => finishTrialAction(pendingTrialAction.requestId)}
         />
       )}
     </div>

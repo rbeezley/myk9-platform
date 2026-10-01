@@ -161,7 +161,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         toast.error("We couldn't load this class. Please refresh and try again.");
         return;
       }
-      setPendingAction({ action, classSnapshot, trialId: cls.trialId });
+      setPendingAction({ action, classSnapshot, trialId: cls.trialId, requestId: request });
     } finally {
       if (request === latestActionRequest.current) setHydratingClassId(null);
     }
@@ -374,9 +374,15 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       )}
       {canManageThisShow && pendingAction && (
         <SetupClassDialogs
+          key={pendingAction.requestId}
           showId={showId}
           pending={pendingAction}
-          onClose={() => setPendingAction(null)}
+          // Tied to THIS action: a late close from an earlier one must not clear a newer one.
+          onClose={() =>
+            setPendingAction(current =>
+              current?.requestId === pendingAction.requestId ? null : current
+            )
+          }
         />
       )}
     </div>

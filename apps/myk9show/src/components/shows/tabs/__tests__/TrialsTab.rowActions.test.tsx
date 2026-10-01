@@ -300,6 +300,62 @@ describe('TrialsTab trial save and delete failures', () => {
   });
 });
 
+describe('TrialsTab trial delete in flight', () => {
+  beforeEach(() => {
+    toastError.mockClear();
+    mockCanManage = true;
+    mockScopeStatus = 'resolved';
+    mockViewMode = 'cards';
+    seedStore();
+  });
+
+  it('cannot be dismissed while pending, and closes only when the delete completes', async () => {
+    let finishDelete: () => void = () => undefined;
+    const deleteTrial = vi.fn(
+      (id: string) =>
+        new Promise<void>(resolve => {
+          finishDelete = () => {
+            useTrialStore.setState(state => ({ trials: state.trials.filter(t => t.id !== id) }));
+            resolve();
+          };
+        })
+    );
+    useTrialStore.setState({ deleteTrial });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+
+    // Pending: Cancel is disabled, the action says Deleting…, and Escape does not dismiss.
+    expect(await within(dialog).findByRole('button', { name: /Deleting/ })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('dialog')).toBeVisible();
+    // Other rows stay locked, so no other trial's action can start underneath it.
+    expect(screen.getByLabelText('Trial actions for Sunday Trial 2')).toBeDisabled();
+
+    finishDelete();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('after a failure the dialog can be dismissed again', async () => {
+    useTrialStore.setState({ deleteTrial: vi.fn().mockRejectedValue(new Error('nope')) });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('nope');
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
 describe('TrialsTab row actions with a cold trial store', () => {
   beforeEach(() => {
     toastError.mockClear();

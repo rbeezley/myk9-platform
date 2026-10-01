@@ -21,11 +21,12 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 2. **Money guard.** A secretary cannot delete a show, trial, class or entry that has paid or scored entries. The control says why and points to the right path: **Cancel show** for a show, **Withdraw** or **Pull** for an entry (Pull and Withdraw are never synonyms). The server enforces the same rule. A site admin may override.
 3. **Placement.** Delete is a red "Delete ‹object›" row at the bottom of each object's Edit panel. This extends the 2026-09-17 show decision to all seven objects. On lists, Delete stays in the row menu and the bulk bar, through the same dialog. Delete never appears in a header ⋮ or Actions menu.
 4. **Undo.** After a delete, the confirmation toast offers **Undo** to the person who deleted. After that, only a site admin restores, and every dialog says exactly that.
-5. **Edit in both places.** Every detail page (club, show, trial, class, dog, person) has a visible, labelled **Edit** button in the top-right of the page header, AND "Edit ‹object›" as the **first** item of the header Actions menu. Both open the object's Edit panel.
-   - The button is there for findability: the target secretary is not very computer literate, and the show page's Phase 6 button (MYK9-904) was added because Edit inside Actions was too hidden.
-   - The menu item is there for consistency: the Actions menu is on every page, so a user who looks there always finds Edit first.
-   - Edit is the one deliberate exception to the placement rule's "the same verb never appears in both places" (`plan-secretary-show-actions.md`); it is amended to say so. Delete is in neither place (decision 3).
-   - At narrow widths the button may shrink to an icon with an accessible label; it never disappears into a menu only.
+5. **Page actions live in the header Actions menu only** (revised 2026-10-01, replacing "Edit in both places").
+   - Every page-level action lives only in the header Actions menu, with no visible action buttons on detail pages. That covers Edit, every "Add …", status changes (publish, open entries), reports and export.
+   - The menu is complete and uses the same grouped order on every page: **Edit ‹object›** first, then **Add …**, then status changes, then reports and export. Delete is never in the menu (decision 3).
+   - Item-level actions stay in the row ⋮ menu or the bulk bar, because the header cannot know which row is meant.
+   - Show-day screens (ringside, Show Day / Show Desk) keep their own large-target layout. That layout is the same across all show-day screens.
+   - The visible "Edit show" header button from the consolidation plan's Phase 6 (MYK9-904) is removed. The owner set aside its finding that Edit inside the menu was too hidden: one predictable place outweighs a visible shortcut.
 
 ## Defaults (change before Phase 1 if you disagree)
 
@@ -42,16 +43,16 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
 
 ## The standard
 
-| Piece              | Rule                                                                                                                                                                                                                 | Built from                                                                              |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Server delete      | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon.                             | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002)                      |
-| Server restore     | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls).                               | `restore_show`, `restore_class`                                                         |
-| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards.                                                                                        | new                                                                                     |
-| Client delete      | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast.                                                    | `DeleteDogDialog`, `purgeDeletedShow` (#2640)                                           |
-| Dialog             | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts`                                       |
-| Edit placement     | Labelled **Edit** button top-right of every detail page header, plus "Edit ‹object›" first in the header Actions menu; first item of every list row menu.                                                            | `ShowPageHeaderActions.tsx` "Edit show" button, `actionRegistry.ts` "Edit show details" |
-| Delete placement   | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar.                                                                                                                                      | `ShowEditPanel.tsx` delete row                                                          |
-| Gate               | The control's gate equals the RPC predicate, and is hidden when the server would refuse.                                                                                                                             | `useCanDeleteDog`, `canManageShowSurface`                                               |
+| Piece              | Rule                                                                                                                                                                                                                 | Built from                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Server delete      | One `soft_delete_<object>` SECURITY DEFINER RPC per object. Stamps one shared `deleted_at` across the cascade, checks the money guard, returns a coded refusal. REVOKE from PUBLIC/anon.                             | `soft_delete_show`, `soft_delete_class`, `soft_delete_dog` (MK002) |
+| Server restore     | One `restore_<object>` RPC per object that restores everything sharing the `deleted_at`. Allowed for a site admin, or for the deleter within a short window (this is what Undo calls).                               | `restore_show`, `restore_class`                                    |
+| Direct-write block | A trigger refuses any change to `deleted_at` that does not come from these RPCs, so update policies cannot bypass the guards.                                                                                        | new                                                                |
+| Client delete      | One shared delete service per object: pre-count blockers (three-state, like `blockingEntryCount.ts`), call the RPC, purge the local replica, show the Undo toast.                                                    | `DeleteDogDialog`, `purgeDeletedShow` (#2640)                      |
+| Dialog             | One `DeleteObjectDialog` that takes the object type. It shows what goes with the item (counts), disables Delete with a reason and a link to Cancel/Withdraw when blocked, and uses honest copy from one copy module. | `DeleteDogDialog`, `cascadingDeleteDialogCopy.ts`                  |
+| Edit placement     | "Edit ‹object›" is the first item of the header Actions menu on every detail page (no header button); the first item of every list row menu.                                                                         | `features/actions/actionRegistry.ts` "Edit show details"           |
+| Delete placement   | A red row at the bottom of the Edit panel, plus the list row menu and bulk bar.                                                                                                                                      | `ShowEditPanel.tsx` delete row                                     |
+| Gate               | The control's gate equals the RPC predicate, and is hidden when the server would refuse.                                                                                                                             | `useCanDeleteDog`, `canManageShowSurface`                          |
 
 ## Phases
 
@@ -81,14 +82,14 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Align the person and club gates with the server.
 - Tests: render tests for each object asserting where Delete appears, and that it is absent from header menus. Gate tests for each role.
 
-**Phase 4: Edit placement.**
+**Phase 4: Page actions into the Actions menu.**
 
-- Put one labelled Edit button in the same top-right header position on the club, show, trial, class, dog and person detail pages, built from one shared header-action component so the position cannot drift.
-- Register "Edit ‹object›" as the first header Actions item for club, show, trial, class, dog and person in the route-context action registry (`features/actions/actionRegistry.ts`), gated exactly like the button.
-- Remove the other shapes: the club ghost button, the dog secretary-only button and ⋮ Edit, the person ⋮ Edit, and the entry pencil.
-- Amend the placement rule in `plan-secretary-show-actions.md` to name Edit as the one verb that appears in both places.
+- Register every page-level action for club, show, trial, class, dog and person in the route-context action registry (`features/actions/actionRegistry.ts`) in the standard group order: Edit first, then Add …, then status changes, then reports and export. Gate each entry exactly as its old button was gated.
+- Remove the visible page-level action buttons: the "Edit show" header button (`ShowPageHeaderActions.tsx`), the trial and class hero Edit buttons, the club ghost Edit, the dog Edit button and ⋮ Edit, the person ⋮ Edit, and any other page-level button the duplicate-actions sweep lists. Remove the entry pencil; Edit becomes the first row-menu item.
 - Make Edit the first row-menu item on every list.
-- Tests: for each detail page, a render test asserting exactly one Edit button in the header slot and "Edit ‹object›" as the first Actions item, both opening the same panel and both hidden for a viewer who cannot edit; no Edit in any other ⋮ menu; and a row-menu order test for each list.
+- Tests:
+  - For each detail page: no visible page-level action buttons; the Actions menu lists the expected items in group order, each hidden for a viewer who cannot use it, and "Edit ‹object›" opens the Edit panel.
+  - For each list: a row-menu order test.
 
 **Phase 5: Verification walk.**
 

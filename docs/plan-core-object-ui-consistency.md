@@ -17,7 +17,7 @@
 8. **Default list view:** table for staff lists (Managing shows, trials, classes, entries, people, clubs). Cards for exhibitor and public lists (Find Shows, My Dogs). Her own choice is remembered on every list (`useViewPreference`).
 9. **Premium tab:** "Premium" (the show edit tab currently says "Experience").
 10. **Save confirmation:** always. "‹Name› saved" after an edit, "‹Name› added" after a create, on every path.
-11. **Detail layout:** one page width (`PageShell`) and one shared header (`DetailHero`: title, status badge, facts row, actions top-right) for every detail page. This includes a calmer Person header.
+11. **Detail layout:** one page width (`PageShell`) and one shared header (`DetailHero`: title, status badge, facts row; no action buttons, because page actions live only in the header Actions menu, per `plan-crud-standard.md` decision 5) for every detail page. This includes a calmer Person header.
 12. **Class lists:** merge Class Management into Setup → Classes. Judge assignment and bulk status move into the Setup tab; the Class Management route becomes a redirect to it. One concern, one page.
 
 ## Defaults from the audit (adopted unless changed)

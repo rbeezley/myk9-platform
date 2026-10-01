@@ -60,6 +60,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   hidePaymentBadge,
   hideHeader,
   onEntryRefunded,
+  onEntryRestored,
   onPaymentRequested,
   lifecycleDecisionEmailStatusMap,
   onReviewLifecycleEmail,
@@ -466,6 +467,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           onDeleted={({ deleted, alreadyGone }) => {
             for (const target of [...deleted, ...alreadyGone]) onEntryRemoved(target.id);
           }}
+          onRestored={() => onEntryRestored?.()}
         />
       )}
     </TooltipProvider>

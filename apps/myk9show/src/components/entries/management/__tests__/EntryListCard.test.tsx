@@ -24,6 +24,7 @@ const deleteMocks = vi.hoisted(() => ({
   preview: vi.fn(),
   remove: vi.fn(),
   purge: vi.fn(),
+  offerUndo: vi.fn(),
 }));
 vi.mock('@/features/delete/deletePreview', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
@@ -34,6 +35,7 @@ vi.mock('@/features/delete/deleteServer', () => ({
   restoreOnServer: vi.fn(),
 }));
 vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+vi.mock('@/features/delete/deleteUndoToast', () => ({ offerUndoToast: deleteMocks.offerUndo }));
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
   return {
@@ -244,6 +246,35 @@ describe('EntryListCard - check-in button affordance', () => {
     await waitFor(() => expect(onEntryRemoved).toHaveBeenCalledWith('entry-1'));
     expect(deleteMocks.remove).toHaveBeenCalledWith('entry', 'entry-1', { override: false });
   });
+  it('reloads the entries when Undo brings a deleted entry back', async () => {
+    deleteMocks.preview.mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 0,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockResolvedValue(undefined);
+    deleteMocks.offerUndo.mockReset();
+    const user = userEvent.setup();
+    const onEntryRestored = vi.fn();
+    render(<EntryListCard {...defaultProps} onEntryRestored={onEntryRestored} />);
+
+    await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Fido?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    await waitFor(() => expect(deleteMocks.offerUndo).toHaveBeenCalled());
+    expect(onEntryRestored).not.toHaveBeenCalled();
+    deleteMocks.offerUndo.mock.calls[0]?.[0].onRestored([{ id: 'entry-1', name: 'Fido' }]);
+    expect(onEntryRestored).toHaveBeenCalledTimes(1);
+  });
+
   /**
    * MYK9-639: a destination whose paying source did not come back in the read
    * shows its own $0 fee. Without this the number reads as a settled figure.

@@ -44,6 +44,7 @@ async function purgeEntriesWhere(
     id: string;
     classId?: string | undefined;
     showId?: string | undefined;
+    trialId?: string | undefined;
     dogId?: string | undefined;
   }) => boolean
 ): Promise<void> {
@@ -76,6 +77,11 @@ async function purgeClassIds(classIds: readonly string[], step: string, id: stri
   }));
 }
 
+/** soft_delete_trial tombstones entries by `trial_id` OR by the trial's classes; so does this. */
+async function purgeTrialEntries(trialIds: ReadonlySet<string>, step: string, id: string) {
+  await purgeEntriesWhere(step, id, entry => !!entry.trialId && trialIds.has(entry.trialId));
+}
+
 async function purgeTrialIds(trialIds: readonly string[], step: string, id: string): Promise<void> {
   if (trialIds.length === 0) return;
   const gone = new Set(trialIds);
@@ -89,6 +95,7 @@ async function purgeTrialIds(trialIds: readonly string[], step: string, id: stri
     classIds.push(...(useTrialStore.getState().trialClasses[trialId] ?? []).map(cls => cls.id));
   }
   await purgeClassIds([...new Set(classIds)], step, id);
+  await purgeTrialEntries(gone, step, id);
   await quietly(`${step}:trials`, id, () => replicatedTrialsTable.batchDelete([...trialIds]));
   useTrialStore.setState(state => {
     const trialClasses = { ...state.trialClasses };

@@ -43,6 +43,9 @@ export function classifyDeleteError(error: unknown): DeleteFailureKind {
   if (code === SHOW_STILL_SAVING || /still saving/i.test(message)) return 'still-saving';
   if (code === 'MK010' || code === 'MK011' || code === 'MK001' || code === 'MK002')
     return 'blocked';
+  // soft_delete_dog says "not found or permission denied" for BOTH a missing row and a
+  // row the caller no longer owns, so it proves nothing is deleted: refuse, never purge.
+  if (/permission denied/i.test(message) && code === '42501') return 'forbidden';
   if (/not found|already deleted/i.test(message) || code === 'P0002') return 'already-deleted';
   if (code === '42501') return 'forbidden';
   if (isOffline() || isNetworkFailure(code, message)) return 'offline';
@@ -110,6 +113,6 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
 export function classifyPreviewError(error: unknown): DeletePreviewUnavailableReason {
   const { code, message } = fieldsOf(error);
   if (isOffline() || isNetworkFailure(code, message)) return 'offline';
-  if (code === '42501' && !/not found|already deleted/i.test(message)) return 'forbidden';
+  if (code === '42501' && classifyDeleteError(error) === 'forbidden') return 'forbidden';
   return 'failed';
 }

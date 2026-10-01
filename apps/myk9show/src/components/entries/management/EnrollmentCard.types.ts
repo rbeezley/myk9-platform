@@ -10,6 +10,7 @@ export interface EnrollmentCardProps {
   group: EnrollmentGroup;
   onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
   onEntryRefunded?: () => void;
+  onEntryRestored?: () => void;
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
     cls: EntryClass,

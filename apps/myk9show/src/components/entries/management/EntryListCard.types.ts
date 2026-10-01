@@ -27,6 +27,8 @@ export interface EntryListCardProps {
   hidePaymentBadge?: boolean | undefined;
   hideHeader?: boolean | undefined;
   onEntryRefunded?: (() => void) | undefined;
+  /** Undo brought a deleted entry back: the parent re-reads its own entry list. */
+  onEntryRestored?: (() => void) | undefined;
   onPaymentRequested?: (() => void) | undefined;
   lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
   onReviewLifecycleEmail?:

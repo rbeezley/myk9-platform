@@ -16,7 +16,12 @@ vi.mock('./deletePurge', () => ({ purgeDeletedLocally: mocks.purge }));
 vi.mock('./deleteRestoreRefresh', () => ({ refreshAfterRestore: mocks.refresh }));
 
 import { canStillUndo, deleteRecords, restoreRecords } from './deleteRecords';
-import { classifyPreviewError, deleteErrorMessage, restoreErrorMessage } from './deleteErrors';
+import {
+  classifyDeleteError,
+  classifyPreviewError,
+  deleteErrorMessage,
+  restoreErrorMessage,
+} from './deleteErrors';
 import { parseDeletePreview } from './deletePreview';
 import { UNDO_WINDOW_MS } from './deleteTypes';
 
@@ -173,6 +178,30 @@ describe('server refusals in plain language (no raw error text)', () => {
     expect(deleteErrorMessage('show', { code: 'SHOW_STILL_SAVING', message: 'x' })).toBe(
       'This show is still saving. Try again in a moment.'
     );
+  });
+});
+
+describe('an ambiguous "not found or permission denied" refusal', () => {
+  const ambiguous = { code: '42501', message: 'Dog not found or permission denied' };
+
+  it('is forbidden, never "already deleted", so the dog is not purged from this device', async () => {
+    expect(classifyDeleteError(ambiguous)).toBe('forbidden');
+    mocks.remove.mockReset().mockRejectedValue(ambiguous);
+    mocks.purge.mockReset();
+
+    const result = await deleteRecords('dog', [{ id: 'dog-1', name: 'Biscuit' }]);
+
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(result.alreadyGone).toEqual([]);
+    expect(result.failed.map(f => f.message)).toEqual([
+      "You don't have permission to delete this dog.",
+    ]);
+  });
+
+  it('still reads an unambiguous "already deleted" as already gone', () => {
+    expect(
+      classifyDeleteError({ code: '42501', message: 'Trial not found or already deleted' })
+    ).toBe('already-deleted');
   });
 });
 

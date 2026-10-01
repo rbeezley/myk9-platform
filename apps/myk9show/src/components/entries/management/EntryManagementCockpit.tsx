@@ -321,6 +321,7 @@ export function EntryManagementCockpit({
                 : {})}
               onStatusChange={handleStatusChangeWithDecisionPrompt}
               onEntryRefunded={onRefresh}
+              onEntryRestored={onRefresh}
               onCheckInStatusChange={onCheckInStatusChange}
               onOpenEditEntry={onOpenEditEntry}
               onOpenArmbandDialog={onOpenArmbandDialog}

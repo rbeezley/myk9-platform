@@ -92,6 +92,21 @@ describe('purgeDeletedLocally', () => {
     expect(entryIds()).toEqual(['e3']);
   });
 
+  it('trial: also drops entries stamped with the trial id but no known class (matches the RPC)', async () => {
+    spies.entriesGetAll.mockResolvedValue([
+      { id: 'e1', classId: 'c1', showId: 's1', dogId: 'd1' },
+      { id: 'e4', trialId: 't1', showId: 's1', dogId: 'd4' },
+      { id: 'e5', trialId: 't2', classId: 'c3', showId: 's2', dogId: 'd5' },
+    ] as never);
+    useEntryStore.setState({ entries: [entry('e1'), entry('e4'), entry('e5')] });
+
+    await purgeDeletedLocally('trial', { id: 't1', name: 'T1' });
+
+    const purged = spies.entriesBatchDelete.mock.calls.flatMap(([ids]) => ids);
+    expect(purged.sort()).toEqual(['e1', 'e4']);
+    expect(entryIds()).toEqual(['e5']);
+  });
+
   it('class: one purge for every class surface — the class and its entries leave the stores', async () => {
     await purgeDeletedLocally('class', { id: 'c1', name: 'Novice A' });
 

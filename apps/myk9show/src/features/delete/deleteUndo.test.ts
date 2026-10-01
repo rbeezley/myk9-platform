@@ -16,6 +16,7 @@ vi.mock('sonner', () => ({ toast: { success: mocks.toastSuccess, error: mocks.to
 import {
   replicatedClassesTable,
   replicatedClubsTable,
+  replicatedDogsTable,
   replicatedEntriesTable,
   replicatedShowsTable,
   replicatedTrialsTable,
@@ -151,6 +152,20 @@ describe('refreshAfterRestore', () => {
     });
     expect(sync.classes).toHaveBeenCalledWith('t1');
     expect(loadTrialClasses).toHaveBeenCalled();
+  });
+
+  it('dog: re-syncs dogs and the entries restore_dog brought back, in every show', async () => {
+    const dogs = vi.spyOn(replicatedDogsTable, 'sync').mockResolvedValue(undefined as never);
+    vi.spyOn(replicatedShowsTable, 'getAllOrThrow').mockResolvedValue([
+      { id: 's1' },
+      { id: 's2' },
+    ] as never);
+
+    await refreshAfterRestore('dog', { id: 'd1', name: 'Biscuit' });
+
+    expect(dogs).toHaveBeenCalled();
+    expect(sync.entries).toHaveBeenCalledWith('s1');
+    expect(sync.entries).toHaveBeenCalledWith('s2');
   });
 
   it('club: re-syncs clubs and reloads the club list', async () => {

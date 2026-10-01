@@ -82,6 +82,14 @@ export async function refreshAfterRestore(
         return;
       case 'dog':
         await quietly('dogs', () => replicatedDogsTable.sync(''));
+        // restore_dog also restores the dog's entries, in any show: the purge dropped
+        // them from the replica, so every show scope has to be re-read.
+        await quietly('dog-entries', async () => {
+          const shows = await replicatedShowsTable.getAllOrThrow();
+          await Promise.all(
+            shows.map(show => quietly('entries', () => replicatedEntriesTable.sync(show.id)))
+          );
+        });
         return;
       case 'club':
         await quietly('clubs', () => replicatedClubsTable.sync());

@@ -25,6 +25,8 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { ShowEditAddJudge } from './ShowEditAddJudge';
+import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
 import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
 
 interface ShowEditFormProps {
@@ -140,6 +142,10 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
       }));
   }, [judges, data.organization]);
 
+  // The create-then-assign operation is owned here, above the Tabs: the Judges
+  // tab unmounts on a tab switch and must not take a pending create with it.
+  const judgeCreate = useShowEditJudgeCreate(form, data.organization);
+
   // Handle judge assignment toggle
   const handleJudgeToggle = useCallback(
     (judgeId: string, judgeName: string, checked: boolean) => {
@@ -236,6 +242,16 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {data.organization && (
+                <div className="mb-4">
+                  <ShowEditAddJudge
+                    organization={judgeCreate.supportedOrg}
+                    onCreate={judgeCreate.createAndAssignJudge}
+                    pending={judgeCreate.pending}
+                    error={judgeCreate.error}
+                  />
+                </div>
+              )}
               {data.organization ? (
                 availableJudges.length > 0 ? (
                   <div className="space-y-4">

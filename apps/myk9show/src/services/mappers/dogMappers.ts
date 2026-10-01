@@ -185,6 +185,7 @@ export const mapReplicatedDogToDbRow = (
     sex?: string | undefined;
     dateOfBirth?: string | undefined;
     ownerId?: string | undefined;
+    coOwnerId?: string | undefined;
     height?: string | undefined;
     weight?: string | undefined;
     color?: string | undefined;
@@ -225,7 +226,7 @@ export const mapReplicatedDogToDbRow = (
       status: 'status',
       deceased_date: 'deceasedDate',
     }),
-    co_owner_id: null,
+    co_owner_id: d.coOwnerId ?? null,
     deleted_at: d.deletedAt ?? d.deleted_at ?? null,
     owner: options?.owner ?? null,
     registrations: options?.registrations ?? [],

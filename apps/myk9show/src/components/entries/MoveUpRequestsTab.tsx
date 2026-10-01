@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { ListFilterBar } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
 import {
   Dialog,
   DialogContent,
@@ -301,12 +301,22 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       {/* Search — the list-toolkit's shared search field (MYK9-795), so this
           view reads and behaves the same as the registration-queue views. */}
       {requests.length > 0 && (
-        <ListFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by dog, handler, or class..."
-          fields={[]}
-        />
+        <>
+          <ListFilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by dog, handler, or class..."
+            fields={[]}
+          />
+          <ListResultLine
+            shown={filteredRequests.length}
+            total={requests.length}
+            noun={['request', 'requests']}
+            filtered={searchTerm !== ''}
+            filterSummary={summarizeFilters({ search: searchTerm })}
+            onShowAll={() => setSearchTerm('')}
+          />
+        </>
       )}
 
       {/*

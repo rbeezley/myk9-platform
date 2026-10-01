@@ -68,16 +68,29 @@ describe('EntryManagementViewToolbar filters', () => {
     expect(screen.queryByRole('combobox', { name: 'Payment status' })).not.toBeInTheDocument();
   });
 
-  it('states the view, the trial and the search in one sentence and resets them from "Show all"', async () => {
+  it('states the view and the trial without a search, and resets them from "Show all"', async () => {
     const { user, onClearAll } = renderToolbar(
-      { queue: 'needs-review', trialId: 't1', search: 'bob' },
+      { queue: 'needs-review', trialId: 't1' },
       { shown: 3, total: 214 }
     );
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 3 of 214 registrations (Needs review, Trial: Saturday, matching “bob”).'
+      'Showing 3 of 214 registrations (Needs review, Trial: Saturday).'
     );
     await user.click(screen.getByRole('button', { name: 'Show all registrations' }));
     expect(onClearAll).toHaveBeenCalledOnce();
+  });
+
+  it('with a search, says it searched the whole show and omits the view and scope that it bypasses', () => {
+    renderToolbar(
+      { queue: 'needs-review', trialId: 't1', search: 'bob' },
+      { shown: 4, total: 214 }
+    );
+
+    const text = screen.getByRole('status').textContent;
+    expect(text).toBe(
+      'Showing 4 of 214 registrations (matching \u201cbob\u201d across the whole show).'
+    );
+    expect(text).not.toMatch(/Needs review|Trial/);
   });
 });

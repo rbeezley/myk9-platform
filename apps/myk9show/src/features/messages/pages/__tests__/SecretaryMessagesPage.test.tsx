@@ -251,6 +251,14 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.getByRole('button', { name: /clear filter/i })).toBeInTheDocument();
   });
 
+  it('states what is listed in a sentence and "Show all conversations" clears show and search', async () => {
+    renderAtUrl('/secretary/messages?showId=show-1');
+    expect(screen.getByRole('status')).toHaveTextContent(/^Showing 1 of 2 conversations/);
+    await userEvent.click(screen.getByRole('button', { name: 'Show all conversations' }));
+    expect(screen.getByText('Alice Handler')).toBeInTheDocument();
+    expect(screen.getByText('Bob Handler')).toBeInTheDocument();
+  });
+
   it('changing the filter updates the URL via ?showId=', async () => {
     renderAtUrl('/secretary/messages');
     await userEvent.click(screen.getByRole('combobox', { name: 'Show' }));

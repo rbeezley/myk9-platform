@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render, userEvent } from '@/test/utils/testUtils';
 import RoleRequestsPage from '../RoleRequestsPage';
 
@@ -26,6 +27,10 @@ vi.mock('@/lib/notifications', () => ({
     error: vi.fn(),
   },
 }));
+
+function SearchProbe() {
+  return <p data-testid="search">{useLocation().search}</p>;
+}
 
 describe('RoleRequestsPage', () => {
   beforeEach(() => {
@@ -298,5 +303,23 @@ describe('RoleRequestsPage', () => {
 
     expect(await screen.findByText('No requests waiting for review')).toBeInTheDocument();
     expect(getAllRoleRequests).toHaveBeenCalledTimes(2);
+  });
+
+  it('"Show all requests" clears status and search in ONE URL update', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <RoleRequestsPage />
+        <SearchProbe />
+      </>,
+      { initialRoute: '/admin/role-requests?status=approved&q=pat' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all requests' }));
+
+    // `status=all` is the explicit "everything" view (the default is pending);
+    // the search param must be gone, which two stacked setters would not do.
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?status=all'));
+    expect(screen.getByTestId('search').textContent).not.toContain('q=');
   });
 });

@@ -9,6 +9,7 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
+  patchSearchParams,
   summarizeFilters,
   type ListView,
 } from '@/components/list-toolkit';
@@ -358,10 +359,8 @@ export default function RoleRequestsPage() {
           activeViewId: filter,
           defaultViewId: 'all',
         })}
-        onShowAll={() => {
-          setFilter('all');
-          setSearchTerm('');
-        }}
+        // One URL update: two setters would each clone the same snapshot.
+        onShowAll={() => patchSearchParams(setSearchParams, { status: 'all', q: null })}
       />
 
       {error && (

@@ -7,14 +7,30 @@ const NOUN = ['user', 'users'] as const;
 describe('ListResultLine', () => {
   it('says "Showing all N" when nothing is filtered, with no Show all button', () => {
     render(
-      <ListResultLine shown={214} total={214} noun={NOUN} filtered={false} onShowAll={vi.fn()} />
+      <ListResultLine
+        shown={214}
+        total={214}
+        noun={NOUN}
+        filtered={false}
+        filterSummary={[]}
+        onShowAll={vi.fn()}
+      />
     );
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 users.');
     expect(screen.queryByRole('button', { name: /show all/i })).not.toBeInTheDocument();
   });
 
   it('is a polite live region', () => {
-    render(<ListResultLine shown={1} total={1} noun={NOUN} filtered={false} />);
+    render(
+      <ListResultLine
+        shown={1}
+        total={1}
+        noun={NOUN}
+        filtered={false}
+        filterSummary={[]}
+        onShowAll={vi.fn()}
+      />
+    );
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 1 user.');
   });
@@ -60,6 +76,8 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
+        filterSummary={[]}
+        onShowAll={vi.fn()}
         selectAll={{ selectedCount: 0, onSelectAll }}
       />
     );
@@ -71,6 +89,8 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
+        filterSummary={[]}
+        onShowAll={vi.fn()}
         selectAll={{ selectedCount: 3, onSelectAll }}
       />
     );
@@ -83,6 +103,8 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
+        filterSummary={[]}
+        onShowAll={vi.fn()}
         selectAll={{ selectedCount: 40, onSelectAll }}
       />
     );

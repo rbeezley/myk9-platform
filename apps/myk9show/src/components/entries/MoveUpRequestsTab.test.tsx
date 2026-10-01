@@ -70,6 +70,9 @@ describe('MoveUpRequestsTab', () => {
 
     await waitFor(() => expect(screen.queryByText('Fido')).not.toBeInTheDocument());
     expect(screen.getByText('Rex')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all requests' }));
+    expect(await screen.findByText('Fido')).toBeInTheDocument();
   });
 
   it('does not render a search field when there are no pending requests', async () => {

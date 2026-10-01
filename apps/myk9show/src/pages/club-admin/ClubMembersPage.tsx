@@ -20,6 +20,7 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
+  patchSearchParams,
   summarizeFilters,
 } from '@/components/list-toolkit';
 import { Users, Plus, Shield, AlertTriangle } from 'lucide-react';
@@ -585,10 +586,8 @@ const ClubMembersPage: React.FC = () => {
                     views: memberViews,
                     activeViewId: memberStatus,
                   })}
-                  onShowAll={() => {
-                    setMemberStatus('all');
-                    setSearchQuery('');
-                  }}
+                  // One URL update: two setters would each clone the same snapshot.
+                  onShowAll={() => patchSearchParams(setSearchParams, { status: null, q: null })}
                 />
 
                 {/* Members Table */}

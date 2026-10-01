@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import { ClassManagementPage } from '../ClassManagementPage';
 
@@ -53,11 +53,23 @@ vi.mock('@/store/trialStore', () => ({
     selector({ getTrialById: () => null }),
 }));
 
+function SearchProbe() {
+  return <p data-testid="search">{useLocation().search}</p>;
+}
+
 function renderPage(initialRoute: string) {
   return {
     ...render(
       <Routes>
-        <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
+        <Route
+          path="/trials/:trialId/classes"
+          element={
+            <>
+              <ClassManagementPage />
+              <SearchProbe />
+            </>
+          }
+        />
       </Routes>,
       { initialRoute }
     ),
@@ -81,5 +93,13 @@ describe('ClassManagementPage selection clearing on view-identity change', () =>
 
     // Selection must be cleared — the bulk actions bar/count should disappear.
     expect(screen.queryByText('1 class selected')).not.toBeInTheDocument();
+  });
+
+  it('"Show all classes" resets status, element and search in one URL update', async () => {
+    const { user } = renderPage('/trials/t1/classes?status=completed&element=Interior&search=zzz');
+
+    await user.click(await screen.findByRole('button', { name: 'Show all classes' }));
+
+    expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
   });
 });

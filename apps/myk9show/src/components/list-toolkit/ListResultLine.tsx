@@ -15,9 +15,9 @@ interface ListResultLineProps {
   noun: readonly [string, string];
   filtered: boolean;
   /** Plain-language parts of the active filters (summarizeFilters). */
-  filterSummary?: readonly string[] | undefined;
+  filterSummary: readonly string[];
   /** Clears search, view and field filters. The button shows only while filtered. */
-  onShowAll?: () => void;
+  onShowAll: () => void;
   selectAll?: {
     selectedCount: number;
     onSelectAll: () => void;
@@ -46,7 +46,7 @@ function statusSentence({
       ? `Showing all ${plural(total, noun)}.`
       : `Showing ${plural(shown, noun)}.`;
   }
-  const summary = filterSummary && filterSummary.length > 0 ? ` (${filterSummary.join(', ')})` : '';
+  const summary = filterSummary.length > 0 ? ` (${filterSummary.join(', ')})` : '';
   return `Showing ${shown.toLocaleString()} of ${plural(total, noun)}${summary}.`;
 }
 
@@ -69,7 +69,7 @@ export function ListResultLine({
       <p role="status" aria-live="polite" className="text-muted-foreground">
         {statusSentence({ shown, total, noun, filtered, filterSummary })}
       </p>
-      {filtered && onShowAll && (
+      {filtered && (
         <button type="button" onClick={onShowAll} className={LINK_BUTTON}>
           Show all {noun[1]}
         </button>

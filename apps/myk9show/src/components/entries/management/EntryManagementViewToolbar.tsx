@@ -67,13 +67,18 @@ export function EntryManagementViewToolbar({
     trialClasses,
     onScopeChange,
   });
-  const filterSummary = summarizeFilters({
-    search: state.search,
-    views,
-    activeViewId: activeId,
-    defaultViewId: 'all',
-    fields: filterFields,
-  });
+  // A search runs over the WHOLE show and bypasses the view, trial and class
+  // scope (`buildShowRegistrationPage`), so the sentence names only what is
+  // actually applied rather than listing scopes that do nothing.
+  const searching = state.search.trim() !== '';
+  const filterSummary = searching
+    ? [`${summarizeFilters({ search: state.search })[0]} across the whole show`]
+    : summarizeFilters({
+        views,
+        activeViewId: activeId,
+        defaultViewId: 'all',
+        fields: filterFields,
+      });
 
   return (
     <div className="flex flex-col gap-3">
@@ -112,7 +117,7 @@ export function EntryManagementViewToolbar({
           shown={result.shown}
           total={result.total}
           noun={['registration', 'registrations']}
-          filtered={filterSummary.length > 0 || activeId === null}
+          filtered={searching || filterSummary.length > 0 || activeId === null}
           filterSummary={filterSummary}
           onShowAll={onClearAll}
         />

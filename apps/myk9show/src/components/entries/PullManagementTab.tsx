@@ -11,7 +11,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { XCircle, RefreshCw } from 'lucide-react';
-import { ListFilterBar } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { NoPulledEntriesCard, PulledEntriesUnknownCard } from './PullTabStateCards';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -85,6 +85,16 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
         searchPlaceholder="Search by dog, handler, or class..."
         fields={[]}
       />
+      {!processedEntriesLoading && !processedEntriesUnknown && processedEntries.length > 0 && (
+        <ListResultLine
+          shown={filteredProcessed.length}
+          total={processedEntries.length}
+          noun={['pulled entry', 'pulled entries']}
+          filtered={normalizedSearch !== ''}
+          filterSummary={summarizeFilters({ search: searchTerm })}
+          onShowAll={() => setSearchTerm('')}
+        />
+      )}
 
       {processedEntriesLoading ? (
         // Section load = table skeleton (previews the pulled-entries list).

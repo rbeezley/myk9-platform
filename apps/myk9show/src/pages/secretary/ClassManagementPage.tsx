@@ -36,7 +36,12 @@ import {
   buildClassManagementViews,
   classManagementViewState,
 } from '@/components/classes/classManagementViews';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+} from '@/components/list-toolkit';
 import { ClassManagementViewControls } from '@/components/classes/ClassManagementViewControls';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
@@ -164,6 +169,9 @@ export const ClassManagementPage: React.FC = () => {
     element: elementFilter,
     search: searchTerm,
   };
+
+  const classViews = buildClassManagementViews(allClasses);
+  const activeViewId = activeClassManagementViewId(classViewFilterState);
 
   const handleSelectView = (id: string) => {
     selection.clearSelection();
@@ -306,8 +314,8 @@ export const ClassManagementPage: React.FC = () => {
         <CardContent className="flex flex-col gap-3 pt-6">
           <ListViewTabs
             label="Class views"
-            views={buildClassManagementViews(allClasses)}
-            activeId={activeClassManagementViewId(classViewFilterState)}
+            views={classViews}
+            activeId={activeViewId}
             onSelect={handleSelectView}
           />
           <ListFilterBar
@@ -315,13 +323,19 @@ export const ClassManagementPage: React.FC = () => {
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search classes..."
             fields={[elementField]}
-            onClearAll={clearFilters}
           />
           <ListResultLine
             shown={filteredClasses.length}
             total={allClasses.length}
             noun={CLASS_NOUN}
             filtered={statusFilter !== 'all' || elementFilter !== 'all' || searchTerm !== ''}
+            filterSummary={summarizeFilters({
+              search: searchTerm,
+              views: classViews,
+              activeViewId,
+              fields: [elementField],
+            })}
+            onShowAll={clearFilters}
           />
 
           {/* Display density (tasks.md 3.2) */}

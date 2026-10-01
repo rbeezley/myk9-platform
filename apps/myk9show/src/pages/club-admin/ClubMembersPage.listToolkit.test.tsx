@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
+import { useLocation } from 'react-router-dom';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import ClubMembersPage from './ClubMembersPage';
 
@@ -77,6 +78,10 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn() },
 }));
 
+function SearchProbe() {
+  return <p data-testid="search">{useLocation().search}</p>;
+}
+
 describe('ClubMembersPage list toolkit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -124,5 +129,21 @@ describe('ClubMembersPage list toolkit', () => {
       expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
     });
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  });
+
+  it('"Show all members" clears status and search in ONE URL update', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <ClubMembersPage />
+        <SearchProbe />
+      </>,
+      { initialRoute: '/?status=lapsed&q=grace' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all members' }));
+
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent(/^$/));
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
   });
 });

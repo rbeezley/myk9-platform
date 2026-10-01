@@ -19,7 +19,6 @@ import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { isQualifiedForOrganization, judgeDisplayName } from '@/features/judges/qualifiedJudges';
 import { ShowOfficialsEditor } from './ShowOfficialsEditor';
-import { ShowEditAddJudge } from './ShowEditAddJudge';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
@@ -162,30 +161,6 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
     [data.assignedJudges, form]
   );
 
-  // Completion of an inline judge create runs long after the render that started
-  // it, so it must NOT append to this render's `data.assignedJudges`: toggles made
-  // while the create was pending would be overwritten. Use an updater (applied to
-  // the latest roster) and skip a judge already assigned.
-  const handleJudgeCreated = useCallback(
-    (judgeId: string, judgeName: string) => {
-      form?.setValue('assignedJudges', (previous: unknown) => {
-        const roster = (previous as ShowJudgeAssignment[] | undefined) ?? [];
-        if (roster.some(judge => judge.judgeId === judgeId)) return roster;
-        return [
-          ...roster,
-          {
-            judgeId,
-            judgeName,
-            assignedDate: new Date().toISOString().split('T')[0],
-            availableStartTime: 'Full Day',
-            availableEndTime: 'Full Day',
-          },
-        ];
-      });
-    },
-    [form]
-  );
-
   return (
     <div className="space-y-6 p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -260,13 +235,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                 Judge Assignments
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {data.organization && (
-                <ShowEditAddJudge
-                  organization={data.organization}
-                  onJudgeCreated={handleJudgeCreated}
-                />
-              )}
+            <CardContent>
               {data.organization ? (
                 availableJudges.length > 0 ? (
                   <div className="space-y-4">

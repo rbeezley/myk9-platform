@@ -56,7 +56,19 @@ Owner decision (Richard, 2026-10-01): yes. Add a plainly labelled **Edit show** 
 
 Owner decision (Richard, 2026-10-01): yes. The server already allows it: `trg_grant_club_admin_to_club_creator` (20260511100000, kept on purpose by MYK9-572) makes the creator `club_admin` of the new club, and `clubs_update` admits `is_club_admin(clubs.id)`. The likely gap is client-side: `computeClubPermissions` reads role scopes that may not refresh after creating a club, so Edit could stay hidden until reload. Verify on staging; refresh scopes after club creation if needed. No permission model change.
 
-## Phase 8 — Watch a real secretary (after phases 1–7) ([MYK9-898](https://linear.app/myk9-platform/issue/MYK9-898))
+## Phase 9 — Filters a novice can read (A + B + E) ([MYK9-906](https://linear.app/myk9-platform/issue/MYK9-906))
+
+Owner decision (Richard, 2026-10-01). Today most list pages stack four controls from the shared kit `components/list-toolkit/` (19 pages via `ListViewTabs`, 24 via `ListFilterBar`): view tabs with rounded count pills, "Field: value" chips, a "+ Filter" button, and a small "N of M" result line. To a novice the pills read as badges and the chips as labels. On the show page the view tabs sit directly under the six page tabs in the same underline style, so a row that only narrows the list looks like navigation. Nothing on screen says, in words, what she is looking at or how to get back.
+
+Change the kit once, so all pages follow:
+
+- **A — Plain-language status line.** `ListResultLine` becomes a sentence plus a button: "Showing 12 pending entries in Novice A. [Show all entries]". It is hidden (or reads "Showing all 214 entries") when nothing is filtered, and it stays announced politely to screen readers.
+- **B — Labelled dropdowns.** `ListViewTabs` renders as a labelled **Show:** select ("Pending (12)"), with counts inside the options. Active field filters render as labelled selects ("Class: [All classes ▾]") instead of chips. Search stays. Keep the 44px targets and URL-backed state (the existing param codecs are unchanged).
+- **E — Fewer filters.** Inventory every page's filter fields and propose cutting each one a secretary or exhibitor would rarely narrow by. The owner signs off on the list before removal.
+
+Applies to admin pages too: one pattern everywhere. This changes the presentation chosen in [`plan-list-toolkit.md`](plan-list-toolkit.md); note that there.
+
+## Phase 8 — Watch a real secretary (after phases 1–7 and 9) ([MYK9-898](https://linear.app/myk9-platform/issue/MYK9-898))
 
 MYK9-13 (real-user validation) was cancelled; every finding to date comes from code reading and AI persona walks. Owner decision (2026-10-01): run this after phases 1–7 ship, as validation of the changes rather than discovery. A 30-minute, no-hints session with a real secretary:
 
@@ -79,6 +91,7 @@ A phase is complete only when its tests pass.
 - **Phase 4:** `DashboardQuickLinks` tests for 0 / 1 / many active shows.
 - **Phase 5:** typecheck after deletion; judge-create test in Show Edit.
 - **Phase 6:** component test: Edit show visible for a manager, absent for an exhibitor, opens `ShowEditPanel`; 375px header check.
+- **Phase 9:** kit unit tests: the status sentence for 0, 1 and several active filters and "Show all" clearing them; the Show select applies a view and reflects a custom filter as "Custom"; URL round-trip unchanged. One page-level test each for Entries and Dogs. Run the existing toolkit suites under `components/list-toolkit/__tests__` and the page suites that mount the kit.
 - **Phase 7:** staging check of the creator grant; test that Edit appears after club creation without reload; negative control for a non-creator secretary.
 - **All:** `pnpm typecheck`, shuffled vitest for touched suites, `pnpm qa:code-quality-ratchet`, and the Phase 8 session itself as the end-to-end check.
 

@@ -219,4 +219,23 @@ $$;
 
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- 7. A session whose JWT subject has no auth.users row (synthetic claims used
+--    by other SQL tests and server paths) can still insert a club: created_by
+--    carries no FK.
+-- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000909999', true);
+
+DO $$
+BEGIN
+  INSERT INTO public.clubs (id, name)
+  VALUES ('00000000-0000-0000-0000-000000909004', 'MYK9-909 Synthetic Sub Club');
+  IF (SELECT created_by FROM public.clubs WHERE id = '00000000-0000-0000-0000-000000909004')
+     IS DISTINCT FROM '00000000-0000-0000-0000-000000909999'::uuid THEN
+    RAISE EXCEPTION 'FAIL synthetic-sub: created_by not recorded';
+  END IF;
+  RAISE NOTICE 'PASS synthetic-sub-no-fk';
+END;
+$$;
+
 ROLLBACK;

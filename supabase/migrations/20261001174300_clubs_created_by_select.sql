@@ -13,16 +13,17 @@
 -- Fix: record the creating auth user on the row and let clubs_select admit
 -- `created_by = auth.uid()`, which is evaluable at RETURNING time.
 --
--- 1. clubs.created_by uuid DEFAULT auth.uid(), FK to auth.users ON DELETE SET
---    NULL (precedent: 20260529120000 created_by, 20260722160000
---    refund_decided_by). No backfill: existing rows stay NULL; they are all
+-- 1. clubs.created_by uuid DEFAULT auth.uid(). Deliberately NO FK to
+--    auth.users: it is only an RLS read-path marker, and an FK would make
+--    every club insert depend on an auth.users row (existing SQL tests and
+--    synthetic-claim server paths insert under a sub with no auth.users row;
+--    CI failed with clubs_created_by_fkey). No backfill: existing rows stay NULL; they are all
 --    authorized (20260916004500 backfill) so they stay publicly visible.
 -- 2. guard_club_created_by_write(): a client can neither claim nor change a
 --    creator. INSERT by an API role forces created_by := auth.uid(); service_role
 --    and direct postgres sessions (no auth.uid()) keep the supplied value.
---    UPDATE restores OLD.created_by unless NEW is NULL, which is the auth.users
---    FK's ON DELETE SET NULL action (a BEFORE trigger that reverted it would
---    block deleting the user). NULLing only ever reduces visibility.
+--    UPDATE restores OLD.created_by unless NEW is NULL (NULLing only ever
+--    reduces visibility).
 -- 3. clubs_select recreated from its latest definition (20260916004500) with
 --    one added branch. Every existing branch and the role list (PUBLIC) are
 --    unchanged.
@@ -38,11 +39,10 @@
 BEGIN;
 
 ALTER TABLE public.clubs
-  ADD COLUMN IF NOT EXISTS created_by uuid DEFAULT auth.uid()
-    REFERENCES auth.users(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS created_by uuid DEFAULT auth.uid();
 
 COMMENT ON COLUMN public.clubs.created_by IS
-  'MYK9-909: auth.users.id of the account that inserted the club (forced by guard_club_created_by_write on every API-role INSERT, immutable on UPDATE). Exists so clubs_select can admit the creator of a brand-new unauthorized club at INSERT ... RETURNING time, before trg_grant_club_admin_to_club_creator''s club_admin grant exists. NULL for clubs that predate this column and for service_role/seed inserts.';
+  'MYK9-909: auth uid of the account that inserted the club (forced by guard_club_created_by_write on every API-role INSERT, immutable on UPDATE). Exists so clubs_select can admit the creator of a brand-new unauthorized club at INSERT ... RETURNING time, before trg_grant_club_admin_to_club_creator''s club_admin grant exists. NULL for clubs that predate this column and for service_role/seed inserts.';
 
 CREATE OR REPLACE FUNCTION public.guard_club_created_by_write()
 RETURNS trigger
@@ -58,8 +58,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- UPDATE: created_by is immutable. NEW.created_by IS NULL is the
-  -- auth.users ON DELETE SET NULL action and is let through.
+  -- UPDATE: created_by is immutable. NULL is let through (only reduces visibility).
   IF NEW.created_by IS NOT NULL THEN
     NEW.created_by := OLD.created_by;
   END IF;
@@ -68,7 +67,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.guard_club_created_by_write() IS
-  'MYK9-909: clubs.created_by is server-assigned. INSERT by an API role (or any session with an auth.uid()) forces created_by := auth.uid(); other sessions (service_role, direct postgres) keep the supplied value. UPDATE restores OLD.created_by unless NEW is NULL (the auth.users FK''s ON DELETE SET NULL action). SECURITY INVOKER: auth.uid() only reads request.jwt.claims.';
+  'MYK9-909: clubs.created_by is server-assigned. INSERT by an API role (or any session with an auth.uid()) forces created_by := auth.uid(); other sessions (service_role, direct postgres) keep the supplied value. UPDATE restores OLD.created_by unless NEW is NULL. SECURITY INVOKER: auth.uid() only reads request.jwt.claims.';
 
 DROP TRIGGER IF EXISTS trg_guard_club_created_by_write ON public.clubs;
 CREATE TRIGGER trg_guard_club_created_by_write

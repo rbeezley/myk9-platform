@@ -22,7 +22,6 @@ import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { MyEntriesRedirect } from './MyEntriesRedirect';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
-import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import {
   SHOW_MANAGEMENT_SECTIONS,
@@ -44,6 +43,7 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 
 // Public page lazy imports
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
+const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));

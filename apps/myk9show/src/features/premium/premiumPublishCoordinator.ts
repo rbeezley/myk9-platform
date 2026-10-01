@@ -1,5 +1,4 @@
 import { supabase } from '@/services/database/supabaseClient';
-import { publishExperience } from '@/features/experience/publishExperience';
 import {
   classifyPremiumPublishError,
   isMissingPremiumPublishRpc,
@@ -50,6 +49,21 @@ const ATTEMPT_SCHEMA_VERSION = 4;
 export const GENERATED_PREMIUM_INTENT_KEY = 'generated-current-sources';
 const attemptByShowId = new Map<string, PremiumPublishAttempt>();
 let hydrated = false;
+
+// Loaded on demand: publishExperience pulls in @react-pdf/renderer (fontkit,
+// pdfkit, yoga), which must stay out of the shared entry chunk. The promise is
+// shared so concurrent publishes resolve one module, and dropped on failure so
+// a transient chunk-load error does not stick.
+let publishExperienceModule: Promise<
+  typeof import('@/features/experience/publishExperience')
+> | null = null;
+function loadPublishExperience() {
+  publishExperienceModule ??= import('@/features/experience/publishExperience').catch(error => {
+    publishExperienceModule = null;
+    throw error;
+  });
+  return publishExperienceModule;
+}
 
 function getAttemptStorage(): Storage | null {
   try {
@@ -292,6 +306,7 @@ async function runLockedPremiumPublishOperation(
     persistAttempts();
 
     try {
+      const { publishExperience } = await loadPublishExperience();
       const result = await publishExperience({ showId, attempt });
       discardPremiumPublishAttempt(showId);
       return result;

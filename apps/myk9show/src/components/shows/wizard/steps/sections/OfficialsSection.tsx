@@ -19,7 +19,7 @@ interface OfficialsSectionProps {
   onAddJudge: React.ComponentProps<typeof JudgesPicker>['onAddJudge'];
   onRemoveJudge: React.ComponentProps<typeof JudgesPicker>['onRemoveJudge'];
   onSaveCredentials: React.ComponentProps<typeof JudgesPicker>['onSaveCredentials'];
-  onCreateJudge: React.ComponentProps<typeof JudgesPicker>['onCreateJudge'];
+  onCreateJudge?: React.ComponentProps<typeof JudgesPicker>['onCreateJudge'];
 }
 
 /* ------------------------------------------------------------------ */

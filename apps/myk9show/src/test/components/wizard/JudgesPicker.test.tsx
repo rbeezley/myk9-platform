@@ -201,6 +201,20 @@ describe('JudgesPicker', () => {
     );
   });
 
+  it('offers no "Add new judge" when onCreateJudge is not provided (cannot write qualifications)', () => {
+    renderWithProviders(
+      <JudgesPicker
+        selectedJudges={[]}
+        people={[]}
+        onAddJudge={vi.fn()}
+        onRemoveJudge={vi.fn()}
+        onSaveCredentials={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /search and add judges/i }));
+    expect(screen.queryByText(/add new judge/i)).toBeNull();
+  });
+
   it('opens new judge form when "Add new judge" footer is clicked', async () => {
     renderWithProviders(
       <JudgesPicker

@@ -8,6 +8,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useCanWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import { useClubShowCreateDenied } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import {
@@ -135,6 +136,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
 
   const { handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge } =
     useShowDetailsStepActions();
+  // A club admin can open the wizard but not write qualifications (RLS), so only
+  // secretaries and site admins are offered "Add new judge".
+  const canWriteJudgeQualifications = useCanWriteJudgeQualifications();
 
   const createClubHref = React.useMemo(() => {
     const returnTo = `${location.pathname}${location.search}`;
@@ -230,7 +234,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
             onAddJudge={handleAddJudge}
             onRemoveJudge={removeJudgeFromShow}
             onSaveCredentials={handleSaveJudgeCredentials}
-            onCreateJudge={handleCreateNewJudge}
+            onCreateJudge={canWriteJudgeQualifications ? handleCreateNewJudge : undefined}
           />
         </div>
       </div>

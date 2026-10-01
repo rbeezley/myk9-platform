@@ -6,6 +6,7 @@ import {
   NewJudgeFormError,
   type CreateJudgeData,
 } from '@/components/shows/wizard/steps/NewJudgeForm';
+import { useCanWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
@@ -25,6 +26,7 @@ export function useShowEditJudgeCreate(
   organization: string | undefined
 ) {
   const queryClient = useQueryClient();
+  const canWriteQualifications = useCanWriteJudgeQualifications();
   const { handleCreateNewJudge } = useShowDetailsStepActions();
   const [open, setOpen] = useState(false);
   const pendingRef = useRef(false);
@@ -35,7 +37,11 @@ export function useShowEditJudgeCreate(
   // Inline create is offered only for the orgs the judge form supports. The judge
   // is created under the SHOW's organization: the Judges tab lists only judges
   // qualified for it, so any other org would assign a judge who then vanishes.
-  const supportedOrg = JUDGE_FORM_ORGS.find(org => org === organization);
+  // It also needs the right to write qualifications (secretary or site admin): a club
+  // admin would get the person created and then the qualification refused by RLS.
+  const supportedOrg = canWriteQualifications
+    ? JUDGE_FORM_ORGS.find(org => org === organization)
+    : undefined;
 
   const onOpenChange = useCallback((next: boolean) => {
     // A create is in flight: Escape, overlay click and the X must not close it.

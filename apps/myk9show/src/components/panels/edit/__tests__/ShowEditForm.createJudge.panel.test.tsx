@@ -9,10 +9,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // REAL Dialog and Tabs: this pins how the judge dialog interacts with the panel it
 // is raised over (MYK9-908 review: Escape reached SlideOverPanel.onClose).
 
-const harness = vi.hoisted(() => ({ createJudge: vi.fn() }));
+const harness = vi.hoisted(() => ({
+  canWrite: true,
+  createJudge: vi.fn(),
+}));
 
 vi.mock('@/components/shows/wizard/steps/useShowDetailsStepActions', () => ({
   useShowDetailsStepActions: () => ({ handleCreateNewJudge: harness.createJudge }),
+}));
+vi.mock('@/features/judges/canWriteJudgeQualifications', () => ({
+  useCanWriteJudgeQualifications: () => harness.canWrite,
 }));
 vi.mock('@/store/templateStore', () => ({ useTemplateStore: () => ({ templates: [] }) }));
 vi.mock('@/store/clubStore', () => ({
@@ -69,6 +75,7 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
 describe('Add-judge dialog inside the real edit panel (MYK9-908)', () => {
   beforeEach(() => {
     harness.createJudge.mockReset();
+    harness.canWrite = true;
   });
 
   it('Escape while the dialog is open (not pending) closes only the dialog, not the panel', async () => {

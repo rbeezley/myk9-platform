@@ -16,12 +16,16 @@ type Judge = {
 };
 
 const harness = vi.hoisted(() => ({
+  canWrite: true,
   createJudge: vi.fn(),
   judges: [] as unknown[],
 }));
 
 vi.mock('@/components/shows/wizard/steps/useShowDetailsStepActions', () => ({
   useShowDetailsStepActions: () => ({ handleCreateNewJudge: harness.createJudge }),
+}));
+vi.mock('@/features/judges/canWriteJudgeQualifications', () => ({
+  useCanWriteJudgeQualifications: () => harness.canWrite,
 }));
 vi.mock('@/store/templateStore', () => ({
   useTemplateStore: () => ({ templates: [] }),
@@ -141,6 +145,7 @@ function deferredCreate() {
 describe('ShowEditForm Judges tab: modal inline judge create (MYK9-908)', () => {
   beforeEach(() => {
     harness.createJudge.mockReset();
+    harness.canWrite = true;
     harness.judges = [OLIVE];
     roster.current = [];
     setValueSpy.mockReset();
@@ -277,6 +282,13 @@ describe('ShowEditForm Judges tab: modal inline judge create (MYK9-908)', () => 
         expect.objectContaining({ organization: 'UKC' })
       )
     );
+  });
+
+  it('offers no inline create to a club admin who cannot write judge qualifications', () => {
+    harness.canWrite = false;
+    renderPanel('AKC');
+    expect(screen.queryByRole('button', { name: /add a new judge/i })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: /olive other/i })).toBeInTheDocument();
   });
 
   it('offers no inline create for an organization the judge form does not support', () => {

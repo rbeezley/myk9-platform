@@ -23,7 +23,8 @@ export interface JudgesPickerProps {
   onAddJudge: (personId: string) => void;
   onRemoveJudge: (personId: string) => void;
   onSaveCredentials: (personId: string, data: SaveCredentialsData) => Promise<void>;
-  onCreateJudge: (data: CreateJudgeData) => Promise<string>;
+  /** Omit when the user cannot write judge qualifications: no "Add new judge" is offered. */
+  onCreateJudge?: ((data: CreateJudgeData) => Promise<string>) | undefined;
 }
 
 type FormState = { type: 'none' } | { type: 'credentials'; person: User } | { type: 'new' };
@@ -190,17 +191,19 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           selectedItemIds={selectedIds}
           onSelect={handleSelect}
           footer={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-muted-foreground hover:text-primary"
-              onClick={handleOpenNewForm}
-            >
-              <Plus className="mr-2 h-3.5 w-3.5" />
-              Add new judge
-              <span className="ml-1 text-xs opacity-60">(person not in system)</span>
-            </Button>
+            onCreateJudge && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-muted-foreground hover:text-primary"
+                onClick={handleOpenNewForm}
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Add new judge
+                <span className="ml-1 text-xs opacity-60">(person not in system)</span>
+              </Button>
+            )
           }
         />
       )}
@@ -262,7 +265,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
       )}
 
       {/* New judge form — person not in system */}
-      {formState.type === 'new' && (
+      {formState.type === 'new' && onCreateJudge && (
         <NewJudgeForm
           onSubmit={async data => {
             // The wizard picker stays mounted for the whole create, so it may own

@@ -3,7 +3,6 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
 import type { Json } from '@/types/supabase';
-import type { TablesUpdate } from '@/types/supabase';
 import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
 
 // Get all clubs
@@ -183,27 +182,16 @@ export const updateClub = async (id: string, updates: DbClubUpdate) => {
   }
 };
 
-// Soft delete club
+// Soft delete club. Site admin only and refused while the club has live shows
+// (soft_delete_club, MK011). deleted_by is stamped server-side from auth.uid(), so
+// the caller's id is not sent; a direct update of deleted_at is refused by the
+// direct-write trigger.
 export const deleteClub = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
+  void deletedBy;
 
   try {
-    const updateData: TablesUpdate<'clubs'> = {
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    if (deletedBy) {
-      updateData.deleted_by = deletedBy;
-    }
-
-    const { data, error } = await supabase
-      .from('clubs')
-      .update(updateData)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id, name')
-      .single();
+    const { data, error } = await supabase.rpc('soft_delete_club', { p_club_id: id }).single();
 
     const duration = Date.now() - startTime;
     logQuery('club', 'soft_delete', duration, error?.message);
@@ -249,24 +237,14 @@ export const hardDeleteClub = async (id: string) => {
   }
 };
 
-// Restore soft-deleted club (admin only)
+// Restore soft-deleted club: a site admin, or the deleter inside the Undo window
+// (restore_club).
 export const restoreClub = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
   void restoredBy;
 
   try {
-    const updateData: TablesUpdate<'clubs'> = {
-      deleted_at: null,
-      deleted_by: null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('clubs')
-      .update(updateData)
-      .eq('id', id)
-      .select('id, name')
-      .single();
+    const { data, error } = await supabase.rpc('restore_club', { p_club_id: id }).single();
 
     const duration = Date.now() - startTime;
     logQuery('club', 'restore', duration, error?.message);

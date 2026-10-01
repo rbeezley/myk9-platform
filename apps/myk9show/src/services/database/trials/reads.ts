@@ -1,5 +1,5 @@
 import { supabase, createDatabaseError } from '../supabaseClient';
-import type { Database, TablesUpdate } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedTrialToDbRow } from '@/services/mappers/trialMappers';
@@ -203,24 +203,12 @@ export const updateTrial = async (id: string, updates: DbTrialUpdate) => {
     .single();
 };
 
-// Soft delete a trial
+// Soft delete a trial and everything under it, through soft_delete_trial. The
+// server stamps deleted_by from auth.uid() and refuses (MK010) a trial holding paid or
+// scored entries; a direct update of deleted_at is refused by the direct-write trigger.
 export const deleteTrial = async (id: string, deletedBy?: string) => {
-  const updateData: TablesUpdate<'trials'> = {
-    deleted_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (deletedBy) {
-    updateData.deleted_by = deletedBy;
-  }
-
-  return await supabase
-    .from('trials')
-    .update(updateData)
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id, name')
-    .single();
+  void deletedBy;
+  return await supabase.rpc('soft_delete_trial', { p_trial_id: id }).single();
 };
 
 // Hard delete a trial (permanent removal)
@@ -228,17 +216,11 @@ export const hardDeleteTrial = async (id: string) => {
   return await supabase.from('trials').delete().eq('id', id);
 };
 
-// Restore a soft-deleted trial (admin only)
+// Restore a soft-deleted trial with the rows that went with it: a site admin, or the
+// deleter inside the Undo window (restore_trial).
 export const restoreTrial = async (id: string, restoredBy?: string) => {
   void restoredBy;
-
-  const updateData: TablesUpdate<'trials'> = {
-    deleted_at: null,
-    deleted_by: null,
-    updated_at: new Date().toISOString(),
-  };
-
-  return await supabase.from('trials').update(updateData).eq('id', id).select('id, name').single();
+  return await supabase.rpc('restore_trial', { p_trial_id: id }).single();
 };
 
 // Get soft-deleted trials (admin only)

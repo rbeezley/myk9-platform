@@ -41,7 +41,9 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(recoveredBranch).toContain("payment_status: 'paid'");
     expect(recoveredBranch).toContain("payment_method: 'online'");
     expect(recoveredBranch).toContain("entry_status: 'confirmed'");
-    expect(recoveredBranch).toContain('entry_fee: lineAmountCents / 100');
+    // MYK9-879: the fee was FROZEN at entry creation and this line was charged exactly
+    // that, so marking the entry paid must not write entry_fee back.
+    expect(recoveredBranch).not.toContain('entry_fee: lineAmountCents');
     expect(recoveredBranch).toContain(".eq('payment_status', 'pending')");
     expect(recoveredBranch).toContain(".eq('dog_id', item.dog_id)");
     expect(recoveredBranch).toContain(".eq('class_id', item.class_id)");

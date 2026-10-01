@@ -6,7 +6,11 @@ import {
   resolvePlatformFeeRates,
   stampPlatformFeeRates,
 } from '../_shared/platformFee.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import {
+  findDriftedCartItems,
+  loadStoredEntryJunior,
+  priceCartItems,
+} from '../_shared/cartItemPricing.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
@@ -381,6 +385,7 @@ async function handleEntryCheckout(
         entry_id,
         handler_id,
         entry_fee_cents,
+        junior_fee_declared,
         jump_height,
         special_requests,
         dog:dogs(call_name),
@@ -488,7 +493,7 @@ async function handleEntryCheckout(
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
     .select(
-      `name, pre_entry_fee, day_of_show_fee, start_date, status,
+      `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date, status,
         entry_open_date, entry_close_date, club_id`
     )
     .eq('id', cart.show_id)
@@ -627,25 +632,41 @@ async function handleEntryCheckout(
   }
 
   const nowIso = new Date().toISOString();
-  const itemsWithAuthoritativeFee = (
-    cart.items as {
-      id: string;
-      entry_fee_cents: number;
-      class?: { entry_fee?: number | string | null };
-    }[]
-  ).map(item => ({
-    item,
-    authoritativeCents: authoritativeEntryFeeCents({
-      showPreEntryFee: showFees.pre_entry_fee,
-      showDayOfShowFee: showFees.day_of_show_fee,
-      showStartDate: showFees.start_date,
-      classEntryFee: item.class?.entry_fee ?? null,
-      nowIso,
-    }),
+  type PricedCartItem = {
+    id: string;
+    dog_id: string;
+    class_id: string;
+    entry_id: string | null;
+    entry_fee_cents: number;
+    junior_fee_declared: boolean | null;
+    class?: { entry_fee?: number | string | null };
+  };
+  const pricingItems = (cart.items as PricedCartItem[]).map(item => ({
+    ...item,
+    class_entry_fee: item.class?.entry_fee ?? null,
   }));
-  const driftedItems = itemsWithAuthoritativeFee.filter(
-    x => x.item.entry_fee_cents !== x.authoritativeCents
+  // MYK9-879: a Finish Payment line's junior fee was fixed when its entry was
+  // created, so read the stored record; a new line carries the exhibitor's
+  // declaration. Nothing here derives junior status. Fails closed: pricing
+  // without the record would charge the normal fee for a junior entry.
+  const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
+    supabase,
+    pricingItems
   );
+  if (storedJuniorError) {
+    console.error(`Stored junior fee read failed for cart ${cart_id}:`, storedJuniorError);
+    return corsResponse(
+      corsHeaders,
+      { error: 'Could not confirm the entry fees for your cart. Please try again.' },
+      500
+    );
+  }
+  const authoritativeByItem = priceCartItems(showFees, pricingItems, storedJunior, nowIso);
+  const itemsWithAuthoritativeFee = pricingItems.map(item => ({
+    item,
+    authoritativeCents: authoritativeByItem.get(item.id) ?? 0,
+  }));
+  const driftedItems = findDriftedCartItems(pricingItems, authoritativeByItem);
   if (driftedItems.length > 0) {
     console.error(
       `Cart ${cart_id}: ${driftedItems.length}/${cart.items.length} item fees differ from ` +
@@ -687,16 +708,17 @@ async function handleEntryCheckout(
     );
   }
 
-  // Build line items for Stripe
+  // Build line items for Stripe. The amount is the AUTHORITATIVE price (the drift
+  // gate above already proved every stored line equals it), never a client value.
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
-      entry_fee_cents: number;
+      id: string;
       dog?: { call_name?: string };
       class?: { name?: string; trial?: { show?: { name?: string } } };
     }) => ({
       price_data: {
         currency: 'usd',
-        unit_amount: item.entry_fee_cents,
+        unit_amount: authoritativeByItem.get(item.id) ?? 0,
         product_data: {
           name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
           description: item.class?.trial?.show?.name || 'Show Entry',
@@ -712,10 +734,7 @@ async function handleEntryCheckout(
 
   // Calculate platform fee (if applicable). Item fees are verified equal to
   // the authoritative pricing above, so summing them is summing the authority.
-  const subtotal = cart.items.reduce(
-    (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
-    0
-  );
+  const subtotal = itemsWithAuthoritativeFee.reduce((sum, x) => sum + x.authoritativeCents, 0);
   const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeeRates);
 
   // Add platform fee as line item if > 0

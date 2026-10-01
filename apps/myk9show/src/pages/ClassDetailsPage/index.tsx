@@ -42,8 +42,8 @@ import {
   LoadingClassState,
 } from './ClassStates';
 import { DeleteClassDialog } from './DeleteClassDialog';
-import { EditEntryDialog } from './EditEntryDialog';
-import { DeleteEntryDialog } from './DeleteEntryDialog';
+import type { ShowEntry } from './types';
+import { RemoveEntryDialog } from '@/components/entries/RemoveEntryDialog';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
@@ -150,6 +150,22 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openDeleteEntryDialog(entryId);
   };
 
+  const entryToRemove = dialogs.entryToDelete
+    ? (localRawEntries.find(e => (e as ShowEntry).id === dialogs.entryToDelete) as
+        ShowEntry | undefined)
+    : undefined;
+  const removeDog = entryToRemove && dogs.find(d => d.id === entryToRemove.dogId);
+  const entryToRemoveView = entryToRemove && {
+    dogName: removeDog?.callName || removeDog?.name || 'Unknown Dog',
+    handler: entryToRemove.registrationData?.handler || undefined,
+    armband: entryToRemove.registrationData?.armband || undefined,
+    hasResults: Boolean(
+      entryToRemove.competitionData?.time ||
+      entryToRemove.competitionData?.score ||
+      entryToRemove.competitionData?.placement
+    ),
+  };
+
   const handleConfirmDeleteEntry = async () => {
     if (dialogs.entryToDelete) {
       try {
@@ -207,25 +223,6 @@ const ClassDetailsPage: React.FC = () => {
       }
     }
     dialogs.closeEditClassPanel();
-  };
-
-  const handleSaveEntryEdit = async (data: Record<string, unknown>) => {
-    if (dialogs.editEntryId && Object.keys(data).length > 0) {
-      try {
-        const { updateEntry } = useEntryStore.getState();
-        await updateEntry(dialogs.editEntryId, data, user?.id || 'unknown');
-        toast.success('Entry updated successfully');
-      } catch (error) {
-        logger.error(
-          'Failed to update entry',
-          'classes',
-          { editEntryId: dialogs.editEntryId },
-          error as Error
-        );
-        toast.error('Failed to update entry');
-      }
-    }
-    dialogs.closeEditEntryDialog();
   };
 
   // Breadcrumbs
@@ -450,21 +447,14 @@ const ClassDetailsPage: React.FC = () => {
           </>
         )}
 
-        <EditEntryDialog
-          open={dialogs.editEntryDialogOpen}
-          onOpenChange={dialogs.setEditEntryDialogOpen}
-          entryId={dialogs.editEntryId}
-          rawEntries={localRawEntries}
-          dogs={dogs}
-          onSave={handleSaveEntryEdit}
-        />
-
-        <DeleteEntryDialog
+        <RemoveEntryDialog
           open={dialogs.deleteEntryDialogOpen}
           onOpenChange={dialogs.setDeleteEntryDialogOpen}
-          entryId={dialogs.entryToDelete}
-          rawEntries={localRawEntries}
-          dogs={dogs}
+          dogName={entryToRemoveView?.dogName}
+          className={currentClass ? formatClassTitle(currentClass) || undefined : undefined}
+          handler={entryToRemoveView?.handler ?? 'Unknown'}
+          armband={entryToRemoveView?.armband ?? 'N/A'}
+          hasResults={entryToRemoveView?.hasResults}
           onConfirm={handleConfirmDeleteEntry}
         />
 

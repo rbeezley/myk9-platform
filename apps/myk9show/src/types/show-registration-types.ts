@@ -210,6 +210,8 @@ export interface RegistrationFormData {
         handlerAssignments: Record<string, HandlerInfo>;
         paymentStatus: PaymentStatus;
         entryStatus: EntryStatus;
+        /** MYK9-879: dogs whose handler the exhibitor declared a junior. */
+        juniorHandlerDogIds?: string[] | undefined;
       }
     | undefined;
 }

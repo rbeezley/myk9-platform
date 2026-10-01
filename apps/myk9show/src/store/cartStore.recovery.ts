@@ -35,7 +35,7 @@ const parseFeeDollars = (value: number | string | null): number | null => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
+const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
   const preEntryFee = parseFeeDollars(entry.show_pre_entry_fee);
   const dayOfShowFee = parseFeeDollars(entry.show_day_of_show_fee);
   const showStartDate = entry.show_start_date?.slice(0, 10);
@@ -47,6 +47,20 @@ const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
 
   return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+};
+
+/**
+ * A Finish Payment line settles an entry whose fee was FROZEN at creation, so the
+ * line is quoted at that stored `entry_fee` (MYK9-879): a later change to the
+ * show's fees or junior tier never re-prices it, and a junior or desk-discounted
+ * entry comes back at the amount it was created at. Only a row with no positive
+ * stored fee (a zero move-up destination, a NULL) falls back to the tiers, the
+ * same rule `stripe-checkout` applies.
+ */
+export const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
+  const frozen = parseFeeDollars(entry.entry_fee);
+  if (frozen != null && frozen > 0) return Math.round(frozen * 100);
+  return getNormalEntryFeeCents(entry);
 };
 
 export const findRecoverableEntries = async ({

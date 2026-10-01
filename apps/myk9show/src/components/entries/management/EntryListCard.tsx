@@ -9,16 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { RemoveEntryDialog } from '../RemoveEntryDialog';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { getStatusDescriptor } from '@/components/status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -63,6 +54,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   showCheckInStatus = true,
   matchingEntryIds,
   emailStatusMap,
+  juniorDeclaredEntryIds,
   onResendEmail,
   isResendDisabled,
   hidePaymentBadge,
@@ -191,6 +183,17 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             <span>
               Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
             </span>
+
+            {/* MYK9-879: the exhibitor declared the handler a junior at checkout and
+                was charged the junior fee. Shown so the secretary can check it. The
+                declaration lives on the entry that was PAID, so after a move-up it is
+                read through the money root, exactly like the fee beside it. */}
+            {(juniorDeclaredEntryIds?.has(entry.moneyRootEntryId ?? entry.id) ||
+              juniorDeclaredEntryIds?.has(entry.id)) && (
+              <Badge variant="outline" className="border-info text-info">
+                Junior fee (declared)
+              </Badge>
+            )}
 
             {/* MYK9-639: this run was moved up and the entry holding its money
                 is not in this read, so the fee above is the destination's own
@@ -450,30 +453,13 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         entry={requestPaymentDialog.entry}
         onRequested={() => onPaymentRequested?.()}
       />
-      <AlertDialog
+      <RemoveEntryDialog
         open={removeDialog.open}
         onOpenChange={open => !open && setRemoveDialog({ open: false, entry: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove entry?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes {removeDialog.entry?.dogName ?? 'this dog'} from{' '}
-              {removeDialog.entry?.classes[0]?.name ?? 'this class'}. Use this for mistaken or
-              duplicate entries; use Pulled or Withdrawn when the entry should stay in records.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirmRemoveEntry}
-            >
-              Remove Entry
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        dogName={removeDialog.entry?.dogName}
+        className={removeDialog.entry?.classes[0]?.name}
+        onConfirm={confirmRemoveEntry}
+      />
     </TooltipProvider>
   );
 };

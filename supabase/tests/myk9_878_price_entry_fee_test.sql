@@ -175,10 +175,11 @@ begin
 end;
 $$;
 
--- pg_temp.price(show, class, day_of_show, override) -> 'fee|applied'
+-- pg_temp.price(show, class, day_of_show, override) -> 'fee|applied', the fee at a FIXED scale
+-- (the real fee columns are numeric(10,2) and render '30.00'; the junior fee is bare numeric).
 create function pg_temp.price(p_show uuid, p_class uuid, p_day boolean, p_override boolean)
 returns text language sql as $$
-  select fee::text || '|' || junior_fee_applied::text
+  select fee::numeric(10,2)::text || '|' || junior_fee_applied::text
     from private.price_entry_fee(p_show, p_class, p_day, p_override);
 $$;
 
@@ -191,41 +192,41 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000878106');
 -- ---------------------------------------------------------------------------
 select pg_temp.expect('no override: the normal (pre-entry) fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, false),
-  '30|false');
+  '30.00|false');
 select pg_temp.expect('no override on show day: the day-of fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', true, false),
-  '45|false');
+  '45.00|false');
 select pg_temp.expect('no override on an ASCA show: the normal fee',
   pg_temp.price('00000000-0000-0000-0000-000000878102', '00000000-0000-0000-0000-000000878321', false, false),
-  '30|false');
+  '30.00|false');
 select pg_temp.expect('no override on a no-junior-fee show: the normal fee',
   pg_temp.price('00000000-0000-0000-0000-000000878103', '00000000-0000-0000-0000-000000878331', false, false),
-  '30|false');
+  '30.00|false');
 select pg_temp.expect('secretary override: the junior fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, true),
-  '15|true');
+  '15.00|true');
 select pg_temp.expect('secretary override on show day: still the junior fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', true, true),
-  '15|true');
+  '15.00|true');
 select pg_temp.expect('secretary override on an ASCA show with a junior fee still applies',
   pg_temp.price('00000000-0000-0000-0000-000000878102', '00000000-0000-0000-0000-000000878321', false, true),
-  '15|true');
+  '15.00|true');
 select pg_temp.expect('override on a show with no junior fee charges the normal fee',
   pg_temp.price('00000000-0000-0000-0000-000000878103', '00000000-0000-0000-0000-000000878331', false, true),
-  '30|false');
+  '30.00|false');
 
 -- A junior fee of 0 means "no junior tier" (slice A's convention).
 update public.shows set junior_handler_fee = 0 where id = '00000000-0000-0000-0000-000000878101';
 select pg_temp.expect('a zero junior fee is no tier: the normal fee even on override',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, true),
-  '30|false');
+  '30.00|false');
 update public.shows set junior_handler_fee = 15 where id = '00000000-0000-0000-0000-000000878101';
 
 -- A junior tier ABOVE the regular fee never exceeds it: regular 10, junior 15 => 10.
 update public.shows set pre_entry_fee = 10 where id = '00000000-0000-0000-0000-000000878101';
 select pg_temp.expect('junior tier above the regular fee is capped at the regular fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, true),
-  '10|true');
+  '10.00|true');
 update public.shows set pre_entry_fee = 30 where id = '00000000-0000-0000-0000-000000878101';
 
 -- ORACLE-NEGATIVE: the same call, with the trial moved across dates that flip every
@@ -233,15 +234,15 @@ update public.shows set pre_entry_fee = 30 where id = '00000000-0000-0000-0000-0
 -- no handler input, and the trial date is not read.)
 select pg_temp.expect('trial date 2026: no-override fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, false),
-  '30|false');
+  '30.00|false');
 update public.trials set date = date '2040-10-10' where id = '00000000-0000-0000-0000-000000878201';
 select pg_temp.expect('trial date 2040 (every junior is an adult): the same fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, false),
-  '30|false');
+  '30.00|false');
 update public.trials set date = date '2012-10-10' where id = '00000000-0000-0000-0000-000000878201';
 select pg_temp.expect('trial date 2012 (the "adult" is a child): the same fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, false),
-  '30|false');
+  '30.00|false');
 update public.trials set date = date '2026-10-10' where id = '00000000-0000-0000-0000-000000878201';
 
 -- Override refused for anyone who is not the show secretary or a site admin,
@@ -264,7 +265,7 @@ begin
 end $$;
 select pg_temp.expect('the same non-secretary prices normally without an override',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, false),
-  '30|false');
+  '30.00|false');
 select pg_temp.as_user('00000000-0000-0000-0000-000000878106');
 
 -- ---------------------------------------------------------------------------

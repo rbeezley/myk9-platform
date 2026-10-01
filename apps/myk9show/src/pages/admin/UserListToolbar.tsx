@@ -130,17 +130,12 @@ export function UserListToolbar<T extends User>({
           views,
           activeViewId,
           fields,
-          // Status and Last sign-in have no field since MYK9-906; a value no view
-          // matches (a stale link) must still be named so Show all explains it.
-          extra:
-            activeViewId === null
-              ? [
-                  ...(filters.status !== 'all' ? [`Status: ${filters.status}`] : []),
-                  ...(filters.login !== 'all'
-                    ? [`Last sign-in: ${LOGIN_LABELS[filters.login]}`]
-                    : []),
-                ]
-              : [],
+          // Status and Last sign-in are the view state (no field since
+          // MYK9-906); a combination no preset matches names each one applied.
+          viewCriteria: [
+            ...(filters.status !== 'all' ? [`Status: ${filters.status}`] : []),
+            ...(filters.login !== 'all' ? [`Last sign-in: ${LOGIN_LABELS[filters.login]}`] : []),
+          ],
         })}
         onShowAll={onClearAll}
         selectAll={{ selectedCount, onSelectAll: onSelectAllMatching }}

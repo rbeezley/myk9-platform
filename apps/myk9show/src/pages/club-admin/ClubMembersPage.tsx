@@ -585,6 +585,7 @@ const ClubMembersPage: React.FC = () => {
                     search: searchQuery,
                     views: memberViews,
                     activeViewId: memberStatus,
+                    viewCriteria: memberStatus === 'all' ? [] : [`Status: ${memberStatus}`],
                   })}
                   // One URL update: two setters would each clone the same snapshot.
                   onShowAll={() => patchSearchParams(setSearchParams, { status: null, q: null })}

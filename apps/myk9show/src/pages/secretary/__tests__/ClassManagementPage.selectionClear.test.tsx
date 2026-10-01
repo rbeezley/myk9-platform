@@ -102,4 +102,14 @@ describe('ClassManagementPage selection clearing on view-identity change', () =>
 
     expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
   });
+
+  it('names the lifecycle status when a search makes the view Custom, and Show all clears it', async () => {
+    const { user } = renderPage('/trials/t1/classes?status=in_progress&search=zzz');
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /\(Status: In progress, matching \u201czzz\u201d\)/
+    );
+    await user.click(screen.getByRole('button', { name: 'Show all classes' }));
+    expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
+  });
 });

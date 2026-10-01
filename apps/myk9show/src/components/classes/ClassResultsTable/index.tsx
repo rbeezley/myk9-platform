@@ -294,6 +294,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 views: scoringViews,
                 activeViewId: scoringTab,
                 defaultViewId: 'all',
+                viewCriteria: [],
               })}
               onShowAll={() => {
                 setScoringTab('all');

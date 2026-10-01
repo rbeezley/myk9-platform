@@ -126,6 +126,7 @@ export function TasksTab({ clubId }: TasksTabProps) {
             views,
             activeViewId: showCompleted ? 'all' : 'open',
             defaultViewId: 'all',
+            viewCriteria: [],
           })}
           onShowAll={() => {
             setSearch('');

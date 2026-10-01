@@ -77,6 +77,7 @@ export function EntryManagementViewToolbar({
         views,
         activeViewId: activeId,
         defaultViewId: 'all',
+        viewCriteria: [],
         fields: filterFields,
       });
 

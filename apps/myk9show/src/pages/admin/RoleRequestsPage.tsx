@@ -358,6 +358,7 @@ export default function RoleRequestsPage() {
           views,
           activeViewId: filter,
           defaultViewId: 'all',
+          viewCriteria: filter === 'all' ? [] : [`Status: ${filter}`],
         })}
         // One URL update: two setters would each clone the same snapshot.
         onShowAll={() => patchSearchParams(setSearchParams, { status: 'all', q: null })}

@@ -146,4 +146,14 @@ describe('ClubMembersPage list toolkit', () => {
     await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent(/^$/));
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
   });
+
+  it('names a status no preset offers (a stale link) instead of filtering silently', async () => {
+    render(<ClubMembersPage />, { initialRoute: '/?status=bogus' });
+    await screen.findByRole('combobox', { name: 'Show: Member views' });
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
+        'Showing 0 of 2 members (Status: bogus).'
+      )
+    );
+  });
 });

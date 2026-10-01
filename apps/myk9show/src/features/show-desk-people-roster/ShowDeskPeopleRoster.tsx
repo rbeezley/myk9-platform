@@ -225,7 +225,7 @@ export function ShowDeskPeopleRoster({
         total={roster.length}
         noun={EXHIBITOR_NOUN}
         filtered={isFiltered}
-        filterSummary={summarizeFilters({ search, views, activeViewId: view })}
+        filterSummary={summarizeFilters({ search, views, activeViewId: view, viewCriteria: [] })}
         onShowAll={() => {
           setView('all');
           setSearch('');

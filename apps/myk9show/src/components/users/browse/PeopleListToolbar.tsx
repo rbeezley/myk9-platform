@@ -68,15 +68,12 @@ export function PeopleListToolbar({
           search: filters.search,
           views,
           activeViewId,
-          // Role and login have no field; a combination no view matches (a stale
-          // link) must still be named so Show all explains it.
-          extra:
-            activeViewId === null
-              ? [
-                  ...(filters.role !== 'all' ? [`Role: ${filters.role}`] : []),
-                  ...(filters.login === 'none' ? ['No login'] : []),
-                ]
-              : [],
+          // Role and login are the view state; a combination no preset matches
+          // names each one that is applied.
+          viewCriteria: [
+            ...(filters.role !== 'all' ? [`Role: ${filters.role}`] : []),
+            ...(filters.login === 'none' ? ['No login'] : []),
+          ],
         })}
         onShowAll={onClearAll}
       >

@@ -73,13 +73,13 @@ describe('PeopleListToolbar', () => {
     renderToolbar({
       matchCount: 0,
       hasActiveFilters: true,
-      filters: { ...DEFAULT_PEOPLE_FILTERS, role: 'judge', login: 'none' },
+      filters: { ...DEFAULT_PEOPLE_FILTERS, role: 'judge', login: 'none', search: 'ada' },
     });
     expect(screen.getByRole('combobox', { name: 'Show: People views' })).toHaveTextContent(
       'Custom'
     );
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 0 of 2 people (Role: judge, No login).'
+      'Showing 0 of 2 people (Role: judge, No login, matching \u201cada\u201d).'
     );
   });
 

@@ -300,7 +300,7 @@ function setupMocks(options: {
     setFilters: vi.fn(),
     filteredShows: shows,
     monthScopedShows: shows,
-    hasActiveFilters: false,
+    hasActiveFilters: filters.status !== 'all',
     clearAllFilters: vi.fn(),
     activeFilterCount: 0,
   });
@@ -895,6 +895,60 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         'Cancelled (1)'
       );
       expect(within(listbox).getByRole('option', { name: /^All/ }).textContent).toBe('All (4)');
+    });
+    it('names an unknown ?status= as a custom view instead of filtering silently', async () => {
+      const secretary: UserWithRoles = {
+        ...createMockUser(UserRole.SECRETARY, 'secretary-1'),
+        // managedClubIds() reads scopes (not isAdmin, which this file's
+        // useAuthContext mock hardcodes false) to decide which clubs'
+        // shows filterManagedShows keeps.
+        scopes: [
+          {
+            userId: 'secretary-1',
+            roleId: UserRole.SECRETARY,
+            scopeType: ScopeType.CLUB,
+            scopeId: 'club-1',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      const managingShows: Show[] = [
+        { ...mockShows[0], id: 'draft-1', clubId: 'club-1', status: 'bogus' },
+        { ...mockShows[0], id: 'completed-1', clubId: 'club-1', status: 'completed' },
+        { ...mockShows[0], id: 'completed-2', clubId: 'club-1', status: 'completed' },
+        { ...mockShows[0], id: 'cancelled-1', clubId: 'club-1', status: 'cancelled' },
+      ];
+
+      setupMocks({
+        user: secretary,
+        // `shows` is the RAW list `tabShows` is computed from — untouched by
+        // any filter. `enhancedShows` simulates what the real app's data hook
+        // actually hands the page once `filters.status: 'draft'` is already
+        // selected: `filteredShows` → `filteredShowsState` → `useBrowseShowsData`
+        // narrows it to just the draft show before this page ever sees it.
+        // Building view counts from that (the bug) can only ever see 'draft-1'.
+        shows: managingShows,
+        enhancedShows: [
+          {
+            ...managingShows[0],
+            relationship: ['managing'],
+            userCanManage: true,
+            userIsJudging: false,
+            userHasEntries: false,
+          },
+        ],
+        managedShowIds: managingShows.map(s => s.id),
+        // Simulates a view already selected — the exact state that used to
+        // zero out every other view's count.
+        filters: { ...defaultFilters, status: 'bogus' },
+      });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+
+      expect(await screen.findByRole('combobox', { name: 'Show: Show views' })).toHaveTextContent(
+        'Custom'
+      );
+      expect(screen.getByRole('status')).toHaveTextContent('(Status: bogus)');
     });
   });
 });

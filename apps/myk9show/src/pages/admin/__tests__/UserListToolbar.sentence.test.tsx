@@ -13,7 +13,7 @@ function renderToolbar(filters = DEFAULT_USER_FILTER, hasActiveFilters = false) 
       users={USERS}
       now={Date.UTC(2026, 6, 1)}
       matchCount={0}
-      searchTerm=""
+      searchTerm="ada"
       onSearchChange={vi.fn()}
       filters={filters}
       onFiltersChange={vi.fn()}
@@ -33,7 +33,7 @@ describe('UserListToolbar status sentence (MYK9-906)', () => {
       true
     );
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 0 of 2 users (Status: suspended, Last sign-in: never).'
+      'Showing 0 of 2 users (Status: suspended, Last sign-in: never, matching \u201cada\u201d).'
     );
     await user.click(screen.getByRole('button', { name: 'Show all users' }));
     expect(onClearAll).toHaveBeenCalledOnce();

@@ -333,6 +333,13 @@ export const ClassManagementPage: React.FC = () => {
               search: searchTerm,
               views: classViews,
               activeViewId,
+              // Status is the view state; element is the field and search the box.
+              viewCriteria:
+                statusFilter === 'all'
+                  ? []
+                  : [
+                      `Status: ${classViews.find(v => v.id === statusFilter)?.label ?? statusFilter}`,
+                    ],
               fields: [elementField],
             })}
             onShowAll={clearFilters}

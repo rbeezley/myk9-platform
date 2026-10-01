@@ -227,6 +227,7 @@ export default function VolunteerSchedulingPage() {
             search,
             views,
             activeViewId: unfilledOnly ? 'unfilled' : 'all',
+            viewCriteria: [],
             fields: [trialField],
           })}
           onShowAll={() => {

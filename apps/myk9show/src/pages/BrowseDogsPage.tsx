@@ -360,6 +360,7 @@ const BrowseDogsPage: React.FC = () => {
                 search: filters.search,
                 views: dogViews,
                 activeViewId,
+                viewCriteria: filters.status === 'all' ? [] : [`Status: ${filters.status}`],
               })}
               onShowAll={handleClearAllFilters}
             />

@@ -61,7 +61,7 @@ import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/brows
 import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
 import { getDefaultViewMode, SHOWS_OFFLINE, SHOWS_UNAVAILABLE } from './browseShowsPage.helpers';
 import { buildShowBrowseFilterFields } from './showBrowseFilterFields';
-import { activeManagingViewId, buildManagingViews, managingViewFilters } from './showManagingViews';
+import { buildManagingViews, managingViewFilters } from './showManagingViews';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -207,6 +207,31 @@ const BrowseShowsPage: React.FC = () => {
     () => buildManagingViews(managingTabShows, entries),
     [managingTabShows, entries]
   );
+
+  // Applied by the filter hook but in neither a field nor the view state: the
+  // month scrubber, a stale ?organization= link, and ?status= on tabs without
+  // the managing views.
+  // An unknown ?status= matches no view (and shows nothing), so it is Custom.
+  const activeManagingId = managingViews.some(view => view.id === filters.status)
+    ? filters.status
+    : null;
+  const showsSummaryBase = {
+    search: filters.search,
+    fields: filterFields,
+    extra: [
+      ...(filters.month !== ALL_MONTHS_KEY ? [`Month: ${filters.month}`] : []),
+      ...(filters.organization !== 'all' ? [`Registry: ${filters.organization}`] : []),
+      ...(!isManagingTab && filters.status !== 'all' ? [`Status: ${filters.status}`] : []),
+    ],
+  };
+  const showsSummary = isManagingTab
+    ? summarizeFilters({
+        ...showsSummaryBase,
+        views: managingViews,
+        activeViewId: activeManagingId,
+        viewCriteria: filters.status === 'all' ? [] : [`Status: ${filters.status}`],
+      })
+    : summarizeFilters(showsSummaryBase);
 
   const handleBulkComplete = useCallback(() => {
     bulkSelection.clearSelection();
@@ -477,7 +502,7 @@ const BrowseShowsPage: React.FC = () => {
               <ListViewTabs
                 label="Show views"
                 views={managingViews}
-                activeId={activeManagingViewId(filters.status)}
+                activeId={activeManagingId}
                 onSelect={id => setFilters(prev => ({ ...prev, status: managingViewFilters(id) }))}
               />
             )}
@@ -502,23 +527,7 @@ const BrowseShowsPage: React.FC = () => {
               total={tabShows.length}
               noun={['show', 'shows']}
               filtered={hasActiveFilters}
-              filterSummary={summarizeFilters({
-                search: filters.search,
-                fields: filterFields,
-                // Applied by the filter hook but shown by no field: the month
-                // scrubber below, a stale ?organization= link, and ?status= on
-                // tabs without the managing views.
-                extra: [
-                  ...(filters.month !== ALL_MONTHS_KEY ? [`Month: ${filters.month}`] : []),
-                  ...(filters.organization !== 'all' ? [`Registry: ${filters.organization}`] : []),
-                  ...(!isManagingTab && filters.status !== 'all'
-                    ? [`Status: ${filters.status}`]
-                    : []),
-                ],
-                ...(isManagingTab
-                  ? { views: managingViews, activeViewId: activeManagingViewId(filters.status) }
-                  : {}),
-              })}
+              filterSummary={showsSummary}
               onShowAll={clearAllFilters}
               {...(isManagingTab
                 ? {

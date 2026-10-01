@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
 import { type ClassStatusValue } from '@myk9/core';
@@ -29,11 +30,13 @@ interface ClassCardProps {
   hideRing?: boolean;
   liveData?: LiveData;
   onClick?: () => void;
+  /** Row actions menu (Setup: Edit / Delete); sits beside the status badge. */
+  actions?: ReactNode;
 }
 
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
-export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardProps) {
+export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: ClassCardProps) {
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
     isLive && liveData.totalEntries > 0
@@ -67,12 +70,15 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
             {shouldShowSection(classInfo) && <span className="ml-1">{classInfo.section}</span>}
           </p>
         </div>
-        <StatusBadge
-          family="class"
-          status={classInfo.status}
-          className="px-2 py-0.5 rounded text-xs font-medium shrink-0"
-          variant="outline"
-        />
+        <div className="flex shrink-0 items-center gap-1">
+          <StatusBadge
+            family="class"
+            status={classInfo.status}
+            className="px-2 py-0.5 rounded text-xs font-medium shrink-0"
+            variant="outline"
+          />
+          {actions}
+        </div>
       </div>
 
       {/* Judge */}

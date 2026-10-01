@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,20 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ListViewTabs } from '@/components/list-toolkit';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { useRBAC } from '@/hooks/useRBAC';
 import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
+import { toast } from 'sonner';
+import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
+import { replicatedTrialsTable } from '@/services/replication';
+import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
+import type { SyncableTrial } from '@/store/trial-store-types';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 import {
   activeTrialsTabViewId,
   buildTrialsTabViews,
@@ -66,7 +74,9 @@ interface TrialRow {
   hasStarted?: boolean;
 }
 
-const trialColumns: ColumnDef<TrialRow, unknown>[] = [
+const EMPTY_ENTRY_COUNTS = new Map<string, number>();
+
+const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
   {
     accessorKey: 'trialDate',
     header: 'Date',
@@ -114,11 +124,90 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
 
 export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const navigate = useNavigate();
-  const { hasPermission } = useRBAC();
 
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
-  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
+  // club, the scope the show shell's Edit show button uses. The global permission is not
+  // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
+  // read as no.
+  const canManageThisShow = useShowManageScope(showId).canManage;
+  // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
+  // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
+  // the store while the dialog is still finishing, and the dialog must not vanish or re-resolve
+  // underneath itself.
+  const [pendingTrialAction, setPendingTrialAction] = useState<{
+    trial: SyncableTrial;
+    action: 'edit' | 'delete';
+    /** The request that started this action; a stale completion must not clear a newer one. */
+    requestId: number;
+  } | null>(null);
+  const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
+  // The edit/delete actions write through the trial STORE, which is not always the source of
+  // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
+  // never open a dialog for a trial the store cannot resolve.
+  const [hydratingTrialId, setHydratingTrialId] = useState<string | null>(null);
+  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
+  // from the latest request is ignored.
+  const latestActionRequest = useRef(0);
+  const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
+    const request = ++latestActionRequest.current;
+    setHydratingTrialId(trialId);
+    try {
+      // The store first; if the trial is not there, sync this show's trials into the replica and
+      // reload the store (offline or a failed sync falls through to the error below).
+      const trial = await hydrateThenResolve({
+        readStore: () => useTrialStore.getState().trials.find(t => t.id === trialId),
+        sync: () => replicatedTrialsTable.sync(showId, { forceFullSync: true }),
+        reload: () => useTrialStore.getState().loadTrials(),
+      });
+      if (request !== latestActionRequest.current) return;
+      if (!trial) {
+        toast.error("We couldn't load this trial. Please refresh and try again.");
+        return;
+      }
+      setPendingTrialAction({ trial, action, requestId: request });
+    } catch {
+      // Any unexpected failure reads the same as "not found": say so, never fail silently.
+      if (request === latestActionRequest.current) {
+        toast.error("We couldn't load this trial. Please refresh and try again.");
+      }
+    } finally {
+      if (request === latestActionRequest.current) setHydratingTrialId(null);
+    }
+  };
+  // Tied to the request that started the action: a late completion from an earlier one must not
+  // clear a newer selection (and discard its edits).
+  const finishTrialAction = (requestId: number) =>
+    setPendingTrialAction(current => (current?.requestId === requestId ? null : current));
+  const trialRowMenu = (trialId: string, label: string) => (
+    <SetupRowActionsMenu
+      subject="Trial"
+      rowLabel={label}
+      busy={hydratingTrialId === trialId}
+      locked={hydratingTrialId !== null || pendingTrialAction !== null}
+      onEdit={() => void openTrialAction(trialId, 'edit')}
+      onDelete={() => void openTrialAction(trialId, 'delete')}
+    />
+  );
+  const trialColumns = useMemo<ColumnDef<TrialRow, unknown>[]>(
+    () =>
+      canManageThisShow
+        ? [
+            ...baseTrialColumns,
+            {
+              id: 'actions',
+              header: () => <span className="sr-only">Actions</span>,
+              enableSorting: false,
+              enableHiding: false,
+              meta: { interactive: true, exportDisabled: true },
+              cell: ({ row }) => trialRowMenu(row.original.id, row.original.name),
+            },
+          ]
+        : baseTrialColumns,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
+    [canManageThisShow, hydratingTrialId, pendingTrialAction]
+  );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
 
@@ -159,7 +248,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         )}
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManage && (
+          {canManageThisShow && (
             <Button size="sm" onClick={openWizard} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Add Trial
@@ -173,7 +262,9 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           icon={Calendar}
           title="No Trials"
           description="No trials have been created for this show yet."
-          action={canManage ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null}
+          action={
+            canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null
+          }
         />
       ) : filteredTrials.length === 0 && trials.length > 0 ? (
         <EmptyState
@@ -193,6 +284,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredTrials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
+            const trialLabel = formatTrialLabel({
+              name: trial.name,
+              trialNumber: trial.trialNumber,
+            });
             const stats = trialStats[trial.id] || EMPTY_STATS;
             const trialCompositeStatus = deriveTrialStatusKey({
               trialStatus: trial.status,
@@ -241,7 +336,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                       {/* Row 1: Name + status badge */}
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-semibold text-card-foreground truncate">
-                          {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
+                          {trialLabel}
                         </h3>
                         <StatusBadge
                           family="trial"
@@ -249,6 +344,11 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           className="shrink-0 text-xs"
                           variant="outline"
                         />
+                        {canManageThisShow && (
+                          <div className="ml-auto -my-2 -mr-2">
+                            {trialRowMenu(trial.id, trialLabel)}
+                          </div>
+                        )}
                       </div>
 
                       {/* Row 2: Type + time */}
@@ -299,6 +399,19 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           columns={trialColumns}
           data={tableData}
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
+        />
+      )}
+      {canManageThisShow && pendingTrialAction && (
+        // Mounted per selection with the trial and action together (and keyed by trial), so the
+        // edit form initializes from THIS trial rather than opening against a late-arriving one.
+        <TrialManagementDialogs
+          key={pendingTrialAction.requestId}
+          currentTrial={pendingTrialAction.trial}
+          parentShow={parentShow}
+          entryCountByClass={EMPTY_ENTRY_COUNTS}
+          initialAction={pendingTrialAction.action}
+          onActionFinished={() => finishTrialAction(pendingTrialAction.requestId)}
+          onTrialDeleted={() => finishTrialAction(pendingTrialAction.requestId)}
         />
       )}
     </div>

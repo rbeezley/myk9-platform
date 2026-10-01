@@ -194,7 +194,7 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
                 // Status + delete resolve from the SAME shared catalog
                 // the bulk bar uses (toRowActions), so row and bulk
                 // eligibility/handlers can't diverge. Row delete keeps
-                // its confirm() via handleDelete.
+                // its confirmation dialog via handleDelete.
                 ...toRowActions(
                   { id: cls.id, name: cls.name, status: cls.status },
                   { onStatusChange, onDelete },

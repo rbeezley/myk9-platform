@@ -10,11 +10,6 @@ import { toast } from 'sonner';
 import { formatTrialLabel } from '@myk9/core';
 import { ClipboardList, LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
-import { upsertClassJudgeAssignment } from '@/services/database/judges';
-import { replicatedClassesTable } from '@/services/replication';
-import { useTrialStore } from '@/store/trialStore';
-import { queryClient } from '@/lib/queryClient';
-import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
@@ -32,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { useClassReleasedResults } from '@/hooks/queries/useClassReleasedResults';
+import { useClassEditActions } from '@/hooks/useClassEditActions';
 import { useClassDetailsData } from './useClassDetailsData';
 import { useClassDetailsDialogs } from './useClassDetailsDialogs';
 import {
@@ -85,6 +81,12 @@ const ClassDetailsPage: React.FC = () => {
     deleteClass,
   } = useClassDetailsData();
 
+  const { saveClass, removeClass } = useClassEditActions({
+    showId: parentShow?.id,
+    updateClass,
+    deleteClass,
+  });
+
   // Dialog state
   const dialogs = useClassDetailsDialogs();
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
@@ -124,26 +126,20 @@ const ClassDetailsPage: React.FC = () => {
   const exhibitorRawEntries = showReleasedResults ? releasedResults.rawEntries : dbRawEntries;
 
   // Handlers
+  // Rejects when the delete fails: DeleteClassDialog stays open and shows why, and we do not
+  // navigate away from a class that still exists.
   const handleConfirmDeleteClass = async () => {
-    if (classId) {
-      try {
-        await deleteClass(classId);
-        toast.success('Class deleted successfully');
-        startTransition(() => {
-          if (trialId) {
-            navigate(`/trials/${trialId}`);
-          } else if (currentClass?.trialId) {
-            navigate(`/trials/${currentClass.trialId}`);
-          } else {
-            navigate('/classes');
-          }
-        });
-      } catch (error) {
-        logger.error('Failed to delete class', 'classes', { classId }, error as Error);
-        toast.error('Failed to delete class');
+    if (!classId) return;
+    await removeClass(classId);
+    startTransition(() => {
+      if (trialId) {
+        navigate(`/trials/${trialId}`);
+      } else if (currentClass?.trialId) {
+        navigate(`/trials/${currentClass.trialId}`);
+      } else {
+        navigate('/classes');
       }
-    }
-    dialogs.closeDeleteDialog();
+    });
   };
 
   const handleDeleteEntry = (entryId: string) => {
@@ -185,44 +181,16 @@ const ClassDetailsPage: React.FC = () => {
     }
   };
 
+  // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
     if (classId && currentClass) {
-      try {
-        // Save judge assignment FIRST (with replication sync) before updateClass,
-        // so React Query's onSuccess refetch reads fresh judge data from replication cache
-        const judgeId = (data as Record<string, unknown>).judgeId as string | undefined;
-        if (judgeId !== undefined && parentShow?.id) {
-          try {
-            await upsertClassJudgeAssignment(parentShow.id, classId, judgeId);
-            // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
-            await replicatedClassesTable.sync('');
-          } catch (judgeError) {
-            logger.warn('Failed to save judge assignment', 'classes', {
-              classId,
-              error: judgeError instanceof Error ? judgeError.message : String(judgeError),
-            });
-            // Continue to class update even if judge assignment fails
-          }
-        }
-
-        // Now update class — its onSuccess invalidation will refetch fresh judge data
-        await updateClass(classId, data as Partial<ClassData>);
-
-        useTrialStore.getState().loadTrialClasses();
-        // Invalidate specific query keys for classes (safety net after fresh refetch)
-        queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-        if (currentClass?.trialId) {
-          queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentClass.trialId) });
-        }
-        queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-
-        toast.success('Class updated successfully');
-      } catch (error) {
-        logger.error('Failed to update class', 'classes', { classId }, error as Error);
-        toast.error('Failed to update class');
-      }
+      await saveClass(
+        classId,
+        data as Partial<ClassData>,
+        currentClass.trialId,
+        (currentClass as unknown as Record<string, unknown>).judgeId as string | undefined
+      );
     }
-    dialogs.closeEditClassPanel();
   };
 
   // Breadcrumbs
@@ -433,7 +401,7 @@ const ClassDetailsPage: React.FC = () => {
               onSave={async classData => {
                 if (currentClass?.id) {
                   const updatedClass = { ...currentClass, ...classData };
-                  handleSaveClassEdit(updatedClass);
+                  await handleSaveClassEdit(updatedClass);
                 }
               }}
             />

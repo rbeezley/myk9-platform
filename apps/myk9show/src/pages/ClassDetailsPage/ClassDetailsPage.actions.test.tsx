@@ -9,6 +9,7 @@ const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
 const mockUseClassDetailsDialogs = vi.hoisted(() => vi.fn());
 const mockUseAuthContext = vi.hoisted(() => vi.fn());
 
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('./useClassDetailsData', () => ({
   useClassDetailsData: mockUseClassDetailsData,
 }));

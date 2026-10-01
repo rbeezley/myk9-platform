@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
+import { useViewerOwnsDog } from '@/hooks/useViewerOwnsDog';
 import { UserRole } from '@/types/auth-types';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -36,7 +37,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
-  const isSecretary = userRole === 'secretary';
+  // MYK9-912: the narrow secretary surface is for a secretary looking at someone
+  // else's dog. A secretary who owns or co-owns the dog gets the full view.
+  const viewerOwnsDog = useViewerOwnsDog(dog);
+  const isSecretary = userRole === 'secretary' && !viewerOwnsDog;
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not

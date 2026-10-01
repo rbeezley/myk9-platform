@@ -47,6 +47,28 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="redirect-loading" />,
 }));
 
+// Controllable by-id trial query: pending until `resolve()`, then yields the trial.
+const trialQueryMock = vi.hoisted(() => ({
+  requestedIds: [] as string[],
+  resolve: undefined as (() => void) | undefined,
+}));
+vi.mock('@/hooks/queries/useTrialsDatabase', async importOriginal => {
+  const { useEffect, useState } = await import('react');
+  return {
+    ...(await importOriginal<typeof import('@/hooks/queries/useTrialsDatabase')>()),
+    useTrialQuery: (id?: string) => {
+      const [done, setDone] = useState(false);
+      useEffect(() => {
+        if (!id) return;
+        trialQueryMock.requestedIds.push(id);
+        trialQueryMock.resolve = () => setDone(true);
+      }, [id]);
+      const data = done ? { id: 'trial-1', showId: 'show-1' } : undefined;
+      return { data, isSuccess: done, isError: false, refetch: () => undefined };
+    },
+  };
+});
+
 const originalLoadTrials = useTrialStore.getState().loadTrials;
 
 function makeShow(id: string): Show {
@@ -284,37 +306,16 @@ describe('secretary show phase redirects', () => {
   });
 
   it('waits for trial hydration before falling back from a legacy class-management deep link', async () => {
-    let resolveLoadTrials: (() => void) | undefined;
-    useTrialStore.setState({
-      trials: [],
-      isLoading: false,
-      loadTrials: vi.fn(() => {
-        return new Promise<void>(resolve => {
-          resolveLoadTrials = () => {
-            useTrialStore.setState({
-              trials: [
-                fromAny({
-                  id: 'trial-1',
-                  showId: 'show-1',
-                  name: 'Saturday Trial',
-                  trialDate: '2026-03-22',
-                  status: 'Scheduled',
-                }),
-              ],
-              isLoading: false,
-            });
-            resolve();
-          };
-        });
-      }),
-    });
+    // Cold store: only the by-id query can resolve the trial.
+    useTrialStore.setState({ trials: [], isLoading: false });
 
     renderSecretaryRoutes('/trials/trial-1/classes');
 
     expect(screen.getByTestId('redirect-loading')).toBeInTheDocument();
-    await waitFor(() => expect(useTrialStore.getState().loadTrials).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('secretary-dashboard')).not.toBeInTheDocument();
+    await waitFor(() => expect(trialQueryMock.requestedIds).toContain('trial-1'));
     await act(async () => {
-      resolveLoadTrials?.();
+      trialQueryMock.resolve?.();
     });
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
       '/shows/show-1/classes/trial-1'

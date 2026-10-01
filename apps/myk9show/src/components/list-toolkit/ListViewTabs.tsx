@@ -54,7 +54,7 @@ export function ListViewTabs({ views, activeId, onSelect, label, className }: Li
       <Select value={activeId ?? CUSTOM_ID} onValueChange={handleChange}>
         <SelectTrigger
           aria-label={`Show: ${label}`}
-          className="w-auto min-w-[12rem] max-w-full"
+          className="w-auto min-w-[12rem] max-w-[calc(100vw-5rem)]"
         >
           <SelectValue />
         </SelectTrigger>

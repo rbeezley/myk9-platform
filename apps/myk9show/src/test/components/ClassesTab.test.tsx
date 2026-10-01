@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 
@@ -130,17 +131,25 @@ describe('ClassesTab', () => {
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
 
-  it('scopes to entered classes only after explicitly selecting the Mine view', () => {
+  async function pickView(name: RegExp) {
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await userEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name }));
+  }
+
+  it('scopes to entered classes only after explicitly selecting the Mine view', async () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
-    fireEvent.click(screen.getByRole('button', { name: /^Mine/ }));
+    await pickView(/^Mine/);
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getByText('Interior')).toBeInTheDocument();
     expect(screen.queryByText('Exterior')).toBeNull();
   });
 
-  it('hides the Mine view when the signed-in user has no entries in the show', () => {
+  it('hides the Mine view when the signed-in user has no entries in the show', async () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
-    expect(screen.queryByRole('button', { name: /^Mine/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    expect(
+      within(await screen.findByRole('listbox')).queryByRole('option', { name: /^Mine/ })
+    ).not.toBeInTheDocument();
   });
 
   it('shows empty state when no classes', () => {
@@ -166,13 +175,13 @@ describe('ClassesTab', () => {
     expect(screen.queryByText('Element')).not.toBeInTheDocument();
   });
 
-  it('Mine view filters in card view', () => {
+  it('Mine view filters in card view', async () => {
     mockViewMode = 'cards';
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
     expect(screen.getAllByTestId('class-card')).toHaveLength(3);
-    fireEvent.click(screen.getByRole('button', { name: /^Mine/ }));
+    await pickView(/^Mine/);
     expect(screen.getAllByTestId('class-card')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
+    await pickView(/^All/);
     expect(screen.getAllByTestId('class-card')).toHaveLength(3);
   });
 });

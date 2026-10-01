@@ -63,7 +63,7 @@ function OptionsControl({ field }: { field: ListOptionsFilterField }) {
       >
         <SelectTrigger
           aria-label={field.label}
-          className="w-auto min-w-[10rem] max-w-[min(20rem,calc(100vw-2rem))]"
+          className="w-auto min-w-[10rem] max-w-[min(20rem,calc(100vw-6.5rem))]"
         >
           <SelectValue />
         </SelectTrigger>

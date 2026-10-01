@@ -83,28 +83,24 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
   }
 };
 
-// Delete entry (soft delete)
+// Delete entry (soft delete) through soft_delete_entry: show managers only, refused
+// (MK010) when the entry is paid or scored (use Withdraw or Pull). The server stamps
+// deleted_by from auth.uid() and returns the row's new version.
 export const deleteEntry = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
+  void deletedBy;
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        deleted_at: new Date().toISOString(),
-        deleted_by: deletedBy || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('version')
-      .single();
+    const { data: version, error } = await supabase.rpc('soft_delete_entry', {
+      p_entry_id: id,
+    });
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'delete', duration, error?.message);
 
-    if (error || !data) {
+    if (error || version === null || version === undefined) {
       throw createDatabaseError(
-        error ?? new Error('Entry removal returned no row'),
+        error ?? new Error('Entry removal returned no version'),
         'entries',
         'delete'
       );
@@ -114,7 +110,7 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
     // Incremental sync therefore cannot replace the clean cached copy with a
     // tombstone. Cancel queued edits and guard racing downloads before eviction.
     try {
-      await replicatedEntriesTable.acknowledgeServerDeletion(id, data.version);
+      await replicatedEntriesTable.acknowledgeServerDeletion(id, version);
     } catch (cacheError) {
       logger.warn('Entry removed on server but local cache reconciliation failed', 'database', {
         entryId: id,

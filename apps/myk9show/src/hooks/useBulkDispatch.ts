@@ -190,7 +190,13 @@ export function useBulkDispatch<T>({
                       onFullSuccess,
                       claimFailure,
                       onClaimedFailures,
-                      showFailureToast
+                      // The click is already dismissing THIS toast; refreshing
+                      // its id would update a toast on its way out and lose the
+                      // report. Start a new one (fresh id) instead.
+                      note => {
+                        toastId = undefined;
+                        showFailureToast(note);
+                      }
                     );
                   },
                 },

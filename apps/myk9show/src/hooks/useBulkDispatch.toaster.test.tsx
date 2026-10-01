@@ -18,6 +18,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useBulkDispatch } from './useBulkDispatch';
+import { BulkVerificationUnavailableError } from './bulkDispatch';
 
 interface Item {
   id: string;
@@ -91,9 +92,54 @@ function Harness({
   );
 }
 
+/** A batch whose retry cannot verify eligibility, so it must report that. */
+function UnverifiableHarness() {
+  const { run } = useBulkDispatch<Item>({ getLabel: i => i.id });
+  return (
+    <div>
+      <button
+        onClick={() => {
+          void run(
+            [{ id: 'foxtrot' }],
+            async () => {
+              throw new Error('mail down');
+            },
+            {
+              applicableWhen: async () => {
+                throw new BulkVerificationUnavailableError("Couldn't refresh the list.");
+              },
+            }
+          );
+        }}
+      >
+        unverifiable batch
+      </button>
+      <Toaster />
+    </div>
+  );
+}
+
 describe('useBulkDispatch retry against the real Toaster', () => {
   afterEach(() => {
     toast.dismiss();
+  });
+
+  // The failed retry must not re-use the id of the toast the click is
+  // dismissing: sonner would refresh a toast already being removed and the
+  // explanation and Retry action would vanish with it.
+  it('shows a fresh toast with Retry when verification fails fast', async () => {
+    render(<UnverifiableHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'unverifiable batch' }));
+    await screen.findByText(/foxtrot: mail down/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry failed' }));
+
+    await act(async () => {
+      await settleDismissal();
+    });
+
+    expect(screen.getByText(/Couldn't refresh the list\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
   });
 
   it('keeps the failure report on screen when the retry is latched out', async () => {

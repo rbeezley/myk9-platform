@@ -8,7 +8,12 @@
  */
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+  onlineManager,
+} from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { queryKeys } from '@/lib/queryClient';
@@ -33,7 +38,6 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 import { toast } from 'sonner';
 import { useBulkAccountActions } from './useBulkAccountActions';
-import { ROSTER_REFRESH_TIMEOUT_MS } from './liveRoster';
 
 function person(id: string, patch: Partial<AdminUser> = {}): AdminUser {
   return {
@@ -58,7 +62,7 @@ describe('bulk retry after the bar unmounted', () => {
   let server: AdminUser[];
   let queryClient: QueryClient;
   let unsubscribe: () => void;
-  let serverMode: 'ok' | 'fail' | 'hang';
+  let serverMode: 'ok' | 'fail';
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,7 +74,6 @@ describe('bulk retry after the bar unmounted', () => {
       queryKey: [...queryKeys.users.all, 'admin', { showDeleted: false }],
       queryFn: async () => {
         if (serverMode === 'fail') throw new Error('offline');
-        if (serverMode === 'hang') return new Promise<AdminUser[]>(() => {});
         return server;
       },
     });
@@ -78,7 +81,7 @@ describe('bulk retry after the bar unmounted', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    onlineManager.setOnline(true);
   });
 
   /** The last toast.error call's options, i.e. what the user is looking at. */
@@ -202,22 +205,30 @@ describe('bulk retry after the bar unmounted', () => {
     expectCouldntRefresh();
   });
 
-  it('gives up on a roster refresh that hangs, releasing the latch', async () => {
+  it('fails fast offline, then a later retry fetches anew and succeeds', async () => {
     mutateAsync.mockRejectedValue(new Error('boom'));
     await dispatchThenUnmount('suspend');
-    serverMode = 'hang';
 
+    // Offline: the request fails and the refresh must reject at once rather
+    // than pause waiting for the network to return.
+    onlineManager.setOnline(false);
+    serverMode = 'fail';
     mutateAsync.mockClear();
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     await act(async () => {
       retryAction().onClick();
-      await vi.advanceTimersByTimeAsync(ROSTER_REFRESH_TIMEOUT_MS + 1);
     });
-    vi.useRealTimers();
-
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
     expect(mutateAsync).not.toHaveBeenCalled();
     expectCouldntRefresh();
+
+    // The network and server recover: the NEW toast's Retry issues a new fetch.
+    onlineManager.setOnline(true);
+    serverMode = 'ok';
+    mutateAsync.mockResolvedValue({});
+    await act(async () => {
+      latestFailureToast()?.action?.onClick();
+    });
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
   });
 
   it('runs once when Retry is clicked twice in a row', async () => {

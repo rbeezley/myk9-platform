@@ -41,7 +41,13 @@ vi.mock('@tanstack/react-query', async importOriginal => {
       invalidateQueries,
       fetchQuery: async () => undefined,
       getQueryCache: () => ({
-        findAll: () => [{ queryKey: ['users', 'admin'], state: { data: liveRoster.people } }],
+        findAll: () => [
+          {
+            queryKey: ['users', 'admin'],
+            options: { queryFn: async () => [] },
+            state: { data: liveRoster.people },
+          },
+        ],
       }),
     }),
   };

@@ -9,14 +9,11 @@
  * keeps exactly one variant active, so the active query IS the visible roster.
  */
 
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryFunction } from '@tanstack/react-query';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { queryKeys } from '@/lib/queryClient';
 
 const ROSTER_KEY = [...queryKeys.users.all, 'admin'] as const;
-
-/** How long a retry waits for the roster before treating it as unverifiable. */
-export const ROSTER_REFRESH_TIMEOUT_MS = 8000;
 
 function activeRosterQueries(queryClient: QueryClient) {
   return queryClient.getQueryCache().findAll({ queryKey: ROSTER_KEY, type: 'active' });
@@ -46,29 +43,27 @@ export async function refreshLiveRoster(
 ): Promise<Map<string, AdminUser> | null> {
   const queries = activeRosterQueries(queryClient);
   if (queries.length === 0) return null;
-  // No retry/backoff and a hard deadline: offline, a fetch pauses (networkMode
-  // 'online') and retries back off, which would hold the dispatch latch for
-  // minutes. A refresh that cannot finish quickly is "could not verify".
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(
-      () => reject(new Error('roster refresh timed out')),
-      ROSTER_REFRESH_TIMEOUT_MS
-    );
-  });
+  // Fail fast: no retry/backoff, and networkMode 'always' so an offline fetch
+  // rejects immediately instead of pausing and holding the dispatch latch. A
+  // failed refresh is "could not verify"; the next retry issues a NEW fetch. A
+  // fetch already in flight is awaited as-is (it is live, not hung by us).
   try {
-    await Promise.race([
-      Promise.all(
-        queries.map(query =>
-          queryClient.fetchQuery({ queryKey: query.queryKey, retry: false, staleTime: 0 })
-        )
-      ),
-      deadline,
-    ]);
+    await Promise.all(
+      queries.map(query =>
+        queryClient.fetchQuery({
+          queryKey: query.queryKey,
+          // Passed explicitly: without a queryFn, Query#fetch re-adopts the
+          // OBSERVER's options (networkMode 'online', default retry) and
+          // silently discards the fail-fast settings below.
+          queryFn: query.options.queryFn as QueryFunction<AdminUser[]>,
+          retry: false,
+          staleTime: 0,
+          networkMode: 'always',
+        })
+      )
+    );
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
   return readLiveRoster(queryClient);
 }

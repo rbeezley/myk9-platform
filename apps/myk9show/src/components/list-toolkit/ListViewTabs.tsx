@@ -47,14 +47,14 @@ export function ListViewTabs({ views, activeId, onSelect, label, className }: Li
   };
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className="text-sm font-medium text-foreground" aria-hidden="true">
+    <div className={cn('flex min-w-0 max-w-full items-center gap-2', className)}>
+      <span className="shrink-0 text-sm font-medium text-foreground" aria-hidden="true">
         Show:
       </span>
       <Select value={activeId ?? CUSTOM_ID} onValueChange={handleChange}>
         <SelectTrigger
           aria-label={`Show: ${label}`}
-          className="w-auto min-w-[12rem] max-w-[calc(100vw-5rem)]"
+          className="w-auto min-w-0 max-w-[calc(100vw-5rem)] flex-1 sm:min-w-[12rem] sm:flex-none"
         >
           <SelectValue />
         </SelectTrigger>

@@ -148,7 +148,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         {trialViews.length > 0 && (
           <ListViewTabs
             label="Trial views"

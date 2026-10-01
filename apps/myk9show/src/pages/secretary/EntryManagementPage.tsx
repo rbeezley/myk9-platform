@@ -408,6 +408,7 @@ const EntryManagementPage: React.FC = () => {
           onSearchChange={cockpit.setSearch}
           onDensityChange={cockpit.setDensity}
           onClearAll={handleClearEntryFilters}
+          scopeUnavailable={trialClassesUnknown || trialScopePending}
           result={{ shown: cockpit.page.total, total: cockpit.queueTotals.registrationCount }}
         />
       )}

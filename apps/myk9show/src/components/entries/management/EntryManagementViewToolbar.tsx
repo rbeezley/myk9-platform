@@ -41,6 +41,12 @@ interface EntryManagementViewToolbarProps {
   onSearchChange: (value: string) => void;
   onDensityChange: (density: OperationalViewDensity) => void;
   onClearAll: () => void;
+  /**
+   * The trial/class scope could not be applied (classes query pending, paused
+   * offline or errored), so the list is whole-show. The sentence then omits
+   * Trial and Class; the cockpit's own warning explains why.
+   */
+  scopeUnavailable?: boolean;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   result: { shown: number; total: number };
 }
@@ -57,6 +63,7 @@ export function EntryManagementViewToolbar({
   onDensityChange,
   onClearAll,
   result,
+  scopeUnavailable = false,
 }: EntryManagementViewToolbarProps) {
   const views = buildEntryManagementViews(counts);
   const activeId = entryManagementViewId(state);
@@ -78,7 +85,9 @@ export function EntryManagementViewToolbar({
         activeViewId: activeId,
         defaultViewId: 'all',
         viewCriteria: [],
-        fields: filterFields,
+        fields: scopeUnavailable
+          ? filterFields.filter(field => field.key !== 'trial' && field.key !== 'class')
+          : filterFields,
       });
 
   return (

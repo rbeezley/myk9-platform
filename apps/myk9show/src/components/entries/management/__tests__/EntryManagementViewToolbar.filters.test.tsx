@@ -28,7 +28,8 @@ const COUNTS = {
 function renderToolbar(
   overrides: Partial<EntryManagementCockpitState> = {},
   result = { shown: 214, total: 214 },
-  onClearAll = vi.fn()
+  onClearAll = vi.fn(),
+  scopeUnavailable = false
 ) {
   const view = render(
     <EntryManagementViewToolbar
@@ -43,6 +44,7 @@ function renderToolbar(
       onDensityChange={vi.fn()}
       onClearAll={onClearAll}
       result={result}
+      scopeUnavailable={scopeUnavailable}
     />
   );
   return { ...view, onClearAll };
@@ -92,5 +94,18 @@ describe('EntryManagementViewToolbar filters', () => {
       'Showing 4 of 214 registrations (matching \u201cbob\u201d across the whole show).'
     );
     expect(text).not.toMatch(/Needs review|Trial/);
+  });
+
+  it('omits the trial from the sentence when the trial scope could not be applied', () => {
+    renderToolbar(
+      { queue: 'needs-review', trialId: 't1' },
+      { shown: 12, total: 214 },
+      vi.fn(),
+      true
+    );
+
+    const text = screen.getByRole('status').textContent;
+    expect(text).toBe('Showing 12 of 214 registrations (Needs review).');
+    expect(text).not.toContain('Saturday');
   });
 });

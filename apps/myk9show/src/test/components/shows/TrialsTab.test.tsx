@@ -159,6 +159,23 @@ describe('TrialsTab', () => {
     expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
   });
 
+  it('lets the toolbar row wrap so the view select, toggle and Add Trial fit a phone', () => {
+    const trials = [
+      makeTrial({ id: 't1', status: 'Scheduled' }),
+      makeTrial({ id: 't2', status: 'Completed' }),
+    ];
+    const stats = {
+      t1: { classCount: 2, entryCount: 8, completedClasses: 2 },
+      t2: { classCount: 2, entryCount: 8, completedClasses: 0 },
+    };
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+
+    const row = screen
+      .getByRole('combobox', { name: 'Show: Trial views' })
+      .closest('div')?.parentElement;
+    expect(row?.className).toContain('flex-wrap');
+  });
+
   it('hides scored text when completedClasses is 0', () => {
     const trials = [makeTrial({ id: 't1' })];
     const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };

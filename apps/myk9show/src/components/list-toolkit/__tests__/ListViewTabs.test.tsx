@@ -70,4 +70,14 @@ describe('ListViewTabs', () => {
     expect(options).toHaveLength(VIEWS.length + 1); // + Custom
     for (const option of options) expect(option.className).toContain('min-h-11');
   });
+
+  it('can shrink on a narrow screen: the select is flexible and the label stays', () => {
+    render(<ListViewTabs label="User views" activeId="all" onSelect={vi.fn()} views={VIEWS} />);
+
+    const trigger = screen.getByRole('combobox', { name: 'Show: User views' });
+    expect(trigger.className).toContain('min-w-0');
+    expect(trigger.className).toContain('flex-1');
+    expect(screen.getByText('Show:').className).toContain('shrink-0');
+    expect(trigger.closest('div')?.className).toContain('min-w-0');
+  });
 });

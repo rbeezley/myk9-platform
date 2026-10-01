@@ -249,7 +249,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           activeId={activeViewId}
           onSelect={setViewId}
         />
-        <div className="flex items-center gap-2 sm:ml-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
           {canManage && (
             <Button

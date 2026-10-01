@@ -6,7 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 
 // Mutable so individual tests can override role
-let mockAuthReturn: { user: { id: string } | null; userWithRoles: { roles: string[] } | null } = {
+const mockRefreshScopes = vi.hoisted(() => vi.fn());
+
+let mockAuthReturn: {
+  user: { id: string } | null;
+  userWithRoles: { roles: string[] } | null;
+  refreshPermissions?: () => Promise<void>;
+} = {
   user: { id: 'test-user' },
   userWithRoles: { roles: ['secretary'] },
 };
@@ -71,6 +77,10 @@ vi.mock('@/store/clubStore', () => ({
       selectClub: vi.fn(),
       clubs: [],
     }),
+}));
+
+vi.mock('@/components/clubs/refreshScopesAfterClubUpload', () => ({
+  refreshScopesAfterClubUpload: mockRefreshScopes,
 }));
 
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
@@ -360,5 +370,20 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent(
       '/secretary/create-show/wizard?source=club-link&clubId=club-new&clubCreated=1'
     );
+  });
+
+  it('refreshes role scopes for the new club so its creator sees Edit without a reload (MYK9-905)', async () => {
+    const refreshPermissions = vi.fn(async () => {});
+    mockAuthReturn = {
+      user: { id: 'secretary-user' },
+      userWithRoles: { roles: ['secretary'] },
+      refreshPermissions,
+    };
+
+    renderPage('/clubs?create=true');
+    fireEvent.click(await screen.findByRole('button', { name: /submit complete club/i }));
+
+    await screen.findByTestId('location');
+    expect(mockRefreshScopes).toHaveBeenCalledWith('club-new', refreshPermissions);
   });
 });

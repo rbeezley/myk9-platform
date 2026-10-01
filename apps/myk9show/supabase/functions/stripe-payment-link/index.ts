@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { priceExistingEntryCents } from '../_shared/cartItemPricing.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
@@ -105,6 +105,10 @@ interface EntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
+  /** MYK9-879: the junior fee was charged on the exhibitor's declaration. */
+  junior_fee_declared: boolean | null;
+  /** MYK9-878: a secretary charged the junior fee at the desk. */
+  junior_fee_override_by: string | null;
   dog: { call_name: string | null } | null;
   class: { name: string | null; entry_fee: number | string | null } | null;
   show: {
@@ -113,6 +117,7 @@ interface EntryRow {
     name: string | null;
     pre_entry_fee: number | string | null;
     day_of_show_fee: number | string | null;
+    junior_handler_fee: number | string | null;
     start_date: string | null;
   } | null;
 }
@@ -176,9 +181,11 @@ Deno.serve(async req => {
         id,
         payment_status,
         entry_status,
+        junior_fee_declared,
+        junior_fee_override_by,
         dog:dog_id(call_name),
         class:class_id(name, entry_fee),
-        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, start_date)
+        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
       `
       )
       .in('id', entry_ids);
@@ -343,13 +350,9 @@ Deno.serve(async req => {
     const nowIso = new Date().toISOString();
     const linkEntries = entries.map(e => ({
       entryId: e.id,
-      authoritativeFeeCents: authoritativeEntryFeeCents({
-        showPreEntryFee: show.pre_entry_fee,
-        showDayOfShowFee: show.day_of_show_fee,
-        showStartDate: show.start_date,
-        classEntryFee: e.class?.entry_fee ?? null,
-        nowIso,
-      }),
+      // MYK9-879: an existing entry's junior fee was fixed when it was created, so
+      // the link reads that stored record; it never re-derives junior status.
+      authoritativeFeeCents: priceExistingEntryCents(show, e, e.class?.entry_fee ?? null, nowIso),
       dogName: e.dog?.call_name || 'Dog',
       className: e.class?.name || 'Class',
       showName: show.name || 'Show Entry',

@@ -29,6 +29,7 @@ import { useShowStore } from '@/store/showStore';
 import { useCartStore } from '@/store/cartStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import { useJuniorHandlerDeclaration } from './useJuniorHandlerDeclaration';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
@@ -458,6 +459,15 @@ export function useRegistrationWizardState() {
   // The FULL result, not just the total: the entries panel itemises exactly
   // what this totalled, so the panel, the Next gate and the payment step's
   // amount due all read one calculation (design.md decision 3).
+  // MYK9-879: the exhibitor's per-dog junior-handler declarations (card checkout
+  // only). The effective set feeds the SAME calculation as the panel, the Next
+  // gate and the payment step, so the preview equals what checkout charges.
+  const { canDeclareJuniorHandler, juniorHandlerDogIds, setJuniorHandlerDog } =
+    useJuniorHandlerDeclaration({
+      selectedDogs: registrationData.selectedDogs,
+      paymentMethod: registrationData.paymentMethod,
+      show: currentShow,
+    });
   const liveFeeCalculation = useMemo(
     () =>
       calculateTotalFees(
@@ -469,6 +479,7 @@ export function useRegistrationWizardState() {
           ? {
               preEntryFee: currentShow.preEntryFee || '0',
               dayOfShowFee: currentShow.dayOfShowFee,
+              juniorHandlerFee: currentShow.juniorHandlerFee,
               startDate: currentShow.startDate,
               // The running total on screen must be the tier the submission
               // will actually charge. Without the close date and the show's
@@ -479,7 +490,8 @@ export function useRegistrationWizardState() {
               entryWindowTimezone,
             }
           : undefined,
-        capacityReady ? registrationCapacity.waitlistClassIds : new Set()
+        capacityReady ? registrationCapacity.waitlistClassIds : new Set(),
+        juniorHandlerDogIds
       ),
     [
       registrationData.selectedDogs,
@@ -491,6 +503,7 @@ export function useRegistrationWizardState() {
       entryWindowTimezoneReady,
       capacityReady,
       registrationCapacity.waitlistClassIds,
+      juniorHandlerDogIds,
     ]
   );
   const liveTotalFees = liveFeeCalculation.total;
@@ -663,6 +676,9 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
+    canDeclareJuniorHandler,
+    juniorHandlerDogIds,
+    setJuniorHandlerDog,
     waiveFees,
     setWaiveFees,
     feeOverride,

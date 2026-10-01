@@ -78,6 +78,9 @@ function RegistrationWizardContent() {
     paymentDetailsRef,
     waiveFees,
     setWaiveFees,
+    canDeclareJuniorHandler,
+    juniorHandlerDogIds,
+    setJuniorHandlerDog,
     feeOverride,
     setFeeOverride,
     classSelections,
@@ -453,6 +456,11 @@ function RegistrationWizardContent() {
               feeOverride={feeOverride}
               onWaiveFeesChange={setWaiveFees}
               onFeeOverrideChange={setFeeOverride}
+              juniorDeclaration={{
+                canDeclare: canDeclareJuniorHandler,
+                dogIds: juniorHandlerDogIds,
+                onChange: setJuniorHandlerDog,
+              }}
             />
           </>
         )}

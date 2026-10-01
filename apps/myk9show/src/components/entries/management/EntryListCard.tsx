@@ -63,6 +63,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   showCheckInStatus = true,
   matchingEntryIds,
   emailStatusMap,
+  juniorDeclaredEntryIds,
   onResendEmail,
   isResendDisabled,
   hidePaymentBadge,
@@ -191,6 +192,14 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             <span>
               Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
             </span>
+
+            {/* MYK9-879: the exhibitor declared the handler a junior at checkout and
+                was charged the junior fee. Shown so the secretary can check it. */}
+            {juniorDeclaredEntryIds?.has(entry.id) && (
+              <Badge variant="outline" className="border-info text-info">
+                Junior fee (declared)
+              </Badge>
+            )}
 
             {/* MYK9-639: this run was moved up and the entry holding its money
                 is not in this read, so the fee above is the destination's own

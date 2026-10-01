@@ -74,6 +74,8 @@ export interface SubmitPaymentStepContext {
   classes: SubmitShowRegistrationParams['classes'];
   canAssignArmbands: boolean;
   showFeeInfo: PaymentStepShowFeeInfo;
+  /** MYK9-879: dogs whose handler the exhibitor declared a junior (card checkout). */
+  juniorHandlerDogIds: ReadonlySet<string>;
   currentStep: number;
 
   // Deps
@@ -163,6 +165,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         handlerAssignments: ctx.handlerAssignments,
         classes: ctx.classes,
         showFeeInfo: ctx.showFeeInfo,
+        juniorHandlerDogIds: ctx.juniorHandlerDogIds,
         deps: {
           clearCart: ctx.cart.clearCart,
           ensureCart: ctx.cart.ensureCart,

@@ -77,6 +77,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setArmbandAssignments,
     setEntryOutcomes,
     paymentDetailsRef,
+    juniorHandlerDogIds,
     setIsSubmitting,
     setAgreedToEntryAgreement,
     submittingRef,
@@ -183,6 +184,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             // before local midnight (MYK9-642 J-F1).
             entryWindowTimezone,
           },
+          juniorHandlerDogIds,
           currentStep,
           cart: { clearCart, ensureCart, addItem, abandonCart },
           submitRegistration,

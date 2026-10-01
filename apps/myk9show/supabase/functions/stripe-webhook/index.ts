@@ -11,7 +11,7 @@ import {
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
 import {
   calculatePlatformFeeCents,
   decodeStampedPlatformFeeRates,
@@ -925,6 +925,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         class_id,
         handler_id,
         entry_fee_cents,
+        junior_fee_declared,
         jump_height,
         special_requests
       )
@@ -1015,7 +1016,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, start_date')
+    .select('pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date')
     .eq('id', cart.show_id)
     .single();
 
@@ -1075,20 +1076,42 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
   const nowIso = new Date().toISOString();
-  const authoritativeByClass = new Map<string, number>(
-    classIds.map((classId: string) => [
-      classId,
-      authoritativeEntryFeeCents({
-        showPreEntryFee: showFees.pre_entry_fee,
-        showDayOfShowFee: showFees.day_of_show_fee,
-        showStartDate: showFees.start_date,
-        classEntryFee: feeByClass.get(classId) ?? null,
-        nowIso,
-      }),
-    ])
+  // MYK9-879: priced per LINE, not per class, because the junior-handler
+  // declaration is per line. A Finish Payment line is priced from its entry's
+  // stored record, a new line from the exhibitor's declaration; no date of birth
+  // or dog ownership is read. The same function stripe-checkout charged from.
+  const pricingItems = (
+    cart.items as {
+      id: string;
+      dog_id: string;
+      class_id: string;
+      entry_id: string | null;
+      junior_fee_declared: boolean | null;
+    }[]
+  ).map(i => ({ ...i, class_entry_fee: feeByClass.get(i.class_id) ?? null }));
+  const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
+    supabase,
+    pricingItems
   );
-  const authoritativeSubtotal = (cart.items as { class_id: string }[]).reduce(
-    (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
+  if (storedJuniorError) {
+    console.error(
+      `CRITICAL: cannot read stored junior fees for cart ${cartId}: ${storedJuniorError.message}`
+    );
+    await alertAdmin(
+      'Paid checkout could not be verified — entries NOT created',
+      `<p>Checkout session <code>${session.id}</code> was PAID, but the stored entry fees
+       needed to verify the amount could not be read, so no entries were created and
+       Stripe will not retry. The cart is untouched.</p>
+       <pre>${storedJuniorError.message}</pre>
+       <p>Recovery: if this was a transient database error, re-send the event from the
+       Stripe dashboard (Developers → Events → Resend).</p>`,
+      { source: 'stripe-webhook', dedupeKey: `checkout-verify-failed-${session.id}` }
+    );
+    return;
+  }
+  const authoritativeByItem = priceCartItems(showFees, pricingItems, storedJunior, nowIso);
+  const authoritativeSubtotal = pricingItems.reduce(
+    (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
     0
   );
   // Validate the platform fee against the rate STAMPED on the session at
@@ -1238,7 +1261,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const deniedLines: CartOverflowLine[] = [];
   const failedLines: CartOverflowLine[] = [];
   for (const item of cart.items) {
-    const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
+    const lineAmountCents = authoritativeByItem.get(item.id) ?? item.entry_fee_cents;
 
     // Finish Payment recovery lines point at entries that already exist. Mark
     // those rows paid in place; calling create_online_paid_entry here would
@@ -1401,6 +1424,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       p_show_id: entryInsert.show_id,
       p_trial_id: entryInsert.trial_id,
       p_exhibitor_id: cart.exhibitor.id,
+      // MYK9-879: recorded only where it priced the line (the RPC re-checks the
+      // show has a junior tier). Never an age: the exhibitor's own declaration.
+      p_junior_fee_declared: item.junior_fee_declared === true,
     });
 
     if (entryError) {

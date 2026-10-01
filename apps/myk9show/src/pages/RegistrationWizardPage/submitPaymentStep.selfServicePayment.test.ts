@@ -160,6 +160,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     classes: [{ id: 'class-1', entryFee: 25 }],
     canAssignArmbands: false,
     showFeeInfo: { preEntryFee: '25', startDate: '2099-08-01' },
+    juniorHandlerDogIds: new Set<string>(),
     currentStep: 2,
     cart: {
       clearCart: vi.fn(async () => true),

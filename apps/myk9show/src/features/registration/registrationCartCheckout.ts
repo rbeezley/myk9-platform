@@ -1,4 +1,7 @@
-import type { ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import {
+  parseJuniorHandlerFee,
+  type ShowFeeInfo,
+} from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
@@ -26,6 +29,8 @@ interface RegistrationCartCheckoutParams {
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
   showFeeInfo: ShowFeeInfo;
+  /** MYK9-879: dogs whose handler the exhibitor declared a junior. */
+  juniorHandlerDogIds?: ReadonlySet<string> | undefined;
   deps: RegistrationCartCheckoutDeps;
 }
 
@@ -37,6 +42,7 @@ export async function submitRegistrationCartCheckout({
   handlerAssignments,
   classes,
   showFeeInfo,
+  juniorHandlerDogIds,
   deps,
 }: RegistrationCartCheckoutParams): Promise<void> {
   if (!ownerResolution.ok) {
@@ -66,7 +72,16 @@ export async function submitRegistrationCartCheckout({
     throw new Error('Failed to clear existing cart. Please try again.');
   }
 
-  const items = registrationToCartItems(classSelections, handlerAssignments, classes, showFeeInfo);
+  // A declaration only counts on a show that has a junior tier. Dropped otherwise
+  // so a stale tick (the fee was removed after the dog was ticked) cannot ride
+  // along. (The wizard never offers the control on ASCA, so none arrives there.)
+  const items = registrationToCartItems(
+    classSelections,
+    handlerAssignments,
+    classes,
+    showFeeInfo,
+    parseJuniorHandlerFee(showFeeInfo) !== null ? juniorHandlerDogIds : undefined
+  );
 
   let addedCount = 0;
   try {

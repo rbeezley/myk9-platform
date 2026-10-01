@@ -2090,6 +2090,7 @@ export type Database = {
           judge_signature: string | null
           judge_signature_timestamp: string | null
           jump_height: string | null
+          junior_fee_declared: boolean
           junior_fee_override_by: string | null
           last_synced_at: string | null
           license_key: string | null
@@ -2188,6 +2189,7 @@ export type Database = {
           judge_signature?: string | null
           judge_signature_timestamp?: string | null
           jump_height?: string | null
+          junior_fee_declared?: boolean
           junior_fee_override_by?: string | null
           last_synced_at?: string | null
           license_key?: string | null
@@ -2286,6 +2288,7 @@ export type Database = {
           judge_signature?: string | null
           judge_signature_timestamp?: string | null
           jump_height?: string | null
+          junior_fee_declared?: boolean
           junior_fee_override_by?: string | null
           last_synced_at?: string | null
           license_key?: string | null
@@ -2576,6 +2579,7 @@ export type Database = {
           handler_id: string | null
           id: string
           jump_height: string | null
+          junior_fee_declared: boolean
           special_requests: string | null
         }
         Insert: {
@@ -2588,6 +2592,7 @@ export type Database = {
           handler_id?: string | null
           id?: string
           jump_height?: string | null
+          junior_fee_declared?: boolean
           special_requests?: string | null
         }
         Update: {
@@ -2600,6 +2605,7 @@ export type Database = {
           handler_id?: string | null
           id?: string
           jump_height?: string | null
+          junior_fee_declared?: boolean
           special_requests?: string | null
         }
         Relationships: [
@@ -12662,6 +12668,7 @@ export type Database = {
           p_exhibitor_id: string
           p_handler_id: string
           p_jump_height: string
+          p_junior_fee_declared?: boolean
           p_payment_intent_id: string
           p_show_id: string
           p_special_requests: string

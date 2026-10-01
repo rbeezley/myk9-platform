@@ -25,17 +25,37 @@ export interface AuthoritativeFeeInput {
   classEntryFee: number | string | null;
   /** evaluation clock, ISO — injected so the function stays pure/testable */
   nowIso: string;
+  /** shows.junior_handler_fee — DECIMAL dollars. NULL or 0 = no junior tier. */
+  showJuniorHandlerFee?: number | string | null | undefined;
+  /**
+   * The junior-handler declaration (MYK9-879): the exhibitor said the person
+   * showing the dog is under 18, or the stored entry records that the junior fee
+   * was already charged. Never derived from a date of birth or from who owns the
+   * dog. Honored only on a show with a junior tier.
+   */
+  juniorDeclared?: boolean | undefined;
 }
 
 const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 
-function parseDollars(value: number | string | null): number | null {
+function parseDollars(value: number | string | null | undefined): number | null {
   if (value == null) return null;
   const n = typeof value === 'number' ? value : parseFloat(String(value).replace(/[$,]/g, ''));
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 export function authoritativeEntryFeeCents(input: AuthoritativeFeeInput): number {
+  const normalCents = normalEntryFeeCents(input);
+  if (!input.juniorDeclared) return normalCents;
+  const junior = parseDollars(input.showJuniorHandlerFee);
+  // NULL or 0 is no junior tier (slice A's convention). LEAST: the same rule as
+  // private.price_entry_fee and the client's getShowEntryFee, so a junior tier
+  // set above the regular fee never charges more than the regular fee.
+  if (junior == null || junior <= 0) return normalCents;
+  return Math.min(Math.round(junior * 100), normalCents);
+}
+
+function normalEntryFeeCents(input: AuthoritativeFeeInput): number {
   const pre = parseDollars(input.showPreEntryFee);
   const day = parseDollars(input.showDayOfShowFee);
 

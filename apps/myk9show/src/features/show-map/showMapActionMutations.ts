@@ -100,6 +100,7 @@ export interface ShowMapScratchUndoInput {
   previousCheckInStatus: string | null;
   previousSpecialRequests: string | null;
   previousWithdrawalReason: string | null;
+  previousWithdrawalReasonCode: string | null;
 }
 
 export async function scratchShowMapEntry(
@@ -116,6 +117,9 @@ export async function scratchShowMapEntry(
   const previousWithdrawalReason =
     currentEntry?.withdrawalReason ?? currentEntry?.withdrawal_reason ?? null;
 
+  const previousWithdrawalReasonCode =
+    currentEntry?.withdrawalReasonCode ?? currentEntry?.withdrawal_reason_code ?? null;
+
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || 'Marked no-show from Show Map');
 
@@ -125,6 +129,7 @@ export async function scratchShowMapEntry(
     previousCheckInStatus,
     previousSpecialRequests,
     previousWithdrawalReason,
+    previousWithdrawalReasonCode,
   };
 }
 
@@ -147,6 +152,8 @@ export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promis
     special_requests: input.previousSpecialRequests,
     withdrawalReason: input.previousWithdrawalReason,
     withdrawal_reason: input.previousWithdrawalReason,
+    withdrawalReasonCode: input.previousWithdrawalReasonCode,
+    withdrawal_reason_code: input.previousWithdrawalReasonCode,
   });
 
   await logReplicatedEntryStatusChange({

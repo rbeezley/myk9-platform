@@ -14,4 +14,4 @@ export { createDayOfEntryDog } from './late-entry-dog';
 
 export { getMoveUpEligibleEntries, getPendingMoveUpRequests, denyMoveUpRequest } from './move-up';
 
-export { pullEntry, getPullableEntries, getPulledEntries, updateRefundStatus } from './scratch';
+export { getPullableEntries, getPulledEntries, updateRefundStatus } from './scratch';

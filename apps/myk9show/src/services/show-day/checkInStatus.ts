@@ -1,5 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
+import { updateEntryStatus } from '@/services/database/entries/secretary';
 import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
 
@@ -42,20 +43,20 @@ export async function updateSelfCheckInStatus(
   }
 }
 
+/**
+ * Show Day's "Pull / no-show" fast path. MYK9-918: it is the SAME mutation as
+ * Entry Management's Pull (`updateEntryStatus` → `buildReplicatedEntryStatusUpdate`),
+ * so both write identical fields — `scratched`, `check_in_status='pulled'`, the
+ * typed reason in `withdrawal_reason` (shown as "Pulled · <reason>"),
+ * `withdrawal_reason_code` cleared — and neither overwrites the exhibitor's
+ * `special_requests`. The reason is also kept in the audit log.
+ */
 export async function updateReplicatedDayOfScratch(
   entryId: string,
   reason: string
 ): Promise<string | null> {
-  const mutationId = await replicatedEntriesTable.updateEntry(entryId, {
-    entryStatus: 'scratched',
-    entry_status: 'scratched',
-    checkInStatus: 'pulled',
-    check_in_status: 'pulled',
-    withdrawalReason: reason,
-    withdrawal_reason: reason,
-    specialRequests: reason,
-    special_requests: reason,
-  });
+  const { data, error } = await updateEntryStatus(entryId, 'scratched', reason);
+  if (error) throw error;
 
   await logReplicatedEntryStatusChange({
     entryId,
@@ -65,5 +66,5 @@ export async function updateReplicatedDayOfScratch(
     metadata: { checkInStatus: 'pulled' },
   });
 
-  return mutationId;
+  return data?.mutationId ?? null;
 }

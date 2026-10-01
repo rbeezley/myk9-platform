@@ -206,6 +206,7 @@ describe('showMapActionMutations', () => {
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: 'Bring paper form',
       previousWithdrawalReason: null,
+      previousWithdrawalReasonCode: null,
     });
   });
 
@@ -217,11 +218,14 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: 'checked-in',
         previousSpecialRequests: 'Bring paper form',
         previousWithdrawalReason: null,
+        previousWithdrawalReasonCode: 'in_season',
       });
 
       expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
         'entry-1',
         expect.objectContaining({
+          withdrawalReasonCode: 'in_season',
+          withdrawal_reason_code: 'in_season',
           entryStatus: 'checked-in',
           entry_status: 'checked-in',
           checkInStatus: 'checked-in',
@@ -254,6 +258,7 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: null,
         previousSpecialRequests: null,
         previousWithdrawalReason: null,
+        previousWithdrawalReasonCode: null,
       });
 
       expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(

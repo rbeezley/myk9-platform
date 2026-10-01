@@ -15,7 +15,6 @@ import {
   getMoveUpEligibleEntries,
   denyMoveUpRequest,
   getPullableEntries,
-  pullEntry,
 } from '../../day-of-operations';
 import { getEntryCountsByStatus } from '../../entries/secretary';
 import { getNextArmbandForShow } from '../../armbands';
@@ -194,19 +193,6 @@ describe('entry_status enum values used by query layer', () => {
       expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
       expect(mockFrom).not.toHaveBeenCalledWith('entries');
       expect(data.map(entry => entry.id)).toEqual(['canonical-checked-in', 'canonical-confirmed']);
-    });
-
-    it('pullEntry writes entry_status = "scratched" and check_in_status = "pulled"', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
-      await pullEntry('entry-1', 'withdrew');
-
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
-      );
     });
   });
 

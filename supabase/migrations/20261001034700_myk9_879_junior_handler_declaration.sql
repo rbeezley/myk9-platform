@@ -263,13 +263,15 @@ BEGIN
   END IF;
 
   -- MYK9-879: the declaration is RECORDED only where it could have changed the
-  -- price (the show has a junior tier). It reads no date of birth and does not
+  -- price (the show has a junior tier and is not ASCA, where no declaration is
+  -- honored). It reads no date of birth and does not
   -- look at who owns the dog: it is about the handler. The fee stored is
   -- p_entry_fee, which the webhook already verified against the paid amount.
   v_declared := COALESCE(p_junior_fee_declared, false)
     AND EXISTS (
       SELECT 1 FROM public.shows s
        WHERE s.id = v_show_id AND s.junior_handler_fee IS NOT NULL AND s.junior_handler_fee > 0
+         AND s.organization IS DISTINCT FROM 'ASCA'
     );
 
   INSERT INTO public.entries (

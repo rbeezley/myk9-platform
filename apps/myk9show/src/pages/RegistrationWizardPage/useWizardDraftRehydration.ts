@@ -96,6 +96,7 @@ export function useWizardDraftRehydration(
   const [rehydrateStatus, setRehydrateStatus] = useState<RehydrateStatus>('pending');
   const didRehydrate = rehydrateStatus === 'applied';
   const hasReconciled = useRef(false);
+  const hasRestoredDeclarations = useRef(false);
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(s => s.cart?.show_id ?? null);
@@ -171,6 +172,33 @@ export function useWizardDraftRehydration(
     didRehydrate,
     cartItems,
     classSelections,
+    cartIsLoading,
+    cartShowId,
+    cartExhibitorId,
+    showId,
+    exhibitorProfile?.id,
+  ]);
+
+  // MYK9-879: a draft saved before declarations were persisted (or one written
+  // before the last tick landed) has no record of them, but the cart the exhibitor
+  // left for still carries each line's declaration. Add those back, once, under the
+  // same guards as the reconcile above. It only ever adds, so an exhibitor who
+  // un-ticks afterwards is never overruled.
+  useEffect(() => {
+    if (hasRestoredDeclarations.current) return;
+    if (!didRehydrate || cartIsLoading) return;
+    if (cartShowId !== showId) return;
+    if (exhibitorProfile?.id && cartExhibitorId !== exhibitorProfile.id) return;
+    if (cartItems.length === 0) return;
+    hasRestoredDeclarations.current = true;
+    const declared = [
+      ...new Set(cartItems.filter(i => i.junior_fee_declared === true).map(i => i.dog_id)),
+    ];
+    if (declared.length > 0) state.addJuniorHandlerDogs(declared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    didRehydrate,
+    cartItems,
     cartIsLoading,
     cartShowId,
     cartExhibitorId,

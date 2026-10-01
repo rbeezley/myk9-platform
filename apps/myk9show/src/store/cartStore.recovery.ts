@@ -16,9 +16,6 @@ export interface RecoverableEntryRow {
   show_pre_entry_fee: number | string | null;
   show_day_of_show_fee: number | string | null;
   show_start_date: string | null;
-  /** MYK9-879: the junior fee was charged at creation on the exhibitor's declaration. */
-  junior_fee_declared?: boolean | null | undefined;
-  show_junior_handler_fee?: number | string | null | undefined;
 }
 
 export const RECOVERABLE_ENTRY_STATUSES = [
@@ -52,17 +49,18 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
   return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
 };
 
+/**
+ * A Finish Payment line settles an entry whose fee was FROZEN at creation, so the
+ * line is quoted at that stored `entry_fee` (MYK9-879): a later change to the
+ * show's fees or junior tier never re-prices it, and a junior or desk-discounted
+ * entry comes back at the amount it was created at. Only a row with no positive
+ * stored fee (a zero move-up destination, a NULL) falls back to the tiers, the
+ * same rule `stripe-checkout` applies.
+ */
 export const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
-  const normalCents = getNormalEntryFeeCents(entry);
-  // MYK9-879: a Finish Payment line settles an entry whose fee was fixed at
-  // creation, so an entry that recorded the junior declaration stays at the junior
-  // fee (capped at the normal fee, the same LEAST rule checkout applies). Only the
-  // stored record counts: nothing is re-derived here and no date of birth is read.
-  const juniorFee = parseFeeDollars(entry.show_junior_handler_fee ?? null);
-  if (entry.junior_fee_declared === true && juniorFee != null && juniorFee > 0) {
-    return Math.min(Math.round(juniorFee * 100), normalCents);
-  }
-  return normalCents;
+  const frozen = parseFeeDollars(entry.entry_fee);
+  if (frozen != null && frozen > 0) return Math.round(frozen * 100);
+  return getNormalEntryFeeCents(entry);
 };
 
 export const findRecoverableEntries = async ({
@@ -111,8 +109,8 @@ export const findRecoverableEntries = async ({
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
     .select(
-      `id, class_id, dog_id, handler_id, entry_fee, junior_fee_declared, jump_height, special_requests,
-       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)`
+      `id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests,
+       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, start_date)`
     )
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
@@ -144,7 +142,6 @@ export const findRecoverableEntries = async ({
       show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
       show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
       show_start_date: showRow?.start_date ?? null,
-      show_junior_handler_fee: showRow?.junior_handler_fee ?? null,
     } as RecoverableEntryRow;
   });
 };

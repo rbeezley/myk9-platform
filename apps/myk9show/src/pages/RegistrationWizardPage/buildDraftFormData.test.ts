@@ -61,6 +61,8 @@ describe('buildDraftFormData', () => {
       handlerAssignments,
       paymentStatus: PaymentStatus.PENDING,
       entryStatus: EntryStatus.PENDING,
+      // MYK9-879: empty when nobody was declared.
+      juniorHandlerDogIds: [],
     });
   });
 

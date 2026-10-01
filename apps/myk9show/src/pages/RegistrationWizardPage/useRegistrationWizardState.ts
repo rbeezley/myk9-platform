@@ -377,6 +377,21 @@ export function useRegistrationWizardState() {
       });
   }, [steps, currentWorkflowConfig.steps, stepCompletionState]);
 
+  // MYK9-879: the exhibitor's per-dog junior-handler declarations (card checkout
+  // only). The effective set feeds the SAME calculation as the panel, the Next
+  // gate and the payment step, so the preview equals what checkout charges.
+  const {
+    canDeclareJuniorHandler,
+    juniorHandlerDogIds,
+    declaredDogIdList,
+    setJuniorHandlerDog,
+    setJuniorHandlerDogs,
+    addJuniorHandlerDogs,
+  } = useJuniorHandlerDeclaration({
+    selectedDogs: registrationData.selectedDogs,
+    paymentMethod: registrationData.paymentMethod,
+    show: currentShow,
+  });
   // Sync draft data
   useEffect(() => {
     setDraftData(
@@ -388,9 +403,11 @@ export function useRegistrationWizardState() {
         handlerAssignments,
         paymentStatus,
         entryStatus,
+        juniorHandlerDogIds: declaredDogIdList,
       })
     );
   }, [
+    declaredDogIdList,
     registrationData,
     currentStepId,
     stepCompletionState,
@@ -459,15 +476,6 @@ export function useRegistrationWizardState() {
   // The FULL result, not just the total: the entries panel itemises exactly
   // what this totalled, so the panel, the Next gate and the payment step's
   // amount due all read one calculation (design.md decision 3).
-  // MYK9-879: the exhibitor's per-dog junior-handler declarations (card checkout
-  // only). The effective set feeds the SAME calculation as the panel, the Next
-  // gate and the payment step, so the preview equals what checkout charges.
-  const { canDeclareJuniorHandler, juniorHandlerDogIds, setJuniorHandlerDog } =
-    useJuniorHandlerDeclaration({
-      selectedDogs: registrationData.selectedDogs,
-      paymentMethod: registrationData.paymentMethod,
-      show: currentShow,
-    });
   const liveFeeCalculation = useMemo(
     () =>
       calculateTotalFees(
@@ -679,6 +687,8 @@ export function useRegistrationWizardState() {
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     setJuniorHandlerDog,
+    setJuniorHandlerDogs,
+    addJuniorHandlerDogs,
     waiveFees,
     setWaiveFees,
     feeOverride,

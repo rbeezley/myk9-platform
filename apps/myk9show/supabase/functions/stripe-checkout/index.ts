@@ -493,7 +493,7 @@ async function handleEntryCheckout(
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
     .select(
-      `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date, status,
+      `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date, status,
         entry_open_date, entry_close_date, club_id`
     )
     .eq('id', cart.show_id)

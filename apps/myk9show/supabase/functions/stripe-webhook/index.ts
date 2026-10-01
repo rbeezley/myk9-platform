@@ -1016,7 +1016,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date')
+    .select('pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date')
     .eq('id', cart.show_id)
     .single();
 
@@ -1342,7 +1342,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           payment_status: 'paid',
           payment_method: 'online',
           stripe_payment_intent_id: paymentIntentId,
-          entry_fee: lineAmountCents / 100,
+          // entry_fee is deliberately NOT written: the fee was frozen when the
+          // entry was created and this line was charged exactly that (MYK9-879).
           ...(moneyRoot.id === existingEntry.id && existingEntry.entry_status === 'pending-payment'
             ? { entry_status: 'confirmed' }
             : {}),

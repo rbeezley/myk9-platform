@@ -34,6 +34,12 @@ export interface AuthoritativeFeeInput {
    * dog. Honored only on a show with a junior tier.
    */
   juniorDeclared?: boolean | undefined;
+  /**
+   * shows.organization. ASCA has no junior tier (junior status cannot be
+   * derived there and the setting is hidden), so a declaration is honored on no
+   * ASCA show, whatever fee a stale row carries.
+   */
+  showOrganization?: string | null | undefined;
 }
 
 const DEFAULT_ENTRY_FEE_DOLLARS = 25;
@@ -46,7 +52,7 @@ function parseDollars(value: number | string | null | undefined): number | null 
 
 export function authoritativeEntryFeeCents(input: AuthoritativeFeeInput): number {
   const normalCents = normalEntryFeeCents(input);
-  if (!input.juniorDeclared) return normalCents;
+  if (!input.juniorDeclared || input.showOrganization === 'ASCA') return normalCents;
   const junior = parseDollars(input.showJuniorHandlerFee);
   // NULL or 0 is no junior tier (slice A's convention). LEAST: the same rule as
   // private.price_entry_fee and the client's getShowEntryFee, so a junior tier

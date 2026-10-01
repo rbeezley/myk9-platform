@@ -49,6 +49,21 @@ describe('junior declaration wiring (MYK9-879)', () => {
     expect(src).not.toContain('authoritativeEntryFeeCents(');
   });
 
+  it('the webhook never rewrites a recovered entry fee, and the three select what they price from', () => {
+    const webhook = read('stripe-webhook/index.ts');
+    // A Finish Payment line was charged the fee FROZEN on its entry; the update
+    // that marks it paid must not write entry_fee back.
+    expect(webhook).not.toContain('entry_fee: lineAmountCents');
+    expect(webhook).toContain('organization');
+    expect(read('stripe-checkout/index.ts')).toContain('organization');
+    const link = read('stripe-payment-link/index.ts');
+    expect(link).toContain('entry_fee,');
+    expect(link).toContain('organization');
+    expect(read('_shared/cartItemPricing.ts')).toContain(
+      "'id, dog_id, class_id, entry_fee, junior_fee_declared, junior_fee_override_by'"
+    );
+  });
+
   it('none of the three issues a refund of its own for the declaration', () => {
     expect(read('stripe-checkout/index.ts')).not.toContain('refunds.create');
     expect(read('stripe-payment-link/index.ts')).not.toContain('refunds.create');

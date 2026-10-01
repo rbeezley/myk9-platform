@@ -221,6 +221,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           fee={juniorFeeOffered}
           dogs={selectedDogs.flatMap(dogId => dogs.filter(dog => dog.id === dogId))}
           declaration={juniorDeclaration}
+          organization={show?.organization}
         />
       )}
 

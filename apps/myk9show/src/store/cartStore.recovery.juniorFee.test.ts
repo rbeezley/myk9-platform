@@ -1,9 +1,10 @@
 /**
- * MYK9-879: a Finish Payment line settles an entry whose fee was fixed at
- * creation. An entry that recorded the exhibitor's junior declaration must come
- * back into the cart at the junior fee (capped), not at the normal fee that would
- * make checkout heal and refuse it. Nothing is re-derived and no date of birth is
- * read: only the stored record counts.
+ * MYK9-879 (Codex P1): a Finish Payment line settles an entry whose fee was
+ * FROZEN at creation, so the cart quotes that stored `entry_fee`, never a price
+ * recomputed from the show's current tiers. A junior entry frozen at 15.00 comes
+ * back at 15.00 even after the junior tier is raised, and an entry frozen at the
+ * normal fee stays normal after a tier appears. The server charges the same
+ * amount, so there is no heal-and-409 round trip.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -53,43 +54,34 @@ function row(overrides: Partial<RecoverableEntryRow> = {}): RecoverableEntryRow 
     show_pre_entry_fee: 30,
     show_day_of_show_fee: 45,
     show_start_date: '2099-05-01',
-    show_junior_handler_fee: 15,
-    junior_fee_declared: false,
     ...overrides,
   };
 }
 
-describe('getAuthoritativeEntryFeeCents with a stored junior declaration', () => {
-  it('keeps an entry that recorded the declaration at the junior fee', () => {
-    expect(getAuthoritativeEntryFeeCents(row({ junior_fee_declared: true }))).toBe(1500);
+describe('getAuthoritativeEntryFeeCents quotes the frozen entry fee', () => {
+  it('an entry frozen at 15.00 stays 1500 whatever the show charges now', () => {
+    expect(getAuthoritativeEntryFeeCents(row())).toBe(1500);
+    expect(getAuthoritativeEntryFeeCents(row({ entry_fee: '15.00' }))).toBe(1500);
+    expect(getAuthoritativeEntryFeeCents(row({ show_pre_entry_fee: 99 }))).toBe(1500);
   });
 
-  it('prices an entry with no declaration at the normal fee', () => {
-    expect(getAuthoritativeEntryFeeCents(row())).toBe(3000);
-    expect(getAuthoritativeEntryFeeCents(row({ junior_fee_declared: null }))).toBe(3000);
+  it('an entry frozen at the normal fee stays normal', () => {
+    expect(getAuthoritativeEntryFeeCents(row({ entry_fee: 30 }))).toBe(3000);
   });
 
-  it('is capped at the normal fee when the junior tier is above it', () => {
-    expect(
-      getAuthoritativeEntryFeeCents(row({ junior_fee_declared: true, show_junior_handler_fee: 40 }))
-    ).toBe(3000);
-  });
-
-  it('charges the normal fee when the show has no junior tier now', () => {
-    for (const show_junior_handler_fee of [null, 0, undefined]) {
-      expect(
-        getAuthoritativeEntryFeeCents(row({ junior_fee_declared: true, show_junior_handler_fee }))
-      ).toBe(3000);
+  it('falls back to the tiers only for a row with no positive stored fee', () => {
+    for (const entry_fee of [null, 0, '0.00']) {
+      expect(getAuthoritativeEntryFeeCents(row({ entry_fee }))).toBe(3000);
     }
   });
 });
 
-describe('findRecoverableEntries carries the stored declaration to the fee', () => {
+describe('findRecoverableEntries carries the stored fee to the quote', () => {
   beforeEach(() => {
     tables.selectedEntryColumns = '';
   });
 
-  it('asks for the declaration and the show junior fee, and maps them onto the row', async () => {
+  it('reads entry_fee and quotes it', async () => {
     tables.entries = [
       {
         id: 'entry-1',
@@ -97,16 +89,10 @@ describe('findRecoverableEntries carries the stored declaration to the fee', () 
         dog_id: 'dog-1',
         handler_id: null,
         entry_fee: 15,
-        junior_fee_declared: true,
         jump_height: null,
         special_requests: null,
         class: { entry_fee: 28 },
-        show: {
-          pre_entry_fee: 30,
-          day_of_show_fee: 45,
-          junior_handler_fee: 15,
-          start_date: '2099-05-01',
-        },
+        show: { pre_entry_fee: 30, day_of_show_fee: 45, start_date: '2099-05-01' },
       },
     ];
     const rows = await findRecoverableEntries({
@@ -114,8 +100,7 @@ describe('findRecoverableEntries carries the stored declaration to the fee', () 
       exhibitorId: 'exhibitor-1',
       entryIds: ['entry-1'],
     });
-    expect(tables.selectedEntryColumns).toContain('junior_fee_declared');
-    expect(tables.selectedEntryColumns).toContain('junior_handler_fee');
+    expect(tables.selectedEntryColumns).toContain('entry_fee');
     expect(rows).toHaveLength(1);
     expect(getAuthoritativeEntryFeeCents(rows[0])).toBe(1500);
   });

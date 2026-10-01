@@ -17,6 +17,8 @@ export interface PricingShow {
   day_of_show_fee: number | string | null;
   start_date: string | null;
   junior_handler_fee: number | string | null;
+  /** shows.organization; a declaration is honored on no ASCA show. */
+  organization?: string | null | undefined;
 }
 
 export interface CartItemForPricing {
@@ -38,6 +40,20 @@ export interface StoredEntryJunior {
   junior_fee_declared: boolean | null;
   /** people.id of the secretary who charged the junior fee at the desk (slice B). */
   junior_fee_override_by: string | null;
+  /** entries.entry_fee, DECIMAL dollars: the fee FROZEN when the entry was created. */
+  entry_fee?: number | string | null | undefined;
+}
+
+/** The entry's frozen fee in cents, or null when it holds no usable positive fee. */
+export function frozenEntryFeeCents(
+  entry: Pick<StoredEntryJunior, 'entry_fee'> | undefined
+): number | null {
+  const raw = entry?.entry_fee;
+  if (raw == null) return null;
+  const dollars = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[$,]/g, ''));
+  // A zero fee is a waived or money-neutral row (a move-up destination), which
+  // cannot be a payable line; price it from the tiers rather than charge nothing.
+  return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null;
 }
 
 /**
@@ -70,24 +86,30 @@ export function storedEntryJuniorFlag(
 }
 
 /**
- * Authoritative cents for an EXISTING entry (the secretary payment link). The junior
- * fee comes from the entry's stored record, never from re-deriving junior status.
+ * Authoritative cents for an EXISTING entry (the secretary payment link). The fee
+ * was FROZEN when the entry was created, so the entry's own `entry_fee` is the
+ * amount: a later change to the show's fees or junior tier never re-prices it.
+ * Only an entry with no usable stored fee falls back to the tiers.
  */
 export function priceExistingEntryCents(
   show: PricingShow,
-  entry: Pick<StoredEntryJunior, 'junior_fee_declared' | 'junior_fee_override_by'>,
+  entry: Pick<StoredEntryJunior, 'junior_fee_declared' | 'junior_fee_override_by' | 'entry_fee'>,
   classEntryFee: number | string | null,
   nowIso: string
 ): number {
-  return authoritativeEntryFeeCents({
-    showPreEntryFee: show.pre_entry_fee,
-    showDayOfShowFee: show.day_of_show_fee,
-    showStartDate: show.start_date,
-    classEntryFee,
-    showJuniorHandlerFee: show.junior_handler_fee,
-    juniorDeclared: storedEntryJuniorFlag(entry),
-    nowIso,
-  });
+  return (
+    frozenEntryFeeCents(entry) ??
+    authoritativeEntryFeeCents({
+      showPreEntryFee: show.pre_entry_fee,
+      showDayOfShowFee: show.day_of_show_fee,
+      showStartDate: show.start_date,
+      classEntryFee,
+      showJuniorHandlerFee: show.junior_handler_fee,
+      showOrganization: show.organization,
+      juniorDeclared: storedEntryJuniorFlag(entry),
+      nowIso,
+    })
+  );
 }
 
 /** Authoritative cents for every line, keyed by cart item id. */
@@ -99,6 +121,16 @@ export function priceCartItems(
 ): Map<string, number> {
   const priced = new Map<string, number>();
   for (const item of items) {
+    // A line that settles an existing entry charges that entry's frozen fee.
+    const frozen = item.entry_id ? stored.get(item.entry_id) : undefined;
+    const frozenCents =
+      frozen && frozen.dog_id === item.dog_id && frozen.class_id === item.class_id
+        ? frozenEntryFeeCents(frozen)
+        : null;
+    if (frozenCents !== null) {
+      priced.set(item.id, frozenCents);
+      continue;
+    }
     priced.set(
       item.id,
       authoritativeEntryFeeCents({
@@ -107,6 +139,7 @@ export function priceCartItems(
         showStartDate: show.start_date,
         classEntryFee: item.class_entry_fee,
         showJuniorHandlerFee: show.junior_handler_fee,
+        showOrganization: show.organization,
         juniorDeclared: cartItemJuniorFlag(item, stored),
         nowIso,
       })
@@ -162,7 +195,7 @@ export async function loadStoredEntryJunior(
 
   const { data, error } = await client
     .from('entries')
-    .select('id, dog_id, class_id, junior_fee_declared, junior_fee_override_by')
+    .select('id, dog_id, class_id, entry_fee, junior_fee_declared, junior_fee_override_by')
     .in('id', entryIds);
   if (error) return { stored, error };
   for (const row of (data ?? []) as StoredEntryRow[]) {
@@ -171,6 +204,7 @@ export async function loadStoredEntryJunior(
       class_id: row.class_id,
       junior_fee_declared: row.junior_fee_declared,
       junior_fee_override_by: row.junior_fee_override_by,
+      entry_fee: row.entry_fee,
     });
   }
   return { stored, error: null };

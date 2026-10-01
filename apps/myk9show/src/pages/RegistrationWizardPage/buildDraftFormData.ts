@@ -26,6 +26,8 @@ export interface BuildDraftFormDataInput {
   handlerAssignments: Record<string, HandlerInfo>;
   paymentStatus: PaymentStatus;
   entryStatus: EntryStatus;
+  /** MYK9-879: the exhibitor's junior-handler declarations (dog ids). */
+  juniorHandlerDogIds?: readonly string[] | undefined;
 }
 
 export function buildDraftFormData(input: BuildDraftFormDataInput): Partial<RegistrationFormData> {
@@ -41,6 +43,7 @@ export function buildDraftFormData(input: BuildDraftFormDataInput): Partial<Regi
       handlerAssignments: input.handlerAssignments,
       paymentStatus: input.paymentStatus,
       entryStatus: input.entryStatus,
+      juniorHandlerDogIds: [...(input.juniorHandlerDogIds ?? [])],
     },
   };
 }

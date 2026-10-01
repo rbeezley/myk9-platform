@@ -106,6 +106,8 @@ interface EntryRow {
   payment_status: string | null;
   entry_status: string | null;
   /** MYK9-879: the junior fee was charged on the exhibitor's declaration. */
+  /** The fee FROZEN at entry creation (DECIMAL dollars); the link charges it. */
+  entry_fee: number | string | null;
   junior_fee_declared: boolean | null;
   /** MYK9-878: a secretary charged the junior fee at the desk. */
   junior_fee_override_by: string | null;
@@ -115,6 +117,7 @@ interface EntryRow {
     id: string;
     club_id: string | null;
     name: string | null;
+    organization: string | null;
     pre_entry_fee: number | string | null;
     day_of_show_fee: number | string | null;
     junior_handler_fee: number | string | null;
@@ -181,11 +184,12 @@ Deno.serve(async req => {
         id,
         payment_status,
         entry_status,
+        entry_fee,
         junior_fee_declared,
         junior_fee_override_by,
         dog:dog_id(call_name),
         class:class_id(name, entry_fee),
-        show:show_id(id, club_id, name, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
+        show:show_id(id, club_id, name, organization, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
       `
       )
       .in('id', entry_ids);

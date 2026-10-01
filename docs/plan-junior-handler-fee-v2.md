@@ -94,8 +94,12 @@ Entries Management (a "Junior fee (declared)" badge on the entry row, no new pag
   (`entry_cart_items.junior_fee_declared`) and recorded on the entry
   (`entries.junior_fee_declared`, a separate column from slice B's `junior_fee_override_by`
   secretary stamp, which never carries a non-secretary). A direct client write cannot set or
-  change the entry column. A Finish Payment line (existing entry) is priced from the entry's
-  stored record, never from a new tick on the cart.
+  change the entry column. Any line that settles an EXISTING entry (Finish Payment, the
+  secretary payment link, the webhook's verification) charges that entry's frozen
+  `entries.entry_fee` and never recomputes or rewrites it, so a later change to the show's fees or
+  junior tier cannot re-price it; only NEW cart lines are priced from the tiers and the declaration.
+  Declarations persist with the wizard draft (and are restored from the cart lines' flags on
+  rehydrate). The server honors no declaration on an ASCA show.
 - **One pricing function for the three Stripe paths.** `_shared/authoritativeFee.ts` takes the
   junior tier and the declaration and applies the same LEAST cap as `private.price_entry_fee` and
   the client's `getShowEntryFee`; `_shared/cartItemPricing.ts` prices cart lines for stripe-checkout

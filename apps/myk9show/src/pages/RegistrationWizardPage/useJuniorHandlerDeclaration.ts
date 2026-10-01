@@ -41,5 +41,28 @@ export function useJuniorHandlerDeclaration({ selectedDogs, paymentMethod, show 
     });
   }, []);
 
-  return { canDeclareJuniorHandler: canDeclare, juniorHandlerDogIds, setJuniorHandlerDog };
+  // Restore (draft load) replaces the set; the cart path only ever adds.
+  const setJuniorHandlerDogs = useCallback((dogIds: readonly string[]) => {
+    setDeclaredDogIds(new Set(dogIds));
+  }, []);
+  const addJuniorHandlerDogs = useCallback((dogIds: readonly string[]) => {
+    setDeclaredDogIds(prev => {
+      if (dogIds.every(id => prev.has(id))) return prev;
+      return new Set([...prev, ...dogIds]);
+    });
+  }, []);
+
+  // What the draft persists: every tick, including ones not priced right now (a
+  // switch to check/cash keeps them), so Continue Shopping or a reload brings the
+  // exhibitor back to the same declarations.
+  const declaredDogIdList = useMemo(() => [...declaredDogIds].sort(), [declaredDogIds]);
+
+  return {
+    canDeclareJuniorHandler: canDeclare,
+    juniorHandlerDogIds,
+    declaredDogIdList,
+    setJuniorHandlerDog,
+    setJuniorHandlerDogs,
+    addJuniorHandlerDogs,
+  };
 }

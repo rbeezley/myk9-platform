@@ -78,6 +78,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setEntryOutcomes,
     paymentDetailsRef,
     juniorHandlerDogIds,
+    setJuniorHandlerDogs,
     setIsSubmitting,
     setAgreedToEntryAgreement,
     submittingRef,
@@ -327,6 +328,10 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       setHandlerAssignments(workflowState.handlerAssignments || {});
       setPaymentStatus(workflowState.paymentStatus || PaymentStatus.PENDING);
       setEntryStatus(workflowState.entryStatus || EntryStatus.PENDING);
+      // MYK9-879: the declarations return with the selections, or a restored dog
+      // would come back at the normal fee and re-submitting would replace the
+      // junior-priced cart with undeclared lines.
+      setJuniorHandlerDogs(workflowState.juniorHandlerDogIds ?? []);
 
       // Map steps that may have been removed from the current workflow config
       let targetStep = workflowState.currentStep;

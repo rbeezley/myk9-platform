@@ -1,6 +1,7 @@
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getDogDisplayName } from '@/types/dog-types';
+import { juniorMeasuringDateText } from './juniorMeasuringDate';
 
 /** The wizard's junior-handler declarations, owned by the page (MYK9-879). */
 export interface JuniorHandlerDeclaration {
@@ -16,6 +17,8 @@ interface JuniorHandlerDeclarationControlProps {
   fee: number;
   dogs: { id: string; callName?: string | undefined; name: string }[];
   declaration: JuniorHandlerDeclaration;
+  /** The show's organization; picks the registry's measuring date for "under 18". */
+  organization?: string | null | undefined;
 }
 
 /**
@@ -31,15 +34,16 @@ export const JuniorHandlerDeclarationControl: React.FC<JuniorHandlerDeclarationC
   fee,
   dogs,
   declaration,
+  organization,
 }) => {
   if (dogs.length === 0) return null;
   return (
     <fieldset className="space-y-2 rounded-lg border border-border p-3">
       <legend className="px-1 text-sm font-medium">Junior handler fee (${fee.toFixed(2)})</legend>
       <p className="text-xs text-muted-foreground">
-        Tick a dog if the person showing it is under 18 on the day of the trial. This is about the
-        handler, not the owner, so it applies whoever in your household shows the dog. The club may
-        check.
+        Tick a dog if the person showing it is under 18 {juniorMeasuringDateText(organization)}.
+        This is about the handler, not the owner, so it applies whoever in your household shows the
+        dog. The club may check.
       </p>
       {dogs.map(dog => {
         const inputId = `junior-handler-${dog.id}`;

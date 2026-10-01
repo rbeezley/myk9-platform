@@ -210,7 +210,7 @@ export const getEntryCountsByStatus = async (showId: string) => {
 /**
  * Update entry status (accept, reject, waitlist, withdraw, scratch)
  */
-function buildReplicatedEntryStatusUpdate(
+export function buildReplicatedEntryStatusUpdate(
   status: EntryStatus,
   withdrawalReason?: string,
   withdrawalReasonCode?: string | null

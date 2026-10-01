@@ -144,7 +144,8 @@ export const rejectEntry = async (entryId: string, reason?: string) => {
  * Pre-show pull — withdrawal before day-of. Writes `entry_status='scratched'`
  * via the secretary transition (which also sets `check_in_status='pulled'` per
  * the `buildEntryStatusUpdate` helper) and `withdrawal_reason`. Does NOT touch
- * `special_requests`. For day-of pulls that need to overwrite `special_requests`
+ * `special_requests`. Show Day's day-of "Pull / no-show" uses this same shared
+ * mutation (`updateEntryStatus`, MYK9-918), so both entry points write the same fields.
  */
 export const pullEntry = async (entryId: string, reason?: string) => {
   const result = await transitionEntryLifecycle({ entryId, action: 'pull', reason });
@@ -156,8 +157,8 @@ export const pullEntry = async (entryId: string, reason?: string) => {
     // `removeEntryAsManager`'s Pull write the same state for the same reason, so
     // they must not be two names in the audit trail. Grepped repo-wide before
     // renaming: nothing READS 'scratch_entry' — only this emitter and its test.
-    // The day-of sibling keeps 'scratch_entry_day_of'; the at-show pull is out
-    // of scope for this issue (`check_in_status = 'pulled'` is untouched).
+    // Show Day's pull writes the same fields through the same mutation but keeps
+    // its own audit action, 'scratch_entry_day_of' (MYK9-918).
     action: 'pull_entry',
     reason,
   });

@@ -83,7 +83,12 @@ vi.mock('@/services/LoggingService', () => ({
   },
 }));
 
-import { bulkUpdateEntryStatus, getEntriesForShow, updateEntryStatus } from './secretary';
+import {
+  buildReplicatedEntryStatusUpdate,
+  bulkUpdateEntryStatus,
+  getEntriesForShow,
+  updateEntryStatus,
+} from './secretary';
 
 function mockLegacyEntryUpdate() {
   const query = {
@@ -240,6 +245,13 @@ describe('secretary entry status replication', () => {
       undefined
     );
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+  });
+
+  it('keeps the reason code on a Withdraw (Pull-vs-Withdraw boundary)', () => {
+    expect(buildReplicatedEntryStatusUpdate('withdrawn', 'Injury', 'in_season')).toMatchObject({
+      withdrawal_reason: 'Injury',
+      withdrawal_reason_code: 'in_season',
+    });
   });
 
   it('passes loaded secretary entry fields as a seed for missing local replica rows', async () => {

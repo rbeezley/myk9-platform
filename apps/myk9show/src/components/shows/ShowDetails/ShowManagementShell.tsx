@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -11,7 +10,6 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
-import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
@@ -33,7 +31,6 @@ import {
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
 import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
-import type { ShowJudgeAssignment } from '@/types/judge-types';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -50,47 +47,8 @@ import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
-
-function parseOptionalCurrency(value: string | number | undefined): number | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function applyShowFormDataToPremium(
-  premium: GeneratedPremium,
-  formData: Partial<ShowInput>,
-  judges: ShowJudgeAssignment[]
-): GeneratedPremium {
-  const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
-  const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
-
-  return {
-    ...premium,
-    style: (formData.style ?? premium.style) as GeneratedPremium['style'],
-    show: {
-      ...premium.show,
-      name: formData.name ?? premium.show.name,
-      startDate: formData.startDate ?? premium.show.startDate,
-      endDate: formData.endDate ?? premium.show.endDate,
-      venue: formData.location ?? premium.show.venue,
-      entryOpenDate: formData.entryOpenDate ?? premium.show.entryOpenDate,
-      entryCloseDate: formData.entryCloseDate ?? premium.show.entryCloseDate,
-      preEntryFee: preEntryFee ?? premium.show.preEntryFee,
-      dayOfFee: dayOfFee ?? premium.show.dayOfFee,
-      acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
-      acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
-    },
-    trials: premium.trials.map(trial => ({
-      ...trial,
-      judges: judges.map(judge => ({
-        name: judge.judgeName,
-        elements: judge.assignedClasses ?? [],
-      })),
-    })),
-  };
-}
+import { applyShowFormDataToPremium } from './showFormPremiumSync';
+import { ShowPageHeaderActions } from './ShowPageHeaderActions';
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -161,33 +119,6 @@ export function ShowManagementShell(props: ShowManagementShellProps) {
   if (!manageScope.canManage) return null;
 
   return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
-}
-
-/**
- * INTENT: a plainly labelled Edit show button (MYK9-904) so a non-technical
- * secretary finds the editor without opening the Actions menu. Deliberate
- * exception to MYK9-630's "same verb never in both places": Edit stays in the
- * Actions menu too, because the command palette reads that registry. The shell
- * only mounts for managers, so no extra gate here.
- */
-function ShowPageHeaderActions({
-  showId,
-  armbandCount,
-  onEdit,
-}: {
-  showId: string | undefined;
-  armbandCount: number | undefined;
-  onEdit: () => void;
-}) {
-  return (
-    <>
-      {(armbandCount ?? 0) > 0 && showId ? <ArmbandLookup showId={showId} /> : null}
-      <Button type="button" variant="outline" onClick={onEdit}>
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-        Edit show
-      </Button>
-    </>
-  );
 }
 
 function AuthorizedShowManagementShell({

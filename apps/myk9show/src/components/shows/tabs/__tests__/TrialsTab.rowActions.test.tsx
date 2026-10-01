@@ -73,6 +73,8 @@ const stats = {
 };
 
 const syncable = (trial: Trial): SyncableTrial => ({
+  eventNumber: '1',
+  order: '1',
   ...trial,
   _version: 1,
   _lastModified: new Date('2026-05-01T00:00:00Z'),
@@ -224,6 +226,68 @@ describe('TrialsTab trial delete', () => {
     await waitFor(() => expect(deleteTrial).toHaveBeenCalledWith('t1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(toastError).not.toHaveBeenCalled();
+  });
+});
+
+describe('TrialsTab trial save and delete failures', () => {
+  beforeEach(() => {
+    toastError.mockClear();
+    mockCanManage = true;
+    mockScopeStatus = 'resolved';
+    mockViewMode = 'cards';
+    seedStore();
+  });
+
+  Element.prototype.scrollIntoView = vi.fn();
+
+  async function editName(user: ReturnType<typeof renderTab>['user']) {
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+    const panel = await screen.findByRole('dialog');
+    const name = within(panel).getByDisplayValue('Sunday Trial 2');
+    await user.clear(name);
+    await user.type(name, 'Renamed');
+    await user.click(within(panel).getByRole('button', { name: /save changes/i }));
+    return panel;
+  }
+
+  it('a failed save keeps the panel open with the edits and shows the error', async () => {
+    const updateTrial = vi.fn().mockRejectedValue(new Error('Trial with id t2 not found'));
+    useTrialStore.setState({ updateTrial });
+    const { user } = renderTab();
+
+    await editName(user);
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(updateTrial).toHaveBeenCalledWith('t2', expect.anything(), expect.anything());
+    const panel = screen.getByRole('dialog');
+    expect(within(panel).getByDisplayValue('Renamed')).toBeVisible();
+  });
+
+  it('a successful save closes the panel', async () => {
+    const updateTrial = vi.fn().mockResolvedValue(null);
+    useTrialStore.setState({ updateTrial });
+    const { user } = renderTab();
+
+    await editName(user);
+
+    await waitFor(() => expect(updateTrial).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('a failed delete keeps the dialog open and shows the error', async () => {
+    const deleteTrial = vi.fn().mockRejectedValue(new Error('Trial with id t1 not found'));
+    useTrialStore.setState({ deleteTrial });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/not found/i);
+    expect(screen.getByRole('dialog')).toBeVisible();
   });
 });
 

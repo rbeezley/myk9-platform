@@ -76,6 +76,7 @@ export const TrialManagementDialogs = forwardRef<
 
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(initialAction === 'edit');
   const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(initialAction === 'delete');
+  const [deleteTrialError, setDeleteTrialError] = useState<string | null>(null);
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
@@ -103,24 +104,38 @@ export const TrialManagementDialogs = forwardRef<
     onActionFinished?.();
   };
   const closeDeleteTrial = () => {
+    setDeleteTrialError(null);
     setDeleteTrialDialogOpen(false);
     onActionFinished?.();
   };
 
   const handleConfirmDeleteTrial = async () => {
-    if (currentTrial) {
+    if (!currentTrial) {
+      closeDeleteTrial();
+      return;
+    }
+    try {
+      setDeleteTrialError(null);
       await deleteTrialAsync(currentTrial.id);
-      if (onTrialDeleted) {
-        onTrialDeleted();
-      } else if (showId && currentTrial.showId) {
-        navigate(`/shows/${currentTrial.showId}`);
+    } catch (error) {
+      // Stay open and say why; closing here would read as a delete that never happened.
+      setDeleteTrialError(
+        error instanceof Error && error.message
+          ? error.message
+          : "We couldn't delete this trial. Please try again."
+      );
+      return;
+    }
+    if (onTrialDeleted) {
+      onTrialDeleted();
+    } else if (showId && currentTrial.showId) {
+      navigate(`/shows/${currentTrial.showId}`);
+    } else {
+      const remainingTrials = trials.filter(t => t.id !== currentTrial.id);
+      if (remainingTrials.length > 0) {
+        navigate(`/trials/${remainingTrials[0].id}`, { replace: true });
       } else {
-        const remainingTrials = trials.filter(t => t.id !== currentTrial.id);
-        if (remainingTrials.length > 0) {
-          navigate(`/trials/${remainingTrials[0].id}`, { replace: true });
-        } else {
-          navigate('/shows', { replace: true });
-        }
+        navigate('/shows', { replace: true });
       }
     }
     closeDeleteTrial();
@@ -152,12 +167,13 @@ export const TrialManagementDialogs = forwardRef<
         {...(showOrganization ? { organization: showOrganization } : {})}
         onSave={async trialData => {
           if (currentTrial?.id) {
-            updateTrial(
+            // Awaited: a failure rejects into EditPanelWrapper, which keeps the panel open with
+            // the user's edits and shows the error. The panel closes itself (onClose) on success.
+            await updateTrial(
               currentTrial.id,
               { ...currentTrial, ...trialData } as Partial<TrialInput>,
               user?.id || 'unknown'
             );
-            closeEditTrial();
           }
         }}
       />
@@ -188,6 +204,11 @@ export const TrialManagementDialogs = forwardRef<
             This will permanently delete the trial along with all of its classes and entries.
           </p>
           <p className="text-destructive text-sm font-medium">This action cannot be undone.</p>
+          {deleteTrialError && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {deleteTrialError}
+            </p>
+          )}
         </div>
       </StandardDialog>
 

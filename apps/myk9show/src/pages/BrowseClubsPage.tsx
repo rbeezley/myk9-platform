@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, Building2 } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
@@ -25,7 +26,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
 const BrowseClubsPage: React.FC = () => {
-  const navigate = useNavigate();
+  const routerNavigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const { user, userWithRoles, refreshPermissions } = useAuthContext();
@@ -69,7 +70,7 @@ const BrowseClubsPage: React.FC = () => {
 
   // Handle club creation
   const handleClubCreated = useCallback(
-    async (clubData: Partial<Club>) => {
+    async (clubData: Partial<Club>, { runSelfNavigation }: EditPanelSaveContext) => {
       try {
         const newClub: Club = {
           id: '',
@@ -102,6 +103,10 @@ const BrowseClubsPage: React.FC = () => {
           // MYK9-905: the creator's club_admin grant is issued server-side once the club
           // uploads; refresh role scopes then so Edit appears without a reload.
           void refreshScopesAfterClubUpload(createdId, refreshPermissions);
+          // The club is saved, so leaving the panel is not losing work: route
+          // through the panel's self-navigation so its unsaved-changes guard
+          // stands down instead of offering to "discard" a saved club.
+          const navigate = (to: string) => runSelfNavigation(() => routerNavigate(to));
           const returnTo = searchParams.get('returnTo');
           if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
             const target = new URL(returnTo, window.location.origin);
@@ -124,7 +129,7 @@ const BrowseClubsPage: React.FC = () => {
         notifications.error('Failed to create club');
       }
     },
-    [addClub, selectClub, navigate, searchParams, refreshPermissions]
+    [addClub, selectClub, routerNavigate, searchParams, refreshPermissions]
   );
 
   const actionButton = useMemo(

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { EditPanelWrapper } from './EditPanelWrapper';
+import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +47,7 @@ interface ClubEditPanelProps {
   clubId: string;
   clubName: string;
   initialClubData: Partial<Club>;
-  onSave?: (clubData: Partial<Club>) => Promise<void>;
+  onSave?: (clubData: Partial<Club>, context: EditPanelSaveContext) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
   /** Set to 'create' when adding a new club. Defaults to 'edit'. */
@@ -395,12 +395,12 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
 
   // Handle save
   const handleSave = useCallback(
-    async (formData: ClubEditFormData) => {
+    async (formData: ClubEditFormData, context: EditPanelSaveContext) => {
       logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
       const clubData = formDataToClub(formData);
       logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
       if (onSave) {
-        await onSave(clubData);
+        await onSave(clubData, context);
       }
     },
     [onSave]

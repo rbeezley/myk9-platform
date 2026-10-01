@@ -7,6 +7,9 @@ import type { Club } from '@/types/club-types';
 
 // Mutable so individual tests can override role
 const mockRefreshScopes = vi.hoisted(() => vi.fn());
+// The panel's save context: runs the save's own navigation with its route guard
+// stood down. Each test's default runs the navigation it is handed.
+const mockRunSelfNavigation = vi.hoisted(() => vi.fn((navigate: () => void) => navigate()));
 
 let mockAuthReturn: {
   user: { id: string } | null;
@@ -84,21 +87,31 @@ vi.mock('@/components/clubs/refreshScopesAfterClubUpload', () => ({
 }));
 
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
-  ClubEditPanel: ({ onSave }: { onSave: (club: Partial<Club>) => void }) => (
+  ClubEditPanel: ({
+    onSave,
+  }: {
+    onSave: (
+      club: Partial<Club>,
+      context: { runSelfNavigation: (navigate: () => void) => void }
+    ) => void;
+  }) => (
     <button
       type="button"
       onClick={() =>
-        onSave({
-          name: 'Complete Club',
-          email: 'club@example.com',
-          address: {
-            street: '1 Main St',
-            city: 'Tulsa',
-            state: 'OK',
-            zipCode: '74103',
-            country: 'US',
+        onSave(
+          {
+            name: 'Complete Club',
+            email: 'club@example.com',
+            address: {
+              street: '1 Main St',
+              city: 'Tulsa',
+              state: 'OK',
+              zipCode: '74103',
+              country: 'US',
+            },
           },
-        })
+          { runSelfNavigation: mockRunSelfNavigation }
+        )
       }
     >
       Submit complete club
@@ -159,6 +172,7 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mockAddClub.mockResolvedValue('club-new');
+    mockRunSelfNavigation.mockImplementation((navigate: () => void) => navigate());
     mockAuthReturn = {
       user: { id: 'test-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -297,6 +311,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mockAddClub.mockResolvedValue('club-new');
+    mockRunSelfNavigation.mockImplementation((navigate: () => void) => navigate());
     mockBrowseClubsReturn = {
       clubs: [makeClub()],
       filteredClubs: [makeClub()],
@@ -385,5 +400,22 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     await screen.findByTestId('location');
     expect(mockRefreshScopes).toHaveBeenCalledWith('club-new', refreshPermissions);
+  });
+
+  it("routes to the new club through the panel's self-navigation, so the saved club is not offered for discard", async () => {
+    mockAuthReturn = {
+      user: { id: 'secretary-user' },
+      userWithRoles: { roles: ['secretary'] },
+    };
+    // Withhold the navigation: if the page routes on its own, it bypasses the
+    // panel's route guard and the location still changes.
+    mockRunSelfNavigation.mockImplementation(() => {});
+
+    renderPage('/clubs?create=true');
+    fireEvent.click(await screen.findByRole('button', { name: /submit complete club/i }));
+
+    await vi.waitFor(() => expect(mockRunSelfNavigation).toHaveBeenCalledTimes(1));
+    // The probe renders only off /clubs, so its absence means no navigation happened.
+    expect(screen.queryByTestId('location')).not.toBeInTheDocument();
   });
 });

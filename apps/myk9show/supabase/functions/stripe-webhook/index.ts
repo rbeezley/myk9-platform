@@ -12,6 +12,7 @@ import {
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
+import { recordChargedEntryFee } from '../_shared/entryFeeRecord.ts';
 import {
   calculatePlatformFeeCents,
   decodeStampedPlatformFeeRates,
@@ -1342,8 +1343,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           payment_status: 'paid',
           payment_method: 'online',
           stripe_payment_intent_id: paymentIntentId,
-          // entry_fee is deliberately NOT written: the fee was frozen when the
-          // entry was created and this line was charged exactly that (MYK9-879).
+          // entry_fee is NOT written here: a positive fee was frozen at creation and
+          // this line was charged exactly that. A NULL/0 fee is recorded below
+          // (recordChargedEntryFee), or the paid entry could never be refunded.
           ...(moneyRoot.id === existingEntry.id && existingEntry.entry_status === 'pending-payment'
             ? { entry_status: 'confirmed' }
             : {}),
@@ -1366,6 +1368,27 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           errorMessage,
         });
         continue;
+      }
+
+      // The ONE entry_fee write rule (_shared/entryFeeRecord): record the charged
+      // amount only where the stored fee is NULL or 0; never overwrite a positive fee.
+      {
+        const feeRecord = await recordChargedEntryFee(supabase, moneyRoot.id, lineAmountCents);
+        if (feeRecord.error) {
+          console.error(
+            `Could not record the charged fee on entry ${moneyRoot.id}:`,
+            feeRecord.error
+          );
+          await alertAdmin(
+            'Paid entry fee could not be recorded',
+            `<p>Entry <code>${moneyRoot.id}</code> was paid ${(lineAmountCents / 100).toFixed(2)} USD
+             (session <code>${session.id}</code>) but its entry_fee could not be recorded:</p>
+             <pre>${feeRecord.error.message}</pre>
+             <p>Until it is set, the entry's refundable amount reads as zero. Recovery: set
+             entry_fee to ${(lineAmountCents / 100).toFixed(2)} on that entry.</p>`,
+            { source: 'stripe-webhook', dedupeKey: `entry-fee-record-failed-${moneyRoot.id}` }
+          );
+        }
       }
 
       // The live entry carrying this run: the destination the cart named, or
@@ -1931,6 +1954,26 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     const destinationFee = entryFeesById.get(destinationId);
     if (rootId && destinationFee != null && !entryFeesById.has(rootId)) {
       entryFeesById.set(rootId, destinationFee);
+    }
+    // The ONE entry_fee write rule (_shared/entryFeeRecord): a stamped entry whose
+    // stored fee is NULL or 0 records the amount actually charged for it, so
+    // stripe-refund-entry can compute its refundable amount; a positive fee is never
+    // overwritten.
+    for (const stampedId of new Set(updatedEntryIds)) {
+      const chargedCents = entryFeesById.get(stampedId);
+      if (chargedCents == null) continue;
+      const feeRecord = await recordChargedEntryFee(supabase, stampedId, chargedCents);
+      if (feeRecord.error) {
+        console.error(`Could not record the charged fee on entry ${stampedId}:`, feeRecord.error);
+        await alertAdmin(
+          'Paid entry fee could not be recorded',
+          `<p>Entry <code>${stampedId}</code> was paid ${(chargedCents / 100).toFixed(2)} USD
+         (session <code>${session.id}</code>) but its entry_fee could not be recorded:</p>
+         <pre>${feeRecord.error.message}</pre>
+         <p>Recovery: set entry_fee to ${(chargedCents / 100).toFixed(2)} on that entry.</p>`,
+          { source: 'stripe-webhook', dedupeKey: `entry-fee-record-failed-${stampedId}` }
+        );
+      }
     }
   }
   // Declared here rather than beside the snapshot below because the make-whole

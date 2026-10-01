@@ -186,3 +186,48 @@ describe('junior declarations round-trip through the draft', () => {
     expect(second.result.current.juniorHandlerDogIds.size).toBe(0);
   });
 });
+
+describe('the persisted set wins: tick, cart, return, UNTICK, reload', () => {
+  it('stays unticked after a reload, and the preview and lines match the un-ticked state', () => {
+    const first = wizardHook();
+    act(() => first.result.current.setJuniorHandlerDog('dog-1', true));
+    const draftAtCart = savedDraftFor(first.result.current.declaredDogIdList);
+    first.unmount();
+
+    // Return via Continue Shopping, then un-tick before re-submitting.
+    const second = wizardHook();
+    act(() => {
+      restoreInto(second.result, draftAtCart);
+    });
+    expect([...second.result.current.juniorHandlerDogIds]).toEqual(['dog-1']);
+    act(() => second.result.current.setJuniorHandlerDog('dog-1', false));
+    // The draft store now holds the empty set (the key present, the list empty).
+    const draftAfterUntick = savedDraftFor(second.result.current.declaredDogIdList);
+    expect(draftAfterUntick.data._workflowState?.juniorHandlerDogIds).toEqual([]);
+    second.unmount();
+
+    // Reload from that draft. The (stale) cart would still say dog-1 is declared, but
+    // a present key means the cart is not consulted (see the rehydration test).
+    const third = wizardHook();
+    act(() => {
+      restoreInto(third.result, draftAfterUntick);
+    });
+    expect(third.result.current.juniorHandlerDogIds.size).toBe(0);
+    expect(cartLines(third.result.current.juniorHandlerDogIds)).toEqual([
+      ['dog-1', 'class-1', 3000, false],
+      ['dog-2', 'class-1', 3000, false],
+      ['dog-2', 'class-2', 3000, false],
+    ]);
+    expect(
+      calculateTotalFees(
+        selectedDogs,
+        classSelections,
+        dogs,
+        classes,
+        showFeeInfo,
+        new Set(),
+        third.result.current.juniorHandlerDogIds
+      ).total
+    ).toBe(90);
+  });
+});

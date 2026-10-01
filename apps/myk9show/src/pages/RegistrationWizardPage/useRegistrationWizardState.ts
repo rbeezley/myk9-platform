@@ -29,7 +29,7 @@ import { useShowStore } from '@/store/showStore';
 import { useCartStore } from '@/store/cartStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import { useJuniorHandlerDeclaration } from './useJuniorHandlerDeclaration';
+import { useWizardJuniorDeclaration } from './useWizardJuniorDeclaration';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
@@ -380,16 +380,21 @@ export function useRegistrationWizardState() {
   // MYK9-879: the exhibitor's per-dog junior-handler declarations (card checkout
   // only). The effective set feeds the SAME calculation as the panel, the Next
   // gate and the payment step, so the preview equals what checkout charges.
+  // ONE payment-method derivation for the whole wizard (the entries panel, the
+  // payment step and the declarations all read `paymentResolution`); declarations
+  // are offered and priced from the EFFECTIVE method, never the raw selection.
   const {
+    paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     declaredDogIdList,
     setJuniorHandlerDog,
     setJuniorHandlerDogs,
     addJuniorHandlerDogs,
-  } = useJuniorHandlerDeclaration({
+  } = useWizardJuniorDeclaration({
+    showId,
     selectedDogs: registrationData.selectedDogs,
-    paymentMethod: registrationData.paymentMethod,
+    selectedPaymentMethod: registrationData.paymentMethod,
     show: currentShow,
   });
   // Sync draft data
@@ -684,6 +689,7 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
+    paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     setJuniorHandlerDog,

@@ -47,6 +47,8 @@ const meta = {
 } as DraftMetadata;
 
 const addJuniorHandlerDogs = vi.fn();
+// The data the restored draft carries; the tests vary its _workflowState.
+let draftData: Record<string, unknown> = { selectedDogs: ['dog-1', 'dog-2'] };
 
 function Harness() {
   const [, force] = useState(0);
@@ -55,7 +57,7 @@ function Harness() {
     userId: USER,
     isInsideSidebar: false,
     availableDrafts: [meta],
-    draftLoad: () => ({ metadata: meta, data: { selectedDogs: ['dog-1', 'dog-2'] } }) as SavedDraft,
+    draftLoad: () => ({ metadata: meta, data: draftData }) as SavedDraft,
     currentStepId: 'payment',
     registrationData: { selectedDogs: [], entries: [], documents: [] },
     classSelections: [],
@@ -76,6 +78,7 @@ function Harness() {
 beforeEach(() => {
   sessionStorage.clear();
   addJuniorHandlerDogs.mockReset();
+  draftData = { selectedDogs: ['dog-1', 'dog-2'] };
   cart.show_id = SHOW;
   cart.exhibitor_id = PROFILE;
   cartItems.splice(
@@ -87,8 +90,8 @@ beforeEach(() => {
   );
 });
 
-describe('rehydration restores declarations from the cart lines', () => {
-  it('adds each declared dog once, and not the undeclared one', () => {
+describe('rehydration restores declarations from the cart lines (legacy drafts only)', () => {
+  it('a draft that predates the field falls back to the cart: each declared dog once', () => {
     markWizardSessionOpen(SHOW, USER);
     render(<Harness />);
     expect(addJuniorHandlerDogs).toHaveBeenCalledTimes(1);
@@ -111,6 +114,26 @@ describe('rehydration restores declarations from the cart lines', () => {
 
     cart.show_id = SHOW;
     cart.exhibitor_id = 'someone-elses-profile';
+    render(<Harness />);
+    expect(addJuniorHandlerDogs).not.toHaveBeenCalled();
+  });
+});
+
+describe('a persisted draft set WINS over the cart', () => {
+  it('present-but-empty (the exhibitor un-ticked, then reloaded) is not resurrected from the cart', () => {
+    draftData = { selectedDogs: ['dog-1', 'dog-2'], _workflowState: { juniorHandlerDogIds: [] } };
+    markWizardSessionOpen(SHOW, USER);
+    render(<Harness />);
+    // The cart still holds dog-1 as declared at the last submit; the draft says no.
+    expect(addJuniorHandlerDogs).not.toHaveBeenCalled();
+  });
+
+  it('a non-empty persisted set is not unioned with the cart', () => {
+    draftData = {
+      selectedDogs: ['dog-1', 'dog-2'],
+      _workflowState: { juniorHandlerDogIds: ['dog-2'] },
+    };
+    markWizardSessionOpen(SHOW, USER);
     render(<Harness />);
     expect(addJuniorHandlerDogs).not.toHaveBeenCalled();
   });

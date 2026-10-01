@@ -97,6 +97,10 @@ export function useWizardDraftRehydration(
   const didRehydrate = rehydrateStatus === 'applied';
   const hasReconciled = useRef(false);
   const hasRestoredDeclarations = useRef(false);
+  // True only when the restored draft carried NO declaration key at all, i.e. it
+  // was saved before declarations were persisted (MYK9-879). Then, and only then,
+  // the cart lines are the best record of what the exhibitor declared.
+  const draftPredatesDeclarations = useRef(false);
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(s => s.cart?.show_id ?? null);
@@ -129,6 +133,8 @@ export function useWizardDraftRehydration(
       if (!candidate) return false;
       const draft = draftLoad(candidate.id);
       if (!draft) return false;
+      draftPredatesDeclarations.current =
+        draft.data._workflowState?.juniorHandlerDogIds === undefined;
       // Silent: the exhibitor never left, so "Draft loaded successfully" would
       // be news about something they did not do.
       return handlers.handleDraftLoaded(draft, { silent: true }) !== false;
@@ -179,14 +185,16 @@ export function useWizardDraftRehydration(
     exhibitorProfile?.id,
   ]);
 
-  // MYK9-879: a draft saved before declarations were persisted (or one written
-  // before the last tick landed) has no record of them, but the cart the exhibitor
-  // left for still carries each line's declaration. Add those back, once, under the
-  // same guards as the reconcile above. It only ever adds, so an exhibitor who
-  // un-ticks afterwards is never overruled.
+  // MYK9-879, the DECLARATION RESTORE RULE: a draft that carries the persisted set
+  // (the key is present, even when empty) WINS outright. The cart's lines hold the
+  // declarations as they were at the last submit, so unioning them in would
+  // resurrect a dog the exhibitor un-ticked afterwards. Only a draft that predates
+  // the field (key absent) falls back to the cart's declarations, once, under the
+  // same guards as the reconcile above.
   useEffect(() => {
     if (hasRestoredDeclarations.current) return;
     if (!didRehydrate || cartIsLoading) return;
+    if (!draftPredatesDeclarations.current) return;
     if (cartShowId !== showId) return;
     if (exhibitorProfile?.id && cartExhibitorId !== exhibitorProfile.id) return;
     if (cartItems.length === 0) return;

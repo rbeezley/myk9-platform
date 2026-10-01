@@ -54,6 +54,11 @@ describe('junior declaration wiring (MYK9-879)', () => {
     // A Finish Payment line was charged the fee FROZEN on its entry; the update
     // that marks it paid must not write entry_fee back.
     expect(webhook).not.toContain('entry_fee: lineAmountCents');
+    // ...but a NULL/0 fee is recorded through the ONE shared rule, on both existing-
+    // entry paths (Finish Payment recovery and the payment-link stamp), and the
+    // refund function reads the stored fee through the same module.
+    expect(webhook.match(/recordChargedEntryFee\(/g)?.length).toBe(2);
+    expect(read('stripe-refund-entry/index.ts')).toContain('storedFeeToCents(entry.entry_fee)');
     expect(webhook).toContain('organization');
     expect(read('stripe-checkout/index.ts')).toContain('organization');
     const link = read('stripe-payment-link/index.ts');

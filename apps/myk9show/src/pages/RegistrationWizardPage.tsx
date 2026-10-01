@@ -33,7 +33,6 @@ import {
   useEntriesPanelGroups,
   useRemoveEntryLine,
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
-import { usePaymentMethodResolution } from '@/components/shows/RegistrationWorkflow/PaymentStep/usePaymentMethodResolution';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
@@ -78,6 +77,7 @@ function RegistrationWizardContent() {
     paymentDetailsRef,
     waiveFees,
     setWaiveFees,
+    paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     setJuniorHandlerDog,
@@ -143,10 +143,7 @@ function RegistrationWizardContent() {
   // ONE payment-method derivation for the whole step: the panel below and the
   // controls inside WorkflowStepContent both read this, so they cannot quote
   // different methods (and different service fees) at the same moment.
-  const paymentResolution = usePaymentMethodResolution(
-    showId,
-    registrationData.paymentMethod || ''
-  );
+  // (Owned by the wizard state hook, which prices the junior declarations from it.)
 
   // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
   // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`

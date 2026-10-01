@@ -228,11 +228,28 @@ export async function submitShowRegistration({
     }
   }
 
-  const surfacedOutcomes = submissionOutcomes?.some(
-    outcome => outcome.outcome !== 'created' || outcome.capacityOverride
-  )
-    ? submissionOutcomes
-    : undefined;
+  // The confirmation and receipts total the committed `fee_cents` of the outcomes
+  // when they are present, and the wizard's live total (normal fees) when not. So
+  // the outcomes must survive whenever the committed fee can differ from that live
+  // total: a junior-fee override (the live total never knows the junior fee), or any
+  // entry the server committed at a fee other than the one quoted. (MYK9-878)
+  const quotedCents = new Map(
+    entryInputs.map(entry => [
+      `${entry.dogId}:${entry.classId}`,
+      Math.round((entry.registrationData.entryFee ?? 0) * 100),
+    ])
+  );
+  const committedFeeDiffers = (submissionOutcomes ?? []).some(
+    outcome =>
+      outcome.outcome === 'created' &&
+      outcome.feeCents !== quotedCents.get(`${outcome.dogId}:${outcome.classId}`)
+  );
+  const surfacedOutcomes =
+    chargeJuniorFee ||
+    committedFeeDiffers ||
+    submissionOutcomes?.some(outcome => outcome.outcome !== 'created' || outcome.capacityOverride)
+      ? submissionOutcomes
+      : undefined;
 
   return {
     aborted: false,

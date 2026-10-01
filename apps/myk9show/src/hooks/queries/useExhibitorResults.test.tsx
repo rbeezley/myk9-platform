@@ -8,9 +8,11 @@ const mocks = vi.hoisted(() => ({
   range: vi.fn(),
   trialDates: vi.fn(),
   dogsQuery: vi.fn(),
+  profile: vi.fn(),
   retryDogs: vi.fn(),
   dogs: [{ id: 'dog-a' }, { id: 'dog-b' }],
 }));
+vi.mock('@/hooks/useExhibitorProfile', () => ({ useExhibitorProfile: mocks.profile }));
 vi.mock('./useDogsDatabase', () => ({ useDogsQuery: mocks.dogsQuery }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -48,7 +50,7 @@ function Results() {
 }
 function ResultDate() {
   const { data, isError } = useExhibitorResults('dog-a');
-  return <p>{isError ? 'error' : (data?.[0]?.showDate ?? 'loading')}</p>;
+  return <p>{isError ? 'error' : data ? data[0]?.showDate || 'no-date' : 'loading'}</p>;
 }
 
 function ResultsState() {
@@ -62,6 +64,7 @@ function ResultsState() {
 }
 
 beforeEach(() => {
+  mocks.profile.mockReturnValue({ isLoading: false });
   mocks.retryDogs.mockReset().mockResolvedValue(undefined);
   mocks.dogsQuery.mockReturnValue({
     data: mocks.dogs,
@@ -91,6 +94,20 @@ describe('exhibitor scored-result query scope', () => {
     });
     render(<ResultsState />);
     expect(screen.getByText('error')).toBeInTheDocument();
+    expect(mocks.filter).not.toHaveBeenCalled();
+  });
+
+  it('reads loading, not error, while the roster waits on the owner profile', () => {
+    mocks.profile.mockReturnValue({ isLoading: true });
+    mocks.dogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isLoading: false,
+      isError: false,
+      fetchStatus: 'idle',
+    });
+    render(<ResultsState />);
+    expect(screen.getByText('loading')).toBeInTheDocument();
     expect(mocks.filter).not.toHaveBeenCalled();
   });
 
@@ -200,5 +217,25 @@ describe('exhibitor scored-result query scope', () => {
     render(<ResultDate />);
     expect(await screen.findByText('2026-09-28')).toBeInTheDocument();
     expect(mocks.trialDates).toHaveBeenCalledWith('id', ['trial-1']);
+  });
+
+  it('falls back to the show start date when the trial row is not returned', async () => {
+    mocks.range.mockResolvedValueOnce({
+      data: [
+        { id: 'entry-1', dog_id: 'dog-a', trial_id: 'trial-1', show_start_date: '2026-09-25' },
+      ],
+      error: null,
+    });
+    render(<ResultDate />);
+    expect(await screen.findByText('2026-09-25')).toBeInTheDocument();
+  });
+
+  it('reports an empty date, never a malformed one, when no date is known', async () => {
+    mocks.range.mockResolvedValueOnce({
+      data: [{ id: 'entry-1', dog_id: 'dog-a', trial_id: 'trial-1' }],
+      error: null,
+    });
+    render(<ResultDate />);
+    expect(await screen.findByText('no-date')).toBeInTheDocument();
   });
 });

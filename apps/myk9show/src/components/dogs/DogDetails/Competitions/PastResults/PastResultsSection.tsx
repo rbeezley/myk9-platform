@@ -187,7 +187,7 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
                   )}
                 </div>
                 <div className="myk9-record-meta">
-                  {result.showDate ? formatLongDate(result.showDate) : ''}
+                  {result.showDate ? formatLongDate(result.showDate) : 'Date unavailable'}
                 </div>
               </div>
             </div>

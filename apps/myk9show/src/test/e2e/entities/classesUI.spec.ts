@@ -116,20 +116,24 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await masterRow.locator('..').getByRole('button').last().click();
     await page.getByRole('menuitem', { name: /Delete Class/i }).click();
 
-    const alert = page.getByRole('alertdialog', { name: 'Delete Class' });
+    // The shared delete dialog (CRUD standard Phase 2): honest about Undo.
+    const alert = page.getByRole('dialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
-    await expect(alert.getByText('This action cannot be undone.')).toBeVisible();
-    await expect(alert.getByText(/Container Master/i)).toBeVisible();
+    await expect(alert.getByText(/You can undo this for 10 minutes/)).toBeVisible();
+    await expect(alert).toHaveAccessibleName(/Container Master/i);
 
-    // Cancel — no DELETE/PATCH should fire.
+    // Keep it — no DELETE/PATCH/RPC should fire.
     let deleteFired = false;
     page.on('request', req => {
-      if (req.url().includes('/rest/v1/classes') && ['PATCH', 'DELETE'].includes(req.method())) {
+      if (
+        (req.url().includes('/rest/v1/classes') && ['PATCH', 'DELETE'].includes(req.method())) ||
+        req.url().includes('/rest/v1/rpc/soft_delete_class')
+      ) {
         deleteFired = true;
       }
     });
 
-    await alert.getByRole('button', { name: 'Cancel' }).click();
+    await alert.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(alert).toHaveCount(0);
 
     // Class still exists in the table.
@@ -302,7 +306,7 @@ test.describe('Classes UI — Delete class cascade', () => {
     await classRow.locator('..').getByRole('button').last().click();
     await page.getByRole('menuitem', { name: /Delete Class/i }).click();
 
-    const alert = page.getByRole('alertdialog', { name: 'Delete Class' });
+    const alert = page.getByRole('dialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
 
     // The user-observable contract is the cascade outcome, not the wire
@@ -322,7 +326,9 @@ test.describe('Classes UI — Delete class cascade', () => {
       { timeout: 15000 }
     );
 
-    await alert.getByRole('button', { name: /^Delete$/ }).click();
+    const confirm = alert.getByRole('button', { name: 'Delete class', exact: true });
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
     await writePromise;
 
     // The cascade should leave both the class and every seeded entry with a

@@ -359,20 +359,22 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
     await page.getByRole('button', { name: 'Club options' }).click();
     await page.getByRole('menuitem', { name: /Delete Club/i }).click();
 
-    const confirmDialog = page.getByRole('dialog');
+    const confirmDialog = page.getByRole('dialog', { name: `Delete the club ${CLUB_C_NAME}?` });
     await expect(confirmDialog).toBeVisible();
 
-    // The replication layer's MutationManager debounces the actual Supabase
-    // DELETE by ~100ms after the optimistic local removal. If we let the test
-    // end before the network call lands, the next test sees the club still in
-    // Supabase. Wait for the DELETE response before considering this test done.
+    // Club delete is a soft delete through soft_delete_club (CRUD standard). Wait
+    // for that response before considering this test done, so the next test does
+    // not see the club still live.
     const deleteResponsePromise = page.waitForResponse(
       response =>
-        response.url().includes('/rest/v1/clubs') && response.request().method() === 'DELETE',
+        response.url().includes('/rest/v1/rpc/soft_delete_club') &&
+        response.request().method() === 'POST',
       { timeout: 15000 }
     );
 
-    await confirmDialog.getByRole('button', { name: 'Delete', exact: true }).click();
+    const confirm = confirmDialog.getByRole('button', { name: 'Delete club', exact: true });
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
 
     await page.waitForURL(/\/clubs(\?|$|#)/, { timeout: 10000 });
     await expect(page.getByRole('heading', { name: CLUB_C_NAME })).not.toBeVisible();

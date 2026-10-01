@@ -105,3 +105,65 @@ export function ReviewEntryWindowNotice({
     </ReviewWarningCard>
   );
 }
+
+interface ReviewReadinessNoticesProps {
+  unassignedPoolJudgeNames: string[];
+  entryOpenDate: string | null | undefined;
+  entryCloseDate: string | null | undefined;
+  missingVenuePin: boolean;
+  /** False when the edit mode cannot reach Show Details (add-classes): the notices that only link there are omitted. */
+  canEditDetails: boolean;
+  onGoToStep: (step: number) => void;
+}
+
+/** The non-blocking readiness notices at the top of Review. */
+export function ReviewReadinessNotices({
+  unassignedPoolJudgeNames,
+  entryOpenDate,
+  entryCloseDate,
+  missingVenuePin,
+  canEditDetails,
+  onGoToStep,
+}: ReviewReadinessNoticesProps) {
+  return (
+    <>
+      {/* Unassigned pool judges — non-blocking warning */}
+      {unassignedPoolJudgeNames.length > 0 && (
+        <ReviewWarningCard
+          title={
+            unassignedPoolJudgeNames.length === 1
+              ? '1 judge is not assigned to any class'
+              : `${unassignedPoolJudgeNames.length} judges are not assigned to any class`
+          }
+          actionLabel="Assign judges to classes"
+          onAction={() => onGoToStep(2)}
+        >
+          {unassignedPoolJudgeNames.join(', ')} won’t see this show on their judge dashboard until
+          assigned to a class. Go back to Classes to assign them, or continue and assign judges
+          later.
+        </ReviewWarningCard>
+      )}
+
+      {canEditDetails && (
+        <ReviewEntryWindowNotice
+          entryOpenDate={entryOpenDate}
+          entryCloseDate={entryCloseDate}
+          onSetWindow={() => onGoToStep(0)}
+        />
+      )}
+
+      {/* MYK9-686: location text with no pin is allowed, but never silent. */}
+      {canEditDetails && missingVenuePin && (
+        <ReviewWarningCard
+          title="No map pin"
+          actionLabel="Place the map pin"
+          onAction={() => onGoToStep(0)}
+          data-testid="review-missing-pin-warning"
+        >
+          This show won’t appear on the Find Shows map. Go back to Basics and locate the address or
+          click the map.
+        </ReviewWarningCard>
+      )}
+    </>
+  );
+}

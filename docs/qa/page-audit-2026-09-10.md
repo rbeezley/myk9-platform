@@ -115,49 +115,49 @@ Redirect-only: `/exhibitor/dashboard`→`/exhibitor/entries`; `/exhibitor/profil
 
 ## 3. Secretary (secretary@myk9t.com)
 
-| #   | Route                                                       | Mark | Note                          |
-| --- | ----------------------------------------------------------- | ---- | ----------------------------- |
-| 1   | `/secretary`                                                |      |                               |
-| 2   | `/secretary/dashboard`                                      |      |                               |
-| 3   | `/secretary/tasks`                                          |      |                               |
-| 4   | `/secretary/create-show`                                    |      |                               |
-| 5   | `/secretary/create-show/wizard`                             |      | walk all steps, save as draft |
-| 6   | `/secretary/shows/:showId`                                  |      | workbench landing             |
-| 7   | `/secretary/shows/:showId/setup`                            |      |                               |
-| 8   | `/secretary/shows/:showId/show-desk`                        |      |                               |
-| 9   | `/secretary/shows/:showId/entry-management`                 |      |                               |
-| 10  | `/secretary/shows/:showId/reports`                          |      |                               |
-| 11  | `/secretary/shows/:showId/results-control`                  |      |                               |
-| 12  | `/secretary/shows/:showId/submit-results`                   |      |                               |
-| 13  | `/secretary/shows/:showId/classes/:trialId`                 |      |                               |
-| 14  | `/secretary/shows/:showId/classes/:trialId/create`          |      |                               |
-| 15  | `/secretary/shows/:showId/edit`                             |      |                               |
-| 16  | `/secretary/shows/<draft show id>`                          |      | draft state of the workbench  |
-| 17  | `/secretary/pipeline/:trialId`                              |      |                               |
-| 18  | `/secretary/entries`                                        |      | no showId                     |
-| 19  | `/secretary/entries/:showId`                                |      |                               |
-| 20  | `/secretary/register/:showId`                               |      |                               |
-| 21  | `/secretary/waitlist`                                       |      |                               |
-| 22  | `/secretary/day-of`                                         |      |                               |
-| 23  | `/secretary/check-in`                                       |      |                               |
-| 24  | `/secretary/run-order`                                      |      |                               |
-| 25  | `/secretary/results-control`                                |      |                               |
-| 26  | `/secretary/results-submission`                             |      |                               |
-| 27  | `/secretary/reports`                                        |      |                               |
-| 28  | `/secretary/settings`                                       |      |                               |
-| 29  | `/secretary/volunteers`                                     |      |                               |
-| 30  | `/secretary/volunteer-scheduling`                           |      |                               |
-| 31  | `/secretary/messages`                                       |      |                               |
-| 32  | `/secretary/messages/:showId`                               |      |                               |
-| 33  | `/trials/:trialId/classes`                                  |      |                               |
-| 34  | `/trials/:trialId/classes/create`                           |      |                               |
-| 35  | `/shows/:showId/trials/:trialId/classes/:classId/secretary` |      |                               |
-| 36  | `/scoring/classes/:classId/entries`                         |      |                               |
-| 37  | `/scoring/classes/:classId/entries/:entryId`                |      |                               |
-| 38  | `/people`                                                   |      |                               |
-| 39  | `/people/:id`                                               |      |                               |
-| 40  | `/users/:id`                                                |      |                               |
-| 41  | `/at-show/:showId` (as secretary)                           |      |                               |
+| #   | Route                                                       | Mark | Note                                                         |
+| --- | ----------------------------------------------------------- | ---- | ------------------------------------------------------------ |
+| 1   | `/secretary`                                                |      |                                                              |
+| 2   | `/secretary/dashboard`                                      |      |                                                              |
+| 3   | `/secretary/tasks`                                          |      |                                                              |
+| 4   | `/secretary/create-show`                                    |      |                                                              |
+| 5   | `/secretary/create-show/wizard`                             |      | walk all steps, save as draft                                |
+| 6   | `/secretary/shows/:showId`                                  |      | workbench landing                                            |
+| 7   | `/secretary/shows/:showId/setup`                            |      |                                                              |
+| 8   | `/secretary/shows/:showId/show-desk`                        |      |                                                              |
+| 9   | `/secretary/shows/:showId/entry-management`                 |      |                                                              |
+| 10  | `/secretary/shows/:showId/reports`                          |      |                                                              |
+| 11  | `/secretary/shows/:showId/results-control`                  |      |                                                              |
+| 12  | `/secretary/shows/:showId/submit-results`                   |      |                                                              |
+| 13  | `/secretary/shows/:showId/classes/:trialId`                 |      |                                                              |
+| 14  | `/secretary/shows/:showId/classes/:trialId/create`          |      | retired (MYK9-899): redirects to the wizard add-classes mode |
+| 15  | `/secretary/shows/:showId/edit`                             |      |                                                              |
+| 16  | `/secretary/shows/<draft show id>`                          |      | draft state of the workbench                                 |
+| 17  | `/secretary/pipeline/:trialId`                              |      |                                                              |
+| 18  | `/secretary/entries`                                        |      | no showId                                                    |
+| 19  | `/secretary/entries/:showId`                                |      |                                                              |
+| 20  | `/secretary/register/:showId`                               |      |                                                              |
+| 21  | `/secretary/waitlist`                                       |      |                                                              |
+| 22  | `/secretary/day-of`                                         |      |                                                              |
+| 23  | `/secretary/check-in`                                       |      |                                                              |
+| 24  | `/secretary/run-order`                                      |      |                                                              |
+| 25  | `/secretary/results-control`                                |      |                                                              |
+| 26  | `/secretary/results-submission`                             |      |                                                              |
+| 27  | `/secretary/reports`                                        |      |                                                              |
+| 28  | `/secretary/settings`                                       |      |                                                              |
+| 29  | `/secretary/volunteers`                                     |      |                                                              |
+| 30  | `/secretary/volunteer-scheduling`                           |      |                                                              |
+| 31  | `/secretary/messages`                                       |      |                                                              |
+| 32  | `/secretary/messages/:showId`                               |      |                                                              |
+| 33  | `/trials/:trialId/classes`                                  |      |                                                              |
+| 34  | `/trials/:trialId/classes/create`                           |      | retired (MYK9-899): redirects to the wizard add-classes mode |
+| 35  | `/shows/:showId/trials/:trialId/classes/:classId/secretary` |      |                                                              |
+| 36  | `/scoring/classes/:classId/entries`                         |      |                                                              |
+| 37  | `/scoring/classes/:classId/entries/:entryId`                |      |                                                              |
+| 38  | `/people`                                                   |      |                                                              |
+| 39  | `/people/:id`                                               |      |                                                              |
+| 40  | `/users/:id`                                                |      |                                                              |
+| 41  | `/at-show/:showId` (as secretary)                           |      |                                                              |
 
 Redirect-only: `/users`→`/people`, `/shows/new`→`/secretary/create-show/wizard`.
 

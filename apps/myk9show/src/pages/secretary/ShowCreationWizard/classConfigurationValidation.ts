@@ -61,6 +61,29 @@ function storedIdentityKey(trialId: string, element: unknown, level: unknown, se
   return [trialId, element ?? '', level ?? '', section ?? ''].map(String).join('|');
 }
 
+/**
+ * How many class selections in `trials` are NOT yet stored (add-classes mode): the work a
+ * secretary loses by leaving. Same identity test as `normalizeWizardClassSelections`'s
+ * retained check, so a freshly loaded draft counts zero.
+ */
+export function countUnsavedClassSelections(
+  trials: readonly WizardTrial[],
+  persisted: readonly PersistedClassIdentity[]
+): number {
+  const storedKeys = new Set(
+    persisted.map(row => storedIdentityKey(row.trialId, row.element, row.level, row.section))
+  );
+  return trials.reduce(
+    (sum, trial) =>
+      sum +
+      trial.classes.filter(selection => {
+        const c = selection.customizations ?? {};
+        return !storedKeys.has(storedIdentityKey(trial.id, c.element, c.level, c.section));
+      }).length,
+    0
+  );
+}
+
 type ResolvedClass = { valid: true; triple: CanonicalWizardClassTriple } | InvalidWizardClass;
 
 /** Resolve one wizard class item to its canonical triple, or the reason it has none. */
@@ -180,4 +203,22 @@ export function normalizeWizardClassSelections(
 
   if (invalidClasses.length > 0) throw new InvalidWizardClassConfigurationError(invalidClasses);
   return normalized;
+}
+
+/**
+ * add-classes works on a FIXED set of trials (Show Details / Trials are unreachable in that
+ * mode). A wizard trial with no stored row means that invariant broke, and saving would create
+ * a trial with no classes. Called before the save's first write.
+ */
+export function assertAddClassesCreatesNoTrials(
+  editMode: { mode: string } | undefined,
+  wizardTrials: readonly { id: string }[],
+  storedTrialIds: readonly string[]
+): void {
+  if (editMode?.mode !== 'add-classes') return;
+  if (wizardTrials.some(trial => !storedTrialIds.includes(trial.id))) {
+    throw new Error(
+      'Add Classes cannot create trials. Reopen the show and try again; nothing was changed.'
+    );
+  }
 }

@@ -1,13 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatTrialLabel } from '@myk9/core';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { useTemplateStore } from '@/store/templateStore';
-import { useTrialTemplates } from '@/hooks/useTrialTemplates';
-import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import StandardDialog from '@/components/common/StandardDialog';
@@ -31,7 +28,6 @@ import type { Show } from '@/types/show-types';
 export interface TrialManagementDialogsHandle {
   openEditTrial: () => void;
   openDeleteTrial: () => void;
-  openAddClasses: () => void;
   openEditClass: (classItem: TrialClass) => void;
   openDeleteClass: (classItem: TrialClass) => void;
 }
@@ -39,14 +35,12 @@ export interface TrialManagementDialogsHandle {
 export interface TrialManagementDialogsProps {
   currentTrial: TrialWithClasses | undefined;
   parentShow: Show | undefined;
-  /** The trial's classes (already converted by the page) for the Add-Classes panel. */
-  existingClasses: React.ComponentProps<typeof AddClassesToTrialPanel>['existingClasses'];
   /** Per-class entry counts, for the delete-class confirmation copy. */
   entryCountByClass: Map<string, number>;
 }
 
 /**
- * All staff-only trial management dialogs (add classes, edit/delete trial,
+ * All staff-only trial management dialogs (edit/delete trial,
  * edit/delete class) plus their open/confirm/save logic, extracted from
  * TrialDetailsPage. The page holds a ref and calls the exposed `open*` methods
  * from its hero/main actions, so the dialog state lives entirely here.
@@ -54,47 +48,28 @@ export interface TrialManagementDialogsProps {
 export const TrialManagementDialogs = forwardRef<
   TrialManagementDialogsHandle,
   TrialManagementDialogsProps
->(function TrialManagementDialogs(
-  { currentTrial, parentShow, existingClasses, entryCountByClass },
-  ref
-) {
+>(function TrialManagementDialogs({ currentTrial, parentShow, entryCountByClass }, ref) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthContext();
   const { trials, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
-  const { addClass, updateClass, deleteClass } = useClassStoreCompat();
-  const { templates, loadTemplatesFromDB } = useTemplateStore();
+  const { updateClass, deleteClass } = useClassStoreCompat();
 
   const showOrganization = parentShow?.organization;
 
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
   const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(false);
-  const [addClassesFromTemplateDialogOpen, setAddClassesFromTemplateDialogOpen] = useState(false);
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
   const [selectedClassForDelete, setSelectedClassForDelete] = useState<TrialClass | null>(null);
-
-  // Templates power the "Add Classes" panel; load them once on mount so the
-  // panel never opens to an empty list. Initializer is idempotent.
-  useEffect(() => {
-    loadTemplatesFromDB();
-  }, [loadTemplatesFromDB]);
-
-  const { handleSaveClassesFromTemplate } = useTrialTemplates({
-    currentTrial,
-    updateTrial,
-    addClass,
-    userId: user?.id || 'unknown',
-  });
 
   useImperativeHandle(
     ref,
     () => ({
       openEditTrial: () => setEditTrialPanelOpen(true),
       openDeleteTrial: () => setDeleteTrialDialogOpen(true),
-      openAddClasses: () => setAddClassesFromTemplateDialogOpen(true),
       openEditClass: (classItem: TrialClass) => {
         setSelectedClassForEdit(classItem);
         setEditClassPanelOpen(true);
@@ -141,17 +116,6 @@ export const TrialManagementDialogs = forwardRef<
 
   return (
     <>
-      <AddClassesToTrialPanel
-        open={addClassesFromTemplateDialogOpen}
-        onClose={() => setAddClassesFromTemplateDialogOpen(false)}
-        onSave={handleSaveClassesFromTemplate}
-        availableTemplates={templates}
-        trialName={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-        trialOrganization={showOrganization}
-        existingClasses={existingClasses}
-        showId={currentTrial?.showId}
-      />
-
       <TrialEditPanel
         open={editTrialPanelOpen}
         onClose={() => setEditTrialPanelOpen(false)}

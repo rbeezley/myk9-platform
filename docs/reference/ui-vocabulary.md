@@ -66,30 +66,30 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 
 ## Where this is applied
 
-| Surface                              | Label                                             |
-| ------------------------------------ | ------------------------------------------------- |
-| Show page — never entered            | Enter This Show                                   |
-| Show page — already entered          | Add Entry                                         |
-| My Entries → Actions menu            | Add entry                                         |
-| Show Desk — add-entries card         | Add entries                                       |
-| Entries Management — popover trigger | Add entry                                         |
-| …decision point, own dog             | Add entry for my dog                              |
-| …decision point, on behalf           | Add entry for someone else                        |
-| Show Desk late-entry card            | Late entry / Add late entry                       |
-| Per-class entries table              | Add Entry                                         |
-| Offline / ringside entry form        | Add Entry                                         |
-| Header + command menu                | Add entry for my dog / Add entry for someone else |
-| Shows page, empty states, shortcuts  | Add Show                                          |
-| Show wizard — heading, submit button | Add Show                                          |
-| Secretary dashboard, no shows yet    | Add your first show                               |
-| Show page — Trials tab, Show Map     | Add Trial                                         |
-| Show page — Classes tab              | Add Classes                                       |
-| Class creation page                  | Add Classes                                       |
-| Dogs page, person profile            | Add Dog                                           |
-| Add-dog panel — title, save button   | Add Dog                                           |
-| Command menu                         | Add Dog / Add Show                                |
-| Header Actions menu — on a show      | Add Trial                                         |
-| Header Actions menu — off a show     | Add Show                                          |
+| Surface                              | Label                                                |
+| ------------------------------------ | ---------------------------------------------------- |
+| Show page — never entered            | Enter This Show                                      |
+| Show page — already entered          | Add Entry                                            |
+| My Entries → Actions menu            | Add entry                                            |
+| Show Desk — add-entries card         | Add entries                                          |
+| Entries Management — popover trigger | Add entry                                            |
+| …decision point, own dog             | Add entry for my dog                                 |
+| …decision point, on behalf           | Add entry for someone else                           |
+| Show Desk late-entry card            | Late entry / Add late entry                          |
+| Per-class entries table              | Add Entry                                            |
+| Offline / ringside entry form        | Add Entry                                            |
+| Header + command menu                | Add entry for my dog / Add entry for someone else    |
+| Shows page, empty states, shortcuts  | Add Show                                             |
+| Show wizard — heading, submit button | Add Show                                             |
+| Secretary dashboard, no shows yet    | Add your first show                                  |
+| Show page — Trials tab, Show Map     | Add Trial                                            |
+| Show page — Classes tab              | Add Classes                                          |
+| Trial page, Class Management         | Add Classes (opens the show wizard add-classes mode) |
+| Dogs page, person profile            | Add Dog                                              |
+| Add-dog panel — title, save button   | Add Dog                                              |
+| Command menu                         | Add Dog / Add Show                                   |
+| Header Actions menu — on a show      | Add Trial                                            |
+| Header Actions menu — off a show     | Add Show                                             |
 
 ### "New" as an adjective
 

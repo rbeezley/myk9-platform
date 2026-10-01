@@ -1,3 +1,4 @@
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -234,12 +235,15 @@ export const ClassManagementPage: React.FC = () => {
   const waitlistHref = showId
     ? `/shows/${showId}/entries?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
     : '/secretary/entries?tab=waitlist';
-  const createHref =
-    showId && trialId
-      ? `/shows/${showId}/classes/${trialId}/create`
-      : trialId
-        ? `/trials/${trialId}/classes/create`
-        : '/secretary/dashboard';
+  // The one class-create flow is the show wizard's add-classes mode, opened on this trial.
+  // Cold store on `/trials/:trialId/classes`: the show id is not known yet. The legacy create
+  // URL resolves the trial through the by-id query and then lands on the same flow, so the
+  // trial is never dropped.
+  const createHref = showId
+    ? getAddClassesHref(showId, trialId)
+    : trialId
+      ? `/trials/${trialId}/classes/create`
+      : '/secretary/dashboard';
   // Copy-link href: built from the canonical href builder (never a
   // hand-assembled query string) so a copied URL only ever carries
   // normalized, supported Class Management params.

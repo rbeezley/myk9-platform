@@ -144,6 +144,7 @@ tab they land on, never the redirect:
 **Entry point:** Secretary Dashboard → Add Show; a club's own page (`/clubs/:id`) also offers Add Show, shown only to viewers the wizard route admits (`CREATE_SHOW_WIZARD_ROLES` in `routes/createShowWizardAccess.ts`: secretary, club admin, site admin) who also hold create permission for that club (`canCreateShowForClub` in `components/clubs/ClubDetails/clubPermissions.ts`)
 **Alternate route:** `/shows/new` redirects here for callers using the conventional creation URL.
 **Note:** Re-verified 2026-09-30 (MYK9-887/889/890) for `/secretary/create-show/wizard`. Step 1's Host Club field (`HostClubField.tsx`) names the selected club ("Hosting club: …") and offers "Not the right club? Create New Club" as the exception; when the user holds no create grant for the chosen club it shows an advisory yellow notice (never blocks Next; the create RPC stays authoritative), silenced for a club just created via the `clubCreated=1` return flag. The route guard is sourced from `CREATE_SHOW_WIZARD_ROLES`, widened 2026-09-30 (MYK9-895) to admit club admins, matching the create RPC's `is_club_admin(club)` arm; after creation `/shows/:id` management already admits them via `useShowManageScope`, but `/secretary/dashboard` and the other `/secretary/*` routes stay secretary/site-admin only. Earlier: re-verified 2026-09-01 after adding the `/shows/new` redirect.
+**Source-map note:** Re-verified 2026-10-01 (MYK9-899). The wizard route and its create flow are unchanged; the wizard's `add-classes` mode now also opens at `?showId=&mode=add-classes&trialId=` (class step on the launching trial, Show Details and Trials unreachable) and is where every Add Classes door lands. Secretary Guide § 1/§ 2 re-read against this head; `/secretary/dashboard` (the legacy redirects' not-found fallback) is unchanged.
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`
 
 ### 13. Monitor all shows (cross-show triage)
@@ -152,12 +153,14 @@ tab they land on, never the redirect:
 **Canonical route:** `/secretary/dashboard` (re-verified 2026-07-04 for #1114 route/catalog changes)
 **Note:** This remains the cross-show home, while single-show operations stay under `/shows/:showId/*`.
 **Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The dashboard itself is unchanged; its per-show cards now link at `/shows/:id/show-day` instead of `/show-desk`. Secretary Guide § Dashboard ("Before you start") was rewritten against this head to name the six tabs and carries a dated rename note for readers with old bookmarks. The `/shows/:id` token appears here because the cards build that link.
+**Source-map note:** Re-verified 2026-10-01 (MYK9-899). The dashboard is unchanged; the only new references are the legacy class-create redirects' not-found fallback to `/secretary/dashboard`.
 **Docs target:** Secretary Guide § Dashboard
 
 ### 14. Manage a specific show (setup and configuration)
 
 **Outcome:** Secretary or club admin configures trials, classes, officials, and rings after initial creation.
 **Canonical route:** `/shows/:showId/setup`
+**Source-map note:** Re-verified 2026-10-01 (MYK9-899). Add Classes (Setup → Classes, the trial page, Manage Classes) now opens the show wizard's `add-classes` mode; the retired Class Creation page and Add Classes panel no longer exist, and their old URLs redirect. Secretary Guide § 2 gained the matching step.
 **Docs target:** Secretary Guide § Setup, Club Admin Guide § 2 — Your Club's Shows
 
 ### 15. Review and approve entries
@@ -207,6 +210,7 @@ tab they land on, never the redirect:
 **Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
 **Canonical routes:** `/secretary/dashboard`, `/shows/:showId/show-day`
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
+**Source-map note:** Re-verified 2026-10-01 (MYK9-899). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy class-create redirects.
 
 ### Waitlist
 

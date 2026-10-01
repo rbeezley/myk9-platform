@@ -9,6 +9,7 @@
  * to unlock — no other code changes required.
  */
 
+import { LegacyShowClassCreateRedirect } from './LegacyClassCreateRedirect';
 import { lazy, type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, ClipboardList } from 'lucide-react';
@@ -58,9 +59,6 @@ const ShowWorkbenchShowDeskPage = lazy(() =>
 );
 const ClassManagementPage = lazy(() =>
   import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
-);
-const ClassCreationPage = lazy(() =>
-  import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
 );
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
@@ -216,16 +214,8 @@ export const PublicRoutes = () => (
           </ShowManagementSectionRoute>
         }
       />
-      <Route
-        path="classes/:trialId/create"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ClassCreationPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
+      {/* Retired Class Creation page (MYK9-899): bounces into the wizard's add-classes mode. */}
+      <Route path="classes/:trialId/create" element={<LegacyShowClassCreateRedirect />} />
     </Route>
 
     <Route

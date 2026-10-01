@@ -43,6 +43,18 @@ interface ClassSelectionStepProps {
   trialView: WizardTrialView;
   /** True once the user has clicked Next — gates eager validation errors. */
   submitted?: boolean;
+  /**
+   * Trial the picker opens on (add-classes launched from a trial). Ignored unless it is
+   * one of the wizard's trials, so a stale or hand-edited id falls back to the first.
+   */
+  focusTrialId?: string;
+  /** Add-classes mode: a trial the secretary is not adding to must not show an error. */
+  ignoreEmptyTrials?: boolean;
+  /**
+   * Add-classes mode: the show exists and Show Details is not reachable, so "add a judge"
+   * links to the show's Judges tab instead of jumping to wizard step 0.
+   */
+  addJudgeToShowId?: string;
 }
 
 interface TrialClassState {
@@ -55,6 +67,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   existingDBClasses = [],
   trialView,
   submitted = false,
+  focusTrialId,
+  ignoreEmptyTrials = false,
+  addJudgeToShowId,
 }) => {
   const {
     trials,
@@ -93,14 +108,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const [selectedTrialId, setSelectedTrialId] = useState<string>(() =>
     trials.length > 0 ? trials[0].id : ''
   );
+  // The wizard draft can land after this step first mounts, so the launching trial is
+  // applied as a derived fallback below, never captured in the initializer above.
+  const [userPickedTrial, setUserPickedTrial] = useState(false);
 
   // Derive effective current trial ID (ensures validity)
   const currentTrialId = useMemo(() => {
     if (trials.length === 0) return '';
+    // Until the user picks a tab, open on the launching trial when it is one of ours.
+    if (!userPickedTrial && focusTrialId && trials.some(t => t.id === focusTrialId)) {
+      return focusTrialId;
+    }
     // If selected trial exists, use it; otherwise fall back to first trial
     const exists = trials.some(t => t.id === selectedTrialId);
     return exists ? selectedTrialId : trials[0].id;
-  }, [trials, selectedTrialId]);
+  }, [trials, selectedTrialId, userPickedTrial, focusTrialId]);
 
   // Track user's explicit trial state selections (raw state)
   const [rawTrialStates, setRawTrialStates] = useState<Record<string, TrialClassState>>(() => {
@@ -281,7 +303,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     // Check that each trial has completed the class creation process
-    if (submitted) {
+    if (submitted && !ignoreEmptyTrials) {
       trials.forEach((trial, index) => {
         if (trial.classes.length === 0) {
           newErrors[`trial-${index}`] =
@@ -291,7 +313,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return newErrors;
-  }, [totalClasses, trials, effectiveTrialNames, submitted]);
+  }, [totalClasses, trials, effectiveTrialNames, submitted, ignoreEmptyTrials]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
@@ -421,7 +443,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               </div>
             </div>
           ) : (
-            <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
+            <Tabs
+              value={currentTrialId}
+              onValueChange={id => {
+                setUserPickedTrial(true);
+                setSelectedTrialId(id);
+              }}
+            >
               {/* Trial Tabs */}
               {/* gridTemplateColumns inline, not `grid-cols-${n}`: Tailwind
                   extracts class names statically, so the interpolated class was
@@ -549,7 +577,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           // F4: the show does not exist yet, so there is nothing to
                           // link to -- send the secretary back to the step that owns
                           // the judge roster instead.
-                          addJudge={{ onAddJudge: () => setCurrentStep(0) }}
+                          addJudge={
+                            addJudgeToShowId
+                              ? { showId: addJudgeToShowId }
+                              : { onAddJudge: () => setCurrentStep(0) }
+                          }
                           judgeAssignments={judgeAssignments}
                           onJudgeAssignmentChange={handleJudgeAssignmentChange}
                         />

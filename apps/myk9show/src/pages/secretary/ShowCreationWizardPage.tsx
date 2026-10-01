@@ -1,3 +1,11 @@
+import {
+  getAllowedWizardSteps,
+  getPreviousAllowedStep,
+} from './ShowCreationWizard/show-creation-wizard-types';
+import { resolveFocusTrialId } from './ShowCreationWizard/editModeResolution';
+import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
+import { hasUnsavedEditWork } from './ShowCreationWizard/hasUnsavedEditWork';
+import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
@@ -23,6 +31,7 @@ import {
   type CreatedShow,
   getEditModeTitle,
   getValidationMessagesForStep,
+  getValidationScope,
   WizardSuccessOverlay,
   WizardValidationBanner,
   WizardHeader,
@@ -49,8 +58,11 @@ import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
 
-const ShowCreationWizardPage: React.FC = () => {
+const ShowCreationWizardPageContent: React.FC = () => {
   const navigate = useNavigate();
+  // Raised around the wizard's own navigations (save, confirmed discard) so the edit-mode
+  // unsaved-changes guard does not prompt for work the secretary just saved or discarded.
+  const selfNavigationRef = useRef(0);
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -79,6 +91,8 @@ const ShowCreationWizardPage: React.FC = () => {
     completedSteps,
     isDirty,
     setCurrentStep,
+    allowedSteps,
+    setAllowedSteps,
     markStepCompleted,
     goToStep,
     resetWizard,
@@ -107,11 +121,28 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const { trials: existingTrials } = useTrialStore();
-  const existingTrialsRead = useAddTrialsExistingTrials(
-    editMode?.mode === 'add-trials' ? editMode.showId : undefined
+  // The launching trial, resolved ONCE against the draft's own trials. Every consumer below
+  // (picker focus, Save/Close/Back return, actions) reads this, never the raw URL param.
+  const rawFocusTrialId = searchParams.get('trialId');
+  const focusTrialId = useMemo(
+    () =>
+      resolveFocusTrialId(
+        editMode,
+        rawFocusTrialId,
+        trials.map(trial => trial.id)
+      ),
+    [editMode, rawFocusTrialId, trials]
   );
+
+  const { trials: existingTrials } = useTrialStore();
+  // add-trials and add-classes both need this show's CURRENT trials on the device: add-trials
+  // to number new ones, add-classes because its draft IS those trials.
+  const existingTrialsRead = useAddTrialsExistingTrials(editMode?.showId);
   const existingTrialsReady = existingTrialsRead.ready;
+  // Latched: the gate below is for the FIRST load only. A later store re-read must not swap the
+  // class step out for a spinner mid-selection.
+  const trialsReadyOnceRef = useRef(false);
+  if (existingTrialsReady) trialsReadyOnceRef.current = true;
   const persistedNameSources = useMemo(
     () =>
       editMode?.mode === 'add-trials'
@@ -139,14 +170,26 @@ const ShowCreationWizardPage: React.FC = () => {
   );
   const { classes: existingClasses } = useClassStoreCompat();
   // Add-classes mode loads the show's stored classes into the draft; validation retains them.
+  // The one validation scope every wizard surface below reads (add-classes: class rules only).
+  const validationScope = getValidationScope(editMode);
   const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
+  // The ONE "unsaved work" answer: route guard, Back, Close and draft re-initialization all
+  // read this, never the store's raw isDirty (which the class step sets on auto-assignment).
+  const hasUnsavedWork = hasUnsavedEditWork({
+    editMode,
+    storeIsDirty: isDirty,
+    trials,
+    persistedClasses: retainedClasses,
+  });
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
   const { handleCreateShow } = useShowCreationWizardActions({
     editMode,
+    focusTrialId,
     trialView,
     setIsLoading,
+    selfNavigationRef,
     onCreated: (id, name, passcodes, passcodeError) =>
       setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
   });
@@ -197,7 +240,10 @@ const ShowCreationWizardPage: React.FC = () => {
     existingTrials,
     existingClasses,
     people,
-    isDirty,
+    isDirty: hasUnsavedWork,
+    // add-classes builds its draft FROM the trial list, so it waits for the list. add-trials
+    // builds an empty trial set and must not be delayed (a stale persisted draft would show).
+    trialsReady: editMode?.mode !== 'add-classes' || existingTrialsReady,
     loadDraft,
   });
 
@@ -206,31 +252,53 @@ const ShowCreationWizardPage: React.FC = () => {
     retryWritableShow();
   }, [resetInitialization, retryWritableShow]);
 
+  // add-classes closes where Save returns: the launching trial (where the retired Add Classes
+  // panel left her) when it resolves, otherwise the show. Other modes keep the shows list.
+  const closeTarget =
+    editMode?.mode === 'add-classes'
+      ? getEditModeReturnPath(editMode.showId, focusTrialId)
+      : '/shows';
+
   // Handle wizard close
   const handleClose = useCallback(() => {
-    if (isDirty) {
+    if (hasUnsavedWork) {
       setShowConfirmDialog(true);
       return;
     }
-    navigate('/shows');
-  }, [isDirty, navigate]);
+    navigate(closeTarget);
+  }, [hasUnsavedWork, navigate, closeTarget]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {
     resetWizard();
-    navigate('/shows');
+    selfNavigationRef.current += 1;
+    try {
+      navigate(closeTarget);
+    } finally {
+      selfNavigationRef.current -= 1;
+    }
     setShowConfirmDialog(false);
-  }, [resetWizard, navigate]);
+  }, [resetWizard, navigate, closeTarget]);
+
+  // Lock the step set for the edit mode (add-classes: Classes + Review only). Re-asserted when
+  // the store value changes so a mid-session resetWizard cannot silently unlock it.
+  const modeAllowedSteps = getAllowedWizardSteps(editMode);
+  useEffect(() => {
+    if (allowedSteps !== modeAllowedSteps) setAllowedSteps(modeAllowedSteps);
+  }, [allowedSteps, modeAllowedSteps, setAllowedSteps]);
+  // The lock belongs to this page visit: leaving must not strand it on the next wizard.
+  useEffect(() => () => setAllowedSteps(null), [setAllowedSteps]);
 
   // Navigation handlers
   const handleBack = useCallback(() => {
     if (cloneHydration.status === 'hydrating') return;
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+    const previous = getPreviousAllowedStep(modeAllowedSteps, currentStep);
+    if (previous !== null) {
+      setCurrentStep(previous);
     } else {
       handleClose();
     }
-  }, [cloneHydration.status, currentStep, setCurrentStep, handleClose]);
+  }, [cloneHydration.status, currentStep, modeAllowedSteps, setCurrentStep, handleClose]);
 
   // Scroll the validation banner into view. scrollIntoView is a no-op stub in
   // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
@@ -255,7 +323,8 @@ const ShowCreationWizardPage: React.FC = () => {
       trials,
       trialView,
       retainedClasses,
-      { requireEntryWindow }
+      { requireEntryWindow },
+      validationScope
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -315,7 +384,8 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
     trialView,
     retainedClasses,
-    { requireEntryWindow }
+    { requireEntryWindow },
+    validationScope
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
@@ -359,6 +429,12 @@ const ShowCreationWizardPage: React.FC = () => {
           />
         )}
 
+        <WizardEditModeGuard
+          editMode={editMode}
+          hasUnsavedWork={hasUnsavedWork}
+          selfNavigationRef={selfNavigationRef}
+        />
+
         {/* Header with breadcrumb and back button */}
         <WizardHeader editMode={editMode} onClose={handleClose} />
 
@@ -387,7 +463,7 @@ const ShowCreationWizardPage: React.FC = () => {
               steps={WIZARD_STEPS}
               currentStep={currentStep}
               completedSteps={completedSteps}
-              onStepClick={goToStep}
+              {...(modeAllowedSteps === null ? { onStepClick: goToStep } : {})}
             />
           </div>
 
@@ -404,7 +480,7 @@ const ShowCreationWizardPage: React.FC = () => {
               />
             )}
 
-            {officialsUnavailable && (
+            {officialsUnavailable && validationScope === 'full' && (
               <div
                 className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground sm:px-6"
                 role="alert"
@@ -443,10 +519,18 @@ const ShowCreationWizardPage: React.FC = () => {
                     onRetry={handleRetryWritableShow}
                     onLeave={() => navigate('/shows')}
                   />
+                ) : editMode?.mode === 'add-classes' && !trialsReadyOnceRef.current ? (
+                  <WizardEditModeGate
+                    state={existingTrialsRead.readStatus === 'error' ? 'unavailable' : 'loading'}
+                    waitingFor="trials"
+                    onRetry={() => void existingTrialsRead.retry?.()}
+                    onLeave={() => navigate('/shows')}
+                  />
                 ) : (
                   <WizardStepContent
                     currentStep={currentStep}
                     editMode={editMode}
+                    focusTrialId={focusTrialId}
                     trialView={trialView}
                     existingTrialsReady={existingTrialsReady}
                     existingClasses={existingClasses}
@@ -508,6 +592,21 @@ const ShowCreationWizardPage: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+};
+
+/**
+ * Keys the whole wizard by its edit target. Query-string navigation between shows (or modes)
+ * keeps this route mounted, so every latch, ref and effect guard below (trials-readiness
+ * latch, self-navigation counter, init guard, scroll/validation state) would otherwise carry
+ * the previous show's state into the next one. A remount makes that impossible by
+ * construction. Create mode has no target and keeps one stable key.
+ */
+const ShowCreationWizardPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const target = parseEditMode(searchParams.get('showId'), searchParams.get('mode'));
+  return (
+    <ShowCreationWizardPageContent key={target ? `${target.mode}:${target.showId}` : 'create'} />
   );
 };
 

@@ -4,6 +4,7 @@ import {
 } from './ShowCreationWizard/show-creation-wizard-types';
 import { resolveFocusTrialId } from './ShowCreationWizard/editModeResolution';
 import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
+import { hasUnsavedEditWork } from './ShowCreationWizard/hasUnsavedEditWork';
 import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -172,6 +173,14 @@ const ShowCreationWizardPageContent: React.FC = () => {
   // The one validation scope every wizard surface below reads (add-classes: class rules only).
   const validationScope = getValidationScope(editMode);
   const retainedClasses = editMode?.mode === 'add-classes' ? existingClasses : NO_RETAINED_CLASSES;
+  // The ONE "unsaved work" answer: route guard, Back, Close and draft re-initialization all
+  // read this, never the store's raw isDirty (which the class step sets on auto-assignment).
+  const hasUnsavedWork = hasUnsavedEditWork({
+    editMode,
+    storeIsDirty: isDirty,
+    trials,
+    persistedClasses: retainedClasses,
+  });
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
@@ -231,7 +240,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
     existingTrials,
     existingClasses,
     people,
-    isDirty,
+    isDirty: hasUnsavedWork,
     // add-classes builds its draft FROM the trial list, so it waits for the list. add-trials
     // builds an empty trial set and must not be delayed (a stale persisted draft would show).
     trialsReady: editMode?.mode !== 'add-classes' || existingTrialsReady,
@@ -252,12 +261,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
   // Handle wizard close
   const handleClose = useCallback(() => {
-    if (isDirty) {
+    if (hasUnsavedWork) {
       setShowConfirmDialog(true);
       return;
     }
     navigate(closeTarget);
-  }, [isDirty, navigate, closeTarget]);
+  }, [hasUnsavedWork, navigate, closeTarget]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {
@@ -422,9 +431,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
         <WizardEditModeGuard
           editMode={editMode}
-          isDirty={isDirty}
-          trials={trials}
-          persistedClasses={retainedClasses}
+          hasUnsavedWork={hasUnsavedWork}
           selfNavigationRef={selfNavigationRef}
         />
 

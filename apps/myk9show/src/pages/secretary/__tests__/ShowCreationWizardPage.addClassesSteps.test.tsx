@@ -46,6 +46,13 @@ vi.mock('@/pages/secretary/ShowCreationWizard/useAddTrialsExistingTrials', () =>
   useAddTrialsExistingTrials: () => trialsRead.value,
 }));
 
+const storedClasses = vi.hoisted(() => ({
+  value: [] as { trialId: string; element: string; level: string; section: string }[],
+}));
+vi.mock('@/hooks/useClassStoreCompat', () => ({
+  useClassStoreCompat: () => ({ classes: storedClasses.value }),
+}));
+
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <svg /> }));
 
 const navigate = vi.fn();
@@ -62,6 +69,7 @@ function openAt(step: number) {
 describe('wizard step set per edit mode (MYK9-899)', () => {
   beforeEach(() => {
     trialsRead.value = { ready: true, readStatus: 'ready', readError: null, retry: undefined };
+    storedClasses.value = [];
     navigate.mockClear();
     useShowStore.setState({
       shows: [targetShow],
@@ -161,5 +169,48 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     trialsRead.value = { ready: true, readStatus: 'ready', readError: null, retry: undefined };
     rerender(<ShowCreationWizardPage />);
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+  });
+
+  describe('leaving add-classes: one definition of unsaved work', () => {
+    const cls = (element: string) => ({
+      templateId: 't',
+      customizations: { className: element, element, level: 'Novice', section: 'A' },
+    });
+    async function openWithClasses(classes: ReturnType<typeof cls>[]) {
+      search = 'showId=show-1&mode=add-classes&trialId=trial-1';
+      storedClasses.value = [
+        { trialId: 'trial-1', element: 'Container', level: 'Novice', section: 'A' },
+      ];
+      const view = render(<ShowCreationWizardPage />);
+      await waitFor(() => expect(useWizardStore.getState().allowedSteps).toEqual([2, 3]));
+      openAt(2);
+      // The class step auto-assigning a lone judge marks the store dirty; nothing is selected.
+      useWizardStore.setState({
+        isDirty: true,
+        trials: [{ id: 'trial-1', dateTime: '', eventNumber: '', classes }] as never,
+      });
+      await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('step-2'));
+      return view;
+    }
+
+    it('Back and Close leave without a dialog when only stored classes are present', async () => {
+      const { user } = await openWithClasses([cls('Container')]);
+      const backButtons = screen.getAllByRole('button', { name: /^back$/i });
+      await user.click(backButtons[0]!); // header Back (Close)
+      expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+      navigate.mockClear();
+      await user.click(backButtons[backButtons.length - 1]!); // step Back
+      expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+    });
+
+    it('asks first when a new class is selected', async () => {
+      const { user } = await openWithClasses([cls('Container'), cls('Interior')]);
+      const backButtons = screen.getAllByRole('button', { name: /^back$/i });
+      await user.click(backButtons[backButtons.length - 1]!);
+      expect(await screen.findByText('Unsaved Changes')).toBeInTheDocument();
+      expect(navigate).not.toHaveBeenCalled();
+    });
   });
 });

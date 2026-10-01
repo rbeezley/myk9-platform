@@ -8,6 +8,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UnsavedChangesRouteGuardProvider } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { WizardEditModeGuard } from '../WizardEditModeGuard';
+import { hasUnsavedEditWork } from '../hasUnsavedEditWork';
 import { countUnsavedClassSelections } from '../classConfigurationValidation';
 import { getEditModeReturnPath } from '../showSaveCompletion';
 import type { WizardTrial } from '../showCreationWizardTransformers';
@@ -46,9 +47,12 @@ function renderGuard(trials: WizardTrial[]) {
           <UnsavedChangesRouteGuardProvider>
             <WizardEditModeGuard
               editMode={{ showId: 's1', mode: 'add-classes' }}
-              isDirty
-              trials={trials}
-              persistedClasses={stored}
+              hasUnsavedWork={hasUnsavedEditWork({
+                editMode: { showId: 's1', mode: 'add-classes' },
+                storeIsDirty: true,
+                trials,
+                persistedClasses: stored,
+              })}
               selfNavigationRef={{ current: 0 }}
             />
             <Link to="/elsewhere">Leave</Link>
@@ -74,6 +78,39 @@ describe('WizardEditModeGuard in add-classes mode', () => {
     renderGuard([trial([cls('Container', 'Novice')])]);
     await userEvent.click(screen.getByRole('link', { name: 'Leave' }));
     expect(await screen.findByText('Elsewhere')).toBeInTheDocument();
+  });
+});
+
+describe('hasUnsavedEditWork', () => {
+  const addClasses = { showId: 's1', mode: 'add-classes' } as const;
+  const base = { storeIsDirty: true, persistedClasses: stored };
+
+  it('add-classes ignores the store flag: auto-populated judges alone are not unsaved work', () => {
+    expect(
+      hasUnsavedEditWork({
+        ...base,
+        editMode: addClasses,
+        trials: [trial([cls('Container', 'Novice')])],
+      })
+    ).toBe(false);
+  });
+
+  it('add-classes: a new selection is unsaved work', () => {
+    expect(
+      hasUnsavedEditWork({
+        ...base,
+        editMode: addClasses,
+        trials: [trial([cls('Container', 'Novice'), cls('Interior', 'Novice')])],
+      })
+    ).toBe(true);
+  });
+
+  it('add-trials and create keep the store flag', () => {
+    const trials = [trial([])];
+    for (const editMode of [{ showId: 's1', mode: 'add-trials' } as const, undefined]) {
+      expect(hasUnsavedEditWork({ ...base, editMode, trials })).toBe(true);
+      expect(hasUnsavedEditWork({ ...base, storeIsDirty: false, editMode, trials })).toBe(false);
+    }
   });
 });
 

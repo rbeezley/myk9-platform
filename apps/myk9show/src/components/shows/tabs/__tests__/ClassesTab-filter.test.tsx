@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ClassesTab } from '../ClassesTab';
 
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({ status: 'resolved', canManage: false }),
+}));
+
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({
     hasPermission: () => false,

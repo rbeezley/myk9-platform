@@ -12,9 +12,18 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// The global permission is NOT club-scoped, so it is held constantly here; only the show-scoped
+// answer varies.
 let mockCanManage = true;
+let mockScopeStatus: 'resolved' | 'resolving' | 'unavailable' = 'resolved';
 vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({ hasPermission: (p: string) => mockCanManage && p === 'show:manage' }),
+  useRBAC: () => ({ hasPermission: (p: string) => p === 'show:manage' }),
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: mockScopeStatus,
+    canManage: mockCanManage && mockScopeStatus === 'resolved',
+  }),
 }));
 
 let mockViewMode = 'cards';
@@ -64,6 +73,7 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockCanManage = true;
+    mockScopeStatus = 'resolved';
     mockViewMode = view;
   });
 
@@ -75,7 +85,17 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     expect(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' })).toBeVisible();
   });
 
-  it('shows no menu to an exhibitor or the public', () => {
+  it('shows no menu while the show scope is still resolving or unavailable', () => {
+    mockScopeStatus = 'resolving';
+    const first = renderTab();
+    expect(screen.queryByRole('button', { name: /^Trial actions for/ })).not.toBeInTheDocument();
+    first.unmount();
+    mockScopeStatus = 'unavailable';
+    renderTab();
+    expect(screen.queryByRole('button', { name: /^Trial actions for/ })).not.toBeInTheDocument();
+  });
+
+  it('shows no menu when the viewer holds the global permission but does not manage THIS show', () => {
     mockCanManage = false;
     renderTab();
     expect(screen.queryByRole('button', { name: /^Trial actions for/ })).not.toBeInTheDocument();

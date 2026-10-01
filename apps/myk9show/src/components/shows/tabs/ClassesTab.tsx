@@ -14,6 +14,7 @@ import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/status';
 import { ListViewTabs } from '@/components/list-toolkit';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 import { SetupClassDialogs, type SetupClassAction } from './SetupClassDialogs';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
@@ -82,6 +83,10 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // silent default). See `classesTabViews.ts`.
   const [viewId, setViewId] = useState('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  // Row Edit / Delete (MYK9-900) are gated on THIS show's owning club (the scope the show
+  // shell's Edit show button uses); the global permission above is not club-scoped, and this
+  // tab also renders on the public show page. Resolving / unavailable read as no menu.
+  const canManageRows = useShowManageScope(showId).canManage;
   // Row Edit / Delete (MYK9-900): the existing class panel and dialog, opened in place.
   const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const viewMode =
@@ -227,7 +232,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       }
     );
 
-    if (canManage) {
+    if (canManageRows) {
       cols.push({
         id: 'actions',
         header: () => <span className="sr-only">Actions</span>,
@@ -239,7 +244,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     }
 
     return cols;
-  }, [hideRing, canManage]);
+  }, [hideRing, canManageRows]);
 
   if (classes.length === 0) {
     return (
@@ -331,7 +336,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
-                  {...(canManage ? { actions: classRowMenu(cls) } : {})}
+                  {...(canManageRows ? { actions: classRowMenu(cls) } : {})}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
                   }
@@ -341,7 +346,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           </div>
         ))
       )}
-      {canManage && pendingAction && (
+      {canManageRows && pendingAction && (
         <SetupClassDialogs
           showId={showId}
           pending={pendingAction}

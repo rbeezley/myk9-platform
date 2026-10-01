@@ -7,6 +7,10 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({ status: 'resolved', canManage: false }),
+}));
+
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({
     hasPermission: () => false,

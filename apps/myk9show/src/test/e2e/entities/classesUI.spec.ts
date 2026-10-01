@@ -5,10 +5,9 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * UI test for the Classes-on-a-Trial workflow that the secretary uses.
  *
  * Covers:
- *   - The "Add Classes" panel loads templates filtered by show organization
- *     (regression: panel previously opened to "No templates available" because
- *     templates were not initialized, then later filtered against the wrong
- *     field).
+ *   - "Add Classes" opens the show wizard's add-classes mode on this trial's
+ *     Classes step (MYK9-899; the old slide-over panel is gone), and Back
+ *     returns to the trial page.
  *   - Editing a class to assign a judge from the show's judge pool.
  *   - The delete-class confirmation dialog (entry-cascade copy + cancellation).
  *   - The delete-class cascade: confirming the dialog soft-deletes the class
@@ -35,38 +34,40 @@ async function gotoTrial(page: Page) {
   await expect(page.getByRole('button', { name: 'Add Classes' })).toBeVisible({ timeout: 15000 });
 }
 
-test.describe('Classes UI — Add Classes panel', () => {
+test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () => {
   test.beforeEach(async ({ page }) => {
     await signInAsSecretary(page);
   });
 
-  test('opens with templates loaded for the AKC show organization', async ({ page }) => {
-    // Listen for the sport_templates fetch BEFORE navigating — the page-mount
-    // useEffect fires the fetch as soon as the trial page loads, well before
-    // the user clicks the Add Classes button.
-    const templateFetch = page.waitForResponse(
-      resp => resp.url().includes('/rest/v1/sport_templates') && resp.request().method() === 'GET',
-      { timeout: 15000 }
-    );
-
+  test("opens the wizard on this trial's Classes step and Back returns to the trial", async ({
+    page,
+  }) => {
     await gotoTrial(page);
-    await templateFetch;
 
     await page.getByRole('button', { name: 'Add Classes' }).click();
 
-    // Single AKC template in the catalog → panel auto-advances to "Select
-    // Classes". Pre-fix this opened to "Select Template" with a "No templates
-    // available" alert; pre-second-fix it opened to "No active templates found
-    // for AKC".
-    await expect(page.getByRole('dialog', { name: 'Select Classes' })).toBeVisible({
-      timeout: 10000,
+    // MYK9-899: the one class-create flow is the wizard's add-classes mode, focused on the
+    // trial the secretary launched from.
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/secretary/create-show/wizard\\?showId=${TEST_SHOW_ID}&mode=add-classes&trialId=${TEST_TRIAL_ID}`
+      ),
+      { timeout: 15000 }
+    );
+
+    // Classes step, on this trial's tab. Show Details / Trials are not reachable in this mode.
+    await expect(page.getByText(/^Select Classes for /).first()).toBeVisible({
+      timeout: 15000,
     });
+    await expect(page.getByRole('tab', { selected: true })).toContainText(/Saturday Trial 1/i);
     await expect(page.getByText(/No (active )?templates (are available|found)/i)).toHaveCount(0);
 
-    // Cancel out — this test asserts the panel opens correctly, not that it
-    // commits new classes.
-    await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('dialog', { name: 'Select Classes' })).toHaveCount(0);
+    // Back leaves the wizard for the trial page (nothing was selected, so no prompt).
+    const backButtons = page.getByRole('button', { name: /^Back$/ });
+    await backButtons.last().click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/trials/${TEST_TRIAL_ID}$`), {
+      timeout: 15000,
+    });
   });
 });
 

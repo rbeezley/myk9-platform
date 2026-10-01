@@ -20,6 +20,8 @@ interface NewJudgeFormProps {
   onCancel: () => void;
   /** Organization the form opens on; the wizard picker's default is AKC. */
   defaultOrg?: string;
+  /** Fixes the new judge's organization (shown, not choosable). */
+  lockedOrg?: string;
 }
 
 /**
@@ -33,8 +35,10 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
   onCreated,
   onCancel,
   defaultOrg = 'AKC',
+  lockedOrg,
 }) => {
-  const [org, setOrg] = useState<string>(defaultOrg);
+  const [orgChoice, setOrg] = useState<string>(defaultOrg);
+  const org = lockedOrg ?? orgChoice;
   const [judgeNumber, setJudgeNumber] = useState('');
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -107,6 +111,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
         setOrg={setOrg}
         judgeNumber={judgeNumber}
         setJudgeNumber={setJudgeNumber}
+        lockedOrg={lockedOrg}
       />
       <div className="space-y-1">
         <Label htmlFor="judge-new-email" className="text-xs">

@@ -12,7 +12,8 @@ import {
 // Spec intentionally limits to AKC and UKC — the two organizations whose
 // judge credentials appear on show records. Other orgs (NACSW, CPE, etc.)
 // are supported in the broader platform but not in this picker per the design spec.
-const ORGS = ['AKC', 'UKC'] as const;
+export const JUDGE_FORM_ORGS = ['AKC', 'UKC'] as const;
+const ORGS = JUDGE_FORM_ORGS;
 
 /* ------------------------------------------------------------------ */
 /* Shared sub-component — org dropdown + judge number input           */
@@ -25,6 +26,8 @@ interface OrgAndJudgeNumberFieldsProps {
   setOrg: (v: string) => void;
   judgeNumber: string;
   setJudgeNumber: (v: string) => void;
+  /** When set, the organization is fixed (shown, not choosable). */
+  lockedOrg?: string | undefined;
 }
 
 export const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = ({
@@ -33,6 +36,7 @@ export const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = (
   setOrg,
   judgeNumber,
   setJudgeNumber,
+  lockedOrg,
 }) => {
   const orgId = `${idPrefix}-organization`;
   const judgeNumberId = `${idPrefix}-judge-number`;
@@ -42,18 +46,24 @@ export const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = (
         <Label htmlFor={orgId} className="text-xs">
           Organization *
         </Label>
-        <Select value={org} onValueChange={setOrg}>
-          <SelectTrigger id={orgId} className="h-8 text-sm !bg-background">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ORGS.map(o => (
-              <SelectItem key={o} value={o}>
-                {o}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {lockedOrg ? (
+          <p id={orgId} className="flex h-8 items-center text-sm font-medium">
+            {lockedOrg}
+          </p>
+        ) : (
+          <Select value={org} onValueChange={setOrg}>
+            <SelectTrigger id={orgId} className="h-8 text-sm !bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORGS.map(o => (
+                <SelectItem key={o} value={o}>
+                  {o}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="space-y-1">
         <Label htmlFor={judgeNumberId} className="text-xs">

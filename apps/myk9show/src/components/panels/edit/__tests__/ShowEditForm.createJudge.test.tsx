@@ -34,9 +34,9 @@ vi.mock('../ShowOfficialsEditor', () => ({ ShowOfficialsEditor: () => null }));
 import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
 import { ShowEditForm } from '../ShowEditForm';
 
-function renderJudgesTab() {
+function renderJudgesTab(organization = 'AKC') {
   const value = {
-    data: { id: 'show-1', organization: 'AKC', assignedJudges: [] },
+    data: { id: 'show-1', organization, assignedJudges: [] },
     form: { setValue: harness.setValue },
   } as unknown as EditPanelContextValue;
   const qc = new QueryClient();
@@ -102,5 +102,31 @@ describe('ShowEditForm Judges tab: create a judge in place (MYK9-903)', () => {
 
     expect(await screen.findByText(/failed to save/i)).toBeInTheDocument();
     expect(harness.setValue).not.toHaveBeenCalled();
+  });
+
+  it('fixes the new judge to the show organization and offers no organization choice', async () => {
+    harness.createJudge.mockResolvedValue('ukc-judge-id');
+    const user = userEvent.setup();
+    renderJudgesTab('UKC');
+
+    await user.click(screen.getByRole('button', { name: /add a new judge/i }));
+    expect(screen.queryByRole('combobox')).toBeNull();
+    await user.type(screen.getByLabelText(/first name/i), 'Jane');
+    await user.type(screen.getByLabelText(/last name/i), 'Doe');
+    await user.type(screen.getByLabelText(/judge number/i), '1');
+    await user.type(screen.getByLabelText(/email/i), 'jane@example.com');
+    await user.click(screen.getByRole('button', { name: 'Add Judge' }));
+
+    await waitFor(() =>
+      expect(harness.createJudge).toHaveBeenCalledWith(
+        expect.objectContaining({ organization: 'UKC' })
+      )
+    );
+  });
+
+  it('offers no inline create for an organization the judge form does not support', () => {
+    renderJudgesTab('ASCA');
+    expect(screen.queryByRole('button', { name: /add a new judge/i })).toBeNull();
+    expect(screen.getByRole('link', { name: /manage judge qualifications/i })).toBeInTheDocument();
   });
 });

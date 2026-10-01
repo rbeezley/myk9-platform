@@ -15,8 +15,8 @@ The remaining friction is at the object level: several of the seven core objects
 
 | Object  | Add                                                                                  | Edit                                                                                                  | Delete                                                         | Problem                                                                                   |
 | ------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Clubs   | 1 (`ClubEditPanel` on `/clubs`)                                                      | club admin / site admin only (`clubPermissions.ts`)                                                   | site admin only                                                | A secretary who created a club cannot correct it — see Q2                                 |
-| Shows   | 1 wizard, ~5 doors                                                                   | 1: `ShowEditPanel` via header Actions only                                                            | 2 (Show Edit panel, bulk bar)                                  | No visible Edit — see Q1                                                                  |
+| Clubs   | 1 (`ClubEditPanel` on `/clubs`)                                                      | club admin / site admin only (`clubPermissions.ts`)                                                   | site admin only                                                | Creator is auto-granted club admin; client may hide Edit until reload — Phase 7           |
+| Shows   | 1 wizard, ~5 doors                                                                   | 1: `ShowEditPanel` via header Actions only                                                            | 2 (Show Edit panel, bulk bar)                                  | No visible Edit — Phase 6                                                                 |
 | Trials  | wizard `?mode=add-trials`                                                            | trial detail page only (`TrialEditPanel`)                                                             | trial detail page only                                         | Setup Trials rows only navigate (`TrialsTab.tsx:218,301`)                                 |
 | Classes | **3 UIs**: wizard `?mode=add-classes`, `AddClassesToTrialPanel`, `ClassCreationPage` | `ClassEditPanel` (class detail, trial row menu) + inline status/judge in Class Management             | 3 (class detail, trial row menu, Class Management `confirm()`) | Three different create flows; Setup Classes rows only navigate (`ClassesTab.tsx:296,312`) |
 | Entries | 1 wizard, ~4 doors                                                                   | **2 dialogs**: `components/entries/EntryEditDialog.tsx`, `pages/ClassDetailsPage/EditEntryDialog.tsx` | 3                                                              | Two editors that will drift                                                               |
@@ -31,7 +31,7 @@ MYK9-13 (real-user validation) was cancelled; every finding to date comes from c
 
 1. Create a show. 2. Add a mail-in entry for a new exhibitor. 3. Fix a typo in a class. 4. Move a dog up. 5. Check a dog in. 6. Print the catalog.
 
-Record every pause and wrong click. Specifically record whether she finds the header **Actions** menu unaided — that answers Q1. Findings that contradict phases 1–5 change the plan before code does.
+Record every pause and wrong click. Specifically record whether she finds the header **Actions** menu unaided — it confirms the Phase 6 decision. Findings that contradict phases 1–5 change the plan before code does (phases 1–7).
 
 ## Phase 1 — One way to add classes ([MYK9-899](https://linear.app/myk9-platform/issue/MYK9-899))
 
@@ -56,10 +56,18 @@ Keep `components/entries/EntryEditDialog.tsx`; have `ClassDetailsPage` (and `MyE
 - Delete `components/shows/ShowDetails/ShowMainCard.tsx` (no importers).
 - Show Edit → Judges tab: allow creating a judge in place (reuse `JudgesPicker`'s `onCreateJudge`) instead of linking out to `/people`.
 
-## Open questions (owner decisions)
+## Phase 6 — Visible "Edit show" button ([MYK9-904](https://linear.app/myk9-platform/issue/MYK9-904))
 
-- **Q1 — Visible Edit on the show page?** MYK9-630 put Edit show only in the header Actions menu, and "the same verb never appears in both places". Revisit only if Phase 0 shows she cannot find it.
-- **Q2 — Club edit for secretaries?** A secretary can create a club but not edit it. Deliberate permission model or gap?
+Owner decision (Richard, 2026-10-01): yes. Add a plainly labelled **Edit show** button to the show page header (`ShowManagementShell.tsx`), managers only, opening the existing `ShowEditPanel` (`?edit=true`). Edit stays in the header Actions menu as well, since the command palette reads that registry. This is a deliberate exception to MYK9-630's "the same verb never appears in both places" rule, made for discoverability by non-technical secretaries. Record it in `plan-secretary-show-actions.md` § Placement rule.
+
+## Phase 7 — A secretary can edit a club they created ([MYK9-905](https://linear.app/myk9-platform/issue/MYK9-905))
+
+Owner decision (Richard, 2026-10-01): yes. The server already allows it: `trg_grant_club_admin_to_club_creator` (20260511100000, kept on purpose by MYK9-572) makes the creator `club_admin` of the new club, and `clubs_update` admits `is_club_admin(clubs.id)`. The likely gap is client-side: `computeClubPermissions` reads role scopes that may not refresh after creating a club, so Edit could stay hidden until reload. Verify on staging; refresh scopes after club creation if needed. No permission model change.
+
+## Decisions (resolved 2026-10-01)
+
+- **Q1 — Visible Edit on the show page?** Yes → Phase 6.
+- **Q2 — Club edit for secretaries?** Yes, for clubs they created → Phase 7 (already the server rule; verify the client).
 
 ## Testing (every phase)
 
@@ -70,8 +78,10 @@ A phase is complete only when its tests pass.
 - **Phase 3:** render `ClassDetailsPage` on the real entry prop shape and assert it opens `EntryEditDialog` with every field the old dialog showed (LESSONS `last-hop-drop`).
 - **Phase 4:** `DashboardQuickLinks` tests for 0 / 1 / many active shows.
 - **Phase 5:** typecheck after deletion; judge-create test in Show Edit.
+- **Phase 6:** component test: Edit show visible for a manager, absent for an exhibitor, opens `ShowEditPanel`; 375px header check.
+- **Phase 7:** staging check of the creator grant; test that Edit appears after club creation without reload; negative control for a non-creator secretary.
 - **All:** `pnpm typecheck`, shuffled vitest for touched suites, `pnpm qa:code-quality-ratchet`, and one browser walk of the six Phase 0 tasks after Phases 1–4 ship.
 
 ## Non-goals
 
-No new pages, no navigation restructure, no permission changes (Q2 is a question, not a task), no changes to the entry wizard flow itself.
+No new pages, no navigation restructure, no permission model changes (Phase 7 uses the existing creator = club admin rule), no changes to the entry wizard flow itself.

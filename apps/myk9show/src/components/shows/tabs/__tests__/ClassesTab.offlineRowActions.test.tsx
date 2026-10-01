@@ -130,8 +130,11 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 
-  it('a successful delete closes the dialog', async () => {
-    deleteClass.mockResolvedValue(undefined);
+  it('a successful delete closes the dialog with no "couldn\'t load" error, though the class leaves the store', async () => {
+    // A real delete removes the class from the replicated store before the confirm finishes.
+    deleteClass.mockImplementation(async () => {
+      useTrialStore.setState({ trialClasses: {} });
+    });
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
@@ -142,6 +145,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
 
     expect(deleteClass).toHaveBeenCalledWith('c1');
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(toastError).not.toHaveBeenCalled();
   });
 
   it('a class that cannot be resolved anywhere shows an error instead of doing nothing', async () => {

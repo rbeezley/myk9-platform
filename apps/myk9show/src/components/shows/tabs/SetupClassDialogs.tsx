@@ -1,7 +1,7 @@
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
 import type { ClassData } from '@/components/classes/types/classTypes';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { resolveClassFromStores } from '@/hooks/resolveClassFromStores';
 import { useTrialStore } from '@/store/trialStore';
@@ -29,20 +29,25 @@ interface SetupClassDialogsProps {
 export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialogsProps) {
   const { classes, updateClass, deleteClass } = useClassStoreCompat();
   const { saveClass, removeClass } = useClassEditActions({ showId, updateClass, deleteClass });
-  // The query list is online-only and empty after a cold offline reload, while Setup still shows
-  // the class from the replicated store, so resolve through the same replicated fallback Class
-  // Details uses.
-  const replicatedTrialClasses = useTrialStore(state => state.trialClasses);
-  const currentClass = resolveClassFromStores(pending.classId, classes, replicatedTrialClasses);
-  const unresolved = currentClass === null;
+  // Resolved ONCE, when the row action starts (this component mounts per action), and kept:
+  // a successful delete removes the class from the stores while the confirm is still finishing,
+  // so re-resolving reactively would report "couldn't load" after a success. The query list is
+  // online-only and empty after a cold offline reload, while Setup still shows the class from
+  // the replicated store, so the snapshot falls back to the same replicated lookup Class Details
+  // uses.
+  const [currentClass] = useState(() =>
+    resolveClassFromStores(pending.classId, classes, useTrialStore.getState().trialClasses)
+  );
 
-  // Never a silent no-op: a class that cannot be found anywhere says so and closes.
+  // Never a silent no-op: a class that cannot be found at action start says so and closes. This
+  // can only fire at start, since the snapshot never changes afterwards.
   useEffect(() => {
-    if (unresolved) {
+    if (currentClass === null) {
       toast.error("We couldn't load this class. Please refresh and try again.");
       onClose();
     }
-  }, [unresolved, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at action start
+  }, []);
 
   // Both reject on failure: the panel stays open with the edits, and the dialog stays open
   // with the reason. On success the panel closes itself and the dialog calls onOpenChange(false).

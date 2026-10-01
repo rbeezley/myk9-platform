@@ -200,6 +200,33 @@ describe('TrialsTab Edit trial initializes from the selected trial', () => {
 
 // Codex round 5: with a cold trial store (rows fed by the server read) the actions hydrate the
 // store first, and an unresolvable trial errors instead of opening a dialog that silently no-ops.
+describe('TrialsTab trial delete', () => {
+  beforeEach(() => {
+    toastError.mockClear();
+    mockCanManage = true;
+    mockScopeStatus = 'resolved';
+    mockViewMode = 'cards';
+    seedStore();
+  });
+
+  it('deleting removes the trial from the store, closes the dialog and shows no error', async () => {
+    const deleteTrial = vi.fn(async (id: string) => {
+      useTrialStore.setState(state => ({ trials: state.trials.filter(t => t.id !== id) }));
+    });
+    useTrialStore.setState({ deleteTrial });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+
+    await waitFor(() => expect(deleteTrial).toHaveBeenCalledWith('t1'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toastError).not.toHaveBeenCalled();
+  });
+});
+
 describe('TrialsTab row actions with a cold trial store', () => {
   beforeEach(() => {
     toastError.mockClear();

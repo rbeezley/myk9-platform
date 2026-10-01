@@ -16,6 +16,7 @@ import { StatusBadge } from '@/components/status';
 import { toast } from 'sonner';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import type { SyncableTrial } from '@/store/trial-store-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
@@ -130,8 +131,11 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   // read as no.
   const canManageThisShow = useShowManageScope(showId).canManage;
   // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
+  // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
+  // the store while the dialog is still finishing, and the dialog must not vanish or re-resolve
+  // underneath itself.
   const [pendingTrialAction, setPendingTrialAction] = useState<{
-    trialId: string;
+    trial: SyncableTrial;
     action: 'edit' | 'delete';
   } | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
@@ -139,21 +143,17 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
   // never open a dialog for a trial the store cannot resolve.
   const [hydratingTrialId, setHydratingTrialId] = useState<string | null>(null);
-  const pendingTrial = useTrialStore(state =>
-    pendingTrialAction
-      ? state.trials.find(trial => trial.id === pendingTrialAction.trialId)
-      : undefined
-  );
   const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
-    const inStore = () => useTrialStore.getState().trials.some(trial => trial.id === trialId);
+    const fromStore = () => useTrialStore.getState().trials.find(trial => trial.id === trialId);
     setHydratingTrialId(trialId);
     try {
-      if (!inStore()) await useTrialStore.getState().loadTrials();
-      if (!inStore()) {
+      if (!fromStore()) await useTrialStore.getState().loadTrials();
+      const trial = fromStore();
+      if (!trial) {
         toast.error("We couldn't load this trial. Please refresh and try again.");
         return;
       }
-      setPendingTrialAction({ trialId, action });
+      setPendingTrialAction({ trial, action });
     } finally {
       setHydratingTrialId(null);
     }
@@ -378,12 +378,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}
-      {canManageThisShow && pendingTrialAction && pendingTrial && (
+      {canManageThisShow && pendingTrialAction && (
         // Mounted per selection with the trial and action together (and keyed by trial), so the
         // edit form initializes from THIS trial rather than opening against a late-arriving one.
         <TrialManagementDialogs
-          key={pendingTrial.id}
-          currentTrial={pendingTrial}
+          key={pendingTrialAction.trial.id}
+          currentTrial={pendingTrialAction.trial}
           parentShow={parentShow}
           entryCountByClass={EMPTY_ENTRY_COUNTS}
           initialAction={pendingTrialAction.action}

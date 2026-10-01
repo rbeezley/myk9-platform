@@ -106,7 +106,7 @@ describe('EntryManagementPage legacy roster links', () => {
     expect(
       screen.getByPlaceholderText('Search exhibitor, dog, handler, armband, confirmation, class…')
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Trial:/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Class:/ })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Trial' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Class' })).toBeInTheDocument();
   });
 });

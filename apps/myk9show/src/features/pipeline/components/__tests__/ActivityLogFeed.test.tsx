@@ -64,9 +64,8 @@ describe('ActivityLogFeed', () => {
     mockResult([makeEntry()]);
     render(<ActivityLogFeed trialId="trial-1" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Type' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Score events' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Type' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Score events' }));
 
     expect(useActivityLog).toHaveBeenLastCalledWith(
       'trial-1',

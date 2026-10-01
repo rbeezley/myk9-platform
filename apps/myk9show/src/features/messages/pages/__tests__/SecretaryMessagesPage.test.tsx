@@ -253,9 +253,8 @@ describe('SecretaryMessagesPage — filtered mode', () => {
 
   it('changing the filter updates the URL via ?showId=', async () => {
     renderAtUrl('/secretary/messages');
-    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Show' }));
-    await userEvent.click(screen.getByRole('button', { name: /Summer Trial/ }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show' }));
+    await userEvent.click(await screen.findByRole('option', { name: /Summer Trial/ }));
     // After change, only Bob's thread is visible
     expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
@@ -268,13 +267,13 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
   });
 
-  it('switches to the full-width email delivery mode without changing the show scope', () => {
+  it('switches to the full-width email delivery mode without changing the show scope', async () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Email delivery' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Communication view' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Email delivery' }));
 
-    expect(screen.getByRole('button', { name: 'Email delivery' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    expect(screen.getByRole('combobox', { name: 'Show: Communication view' })).toHaveTextContent(
+      'Email delivery'
     );
     expect(screen.getByTestId('email-delivery-history')).toHaveTextContent('History for show-1');
   });
@@ -286,9 +285,11 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
   });
 
-  it('the Inbox view tab count matches the visible thread count', () => {
+  it('the Inbox view count matches the visible thread count', () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    expect(screen.getByRole('button', { name: 'Inbox1' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show: Communication view' })).toHaveTextContent(
+      'Inbox (1)'
+    );
   });
 });
 

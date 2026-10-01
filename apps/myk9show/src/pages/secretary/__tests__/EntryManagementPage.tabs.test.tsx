@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import EntryManagementPage from '../EntryManagementPage';
 
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => <div>Waitlist Content</div> }));
@@ -82,10 +82,11 @@ describe('EntryManagementPage tab consolidation', () => {
   // MYK9-795: the Registrations/Exceptions `PrimaryTabs`, the queue
   // buttons-with-counts, and the Exceptions sub-tab buttons are unified into
   // one `ListViewTabs` row with seven entries.
-  it('shows the seven unified views and no separate Registrations/Exceptions tabs', () => {
-    render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
-    expect(screen.getByRole('navigation', { name: 'Entry views' })).toBeInTheDocument();
+  it('shows the seven unified views and no separate Registrations/Exceptions tabs', async () => {
+    const { user } = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+    await user.click(screen.getByRole('combobox', { name: 'Show: Entry views' }));
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    const listbox = await screen.findByRole('listbox');
     for (const label of [
       'Needs review',
       'Missing info',
@@ -95,7 +96,7 @@ describe('EntryManagementPage tab consolidation', () => {
       'Pulls',
       'Move-ups',
     ]) {
-      expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument();
+      expect(within(listbox).getByRole('option', { name: new RegExp(label) })).toBeInTheDocument();
     }
   });
 
@@ -106,9 +107,8 @@ describe('EntryManagementPage tab consolidation', () => {
 
   it('normalizes a legacy Move-ups tab to the Exceptions workspace', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
-    expect(screen.getByRole('button', { name: /Move-ups/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    expect(screen.getByRole('combobox', { name: 'Show: Entry views' })).toHaveTextContent(
+      /Move-ups/
     );
   });
 
@@ -116,9 +116,8 @@ describe('EntryManagementPage tab consolidation', () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('button', { name: /Pulls/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    expect(await screen.findByRole('combobox', { name: 'Show: Entry views' })).toHaveTextContent(
+      /Pulls/
     );
   });
 });

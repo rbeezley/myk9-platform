@@ -54,17 +54,11 @@ describe('activeDogViewId', () => {
       'retired'
     );
   });
-
-  it('returns null once a non-search filter narrows past the view', () => {
-    expect(activeDogViewId({ ...DEFAULT_DOG_FILTERS, status: 'retired', breed: 'Papillon' })).toBe(
-      null
-    );
-  });
 });
 
 describe('dogViewFilters', () => {
   it('resets every field to the view preset but keeps the current search', () => {
-    const current = { ...DEFAULT_DOG_FILTERS, breed: 'Papillon', search: 'rex' };
+    const current = { ...DEFAULT_DOG_FILTERS, status: 'deceased', search: 'rex' };
     expect(dogViewFilters('retired', current)).toEqual({
       ...DEFAULT_DOG_FILTERS,
       status: 'retired',

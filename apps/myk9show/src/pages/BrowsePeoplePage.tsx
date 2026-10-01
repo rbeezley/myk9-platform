@@ -48,8 +48,6 @@ const BrowsePeoplePage: React.FC = () => {
     setFilters,
     hasActiveFilters,
     clearAllFilters,
-    availableRoles,
-    availableLocations,
   } = useBrowsePeopleData();
 
   // Selection only applies in the table view (the grid/card view has no
@@ -234,8 +232,6 @@ const BrowsePeoplePage: React.FC = () => {
                 onFiltersChange={setFilters}
                 onClearAll={clearAllFilters}
                 hasActiveFilters={hasActiveFilters}
-                availableRoles={availableRoles}
-                availableLocations={availableLocations}
                 resultLineExtra={
                   <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
                 }

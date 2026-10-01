@@ -14,7 +14,6 @@ import {
   writeCockpitDensity,
   writeCockpitException,
   writeCockpitFocus,
-  writeCockpitPaymentStatus,
   writeCockpitQueue,
   writeCockpitScope,
   writeCockpitSearch,
@@ -26,7 +25,6 @@ import {
   type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
-import type { PaymentStatus } from '@/types/show-registration-types';
 
 interface UseEntryManagementCockpitOptions {
   groups: ShowRegistrationGroup[];
@@ -167,8 +165,6 @@ export function useEntryManagementCockpit({
       }),
     setScope: (trialId: string | null, classId: string | null = null) =>
       updateParams(previous => writeCockpitScope(previous, trialId, classId)),
-    setPaymentStatus: (paymentStatus: PaymentStatus | null) =>
-      updateParams(previous => writeCockpitPaymentStatus(previous, paymentStatus)),
     setTab: (tab: EntryManagementCockpitTab) =>
       updateParams(previous => writeCockpitTab(previous, tab)),
     setException: (exception: EntryManagementException) =>

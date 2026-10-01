@@ -31,12 +31,10 @@ describe('peopleViewFilterPatch', () => {
   it('resets every view field, applying only the named view', () => {
     expect(peopleViewFilterPatch('secretaries')).toEqual({
       role: 'secretary',
-      location: 'all',
       login: 'all',
     });
     expect(peopleViewFilterPatch('no-login')).toEqual({
       role: 'all',
-      location: 'all',
       login: 'none',
     });
   });
@@ -47,7 +45,7 @@ describe('peopleViewFilterPatch', () => {
 });
 
 describe('activePeopleViewId', () => {
-  it('matches a view whose role/location/login exactly agree, ignoring search', () => {
+  it('matches a view whose role/login exactly agree, ignoring search', () => {
     expect(activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, role: 'judge', search: 'ada' })).toBe(
       'judges'
     );
@@ -56,7 +54,7 @@ describe('activePeopleViewId', () => {
 
   it('reads as a custom filter once a view is narrowed further', () => {
     expect(
-      activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, role: 'judge', location: 'CA' })
+      activePeopleViewId({ ...DEFAULT_PEOPLE_FILTERS, role: 'judge', login: 'none' })
     ).toBeNull();
   });
 });

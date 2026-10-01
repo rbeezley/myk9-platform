@@ -16,7 +16,12 @@ import { PrimaryTabs } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+} from '@/components/list-toolkit';
 import { Users, Plus, Shield, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -575,6 +580,15 @@ const ClubMembersPage: React.FC = () => {
                   total={members.length}
                   noun={MEMBER_NOUN}
                   filtered={hasActiveMemberFilters}
+                  filterSummary={summarizeFilters({
+                    search: searchQuery,
+                    views: memberViews,
+                    activeViewId: memberStatus,
+                  })}
+                  onShowAll={() => {
+                    setMemberStatus('all');
+                    setSearchQuery('');
+                  }}
                 />
 
                 {/* Members Table */}

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/user-types';
 
@@ -43,15 +44,23 @@ vi.mock('../UserManagementPage.helpers', () => ({
 
 import UserManagementPage from '../UserManagementPage';
 
+function LocationProbe() {
+  return <p data-testid="location">{useLocation().pathname}</p>;
+}
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <UserManagementPage />
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
+  return {
+    user: userEvent.setup(),
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <UserManagementPage />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>
+    ),
+  };
 }
 
 describe('UserManagementPage cross-links', () => {
@@ -60,9 +69,10 @@ describe('UserManagementPage cross-links', () => {
   });
 
   it('links to the role requests queue that feeds it', async () => {
-    renderPage();
-    const link = await screen.findByRole('link', { name: /role requests/i });
-    expect(link).toHaveAttribute('href', '/admin/role-requests');
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('combobox', { name: 'Show: User views' }));
+    await user.click(await screen.findByRole('option', { name: /role requests/i }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
   });
 
   it('keeps Create User and Export Users available', async () => {

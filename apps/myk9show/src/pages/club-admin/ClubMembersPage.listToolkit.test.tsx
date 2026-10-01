@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import ClubMembersPage from './ClubMembersPage';
 
 const { getClubShowManagers, countUpcomingClubShows } = vi.hoisted(() => ({
@@ -90,11 +90,12 @@ describe('ClubMembersPage list toolkit', () => {
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
 
-    const nav = screen.getByRole('navigation', { name: 'Member views' });
-    expect(nav).toHaveTextContent('All');
-    expect(nav).toHaveTextContent('Active');
-    expect(nav).toHaveTextContent('Lapsed');
-    expect(screen.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
+    const select = screen.getByRole('combobox', { name: 'Show: Member views' });
+    expect(select).toHaveTextContent(/^All \(2\)/);
+    await userEvent.setup().click(select);
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getByRole('option', { name: /^Active/ })).toBeInTheDocument();
+    expect(within(listbox).getByRole('option', { name: /^Lapsed/ })).toBeInTheDocument();
   });
 
   it('selecting the Lapsed view narrows the table and writes ?status= to the URL', async () => {
@@ -102,13 +103,14 @@ describe('ClubMembersPage list toolkit', () => {
     render(<ClubMembersPage />);
     await screen.findByText('Ada Lovelace');
 
-    await user.click(screen.getByRole('button', { name: /^Lapsed/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Member views' }));
+    await user.click(await screen.findByRole('option', { name: /^Lapsed/ }));
 
     await waitFor(() => {
       expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
     });
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('1 member match, of 2');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 members (Lapsed).');
   });
 
   it('searching by name narrows the table', async () => {

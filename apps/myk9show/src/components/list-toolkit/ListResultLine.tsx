@@ -1,7 +1,8 @@
 /**
- * "214 of 4,812 users" — the one place a list states how much it is showing,
- * announced politely as filters change. Offers "Select all N matching" while a
- * selection exists, so a bulk action can reach past the current page.
+ * "Showing 12 of 214 entries (Pending, Class: Novice A)." plus a "Show all
+ * entries" button — the one place a list says, in words, what it is showing and
+ * how to get back. Announced politely as filters change. Offers "Select all N"
+ * while a selection exists, so a bulk action can reach past the current page.
  */
 
 import type { ReactNode } from 'react';
@@ -13,6 +14,10 @@ interface ListResultLineProps {
   /** Singular and plural nouns, e.g. ['user', 'users']. */
   noun: readonly [string, string];
   filtered: boolean;
+  /** Plain-language parts of the active filters (summarizeFilters). */
+  filterSummary?: readonly string[] | undefined;
+  /** Clears search, view and field filters. The button shows only while filtered. */
+  onShowAll?: () => void;
   selectAll?: {
     selectedCount: number;
     onSelectAll: () => void;
@@ -26,11 +31,32 @@ function plural(count: number, [one, many]: readonly [string, string]): string {
   return `${count.toLocaleString()} ${count === 1 ? one : many}`;
 }
 
+const LINK_BUTTON =
+  'h-11 rounded-md px-2 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+function statusSentence({
+  shown,
+  total,
+  noun,
+  filtered,
+  filterSummary,
+}: Pick<ListResultLineProps, 'shown' | 'total' | 'noun' | 'filtered' | 'filterSummary'>): string {
+  if (!filtered) {
+    return shown === total
+      ? `Showing all ${plural(total, noun)}.`
+      : `Showing ${plural(shown, noun)}.`;
+  }
+  const summary = filterSummary && filterSummary.length > 0 ? ` (${filterSummary.join(', ')})` : '';
+  return `Showing ${shown.toLocaleString()} of ${plural(total, noun)}${summary}.`;
+}
+
 export function ListResultLine({
   shown,
   total,
   noun,
   filtered,
+  filterSummary,
+  onShowAll,
   selectAll,
   children,
   className,
@@ -41,21 +67,15 @@ export function ListResultLine({
   return (
     <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-sm', className)}>
       <p role="status" aria-live="polite" className="text-muted-foreground">
-        {filtered ? (
-          <>
-            <span className="font-semibold text-foreground">{plural(shown, noun)}</span> match, of{' '}
-            {total.toLocaleString()}
-          </>
-        ) : (
-          `${plural(shown, noun)} in view`
-        )}
+        {statusSentence({ shown, total, noun, filtered, filterSummary })}
       </p>
+      {filtered && onShowAll && (
+        <button type="button" onClick={onShowAll} className={LINK_BUTTON}>
+          Show all {noun[1]}
+        </button>
+      )}
       {canSelectAll && (
-        <button
-          type="button"
-          onClick={selectAll.onSelectAll}
-          className="h-11 rounded-md px-2 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
+        <button type="button" onClick={selectAll.onSelectAll} className={LINK_BUTTON}>
           Select all {plural(shown, noun)}
         </button>
       )}

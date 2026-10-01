@@ -115,13 +115,17 @@ vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
 
 describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
   it('shows one registration in Needs review, Missing info, and Payment due, and all three under All', async () => {
-    render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+    const view = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
 
-    const views = await screen.findByRole('navigation', { name: 'Entry views' });
-    expect(within(views).getByRole('button', { name: /Needs review/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /Missing info/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /Payment due/ })).toHaveTextContent('1');
-    expect(within(views).getByRole('button', { name: /^All/ })).toHaveTextContent('3');
-    expect(within(views).getByRole('button', { name: /Move-ups/ })).toHaveTextContent('5');
+    const { user } = view;
+    const select = await screen.findByRole('combobox', { name: 'Show: Entry views' });
+    await user.click(select);
+    const listbox = await screen.findByRole('listbox');
+    const optionText = (name: RegExp) => within(listbox).getByRole('option', { name }).textContent;
+    expect(optionText(/Needs review/)).toBe('Needs review (1)');
+    expect(optionText(/Missing info/)).toBe('Missing info (1)');
+    expect(optionText(/Payment due/)).toBe('Payment due (1)');
+    expect(optionText(/^All/)).toBe('All (3)');
+    expect(optionText(/Move-ups/)).toBe('Move-ups (5)');
   });
 });

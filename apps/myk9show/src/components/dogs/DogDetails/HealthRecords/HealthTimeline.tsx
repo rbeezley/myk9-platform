@@ -149,7 +149,6 @@ export function HealthTimeline({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   // Container width (not viewport width) drives reflow: the Dog Details
   // main column can be narrow even at desktop viewport sizes when a sidebar
@@ -158,8 +157,8 @@ export function HealthTimeline({
   const isNarrow = containerWidth !== null && containerWidth < 480;
 
   const activeFilters: HealthTimelineFilters = useMemo(
-    () => ({ searchTerm, filterType, selectedYear }),
-    [searchTerm, filterType, selectedYear]
+    () => ({ searchTerm, filterType }),
+    [searchTerm, filterType]
   );
   const baselineFilterType = vaccinationsOnly ? 'vaccination' : 'all';
   const filtersActive = hasActiveHealthTimelineFilters(activeFilters, baselineFilterType);
@@ -167,12 +166,10 @@ export function HealthTimeline({
   const clearFilters = () => {
     setSearchTerm('');
     setFilterType(vaccinationsOnly ? 'vaccination' : 'all');
-    setSelectedYear(null);
   };
 
   const handleFilterFieldChange = (patch: Partial<HealthTimelineFilters>) => {
     if ('filterType' in patch && patch.filterType !== undefined) setFilterType(patch.filterType);
-    if ('selectedYear' in patch) setSelectedYear(patch.selectedYear ?? null);
   };
 
   const filteredEvents = useMemo(() => {
@@ -196,14 +193,6 @@ export function HealthTimeline({
   const years = Object.keys(eventsByYear)
     .map(Number)
     .sort((a, b) => b - a);
-
-  // Options for the year filter must come from the full (unfiltered) event
-  // set, not `years`, or picking a year would remove every other year from
-  // the dropdown.
-  const availableYears = useMemo(
-    () => Array.from(new Set(events.map(event => event.date.getFullYear()))).sort((a, b) => b - a),
-    [events]
-  );
 
   const getExportFilename = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -304,7 +293,6 @@ export function HealthTimeline({
                     value: key,
                     label: config.label,
                   })),
-                  availableYears,
                   vaccinationsOnly,
                   onChange: handleFilterFieldChange,
                 })}

@@ -2,14 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useSportTemplatesWithRulesQuery } from '@/hooks/queries/useSportTemplates';
 import type { SportTemplateRow, SportClassRuleRow } from '@/types/sport-template-types';
 import { Button } from '@/components/ui/button';
-import { ListFilterBar, type ListFilterField } from '@/components/list-toolkit';
+import { ListFilterBar } from '@/components/list-toolkit';
 import { FileText, Info, ArrowLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import '@/styles/myk9-template-management.css';
 import { CardGridSkeleton } from '@/components/common/SkeletonLoaders';
 
 type SportTemplateWithRules = SportTemplateRow & { sport_class_rules: SportClassRuleRow[] };
-
-const ALL = 'all';
 
 /** "180s", "180–300s", or "—" */
 function formatMaxTime(rule: SportClassRuleRow): string {
@@ -137,20 +135,13 @@ const TemplateManagementPage: React.FC = () => {
     useSportTemplatesWithRulesQuery();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [organization, setOrganization] = useState<string>(ALL);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const templates = useMemo<SportTemplateWithRules[]>(() => data ?? [], [data]);
 
-  const organizations = useMemo(
-    () => Array.from(new Set(templates.map(t => t.organization))).sort(),
-    [templates]
-  );
-
   const visible = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return templates.filter(template => {
-      if (organization !== ALL && template.organization !== organization) return false;
       if (!term) return true;
       return (
         template.sport_name.toLowerCase().includes(term) ||
@@ -158,24 +149,11 @@ const TemplateManagementPage: React.FC = () => {
         template.sport_code.toLowerCase().includes(term)
       );
     });
-  }, [templates, searchTerm, organization]);
+  }, [templates, searchTerm]);
 
-  const hasFilters = searchTerm !== '' || organization !== ALL;
-  const clearFilters = () => {
-    setSearchTerm('');
-    setOrganization(ALL);
-  };
+  const hasFilters = searchTerm !== '';
+  const clearFilters = () => setSearchTerm('');
 
-  const filterFields: ListFilterField[] = [
-    {
-      kind: 'options',
-      key: 'organization',
-      label: 'Registry',
-      value: organization === ALL ? null : organization,
-      onChange: value => setOrganization(value ?? ALL),
-      options: organizations.map(org => ({ value: org, label: org })),
-    },
-  ];
   // Gate on !isError: TanStack Query retains the previous `data` when a background
   // refetch fails, so without this an admin could sit on a rule table that no longer
   // reflects the database while the failure went unreported.
@@ -260,7 +238,7 @@ const TemplateManagementPage: React.FC = () => {
               searchValue={searchTerm}
               onSearchChange={setSearchTerm}
               searchPlaceholder="Search by sport, registry, or code"
-              fields={filterFields}
+              fields={[]}
               {...(hasFilters ? { onClearAll: clearFilters } : {})}
             />
           </div>

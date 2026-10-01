@@ -115,8 +115,11 @@ describe('RoleRequestsPage', () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
     // Approved requests live behind the "Approved" view.
-    await screen.findByRole('button', { name: /^Approved/ });
-    await userEvent.setup().click(screen.getByRole('button', { name: /^Approved/ }));
+    const approvedUser = userEvent.setup();
+    await approvedUser.click(
+      await screen.findByRole('combobox', { name: /show: filter role requests/i })
+    );
+    await approvedUser.click(await screen.findByRole('option', { name: /^Approved/ }));
 
     expect(await screen.findByText(/Best Club/)).toBeInTheDocument();
   });
@@ -265,7 +268,8 @@ describe('RoleRequestsPage', () => {
 
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    await user.click(await screen.findByRole('button', { name: /^Approved/ }));
+    await user.click(await screen.findByRole('combobox', { name: /show: filter role requests/i }));
+    await user.click(await screen.findByRole('option', { name: /^Approved/ }));
     await user.click(await screen.findByRole('button', { name: 'View details' }));
 
     expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
@@ -273,14 +277,11 @@ describe('RoleRequestsPage', () => {
     expect(screen.getByText('Club-wide access')).toBeInTheDocument();
   });
 
-  it('marks the active status filter with aria-pressed for assistive tech', async () => {
+  it('shows the active status view in the labelled Show select', async () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    const pendingFilter = await screen.findByRole('button', { name: /^Pending/ });
-    expect(pendingFilter).toHaveAttribute('aria-pressed', 'true');
-
-    const allFilter = screen.getByRole('button', { name: /^All/ });
-    expect(allFilter).toHaveAttribute('aria-pressed', 'false');
+    const select = await screen.findByRole('combobox', { name: /show: filter role requests/i });
+    expect(select).toHaveTextContent(/^Pending/);
   });
 
   it('offers a retry when loading requests fails', async () => {

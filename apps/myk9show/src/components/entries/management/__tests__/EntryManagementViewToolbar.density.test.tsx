@@ -42,10 +42,10 @@ function renderToolbar(
       density={overrides.density ?? BASE_STATE.density}
       onSelectView={vi.fn()}
       onScopeChange={vi.fn()}
-      onPaymentStatusChange={vi.fn()}
       onSearchChange={vi.fn()}
       onDensityChange={onDensityChange}
       onClearAll={vi.fn()}
+      result={{ shown: 0, total: 0 }}
     />
   );
   return { onDensityChange };

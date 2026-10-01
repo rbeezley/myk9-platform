@@ -114,10 +114,19 @@ function rowFor(name: string): HTMLElement {
   return row as HTMLElement;
 }
 
-/** Read a view tab's live count by its label (list-toolkit `ListViewTabs`, MYK9-811). */
-function viewCount(label: string): string | undefined {
-  const tab = screen.getByRole('button', { name: new RegExp(`^${label}`) });
-  return tab.querySelector('.tabular-nums')?.textContent ?? undefined;
+/**
+ * Read a view's live count from the "Show:" select's option text, "Label (N)"
+ * (list-toolkit `ListViewTabs`, MYK9-811/906). Opens the listbox, reads, closes.
+ */
+async function viewCount(
+  user: ReturnType<typeof renderPage>['user'],
+  label: string
+): Promise<string | undefined> {
+  await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+  const option = await screen.findByRole('option', { name: new RegExp(`^${label}`) });
+  const count = /\((\d+)\)$/.exec(option.textContent ?? '')?.[1];
+  await user.keyboard('{Escape}');
+  return count;
 }
 
 describe('ClassManagementPage lifecycle chips (2.B)', () => {
@@ -154,11 +163,11 @@ describe('ClassManagementPage lifecycle chips (2.B)', () => {
     expect(within(rowFor('Container Novice A')).queryByText('Not started')).toBeNull();
   });
 
-  it('counts view tabs by derived lifecycle (upcoming + scheduled both count as Not started)', () => {
-    renderPage();
-    expect(viewCount('Not started')).toBe('2');
-    expect(viewCount('In progress')).toBe('1');
-    expect(viewCount('Completed')).toBe('1');
+  it('counts views by derived lifecycle (upcoming + scheduled both count as Not started)', async () => {
+    const { user } = renderPage();
+    expect(await viewCount(user, 'Not started')).toBe('2');
+    expect(await viewCount(user, 'In progress')).toBe('1');
+    expect(await viewCount(user, 'Completed')).toBe('1');
   });
 
   it('announces summary lifecycle labels once through visible text', () => {

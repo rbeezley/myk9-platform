@@ -1,10 +1,10 @@
 /**
- * Pure helpers behind ListFilterBar: which fields are active, and what their
- * chips say. Kept apart from the component so the wording is testable without
+ * Pure helpers behind ListFilterBar and ListResultLine: which fields are
+ * active, and what the status sentence says about them. Kept apart from the component so the wording is testable without
  * a DOM.
  */
 
-import type { ListDateRange, ListFilterField } from './types';
+import type { ListDateRange, ListFilterField, ListView } from './types';
 
 export function isFieldActive(field: ListFilterField): boolean {
   if (field.kind === 'options') return field.value !== null;
@@ -25,7 +25,7 @@ export function describeDateRange({ start, end }: ListDateRange): string {
 }
 
 /**
- * The value half of an active chip ("Judge", "after Jul 3, 2026"). A value the
+ * The value half of an active filter ("Judge", "after Jul 3, 2026"). A value the
  * field no longer offers still shows — raw — so a stale URL is visible and
  * removable rather than silently filtering.
  */
@@ -33,6 +33,38 @@ export function describeFieldValue(field: ListFilterField): string {
   if (field.kind === 'dateRange') return describeDateRange(field.value);
   if (field.value === null) return '';
   return field.options.find(option => option.value === field.value)?.label ?? field.value;
+}
+
+interface FilterSummaryInput {
+  search?: string;
+  views?: readonly ListView[];
+  activeViewId?: string | null;
+  /** The view that means "no narrowing" and is left out of the sentence. Defaults to the first. */
+  defaultViewId?: string;
+  fields?: readonly ListFilterField[];
+}
+
+/**
+ * The plain-language parts of whatever is narrowing a list, for the status
+ * sentence ("Showing 12 of 214 entries (Pending, Class: Novice A, matching
+ * "bob")"). View first, then each active field, then the search.
+ */
+export function summarizeFilters({
+  search,
+  views = [],
+  activeViewId = null,
+  defaultViewId = views[0]?.id,
+  fields = [],
+}: FilterSummaryInput): string[] {
+  const parts: string[] = [];
+  const view = views.find(candidate => candidate.id === activeViewId);
+  if (view && view.id !== defaultViewId) parts.push(view.label);
+  for (const field of fields) {
+    if (isFieldActive(field)) parts.push(`${field.label}: ${describeFieldValue(field)}`);
+  }
+  const term = search?.trim();
+  if (term) parts.push(`matching \u201c${term}\u201d`);
+  return parts;
 }
 
 /** `yyyy-mm-dd` for an `<input type="date">`, in local time. */

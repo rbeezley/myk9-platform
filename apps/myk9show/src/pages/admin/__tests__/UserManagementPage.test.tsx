@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/user-types';
 
@@ -84,17 +84,25 @@ vi.mock('../UserManagementPage.helpers', () => ({
 
 import UserManagementPage from '../UserManagementPage';
 
+function LocationProbe() {
+  return <p data-testid="location">{useLocation().pathname}</p>;
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <UserManagementPage />
-      </MemoryRouter>
-    </QueryClientProvider>
-  );
+  return {
+    user: userEvent.setup(),
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <UserManagementPage />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>
+    ),
+  };
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -137,19 +145,16 @@ describe('UserManagementPage (shared primitives migration)', () => {
     expect(screen.getByText('Try Again')).toBeInTheDocument();
   });
 
-  // The views replaced the stat cards: each count is pressable, and the
-  // request queue is a link to its own page rather than a copy of it.
-  it('renders the user views, with the role requests queue as a link', () => {
-    renderPage();
-    const views = screen.getByRole('navigation', { name: 'User views' });
-    expect(within(views).getByRole('button', { name: /^All/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    expect(within(views).getByRole('link', { name: /role requests/i })).toHaveAttribute(
-      'href',
-      '/admin/role-requests'
-    );
+  // The views replaced the stat cards: each count sits in the "Show" select, and
+  // the request queue is an option that navigates to its own page rather than a
+  // copy of it.
+  it('renders the user views in the Show select, with the role requests queue as a page link', async () => {
+    const { user } = renderPage();
+    const select = screen.getByRole('combobox', { name: 'Show: User views' });
+    expect(select).toHaveTextContent(/^All \(/);
+    await user.click(select);
+    await user.click(await screen.findByRole('option', { name: /role requests/i }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
   });
 
   // The placeholder may only promise fields `filterUsers` actually searches.
@@ -181,7 +186,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
   it('shows results count in a live region, so filtering announces itself', () => {
     renderPage();
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('1 user in view');
+    expect(status.textContent).toContain('Showing all 1 user.');
     expect(status).toHaveAttribute('aria-live', 'polite');
   });
 

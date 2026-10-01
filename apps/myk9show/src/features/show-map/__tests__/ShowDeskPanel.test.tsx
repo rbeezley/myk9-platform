@@ -96,8 +96,7 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    const filters = screen.getByLabelText('Schedule filters');
-    expect(within(filters).getByRole('button', { name: /^In progress/ })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show: Schedule filters' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Friday AM · June 12/i })).toBeInTheDocument();
     expect(screen.getAllByText('Focused Class · Friday AM')).not.toHaveLength(0);
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
@@ -162,7 +161,8 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
 
     await user.click(trialTrigger);
-    await user.click(screen.getByRole('button', { name: /^In progress/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
     expect(

@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+} from '@/components/list-toolkit';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
@@ -220,6 +225,12 @@ export function ShowDeskPeopleRoster({
         total={roster.length}
         noun={EXHIBITOR_NOUN}
         filtered={isFiltered}
+        filterSummary={summarizeFilters({ search, views, activeViewId: view })}
+        onShowAll={() => {
+          setView('all');
+          setSearch('');
+          setExpandedId(null);
+        }}
       />
 
       {actionError && (

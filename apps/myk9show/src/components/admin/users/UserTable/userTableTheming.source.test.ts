@@ -27,6 +27,10 @@ const toolkitDir = join(__dirname, '..', '..', '..', 'list-toolkit');
 const filtersSrc = ['ListFilterBar.tsx', 'FilterFieldEditor.tsx', 'ListViewTabs.tsx']
   .map(file => readFileSync(join(toolkitDir, file), 'utf8'))
   .join('\n');
+const selectSrc = readFileSync(
+  join(__dirname, '..', '..', '..', 'ui', 'select', 'select.tsx'),
+  'utf8'
+);
 const floatingBarSrc = readFileSync(join(toolkitDir, 'FloatingBulkBar.tsx'), 'utf8');
 const bulkSrc = readFileSync(join(__dirname, '..', 'BulkActionsBar.tsx'), 'utf8');
 const tableCss = readFileSync(
@@ -108,10 +112,12 @@ describe('table-owned controls that would inherit the wrong scope are off', () =
 });
 
 describe('accessibility pins', () => {
-  it('filter chips, their remove control and the bulk bar keep 44px targets', () => {
-    // The chip and its × are separate h-11 buttons; the × is also w-11.
-    expect(filtersSrc).toContain('inline-flex h-11 items-center');
-    expect(filtersSrc).toContain("'w-11 justify-center border-l border-border'");
+  it('filter selects, the date-range trigger and the bulk bar keep 44px targets', () => {
+    // Options fields use the shared SelectTrigger (h-11); the date-range trigger
+    // is its own h-11 button.
+    expect(filtersSrc).toContain('SelectTrigger');
+    expect(filtersSrc).toContain('flex h-11 min-w-[10rem]');
+    expect(selectSrc).toContain('flex h-11 w-full');
     expect(floatingBarSrc).toContain('h-11 w-11');
     expect(floatingBarSrc).toContain('inline-flex h-11 shrink-0');
   });

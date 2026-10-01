@@ -76,7 +76,8 @@ describe('ClassManagementPage selection clearing on view-identity change', () =>
     expect(await screen.findByText('1 class selected')).toBeInTheDocument();
 
     // Select the "Completed" view tab — this changes the status filter (view identity).
-    await user.click(screen.getByRole('button', { name: /^Completed/ }));
+    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(await screen.findByRole('option', { name: /^Completed/ }));
 
     // Selection must be cleared — the bulk actions bar/count should disappear.
     expect(screen.queryByText('1 class selected')).not.toBeInTheDocument();

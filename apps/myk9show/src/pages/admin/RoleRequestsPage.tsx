@@ -9,6 +9,7 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
+  summarizeFilters,
   type ListView,
 } from '@/components/list-toolkit';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
@@ -350,7 +351,17 @@ export default function RoleRequestsPage() {
         shown={filteredRequests.length}
         total={requests.length}
         noun={REQUEST_NOUN}
-        filtered={hasSearch || filter !== DEFAULT_STATUS_FILTER}
+        filtered={hasSearch || filter !== 'all'}
+        filterSummary={summarizeFilters({
+          search: searchTerm,
+          views,
+          activeViewId: filter,
+          defaultViewId: 'all',
+        })}
+        onShowAll={() => {
+          setFilter('all');
+          setSearchTerm('');
+        }}
       />
 
       {error && (

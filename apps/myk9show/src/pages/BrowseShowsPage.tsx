@@ -36,7 +36,12 @@ import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/util
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  summarizeFilters,
+} from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -481,7 +486,6 @@ const BrowseShowsPage: React.FC = () => {
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
                 searchPlaceholder="Search shows or locations"
                 fields={filterFields}
-                onClearAll={clearAllFilters}
                 className="flex-1"
               />
               <ShowLocationField
@@ -497,6 +501,14 @@ const BrowseShowsPage: React.FC = () => {
               total={tabShows.length}
               noun={['show', 'shows']}
               filtered={hasActiveFilters}
+              filterSummary={summarizeFilters({
+                search: filters.search,
+                fields: filterFields,
+                ...(isManagingTab
+                  ? { views: managingViews, activeViewId: activeManagingViewId(filters.status) }
+                  : {}),
+              })}
+              onShowAll={clearAllFilters}
               {...(isManagingTab
                 ? {
                     selectAll: {

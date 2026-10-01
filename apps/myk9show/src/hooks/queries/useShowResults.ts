@@ -27,11 +27,6 @@ export interface ClassResult {
   placements: Placement[];
 }
 
-export interface ResultsFilters {
-  element: string | null;
-  level: string | null;
-}
-
 async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   // Fetch scored entries with placements 1–4 for this show. Read through
   // view_public_entry_results so the release gate and the result-visibility
@@ -94,24 +89,4 @@ export function useShowResults(showId: string | undefined) {
     enabled: !!showId,
     ...cacheStrategies.moderate,
   });
-}
-
-/**
- * Apply client-side element/level filters to results.
- */
-export function filterResults(results: ClassResult[], filters: ResultsFilters): ClassResult[] {
-  return results.filter(cls => {
-    if (filters.element && cls.element !== filters.element) return false;
-    if (filters.level && cls.level !== filters.level) return false;
-    return true;
-  });
-}
-
-/**
- * Extract unique elements and levels from results for filter options.
- */
-export function getFilterOptions(results: ClassResult[]) {
-  const elements = [...new Set(results.map(r => r.element).filter(Boolean))].sort();
-  const levels = [...new Set(results.map(r => r.level).filter(Boolean))].sort();
-  return { elements, levels };
 }

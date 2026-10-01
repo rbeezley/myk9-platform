@@ -217,7 +217,9 @@ describe('ShowDeskPeopleRoster', () => {
     const { user, container } = renderRoster();
 
     expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /all exhibitors/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /show: people roster views/i })).toHaveTextContent(
+      /all exhibitors/i
+    );
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.getByText('Poppy')).toBeInTheDocument();
@@ -715,7 +717,8 @@ describe('ShowDeskPeopleRoster', () => {
     expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
 
-    await user.click(screen.getByRole('button', { name: /needs check-in/i }));
+    await user.click(screen.getByRole('combobox', { name: /show: people roster views/i }));
+    await user.click(await screen.findByRole('option', { name: /needs check-in/i }));
 
     expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /alice martin/i })).toBeInTheDocument();
@@ -725,40 +728,46 @@ describe('ShowDeskPeopleRoster', () => {
 
     // Selecting "All exhibitors" (the default) removes the param entirely,
     // matching a fresh URL rather than an explicit `?view=all`.
-    await user.click(screen.getByRole('button', { name: /all exhibitors/i }));
+    await user.click(screen.getByRole('combobox', { name: /show: people roster views/i }));
+    await user.click(await screen.findByRole('option', { name: /all exhibitors/i }));
     expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
   });
 
-  it('MYK9-812: view tabs show live counts derived from the roster, not a separate query', async () => {
+  it('MYK9-812: the Show select carries live counts derived from the roster, not a separate query', async () => {
+    const { user } = renderRoster([entry(), checkedInBeaEntry()]);
+
+    const select = await screen.findByRole('combobox', { name: /show: people roster views/i });
+    expect(select).toHaveTextContent(/all exhibitors \(2\)/i);
+    await user.click(select);
+    expect(await screen.findByRole('option', { name: /needs check-in \(1\)/i })).toBeVisible();
+    expect(screen.getByRole('option', { name: /^online \(0\)/i })).toBeVisible();
+  });
+
+  it('MYK9-812: a ListResultLine total sits below the filters (owner decision)', async () => {
     renderRoster([entry(), checkedInBeaEntry()]);
 
-    const allTab = await screen.findByRole('button', { name: /all exhibitors/i });
-    const needsCheckInTab = screen.getByRole('button', { name: /needs check-in/i });
-    const onlineTab = screen.getByRole('button', { name: /^online/i });
-
-    expect(allTab).toHaveTextContent('2');
-    expect(needsCheckInTab).toHaveTextContent('1');
-    expect(onlineTab).toHaveTextContent('0');
-  });
-
-  it('MYK9-812: adds a ListResultLine total below the tabs (owner decision)', async () => {
-    const { container } = renderRoster([entry(), checkedInBeaEntry()]);
-
     await screen.findByRole('button', { name: /alice martin/i });
-    expect(container.textContent).toContain('2 exhibitors in view');
+    expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
+      'Showing all 2 exhibitors.'
+    );
   });
 
-  it('MYK9-812: the ListResultLine narrows under search while keeping the unfiltered total', async () => {
-    const { user, container } = renderRoster([entry(), checkedInBeaEntry()]);
+  it('MYK9-906: the status sentence narrows under search and "Show all exhibitors" clears it', async () => {
+    const { user } = renderRoster([entry(), checkedInBeaEntry()]);
 
     await screen.findByRole('button', { name: /alice martin/i });
     // Search by Alice's own armband (114) — Bea's dog shares the same `dog`
     // fixture object as Alice's, so a name-based query would match both rows.
     await user.type(screen.getByRole('textbox', { name: /search name, dog, armband/i }), '114');
 
-    expect(container.textContent).toContain('1 exhibitor');
-    expect(container.textContent).toContain('of 2');
+    expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
+      'Showing 1 of 2 exhibitors (matching \u201c114\u201d).'
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show all exhibitors' }));
+    expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /search name, dog, armband/i })).toHaveValue('');
   });
 
   it('MYK9-812: never renders a cross-exhibitor selection control', async () => {
@@ -773,8 +782,9 @@ describe('ShowDeskPeopleRoster', () => {
     goOffline();
     const { user } = renderRoster([entry(), checkedInBeaEntry()]);
 
-    const needsCheckInTab = await screen.findByRole('button', { name: /needs check-in/i });
-    expect(needsCheckInTab).toHaveTextContent('1');
+    await user.click(await screen.findByRole('combobox', { name: /show: people roster views/i }));
+    expect(await screen.findByRole('option', { name: /needs check-in \(1\)/i })).toBeVisible();
+    await user.keyboard('{Escape}');
 
     await user.click(await screen.findByRole('button', { name: /alice martin/i }));
     await user.click(screen.getByRole('button', { name: /check in all eligible/i }));

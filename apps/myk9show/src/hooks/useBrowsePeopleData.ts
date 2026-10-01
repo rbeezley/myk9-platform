@@ -7,8 +7,6 @@ import type { User } from '@/types/user-types';
 export interface PeopleFilters {
   search: string;
   role: string;
-  /** A state value, or 'all'. Data-derived — see `availableLocations`. */
-  location: string;
   /** 'all' or 'none' (a person with no linked `people.auth_user_id`). */
   login: string;
 }
@@ -16,7 +14,6 @@ export interface PeopleFilters {
 export const DEFAULT_PEOPLE_FILTERS: PeopleFilters = {
   search: '',
   role: 'all',
-  location: 'all',
   login: 'all',
 };
 
@@ -29,8 +26,6 @@ export interface BrowsePeopleData {
   setFilters: React.Dispatch<React.SetStateAction<PeopleFilters>>;
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
-  availableRoles: string[];
-  availableLocations: string[];
 }
 
 /**
@@ -50,10 +45,6 @@ export function filterPeople(people: User[], filters: PeopleFilters): User[] {
 
   if (filters.role !== 'all') {
     result = result.filter(person => person.roles?.includes(filters.role as never));
-  }
-
-  if (filters.location !== 'all') {
-    result = result.filter(person => person.state === filters.location);
   }
 
   if (filters.login === 'none') {
@@ -79,35 +70,10 @@ export function useBrowsePeopleData(): BrowsePeopleData {
     URL_FILTER_OPTIONS
   );
 
-  // Derive unique roles and locations from actual data — a closed vocabulary
-  // would show options with nobody behind them.
-  const availableRoles = useMemo(() => {
-    const roles = new Set<string>();
-    for (const person of people) {
-      if (person.roles) {
-        for (const role of person.roles) {
-          roles.add(role);
-        }
-      }
-    }
-    return [...roles].sort((a, b) => a.localeCompare(b));
-  }, [people]);
-
-  const availableLocations = useMemo(() => {
-    const locations = new Set<string>();
-    for (const person of people) {
-      if (person.state) locations.add(person.state);
-    }
-    return [...locations].sort((a, b) => a.localeCompare(b));
-  }, [people]);
-
   const filteredPeople = useMemo(() => filterPeople(people, filters), [people, filters]);
 
   const hasActiveFilters =
-    filters.search.trim() !== '' ||
-    filters.role !== 'all' ||
-    filters.location !== 'all' ||
-    filters.login !== 'all';
+    filters.search.trim() !== '' || filters.role !== 'all' || filters.login !== 'all';
 
   const clearAllFilters = useCallback(() => {
     setFilters(DEFAULT_PEOPLE_FILTERS);
@@ -122,7 +88,5 @@ export function useBrowsePeopleData(): BrowsePeopleData {
     setFilters,
     hasActiveFilters,
     clearAllFilters,
-    availableRoles,
-    availableLocations,
   };
 }

@@ -52,16 +52,15 @@ describe('ShowMapToolbar pressed state', () => {
     );
   });
 
-  it('marks the active status view and changes it through the list toolkit', async () => {
+  it('shows the active status view in a labelled select and changes it through the list toolkit', async () => {
     const onFilterChange = vi.fn();
     const { user } = renderToolbar({ filter: 'in-progress', onFilterChange });
 
-    expect(screen.getByRole('button', { name: 'In progress' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
-    await user.click(screen.getByRole('button', { name: 'Attention' }));
+    const select = screen.getByRole('combobox', { name: 'Show: Show Map filters' });
+    expect(select).toHaveTextContent('In progress');
+    await user.click(select);
+    expect(await screen.findByRole('option', { name: 'All' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Attention' }));
     expect(onFilterChange).toHaveBeenCalledWith('needs-attention');
   });
 
@@ -70,6 +69,6 @@ describe('ShowMapToolbar pressed state', () => {
 
     expect(screen.getByRole('group', { name: 'Date range' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Class completion' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Show Map filters' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show: Show Map filters' })).toBeInTheDocument();
   });
 });

@@ -21,6 +21,8 @@ interface ListFilterFieldBase {
 export interface ListOptionsFilterField extends ListFilterFieldBase {
   kind: 'options';
   options: ListFilterOption[];
+  /** The unfiltered option's wording, e.g. "All classes". Defaults to "Any <label>". */
+  allLabel?: string;
   value: string | null;
   onChange: (value: string | null) => void;
 }

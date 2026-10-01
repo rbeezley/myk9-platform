@@ -50,21 +50,28 @@ describe('filterDogs', () => {
     ]);
   });
 
-  it('filters by owner', () => {
-    const dogs = [dog({ id: 'a', ownerName: 'Jane Doe' }), dog({ id: 'b', ownerName: 'Sam Reed' })];
-    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, owner: 'Sam Reed' }).map(d => d.id)).toEqual([
-      'b',
-    ]);
-  });
-
-  it('ANDs every active field together', () => {
+  it('ANDs search and status together', () => {
     const dogs = [
-      dog({ id: 'a', breed: 'Papillon', sex: 'male', status: 'active', ownerName: 'A' }),
-      dog({ id: 'b', breed: 'Papillon', sex: 'female', status: 'active', ownerName: 'A' }),
+      dog({ id: 'a', callName: 'Rex', status: 'active' }),
+      dog({ id: 'b', callName: 'Rex', status: 'retired' }),
+      dog({ id: 'c', callName: 'Fido', status: 'active' }),
     ];
     expect(
-      filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, breed: 'Papillon', sex: 'male' }).map(d => d.id)
+      filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, search: 'rex', status: 'active' }).map(d => d.id)
     ).toEqual(['a']);
+  });
+
+  it('still finds a dog by breed or owner through search', () => {
+    const dogs = [
+      dog({ id: 'a', breed: 'Papillon', ownerName: 'Jane Doe' }),
+      dog({ id: 'b', breed: 'Beagle', ownerName: 'Sam Reed' }),
+    ];
+    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, search: 'papillon' }).map(d => d.id)).toEqual(
+      ['a']
+    );
+    expect(filterDogs(dogs, { ...DEFAULT_DOG_FILTERS, search: 'sam reed' }).map(d => d.id)).toEqual(
+      ['b']
+    );
   });
 
   it('uses a precomputed search index instead of recomputing per call', () => {
@@ -81,8 +88,8 @@ describe('hasActiveDogFilters', () => {
     expect(hasActiveDogFilters(DEFAULT_DOG_FILTERS)).toBe(false);
   });
 
-  it.each(['search', 'breed', 'sex', 'status', 'owner'] as const)('is true once %s is set', key => {
-    const value = key === 'search' ? 'rex' : key === 'status' ? 'active' : 'something';
+  it.each(['search', 'status'] as const)('is true once %s is set', key => {
+    const value = key === 'search' ? 'rex' : 'active';
     expect(hasActiveDogFilters({ ...DEFAULT_DOG_FILTERS, [key]: value })).toBe(true);
   });
 });

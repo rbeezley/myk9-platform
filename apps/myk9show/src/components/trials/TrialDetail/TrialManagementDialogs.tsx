@@ -42,6 +42,14 @@ export interface TrialManagementDialogsProps {
    * not the deleted trial's own page (Setup's Trials list) stays where it is.
    */
   onTrialDeleted?: () => void;
+  /**
+   * Open the trial's edit panel or delete dialog on first render. A host that mounts this per
+   * selection (Setup's row menu) passes the trial and the action together, so the form
+   * initializes from the right trial instead of opening against a late-arriving one.
+   */
+  initialAction?: 'edit' | 'delete';
+  /** Called when the trial edit panel or delete dialog closes (saved, cancelled or deleted). */
+  onActionFinished?: () => void;
 }
 
 /**
@@ -54,7 +62,7 @@ export const TrialManagementDialogs = forwardRef<
   TrialManagementDialogsHandle,
   TrialManagementDialogsProps
 >(function TrialManagementDialogs(
-  { currentTrial, parentShow, entryCountByClass, onTrialDeleted },
+  { currentTrial, parentShow, entryCountByClass, onTrialDeleted, initialAction, onActionFinished },
   ref
 ) {
   const { showId } = useParams<{ showId?: string }>();
@@ -66,8 +74,8 @@ export const TrialManagementDialogs = forwardRef<
 
   const showOrganization = parentShow?.organization;
 
-  const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
-  const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(false);
+  const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(initialAction === 'edit');
+  const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(initialAction === 'delete');
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
@@ -90,6 +98,15 @@ export const TrialManagementDialogs = forwardRef<
     []
   );
 
+  const closeEditTrial = () => {
+    setEditTrialPanelOpen(false);
+    onActionFinished?.();
+  };
+  const closeDeleteTrial = () => {
+    setDeleteTrialDialogOpen(false);
+    onActionFinished?.();
+  };
+
   const handleConfirmDeleteTrial = async () => {
     if (currentTrial) {
       await deleteTrialAsync(currentTrial.id);
@@ -106,7 +123,7 @@ export const TrialManagementDialogs = forwardRef<
         }
       }
     }
-    setDeleteTrialDialogOpen(false);
+    closeDeleteTrial();
   };
 
   const handleConfirmDeleteClass = () => {
@@ -128,7 +145,7 @@ export const TrialManagementDialogs = forwardRef<
     <>
       <TrialEditPanel
         open={editTrialPanelOpen}
-        onClose={() => setEditTrialPanelOpen(false)}
+        onClose={closeEditTrial}
         trialId={currentTrial?.id || ''}
         trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
         initialTrialData={currentTrial || {}}
@@ -140,14 +157,14 @@ export const TrialManagementDialogs = forwardRef<
               { ...currentTrial, ...trialData } as Partial<TrialInput>,
               user?.id || 'unknown'
             );
-            setEditTrialPanelOpen(false);
+            closeEditTrial();
           }
         }}
       />
 
       <StandardDialog
         open={deleteTrialDialogOpen}
-        onClose={() => setDeleteTrialDialogOpen(false)}
+        onClose={closeDeleteTrial}
         onSave={handleConfirmDeleteTrial}
         title="Delete Trial"
         description={null}

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TrialsTab } from '../TrialsTab';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -145,5 +145,39 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     await user.keyboard('{Escape}');
     await user.click(screen.getByText('Saturday Trial 1'));
     expect(mockNavigate).toHaveBeenCalledWith('/shows/s1/trials/t1');
+  });
+});
+
+// Codex P2: the trial dialogs mount per selection WITH the trial, so the first Edit initializes
+// the Scheduling tab's calendar from the saved date instead of showing "Pick a date".
+describe('TrialsTab Edit trial initializes from the selected trial', () => {
+  beforeEach(() => {
+    mockNavigate.mockClear();
+    mockCanManage = true;
+    mockScopeStatus = 'resolved';
+    mockViewMode = 'cards';
+  });
+
+  async function openScheduling(user: ReturnType<typeof renderTab>['user'], trialLabel: string) {
+    await user.click(screen.getByRole('button', { name: `Trial actions for ${trialLabel}` }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+    const panel = await screen.findByRole('dialog');
+    await user.click(within(panel).getByRole('tab', { name: /scheduling/i }));
+    return panel;
+  }
+
+  it("shows the saved date on the first open, and the next trial's date on the next open", async () => {
+    const { user } = renderTab();
+
+    const first = await openScheduling(user, 'Saturday Trial 1');
+    expect(within(first).queryByText('Pick a date')).not.toBeInTheDocument();
+    expect(within(first).getByText(/May 9(th)?, 2026/)).toBeVisible();
+
+    await user.click(within(first).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    const second = await openScheduling(user, 'Sunday Trial 2');
+    expect(within(second).queryByText('Pick a date')).not.toBeInTheDocument();
+    expect(within(second).getByText(/May 10(th)?, 2026/)).toBeVisible();
   });
 });

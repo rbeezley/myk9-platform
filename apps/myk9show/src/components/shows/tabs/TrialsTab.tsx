@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,7 @@ import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge } from '@/components/status';
 import { useShowStore } from '@/store/showStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import {
-  TrialManagementDialogs,
-  type TrialManagementDialogsHandle,
-} from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 import {
   activeTrialsTabViewId,
@@ -131,18 +128,16 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   // read as no.
   const canManageThisShow = useShowManageScope(showId).canManage;
   // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
-  const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
-  const [actionTrialId, setActionTrialId] = useState<string | null>(null);
+  const [pendingTrialAction, setPendingTrialAction] = useState<{
+    trialId: string;
+    action: 'edit' | 'delete';
+  } | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
-  const actionTrial = trials.find(trial => trial.id === actionTrialId);
-  const editTrial = (trialId: string) => {
-    setActionTrialId(trialId);
-    dialogsRef.current?.openEditTrial();
-  };
-  const deleteTrial = (trialId: string) => {
-    setActionTrialId(trialId);
-    dialogsRef.current?.openDeleteTrial();
-  };
+  const pendingTrial = pendingTrialAction
+    ? trials.find(trial => trial.id === pendingTrialAction.trialId)
+    : undefined;
+  const editTrial = (trialId: string) => setPendingTrialAction({ trialId, action: 'edit' });
+  const deleteTrial = (trialId: string) => setPendingTrialAction({ trialId, action: 'delete' });
   const trialRowMenu = (trialId: string, label: string) => (
     <SetupRowActionsMenu
       subject="Trial"
@@ -362,13 +357,17 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}
-      {canManageThisShow && (
+      {canManageThisShow && pendingTrialAction && pendingTrial && (
+        // Mounted per selection with the trial and action together (and keyed by trial), so the
+        // edit form initializes from THIS trial rather than opening against a late-arriving one.
         <TrialManagementDialogs
-          ref={dialogsRef}
-          currentTrial={actionTrial}
+          key={pendingTrial.id}
+          currentTrial={pendingTrial}
           parentShow={parentShow}
           entryCountByClass={EMPTY_ENTRY_COUNTS}
-          onTrialDeleted={() => setActionTrialId(null)}
+          initialAction={pendingTrialAction.action}
+          onActionFinished={() => setPendingTrialAction(null)}
+          onTrialDeleted={() => setPendingTrialAction(null)}
         />
       )}
     </div>

@@ -135,5 +135,34 @@ describe('the Undo toast', () => {
       'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.'
     );
     expect(loadClubs).not.toHaveBeenCalled();
+    expect(mocks.toastError.mock.calls[0]).toHaveLength(1);
+  });
+
+  it('a failed Undo keeps an Undo action for the failed items only, until the original window closes', async () => {
+    const deletedAt = 1_000;
+    const other = { id: 's2', name: 'Prairie Open' };
+    mocks.restore.mockImplementation((_kind: string, id: string) =>
+      id === 's2' ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve()
+    );
+    let clock = deletedAt + 60_000;
+    await undoDelete({
+      kind: 'show',
+      deleted: [show, other],
+      deletedAt,
+      queryClient: new QueryClient(),
+      now: () => clock,
+    });
+
+    const [, options] = mocks.toastError.mock.calls[0] ?? [];
+    expect(options).toMatchObject({
+      action: { label: 'Undo' },
+      duration: UNDO_WINDOW_MS - 60_000,
+    });
+
+    mocks.restore.mockReset().mockResolvedValue(undefined);
+    clock = deletedAt + 120_000;
+    options.action.onClick();
+    await vi.waitFor(() => expect(mocks.restore).toHaveBeenCalledTimes(1));
+    expect(mocks.restore).toHaveBeenCalledWith('show', 's2');
   });
 });

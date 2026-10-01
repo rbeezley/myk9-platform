@@ -25,10 +25,12 @@ function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
-/** A transport failure carries no SQLSTATE; PostgREST errors always do. */
-function isNetworkFailure(code: string, message: string): boolean {
-  return !code && /failed to fetch|network|load failed|fetch failed/i.test(message);
-}
+/*
+ * "Offline" means the browser says so. A transport failure while it says online
+ * (`Failed to fetch`: a dropped request, a captive portal, a blip) is a plain,
+ * retryable failure: calling it offline hid the retry control and left the
+ * dialog stuck until it was reopened.
+ */
 
 export type DeleteFailureKind =
   'already-deleted' | 'blocked' | 'forbidden' | 'still-saving' | 'offline' | 'failed';
@@ -48,7 +50,7 @@ export function classifyDeleteError(error: unknown): DeleteFailureKind {
   if (/permission denied/i.test(message) && code === '42501') return 'forbidden';
   if (/not found|already deleted/i.test(message) || code === 'P0002') return 'already-deleted';
   if (code === '42501') return 'forbidden';
-  if (isOffline() || isNetworkFailure(code, message)) return 'offline';
+  if (isOffline()) return 'offline';
   return 'failed';
 }
 
@@ -103,7 +105,7 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
   if (code === 'P0002' || /not deleted/i.test(message)) {
     return `${thisThing(kind).replace(/^t/, 'T')} is already back.`;
   }
-  if (isOffline() || isNetworkFailure(code, message)) {
+  if (isOffline()) {
     return "You're offline. Undo needs a connection. Try again when you're back online.";
   }
   return `We couldn't bring back ${thisThing(kind)}. Please try again.`;
@@ -111,8 +113,22 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
 
 /** Why a delete_preview read failed, for the dialog's "unknown" state. */
 export function classifyPreviewError(error: unknown): DeletePreviewUnavailableReason {
-  const { code, message } = fieldsOf(error);
-  if (isOffline() || isNetworkFailure(code, message)) return 'offline';
+  const { code } = fieldsOf(error);
+  if (isOffline()) return 'offline';
   if (code === '42501' && classifyDeleteError(error) === 'forbidden') return 'forbidden';
   return 'failed';
+}
+
+/**
+ * Whether pressing Undo again could succeed. A refusal the server will repeat
+ * (window over, parent still deleted, already back) is not worth a second try.
+ */
+export function isRetryableRestoreError(error: unknown): boolean {
+  const { code, message } = fieldsOf(error);
+  return !(
+    code === '42501' ||
+    code === 'MK013' ||
+    code === 'P0002' ||
+    /not deleted/i.test(message)
+  );
 }

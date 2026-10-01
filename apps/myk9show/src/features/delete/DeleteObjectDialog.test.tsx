@@ -236,6 +236,21 @@ describe('DeleteObjectDialog three states', () => {
     );
   });
 
+  it('a transient transport failure while the browser is online offers Try again, not the offline state', async () => {
+    mocks.preview.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    mocks.preview.mockResolvedValueOnce(counts());
+    const { user } = renderDialog('trial', [{ id: 't1', name: 'Saturday T1', context: ctx }]);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('button', { name: /try again/i })).toBeVisible();
+    expect(within(dialog).queryByText(/^You're offline\./)).toBeNull();
+
+    await user.click(within(dialog).getByRole('button', { name: /try again/i }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Delete trial' })).toBeEnabled()
+    );
+  });
+
   it('unknown offline: no read is made, Delete is off, and it says why', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderDialog('dog', [{ id: 'd1', name: 'Biscuit' }]);

@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { showUndoToast } from '@/lib/undoToast';
 import { deletedToast, restoredToast, undoExpiredMessage } from './deleteObjectCopy';
 import { canStillUndo, invalidateAfterDelete, restoreRecords } from './deleteRecords';
-import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
+import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
 
 /** How long the toast stays up. The Undo window itself is the server's 10 minutes. */
 export const DELETE_TOAST_MS = 15_000;
@@ -48,7 +48,33 @@ export async function undoDelete({
     onRestored?.(restored);
   }
   if (failed.length > 0) {
-    toast.error(failed[0]?.message ?? '');
+    const message = failed[0]?.message ?? '';
+    // Sonner dismissed the original toast when Undo was pressed, so a transient
+    // failure needs its own Undo, for the failed items only, and only until the
+    // ORIGINAL window closes (the server's can_undo_soft_delete is authoritative;
+    // past it, undoDelete says who can restore).
+    const remaining = UNDO_WINDOW_MS - (now() - deletedAt);
+    if (failed.every(f => f.retryable) && remaining > 0) {
+      const retryTargets = failed.map(f => f.target);
+      toast.error(message, {
+        duration: remaining,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void undoDelete({
+              kind,
+              deleted: retryTargets,
+              deletedAt,
+              queryClient,
+              onRestored,
+              now,
+            });
+          },
+        },
+      });
+    } else {
+      toast.error(message);
+    }
   }
 }
 

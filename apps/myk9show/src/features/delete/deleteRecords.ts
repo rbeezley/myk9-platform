@@ -8,7 +8,12 @@
  * person in the app: every surface opens `DeleteObjectDialog`, which calls this.
  */
 import type { QueryClient } from '@tanstack/react-query';
-import { classifyDeleteError, deleteErrorMessage, restoreErrorMessage } from './deleteErrors';
+import {
+  classifyDeleteError,
+  deleteErrorMessage,
+  isRetryableRestoreError,
+  restoreErrorMessage,
+} from './deleteErrors';
 import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
 import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
@@ -16,6 +21,8 @@ import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './dele
 export interface DeleteFailure {
   target: DeleteTarget;
   message: string;
+  /** Restore only: true when pressing Undo again could succeed. */
+  retryable?: boolean;
 }
 
 export interface DeleteRecordsResult {
@@ -101,7 +108,11 @@ export async function restoreRecords(
     try {
       await restoreOnServer(kind, target.id);
     } catch (error) {
-      failed.push({ target, message: restoreErrorMessage(kind, error) });
+      failed.push({
+        target,
+        message: restoreErrorMessage(kind, error),
+        retryable: isRetryableRestoreError(error),
+      });
       return;
     }
     restored.push(target);

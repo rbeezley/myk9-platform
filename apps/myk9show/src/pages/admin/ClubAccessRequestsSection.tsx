@@ -3,7 +3,8 @@ import { CheckCircle2, Inbox, RefreshCw, ShieldCheck, XCircle } from 'lucide-rea
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { clubQueryKeys, useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
@@ -29,6 +30,7 @@ function ReviewCard({
   const [clubName, setClubName] = useState(request.requestedClubName);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
   const websiteLink = getSafeWebsiteLink(request.requestedClubWebsite);
 
   const handleReview = async (decision: 'approved' | 'denied') => {
@@ -49,6 +51,8 @@ function ReviewCard({
       // admin straight to that action instead of leaving them to find it.
       if (decision === 'approved' && clubId) {
         onApproved(clubId, clubName.trim() || request.requestedClubName);
+        // The approved club now belongs on "Clubs awaiting authorization".
+        void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
       }
       await onReviewed();
     } catch (error) {

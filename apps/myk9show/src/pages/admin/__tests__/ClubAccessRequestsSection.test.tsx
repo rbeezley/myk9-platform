@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ClubAccessRequestsSection } from '../ClubAccessRequestsSection';
 import {
@@ -19,6 +20,7 @@ vi.mock('@/services/database/club-access-requests', () => ({
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsQuery: () => ({ data: mocks.clubs() }),
+  clubQueryKeys: { lists: () => ['clubs', 'list'] },
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -97,6 +99,18 @@ describe('ClubAccessRequestsSection', () => {
     const authorizeLink = await screen.findByRole('link', { name: /authorize this club/i });
     expect(authorizeLink).toHaveAttribute('href', '/clubs/club-1');
     expect(screen.getByText(/pending myk9 authorization/i)).toBeInTheDocument();
+  });
+
+  it('refreshes the club list after approval so the club joins the authorization queue', async () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = render(<ClubAccessRequestsSection />, {
+      initialRoute: '/admin/onboarding',
+      queryClient,
+    });
+    await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
+
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clubs', 'list'] }));
   });
 
   it('does not offer an authorize link after a denial', async () => {

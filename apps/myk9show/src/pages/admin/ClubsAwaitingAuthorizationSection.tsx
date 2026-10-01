@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatShortDate } from '@/lib/format/dates';
-import { useClubStore } from '@/store/clubStore';
+import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 
 /**
  * MYK9-855: club authorization is a separate site-admin decision (MYK9-572),
@@ -11,28 +11,21 @@ import { useClubStore } from '@/store/clubStore';
  * needs it listed on the existing Onboarding page, so it survives a reload.
  * It only links to `/clubs/:id`, where the one Authorize action lives.
  *
- * `authorizedAt === null` means "explicitly not authorized"; `undefined` means
- * "not synced to this device yet" and is deliberately not listed. The club
- * replica never holds soft-deleted rows, so they cannot appear here.
+ * Online-only, like the request queue above it: this is an admin to-do list,
+ * so it reads the server rather than this device's club replica, whose copy
+ * can lag an approval. It refetches on every visit, and an approval
+ * invalidates it. `authorizedAt === null` means "explicitly not authorized";
+ * `undefined` (field absent) is never listed.
  */
 export function ClubsAwaitingAuthorizationSection() {
-  const clubs = useClubStore(s => s.clubs);
-  const readiness = useClubStore(s => s.clubReadiness);
-  const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
+  const { data: clubs, isPending, isError, refetch } = useClubsQuery();
 
+  // A cached list from an earlier visit is not good enough for a to-do list.
   useEffect(() => {
-    void ensureClubsReady();
-  }, [ensureClubsReady]);
+    void refetch();
+  }, [refetch]);
 
-  const awaiting = useMemo(() => clubs.filter(club => club.authorizedAt === null), [clubs]);
-  const loading = readiness === 'loading' && clubs.length === 0;
-  // A failed or offline sync must never read as "nothing to authorize". With
-  // no clubs on the device there is no answer at all; with cached clubs the
-  // answer is only as fresh as the last sync. Both get the same notice and
-  // the same touch-sized retry; only the sentence differs.
-  const notRefreshed = readiness === 'unavailable' || readiness === 'offline';
-  const syncProblem = !notRefreshed ? null : clubs.length === 0 ? 'no-data' : 'stale';
-  const retry = () => void ensureClubsReady({ force: true });
+  const awaiting = useMemo(() => (clubs ?? []).filter(club => club.authorizedAt === null), [clubs]);
 
   return (
     <section className="mb-8 space-y-3" aria-labelledby="clubs-awaiting-authorization-heading">
@@ -46,31 +39,30 @@ export function ClubsAwaitingAuthorizationSection() {
         </p>
       </div>
 
-      {syncProblem && (
+      {isError ? (
         <div
           role="alert"
           className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <p className="text-base text-muted-foreground">
-            {syncProblem === 'no-data'
-              ? "Couldn't load clubs, so we can't tell which ones still need authorizing."
-              : "Couldn't refresh clubs, so this list is from this device's last sync."}
+            Couldn't load clubs, so we can't tell which ones still need authorizing.
           </p>
-          <Button variant="outline" size="sm" className="min-h-11 shrink-0" onClick={retry}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 shrink-0"
+            onClick={() => void refetch()}
+          >
             Try again
           </Button>
         </div>
-      )}
-
-      {loading ? (
+      ) : isPending ? (
         <p role="status" className="text-base text-muted-foreground">
           Loading clubs…
         </p>
-      ) : syncProblem === 'no-data' ? null : awaiting.length === 0 ? (
+      ) : awaiting.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border bg-card px-4 py-3 text-base text-muted-foreground">
-          {syncProblem === 'stale'
-            ? 'No clubs were awaiting authorization at the last sync.'
-            : 'All clubs are authorized.'}
+          All clubs are authorized.
         </p>
       ) : (
         <ul className="space-y-2">

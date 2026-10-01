@@ -58,7 +58,6 @@ function replicatedToClub(rc: ReplicatedClub): Club {
     // badge to its own admins right after deploy / while offline, since
     // there was no way to tell "never synced this field" from "revoked".
     authorizedAt: rc.authorizedAt,
-    createdAt: rc.createdAt,
     _syncStatus: rc._syncStatus,
     _version: rc._version,
     _lastModified: rc._lastModified,

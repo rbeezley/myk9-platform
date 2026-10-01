@@ -36,6 +36,11 @@ export interface DogIdentityRailProps {
   registrationsLoading?: boolean | undefined;
   onRetryRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
+  /**
+   * The viewer may open `/people/:id` (the route is SECRETARY | SITE_ADMIN). When false the
+   * owner's name is plain text rather than a link to a page that would refuse them.
+   */
+  canOpenOwnerRecord?: boolean;
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;

@@ -263,7 +263,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 </div>
 
                 <div>
-                  <div className="text-sm text-muted-foreground">Chairman</div>
+                  <div className="text-sm text-muted-foreground">Chair</div>
                   <div className="text-foreground font-medium">
                     {resolvePersonName(show.officials.chairman[0])}
                   </div>
@@ -305,7 +305,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 </div>
 
                 <div>
-                  <div className="text-sm text-muted-foreground">Day of Show Fee</div>
+                  <div className="text-sm text-muted-foreground">Day-of-Show Fee</div>
                   <div className="text-foreground font-medium">{formatFee(show.dayOfShowFee)}</div>
                 </div>
 

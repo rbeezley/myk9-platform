@@ -265,7 +265,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
-            Create New Exhibitor
+            Add Person
           </DialogTitle>
         </DialogHeader>
 
@@ -446,7 +446,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                         onClick={() => handleSelectDuplicate(candidate)}
                         className="ml-4"
                       >
-                        Use This User
+                        Use This Person
                       </Button>
                     </div>
                   </div>
@@ -459,7 +459,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                     None of these match? Continue creating a new exhibitor.
                   </p>
                   <Button variant="outline" onClick={() => setActiveTab('create')}>
-                    Create New Exhibitor Anyway
+                    Add Person Anyway
                   </Button>
                 </div>
               </div>
@@ -476,7 +476,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
             disabled={isCreating || activeTab === 'duplicates'}
             className="min-w-[100px]"
           >
-            {isCreating ? 'Creating...' : 'Create Exhibitor'}
+            {isCreating ? 'Adding...' : 'Add Person'}
           </Button>
         </div>
       </DialogContent>

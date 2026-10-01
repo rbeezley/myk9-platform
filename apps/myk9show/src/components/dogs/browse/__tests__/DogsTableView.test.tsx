@@ -501,3 +501,15 @@ describe('DogsTableView', () => {
     expect(csv).toContain('female');
   });
 });
+
+describe('DogsTableView status badges', () => {
+  // One source for the lifecycle badge: the same DOG_STATUS_BADGES the card and the detail rail wear.
+  it.each([
+    ['retired', 'Retired', 'bg-warning/10'],
+    ['deceased', 'Deceased', 'bg-muted'],
+    ['active', 'Active', 'bg-success/10'],
+  ] as const)('shows %s as the shared badge', (status, label, bg) => {
+    render(<DogsTableView dogs={[{ ...dogs[0], status } as Dog]} />);
+    expect(screen.getByText(label)).toHaveClass(bg);
+  });
+});

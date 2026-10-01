@@ -166,9 +166,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       logger.debug('Deleting user', 'users', { userId: person.id });
       await deleteUserMutation.mutateAsync({ id: person.id });
       setIsDeleteDialogOpen(false);
-      notifications.success('User deleted successfully');
+      notifications.success('Person deleted');
       leaveAfterDelete();
-      logger.info('User deleted successfully', 'users', { userId: person.id });
+      logger.info('Person deleted', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
       notifications.error('Failed to delete user', { description: getErrorMessage(error) });
@@ -216,7 +216,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       throw error;
     }
     setFormData(prev => ({ ...prev, ...buildSavedFormDataUpdates(userData) }));
-    notifications.success('User updated successfully');
+    notifications.success('Person updated');
     logger.info('User data saved successfully', 'users', { userId: person.id });
   };
 

@@ -35,7 +35,7 @@ async function gotoPeopleBrowse(page: Page) {
   await page.goto('/people', { waitUntil: 'networkidle' });
   // h1 is sr-only; assert via the breadcrumb.
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'New Person' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add Person' })).toBeVisible();
 }
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ test.describe('People UI — Browse (secretary)', () => {
 
   test('browse loads with toolbar, view toggle, and people count', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await expect(page.getByRole('button', { name: 'New Person' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Person' })).toBeVisible();
     await expect(page.getByPlaceholder('Search people by name or email...')).toBeVisible();
     // The toolbar renders the labelled "Show:" view select and the standard
     // Cards/Table view toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES).
@@ -104,10 +104,10 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create Person A — opens panel, fills, saves, navigates to detail', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'New Person' }).click();
+    await page.getByRole('button', { name: 'Add Person' }).click();
 
     // The dialog opens with Basic Info tab.
-    const dialog = page.getByRole('dialog', { name: 'Edit User' });
+    const dialog = page.getByRole('dialog', { name: 'Edit Person' });
     await expect(dialog).toBeVisible();
 
     await page.getByRole('textbox', { name: /First Name/ }).fill(PERSON_A_FIRST);
@@ -141,8 +141,8 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create Person B (kept in directory for delete-then-confirm)', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'New Person' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit User' });
+    await page.getByRole('button', { name: 'Add Person' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Person' });
     await expect(dialog).toBeVisible();
     await page.getByRole('textbox', { name: /First Name/ }).fill(PERSON_B_FIRST);
     await page.getByRole('textbox', { name: /Last Name/ }).fill(PERSON_B_LAST);
@@ -160,8 +160,8 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create rejects submission when required fields are empty', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'New Person' }).click();
-    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Person' }).click();
+    await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
     // Fill ONLY last name (no first name, no email). That gives the form
     // hasChanges=true so Save is enabled, but it remains schema-invalid
     // because firstName + email are still required-empty. Clearing a
@@ -176,7 +176,7 @@ test.describe('People UI — Create (secretary)', () => {
     await expect(
       page.getByRole('alert').filter({ hasText: 'Please enter a first name' })
     ).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
   });
 });
 
@@ -213,7 +213,7 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
     await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
     await page.getByRole('tab', { name: 'Contact' }).click();
     await page.getByRole('textbox', { name: 'Phone Number' }).fill('555-7890');
 
@@ -384,8 +384,8 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     page,
   }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'New Person' }).click();
-    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add Person' }).click();
+    await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
 
     await page.getByRole('textbox', { name: /First Name/ }).fill(ADMIN_PERSON_FIRST);
     await page.getByRole('textbox', { name: /Last Name/ }).fill(ADMIN_PERSON_LAST);
@@ -412,7 +412,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     await expect(page.getByRole('link', { name: ADMIN_PERSON_EMAIL })).toBeVisible();
 
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
     await page.getByRole('tab', { name: 'Contact' }).click();
     await page.getByRole('textbox', { name: 'Phone Number' }).fill('555-4567');
 

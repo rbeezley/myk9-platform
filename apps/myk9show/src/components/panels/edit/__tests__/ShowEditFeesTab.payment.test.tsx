@@ -85,3 +85,11 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     expect(mockHandleCheckboxChange).toHaveBeenCalledWith('acceptCashPayments');
   });
 });
+
+describe('ShowEditFeesTab — fee labels', () => {
+  it('names the fees "Pre-Entry Fee" and "Day-of-Show Fee"', () => {
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
+    expect(screen.getByLabelText('Pre-Entry Fee')).toBeInTheDocument();
+    expect(screen.getByLabelText('Day-of-Show Fee')).toBeInTheDocument();
+  });
+});

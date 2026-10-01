@@ -304,9 +304,9 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
   });
 });
 
-// ── New Club button role-gate tests ─────────────────────────────────────────
+// ── Add Club button role-gate tests ─────────────────────────────────────────
 
-describe('BrowseClubsPage — New Club button visibility', () => {
+describe('BrowseClubsPage — Add Club button visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -326,7 +326,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     };
   });
 
-  it('shows New Club button when user is a site admin', () => {
+  it('shows a visible Clubs title above the list', () => {
     mockAuthReturn = {
       user: { id: 'admin-user' },
       userWithRoles: { roles: ['site_admin'] },
@@ -334,10 +334,21 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Clubs' })).not.toHaveClass('sr-only');
   });
 
-  it('shows New Club button when user is a secretary', () => {
+  it('shows Add Club button when user is a site admin', () => {
+    mockAuthReturn = {
+      user: { id: 'admin-user' },
+      userWithRoles: { roles: ['site_admin'] },
+    };
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
+  });
+
+  it('shows Add Club button when user is a secretary', () => {
     mockAuthReturn = {
       user: { id: 'secretary-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -345,10 +356,10 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
   });
 
-  it('shows New Club button when user is a club admin', () => {
+  it('shows Add Club button when user is a club admin', () => {
     mockAuthReturn = {
       user: { id: 'club-admin-user' },
       userWithRoles: { roles: ['club_admin'] },
@@ -356,10 +367,10 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
   });
 
-  it('hides New Club button when user is unauthenticated', () => {
+  it('hides Add Club button when user is unauthenticated', () => {
     mockAuthReturn = {
       user: null,
       userWithRoles: null,
@@ -367,7 +378,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.queryByRole('button', { name: /new club/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
   });
 
   it('opens the complete club creator from a wizard handoff and returns the new club', async () => {

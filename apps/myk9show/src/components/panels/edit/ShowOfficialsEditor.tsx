@@ -84,7 +84,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <OfficialPicker
-          label="Show Chairman"
+          label="Chair"
           required
           selectedPersonId={currentChairman}
           people={people}
@@ -94,7 +94,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           onCreatePerson={handleCreatePerson}
         />
         <OfficialPicker
-          label="Show Secretary"
+          label="Secretary"
           required
           selectedPersonId={currentSecretary}
           people={people}

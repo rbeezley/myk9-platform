@@ -50,7 +50,7 @@ export const AdditionalInfoTab: React.FC = () => {
             />
           </FormField>
 
-          <FormField label="Weight (pounds)" fieldId="weight">
+          <FormField label="Weight (lbs)" fieldId="weight">
             <Input
               id="weight"
               value={formData.weight}

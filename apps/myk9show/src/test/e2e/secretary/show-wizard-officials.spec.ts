@@ -24,8 +24,8 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     // Verify we're on the Show Details step
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
-    // Find the Show Chairman picker trigger and open it
-    const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
+    // Find the Chair picker trigger and open it
+    const chairmanTrigger = page.getByRole('button', { name: /Chair/i });
     await chairmanTrigger.click();
 
     // The popover should appear — it should have at least one of the two group headers:
@@ -42,12 +42,12 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     expect(hasSuggested || hasAllPeople).toBe(true);
   });
 
-  test('"Add new Show Chairman" form requires name, email, and phone', async ({ page }) => {
+  test('"Add new Chair" form requires name, email, and phone', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
 
     // Open the chairman picker and expand its inline "Add new" form.
-    await page.getByRole('button', { name: /Show Chairman/i }).click();
-    await page.getByRole('button', { name: /Add new Show Chairman/i }).click();
+    await page.getByRole('button', { name: /Chair/i }).click();
+    await page.getByRole('button', { name: /Add new Chair/i }).click();
 
     // The create form must collect full contact info — email AND phone are
     // surfaced on the premium/reports, so both are required alongside the name.
@@ -57,7 +57,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.getByPlaceholder('(555) 123-4567')).toBeVisible();
 
     // Save stays disabled until every field (including phone) is filled.
-    const save = page.getByRole('button', { name: /Add Show Chairman/i });
+    const save = page.getByRole('button', { name: /Add Chair/i });
     await page.getByPlaceholder('First name').fill('Pat');
     await page.getByPlaceholder('Last name').fill('Chair');
     await page.getByPlaceholder('email@example.com').fill('pat.chair@example.com');

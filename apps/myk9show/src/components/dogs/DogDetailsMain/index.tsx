@@ -37,6 +37,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
   const isSecretary = userRole === 'secretary';
+  // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
+  const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
   // failed) when the user can't delete; restore copy only shows to admins who
   // can reach the admin-only restore UI.
@@ -288,6 +290,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             registrationsLoading={registrationsLoading}
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
+            canOpenOwnerRecord={canOpenOwnerRecord}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}

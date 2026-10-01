@@ -454,7 +454,7 @@ export class ShowCreationWizardPage {
     // Look for save/create button - should be at the bottom
     const saveButton = this.page
       .locator(
-        'button:has-text("Save Club"), button:has-text("Create Club"), button[type="submit"]:has-text("Save")'
+        'button:has-text("Save Club"), button:has-text("Create Club"), button:has-text("Add Club"), button[type="submit"]:has-text("Save")'
       )
       .first();
     if (await saveButton.isVisible().catch(() => false)) {

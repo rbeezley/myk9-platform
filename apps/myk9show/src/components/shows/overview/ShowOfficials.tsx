@@ -94,7 +94,7 @@ export function ShowOfficials({ showId }: ShowOfficialsProps) {
       </div>
       <div className="divide-y divide-border/30">
         {officials.chairmen.map(o => (
-          <OfficialCard key={o.personId} official={o} role="Chairman" />
+          <OfficialCard key={o.personId} official={o} role="Chair" />
         ))}
         {officials.secretaries.map(o => (
           <OfficialCard key={o.personId} official={o} role="Secretary" />

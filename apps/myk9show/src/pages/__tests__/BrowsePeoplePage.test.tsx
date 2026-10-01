@@ -127,6 +127,15 @@ describe('BrowsePeoplePage', () => {
     };
   });
 
+  it('shows a visible People title and an "Add Person" button', () => {
+    render(<BrowsePeoplePage />);
+
+    const title = screen.getByRole('heading', { level: 1, name: 'People' });
+    expect(title).not.toHaveClass('sr-only');
+    expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new person/i })).not.toBeInTheDocument();
+  });
+
   it('opens the add person panel from the add query parameter', () => {
     render(<BrowsePeoplePage />, { initialRoute: '/people?add=true' });
 

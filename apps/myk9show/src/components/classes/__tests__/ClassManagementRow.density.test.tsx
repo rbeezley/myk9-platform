@@ -54,3 +54,13 @@ describe('ClassManagementRow density', () => {
     }
   );
 });
+
+describe('ClassManagementRow action menu size', () => {
+  it('is a 44px touch target', () => {
+    renderRow('comfortable');
+    expect(screen.getByRole('button', { name: /more actions for novice a/i })).toHaveClass(
+      'h-11',
+      'w-11'
+    );
+  });
+});

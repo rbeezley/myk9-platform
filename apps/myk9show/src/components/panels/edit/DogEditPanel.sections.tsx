@@ -224,7 +224,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </FormField> */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Gender" fieldId="gender" required error={genderError}>
+          <FormField label="Sex" fieldId="gender" required error={genderError}>
             <Select
               value={data.gender}
               onValueChange={v => {
@@ -237,7 +237,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 className={cn(genderError && 'border-destructive')}
                 {...form?.getFieldProps('gender')}
               >
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder="Select sex" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="male">Male</SelectItem>

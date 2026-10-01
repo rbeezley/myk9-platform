@@ -410,7 +410,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
     <EditPanelWrapper<ClubEditFormData>
       open={open}
       onClose={onClose}
-      title={mode === 'create' ? 'Create Club' : 'Edit Club'}
+      title={mode === 'create' ? 'Add Club' : 'Edit Club'}
       subtitle={
         mode === 'create'
           ? 'Fill in the details for your new club'
@@ -421,7 +421,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       onSave={handleSave}
       schema={clubEditSchema}
       enableAutoSave={enableAutoSave}
-      saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
+      saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
       onValidationFail={handleValidationFail}
       onDataChange={handleDataChange}

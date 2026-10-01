@@ -438,7 +438,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     className="flex items-center gap-2"
                   >
                     <UserPlus className="h-4 w-4" />
-                    Create Exhibitor & Dog(s)
+                    Add Person & Dog(s)
                   </Button>
                   <Button
                     variant="outline"
@@ -446,7 +446,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     className="flex items-center gap-2"
                   >
                     <UserPlus className="h-4 w-4" />
-                    Create Exhibitor Only
+                    Add Person Only
                   </Button>
                 </div>
               </div>

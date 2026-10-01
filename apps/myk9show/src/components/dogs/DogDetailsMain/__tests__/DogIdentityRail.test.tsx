@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import type { Dog, Owner } from '@/types/dog-types';
@@ -133,17 +134,42 @@ describe('DogIdentityRail', () => {
     expect(onEditPanelOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('links the owner and offers Enter a show for an exhibitor', () => {
+  it('shows the owner as plain text and offers Enter a show for an exhibitor', () => {
     renderRail(base);
-    expect(screen.getByRole('link', { name: 'Jane Smith' })).toHaveAttribute(
-      'href',
-      '/people/owner-1'
-    );
+    // /people/:id is SECRETARY | SITE_ADMIN only, so an exhibitor gets no link to a refusal page.
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Jane Smith' })).not.toBeInTheDocument();
     // MYK9-519: the browse hop carries the dog so the wizard can preselect it.
     expect(screen.getByRole('link', { name: /enter a show/i })).toHaveAttribute(
       'href',
       '/shows?dogId=dog-1'
     );
+  });
+
+  it('links the owner for a viewer who may open /people/:id and returns to this dog', () => {
+    const Probe = () => (
+      <span data-testid="nav-state">{JSON.stringify(useLocation().state ?? null)}</span>
+    );
+    render(
+      <>
+        <DogIdentityRail
+          dog={base}
+          owner={owner}
+          canOpenOwnerRecord
+          onEditPanelOpen={() => {}}
+          onPhotoDialogOpen={() => {}}
+          onDeleteDialogOpen={() => {}}
+          onStatusDialogOpen={() => {}}
+        />
+        <Probe />
+      </>
+    );
+    const link = screen.getByRole('link', { name: 'Jane Smith' });
+    expect(link).toHaveAttribute('href', '/people/owner-1');
+    fireEvent.click(link);
+    expect(JSON.parse(screen.getByTestId('nav-state').textContent ?? 'null')).toEqual({
+      backTo: { href: '/dogs/dog-1', label: 'Maple' },
+    });
   });
 
   it('wears the same sex and status badges as the /dogs card', () => {

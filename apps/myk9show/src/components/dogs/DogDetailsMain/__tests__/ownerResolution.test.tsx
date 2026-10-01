@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import DogDetailsMain from '../index';
@@ -57,7 +57,10 @@ vi.mock('@/store/entryStore', () => ({
 // Hook / dependency mocks
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ getUserRoles: () => [mockRole], hasRole: () => false }),
+  useAuthContext: () => ({
+    getUserRoles: () => [mockRole],
+    hasRole: (role: string) => role === mockRole,
+  }),
   getPrimaryRole: () => mockRole,
 }));
 
@@ -163,6 +166,25 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(screen.getAllByText('Jane Smith').length).toBeGreaterThanOrEqual(1);
     // Supabase should NOT have been called because the owner was in the store
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  // The rail's owner name goes to /people/:id, which only SECRETARY and SITE_ADMIN may open.
+  it('links the owner for a secretary and leaves it plain text for an exhibitor', () => {
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+
+    mockRole = 'secretary';
+    const { unmount } = render(<DogDetailsMain dog={mockDog} />);
+    const rail = () => document.querySelector('[data-dog-identity]') as HTMLElement;
+    expect(within(rail()).getByRole('link', { name: 'Jane Smith' })).toHaveAttribute(
+      'href',
+      `/people/${DOG_OWNER_ID}`
+    );
+    unmount();
+
+    mockRole = 'exhibitor';
+    render(<DogDetailsMain dog={mockDog} />);
+    expect(within(rail()).getByText('Jane Smith')).toBeInTheDocument();
+    expect(within(rail()).queryByRole('link', { name: 'Jane Smith' })).not.toBeInTheDocument();
   });
 
   it('renders the identity rail before the tabs, with the owner inside it', () => {

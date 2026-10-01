@@ -239,6 +239,12 @@ const TrialDetailsPage: React.FC = () => {
     return items;
   }, [currentTrial?.trialDate, classCount]);
 
+  // The one shared trial label (name, then trial number) for the page title and hero.
+  const trialHeroTitle = formatTrialLabel({
+    name: currentTrial?.name,
+    trialNumber: currentTrial?.trialNumber,
+  });
+
   // Prev/next navigation for hero
   const prevNextNav = (
     <div className="flex items-center gap-1">
@@ -317,15 +323,12 @@ const TrialDetailsPage: React.FC = () => {
     <PageShell>
       {trialWithClasses ? (
         <>
-          <PageHeader
-            breadcrumbs={breadcrumbs}
-            title={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-          />
+          <PageHeader breadcrumbs={breadcrumbs} title={trialHeroTitle} />
 
           <DetailHero
-            name={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
+            name={trialHeroTitle}
             subtitle={
-              currentTrial?.type !== currentTrial?.trialNumber
+              currentTrial?.name !== currentTrial?.trialNumber
                 ? currentTrial?.trialNumber
                 : undefined
             }

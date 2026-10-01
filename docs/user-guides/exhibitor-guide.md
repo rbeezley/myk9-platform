@@ -68,7 +68,7 @@ Before entering a show, your dog needs a profile in your account.
 
 3. Fill in:
    - **Call name** (required) — the name used on the scoresheet
-   - **Gender** (required)
+   - **Sex** (required)
    - **Date of birth** (required)
 4. Under **Additional**: enter the AKC or UKC registration number, registered name, and breed.
 5. Click **Add Dog**.

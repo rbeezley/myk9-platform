@@ -241,7 +241,7 @@ export function FeeFields({
     <>
       <div className="space-y-3">
         <Label htmlFor="preEntryFee" className="text-sm font-medium">
-          Pre Entry Fee ($)
+          Pre-Entry Fee
         </Label>
         <Input
           id="preEntryFee"
@@ -256,7 +256,7 @@ export function FeeFields({
       </div>
       <div className="space-y-3">
         <Label htmlFor="dayOfShowFee" className="text-sm font-medium">
-          Day of Show Fee ($)
+          Day-of-Show Fee
         </Label>
         <Input
           id="dayOfShowFee"

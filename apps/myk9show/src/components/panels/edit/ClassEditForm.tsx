@@ -405,11 +405,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="Pre Entry Fee ($)"
-                    fieldId="preEntryFee"
-                    error={preEntryFeeError}
-                  >
+                  <FormField label="Pre-Entry Fee" fieldId="preEntryFee" error={preEntryFeeError}>
                     <Input
                       id="preEntryFee"
                       type="number"
@@ -426,7 +422,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   </FormField>
 
                   <FormField
-                    label="Day of Show Fee ($)"
+                    label="Day-of-Show Fee"
                     fieldId="dayOfShowFee"
                     error={dayOfShowFeeError}
                   >

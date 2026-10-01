@@ -142,7 +142,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByRole('menuitem', { name: /Exhibitor & Dog/i }).click();
 
   await expect(page.getByText('Quick Registration Setup')).toBeVisible();
-  await expect(page.getByText('Create New Exhibitor').first()).toBeVisible();
+  await expect(page.getByText('Add Person').first()).toBeVisible();
 
   await page.getByLabel(/First Name/i).fill('Molly');
   await page.getByLabel(/Last Name/i).fill('Mailbox');
@@ -152,7 +152,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByLabel(/City/i).fill('Envelope');
   await page.getByLabel(/State/i).fill('TX');
   await page.getByLabel(/ZIP Code/i).fill('75001');
-  await page.locator('button').filter({ hasText: 'Create Exhibitor' }).last().click();
+  await page.locator('button').filter({ hasText: 'Add Person' }).last().click();
 
   await expect(page.getByRole('heading', { name: 'Add Dog(s)' })).toBeVisible();
   await page.getByRole('button', { name: 'Add First Dog' }).click();

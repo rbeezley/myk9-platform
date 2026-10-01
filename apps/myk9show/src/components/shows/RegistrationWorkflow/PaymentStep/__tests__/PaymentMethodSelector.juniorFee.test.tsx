@@ -27,6 +27,31 @@ describe('PaymentMethodSelector junior handler fee choice', () => {
     expect(screen.getByText(/\$15\.00/)).toBeInTheDocument();
   });
 
+  it('is a 44px-high touch target: the whole padded row is the label, not the 16px box', () => {
+    // docs/INTENT.md: 44x44 minimum on show-desk tablets. The repo asserts the floor by
+    // the rendered class (jsdom has no layout), as the CheckInStatusMenu tests do.
+    const onPaymentDetailsChange = vi.fn();
+    render(
+      <PaymentMethodSelector
+        {...baseProps}
+        juniorFee={15}
+        onPaymentDetailsChange={onPaymentDetailsChange}
+      />
+    );
+
+    const row = screen.getByText(/charge junior handler fee/i).closest('label');
+    expect(row).not.toBeNull();
+    expect(row).toHaveClass('min-h-11');
+    // The checkbox sits INSIDE that label, so a tap anywhere on the row reaches it.
+    expect(row).toContainElement(screen.getByRole('checkbox', { name: /charge junior/i }));
+
+    // Tapping the descriptive text (nowhere near the 16px box) toggles it.
+    fireEvent.click(screen.getByText(/applies to every entry you are adding now/i));
+    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ chargeJuniorFee: true })
+    );
+  });
+
   it('reports the choice in the payment details, alongside what was already typed', () => {
     const onPaymentDetailsChange = vi.fn();
     render(

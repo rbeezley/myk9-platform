@@ -34,6 +34,18 @@ vi.mock('@/pages/secretary/ShowCreationWizard/WizardStepContent', () => ({
   ),
 }));
 
+const trialsRead = vi.hoisted(() => ({
+  value: { ready: true, readStatus: 'ready', readError: null, retry: undefined } as {
+    ready: boolean;
+    readStatus: string;
+    readError: string | null;
+    retry: undefined;
+  },
+}));
+vi.mock('@/pages/secretary/ShowCreationWizard/useAddTrialsExistingTrials', () => ({
+  useAddTrialsExistingTrials: () => trialsRead.value,
+}));
+
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <svg /> }));
 
 const navigate = vi.fn();
@@ -49,6 +61,7 @@ function openAt(step: number) {
 
 describe('wizard step set per edit mode (MYK9-899)', () => {
   beforeEach(() => {
+    trialsRead.value = { ready: true, readStatus: 'ready', readError: null, retry: undefined };
     navigate.mockClear();
     useShowStore.setState({
       shows: [targetShow],
@@ -121,5 +134,13 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     useWizardStore.setState({ currentStep: 2, completedSteps: [0, 1] });
     useWizardStore.getState().setCurrentStep(1);
     expect(useWizardStore.getState().currentStep).toBe(1);
+  });
+
+  it('add-classes: shows the loading state, not "No Trials Configured", until trials are loaded', async () => {
+    search = 'showId=show-1&mode=add-classes&trialId=trial-1';
+    trialsRead.value = { ready: false, readStatus: 'loading', readError: null, retry: undefined };
+    render(<ShowCreationWizardPage />);
+    expect(await screen.findByText(/loading this show’s trials/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
   });
 });

@@ -134,10 +134,14 @@ const ShowCreationWizardPage: React.FC = () => {
   );
 
   const { trials: existingTrials } = useTrialStore();
-  const existingTrialsRead = useAddTrialsExistingTrials(
-    editMode?.mode === 'add-trials' ? editMode.showId : undefined
-  );
+  // add-trials and add-classes both need this show's CURRENT trials on the device: add-trials
+  // to number new ones, add-classes because its draft IS those trials.
+  const existingTrialsRead = useAddTrialsExistingTrials(editMode?.showId);
   const existingTrialsReady = existingTrialsRead.ready;
+  // Latched: the gate below is for the FIRST load only. A later store re-read must not swap the
+  // class step out for a spinner mid-selection.
+  const trialsReadyOnceRef = useRef(false);
+  if (existingTrialsReady) trialsReadyOnceRef.current = true;
   const persistedNameSources = useMemo(
     () =>
       editMode?.mode === 'add-trials'
@@ -228,6 +232,9 @@ const ShowCreationWizardPage: React.FC = () => {
     existingClasses,
     people,
     isDirty,
+    // add-classes builds its draft FROM the trial list, so it waits for the list. add-trials
+    // builds an empty trial set and must not be delayed (a stale persisted draft would show).
+    trialsReady: editMode?.mode !== 'add-classes' || existingTrialsReady,
     loadDraft,
   });
 
@@ -503,6 +510,13 @@ const ShowCreationWizardPage: React.FC = () => {
                   <WizardEditModeGate
                     state={editModeResolution.state}
                     onRetry={handleRetryWritableShow}
+                    onLeave={() => navigate('/shows')}
+                  />
+                ) : editMode?.mode === 'add-classes' && !trialsReadyOnceRef.current ? (
+                  <WizardEditModeGate
+                    state={existingTrialsRead.readStatus === 'error' ? 'unavailable' : 'loading'}
+                    waitingFor="trials"
+                    onRetry={() => void existingTrialsRead.retry?.()}
                     onLeave={() => navigate('/shows')}
                   />
                 ) : (

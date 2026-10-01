@@ -44,7 +44,9 @@ export function DeleteClassDialog({
             <span className="block mt-2 font-medium text-foreground">
               {currentClass?.element} {currentClass?.level} {currentClass?.section}
             </span>
-            <span className="block text-sm text-muted-foreground">from {currentClass?.trial}</span>
+            {currentClass?.trial && (
+              <span className="block text-sm text-muted-foreground">from {currentClass.trial}</span>
+            )}
             <span className="block mt-2 text-destructive">
               This action cannot be undone. All entries will also be deleted.
             </span>

@@ -18,6 +18,7 @@ let mockScopeStatus: 'resolved' | 'resolving' | 'unavailable' = 'resolved';
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({ hasPermission: (p: string) => p === 'show:manage' }),
 }));
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({
     status: mockScopeStatus,

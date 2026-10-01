@@ -223,7 +223,9 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           icon={Calendar}
           title="No Trials"
           description="No trials have been created for this show yet."
-          action={canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null}
+          action={
+            canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null
+          }
         />
       ) : filteredTrials.length === 0 && trials.length > 0 ? (
         <EmptyState

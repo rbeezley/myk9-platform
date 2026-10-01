@@ -5,6 +5,7 @@ import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
 import { logger } from '@/services/LoggingService';
 import { useTrialStore } from '@/store/trialStore';
+import { useConnectionHint } from '@/hooks/useConnectionHint';
 import type { ClassData } from '@/components/classes/types/classTypes';
 
 interface UseClassEditActionsOptions {
@@ -24,12 +25,20 @@ export function useClassEditActions({
   updateClass,
   deleteClass,
 }: UseClassEditActionsOptions) {
+  // `updateClass` / `deleteClass` write straight to Supabase (no replicated path yet), so offline
+  // they say so up front instead of failing after the fact with a generic error.
+  const connectionHint = useConnectionHint();
+
   /** `data` is the full merged class (existing fields plus the panel's edits). */
   const saveClass = async (
     classId: string,
     data: Partial<ClassData>,
     trialId: string | undefined
   ): Promise<boolean> => {
+    if (connectionHint) {
+      toast.error(`Can't save this class: ${connectionHint.toLowerCase()}.`);
+      return false;
+    }
     try {
       // Save the judge assignment FIRST (with replication sync) before updateClass,
       // so React Query's onSuccess refetch reads fresh judge data from replication cache
@@ -69,6 +78,10 @@ export function useClassEditActions({
   };
 
   const removeClass = async (classId: string): Promise<boolean> => {
+    if (connectionHint) {
+      toast.error(`Can't delete this class: ${connectionHint.toLowerCase()}.`);
+      return false;
+    }
     try {
       await deleteClass(classId);
       toast.success('Class deleted successfully');

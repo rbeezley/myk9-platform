@@ -19,6 +19,7 @@ import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { isQualifiedForOrganization, judgeDisplayName } from '@/features/judges/qualifiedJudges';
 import { ShowOfficialsEditor } from './ShowOfficialsEditor';
+import { ShowEditAddJudge } from './ShowEditAddJudge';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
@@ -235,7 +236,13 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                 Judge Assignments
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {data.organization && (
+                <ShowEditAddJudge
+                  organization={data.organization}
+                  onJudgeCreated={(id, name) => handleJudgeToggle(id, name, true)}
+                />
+              )}
               {data.organization ? (
                 availableJudges.length > 0 ? (
                   <div className="space-y-4">

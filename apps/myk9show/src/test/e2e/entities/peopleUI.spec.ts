@@ -51,50 +51,37 @@ test.describe('People UI — Browse (secretary)', () => {
     await gotoPeopleBrowse(page);
     await expect(page.getByRole('button', { name: 'New Person' })).toBeVisible();
     await expect(page.getByPlaceholder('Search people by name or email...')).toBeVisible();
-    // The toolbar renders a "Role" FilterChip and the standard Cards/Table view
-    // toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES). Scope the chip
-    // and target the toggles by exact aria-label ("Table view" not "Table", which
+    // The toolbar renders the labelled "Show:" view select and the standard
+    // Cards/Table view toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES).
+    // Target the toggles by exact aria-label ("Table view" not "Table", which
     // also matches "Reset table view").
-    await expect(
-      page.getByTestId('filter-chips').getByRole('button', { name: 'Role' })
-    ).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Show: People views' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
-    await expect(page.getByText(/of \d+ (people|person)/)).toBeVisible();
+    await expect(page.getByText(/^Showing (all )?\d+( of \d+)? (people|person)\.$/)).toBeVisible();
   });
 
   test('search filters list by name or email', async ({ page }) => {
     await gotoPeopleBrowse(page);
     const searchBox = page.getByPlaceholder('Search people by name or email...');
     await searchBox.fill('Alice');
-    await expect(page.getByText(/of \d+ people \(filtered\)/)).toBeVisible();
+    await expect(page.getByText(/^Showing \d+ of \d+ (people|person)\.$/)).toBeVisible();
     await searchBox.clear();
-    await expect(page.getByText(/^\d+ of \d+ people$/)).toBeVisible();
+    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
   });
 
-  test('select filter shows pending pill — does NOT auto-apply on add', async ({ page }) => {
+  test('Show select applies a role view and "Show all people" clears it', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    const initialCount = await page.getByText(/^\d+ of \d+ people$/).innerText();
+    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
 
-    // Add the Role filter
-    await page.getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('button', { name: 'Role', exact: true }).click();
+    // Pick the Judges view from the labelled select.
+    await page.getByRole('combobox', { name: 'Show: People views' }).click();
+    await page.getByRole('option', { name: /^Judges/ }).click();
+    await expect(page.getByText(/^Showing \d+ of \d+ (people|person)\.$/)).toBeVisible();
 
-    // Pending pill is visible with the "Choose…" placeholder; the list must
-    // NOT have been re-filtered (regression guard for the "Chairman"
-    // auto-apply bug).
-    await expect(page.getByRole('button', { name: /Role:\s*Choose/ })).toBeVisible();
-    const afterAddCount = await page.getByText(/^\d+ of \d+ people$/).innerText();
-    expect(afterAddCount).toBe(initialCount);
-
-    // Pick Judge → list filters and pill becomes "Role: Judge".
-    await page.getByRole('button', { name: 'Judge', exact: true }).click();
-    await expect(page.getByRole('button', { name: /Role:\s*Judge/ })).toBeVisible();
-    await expect(page.getByText(/of \d+ people \(filtered\)/)).toBeVisible();
-
-    // Removing the filter clears the count back to unfiltered.
-    await page.getByRole('button', { name: 'Remove Role filter' }).click();
-    await expect(page.getByText(/^\d+ of \d+ people$/)).toBeVisible();
+    // Show all returns to the unfiltered list.
+    await page.getByRole('button', { name: 'Show all people' }).click();
+    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
   });
 
   test('table view renders columns', async ({ page }) => {

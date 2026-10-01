@@ -158,8 +158,9 @@ test.describe('People Page UI Improvements', () => {
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
-      // Filter chips should be visible
-      await expect(page.locator('button:has-text("Judges")')).toBeVisible();
+      // The Judges view is an option of the labelled "Show:" select
+      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      await expect(page.getByRole('option', { name: /^Judges/ })).toBeVisible();
       await expect(page.locator('button:has-text("Has Dogs")')).toBeVisible();
     });
 
@@ -171,8 +172,9 @@ test.describe('People Page UI Improvements', () => {
       // Get initial count
       const initialCount = await page.locator('.myk9-people-sidebar-item').count();
 
-      // Click Judges filter
-      await page.locator('button:has-text("Judges")').click();
+      // Pick the Judges view
+      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      await page.getByRole('option', { name: /^Judges/ }).click();
 
       // Wait for filter to apply
       await page.waitForTimeout(300);
@@ -182,40 +184,17 @@ test.describe('People Page UI Improvements', () => {
       expect(filteredCount).toBeLessThanOrEqual(initialCount);
     });
 
-    test('should toggle filter chip active state on click', async ({ page }) => {
-      await testSetup.signIn('admin');
-      await page.goto('/people');
-      await page.waitForLoadState('networkidle');
-
-      const judgesChip = page.locator('button:has-text("Judges")');
-
-      // Initially should have inactive styling
-      await expect(judgesChip).toHaveClass(/bg-muted/);
-
-      // Click to activate
-      await judgesChip.click();
-
-      // Should now have active styling
-      await expect(judgesChip).toHaveClass(/bg-primary/);
-
-      // Click again to deactivate
-      await judgesChip.click();
-
-      // Should return to inactive styling
-      await expect(judgesChip).toHaveClass(/bg-muted/);
-    });
-
     test('should show filter result count when filters active', async ({ page }) => {
       await testSetup.signIn('admin');
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
-      // Click a filter
-      await page.locator('button:has-text("Judges")').click();
+      // Pick the Judges view from the labelled "Show:" select
+      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      await page.getByRole('option', { name: /^Judges/ }).click();
 
-      // Result count should be visible
-      const resultCount = page.locator('text=/\\d+ of \\d+ people/');
-      await expect(resultCount).toBeVisible();
+      // The short result sentence states the count
+      await expect(page.getByText(/^Showing \d+ of \d+ (people|person)\.$/)).toBeVisible();
     });
   });
 

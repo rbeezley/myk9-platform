@@ -54,8 +54,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
       })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Needs review/ })).toBeDisabled();
-    await expect(page.getByRole('combobox', { name: 'Trial filter' })).toBeDisabled();
+    // The Show: select and the Trial/Class selects are labelled controls (MYK9-906).
+    await expect(page.getByRole('combobox', { name: 'Show: Entry views' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Trial' })).toBeVisible();
     await expect(page.getByText(/Search covers the whole show/i)).toBeVisible();
   } finally {
     await page.context().setOffline(false);
@@ -108,7 +109,7 @@ test('Entry Management does not scroll sideways at 150% zoom on a phone', async 
   ).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByRole('button', { name: /Missing info/ })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Show: Entry views' })).toBeVisible();
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
 

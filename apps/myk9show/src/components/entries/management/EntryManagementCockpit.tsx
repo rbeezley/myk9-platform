@@ -216,7 +216,7 @@ export function EntryManagementCockpit({
 
       {cockpit.state.search && (
         <p role="status" className="text-sm text-muted-foreground">
-          Search covers the whole show. Clear search to use the Trial, Class, and Payment filters.
+          Search covers the whole show. Clear search to use the view, Trial and Class filters.
         </p>
       )}
 

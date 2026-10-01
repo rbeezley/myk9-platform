@@ -169,11 +169,9 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     // "Add Dog" button visible for secretary
     await expect(page.getByRole('button', { name: 'Add Dog', exact: true })).toBeVisible();
 
-    // Filter chips visible — scope to the FilterChips region so a chip label
-    // (e.g. "Breed") doesn't collide with the table's "Breed" column header.
-    const filterChips = page.getByTestId('filter-chips');
-    await expect(filterChips.getByRole('button', { name: /Breed/i })).toBeVisible();
-    await expect(filterChips.getByRole('button', { name: /Gender/i })).toBeVisible();
+    // The labelled "Show:" view select replaces the old filter chips (MYK9-906);
+    // Breed, Sex and Owner filters were cut (search still covers them).
+    await expect(page.getByRole('combobox', { name: 'Show: Dog views' })).toBeVisible();
 
     // View toggle — exact aria-label avoids matching "Reset table view".
     await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
@@ -184,19 +182,18 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     await gotoDogsBrowse(page);
     const searchBox = page.getByPlaceholder('Search dogs by name, breed, or owner...');
     await searchBox.fill('Bella');
-    await expect(page.getByText(/of \d+ dogs \(filtered\)/)).toBeVisible();
+    await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toBeVisible();
     await searchBox.clear();
-    await expect(page.getByText(/\d+ dogs/)).toBeVisible();
+    await expect(page.getByText(/^Showing all \d+ dogs?\.$/)).toBeVisible();
   });
 
-  test('breed filter chip applies and shows filtered count', async ({ page }) => {
+  test('Show select applies a status view and "Show all dogs" clears it', async ({ page }) => {
     await gotoDogsBrowse(page);
-    // FilterChips renders plain button elements in its dropdown (no ARIA role="option").
-    // Scope the chip to the FilterChips region so "Breed" doesn't also match the
-    // table's "Breed" column header.
-    await page.getByTestId('filter-chips').getByRole('button', { name: /Breed/i }).click();
-    await page.getByRole('button', { name: 'Golden Retriever', exact: true }).click();
-    await expect(page.getByText(/of \d+ dogs \(filtered\)/)).toBeVisible();
+    await page.getByRole('combobox', { name: 'Show: Dog views' }).click();
+    await page.getByRole('option', { name: /^Active/ }).click();
+    await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toBeVisible();
+    await page.getByRole('button', { name: 'Show all dogs' }).click();
+    await expect(page.getByText(/^Showing all \d+ dogs?\.$/)).toBeVisible();
   });
 
   test('table view renders dog columns', async ({ page }) => {

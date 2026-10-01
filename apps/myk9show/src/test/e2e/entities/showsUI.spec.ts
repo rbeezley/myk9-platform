@@ -33,11 +33,9 @@ test.describe('Shows UI — Browse (secretary)', () => {
     await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible();
     await expect(page.getByPlaceholder('Search shows or locations')).toBeVisible();
 
-    // Filter chips — scope to the FilterChips region so a chip label (e.g.
-    // "Club") doesn't collide with a table column-header button ("Host Club").
-    const filterChips = page.getByTestId('filter-chips');
-    for (const label of ['Discipline', 'Entry Status', 'Date Range', 'Club']) {
-      await expect(filterChips.getByRole('button', { name: label })).toBeVisible();
+    // Labelled filter selects (MYK9-906); the month scrubber below covers Date Range.
+    for (const label of ['Discipline', 'Entry Status', 'Club']) {
+      await expect(page.getByRole('combobox', { name: label })).toBeVisible();
     }
 
     // View toggles — target the exact aria-label ("<Mode> view") so "Table"

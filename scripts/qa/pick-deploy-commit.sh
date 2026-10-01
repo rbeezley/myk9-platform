@@ -5,12 +5,16 @@
 # newest green commit. That order is not guaranteed, and run 36791489339 shipped
 # a 2026-09-03 commit over production ~780 commits behind main. Selection now
 # walks main's first-parent history newest-first and takes the first commit that
-# is IN the green set, so the order of the green list never matters.
+# is green, so no API ordering can matter.
+#
+# 2026-10-01: listing green runs (`gh run list --status success --limit 500`)
+# started returning September runs first, so the 500-run window never reached
+# the night's green commits and the picker refused to deploy. Greenness is now
+# asked per commit (`--commit <sha>`), newest first, within the behind window.
 #
 #   REQUESTED_SHA  optional full 40-char SHA; explicit pins skip the behind guard
 #   MAX_BEHIND     default 50; an auto-picked commit further behind main fails
 #   MAIN_REF       default origin/main
-#   GREEN_LIMIT    default 500; how many green CI push runs to request
 #
 # Needs `gh` (authenticated) and a full-history checkout with MAIN_REF fetched.
 # Writes commit_sha=<sha> to $GITHUB_OUTPUT and a summary to $GITHUB_STEP_SUMMARY
@@ -20,20 +24,30 @@ set -euo pipefail
 requested="${REQUESTED_SHA:-}"
 max_behind="${MAX_BEHIND:-50}"
 main_ref="${MAIN_REF:-origin/main}"
-green_limit="${GREEN_LIMIT:-500}"
 
-green_shas="$(gh run list --workflow CI --branch main --event push --status success --limit "$green_limit" --json headSha --jq '.[].headSha')"
+# Returns 0 when main has a successful CI push run for exactly this commit and
+# 1 when it does not. A failed GitHub query EXITS the script (status 2): callers
+# use this inside `if`, where bash suspends `set -e`, so treating an API error as
+# "not green" would silently pick an older commit and roll production back.
+is_green() {
+  local found
+  if ! found="$(gh run list --workflow CI --branch main --event push --status success --commit "$1" --limit 1 --json headSha --jq '.[].headSha')"; then
+    echo "GitHub query for CI runs on $1 failed; refusing to guess which commit is green." >&2
+    exit 2
+  fi
+  [[ "$found" == "$1" ]]
+}
 
 if [[ -z "$requested" ]]; then
   commit_sha=""
   while read -r candidate; do
-    if grep -Fxq "$candidate" <<<"$green_shas"; then
+    if is_green "$candidate"; then
       commit_sha="$candidate"
       break
     fi
-  done < <(git rev-list --first-parent "$main_ref")
+  done < <(git rev-list --first-parent --max-count "$((max_behind + 1))" "$main_ref")
   [[ -n "$commit_sha" ]] || {
-    echo "no commit on the first-parent history of $main_ref has a successful CI push run" >&2
+    echo "no commit within $max_behind of $main_ref on its first-parent history has a successful CI push run (limit $max_behind); refusing to roll production back. Pass commit_sha to deploy one deliberately." >&2
     exit 1
   }
   picked_by="newest green commit on the first-parent history of $main_ref"
@@ -43,7 +57,7 @@ else
     echo "commit_sha must be a full 40-character SHA" >&2
     exit 1
   }
-  grep -Fxq "$commit_sha" <<<"$green_shas" || {
+  is_green "$commit_sha" || {
     echo "no successful main CI push run found for $commit_sha" >&2
     exit 1
   }

@@ -5,6 +5,10 @@ import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
+import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
+import { useSetupClassManagement } from './useSetupClassManagement';
 import { Search, Plus } from 'lucide-react';
 import { formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { formatEntryDate } from '@/lib/format/dates';
@@ -33,6 +37,8 @@ export interface ClassInfo {
   level: string;
   section: string;
   judgeName: string;
+  /** The assigned judge's person id; absent on the public read, which cannot assign. */
+  judgeId?: string;
   trialId: string;
   time: string;
   ring: number;
@@ -52,6 +58,8 @@ interface ClassesTabProps {
   showId: string;
   userHasEntries: boolean;
   hideRing?: boolean;
+  /** The view to open on (`?view=` on the Setup route); unknown ids fall back to All. */
+  initialViewId?: string;
 }
 
 interface ClassTableRow extends ClassInfo {
@@ -70,7 +78,13 @@ function classTrialPart(cls: ClassInfo): string {
   return formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber });
 }
 
-export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
+export function ClassesTab({
+  classes,
+  showId,
+  userHasEntries,
+  hideRing = false,
+  initialViewId = 'all',
+}: ClassesTabProps) {
   const navigate = useNavigate();
   const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
     'classes',
@@ -81,7 +95,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // holds entries in the show must land on "All", never auto-scoped to
   // "Mine" — that scoping is now one pressable view among four, not a
   // silent default). See `classesTabViews.ts`.
-  const [viewId, setViewId] = useState('all');
+  const [viewId, setViewId] = useState(initialViewId);
   // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
@@ -105,6 +119,10 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- viewFilters is derived from viewId
     [classes, viewId]
   );
+
+  // Judge assignment and bulk status (moved here from the retired Class Management page).
+  const manage = useSetupClassManagement(showId, canManageThisShow, filteredClasses, viewId);
+  const { selection } = manage;
 
   // Group classes by trial (date + number)
   const groupedByTrial = useMemo(() => {
@@ -183,8 +201,45 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     />
   );
 
+  const classSelectCheckbox = (cls: ClassInfo) => (
+    <Checkbox
+      checked={selection.isSelected(cls)}
+      onCheckedChange={() => selection.toggleItem(cls)}
+      aria-label={`Select ${cls.name || 'Untitled Class'}`}
+    />
+  );
+
+  const classJudgeSelect = (cls: ClassInfo) => (
+    <ClassJudgeSelect
+      classId={cls.id}
+      classLabel={cls.name || 'Untitled Class'}
+      assignedJudgeId={manage.judgeIdFor(cls)}
+      availableJudges={manage.availableJudges}
+      canAssign
+      onJudgeChange={(_classId, judgeId) => manage.assignJudge(cls, judgeId)}
+    />
+  );
+
   const classColumns = useMemo<ColumnDef<ClassTableRow, unknown>[]>(() => {
-    const cols: ColumnDef<ClassTableRow, unknown>[] = [
+    const cols: ColumnDef<ClassTableRow, unknown>[] = [];
+    if (canManageThisShow) {
+      cols.push({
+        id: 'select',
+        header: () => (
+          <Checkbox
+            checked={selection.isAllSelected}
+            indeterminate={selection.isPartiallySelected}
+            onCheckedChange={() => selection.toggleAll()}
+            aria-label="Select all visible classes"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        meta: { interactive: true, exportDisabled: true },
+        cell: ({ row }) => classSelectCheckbox(row.original),
+      });
+    }
+    cols.push(
       {
         accessorKey: 'trialLabel',
         header: 'Trial',
@@ -220,17 +275,20 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       {
         accessorKey: 'judgeName',
         header: 'Judge',
-        meta: { responsiveHide: 'md' as const },
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
-        ),
+        meta: { responsiveHide: 'md' as const, interactive: canManageThisShow },
+        cell: ({ row }) =>
+          canManageThisShow ? (
+            classJudgeSelect(row.original)
+          ) : (
+            <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
+          ),
       },
       {
         accessorKey: 'time',
         header: 'Time',
         meta: { responsiveHide: 'sm' as const },
-      },
-    ];
+      }
+    );
 
     if (!hideRing) {
       cols.push({
@@ -275,7 +333,15 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- classRowMenu only closes over stable setters and hydratingClassId
-  }, [hideRing, canManageThisShow, hydratingClassId, pendingAction]);
+  }, [
+    hideRing,
+    canManageThisShow,
+    hydratingClassId,
+    pendingAction,
+    selection.selectedItems,
+    manage.availableJudges,
+    manage.judgeIdFor,
+  ]);
 
   if (classes.length === 0) {
     return (
@@ -367,7 +433,13 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
-                  {...(canManageThisShow ? { actions: classRowMenu(cls) } : {})}
+                  {...(canManageThisShow
+                    ? {
+                        actions: classRowMenu(cls),
+                        selection: classSelectCheckbox(cls),
+                        judgeControl: classJudgeSelect(cls),
+                      }
+                    : {})}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
                   }
@@ -376,6 +448,15 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             </div>
           </div>
         ))
+      )}
+      {canManageThisShow && (
+        <ClassBulkActionsBar
+          selectedClasses={selection.selectedItems}
+          bulkBusy={manage.bulkBusy}
+          onBulkDelete={manage.handleBulkDelete}
+          onBulkStatusChange={manage.handleBulkStatusChange}
+          onClear={selection.clearSelection}
+        />
       )}
       {canManageThisShow && pendingAction && (
         <SetupClassDialogs

@@ -1,4 +1,4 @@
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import type { RelatedContextLinkItem } from '@/components/common/RelatedContextLinks';
 
@@ -29,13 +29,11 @@ export function buildClassDetailsRelatedLinks({
 
   const items: RelatedContextLinkItem[] = [];
 
-  if (trialId) {
-    items.push({
-      key: 'class-management',
-      label: 'Class Management',
-      href: getClassManagementHref({ showId, trialId }),
-    });
-  }
+  items.push({
+    key: 'class-management',
+    label: 'Setup → Classes',
+    href: getSetupClassesHref(showId),
+  });
 
   if (classId) {
     items.push({

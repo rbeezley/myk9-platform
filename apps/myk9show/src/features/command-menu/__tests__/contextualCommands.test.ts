@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildContextualNavigationCommands } from '../contextualCommands';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
 import type { CommandMenuContext } from '../commandMenuTypes';
 
 function baseCtx(overrides: Partial<CommandMenuContext> = {}): CommandMenuContext {
@@ -61,17 +60,11 @@ describe('buildContextualNavigationCommands', () => {
     );
   });
 
-  it('omits Class Management commands when the context has no trialId', () => {
-    const commands = buildContextualNavigationCommands(baseCtx());
-    expect(commands.some(cmd => cmd.id.includes('class-management'))).toBe(false);
-  });
-
-  it('includes the Class Management link with the canonical href when a trial is selected', () => {
+  it('offers no Class Management command (the page is now Setup → Classes)', () => {
     const commands = buildContextualNavigationCommands(baseCtx({ trialId: 'trial-1' }));
-    const classMgmt = commands.find(
-      cmd => cmd.id === 'command-menu-class-management-current-trial'
+    expect(commands.some(cmd => /class/i.test(cmd.id) || /class management/i.test(cmd.label))).toBe(
+      false
     );
-    expect(classMgmt?.href).toBe(getClassManagementHref({ showId: 'show-1', trialId: 'trial-1' }));
   });
 
   it('labels every contextual command with the registered show scope', () => {

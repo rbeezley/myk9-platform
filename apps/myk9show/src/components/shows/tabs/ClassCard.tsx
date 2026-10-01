@@ -32,11 +32,23 @@ interface ClassCardProps {
   onClick?: () => void;
   /** Row actions menu (Setup: Edit / Delete); sits beside the status badge. */
   actions?: ReactNode;
+  /** Manager-only select checkbox (Setup bulk status); sits before the class name. */
+  selection?: ReactNode;
+  /** Manager-only judge picker (Setup); replaces the read-only judge line. */
+  judgeControl?: ReactNode;
 }
 
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
-export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: ClassCardProps) {
+export function ClassCard({
+  classInfo,
+  hideRing,
+  liveData,
+  onClick,
+  actions,
+  selection,
+  judgeControl,
+}: ClassCardProps) {
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
     isLive && liveData.totalEntries > 0
@@ -58,7 +70,12 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: C
     >
       {/* Header: element/level + status */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        {selection && (
+          <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            {selection}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
           {classInfo.userHasEntry && (
             <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               My entry
@@ -82,8 +99,14 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: C
       </div>
 
       {/* Judge */}
-      {classInfo.judgeName && (
-        <p className="text-xs text-muted-foreground">Judge: {classInfo.judgeName}</p>
+      {judgeControl ? (
+        <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+          {judgeControl}
+        </div>
+      ) : (
+        classInfo.judgeName && (
+          <p className="text-xs text-muted-foreground">Judge: {classInfo.judgeName}</p>
+        )
       )}
 
       {/* Time + Ring */}

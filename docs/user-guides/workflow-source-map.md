@@ -160,7 +160,7 @@ tab they land on, never the redirect:
 
 **Outcome:** Secretary or club admin configures trials, classes, officials, and rings after initial creation.
 **Canonical route:** `/shows/:showId/setup`
-**Source-map note:** Re-verified 2026-10-01 (MYK9-899). Add Classes (Setup → Classes, the trial page, Manage Classes) now opens the show wizard's `add-classes` mode; the retired Class Creation page and Add Classes panel no longer exist, and their old URLs redirect. Secretary Guide § 2 gained the matching step.
+**Source-map note:** Re-verified 2026-10-01 (MYK9-899). Add Classes (Setup → Classes, the trial page) now opens the show wizard's `add-classes` mode; the retired Class Creation page and Add Classes panel no longer exist, and their old URLs redirect. Secretary Guide § 2 gained the matching step.
 **Docs target:** Secretary Guide § Setup, Club Admin Guide § 2 — Your Club's Shows
 
 ### 15. Review and approve entries

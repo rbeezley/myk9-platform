@@ -9,6 +9,7 @@ import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryD
 import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showManagementOutlet';
 import {
   SETUP_SECTIONS,
+  resolveSetupClassesView,
   resolveSetupSection,
   type SetupSectionId,
 } from '@/pages/secretary/showSetupSections';
@@ -97,6 +98,7 @@ export function ShowWorkbenchSetupPage() {
           classes={classes}
           showId={show.id}
           userHasEntries={hasUserEntries}
+          initialViewId={resolveSetupClassesView(searchParams.get('view'))}
           hideRing={trials.some(
             trial =>
               trial.trialType === 'Scent Work' ||

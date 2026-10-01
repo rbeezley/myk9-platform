@@ -72,20 +72,16 @@ describe('legacy /trials/:trialId/classes redirect', () => {
     useTrialStore.setState({ trials: [], isLoading: false });
   });
 
-  it('warm store: lands on the show-scoped class page', async () => {
+  it('warm store: lands on the show Setup → Classes tab', async () => {
     useTrialStore.setState({ trials: [{ id: 'trial-9', showId: 'show-3' }] as never });
     renderAt('/trials/trial-9/classes');
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/shows/show-3/classes/trial-9'
-    );
+    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-3/setup');
   });
 
-  it('cold store: lands on the show-scoped class page once the by-id query resolves', async () => {
+  it('cold store: lands on the show Setup → Classes tab once the by-id query resolves', async () => {
     setQuery({ data: { id: 'trial-9', showId: 'show-3' }, isSuccess: true });
     renderAt('/trials/trial-9/classes');
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/shows/show-3/classes/trial-9'
-    );
+    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-3/setup');
   });
 
   it('cold store, query pending: stays put and does not go to the dashboard', () => {

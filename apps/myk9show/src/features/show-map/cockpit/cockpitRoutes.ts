@@ -1,4 +1,4 @@
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -101,14 +101,7 @@ export function getCockpitClassManagementHref(input: {
   classId: string;
   returnTo: string;
 }): string {
-  return withReturnTo(
-    getClassManagementHref({
-      showId: input.showId,
-      trialId: input.trialId,
-      focusClassId: input.classId,
-    }),
-    input.returnTo
-  );
+  return withReturnTo(getSetupClassesHref(input.showId), input.returnTo);
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getJudgesWithQualifications } from '@/services/database/judges';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 
-export const useJudgesWithQualifications = () => {
+export const useJudgesWithQualifications = (enabled = true) => {
   return useQuery({
     queryKey: ['judges', 'withQualifications'],
     queryFn: async () => {
@@ -16,5 +16,6 @@ export const useJudgesWithQualifications = () => {
       return data.map(mapDatabaseToUser);
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 };

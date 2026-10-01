@@ -3,7 +3,6 @@ import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
 
-const SEEDED_TRIAL_ID = 'dededede-0000-0000-0000-000000000021';
 const SEEDED_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
 const SEEDED_ENTRY_ID = 'dededede-0000-0000-0000-000000000053';
 
@@ -39,8 +38,8 @@ const PUBLIC_ROUTES: RouteCheck[] = [{ label: 'prototype copy link', path: '/pro
 
 const SECRETARY_ROUTES: RouteCheck[] = [
   {
-    label: 'manage classes',
-    path: `/shows/${LIVE_SECRETARY_SHOW_ID}/classes/${SEEDED_TRIAL_ID}`,
+    label: 'setup classes',
+    path: `/shows/${LIVE_SECRETARY_SHOW_ID}/setup?section=classes`,
   },
   { label: 'results control', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/results` },
   { label: 'show desk', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/show-day` },

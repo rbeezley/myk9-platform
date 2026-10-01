@@ -2,7 +2,7 @@
  * The judge-eligibility rule, extracted because two surfaces had drifted.
  *
  * `ShowEditForm`'s Judges tab required an active qualification FOR THE SHOW'S
- * ORGANIZATION. `ClassManagementPage` required only that a qualification be active, with
+ * ORGANIZATION. `the Class Management page` required only that a qualification be active, with
  * no organization test at all — so an AKC show's per-class dropdown offered UKC- and
  * ASCA-only judges. That is not cosmetic: `showMappers` derives `show.assignedJudges`
  * from every `judge_assignments` row, so assigning a judge to a class is what puts them

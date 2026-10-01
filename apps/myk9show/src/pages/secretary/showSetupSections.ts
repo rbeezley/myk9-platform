@@ -17,3 +17,21 @@ export function resolveSetupSection(raw: string | null, canShowMap: boolean): Se
   if (raw === 'map') return canShowMap ? 'map' : 'trials';
   return 'trials';
 }
+
+/** The Classes views a `?view=` value can open (`classesTabViews.ts`). */
+const SETUP_CLASSES_VIEW_IDS = ['all', 'pending', 'completed', 'mine'] as const;
+
+export function resolveSetupClassesView(raw: string | null): string {
+  return SETUP_CLASSES_VIEW_IDS.find(id => id === raw) ?? 'all';
+}
+
+/**
+ * Where "manage this show's classes" lives: Setup → Classes (MYK9-924 retired the separate
+ * Class Management page). `view` opens a Classes view; 'all' is the default and stays out of
+ * the URL.
+ */
+export function getSetupClassesHref(showId: string, view?: string): string {
+  const params = new URLSearchParams({ section: 'classes' });
+  if (view && view !== 'all') params.set('view', resolveSetupClassesView(view));
+  return `/shows/${encodeURIComponent(showId)}/setup?${params.toString()}`;
+}

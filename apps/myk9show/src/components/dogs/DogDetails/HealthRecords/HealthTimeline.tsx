@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { downloadFile, exportToCSV } from '@/lib/export';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
 import {
@@ -322,7 +322,6 @@ export function HealthTimeline({
             total={wholeSet}
             noun={['health record', 'health records']}
             filtered={filtersActive}
-            filterSummary={summarizeFilters({ search: searchTerm, fields: filterFields })}
             onShowAll={clearFilters}
           />
         </CardContent>

@@ -14,7 +14,7 @@ import {
   PrimaryTabsContent,
   type PrimaryTabDef,
 } from '@/components/common/PrimaryTabs';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { PodiumCard } from './PodiumCard';
 import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
@@ -163,7 +163,6 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
           total={results.filter(cls => cls.placements.length > 0).length}
           noun={['class', 'classes']}
           filtered={hasActiveFilters}
-          filterSummary={summarizeFilters({ search })}
           onShowAll={() => setSearch('')}
         />
       </div>

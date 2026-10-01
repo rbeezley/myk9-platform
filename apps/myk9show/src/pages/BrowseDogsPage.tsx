@@ -30,12 +30,7 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPagination } from '@/components/common/ListPagination';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 
 const DOG_NOUN = ['dog', 'dogs'] as const;
 
@@ -356,12 +351,6 @@ const BrowseDogsPage: React.FC = () => {
               total={dogs.length}
               noun={DOG_NOUN}
               filtered={hasActiveFilters}
-              filterSummary={summarizeFilters({
-                search: filters.search,
-                views: dogViews,
-                activeViewId,
-                viewCriteria: filters.status === 'all' ? [] : [`Status: ${filters.status}`],
-              })}
               onShowAll={handleClearAllFilters}
             />
           </div>

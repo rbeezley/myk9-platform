@@ -111,9 +111,7 @@ describe('FinancialSummary (per trial)', () => {
       await user.click(await screen.findByRole('option', { name: /^Pending/ }));
       await user.type(screen.getByPlaceholderText('Search entries...'), 'Birch');
 
-      expect(
-        screen.getByText(/^Showing 1 of 2 entries \(Payment status: Pending, matching/)
-      ).toBeInTheDocument();
+      expect(screen.getByText('Showing 1 of 2 entries.')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Show all entries' }));
 
       expect(screen.getByText('Acorn')).toBeInTheDocument();

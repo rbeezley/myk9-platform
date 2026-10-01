@@ -11,7 +11,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { XCircle, RefreshCw } from 'lucide-react';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { NoPulledEntriesCard, PulledEntriesUnknownCard } from './PullTabStateCards';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -91,7 +91,6 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           total={processedEntries.length}
           noun={['pulled entry', 'pulled entries']}
           filtered={normalizedSearch !== ''}
-          filterSummary={summarizeFilters({ search: searchTerm })}
           onShowAll={() => setSearchTerm('')}
         />
       )}

@@ -339,9 +339,7 @@ describe('ClassResultsTable search/filter', () => {
     const { user } = renderTable();
     await user.type(screen.getByLabelText('Search by dog, handler, or armband...'), 'Max');
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      /^Showing 1 of 3 entries \(Pending, matching/
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 3 entries.');
     await user.click(screen.getByRole('button', { name: 'Show all entries' }));
 
     expect(screen.getByLabelText('Search by dog, handler, or armband...')).toHaveValue('');

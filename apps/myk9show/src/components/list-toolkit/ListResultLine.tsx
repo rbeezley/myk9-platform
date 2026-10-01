@@ -1,6 +1,5 @@
 /**
- * "Showing 12 of 214 entries (Pending, Class: Novice A)." plus a "Show all
- * entries" button — the one place a list says, in words, what it is showing and
+ * "Showing 12 of 214 entries." plus a "Show all entries" button — the one place a list says, in words, what it is showing and
  * how to get back. Announced politely as filters change. Offers "Select all N"
  * while a selection exists, so a bulk action can reach past the current page.
  */
@@ -14,8 +13,6 @@ interface ListResultLineProps {
   /** Singular and plural nouns, e.g. ['user', 'users']. */
   noun: readonly [string, string];
   filtered: boolean;
-  /** Plain-language parts of the active filters (summarizeFilters). */
-  filterSummary: readonly string[];
   /** Clears search, view and field filters. The button shows only while filtered. */
   onShowAll: () => void;
   selectAll?: {
@@ -27,6 +24,11 @@ interface ListResultLineProps {
    * only where the surrounding card already owns its one `role="status"`.
    */
   announce?: boolean;
+  /**
+   * False until the list's data has loaded successfully: nothing renders, so
+   * there is never a "Showing all 0" during loading or beside an error.
+   */
+  ready?: boolean;
   /** Right-aligned extras (sort note, column controls). */
   children?: ReactNode;
   className?: string;
@@ -44,15 +46,13 @@ function statusSentence({
   total,
   noun,
   filtered,
-  filterSummary,
-}: Pick<ListResultLineProps, 'shown' | 'total' | 'noun' | 'filtered' | 'filterSummary'>): string {
+}: Pick<ListResultLineProps, 'shown' | 'total' | 'noun' | 'filtered'>): string {
   if (!filtered) {
     return shown === total
       ? `Showing all ${plural(total, noun)}.`
       : `Showing ${plural(shown, noun)}.`;
   }
-  const summary = filterSummary.length > 0 ? ` (${filterSummary.join(', ')})` : '';
-  return `Showing ${shown.toLocaleString()} of ${plural(total, noun)}${summary}.`;
+  return `Showing ${shown.toLocaleString()} of ${plural(total, noun)}.`;
 }
 
 export function ListResultLine({
@@ -60,13 +60,15 @@ export function ListResultLine({
   total,
   noun,
   filtered,
-  filterSummary,
   onShowAll,
   selectAll,
   announce = true,
+  ready = true,
   children,
   className,
 }: ListResultLineProps) {
+  if (!ready) return null;
+
   const canSelectAll =
     selectAll !== undefined && selectAll.selectedCount > 0 && selectAll.selectedCount < shown;
 
@@ -76,7 +78,7 @@ export function ListResultLine({
         {...(announce ? { role: 'status', 'aria-live': 'polite' as const } : {})}
         className="text-muted-foreground"
       >
-        {statusSentence({ shown, total, noun, filtered, filterSummary })}
+        {statusSentence({ shown, total, noun, filtered })}
       </p>
       {filtered && (
         <button type="button" onClick={onShowAll} className={LINK_BUTTON}>

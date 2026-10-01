@@ -38,12 +38,7 @@ import {
   buildClassManagementViews,
   classManagementViewState,
 } from '@/components/classes/classManagementViews';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import { ClassManagementViewControls } from '@/components/classes/ClassManagementViewControls';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
@@ -330,23 +325,11 @@ export const ClassManagementPage: React.FC = () => {
             fields={[elementField]}
           />
           <ListResultLine
+            ready={!isLoading}
             shown={filteredClasses.length}
             total={allClasses.length}
             noun={CLASS_NOUN}
             filtered={statusFilter !== 'all' || elementFilter !== 'all' || searchTerm !== ''}
-            filterSummary={summarizeFilters({
-              search: searchTerm,
-              views: classViews,
-              activeViewId,
-              // Status is the view state; element is the field and search the box.
-              viewCriteria:
-                statusFilter === 'all'
-                  ? []
-                  : [
-                      `Status: ${classViews.find(v => v.id === statusFilter)?.label ?? statusFilter}`,
-                    ],
-              fields: [elementField],
-            })}
             onShowAll={clearFilters}
           />
 

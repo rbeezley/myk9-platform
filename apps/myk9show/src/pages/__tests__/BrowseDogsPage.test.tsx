@@ -412,9 +412,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       };
       renderPage();
 
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Showing 1 of 2 dogs (Retired, matching \u201crex\u201d).'
-      );
+      expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 dogs.');
       await user.click(screen.getByRole('button', { name: 'Show all dogs' }));
       expect(mockBrowseDogsReturn.clearAllFilters).toHaveBeenCalledOnce();
     });

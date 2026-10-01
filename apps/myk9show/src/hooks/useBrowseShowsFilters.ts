@@ -23,7 +23,6 @@ export interface ShowFilters {
   entryStatus: string;
   /** `'all'` (upcoming shows) or a `YYYY-MM` month key from the scrubber. */
   month: string;
-  organization: string;
   club: string;
   /** `'all'` or a miles radius from the visitor's location; inert without one. */
   radius: string;
@@ -42,7 +41,6 @@ const DEFAULT_FILTERS: ShowFilters = {
   discipline: 'all',
   entryStatus: 'all',
   month: ALL_MONTHS_KEY,
-  organization: 'all',
   club: 'all',
   radius: 'all',
   status: 'all',
@@ -149,14 +147,21 @@ export function useBrowseShowsFilters({
   const [rawFilters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS, {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
-  // A `?month=` outside the `YYYY-MM` shape falls back to the upcoming rule.
-  const filters = useMemo<ShowFilters>(
-    () =>
+  // Normalized at read time so nothing narrows the list that the page cannot
+  // show and reset (MYK9-906):
+  // - a `?month=` outside the `YYYY-MM` shape falls back to the upcoming rule;
+  // - `?status=` is the Managing tab's view and is inert elsewhere, so it reads
+  //   as 'all' on every other tab (a retained link no longer counts as filtering).
+  const filters = useMemo<ShowFilters>(() => {
+    const month =
       isMonthKey(rawFilters.month) || rawFilters.month === ALL_MONTHS_KEY
-        ? rawFilters
-        : { ...rawFilters, month: ALL_MONTHS_KEY },
-    [rawFilters]
-  );
+        ? rawFilters.month
+        : ALL_MONTHS_KEY;
+    const status = selectedTab === 'managing' ? rawFilters.status : 'all';
+    return month === rawFilters.month && status === rawFilters.status
+      ? rawFilters
+      : { ...rawFilters, month, status };
+  }, [rawFilters, selectedTab]);
   const [filteredShows, setFilteredShows] = useState<Show[]>([]);
   const [monthScopedShows, setMonthScopedShows] = useState<Show[]>([]);
 
@@ -167,7 +172,6 @@ export function useBrowseShowsFilters({
       filters.discipline !== 'all' ||
       filters.entryStatus !== 'all' ||
       filters.month !== ALL_MONTHS_KEY ||
-      filters.organization !== 'all' ||
       filters.club !== 'all' ||
       (filters.radius !== 'all' && origin !== null) ||
       filters.status !== 'all'

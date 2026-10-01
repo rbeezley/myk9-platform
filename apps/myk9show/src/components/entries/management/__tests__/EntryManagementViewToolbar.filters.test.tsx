@@ -27,9 +27,8 @@ const COUNTS = {
 
 function renderToolbar(
   overrides: Partial<EntryManagementCockpitState> = {},
-  result = { shown: 214, total: 214 },
-  onClearAll = vi.fn(),
-  scopeUnavailable = false
+  result: { shown: number; total: number } | null = { shown: 214, total: 214 },
+  onClearAll = vi.fn()
 ) {
   const view = render(
     <EntryManagementViewToolbar
@@ -44,7 +43,6 @@ function renderToolbar(
       onDensityChange={vi.fn()}
       onClearAll={onClearAll}
       result={result}
-      scopeUnavailable={scopeUnavailable}
     />
   );
   return { ...view, onClearAll };
@@ -70,42 +68,24 @@ describe('EntryManagementViewToolbar filters', () => {
     expect(screen.queryByRole('combobox', { name: 'Payment status' })).not.toBeInTheDocument();
   });
 
-  it('states the view and the trial without a search, and resets them from "Show all"', async () => {
+  it('says "Showing X of Y" with a count only, and Show all resets the applied state', async () => {
     const { user, onClearAll } = renderToolbar(
       { queue: 'needs-review', trialId: 't1' },
       { shown: 3, total: 214 }
     );
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 3 of 214 registrations (Needs review, Trial: Saturday).'
-    );
+    expect(screen.getByRole('status').textContent).toBe('Showing 3 of 214 registrations.');
     await user.click(screen.getByRole('button', { name: 'Show all registrations' }));
     expect(onClearAll).toHaveBeenCalledOnce();
   });
 
-  it('with a search, says it searched the whole show and omits the view and scope that it bypasses', () => {
-    renderToolbar(
-      { queue: 'needs-review', trialId: 't1', search: 'bob' },
-      { shown: 4, total: 214 }
-    );
-
-    const text = screen.getByRole('status').textContent;
-    expect(text).toBe(
-      'Showing 4 of 214 registrations (matching \u201cbob\u201d across the whole show).'
-    );
-    expect(text).not.toMatch(/Needs review|Trial/);
+  it('counts a search as filtered too', () => {
+    renderToolbar({ queue: 'all', search: 'bob' }, { shown: 4, total: 214 });
+    expect(screen.getByRole('status').textContent).toBe('Showing 4 of 214 registrations.');
   });
 
-  it('omits the trial from the sentence when the trial scope could not be applied', () => {
-    renderToolbar(
-      { queue: 'needs-review', trialId: 't1' },
-      { shown: 12, total: 214 },
-      vi.fn(),
-      true
-    );
-
-    const text = screen.getByRole('status').textContent;
-    expect(text).toBe('Showing 12 of 214 registrations (Needs review).');
-    expect(text).not.toContain('Saturday');
+  it('shows no sentence until the entries have loaded', () => {
+    renderToolbar({}, null);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

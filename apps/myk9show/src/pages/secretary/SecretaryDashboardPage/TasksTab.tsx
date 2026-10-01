@@ -11,12 +11,7 @@ import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type { ListView } from '@/components/list-toolkit';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
@@ -117,17 +112,11 @@ export function TasksTab({ clubId }: TasksTabProps) {
           fields={[]}
         />
         <ListResultLine
+          ready={!isLoading && !isError}
           shown={visible.length}
           total={tasks.length}
           noun={['task', 'tasks']}
           filtered={search.trim() !== '' || !showCompleted}
-          filterSummary={summarizeFilters({
-            search,
-            views,
-            activeViewId: showCompleted ? 'all' : 'open',
-            defaultViewId: 'all',
-            viewCriteria: [],
-          })}
           onShowAll={() => {
             setSearch('');
             setShowCompleted(true);

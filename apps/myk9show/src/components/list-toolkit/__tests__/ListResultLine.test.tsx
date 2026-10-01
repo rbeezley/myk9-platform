@@ -7,65 +7,56 @@ const NOUN = ['user', 'users'] as const;
 describe('ListResultLine', () => {
   it('says "Showing all N" when nothing is filtered, with no Show all button', () => {
     render(
-      <ListResultLine
-        shown={214}
-        total={214}
-        noun={NOUN}
-        filtered={false}
-        filterSummary={[]}
-        onShowAll={vi.fn()}
-      />
+      <ListResultLine shown={214} total={214} noun={NOUN} filtered={false} onShowAll={vi.fn()} />
     );
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 users.');
     expect(screen.queryByRole('button', { name: /show all/i })).not.toBeInTheDocument();
   });
 
   it('is a polite live region', () => {
-    render(
-      <ListResultLine
-        shown={1}
-        total={1}
-        noun={NOUN}
-        filtered={false}
-        filterSummary={[]}
-        onShowAll={vi.fn()}
-      />
-    );
+    render(<ListResultLine shown={1} total={1} noun={NOUN} filtered={false} onShowAll={vi.fn()} />);
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 1 user.');
   });
 
-  it('names one active filter in the sentence and clears it from "Show all"', async () => {
+  it('says "Showing X of Y" while filtered and "Show all" clears it', async () => {
     const onShowAll = vi.fn();
     const { user } = render(
-      <ListResultLine
-        shown={12}
-        total={214}
-        noun={NOUN}
-        filtered
-        filterSummary={['Pending']}
-        onShowAll={onShowAll}
-      />
+      <ListResultLine shown={12} total={214} noun={NOUN} filtered onShowAll={onShowAll} />
     );
-    expect(screen.getByRole('status')).toHaveTextContent('Showing 12 of 214 users (Pending).');
+    // Count and noun only: the dropdowns beside the list already show every filter.
+    expect(screen.getByRole('status').textContent).toBe('Showing 12 of 214 users.');
     await user.click(screen.getByRole('button', { name: 'Show all users' }));
     expect(onShowAll).toHaveBeenCalledOnce();
   });
 
-  it('lists several active filters in order', () => {
+  it('renders nothing until the data is ready', () => {
     render(
       <ListResultLine
-        shown={2}
-        total={10}
+        ready={false}
+        shown={0}
+        total={0}
         noun={NOUN}
-        filtered
-        filterSummary={['Pending', 'Class: Novice A', 'matching “bob”']}
+        filtered={false}
         onShowAll={vi.fn()}
       />
     );
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 2 of 10 users (Pending, Class: Novice A, matching “bob”).'
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('can opt out of being its own live region', () => {
+    render(
+      <ListResultLine
+        announce={false}
+        shown={2}
+        total={2}
+        noun={NOUN}
+        filtered={false}
+        onShowAll={vi.fn()}
+      />
     );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing all 2 users.')).toBeInTheDocument();
   });
 
   it('offers "Select all" only for a partial selection', async () => {
@@ -76,7 +67,6 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
-        filterSummary={[]}
         onShowAll={vi.fn()}
         selectAll={{ selectedCount: 0, onSelectAll }}
       />
@@ -89,7 +79,6 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
-        filterSummary={[]}
         onShowAll={vi.fn()}
         selectAll={{ selectedCount: 3, onSelectAll }}
       />
@@ -103,7 +92,6 @@ describe('ListResultLine', () => {
         total={90}
         noun={NOUN}
         filtered
-        filterSummary={[]}
         onShowAll={vi.fn()}
         selectAll={{ selectedCount: 40, onSelectAll }}
       />

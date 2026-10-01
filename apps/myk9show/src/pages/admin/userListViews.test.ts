@@ -94,14 +94,21 @@ describe('user views', () => {
     ).toHaveLength(7);
   });
 
-  it('is active only when the filters match a view exactly', () => {
+  it('reads the view from status / sign-in / the New window, never "Custom"', () => {
     expect(activeUserViewId(DEFAULT_USER_FILTER, NOW)).toBe('all');
     expect(activeUserViewId(userViewFilters('dormant', NOW), NOW)).toBe('dormant');
     expect(activeUserViewId(userViewFilters('new', NOW), NOW)).toBe('new');
-    // A view plus one more narrowing is a custom filter, not the view.
+    // Role is a visible field of its own: it must not hide the sign-in view.
     expect(
       activeUserViewId({ ...userViewFilters('dormant', NOW), role: UserRole.JUDGE }, NOW)
-    ).toBeNull();
+    ).toBe('dormant');
+  });
+
+  it('the URL codec drops combinations no view can show: status wins over sign-in, active is inert', () => {
+    const both = parseUserListParams(new URLSearchParams('status=suspended&login=never'));
+    expect(both.filters).toMatchObject({ status: 'suspended', login: 'all' });
+    const active = parseUserListParams(new URLSearchParams('status=active'));
+    expect(active.filters.status).toBe('all');
   });
 
   it('a view survives the URL round trip and still reads as active', () => {

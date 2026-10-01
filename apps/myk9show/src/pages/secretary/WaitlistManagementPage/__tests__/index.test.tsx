@@ -108,8 +108,6 @@ describe('WaitlistManagementPage', () => {
     rerender(<WaitlistManagementPage showId="show-1" />);
 
     await waitFor(() => expect(screen.queryByText('Rexy')).not.toBeInTheDocument());
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 0 of 1 dog (matching \u201czz\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 1 dog.');
   });
 });

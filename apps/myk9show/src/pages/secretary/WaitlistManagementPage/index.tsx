@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { useWaitlistManagementData } from './useWaitlistManagementData';
 import { WaitlistPageHeader } from './WaitlistPageHeader';
 import { ShowClassSelection } from './ShowClassSelection';
@@ -117,11 +117,11 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
             fields={[]}
           />
           <ListResultLine
+            ready={!isLoadingWaitlist && !error}
             shown={filteredEntries.length}
             total={waitlistEntries.length}
             noun={['dog', 'dogs']}
             filtered={searchTerm !== ''}
-            filterSummary={summarizeFilters({ search: searchTerm })}
             onShowAll={() => setSearchTerm('')}
           />
           <WaitlistTable

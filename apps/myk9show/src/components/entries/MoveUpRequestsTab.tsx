@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import {
   Dialog,
   DialogContent,
@@ -313,7 +313,6 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
             total={requests.length}
             noun={['request', 'requests']}
             filtered={searchTerm !== ''}
-            filterSummary={summarizeFilters({ search: searchTerm })}
             onShowAll={() => setSearchTerm('')}
           />
         </>

@@ -21,7 +21,6 @@ import {
   ListResultLine,
   ListViewTabs,
   patchSearchParams,
-  summarizeFilters,
 } from '@/components/list-toolkit';
 import { Users, Plus, Shield, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
@@ -93,7 +92,7 @@ const ClubMembersPage: React.FC = () => {
   // local state — these two params only mean anything on the Members tab.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') ?? '';
-  const memberStatus = (searchParams.get('status') ?? 'all') as MemberStatusFilter;
+  const rawMemberStatus = searchParams.get('status') ?? 'all';
   const setSearchQuery = (value: string) => {
     setSearchParams(
       prev => {
@@ -186,12 +185,17 @@ const ClubMembersPage: React.FC = () => {
     );
   }, [officers]);
 
+  const memberViews = useMemo(() => buildClubMemberViews(members), [members]);
+  // An unknown ?status= has no control to show or reset it, so it reads as 'all'.
+  const memberStatus = (
+    memberViews.some(view => view.id === rawMemberStatus) ? rawMemberStatus : 'all'
+  ) as MemberStatusFilter;
+
   // Filtered members
   const filteredMembers = useMemo(
     () => filterClubMembers(members, memberStatus, searchQuery),
     [members, memberStatus, searchQuery]
   );
-  const memberViews = useMemo(() => buildClubMemberViews(members), [members]);
   const hasActiveMemberFilters = memberStatus !== 'all' || searchQuery.trim() !== '';
 
   // Mutations
@@ -581,12 +585,6 @@ const ClubMembersPage: React.FC = () => {
                   total={members.length}
                   noun={MEMBER_NOUN}
                   filtered={hasActiveMemberFilters}
-                  filterSummary={summarizeFilters({
-                    search: searchQuery,
-                    views: memberViews,
-                    activeViewId: memberStatus,
-                    viewCriteria: memberStatus === 'all' ? [] : [`Status: ${memberStatus}`],
-                  })}
                   // One URL update: two setters would each clone the same snapshot.
                   onShowAll={() => patchSearchParams(setSearchParams, { status: null, q: null })}
                 />

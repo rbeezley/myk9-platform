@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/utils/format';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import type { ListFilterField } from '@/components/list-toolkit';
 import { useActivityLog } from '../hooks/useActivityLog';
 import type { ActivityActionType, ActivityLogFilters } from '../types';
@@ -93,11 +93,11 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
             loaded so far. The total is therefore "loaded" rows, never a
             whole-history count this page does not have. */}
         <ListResultLine
+          ready={!isLoading}
           shown={visibleEntries.length}
           total={entries.length}
           noun={['loaded activity entry', 'loaded activity entries']}
           filtered={search.trim() !== '' || filters.actionType !== undefined}
-          filterSummary={summarizeFilters({ search, fields: [actionTypeField] })}
           onShowAll={() => {
             setSearch('');
             setFilters({});

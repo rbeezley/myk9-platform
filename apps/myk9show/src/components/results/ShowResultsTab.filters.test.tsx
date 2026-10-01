@@ -98,9 +98,7 @@ describe('ShowResultsTab class-name search', () => {
 
     expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
     expect(screen.getByText('Exterior Excellent A')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 classes (matching \u201cExterior\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 classes.');
   });
 
   it('offers no Element or Level filter (cut by MYK9-906)', () => {

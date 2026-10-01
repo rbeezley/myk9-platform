@@ -8,12 +8,7 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type { PeopleFilters } from '@/hooks/useBrowsePeopleData';
 import type { User } from '@/types/user-types';
 import { activePeopleViewId, buildPeopleViews, peopleViewFilterPatch } from './peopleListViews';
@@ -64,17 +59,6 @@ export function PeopleListToolbar({
         total={people.length}
         noun={PEOPLE_NOUN}
         filtered={hasActiveFilters}
-        filterSummary={summarizeFilters({
-          search: filters.search,
-          views,
-          activeViewId,
-          // Role and login are the view state; a combination no preset matches
-          // names each one that is applied.
-          viewCriteria: [
-            ...(filters.role !== 'all' ? [`Role: ${filters.role}`] : []),
-            ...(filters.login === 'none' ? ['No login'] : []),
-          ],
-        })}
         onShowAll={onClearAll}
       >
         {resultLineExtra}

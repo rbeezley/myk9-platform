@@ -201,7 +201,6 @@ const defaultFilters: ShowFilters = {
   entryStatus: 'all',
   month: 'all',
   radius: 'all',
-  organization: 'all',
   club: 'all',
   status: 'all',
 };

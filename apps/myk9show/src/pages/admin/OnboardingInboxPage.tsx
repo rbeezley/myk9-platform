@@ -17,7 +17,6 @@ import {
   ListResultLine,
   ListViewTabs,
   patchSearchParams,
-  summarizeFilters,
   type ListView,
 } from '@/components/list-toolkit';
 import { formatShortCalendarDate, formatShortDate } from '@/lib/format/dates';
@@ -255,13 +254,6 @@ export default function OnboardingInboxPage() {
           total={requests.length}
           noun={['club request', 'club requests']}
           filtered={filter !== 'all' || normalizedSearchTerm !== ''}
-          filterSummary={summarizeFilters({
-            search: searchTerm,
-            views,
-            activeViewId: filter,
-            defaultViewId: 'all',
-            viewCriteria: filter === 'all' ? [] : [`Status: ${filter}`],
-          })}
           // One URL update: two setters would each clone the same snapshot.
           onShowAll={() => patchSearchParams(setSearchParams, { status: 'all', q: null })}
         />

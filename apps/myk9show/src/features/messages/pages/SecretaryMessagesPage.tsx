@@ -15,12 +15,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
 import { ScheduledLifecycleEmailsPanel } from '@/features/lifecycle-emails';
 import { EmailDeliveryHistory } from '@/features/email-delivery-history';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type { ListFilterField, ListView } from '@/components/list-toolkit';
 
 const ALL_SHOWS = 'all';
@@ -242,7 +237,6 @@ export default function SecretaryMessagesPage() {
               total={threads.length}
               noun={['conversation', 'conversations']}
               filtered={hasActiveFilters}
-              filterSummary={summarizeFilters({ search: searchTerm, fields: [showField] })}
               onShowAll={clearFilters}
             />
           )}

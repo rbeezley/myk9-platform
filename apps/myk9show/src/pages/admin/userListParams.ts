@@ -16,7 +16,6 @@ import {
   DEFAULT_USER_FILTER,
   USER_LOGIN_FILTER_VALUES,
   USER_ROLE_FILTER_VALUES,
-  USER_STATUS_FILTER_VALUES,
 } from './UserManagementPage.types';
 
 export const DEFAULT_USER_PAGE_SIZE = 25;
@@ -88,6 +87,15 @@ export function parseUserListParams(params: URLSearchParams): UserListParams {
   const status = params.get('status');
   const login = params.get('login');
   const sortId = params.get('sort');
+  // Normalized so no restriction is hidden: only the Suspended view exists for
+  // status ('active' has no control), and status and sign-in recency are
+  // alternative views, never combined.
+  const normalizedStatus: UserFilter['status'] = status === 'suspended' ? 'suspended' : 'all';
+  const normalizedLogin: UserFilter['login'] =
+    normalizedStatus === 'all' &&
+    (USER_LOGIN_FILTER_VALUES as readonly string[]).includes(login ?? '')
+      ? (login as UserFilter['login'])
+      : 'all';
 
   return {
     searchTerm: params.get('q') ?? '',
@@ -95,12 +103,8 @@ export function parseUserListParams(params: URLSearchParams): UserListParams {
       role: (USER_ROLE_FILTER_VALUES as readonly string[]).includes(role ?? '')
         ? (role as UserRoleType | 'all')
         : 'all',
-      status: (USER_STATUS_FILTER_VALUES as readonly string[]).includes(status ?? '')
-        ? (status as UserFilter['status'])
-        : 'all',
-      login: (USER_LOGIN_FILTER_VALUES as readonly string[]).includes(login ?? '')
-        ? (login as UserFilter['login'])
-        : 'all',
+      status: normalizedStatus,
+      login: normalizedLogin,
       showDeleted: params.get('deleted') === '1',
       dateRange: {
         start: parseDate(params.get('from')),

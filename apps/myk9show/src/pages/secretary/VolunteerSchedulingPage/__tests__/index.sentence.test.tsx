@@ -50,7 +50,7 @@ describe('VolunteerSchedulingPage status sentence (MYK9-906)', () => {
 
     await user.type(screen.getByPlaceholderText('Search classes, volunteers...'), 'Novice');
     expect(screen.getByRole('status')).toHaveTextContent(
-      `Showing 1 of ${total} classes and duties (matching “Novice”).`
+      `Showing 1 of ${total} classes and duties.`
     );
 
     await user.click(screen.getByRole('button', { name: 'Show all classes and duties' }));

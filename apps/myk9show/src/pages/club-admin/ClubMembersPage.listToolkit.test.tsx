@@ -115,7 +115,7 @@ describe('ClubMembersPage list toolkit', () => {
       expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
     });
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 members (Lapsed).');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 members.');
   });
 
   it('searching by name narrows the table', async () => {
@@ -147,12 +147,12 @@ describe('ClubMembersPage list toolkit', () => {
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
   });
 
-  it('names a status no preset offers (a stale link) instead of filtering silently', async () => {
+  it('ignores a status no view offers (a stale link): the list is unfiltered', async () => {
     render(<ClubMembersPage />, { initialRoute: '/?status=bogus' });
     await screen.findByRole('combobox', { name: 'Show: Member views' });
     await waitFor(() =>
       expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
-        'Showing 0 of 2 members (Status: bogus).'
+        'Showing all 2 members.'
       )
     );
   });

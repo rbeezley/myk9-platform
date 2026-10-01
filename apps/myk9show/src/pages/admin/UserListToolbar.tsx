@@ -12,7 +12,6 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
-  summarizeFilters,
   type ListFilterField,
 } from '@/components/list-toolkit';
 import { USER_ROLE_HIERARCHY } from '@/types/auth-types';
@@ -23,12 +22,6 @@ import { DEFAULT_USER_FILTER, type UserFilter } from './UserManagementPage.types
 import { activeUserViewId, buildUserViews, userViewFilters } from './userListViews';
 
 const USER_NOUN = ['user', 'users'] as const;
-
-const LOGIN_LABELS: Record<Exclude<UserFilter['login'], 'all'>, string> = {
-  recent30: 'within 30 days',
-  dormant90: 'not in 90+ days',
-  never: 'never',
-};
 
 interface UserListToolbarProps<T extends User> {
   /** The whole roster, for view and option counts. */
@@ -48,6 +41,8 @@ interface UserListToolbarProps<T extends User> {
   selectedCount: number;
   onSelectAllMatching: () => void;
   hasActiveFilters: boolean;
+  /** False until the roster has loaded: the status sentence stays hidden. */
+  ready?: boolean;
 }
 
 export function UserListToolbar<T extends User>({
@@ -62,6 +57,7 @@ export function UserListToolbar<T extends User>({
   selectedCount,
   onSelectAllMatching,
   hasActiveFilters,
+  ready = true,
 }: UserListToolbarProps<T>) {
   const views = useMemo(() => buildUserViews(users, now), [users, now]);
   const activeViewId = activeUserViewId(filters, now);
@@ -121,22 +117,11 @@ export function UserListToolbar<T extends User>({
         fields={fields}
       />
       <ListResultLine
+        ready={ready}
         shown={matchCount}
         total={users.length}
         noun={USER_NOUN}
         filtered={hasActiveFilters}
-        filterSummary={summarizeFilters({
-          search: searchTerm,
-          views,
-          activeViewId,
-          fields,
-          // Status and Last sign-in are the view state (no field since
-          // MYK9-906); a combination no preset matches names each one applied.
-          viewCriteria: [
-            ...(filters.status !== 'all' ? [`Status: ${filters.status}`] : []),
-            ...(filters.login !== 'all' ? [`Last sign-in: ${LOGIN_LABELS[filters.login]}`] : []),
-          ],
-        })}
         onShowAll={onClearAll}
         selectAll={{ selectedCount, onSelectAll: onSelectAllMatching }}
       />

@@ -228,6 +228,17 @@ describe('useBrowsePeopleData URL filters', () => {
     expect(params.get('add')).toBe('true');
   });
 
+  it('drops a role no view offers and a sign-in restriction that cannot combine with a role', () => {
+    const stale = setupWrapper('/people?role=steward');
+    const a = renderHook(() => useBrowsePeopleData(), { wrapper: stale.wrapper });
+    expect(a.result.current.filters.role).toBe('all');
+    expect(a.result.current.hasActiveFilters).toBe(false);
+
+    const both = setupWrapper('/people?role=judge&login=none');
+    const b = renderHook(() => useBrowsePeopleData(), { wrapper: both.wrapper });
+    expect(b.result.current.filters).toMatchObject({ role: 'judge', login: 'all' });
+  });
+
   it('accepts the "none" login value but falls back for anything else', () => {
     const { wrapper: noneWrapper } = setupWrapper('/people?login=none');
     const { result: noneResult } = renderHook(() => useBrowsePeopleData(), {
@@ -300,6 +311,31 @@ describe('useBrowseShowsFilters URL filters', () => {
     expect(params.get('entryStatus')).toBe('open');
     expect(params.get('tab')).toBe('managing');
     expect(params.get('view')).toBe('cards');
+  });
+
+  it('reads an unknown or tab-inert ?status= and a retired ?organization= as unfiltered', () => {
+    // Nothing may narrow the list by a param the page has no control to show and
+    // reset (MYK9-906): status is the Managing tab's view only.
+    const unknown = setupWrapper('/shows?tab=managing&status=bogus');
+    const a = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'managing' }), {
+      wrapper: unknown.wrapper,
+    });
+    expect(a.result.current.filters.status).toBe('all');
+    expect(a.result.current.hasActiveFilters).toBe(false);
+
+    const inert = setupWrapper('/shows?status=draft&organization=AKC');
+    const b = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'all' }), {
+      wrapper: inert.wrapper,
+    });
+    expect(b.result.current.filters.status).toBe('all');
+    expect(b.result.current.hasActiveFilters).toBe(false);
+
+    const managing = setupWrapper('/shows?tab=managing&status=draft');
+    const c = renderHook(() => useBrowseShowsFilters({ ...props, selectedTab: 'managing' }), {
+      wrapper: managing.wrapper,
+    });
+    expect(c.result.current.filters.status).toBe('draft');
+    expect(c.result.current.hasActiveFilters).toBe(true);
   });
 
   it('falls back to the default for a month the app cannot act on', () => {

@@ -2,12 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createPortal } from 'react-dom';
 import { render, screen, fireEvent, userEvent } from '@/test/utils/testUtils';
 import { BulkBarButton, FloatingBulkBar } from '../FloatingBulkBar';
-import {
-  describeDateRange,
-  fromDateInputValue,
-  summarizeFilters,
-  toDateInputValue,
-} from '../filterFieldState';
+import { describeDateRange, fromDateInputValue, toDateInputValue } from '../filterFieldState';
 
 const NOUN = ['user', 'users'] as const;
 
@@ -104,67 +99,5 @@ describe('filterFieldState', () => {
     expect(describeDateRange({ start, end: null })).toMatch(/^after /);
     expect(describeDateRange({ start: null, end })).toMatch(/^before /);
     expect(describeDateRange({ start: null, end: null })).toBe('any time');
-  });
-
-  it('summarizes the view (unless it is the default), active fields and the search', () => {
-    const views = [
-      { id: 'all', label: 'All' },
-      { id: 'pending', label: 'Pending' },
-    ];
-    const fields = [
-      {
-        kind: 'options' as const,
-        key: 'class',
-        label: 'Class',
-        value: 'a',
-        onChange: vi.fn(),
-        options: [{ value: 'a', label: 'Novice A' }],
-      },
-      {
-        kind: 'options' as const,
-        key: 'trial',
-        label: 'Trial',
-        value: null,
-        onChange: vi.fn(),
-        options: [],
-      },
-    ];
-    expect(summarizeFilters({ views, activeViewId: 'all', viewCriteria: [] })).toEqual([]);
-    expect(
-      summarizeFilters({
-        views,
-        activeViewId: 'pending',
-        viewCriteria: [],
-        fields,
-        search: ' bob ',
-      })
-    ).toEqual(['Pending', 'Class: Novice A', 'matching “bob”']);
-  });
-
-  it('names every view-state criterion when no preset matches (Custom), and never says nothing', () => {
-    const views = [
-      { id: 'all', label: 'All' },
-      { id: 'pending', label: 'Pending' },
-    ];
-    expect(
-      summarizeFilters({
-        views,
-        activeViewId: null,
-        viewCriteria: ['Status: In progress'],
-        search: 'bob',
-      })
-    ).toEqual(['Status: In progress', 'matching \u201cbob\u201d']);
-    // An id the page no longer offers (a stale link) is Custom too.
-    expect(
-      summarizeFilters({ views, activeViewId: 'gone', viewCriteria: ['Status: gone'] })
-    ).toEqual(['Status: gone']);
-    // No criteria supplied: the sentence still says it is a custom view.
-    expect(summarizeFilters({ views, activeViewId: null, viewCriteria: [] })).toEqual([
-      'Custom view',
-    ]);
-    // A matching preset stands in for its criteria.
-    expect(
-      summarizeFilters({ views, activeViewId: 'pending', viewCriteria: ['Status: pending'] })
-    ).toEqual(['Pending']);
   });
 });

@@ -762,7 +762,7 @@ describe('ShowDeskPeopleRoster', () => {
     await user.type(screen.getByRole('textbox', { name: /search name, dog, armband/i }), '114');
 
     expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
-      'Showing 1 of 2 exhibitors (matching \u201c114\u201d).'
+      'Showing 1 of 2 exhibitors.'
     );
 
     await user.click(screen.getByRole('button', { name: 'Show all exhibitors' }));

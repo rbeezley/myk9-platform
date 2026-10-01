@@ -10,12 +10,7 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  ListFilterBar,
-  ListResultLine,
-  ListViewTabs,
-  summarizeFilters,
-} from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
@@ -41,14 +36,9 @@ interface EntryManagementViewToolbarProps {
   onSearchChange: (value: string) => void;
   onDensityChange: (density: OperationalViewDensity) => void;
   onClearAll: () => void;
-  /**
-   * The trial/class scope could not be applied (classes query pending, paused
-   * offline or errored), so the list is whole-show. The sentence then omits
-   * Trial and Class; the cockpit's own warning explains why.
-   */
-  scopeUnavailable?: boolean;
   /** Registrations on screen after every filter, and in the show's whole queue. */
-  result: { shown: number; total: number };
+  /** Null until the entries have loaded successfully: no sentence before then. */
+  result: { shown: number; total: number } | null;
 }
 
 export function EntryManagementViewToolbar({
@@ -63,7 +53,6 @@ export function EntryManagementViewToolbar({
   onDensityChange,
   onClearAll,
   result,
-  scopeUnavailable = false,
 }: EntryManagementViewToolbarProps) {
   const views = buildEntryManagementViews(counts);
   const activeId = entryManagementViewId(state);
@@ -74,22 +63,6 @@ export function EntryManagementViewToolbar({
     trialClasses,
     onScopeChange,
   });
-  // A search runs over the WHOLE show and bypasses the view, trial and class
-  // scope (`buildShowRegistrationPage`), so the sentence names only what is
-  // actually applied rather than listing scopes that do nothing.
-  const searching = state.search.trim() !== '';
-  const filterSummary = searching
-    ? [`${summarizeFilters({ search: state.search })[0]} across the whole show`]
-    : summarizeFilters({
-        views,
-        activeViewId: activeId,
-        defaultViewId: 'all',
-        viewCriteria: [],
-        fields: scopeUnavailable
-          ? filterFields.filter(field => field.key !== 'trial' && field.key !== 'class')
-          : filterFields,
-      });
-
   return (
     <div className="flex flex-col gap-3">
       <ListViewTabs
@@ -122,13 +95,17 @@ export function EntryManagementViewToolbar({
           </Popover>
         </div>
       )}
-      {isRegistrationsView && (
+      {isRegistrationsView && result && (
         <ListResultLine
           shown={result.shown}
           total={result.total}
           noun={['registration', 'registrations']}
-          filtered={searching || filterSummary.length > 0 || activeId === null}
-          filterSummary={filterSummary}
+          filtered={
+            state.search.trim() !== '' ||
+            activeId !== 'all' ||
+            state.trialId !== null ||
+            state.classId !== null
+          }
           onShowAll={onClearAll}
         />
       )}

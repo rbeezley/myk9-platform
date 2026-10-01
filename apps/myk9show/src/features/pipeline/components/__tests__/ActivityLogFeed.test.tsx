@@ -95,13 +95,22 @@ describe('ActivityLogFeed', () => {
     render(<ActivityLogFeed trialId="trial-1" />);
 
     await userEvent.type(screen.getByPlaceholderText('Search activity...'), 'Bob');
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 loaded activity entries (matching \u201cBob\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 loaded activity entries.');
 
     await userEvent.click(screen.getByRole('button', { name: 'Show all loaded activity entries' }));
     expect(screen.getByText('Moved to Judging')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Search activity...')).toHaveValue('');
     expect(useActivityLog).toHaveBeenLastCalledWith('trial-1', {});
+  });
+
+  it('shows no sentence while the first page is loading, and "Showing all" once loaded', () => {
+    mockResult([], { isLoading: true });
+    const { unmount } = render(<ActivityLogFeed trialId="trial-1" />);
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    unmount();
+
+    mockResult([makeEntry()]);
+    render(<ActivityLogFeed trialId="trial-1" />);
+    expect(screen.getByText('Showing all 1 loaded activity entry.')).toBeInTheDocument();
   });
 });

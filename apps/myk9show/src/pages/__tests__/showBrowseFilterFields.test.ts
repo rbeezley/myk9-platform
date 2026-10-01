@@ -8,7 +8,6 @@ const BASE_FILTERS: ShowFilters = {
   discipline: 'all',
   entryStatus: 'all',
   month: 'all',
-  organization: 'all',
   club: 'all',
   radius: 'all',
   status: 'all',

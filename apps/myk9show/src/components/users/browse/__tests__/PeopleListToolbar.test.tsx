@@ -78,9 +78,7 @@ describe('PeopleListToolbar', () => {
     expect(screen.getByRole('combobox', { name: 'Show: People views' })).toHaveTextContent(
       'Custom'
     );
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 0 of 2 people (Role: judge, No login, matching \u201cada\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 2 people.');
   });
 
   it('has no Role or Location filter field (cut by MYK9-906; the role views cover Role)', () => {
@@ -97,9 +95,7 @@ describe('PeopleListToolbar', () => {
       filters: { ...DEFAULT_PEOPLE_FILTERS, role: 'judge', search: 'ada' },
       resultLineExtra: <button type="button">Cards view</button>,
     });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 people (Judges, matching \u201cada\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 people.');
     expect(screen.getByRole('button', { name: 'Cards view' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Show all people' }));
     expect(onClearAll).toHaveBeenCalledOnce();

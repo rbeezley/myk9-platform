@@ -261,9 +261,7 @@ describe('TasksTab — personal-only', () => {
 
     render(<TasksTab clubId="club-1" />, { wrapper });
     fireEvent.change(screen.getByPlaceholderText('Search tasks...'), { target: { value: 'call' } });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 tasks (Open, matching \u201ccall\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 tasks.');
 
     await userEvent.click(screen.getByRole('button', { name: 'Show all tasks' }));
     expect(screen.getByText('Done thing')).toBeInTheDocument();
@@ -409,5 +407,26 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
     fireEvent.click(screen.getByLabelText(/Delete "Trash me"/i));
     expect(deleteMutate).toHaveBeenCalledWith('task-x', expect.any(Object));
+  });
+
+  it('shows no sentence while loading or after a failed load', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+    const { unmount } = render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
   });
 });

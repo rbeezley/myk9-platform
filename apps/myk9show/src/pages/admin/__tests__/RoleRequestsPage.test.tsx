@@ -322,4 +322,21 @@ describe('RoleRequestsPage', () => {
     await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?status=all'));
     expect(screen.getByTestId('search').textContent).not.toContain('q=');
   });
+
+  it('shows no sentence while loading, and none beside a load error', async () => {
+    getAllRoleRequests.mockReturnValueOnce(new Promise(() => undefined));
+    const first = render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    first.unmount();
+
+    getAllRoleRequests.mockRejectedValueOnce(new Error('boom'));
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+  });
+
+  it('reads an unknown ?status= as the default Pending view the select shows', async () => {
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests?status=bogus' });
+    expect(await screen.findByText('Showing 1 of 1 request.')).toBeDefined();
+  });
 });

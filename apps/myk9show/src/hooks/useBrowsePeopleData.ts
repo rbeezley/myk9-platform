@@ -58,16 +58,31 @@ export function filterPeople(people: User[], filters: PeopleFilters): User[] {
   });
 }
 
-const URL_FILTER_OPTIONS = { allowedValues: { login: ['none'] as readonly string[] } };
+// The role views (`peopleListViews.ts`) are the only control for role, so only
+// their roles are accepted; anything else reads as 'all' instead of narrowing the
+// list by something the page cannot show and reset.
+const VIEW_ROLES: readonly string[] = ['secretary', 'judge', 'exhibitor', 'club_admin'];
+const URL_FILTER_OPTIONS = {
+  allowedValues: { role: VIEW_ROLES, login: ['none'] as readonly string[] },
+};
 
 export function useBrowsePeopleData(): BrowsePeopleData {
   const { people, isLoading, error } = useRoleBasedPeople();
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<PeopleFilters>(
+  const [rawFilters, setFilters] = useUrlFilters<PeopleFilters>(
     DEFAULT_PEOPLE_FILTERS,
     URL_FILTER_OPTIONS
+  );
+  // Role and "No login" are alternative views, never combined (no preset covers
+  // both), so a role wins and the sign-in restriction reads as off.
+  const filters = useMemo<PeopleFilters>(
+    () =>
+      rawFilters.role !== 'all' && rawFilters.login !== 'all'
+        ? { ...rawFilters, login: 'all' }
+        : rawFilters,
+    [rawFilters]
   );
 
   const filteredPeople = useMemo(() => filterPeople(people, filters), [people, filters]);

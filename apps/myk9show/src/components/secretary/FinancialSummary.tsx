@@ -19,7 +19,6 @@ import { paymentStatusColors } from '@/lib/financial-constants';
 import {
   ListFilterBar,
   ListResultLine,
-  summarizeFilters,
   type ListOptionsFilterField,
 } from '@/components/list-toolkit';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
@@ -319,7 +318,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
             total={entries.length}
             noun={['entry', 'entries']}
             filtered={searchTerm.trim() !== '' || statusFilter !== null}
-            filterSummary={summarizeFilters({ search: searchTerm, fields: [paymentStatusField] })}
             onShowAll={() => {
               setSearchTerm('');
               setStatusFilter(null);

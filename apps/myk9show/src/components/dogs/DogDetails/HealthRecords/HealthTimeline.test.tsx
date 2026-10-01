@@ -275,9 +275,7 @@ describe('HealthTimeline filters via the shared list toolkit', () => {
     fireEvent.change(screen.getByLabelText(/search health records/i), {
       target: { value: 'checkup' },
     });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 health records (Type: Vet Visit, matching \u201ccheckup\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 health records.');
 
     await user.click(screen.getByRole('button', { name: 'Show all health records' }));
     expect(screen.getByText('Rabies Vaccination')).toBeInTheDocument();

@@ -17,7 +17,6 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
-  summarizeFilters,
   type ListView,
 } from '@/components/list-toolkit';
 import '@/styles/myk9-show-details.css';
@@ -289,13 +288,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               total={rows.length}
               noun={['entry', 'entries']}
               filtered={scoringTab !== 'all' || searchQuery !== ''}
-              filterSummary={summarizeFilters({
-                search: searchQuery,
-                views: scoringViews,
-                activeViewId: scoringTab,
-                defaultViewId: 'all',
-                viewCriteria: [],
-              })}
               onShowAll={() => {
                 setScoringTab('all');
                 setSearchQuery('');

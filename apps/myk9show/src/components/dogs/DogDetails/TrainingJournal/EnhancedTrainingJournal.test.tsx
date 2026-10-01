@@ -152,9 +152,7 @@ describe('EnhancedTrainingJournal search via the shared list toolkit', () => {
     fireEvent.change(screen.getByLabelText(/search training sessions/i), {
       target: { value: 'container' },
     });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Showing 1 of 2 training sessions (matching \u201ccontainer\u201d).'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 training sessions.');
     fireEvent.click(screen.getByRole('button', { name: 'Show all training sessions' }));
 
     expect(screen.getByText('Container drill')).toBeInTheDocument();

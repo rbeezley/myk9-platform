@@ -20,7 +20,7 @@ import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAf
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListFilterBar, ListResultLine, summarizeFilters } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -221,7 +221,6 @@ const BrowseClubsPage: React.FC = () => {
               total={clubs.length}
               noun={['club', 'clubs']}
               filtered={hasActiveFilters}
-              filterSummary={summarizeFilters({ search: filters.search })}
               onShowAll={clearAllFilters}
             >
               <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />

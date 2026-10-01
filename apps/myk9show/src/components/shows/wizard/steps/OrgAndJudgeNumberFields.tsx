@@ -47,12 +47,12 @@ export const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = (
           Organization *
         </Label>
         {lockedOrg ? (
-          <p id={orgId} className="flex h-8 items-center text-sm font-medium">
+          <p id={orgId} className="flex h-11 items-center text-sm font-medium">
             {lockedOrg}
           </p>
         ) : (
           <Select value={org} onValueChange={setOrg}>
-            <SelectTrigger id={orgId} className="h-8 text-sm !bg-background">
+            <SelectTrigger id={orgId} className="text-sm !bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -74,7 +74,7 @@ export const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = (
           placeholder="e.g. 98234"
           value={judgeNumber}
           onChange={e => setJudgeNumber(e.target.value)}
-          className="h-8 text-sm"
+          className="text-sm"
         />
       </div>
     </div>

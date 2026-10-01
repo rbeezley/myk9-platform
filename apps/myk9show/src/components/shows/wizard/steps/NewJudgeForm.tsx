@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +45,15 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
   const [lastName, setLastName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // The panel (or this form) can close while the create is in flight. The judge
+  // then exists, but there is no roster left to assign into and no state to set.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const canCreateJudge =
     firstName.trim() !== '' &&
@@ -53,7 +62,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
     email.trim() !== '';
 
   const handleCreateJudge = async () => {
-    if (!canCreateJudge) return;
+    if (!canCreateJudge || saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -65,11 +74,12 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
         email: email.trim(),
       };
       const newId = await onCreateJudge(data);
+      if (!mountedRef.current) return;
       onCreated(newId, data);
     } catch {
-      setSaveError('Failed to save. Please try again.');
+      if (mountedRef.current) setSaveError('Failed to save. Please try again.');
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   };
 
@@ -89,7 +99,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
             placeholder="First name"
             value={firstName}
             onChange={e => setFirstName(e.target.value)}
-            className="h-8 text-sm"
+            className="text-sm"
           />
         </div>
         <div className="space-y-1">
@@ -101,7 +111,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
             placeholder="Last name"
             value={lastName}
             onChange={e => setLastName(e.target.value)}
-            className="h-8 text-sm"
+            className="text-sm"
           />
         </div>
       </div>
@@ -123,7 +133,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="h-8 text-sm"
+          className="text-sm"
         />
       </div>
       {saveError && <p className="text-xs text-destructive">{saveError}</p>}
@@ -131,7 +141,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          disabled={saving}
           onClick={onCancel}
           className="w-full sm:w-auto"
         >
@@ -139,7 +149,6 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
         </Button>
         <Button
           type="button"
-          size="sm"
           disabled={!canCreateJudge || saving}
           onClick={handleCreateJudge}
           className="w-full sm:w-auto"

@@ -162,6 +162,30 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
     [data.assignedJudges, form]
   );
 
+  // Completion of an inline judge create runs long after the render that started
+  // it, so it must NOT append to this render's `data.assignedJudges`: toggles made
+  // while the create was pending would be overwritten. Use an updater (applied to
+  // the latest roster) and skip a judge already assigned.
+  const handleJudgeCreated = useCallback(
+    (judgeId: string, judgeName: string) => {
+      form?.setValue('assignedJudges', (previous: unknown) => {
+        const roster = (previous as ShowJudgeAssignment[] | undefined) ?? [];
+        if (roster.some(judge => judge.judgeId === judgeId)) return roster;
+        return [
+          ...roster,
+          {
+            judgeId,
+            judgeName,
+            assignedDate: new Date().toISOString().split('T')[0],
+            availableStartTime: 'Full Day',
+            availableEndTime: 'Full Day',
+          },
+        ];
+      });
+    },
+    [form]
+  );
+
   return (
     <div className="space-y-6 p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -240,7 +264,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
               {data.organization && (
                 <ShowEditAddJudge
                   organization={data.organization}
-                  onJudgeCreated={(id, name) => handleJudgeToggle(id, name, true)}
+                  onJudgeCreated={handleJudgeCreated}
                 />
               )}
               {data.organization ? (

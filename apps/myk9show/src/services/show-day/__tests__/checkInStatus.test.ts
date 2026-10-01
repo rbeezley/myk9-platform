@@ -109,8 +109,6 @@ describe('updateReplicatedCheckInStatus', () => {
         status: 'scratched',
         checkInStatus: 'pulled',
         check_in_status: 'pulled',
-        withdrawalReason: 'Dog absent',
-        withdrawal_reason: 'Dog absent',
         withdrawalReasonCode: null,
         withdrawal_reason_code: null,
       },
@@ -138,7 +136,7 @@ describe('updateReplicatedCheckInStatus', () => {
 
   it('writes the same fields as the Entry Management Pull (one shared pull path)', async () => {
     await updateReplicatedDayOfScratch('entry-1', 'Dog absent');
-    await updateEntryStatus('entry-1', 'scratched', 'Dog absent');
+    await updateEntryStatus('entry-1', 'scratched');
 
     const [dayOf, management] = updateSecretaryLifecycleStatus.mock.calls;
     expect(dayOf?.[1]).toEqual(management?.[1]);

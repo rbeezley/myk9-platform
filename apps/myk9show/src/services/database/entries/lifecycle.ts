@@ -145,7 +145,6 @@ export const rejectEntry = async (entryId: string, reason?: string) => {
  * via the secretary transition (which also sets `check_in_status='pulled'` per
  * the `buildEntryStatusUpdate` helper) and `withdrawal_reason`. Does NOT touch
  * `special_requests`. For day-of pulls that need to overwrite `special_requests`
- * with the pull reason, use `pullEntryDayOf` instead.
  */
 export const pullEntry = async (entryId: string, reason?: string) => {
   const result = await transitionEntryLifecycle({ entryId, action: 'pull', reason });
@@ -205,74 +204,6 @@ export const waitlistEntry = async (entryId: string) => {
     action: 'waitlist_entry',
   });
   return result;
-};
-
-/**
- * Day-of pull — writes `entry_status='scratched'`, `check_in_status='pulled'`,
- * `withdrawal_reason`, and `special_requests` (the last two carry the pull
- * reason so the ringside team sees why the entry was pulled).
- *
- * Pre-show withdrawals that should not overwrite `special_requests`
- * use `pullEntry` (the secretary path) instead.
- */
-export const pullEntryDayOf = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-  const fallbackReason = reason || 'Pulled day-of';
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        withdrawal_reason: fallbackReason,
-        special_requests: fallbackReason,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(
-        `
-        id,
-        entry_status,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'pull_entry_day_of', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'scratch_entry_day_of');
-    }
-
-    await logEntryStatusChange({
-      entryId,
-      fromStatus: undefined,
-      toStatus: 'scratched',
-      action: 'scratch_entry_day_of',
-      reason: fallbackReason,
-      metadata: { checkInStatus: 'pulled' },
-    });
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'scratch_entry_day_of');
-    logQuery('entries', 'pull_entry_day_of', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
 };
 
 // ---------------------------------------------------------------------------

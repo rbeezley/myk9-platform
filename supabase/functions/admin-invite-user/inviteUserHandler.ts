@@ -54,10 +54,32 @@ export interface InviteUserRequest {
    * flow has no person to resolve yet.
    */
   personId?: string;
+  /**
+   * Bulk invites set this (initial dispatch AND every retry). A single resend
+   * deliberately re-invites an existing account by magic link, but a bulk send
+   * is aimed at people who have never signed in: when the resolved identity has
+   * already signed in, nothing is sent and the result is `skipped`. The SERVER
+   * decides this from the live auth record, so no client-side snapshot (a retry
+   * fires minutes later, from a toast) can email someone who has since signed in.
+   */
+  onlyIfNeverSignedIn?: boolean;
 }
 
 /** What actually happened, so the UI can tell the operator the truth. */
 export type InviteOutcome = 'invited' | 'reinvited';
+
+/** The personId no longer exists, so nothing was sent. A normal result, not an error. */
+export interface InviteNotFoundResult {
+  ok: true;
+  outcome: 'not_found';
+}
+
+/** No email was sent because `onlyIfNeverSignedIn` found a signed-in account. A normal result, not an error. */
+export interface InviteSkippedResult {
+  ok: true;
+  outcome: 'skipped';
+  reason: 'already_signed_in';
+}
 
 export interface InviteUserResult {
   ok: true;
@@ -166,7 +188,14 @@ export function resolveInviteRedirect(siteUrl: string, safePath: string): string
  * reserved for a person genuinely without an identity — the ordinary
  * first-invite case.
  */
-type IdentityLookup = { status: 'none' } | { status: 'found'; email: string } | { status: 'error' };
+type IdentityLookup =
+  // `email` is the person row's CURRENT contact email, read here and never taken
+  // from the request: a bulk batch queues calls, so an email the client captured
+  // at dispatch can be stale by the time its call runs.
+  | { status: 'none'; email: string | null }
+  | { status: 'not_found' }
+  | { status: 'found'; email: string; hasSignedIn: boolean }
+  | { status: 'error' };
 
 async function resolveIdentityEmail(
   supabase: HandlerCtx<InviteUserRequest>['supabase'],
@@ -174,14 +203,19 @@ async function resolveIdentityEmail(
 ): Promise<IdentityLookup> {
   const { data: person, error } = await supabase
     .from('people')
-    .select('auth_user_id')
+    .select('auth_user_id, email')
     .eq('id', personId)
     .is('deleted_at', null)
     .maybeSingle();
 
   if (error) return { status: 'error' };
-  if (!person) return { status: 'error' };
-  if (!person.auth_user_id) return { status: 'none' };
+  // No error and no row: the person was deleted or never existed. Distinct from
+  // a failed lookup; this is a definite answer, so nothing is sent.
+  if (!person) return { status: 'not_found' };
+  if (!person.auth_user_id) {
+    const rowEmail = typeof person.email === 'string' ? person.email.trim().toLowerCase() : '';
+    return { status: 'none', email: rowEmail || null };
+  }
 
   const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(
     person.auth_user_id
@@ -190,7 +224,11 @@ async function resolveIdentityEmail(
   // that is a broken state, not an invitation opportunity.
   if (authError || !authUser?.user?.email) return { status: 'error' };
 
-  return { status: 'found', email: authUser.user.email };
+  return {
+    status: 'found',
+    email: authUser.user.email,
+    hasSignedIn: !!authUser.user.last_sign_in_at,
+  };
 }
 
 /** GoTrue signals "this email already has an auth user" in several shapes. */
@@ -204,7 +242,7 @@ function isAlreadyRegistered(error: { message?: string; code?: string } | null):
 export async function inviteUserHandler(
   { body, user, supabase }: HandlerCtx<InviteUserRequest>,
   deps: InviteUserDeps
-): Promise<InviteUserResult> {
+): Promise<InviteUserResult | InviteSkippedResult | InviteNotFoundResult> {
   if (!user) {
     throw new HttpError(401, 'Authentication failed');
   }
@@ -226,7 +264,11 @@ export async function inviteUserHandler(
   // resolveIdentityEmail for why they can disagree.
   const lookup: IdentityLookup = body.personId
     ? await resolveIdentityEmail(supabase, body.personId)
-    : { status: 'none' };
+    : { status: 'none', email: null };
+
+  if (lookup.status === 'not_found') {
+    return { ok: true, outcome: 'not_found' };
+  }
 
   if (lookup.status === 'error') {
     // Abort rather than guess. Falling back to the contact email here is what
@@ -234,8 +276,21 @@ export async function inviteUserHandler(
     throw new HttpError(503, 'Could not verify this account. Please try again.');
   }
 
+  // Bulk guard, read from the live auth record just resolved. Before the email
+  // machinery so nothing is minted or sent for someone who has signed in.
+  if (body.onlyIfNeverSignedIn && lookup.status === 'found' && lookup.hasSignedIn) {
+    return { ok: true, outcome: 'skipped', reason: 'already_signed_in' };
+  }
+
   const identityEmail = lookup.status === 'found' ? lookup.email : null;
-  const email = identityEmail ?? requestedEmail;
+  // With a personId the SERVER is authoritative for the address: the identity's
+  // email if linked, else the person row's current contact email. The request's
+  // email is only the address for a brand-new invite that has no person yet.
+  const rowEmail = body.personId && lookup.status === 'none' ? lookup.email : null;
+  if (body.personId && lookup.status === 'none' && !rowEmail) {
+    throw new HttpError(400, 'This person has no email address');
+  }
+  const email = identityEmail ?? rowEmail ?? requestedEmail;
 
   // Only allow same-origin destinations; a caller-supplied absolute URL would
   // make this an open redirect that leaks a single-use credential. `//host` is

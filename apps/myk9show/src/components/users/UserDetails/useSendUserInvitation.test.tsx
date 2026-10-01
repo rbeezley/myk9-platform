@@ -127,6 +127,21 @@ describe('useSendUserInvitation', () => {
     );
   });
 
+  it.each([
+    ['not_found', 'This person no longer exists — no invitation was sent.'],
+    ['skipped', 'This person has already signed in — no invitation was sent.'],
+  ])('reports a %s outcome as an error, never as "sent"', async (outcome, message) => {
+    // The function answers 200 for these, so `error` is null; only the outcome
+    // says nothing was sent.
+    mockSupabase.functions.invoke.mockResolvedValue({ data: { ok: true, outcome }, error: null });
+    const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
+
+    act(() => result.current.sendInvitation(ARGS));
+
+    await waitFor(() => expect(notifications.error).toHaveBeenCalledWith(message));
+    expect(notifications.success).not.toHaveBeenCalled();
+  });
+
   it('refuses to call the function when there is no email on file', async () => {
     const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
 

@@ -129,6 +129,41 @@ describe('useBulkDispatch', () => {
     expect(runItem).not.toHaveBeenCalled();
   });
 
+  it('a throwing eligibility check reports instead of rejecting, and releases the latch', async () => {
+    let broken = true;
+    const applicableWhen = vi.fn(() => {
+      if (broken) throw new Error('registry offline');
+      return true;
+    });
+    const { result } = renderHook(() =>
+      useBulkDispatch<Item>({ getLabel: i => i.id, applicableWhen })
+    );
+    const runItem = vi.fn<(i: Item) => Promise<void>>(async () => {
+      throw new Error('boom');
+    });
+    await act(async () => {
+      await result.current.run([item('a')], runItem);
+    });
+    runItem.mockClear();
+
+    await act(async () => {
+      retryActionFromCall().onClick(mouseEvent());
+    });
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenLastCalledWith(expect.stringContaining('registry offline'))
+    );
+    expect(runItem).not.toHaveBeenCalled();
+    expect(result.current.isBusy).toBe(false);
+
+    // The latch is free: a second retry runs.
+    broken = false;
+    runItem.mockResolvedValue(undefined);
+    await act(async () => {
+      retryActionFromCall().onClick(mouseEvent());
+    });
+    await waitFor(() => expect(runItem).toHaveBeenCalledOnce());
+  });
+
   it('attaches an Undo action to the full-success toast when buildUndo is provided', async () => {
     const onUndo = vi.fn();
     const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));

@@ -139,70 +139,132 @@ describe('useBulkAccountActions', () => {
     await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['users'] }));
   });
 
-  // MYK9-835 stale-data case: a status change lands (from elsewhere) after the
-  // initial dispatch but before a retry fires. The retry must re-check this
-  // action's eligibility against the CURRENT roster, not the roster at the
-  // time the batch was first sent.
-  it('retry skips a person whose status changed after the initial dispatch', async () => {
-    mutateAsync.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('boom'));
-    const roster = rosterOf(user('a'), user('b'));
-    const { result, rerender } = renderHook(
-      ({ usersById }: { usersById: Map<string, AdminUser> }) =>
-        useBulkAccountActions({
-          selectedIds: ['a', 'b'],
-          usersById,
-          onClearSelection: vi.fn(),
-        }),
-      { initialProps: { usersById: roster } }
+  // MYK9-835, server-authoritative: a retry fires from a toast AFTER the bar has
+  // unmounted, so it must not trust any client snapshot. It re-dispatches the
+  // failed ids with `onlyIfNeverSignedIn`, and `admin-invite-user` answers with
+  // its real outcome shape when the person has since signed in.
+  it('retry after the bar unmounted re-sends with the server guard, and reports a sign-in as skipped', async () => {
+    invokeAdminInvite.mockRejectedValueOnce(new Error('mail down'));
+    const roster = rosterOf(user('a'));
+    const { result, unmount } = renderHook(() =>
+      useBulkAccountActions({ selectedIds: ['a'], usersById: roster, onClearSelection: vi.fn() })
     );
-
     await act(async () => {
-      await result.current.run('suspend');
+      await result.current.run('invite');
     });
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    // The run cleared the selection, which unmounts the bar.
+    unmount();
 
-    // Someone else already suspended "b" before the retry fires.
-    const updated = rosterOf(user('a'), user('b', { status: 'suspended' }));
-    rerender({ usersById: updated });
-
-    mutateAsync.mockClear();
+    // "a" signed in meanwhile; the SERVER says so.
+    invokeAdminInvite.mockClear();
+    invokeAdminInvite.mockResolvedValue({
+      data: { ok: true, outcome: 'skipped', reason: 'already_signed_in' },
+    });
     await act(async () => {
       retryActionFromCall().onClick();
       await Promise.resolve();
     });
 
-    // "b" is no longer eligible for Suspend (already suspended) — it must be
-    // skipped, not re-attempted.
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('no longer eligible'));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('1 already signed in — not re-invited', undefined)
+    );
+    expect(invokeAdminInvite).toHaveBeenCalledOnce();
+    expect(invokeAdminInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ personId: 'a', onlyIfNeverSignedIn: true })
+    );
+    // A skip is neither a failure nor offered for another retry.
+    expect(toast.error).toHaveBeenCalledOnce();
   });
 
-  // MYK9-835 stale-data case: the person signs in between selection and a
-  // retry of a failed "Send invitation" — an invite must not go out to them.
-  it('retry skips a person who signed in after the initial invite dispatch', async () => {
-    invokeAdminInvite.mockRejectedValueOnce(new Error('boom'));
-    const roster = rosterOf(user('a'));
-    const { result, rerender } = renderHook(
-      ({ usersById }: { usersById: Map<string, AdminUser> }) =>
-        useBulkAccountActions({ selectedIds: ['a'], usersById, onClearSelection: vi.fn() }),
-      { initialProps: { usersById: roster } }
+  it('the initial bulk invite also sends the server guard and reports skips honestly', async () => {
+    invokeAdminInvite.mockImplementation(async ({ personId }: { personId: string }) => ({
+      data:
+        personId === 'a'
+          ? { ok: true, outcome: 'skipped', reason: 'already_signed_in' }
+          : { ok: true, outcome: 'invited' },
+    }));
+    const roster = rosterOf(user('a'), user('b'));
+    const { result } = renderHook(() =>
+      useBulkAccountActions({
+        selectedIds: ['a', 'b'],
+        usersById: roster,
+        onClearSelection: vi.fn(),
+      })
     );
 
     await act(async () => {
       await result.current.run('invite');
     });
+
+    for (const [arg] of invokeAdminInvite.mock.calls) {
+      expect(arg).toMatchObject({ onlyIfNeverSignedIn: true });
+    }
+    expect(toast.success).toHaveBeenCalledWith(
+      'Updated 1 — 1 already signed in — not re-invited',
+      undefined
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a restore refusal as an ordinary failure with the server message', async () => {
+    restoreUser.mockResolvedValue({
+      error: { code: 'P0002', message: 'Person not found or not deleted' },
+    });
+    const roster = rosterOf(user('a', { deletedAt: new Date().toISOString() }));
+    const { result } = renderHook(() =>
+      useBulkAccountActions({ selectedIds: ['a'], usersById: roster, onClearSelection: vi.fn() })
+    );
+
+    await act(async () => {
+      await result.current.run('restore');
+    });
+
+    // P0002 covers "not deleted" AND "no longer exists", so it is not guessed at.
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as { description?: string };
+    expect(options.description).toContain('Person not found or not deleted');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('reports an invitee the server says no longer exists as skipped, not failed', async () => {
+    invokeAdminInvite.mockResolvedValue({ data: { ok: true, outcome: 'not_found' } });
+    const roster = rosterOf(user('a'));
+    const { result } = renderHook(() =>
+      useBulkAccountActions({ selectedIds: ['a'], usersById: roster, onClearSelection: vi.fn() })
+    );
+
+    await act(async () => {
+      await result.current.run('invite');
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('1 no longer exists — not invited', undefined);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('retrying suspend re-dispatches the failed ids; the status write is idempotent server-side', async () => {
+    mutateAsync.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('boom'));
+    const roster = rosterOf(user('a'), user('b'));
+    const { result } = renderHook(() =>
+      useBulkAccountActions({
+        selectedIds: ['a', 'b'],
+        usersById: roster,
+        onClearSelection: vi.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current.run('suspend');
+    });
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
 
-    const signedIn = rosterOf(user('a', { lastSignInAt: '2026-09-26T00:00:00Z' }));
-    rerender({ usersById: signedIn });
-
-    invokeAdminInvite.mockClear();
+    mutateAsync.mockClear();
+    mutateAsync.mockResolvedValue({});
     await act(async () => {
       retryActionFromCall().onClick();
       await Promise.resolve();
     });
 
-    expect(invokeAdminInvite).not.toHaveBeenCalled();
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'b', updates: { status: 'suspended' } });
   });
 
   it('a person who signs in between selection and dispatch is never a suspend/invite target', () => {

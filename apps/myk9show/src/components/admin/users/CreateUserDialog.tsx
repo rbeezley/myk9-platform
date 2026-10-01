@@ -32,6 +32,7 @@ import { ensureCreatedUserRole } from './ensureCreatedUserRole';
 
 import { User } from '@/types/user-types';
 import { getRoleLabel } from './UserTable/types';
+import { inviteNotSentMessage } from '@/components/users/UserDetails/inviteOutcome';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import {
@@ -162,6 +163,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         },
       });
       if (error) throw error;
+      const notSent = inviteNotSentMessage(data);
+      if (notSent) throw new Error(notSent);
 
       if (failedRoles.length) {
         reportGrantFailures('Invitation sent with only the assigned roles.');

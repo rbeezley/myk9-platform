@@ -214,6 +214,20 @@ describe('CreateUserDialog — never reports what did not happen', () => {
     expect(screen.getByText(/contact record only/i)).toBeInTheDocument();
   });
 
+  it('never reports "sent" when the function says nothing was sent', async () => {
+    mockSupabase.functions.invoke.mockResolvedValue({
+      data: { ok: true, outcome: 'not_found' },
+      error: null,
+    });
+
+    renderDialog();
+    fillRequired();
+    submit();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it('reports a failed invitation as a failure, not a success', async () => {
     mockSupabase.functions.invoke.mockResolvedValue({
       data: null,

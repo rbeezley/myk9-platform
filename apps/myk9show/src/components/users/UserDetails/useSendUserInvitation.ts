@@ -19,16 +19,25 @@ import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
+import { inviteNotSentMessage } from './inviteOutcome';
 
 export interface SendInvitationArgs {
   personId: string;
   email: string | null | undefined;
   firstName?: string | null | undefined;
   roleNames?: string[] | undefined;
+  /**
+   * Bulk sends set this: the SERVER then declines (outcome 'skipped', no email)
+   * for an account that has already signed in, judged from the live auth
+   * record rather than any client snapshot. A single resend leaves it unset and
+   * keeps re-inviting by design.
+   */
+  onlyIfNeverSignedIn?: boolean | undefined;
 }
 
-interface InviteResponse {
-  outcome?: 'invited' | 'reinvited';
+export interface InviteResponse {
+  outcome?: 'invited' | 'reinvited' | 'skipped' | 'not_found';
+  reason?: 'already_signed_in';
   /** The address the link actually went to — may differ from the contact email. */
   deliveredTo?: string;
 }
@@ -42,6 +51,7 @@ export async function invokeAdminInvite({
   email,
   firstName,
   roleNames,
+  onlyIfNeverSignedIn,
 }: SendInvitationArgs): Promise<{ data: InviteResponse | null }> {
   if (!email) {
     throw new Error('NO_EMAIL');
@@ -55,6 +65,7 @@ export async function invokeAdminInvite({
       // address was edited after signup can no longer be found by it. The
       // function resolves the identity from this instead. MYK9-134.
       personId,
+      ...(onlyIfNeverSignedIn ? { onlyIfNeverSignedIn: true } : {}),
     },
   });
   if (error) throw error;
@@ -72,6 +83,13 @@ export function useSendUserInvitation() {
   const mutation = useMutation({
     mutationFn: invokeAdminInvite,
     onSuccess: ({ data }) => {
+      // A 200 can still mean nothing was sent (person gone / already signed in).
+      const notSent = inviteNotSentMessage(data);
+      if (notSent) {
+        notifications.error(notSent);
+        queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+        return;
+      }
       // Name the address the backend ACTUALLY delivered to. It differs from the
       // contact email whenever that address drifted from the auth identity, and
       // announcing the wrong one would be the same lie this feature exists to

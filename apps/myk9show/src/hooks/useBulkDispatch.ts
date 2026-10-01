@@ -238,7 +238,11 @@ export function useBulkDispatch<T>({
           // and the caller's prior-state map covers these items too).
           showSummary(
             retriedCount,
-            { succeeded: outcome.succeeded, failed: outcome.failed },
+            {
+              succeeded: outcome.succeeded,
+              failed: outcome.failed,
+              ...(outcome.declined ? { declined: outcome.declined } : {}),
+            },
             runItem,
             buildUndo,
             onFullSuccess,
@@ -247,6 +251,11 @@ export function useBulkDispatch<T>({
             onClaimedFailures
           );
         }
+      } catch (error) {
+        // `retry` runs from a toast click as `void retry(...)`, so a throw here
+        // (e.g. a throwing `applicableWhen`) would be an unhandled rejection with
+        // no feedback. Nothing ran; say so, and the `finally` frees the latch.
+        toast.error(`Retry could not run: ${errorReason(error)}`);
       } finally {
         inFlightRef.current = false;
         setIsBusy(false);

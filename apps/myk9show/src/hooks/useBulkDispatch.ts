@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
 import {
+  BulkVerificationUnavailableError,
   dispatchBulk,
   errorReason,
   retryFailedItems,
@@ -188,7 +189,8 @@ export function useBulkDispatch<T>({
                       buildUndo,
                       onFullSuccess,
                       claimFailure,
-                      onClaimedFailures
+                      onClaimedFailures,
+                      showFailureToast
                     );
                   },
                 },
@@ -210,7 +212,8 @@ export function useBulkDispatch<T>({
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
       claimFailure?: (item: T, error: unknown) => boolean,
-      onClaimedFailures?: (items: T[]) => void
+      onClaimedFailures?: (items: T[]) => void,
+      reshowFailure?: (note: string) => void
     ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -246,6 +249,16 @@ export function useBulkDispatch<T>({
             claimFailure,
             onClaimedFailures
           );
+        }
+      } catch (error) {
+        // `retry` runs from a toast click as `void retry(...)`, so a throw here
+        // would be an unhandled rejection with no feedback. Nothing ran.
+        if (error instanceof BulkVerificationUnavailableError && reshowFailure) {
+          // Could not verify eligibility: nobody was acted on, so put the failure
+          // report (and its Retry action) back with the reason.
+          reshowFailure(error.message);
+        } else {
+          toast.error(`Retry could not run: ${errorReason(error)}`);
         }
       } finally {
         inFlightRef.current = false;

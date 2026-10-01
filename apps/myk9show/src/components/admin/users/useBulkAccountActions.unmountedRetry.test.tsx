@@ -9,7 +9,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { queryKeys } from '@/lib/queryClient';
 
@@ -33,6 +33,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 import { toast } from 'sonner';
 import { useBulkAccountActions } from './useBulkAccountActions';
+import { ROSTER_REFRESH_TIMEOUT_MS } from './liveRoster';
 
 function person(id: string, patch: Partial<AdminUser> = {}): AdminUser {
   return {
@@ -56,20 +57,46 @@ function retryAction(): { onClick: () => void } {
 describe('bulk retry after the bar unmounted', () => {
   let server: AdminUser[];
   let queryClient: QueryClient;
+  let unsubscribe: () => void;
+  let serverMode: 'ok' | 'fail' | 'hang';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    serverMode = 'ok';
     server = [person('a'), person('b')];
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     // The page keeps the roster query mounted for the whole session.
     const observer = new QueryObserver(queryClient, {
       queryKey: [...queryKeys.users.all, 'admin', { showDeleted: false }],
-      queryFn: async () => server,
+      queryFn: async () => {
+        if (serverMode === 'fail') throw new Error('offline');
+        if (serverMode === 'hang') return new Promise<AdminUser[]>(() => {});
+        return server;
+      },
     });
-    observer.subscribe(() => {});
+    unsubscribe = observer.subscribe(() => {});
   });
 
-  async function dispatchThenUnmount(action: 'invite' | 'suspend') {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The last toast.error call's options, i.e. what the user is looking at. */
+  function latestFailureToast() {
+    const calls = vi.mocked(toast.error).mock.calls;
+    return calls[calls.length - 1]?.[1] as
+      { description?: string; action?: { onClick: () => void } } | undefined;
+  }
+
+  function expectCouldntRefresh() {
+    const shown = latestFailureToast();
+    expect(shown?.description).toContain("Couldn't refresh the user list — nothing was retried.");
+    // Nobody was verified ineligible, so no "skipped" claim — and Retry is back.
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(shown?.action).toBeDefined();
+  }
+
+  async function dispatchThenUnmount(action: 'invite' | 'suspend' | 'reinstate') {
     await queryClient.refetchQueries({ queryKey: queryKeys.users.all });
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -126,5 +153,94 @@ describe('bulk retry after the bar unmounted', () => {
       expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('no longer eligible'))
     );
     expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('reinstate retries through the live roster too', async () => {
+    server = [person('a', { status: 'suspended' }), person('b', { status: 'suspended' })];
+    mutateAsync.mockRejectedValue(new Error('boom'));
+    await dispatchThenUnmount('reinstate');
+
+    // "a" was reinstated by someone else; "b" is still suspended.
+    server = [person('a'), person('b', { status: 'suspended' })];
+    mutateAsync.mockClear();
+    mutateAsync.mockResolvedValue({});
+    await act(async () => {
+      retryAction().onClick();
+    });
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'b', updates: { status: 'active' } });
+  });
+
+  it('says it could not verify, and offers Retry again, when no roster is mounted', async () => {
+    mutateAsync.mockRejectedValue(new Error('boom'));
+    await dispatchThenUnmount('suspend');
+    unsubscribe(); // the admin navigated away from Users
+
+    mutateAsync.mockClear();
+    await act(async () => {
+      retryAction().onClick();
+    });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expectCouldntRefresh();
+  });
+
+  it('says it could not verify when the roster refresh rejects', async () => {
+    mutateAsync.mockRejectedValue(new Error('boom'));
+    await dispatchThenUnmount('suspend');
+    serverMode = 'fail';
+
+    mutateAsync.mockClear();
+    await act(async () => {
+      retryAction().onClick();
+    });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expectCouldntRefresh();
+  });
+
+  it('gives up on a roster refresh that hangs, releasing the latch', async () => {
+    mutateAsync.mockRejectedValue(new Error('boom'));
+    await dispatchThenUnmount('suspend');
+    serverMode = 'hang';
+
+    mutateAsync.mockClear();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await act(async () => {
+      retryAction().onClick();
+      await vi.advanceTimersByTimeAsync(ROSTER_REFRESH_TIMEOUT_MS + 1);
+    });
+    vi.useRealTimers();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expectCouldntRefresh();
+  });
+
+  it('runs once when Retry is clicked twice in a row', async () => {
+    invokeAdminInvite.mockRejectedValue(new Error('mail down'));
+    await dispatchThenUnmount('invite');
+
+    invokeAdminInvite.mockClear();
+    invokeAdminInvite.mockResolvedValue({});
+    const retry = retryAction();
+    await act(async () => {
+      // The busy branch calls event.preventDefault() (sonner passes the click).
+      const click = retry.onClick as (event: { preventDefault: () => void }) => void;
+      click({ preventDefault: vi.fn() });
+      click({ preventDefault: vi.fn() });
+    });
+
+    await waitFor(() => expect(invokeAdminInvite).toHaveBeenCalledTimes(2));
+    // Two people, one run: the second click hit the in-flight latch. Give a
+    // wrongly-admitted second run time to show itself before asserting.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(invokeAdminInvite).toHaveBeenCalledTimes(2);
+    expect(new Set(invokeAdminInvite.mock.calls.map(([arg]) => arg.personId))).toEqual(
+      new Set(['a', 'b'])
+    );
   });
 });

@@ -26,6 +26,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
+import { BulkVerificationUnavailableError } from '@/hooks/bulkDispatch';
 import { useUpdateUserMutation, type AdminUser } from '@/hooks/queries/useUsersQuery';
 import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
@@ -117,10 +118,17 @@ export function useBulkAccountActions({
       // Re-resolve THIS action's eligibility against a roster refetched now —
       // not anything captured at dispatch — so a person who signed in, changed
       // status, or left the roster in between is skipped, not re-run (MYK9-835).
-      // No refreshable roster means no one can be confirmed eligible: skip all.
+      // No refreshable roster means no one can be confirmed eligible: nobody is
+      // acted on, and the retry says it COULD NOT VERIFY rather than claiming
+      // anyone is ineligible.
       applicableWhen: async id => {
         const fresh = await refreshLiveRoster(queryClient);
-        return !!fresh && isEligible(action, id, fresh, currentUserId);
+        if (!fresh) {
+          throw new BulkVerificationUnavailableError(
+            "Couldn't refresh the user list — nothing was retried."
+          );
+        }
+        return isEligible(action, id, fresh, currentUserId);
       },
     });
     // null = a batch is already in flight; nothing ran, so change nothing.

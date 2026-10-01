@@ -77,6 +77,19 @@ export async function dispatchBulk<T>(
  * items that became ineligible since the first attempt (e.g. another user changed
  * their status) are reported as `skipped`, not re-attempted and not counted as errors.
  */
+/**
+ * Thrown by an `applicableWhen` that could not decide (e.g. the live data it
+ * needs is unreachable). Distinct from `false`, which means "checked, and no
+ * longer eligible": the retry runs NOTHING, reports the message instead of a
+ * misleading "skipped", and keeps the Retry action available.
+ */
+export class BulkVerificationUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BulkVerificationUnavailableError';
+  }
+}
+
 export async function retryFailedItems<T>(
   failedItems: readonly T[],
   applicableWhen: (item: T) => boolean | Promise<boolean>,

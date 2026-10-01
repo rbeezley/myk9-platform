@@ -15,6 +15,9 @@ import { queryKeys } from '@/lib/queryClient';
 
 const ROSTER_KEY = [...queryKeys.users.all, 'admin'] as const;
 
+/** How long a retry waits for the roster before treating it as unverifiable. */
+export const ROSTER_REFRESH_TIMEOUT_MS = 8000;
+
 function activeRosterQueries(queryClient: QueryClient) {
   return queryClient.getQueryCache().findAll({ queryKey: ROSTER_KEY, type: 'active' });
 }
@@ -43,10 +46,29 @@ export async function refreshLiveRoster(
 ): Promise<Map<string, AdminUser> | null> {
   const queries = activeRosterQueries(queryClient);
   if (queries.length === 0) return null;
+  // No retry/backoff and a hard deadline: offline, a fetch pauses (networkMode
+  // 'online') and retries back off, which would hold the dispatch latch for
+  // minutes. A refresh that cannot finish quickly is "could not verify".
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new Error('roster refresh timed out')),
+      ROSTER_REFRESH_TIMEOUT_MS
+    );
+  });
   try {
-    await Promise.all(queries.map(query => query.fetch()));
+    await Promise.race([
+      Promise.all(
+        queries.map(query =>
+          queryClient.fetchQuery({ queryKey: query.queryKey, retry: false, staleTime: 0 })
+        )
+      ),
+      deadline,
+    ]);
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
   return readLiveRoster(queryClient);
 }

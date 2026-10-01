@@ -65,8 +65,14 @@ export function resolveEditMode({
  */
 const SUPPORTED_EDIT_MODES = ['add-trials', 'add-classes'] as const;
 
-export function parseEditMode(showId: string | null, mode: string | null): EditMode | undefined {
+export function parseEditMode(
+  showId: string | null,
+  mode: string | null,
+  trialId?: string | null
+): EditMode | undefined {
   if (!showId || !mode) return undefined;
   const match = SUPPORTED_EDIT_MODES.find(supported => supported === mode);
-  return match ? { showId, mode: match } : undefined;
+  if (!match) return undefined;
+  // Only `add-classes` has a per-trial focus; add-trials works on the whole show.
+  return match === 'add-classes' && trialId ? { showId, mode: match, trialId } : { showId, mode: match };
 }

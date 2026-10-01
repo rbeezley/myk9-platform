@@ -14,6 +14,7 @@ import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/status';
 import { ListViewTabs } from '@/components/list-toolkit';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import {
   activeClassesTabViewId,
   buildClassesTabViews,
@@ -226,8 +227,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           canManage
             ? {
                 label: 'Add Classes',
-                onClick: () =>
-                  navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`),
+                onClick: () => navigate(getAddClassesHref(showId)),
                 icon: Plus,
               }
             : null
@@ -254,9 +254,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           {canManage && (
             <Button
               size="sm"
-              onClick={() =>
-                navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`)
-              }
+              onClick={() => navigate(getAddClassesHref(showId))}
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" />

@@ -166,7 +166,6 @@ pnpm test:e2e:clean \
   src/test/e2e/uat/secretary/disposable-entry.spec.ts \
   src/test/e2e/uat/secretary/evidence.spec.ts \
   src/test/e2e/secretary/show-creation-wizard.spec.ts \
-  src/test/e2e/secretary/classCreation.spec.ts \
   src/test/e2e/registration/secretaryExistingUsers.spec.ts \
   src/test/e2e/registration/index.spec.ts \
   src/test/e2e/registration/singleDogSingleClass.spec.ts \

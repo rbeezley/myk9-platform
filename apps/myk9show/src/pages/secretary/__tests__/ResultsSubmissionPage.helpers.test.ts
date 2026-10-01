@@ -86,12 +86,12 @@ describe('buildAKCSubmissionReadiness', () => {
       // The remedy, in secretary vocabulary — the class edit form shows these
       // three fields read-only, so "check the class setup" would go nowhere.
       // Names the real gesture, surface by surface: Classes -> Add Classes ->
-      // Select Template -> Choose Classes.
+      // Select Template -> Select Classes.
       expect(result.details).toContain('Delete this class, then add it again: go to Classes');
       expect(result.details).toContain('choose Add Classes');
       expect(result.details).toContain('then pick the AKC template');
       expect(result.details).toContain('under Select Template');
-      expect(result.details).toContain('tick the class under Choose Classes');
+      expect(result.details).toContain('tick the class under Select Classes');
       expect(result.details).toContain('move those entries to another class first');
       expect(result.details).not.toMatch(/class code|contact support/i);
     });
@@ -145,7 +145,7 @@ describe('buildAKCSubmissionReadiness', () => {
           'Vehicle Novice A (element "Vehicle", level "Novice", section "A").'
       );
       expect(result.details).toContain('Delete these classes, then add them again: go to Classes');
-      expect(result.details).toContain('tick each class under Choose Classes');
+      expect(result.details).toContain('tick each class under Select Classes');
     });
 
     it('outranks the no-entries verdict', () => {

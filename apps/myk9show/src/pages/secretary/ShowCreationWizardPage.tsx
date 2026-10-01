@@ -71,7 +71,8 @@ const ShowCreationWizardPage: React.FC = () => {
   // string into an EditModeType.
   const editMode: EditMode | undefined = parseEditMode(
     searchParams.get('showId'),
-    searchParams.get('mode')
+    searchParams.get('mode'),
+    searchParams.get('trialId')
   );
 
   const {

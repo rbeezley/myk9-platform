@@ -10,6 +10,7 @@ import {
   TrialManagementDialogs,
   type TrialManagementDialogsHandle,
 } from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { TabsContent } from '@/components/ui/tabs';
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
@@ -302,7 +303,12 @@ const TrialDetailsPage: React.FC = () => {
   // state + save/delete logic); the page only opens them via the ref.
   const handleEditTrial = () => dialogsRef.current?.openEditTrial();
   const handleDeleteTrial = () => dialogsRef.current?.openDeleteTrial();
-  const handleAddClassesFromTemplate = () => dialogsRef.current?.openAddClasses();
+  // One class-create flow: the show wizard's add-classes mode, opened on this trial.
+  // No resolvable show means no flow to open, so the button is withheld, not dead.
+  const addClassesShowId = currentTrial?.showId || showId;
+  const handleAddClassesFromTemplate = addClassesShowId
+    ? () => navigate(getAddClassesHref(addClassesShowId, trialId))
+    : undefined;
   const handleEditClass = (classItem: TrialClass) => dialogsRef.current?.openEditClass(classItem);
   const handleDeleteClass = (classItem: TrialClass) =>
     dialogsRef.current?.openDeleteClass(classItem);
@@ -371,7 +377,9 @@ const TrialDetailsPage: React.FC = () => {
                 trial={trialWithClasses}
                 statistics={trialStatistics}
                 canManage={canManageTrial}
-                onAddClassesFromTemplate={handleAddClassesFromTemplate}
+                {...(handleAddClassesFromTemplate && {
+                  onAddClassesFromTemplate: handleAddClassesFromTemplate,
+                })}
                 onEditClass={handleEditClass}
                 onDeleteClass={handleDeleteClass}
               />
@@ -399,7 +407,6 @@ const TrialDetailsPage: React.FC = () => {
           ref={dialogsRef}
           currentTrial={currentTrial}
           parentShow={parentShow}
-          existingClasses={trialWithClasses?.classes || []}
           entryCountByClass={entryCountByClass}
         />
       )}

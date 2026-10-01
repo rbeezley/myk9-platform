@@ -7,6 +7,7 @@
 
 import { lazy, useEffect, useRef, useState } from 'react';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { LegacyTrialClassCreateRedirect } from './LegacyClassCreateRedirect';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -30,9 +31,6 @@ const TrialPipelineDetail = lazy(
 );
 
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
-const ClassCreationPage = lazy(() =>
-  import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
-);
 // Secretary components
 const SecretaryClassDashboard = lazy(() =>
   import('@/components/secretary/SecretaryClassDashboard').then(m => ({
@@ -466,18 +464,7 @@ export const SecretaryRoutes = () => (
     />
 
     {/* Class management (previously standalone, now inside unified layout) */}
-    <Route
-      path="/trials/:trialId/classes/create"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassCreationPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/trials/:trialId/classes/create" element={<LegacyTrialClassCreateRedirect />} />
     <Route
       path="/trials/:trialId/classes"
       element={

@@ -80,6 +80,22 @@ describe('parseEditMode', () => {
     expect(parseEditMode('show-1', mode)).toBeUndefined();
   });
 
+  it('carries trialId for add-classes only (MYK9-899)', () => {
+    expect(parseEditMode('show-1', 'add-classes', 'trial-1')).toEqual({
+      showId: 'show-1',
+      mode: 'add-classes',
+      trialId: 'trial-1',
+    });
+    expect(parseEditMode('show-1', 'add-classes', '')).toEqual({
+      showId: 'show-1',
+      mode: 'add-classes',
+    });
+    expect(parseEditMode('show-1', 'add-trials', 'trial-1')).toEqual({
+      showId: 'show-1',
+      mode: 'add-trials',
+    });
+  });
+
   it('requires both halves', () => {
     expect(parseEditMode(null, 'add-trials')).toBeUndefined();
     expect(parseEditMode('show-1', null)).toBeUndefined();

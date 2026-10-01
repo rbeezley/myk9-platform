@@ -13,10 +13,6 @@ import type { Show } from '@/types/show-types';
 // The dialogs themselves are mocked to testid stubs; this suite verifies that
 // the imperative open* methods drive the right dialog open, and that the
 // delete-class copy reflects the entry count.
-vi.mock('@/components/classes/AddClassesToTrialPanel', () => ({
-  AddClassesToTrialPanel: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="add-classes-panel" /> : null,
-}));
 vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
   TrialEditPanel: ({ open }: { open: boolean }) =>
     open ? <div data-testid="edit-trial-panel" /> : null,
@@ -55,16 +51,10 @@ vi.mock('@/store/trialStore', () => {
   return { useTrialStore: hook };
 });
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ addClass: vi.fn(), updateClass: vi.fn(), deleteClass: vi.fn() }),
+  useClassStoreCompat: () => ({ updateClass: vi.fn(), deleteClass: vi.fn() }),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'u1' } }),
-}));
-vi.mock('@/store/templateStore', () => ({
-  useTemplateStore: () => ({ templates: [], loadTemplatesFromDB: vi.fn() }),
-}));
-vi.mock('@/hooks/useTrialTemplates', () => ({
-  useTrialTemplates: () => ({ handleSaveClassesFromTemplate: vi.fn() }),
 }));
 
 function makeTrial(): TrialWithClasses {
@@ -87,7 +77,6 @@ function renderDialogs(overrides: Partial<TrialManagementDialogsProps> = {}) {
   const props: TrialManagementDialogsProps = {
     currentTrial: makeTrial(),
     parentShow: { id: 's1', organization: 'AKC' } as Show,
-    existingClasses: [],
     entryCountByClass: new Map(),
     ...overrides,
   };
@@ -103,7 +92,6 @@ describe('TrialManagementDialogs', () => {
     renderDialogs();
     expect(screen.queryByTestId('edit-trial-panel')).toBeNull();
     expect(screen.queryByTestId('delete-trial-dialog')).toBeNull();
-    expect(screen.queryByTestId('add-classes-panel')).toBeNull();
     expect(screen.queryByTestId('edit-class-panel')).toBeNull();
     expect(screen.queryByTestId('delete-class-dialog')).toBeNull();
   });
@@ -118,12 +106,6 @@ describe('TrialManagementDialogs', () => {
     const { ref } = renderDialogs();
     act(() => ref.current?.openDeleteTrial());
     expect(screen.getByTestId('delete-trial-dialog')).toBeInTheDocument();
-  });
-
-  it('openAddClasses() opens the add-classes panel', () => {
-    const { ref } = renderDialogs();
-    act(() => ref.current?.openAddClasses());
-    expect(screen.getByTestId('add-classes-panel')).toBeInTheDocument();
   });
 
   it('openEditClass() opens the class edit panel', () => {

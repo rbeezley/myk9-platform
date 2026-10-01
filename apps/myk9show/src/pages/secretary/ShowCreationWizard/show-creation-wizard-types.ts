@@ -37,6 +37,12 @@ export type EditModeType = 'add-trials' | 'add-classes';
 export interface EditMode {
   showId: string;
   mode: EditModeType;
+  /**
+   * `add-classes` only: the trial the class picker should open on (the trial the
+   * secretary launched from). Unvalidated here -- the picker ignores an id that is
+   * not one of the show's trials and falls back to the first trial.
+   */
+  trialId?: string;
 }
 
 export interface JudgeDetailsInfo {

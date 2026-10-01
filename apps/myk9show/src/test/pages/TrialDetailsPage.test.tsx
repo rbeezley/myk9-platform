@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TrialDetailsPage from '@/pages/TrialDetailsPage';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -61,10 +62,6 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
 }));
 
-vi.mock('@/store/templateStore', () => ({
-  useTemplateStore: () => ({ templates: [], loadTemplatesFromDB: vi.fn() }),
-}));
-
 let mockShows: Array<Record<string, unknown>> = [];
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({ shows: mockShows }),
@@ -118,16 +115,14 @@ vi.mock('@/hooks/useTrialStats', () => ({
   useTrialStats: () => ({ entries: { total: 0 } }),
 }));
 
-vi.mock('@/hooks/useTrialTemplates', () => ({
-  useTrialTemplates: () => ({ handleSaveClassesFromTemplate: vi.fn() }),
-}));
-
 // Heavy children / panels → stubs.
 vi.mock('@/components/trials/TrialDetailsMain', () => ({
-  default: () => <div data-testid="trial-details-main">TrialDetailsMain</div>,
-}));
-vi.mock('@/components/classes/AddClassesToTrialPanel', () => ({
-  AddClassesToTrialPanel: () => null,
+  default: ({ onAddClassesFromTemplate }: { onAddClassesFromTemplate?: () => void }) => (
+    <div data-testid="trial-details-main">
+      TrialDetailsMain
+      {onAddClassesFromTemplate && <button onClick={onAddClassesFromTemplate}>Add Classes</button>}
+    </div>
+  ),
 }));
 vi.mock('@/components/panels/edit/TrialEditPanel', () => ({ TrialEditPanel: () => null }));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({ ClassEditPanel: () => null }));
@@ -192,6 +187,11 @@ function makeFallbackTrial(): Trial {
   };
 }
 
+function WizardLocation() {
+  const location = useLocation();
+  return <div data-testid="wizard-location">{`${location.pathname}${location.search}`}</div>;
+}
+
 function renderPage(initialEntry = '/trials/trial-1') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -199,6 +199,7 @@ function renderPage(initialEntry = '/trials/trial-1') {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/trials/:trialId" element={<TrialDetailsPage />} />
+          <Route path="/secretary/create-show/wizard" element={<WizardLocation />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -347,5 +348,20 @@ describe('TrialDetailsPage', () => {
     expect(screen.queryByRole('button', { name: 'Promo Codes' })).not.toBeInTheDocument();
     expect(screen.queryByText('PromoCodesSection')).not.toBeInTheDocument();
     expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
+  });
+
+  it('Add Classes opens the show wizard add-classes mode focused on this trial', async () => {
+    mockAuthContext.user = { id: 'user-1' };
+    mockAuthContext.isSecretary = true;
+    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+    mockSelectedTrialId = 'trial-1';
+    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Add Classes' }));
+
+    expect(screen.getByTestId('wizard-location')).toHaveTextContent(
+      '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1'
+    );
   });
 });

@@ -1,16 +1,15 @@
 /**
  * The one client delete service (CRUD standard Phase 2). For every item:
  *   1. soft-delete it on the server (the object's own RPC, `deleteServer.ts`);
- *   2. purge it from this device (`deletePurge.ts`, never throws);
- * and, for Undo, restore it on the server and bring it back to this device.
+ *   2. purge it from this device (`deleteLocalState.ts`, never throws);
+ * and, for Undo, restore it on the server and re-sync it on this device (the same declared stores).
  *
  * There is no other way to delete a club, show, trial, class, entry, dog or
  * person in the app: every surface opens `DeleteObjectDialog`, which calls this.
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { classifyDeleteError, deleteErrorMessage, restoreErrorMessage } from './deleteErrors';
-import { purgeDeletedLocally } from './deletePurge';
-import { refreshAfterRestore } from './deleteRestoreRefresh';
+import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
 import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
 
@@ -67,7 +66,7 @@ export async function deleteRecords(
         return;
       }
     }
-    await purgeDeletedLocally(kind, target);
+    await reconcileLocalDeletion(kind, target);
   });
 
   // Keep the caller's order, not completion order.
@@ -106,7 +105,7 @@ export async function restoreRecords(
       return;
     }
     restored.push(target);
-    await refreshAfterRestore(kind, target);
+    await reconcileLocalRestore(kind, target);
   });
   return { restored, failed };
 }

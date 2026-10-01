@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import type { DeleteObjectKind, DeletePreview, DeleteTarget } from './deleteTypes';
 
@@ -21,8 +22,10 @@ vi.mock('./deleteServer', () => ({
   softDeleteOnServer: mocks.remove,
   restoreOnServer: mocks.restore,
 }));
-vi.mock('./deletePurge', () => ({ purgeDeletedLocally: mocks.purge }));
-vi.mock('./deleteRestoreRefresh', () => ({ refreshAfterRestore: mocks.refresh }));
+vi.mock('./deleteLocalState', () => ({
+  reconcileLocalDeletion: mocks.purge,
+  reconcileLocalRestore: mocks.refresh,
+}));
 vi.mock('sonner', () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError, info: vi.fn(), warning: vi.fn() },
 }));
@@ -270,6 +273,18 @@ describe('DeleteObjectDialog three states', () => {
       expect(within(dialog).getByRole('button', { name: `Delete ${kind}` })).toBeDisabled();
     }
   );
+
+  it('following the blocked-action link closes the dialog (the target page may already be open)', async () => {
+    mocks.preview.mockResolvedValue(counts({ entries: 2, scored: 1, blocking: 1 }));
+    const onOpenChange = vi.fn();
+    renderDialog('entry', [{ id: 'e1', name: 'X', context: ctx }], { onOpenChange });
+
+    const dialog = await screen.findByRole('dialog');
+    const link = await within(dialog).findByRole('link', { name: 'Withdraw / Pull entries' });
+    await userEvent.click(link);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 
   it('blocked club and person: say what is in the way, with Delete off', async () => {
     mocks.preview.mockResolvedValue(counts({ shows: 2, blocking: 2 }));

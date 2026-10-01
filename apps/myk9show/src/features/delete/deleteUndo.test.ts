@@ -16,7 +16,6 @@ vi.mock('sonner', () => ({ toast: { success: mocks.toastSuccess, error: mocks.to
 import {
   replicatedClassesTable,
   replicatedClubsTable,
-  replicatedDogsTable,
   replicatedEntriesTable,
   replicatedShowsTable,
   replicatedTrialsTable,
@@ -24,8 +23,9 @@ import {
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClubStore } from '@/store/clubStore';
+import { useClassStore } from '@/store/classStore';
+import { useEntryStore } from '@/store/entryStore';
 import { offerUndoToast, undoDelete } from './deleteUndoToast';
-import { refreshAfterRestore } from './deleteRestoreRefresh';
 import { UNDO_WINDOW_MS } from './deleteTypes';
 
 const show = { id: 's1', name: 'Heartland Classic' };
@@ -55,6 +55,8 @@ beforeEach(() => {
   useShowStore.setState({ loadShows });
   useTrialStore.setState({ loadTrials, loadTrialClasses });
   useClubStore.setState({ loadClubs });
+  useClassStore.setState({ loadClasses: vi.fn().mockResolvedValue(undefined) });
+  useEntryStore.setState({ loadEntries: vi.fn().mockResolvedValue(undefined) });
 });
 
 afterEach(() => {
@@ -133,49 +135,5 @@ describe('the Undo toast', () => {
       'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.'
     );
     expect(loadClubs).not.toHaveBeenCalled();
-  });
-});
-
-describe('refreshAfterRestore', () => {
-  it('entry: stops guarding the row and re-syncs its show', async () => {
-    const forget = vi.spyOn(replicatedEntriesTable, 'forgetServerDeletion');
-    await refreshAfterRestore('entry', { id: 'e1', name: 'Biscuit', context: { showId: 's1' } });
-    expect(forget).toHaveBeenCalledWith('e1');
-    expect(sync.entries).toHaveBeenCalledWith('s1');
-  });
-
-  it('class: re-syncs its trial and the trial store', async () => {
-    await refreshAfterRestore('class', {
-      id: 'c1',
-      name: 'Novice A',
-      context: { showId: 's1', trialId: 't1' },
-    });
-    expect(sync.classes).toHaveBeenCalledWith('t1');
-    expect(loadTrialClasses).toHaveBeenCalled();
-  });
-
-  it('dog: re-syncs dogs and the entries restore_dog brought back, in every show', async () => {
-    const dogs = vi.spyOn(replicatedDogsTable, 'sync').mockResolvedValue(undefined as never);
-    vi.spyOn(replicatedShowsTable, 'getAllOrThrow').mockResolvedValue([
-      { id: 's1' },
-      { id: 's2' },
-    ] as never);
-
-    await refreshAfterRestore('dog', { id: 'd1', name: 'Biscuit' });
-
-    expect(dogs).toHaveBeenCalled();
-    expect(sync.entries).toHaveBeenCalledWith('s1');
-    expect(sync.entries).toHaveBeenCalledWith('s2');
-  });
-
-  it('club: re-syncs clubs and reloads the club list', async () => {
-    await refreshAfterRestore('club', { id: 'k1', name: 'Heartland KC' });
-    expect(sync.clubs).toHaveBeenCalled();
-    expect(loadClubs).toHaveBeenCalled();
-  });
-
-  it('never throws, even when every sync fails', async () => {
-    for (const spy of Object.values(sync)) spy.mockRejectedValue(new Error('offline'));
-    await expect(refreshAfterRestore('show', { id: 's1', name: 'Show' })).resolves.toBeUndefined();
   });
 });

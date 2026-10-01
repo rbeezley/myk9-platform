@@ -168,7 +168,12 @@ export function DeleteObjectDialogView({
                 {blockedAction && actionLabel && (
                   <Link
                     to={blockedAction.to}
-                    onClick={() => blockedAction.onNavigate?.()}
+                    onClick={() => {
+                      blockedAction.onNavigate?.();
+                      // The link may point at the page already open, so the route
+                      // never changes and nothing else would close this dialog.
+                      onCancel();
+                    }}
                     className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4"
                   >
                     {actionLabel}

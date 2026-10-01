@@ -45,7 +45,9 @@ vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,
   restoreOnServer: vi.fn(),
 }));
-vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
 const replicatedSync = vi.hoisted(() => vi.fn());
 // Scripted replica read failures (IndexedDB init/read errors): consumed one per getClassById call.
 const readScript = vi.hoisted(() => ({ calls: [] as Array<'throw' | 'pass'> }));

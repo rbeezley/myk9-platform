@@ -16,7 +16,9 @@ vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,
   restoreOnServer: vi.fn(),
 }));
-vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,

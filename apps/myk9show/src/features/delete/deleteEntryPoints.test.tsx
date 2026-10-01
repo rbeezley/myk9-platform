@@ -18,7 +18,7 @@ vi.mock('./deletePreview', async importOriginal => ({
   fetchDeletePreview: mocks.preview,
 }));
 vi.mock('./deleteServer', () => ({ softDeleteOnServer: mocks.remove, restoreOnServer: vi.fn() }));
-vi.mock('./deletePurge', () => ({ purgeDeletedLocally: mocks.purge }));
+vi.mock('./deleteLocalState', () => ({ reconcileLocalDeletion: mocks.purge }));
 
 // Heavy panels the dialogs sit beside; not under test here.
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({ ClubEditPanel: () => null }));

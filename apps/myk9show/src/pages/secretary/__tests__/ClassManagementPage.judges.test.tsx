@@ -24,7 +24,9 @@ vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,
   restoreOnServer: vi.fn(),
 }));
-vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
 const NOTHING_BLOCKS = {
   trials: 0,
   classes: 0,

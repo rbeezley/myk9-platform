@@ -12,8 +12,10 @@ vi.mock('./deleteServer', () => ({
   softDeleteOnServer: mocks.remove,
   restoreOnServer: mocks.restore,
 }));
-vi.mock('./deletePurge', () => ({ purgeDeletedLocally: mocks.purge }));
-vi.mock('./deleteRestoreRefresh', () => ({ refreshAfterRestore: mocks.refresh }));
+vi.mock('./deleteLocalState', () => ({
+  reconcileLocalDeletion: mocks.purge,
+  reconcileLocalRestore: mocks.refresh,
+}));
 
 import { canStillUndo, deleteRecords, restoreRecords } from './deleteRecords';
 import {

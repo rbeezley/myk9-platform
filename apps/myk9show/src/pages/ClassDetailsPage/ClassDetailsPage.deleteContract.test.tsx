@@ -18,7 +18,9 @@ vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,
   restoreOnServer: vi.fn(),
 }));
-vi.mock('@/features/delete/deletePurge', () => ({ purgeDeletedLocally: deleteMocks.purge }));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
 // The page opens the delete dialog from its menu; these tests start with it open.
 vi.mock('./useClassDetailsDialogs', () => ({
   useClassDetailsDialogs: () => ({

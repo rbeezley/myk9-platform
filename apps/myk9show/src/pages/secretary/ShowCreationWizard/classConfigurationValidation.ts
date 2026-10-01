@@ -204,3 +204,21 @@ export function normalizeWizardClassSelections(
   if (invalidClasses.length > 0) throw new InvalidWizardClassConfigurationError(invalidClasses);
   return normalized;
 }
+
+/**
+ * add-classes works on a FIXED set of trials (Show Details / Trials are unreachable in that
+ * mode). A wizard trial with no stored row means that invariant broke, and saving would create
+ * a trial with no classes. Called before the save's first write.
+ */
+export function assertAddClassesCreatesNoTrials(
+  editMode: { mode: string } | undefined,
+  wizardTrials: readonly { id: string }[],
+  storedTrialIds: readonly string[]
+): void {
+  if (editMode?.mode !== 'add-classes') return;
+  if (wizardTrials.some(trial => !storedTrialIds.includes(trial.id))) {
+    throw new Error(
+      'Add Classes cannot create trials. Reopen the show and try again; nothing was changed.'
+    );
+  }
+}

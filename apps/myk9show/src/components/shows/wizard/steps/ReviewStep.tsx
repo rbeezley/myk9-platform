@@ -1,3 +1,4 @@
+import { isWizardStepAllowed } from '@/pages/secretary/ShowCreationWizard/show-creation-wizard-types';
 import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +45,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   officialsUnknown = false,
   trialView,
 }) => {
-  const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
+  const { show, trials, judgeDetails, markStepCompleted, setCurrentStep, allowedSteps } =
+    useWizardStore();
+  // Edit modes can lock steps (add-classes: no Show Details / Trials). Their edit links and
+  // the notices that only link to them are not offered, rather than rendered as dead buttons.
+  const canEditDetails = isWizardStepAllowed(allowedSteps, 0);
+  const canEditTrials = isWizardStepAllowed(allowedSteps, 1);
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
   const effectiveTrialNames = useMemo(
@@ -158,14 +164,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </ReviewWarningCard>
           )}
 
-          <ReviewEntryWindowNotice
-            entryOpenDate={show.entryOpenDate}
-            entryCloseDate={show.entryCloseDate}
-            onSetWindow={() => setCurrentStep(0)}
-          />
+          {canEditDetails && (
+            <ReviewEntryWindowNotice
+              entryOpenDate={show.entryOpenDate}
+              entryCloseDate={show.entryCloseDate}
+              onSetWindow={() => setCurrentStep(0)}
+            />
+          )}
 
           {/* MYK9-686: location text with no pin is allowed, but never silent. */}
-          {missingVenuePin && (
+          {canEditDetails && missingVenuePin && (
             <ReviewWarningCard
               title="No map pin"
               actionLabel="Place the map pin"
@@ -258,10 +266,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   <Building2 className="h-5 w-5" />
                   Show Details
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                {canEditDetails && (
+                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -358,10 +368,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   Trials & Classes Review
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit Trials
-                  </Button>
+                  {canEditTrials && (
+                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit Trials
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)}>
                     <Edit className="h-4 w-4 mr-1" />
                     Edit Classes

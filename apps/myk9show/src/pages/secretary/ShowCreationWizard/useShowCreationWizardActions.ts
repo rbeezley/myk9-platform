@@ -38,6 +38,7 @@ import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 import {
   normalizeWizardClassSelections,
+  assertAddClassesCreatesNoTrials,
   type NormalizedWizardClassSelection,
 } from './classConfigurationValidation';
 
@@ -229,6 +230,11 @@ export function useShowCreationWizardActions({
         setIsLoading(true);
         // Validate every class this save will write before the show/trial writers below can
         // mutate data. Stored classes loaded for add-classes mode are retained, not re-validated.
+        assertAddClassesCreatesNoTrials(
+          editMode,
+          trials,
+          existingTrials.filter(t => t.showId === editMode?.showId).map(t => t.id)
+        );
         const normalizedClasses = normalizeWizardClassSelections(
           show.organization,
           trials,

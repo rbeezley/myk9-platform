@@ -39,6 +39,8 @@ interface WizardState {
   currentStep: number;
   completedSteps: number[];
   isDirty: boolean;
+  /** Steps the active edit mode may visit; null = all. Not persisted: set by the page. */
+  allowedSteps: readonly number[] | null;
   lastSaved: Date | null;
   cloneHydration: CloneHydrationState;
   cloneGeneration: number;
@@ -123,6 +125,7 @@ interface WizardState {
 interface WizardActions {
   // Navigation
   setCurrentStep: (step: number) => void;
+  setAllowedSteps: (steps: readonly number[] | null) => void;
   markStepCompleted: (step: number) => void;
   goToStep: (step: number) => void;
 
@@ -155,6 +158,7 @@ const initialState: WizardState = {
   currentStep: 0,
   completedSteps: [],
   isDirty: false,
+  allowedSteps: null,
   lastSaved: null,
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
@@ -236,8 +240,13 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       // Navigation
       setCurrentStep: step =>
         set(state =>
-          state.cloneHydration.status === 'hydrating' ? state : stepTransitionPatch(state, step)
+          state.cloneHydration.status === 'hydrating' ||
+          (state.allowedSteps !== null && !state.allowedSteps.includes(step))
+            ? state
+            : stepTransitionPatch(state, step)
         ),
+
+      setAllowedSteps: steps => set({ allowedSteps: steps }),
 
       markStepCompleted: step => {
         if (get().cloneHydration.status === 'hydrating') return;
@@ -251,6 +260,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         if (cloneHydration.status === 'hydrating') return;
         // Only allow navigation to completed steps or the next step
         const maxAllowedStep = completedSteps.length > 0 ? Math.max(...completedSteps) + 1 : 0;
+
+        const { allowedSteps } = get();
+        if (allowedSteps !== null && !allowedSteps.includes(step)) return;
 
         if (step <= maxAllowedStep) {
           set(state => stepTransitionPatch(state, step));

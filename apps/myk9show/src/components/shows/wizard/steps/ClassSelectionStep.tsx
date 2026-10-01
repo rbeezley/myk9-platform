@@ -50,6 +50,11 @@ interface ClassSelectionStepProps {
   focusTrialId?: string;
   /** Add-classes mode: a trial the secretary is not adding to must not show an error. */
   ignoreEmptyTrials?: boolean;
+  /**
+   * Add-classes mode: the show exists and Show Details is not reachable, so "add a judge"
+   * links to the show's Judges tab instead of jumping to wizard step 0.
+   */
+  addJudgeToShowId?: string;
 }
 
 interface TrialClassState {
@@ -64,6 +69,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   submitted = false,
   focusTrialId,
   ignoreEmptyTrials = false,
+  addJudgeToShowId,
 }) => {
   const {
     trials,
@@ -571,7 +577,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           // F4: the show does not exist yet, so there is nothing to
                           // link to -- send the secretary back to the step that owns
                           // the judge roster instead.
-                          addJudge={{ onAddJudge: () => setCurrentStep(0) }}
+                          addJudge={
+                            addJudgeToShowId
+                              ? { showId: addJudgeToShowId }
+                              : { onAddJudge: () => setCurrentStep(0) }
+                          }
                           judgeAssignments={judgeAssignments}
                           onJudgeAssignmentChange={handleJudgeAssignmentChange}
                         />

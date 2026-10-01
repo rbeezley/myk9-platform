@@ -63,3 +63,37 @@ export const WIZARD_STEPS: WizardStep[] = [
   { id: 2, label: 'Classes' },
   { id: 3, label: 'Review' },
 ];
+
+/**
+ * The wizard steps (indices into WIZARD_STEPS) an edit mode may visit, or null for "all".
+ *
+ * `add-classes` works on a FIXED set of trials and a show that already exists, so it lives on
+ * Classes (2) and Review (3) only. Show Details (0) and Trials (1) are unreachable: adding or
+ * removing trials is the separate `add-trials` mode, and with the trial set fixed the
+ * class step's "skip empty-trial checks" rule is correct by construction. Enforced at the
+ * store's single step transition, so the indicator, Back, and every in-step link obey it.
+ */
+const ADD_CLASSES_STEPS: readonly number[] = [2, 3];
+
+export function getAllowedWizardSteps(editMode: EditMode | undefined): readonly number[] | null {
+  // A stable reference: callers compare it to the store's copy to decide whether to re-assert.
+  return editMode?.mode === 'add-classes' ? ADD_CLASSES_STEPS : null;
+}
+
+export function isWizardStepAllowed(
+  allowed: readonly number[] | null | undefined,
+  step: number
+): boolean {
+  return allowed == null || allowed.includes(step);
+}
+
+/** The step Back goes to from `step`, or null when there is none inside the allowed set. */
+export function getPreviousAllowedStep(
+  allowed: readonly number[] | null,
+  step: number
+): number | null {
+  for (let candidate = step - 1; candidate >= 0; candidate -= 1) {
+    if (isWizardStepAllowed(allowed, candidate)) return candidate;
+  }
+  return null;
+}

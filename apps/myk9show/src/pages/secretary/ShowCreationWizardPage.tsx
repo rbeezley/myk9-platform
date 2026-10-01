@@ -1,3 +1,7 @@
+import {
+  getAllowedWizardSteps,
+  getPreviousAllowedStep,
+} from './ShowCreationWizard/show-creation-wizard-types';
 import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
 import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -85,6 +89,8 @@ const ShowCreationWizardPage: React.FC = () => {
     completedSteps,
     isDirty,
     setCurrentStep,
+    allowedSteps,
+    setAllowedSteps,
     markStepCompleted,
     goToStep,
     resetWizard,
@@ -240,15 +246,25 @@ const ShowCreationWizardPage: React.FC = () => {
     setShowConfirmDialog(false);
   }, [resetWizard, navigate, closeTarget]);
 
+  // Lock the step set for the edit mode (add-classes: Classes + Review only). Re-asserted when
+  // the store value changes so a mid-session resetWizard cannot silently unlock it.
+  const modeAllowedSteps = getAllowedWizardSteps(editMode);
+  useEffect(() => {
+    if (allowedSteps !== modeAllowedSteps) setAllowedSteps(modeAllowedSteps);
+  }, [allowedSteps, modeAllowedSteps, setAllowedSteps]);
+  // The lock belongs to this page visit: leaving must not strand it on the next wizard.
+  useEffect(() => () => setAllowedSteps(null), [setAllowedSteps]);
+
   // Navigation handlers
   const handleBack = useCallback(() => {
     if (cloneHydration.status === 'hydrating') return;
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+    const previous = getPreviousAllowedStep(modeAllowedSteps, currentStep);
+    if (previous !== null) {
+      setCurrentStep(previous);
     } else {
       handleClose();
     }
-  }, [cloneHydration.status, currentStep, setCurrentStep, handleClose]);
+  }, [cloneHydration.status, currentStep, modeAllowedSteps, setCurrentStep, handleClose]);
 
   // Scroll the validation banner into view. scrollIntoView is a no-op stub in
   // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
@@ -415,7 +431,7 @@ const ShowCreationWizardPage: React.FC = () => {
               steps={WIZARD_STEPS}
               currentStep={currentStep}
               completedSteps={completedSteps}
-              onStepClick={goToStep}
+              {...(modeAllowedSteps === null ? { onStepClick: goToStep } : {})}
             />
           </div>
 

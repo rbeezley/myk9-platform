@@ -6,6 +6,7 @@ import { usePublicShowDetailQuery } from './publicShowDetailQuery';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
 import { useShowStore } from '@/store/showStore';
+import { logger } from '@/services/LoggingService';
 import { deleteShowRecord } from '@/services/showDeletion';
 import {
   getAllShows,
@@ -333,6 +334,12 @@ export const useDeleteShowMutation = () => {
     mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
       const { error } = await deleteShowRecord(id, deletedBy);
       if (error) throw error;
+      // Purge the replica before onSuccess invalidates (queries read it first).
+      // The server delete succeeded, so a purge failure is only logged.
+      await useShowStore
+        .getState()
+        .purgeDeletedShow(id)
+        .catch(e => logger.error('Replica purge failed', 'shows', { showId: id }, e as Error));
       return { id };
     },
     onMutate: async ({ id: deletedId }) => {
@@ -359,10 +366,6 @@ export const useDeleteShowMutation = () => {
       }
     },
     onSuccess: ({ id }) => {
-      // Drop the replicated copy too: a soft-deleted show is never re-pulled,
-      // so it would otherwise stay in the local replica and the store lists.
-      void useShowStore.getState().purgeDeletedShow(id);
-
       // Remove from detail cache
       queryClient.removeQueries({ queryKey: showQueryKeys.detail(id) });
 

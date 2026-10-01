@@ -68,9 +68,12 @@ function run(
   dirs.push(bin);
   const listing = join(bin, 'green.txt');
   writeFileSync(listing, green.map(s => `${s}\n`).join(''));
-  // Stub for: gh run list ... --jq '.[].headSha' -> one SHA per line, in the
-  // order the test chose (that order is the thing under test).
-  writeFileSync(join(bin, 'gh'), `#!/usr/bin/env bash\ncat "${listing}"\n`);
+  // Stub for: gh run list ... --commit <sha> ... --jq '.[].headSha' -> prints
+  // <sha> only when it is in the test's green set, like the per-commit query.
+  writeFileSync(
+    join(bin, 'gh'),
+    `#!/usr/bin/env bash\nsha=""\nwhile [ $# -gt 0 ]; do [ "$1" = "--commit" ] && sha="$2"; shift; done\n[ -n "$sha" ] && grep -Fx -- "$sha" "${listing}" || true\n`
+  );
   chmodSync(join(bin, 'gh'), 0o755);
   const out = join(bin, 'github-output');
   writeFileSync(out, '');
@@ -123,7 +126,7 @@ describe('pick-deploy-commit.sh', () => {
     const r = run(fx, [fx.shas[3]!]);
     expect(r.status).toBe(1);
     expect(r.output).toBe('');
-    expect(r.stderr).toMatch(/56 commits behind/);
+    expect(r.stderr).toMatch(/no commit within 50/);
     expect(r.stderr).toMatch(/limit 50/);
   });
 

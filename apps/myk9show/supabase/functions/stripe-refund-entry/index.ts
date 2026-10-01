@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
+import { storedFeeToCents } from '../_shared/entryFeeRecord.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { validateRefund } from '../_shared/refundValidation.ts';
 import {
@@ -184,7 +185,7 @@ Deno.serve(async req => {
     }
 
     // entries.entry_fee is DECIMAL dollars; all validation runs in cents.
-    const entryFeeCents = Math.round((entry.entry_fee ?? 0) * 100);
+    const entryFeeCents = storedFeeToCents(entry.entry_fee);
     let requestedCents = amount_cents;
     if (body.use_policy_snapshot === true) {
       const snapshot = (entry.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;

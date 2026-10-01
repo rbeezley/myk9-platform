@@ -8,6 +8,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees, parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
+import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
@@ -42,6 +43,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onWaiveFeesChange,
   onFeeOverrideChange,
   paymentResolution,
+  juniorDeclaration,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
@@ -120,8 +122,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     dogs,
     classes,
     show && entryWindowTimezoneReady ? { ...show, entryWindowTimezone } : undefined,
-    waitlistClassIds
+    waitlistClassIds,
+    juniorDeclaration?.dogIds
   );
+  const juniorFeeOffered = juniorDeclaration?.canDeclare ? parseJuniorHandlerFee(show) : null;
 
   return (
     <div className="space-y-4">
@@ -209,6 +213,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
         juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
       />
+
+      {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
+          zone: the tier it is cheaper than is not known until then. */}
+      {entryWindowTimezoneReady && juniorDeclaration && juniorFeeOffered !== null && (
+        <JuniorHandlerDeclarationControl
+          fee={juniorFeeOffered}
+          dogs={selectedDogs.flatMap(dogId => dogs.filter(dog => dog.id === dogId))}
+          declaration={juniorDeclaration}
+          organization={show?.organization}
+        />
+      )}
 
       {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}
       {entryWindowTimezoneReady && (

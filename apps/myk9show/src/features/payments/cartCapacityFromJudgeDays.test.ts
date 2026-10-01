@@ -35,6 +35,7 @@ function line(id: string, classId: string): CartItemWithDetails {
     entry_fee_cents: 3000,
     jump_height: null,
     special_requests: null,
+    junior_fee_declared: false,
     created_at: '2026-09-25T00:00:00.000Z',
     class: { id: classId, name: classId, level: null, trial_id: 'trial-1', allow_waitlist: false },
   };

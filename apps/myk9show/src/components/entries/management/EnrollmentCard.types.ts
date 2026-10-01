@@ -31,6 +31,8 @@ export interface EnrollmentCardProps {
    */
   paymentLedger: EnrollmentLedgerControls;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
+  /** MYK9-879: entries whose junior fee was charged on the exhibitor's declaration. */
+  juniorDeclaredEntryIds?: ReadonlySet<string> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   onSendDecisionEmail?:

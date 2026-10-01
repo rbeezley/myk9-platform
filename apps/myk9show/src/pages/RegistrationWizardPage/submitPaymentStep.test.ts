@@ -51,6 +51,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
       preEntryFee: '25',
       startDate: '2026-08-01',
     },
+    juniorHandlerDogIds: new Set<string>(),
     currentStep: 2,
     cart: {
       clearCart: vi.fn(async () => {

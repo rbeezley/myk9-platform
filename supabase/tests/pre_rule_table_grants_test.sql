@@ -329,7 +329,13 @@ BEGIN
       -- Still 56 after entries.handler_is_junior (MYK9-664): that column is
       -- deliberately NOT granted; managers read it through
       -- recorded_entry_handler_junior_flags().
-      ('entries','authenticated',56),
+      -- 56 became 57 when entries.junior_fee_declared was added and granted to
+      -- authenticated (20261001034700, MYK9-879): the secretary's entry list marks
+      -- entries whose junior fee was charged on the exhibitor's declaration. It is
+      -- an exhibitor's own self-declaration, not age data. anon stays 0: the same
+      -- migration REVOKEs the column from anon, and a direct client write cannot
+      -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
+      ('entries','authenticated',57),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

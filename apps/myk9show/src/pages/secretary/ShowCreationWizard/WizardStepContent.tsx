@@ -92,6 +92,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           }
           trialView={trialView}
           {...(editMode?.trialId ? { focusTrialId: editMode.trialId } : {})}
+          ignoreEmptyTrials={editMode?.mode === 'add-classes'}
         />
       );
     case 3:

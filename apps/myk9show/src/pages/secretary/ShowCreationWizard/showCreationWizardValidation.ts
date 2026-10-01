@@ -1,6 +1,7 @@
 /**
  * Validation logic for the Show Creation Wizard
  */
+import type { EditModeType } from './show-creation-wizard-types';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
@@ -137,14 +138,21 @@ export function getClassValidationMessages(
   trials: Trial[],
   trialView: WizardTrialView,
   organization: string,
-  persistedClasses: readonly PersistedClassIdentity[] = []
+  persistedClasses: readonly PersistedClassIdentity[] = [],
+  /**
+   * `add-classes`: the secretary is adding to existing trials, so a trial she did not
+   * touch (e.g. one whose last class was deleted) must not block Next. Only the
+   * "something to save" and registry checks apply. Create / add-trials still require
+   * every trial to have a class.
+   */
+  editModeType?: EditModeType
 ): string[] {
   const messages: string[] = [];
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
     messages.push('At least one class must be added to the trials');
-  } else {
+  } else if (editModeType !== 'add-classes') {
     // Ensure every trial has at least one class
     trials.forEach(trial => {
       if (trial.classes.length === 0) {
@@ -177,7 +185,8 @@ export function getValidationMessagesForStep(
   trialView: WizardTrialView,
   /** Add-classes mode: the show's stored classes, retained rather than re-validated. */
   persistedClasses: readonly PersistedClassIdentity[] = [],
-  showDetailsOptions: ShowDetailsValidationOptions = {}
+  showDetailsOptions: ShowDetailsValidationOptions = {},
+  editModeType?: EditModeType
 ): string[] {
   switch (step) {
     case 0:
@@ -185,7 +194,13 @@ export function getValidationMessagesForStep(
     case 1:
       return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(trials, trialView, show.organization, persistedClasses);
+      return getClassValidationMessages(
+        trials,
+        trialView,
+        show.organization,
+        persistedClasses,
+        editModeType
+      );
     case 3:
       // Review step shows its own validation
       return [];

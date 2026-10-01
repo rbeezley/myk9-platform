@@ -61,6 +61,29 @@ function storedIdentityKey(trialId: string, element: unknown, level: unknown, se
   return [trialId, element ?? '', level ?? '', section ?? ''].map(String).join('|');
 }
 
+/**
+ * How many class selections in `trials` are NOT yet stored (add-classes mode): the work a
+ * secretary loses by leaving. Same identity test as `normalizeWizardClassSelections`'s
+ * retained check, so a freshly loaded draft counts zero.
+ */
+export function countUnsavedClassSelections(
+  trials: readonly WizardTrial[],
+  persisted: readonly PersistedClassIdentity[]
+): number {
+  const storedKeys = new Set(
+    persisted.map(row => storedIdentityKey(row.trialId, row.element, row.level, row.section))
+  );
+  return trials.reduce(
+    (sum, trial) =>
+      sum +
+      trial.classes.filter(selection => {
+        const c = selection.customizations ?? {};
+        return !storedKeys.has(storedIdentityKey(trial.id, c.element, c.level, c.section));
+      }).length,
+    0
+  );
+}
+
 type ResolvedClass = { valid: true; triple: CanonicalWizardClassTriple } | InvalidWizardClass;
 
 /** Resolve one wizard class item to its canonical triple, or the reason it has none. */

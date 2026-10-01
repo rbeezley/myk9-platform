@@ -48,6 +48,8 @@ interface ClassSelectionStepProps {
    * one of the wizard's trials, so a stale or hand-edited id falls back to the first.
    */
   focusTrialId?: string;
+  /** Add-classes mode: a trial the secretary is not adding to must not show an error. */
+  ignoreEmptyTrials?: boolean;
 }
 
 interface TrialClassState {
@@ -61,6 +63,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   trialView,
   submitted = false,
   focusTrialId,
+  ignoreEmptyTrials = false,
 }) => {
   const {
     trials,
@@ -294,7 +297,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     // Check that each trial has completed the class creation process
-    if (submitted) {
+    if (submitted && !ignoreEmptyTrials) {
       trials.forEach((trial, index) => {
         if (trial.classes.length === 0) {
           newErrors[`trial-${index}`] =
@@ -304,7 +307,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return newErrors;
-  }, [totalClasses, trials, effectiveTrialNames, submitted]);
+  }, [totalClasses, trials, effectiveTrialNames, submitted, ignoreEmptyTrials]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {

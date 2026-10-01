@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, type NavigateFunction } from 'react-router-dom';
+import type { SelfNavigationRef } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import type { ShowPasscodes } from '@myk9/core';
@@ -45,6 +46,12 @@ interface UseShowCreationWizardActionsOptions {
   trialView: WizardTrialView;
   setIsLoading: (loading: boolean) => void;
   /**
+   * The page's unsaved-changes guard counter. A successful save navigates on the secretary's
+   * behalf, so it raises this around `navigate` and the guard does not prompt for the very
+   * work that was just saved.
+   */
+  selfNavigationRef?: SelfNavigationRef | undefined;
+  /**
    * Called once the show row exists. `passcodes` carries the freshly-generated
    * plaintexts from insert_show_passcodes — exactly once. Null if the passcode
    * insert failed (the show still saved); `passcodeError` keeps the secretary
@@ -62,6 +69,7 @@ export function useShowCreationWizardActions({
   editMode,
   trialView,
   setIsLoading,
+  selfNavigationRef,
   onCreated,
 }: UseShowCreationWizardActionsOptions) {
   const isSavingRef = useRef(false);
@@ -69,7 +77,18 @@ export function useShowCreationWizardActions({
   // parent's inline onCreated arrow changes reference on every render.
   const onCreatedRef = useRef(onCreated);
   onCreatedRef.current = onCreated;
-  const navigate = useNavigate();
+  const routerNavigate = useNavigate();
+  const navigate = useCallback(
+    ((...args: Parameters<NavigateFunction>) => {
+      if (selfNavigationRef) selfNavigationRef.current += 1;
+      try {
+        return routerNavigate(...args);
+      } finally {
+        if (selfNavigationRef) selfNavigationRef.current -= 1;
+      }
+    }) as NavigateFunction,
+    [routerNavigate, selfNavigationRef]
+  );
   const queryClient = useQueryClient();
 
   const { show, trials, judgeDetails, resetWizard } = useWizardStore();

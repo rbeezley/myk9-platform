@@ -29,6 +29,15 @@ interface FinishShowSaveOptions {
   navigate: NavigateFunction;
 }
 
+/**
+ * Where an edit-mode wizard (add-classes / add-trials) returns the secretary. Launched from a
+ * trial (`trialId`), she goes back to that trial -- where the retired Add Classes panel left
+ * her -- rather than the show page. Otherwise the show page, as before.
+ */
+export function getEditModeReturnPath(editMode: EditMode, showId: string): string {
+  return editMode.trialId ? `/shows/${showId}/trials/${editMode.trialId}` : `/shows/${showId}`;
+}
+
 export async function createDraftShow(
   saveShow: (status: ShowStatus, shouldShowCompletion: boolean) => Promise<void>
 ): Promise<void> {
@@ -52,7 +61,7 @@ export function finishShowSave({
   // codes while `show_passcodes` held rows for it, and offered the destructive
   // regenerate CTA on a live show (confirmed in the browser 2026-09-05).
   if (editMode?.showId) {
-    navigate(`/shows/${showId}`);
+    navigate(getEditModeReturnPath(editMode, showId));
   } else if (shouldShowCompletion && onCreated) {
     onCreated(showId, showName, passcodes, passcodeError);
   } else if (status === 'draft') {

@@ -1,3 +1,5 @@
+import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
+import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
@@ -51,6 +53,9 @@ const NO_RETAINED_CLASSES: readonly never[] = [];
 
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
+  // Raised around the wizard's own navigations (save, confirmed discard) so the edit-mode
+  // unsaved-changes guard does not prompt for work the secretary just saved or discarded.
+  const selfNavigationRef = useRef(0);
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -148,6 +153,7 @@ const ShowCreationWizardPage: React.FC = () => {
     editMode,
     trialView,
     setIsLoading,
+    selfNavigationRef,
     onCreated: (id, name, passcodes, passcodeError) =>
       setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
   });
@@ -207,21 +213,32 @@ const ShowCreationWizardPage: React.FC = () => {
     retryWritableShow();
   }, [resetInitialization, retryWritableShow]);
 
+  // Launched from a trial, closing returns there (where the retired Add Classes panel left
+  // her); every other entry point keeps going to the shows list.
+  const closeTarget = editMode?.trialId
+    ? getEditModeReturnPath(editMode, editMode.showId)
+    : '/shows';
+
   // Handle wizard close
   const handleClose = useCallback(() => {
     if (isDirty) {
       setShowConfirmDialog(true);
       return;
     }
-    navigate('/shows');
-  }, [isDirty, navigate]);
+    navigate(closeTarget);
+  }, [isDirty, navigate, closeTarget]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {
     resetWizard();
-    navigate('/shows');
+    selfNavigationRef.current += 1;
+    try {
+      navigate(closeTarget);
+    } finally {
+      selfNavigationRef.current -= 1;
+    }
     setShowConfirmDialog(false);
-  }, [resetWizard, navigate]);
+  }, [resetWizard, navigate, closeTarget]);
 
   // Navigation handlers
   const handleBack = useCallback(() => {
@@ -256,7 +273,8 @@ const ShowCreationWizardPage: React.FC = () => {
       trials,
       trialView,
       retainedClasses,
-      { requireEntryWindow }
+      { requireEntryWindow },
+      editMode?.mode
     );
     if (messages.length > 0) {
       // Validation failed — surface the banner, expand it, and scroll it into
@@ -316,7 +334,8 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
     trialView,
     retainedClasses,
-    { requireEntryWindow }
+    { requireEntryWindow },
+    editMode?.mode
   );
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
@@ -359,6 +378,14 @@ const ShowCreationWizardPage: React.FC = () => {
             }}
           />
         )}
+
+        <WizardEditModeGuard
+          editMode={editMode}
+          isDirty={isDirty}
+          trials={trials}
+          persistedClasses={retainedClasses}
+          selfNavigationRef={selfNavigationRef}
+        />
 
         {/* Header with breadcrumb and back button */}
         <WizardHeader editMode={editMode} onClose={handleClose} />

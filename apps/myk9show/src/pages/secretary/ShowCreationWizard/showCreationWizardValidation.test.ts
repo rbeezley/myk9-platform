@@ -151,6 +151,65 @@ describe('class-selection step registry validation', () => {
   });
 });
 
+describe('class step - which trials must have classes (MYK9-899)', () => {
+  const klass = {
+    templateId: 'template-1',
+    customizations: {
+      className: 'Container Novice A',
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+    },
+  };
+  const mk = (id: string, classes: unknown[]) => ({
+    id,
+    dateTime: '2026-08-29T08:00:00',
+    eventNumber: 'EVT-1',
+    trialType: 'scent_work',
+    classes,
+  });
+  const trials = [mk('trial-a', [klass]), mk('trial-b', [])];
+  const trialView = {
+    effectiveNamesByTrialId: new Map([
+      ['trial-a', 'Saturday'],
+      ['trial-b', 'Sunday'],
+    ]),
+    persistedTrialCount: 0,
+    hasAnyTrials: true,
+  };
+
+  it('create mode still requires every trial to have a class', () => {
+    const messages = getValidationMessagesForStep(2, baseShow(), trials as never, trialView);
+    expect(messages).toContain('Sunday needs at least one class');
+  });
+
+  it('add-classes mode does not block on an untouched empty trial', () => {
+    const messages = getValidationMessagesForStep(
+      2,
+      baseShow(),
+      trials as never,
+      trialView,
+      [],
+      {},
+      'add-classes'
+    );
+    expect(messages).toEqual([]);
+  });
+
+  it('add-classes mode still requires something to save when every trial is empty', () => {
+    const messages = getValidationMessagesForStep(
+      2,
+      baseShow(),
+      [mk('trial-a', []), mk('trial-b', [])] as never,
+      trialView,
+      [],
+      {},
+      'add-classes'
+    );
+    expect(messages).toContain('At least one class must be added to the trials');
+  });
+});
+
 // MYK9-716: a draft may have no entry window; publishing requires one. The
 // Show Details step therefore lets a new draft through without entry dates
 // (Review names the gap and the status pill refuses to publish), but an

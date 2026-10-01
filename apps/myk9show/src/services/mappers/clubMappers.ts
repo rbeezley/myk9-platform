@@ -125,6 +125,7 @@ export const mapDatabaseToClub = (
     // pre-deploy cached row with no authorizedAt at all must not render as
     // "Unauthorized" to its own admins.
     authorizedAt: dbClub.authorized_at,
+    createdAt: dbClub.created_at ?? undefined,
 
     // Sync metadata for Local-First architecture
     _version: 1,

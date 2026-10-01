@@ -52,6 +52,9 @@ export interface Club {
   // client never writes this field directly.
   authorizedAt?: string | null | undefined;
 
+  // ISO timestamp the club row was created (read-only, from replication).
+  createdAt?: string | undefined;
+
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
   _lastModified?: Date | undefined;

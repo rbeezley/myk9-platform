@@ -5,6 +5,23 @@ import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
+import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
+
+/**
+ * Accommodation websites are secretary-typed free text rendered as public
+ * links by several templates: canonicalize once here (undefined when unsafe)
+ * so every template's href and label agree.
+ */
+export function canonicalizeAccommodationUrl<T extends object>(item: T): T & { url?: string } {
+  // The typed supplemental shape has no `url`, but stored JSON can carry one.
+  const { url } = item as { url?: unknown };
+  if (typeof url !== 'string' || !url) return item;
+  const canonical = canonicalizeWebsiteUrl(url);
+  if (canonical) return { ...item, url: canonical };
+  const withoutUrl = { ...item } as Record<string, unknown>;
+  delete withoutUrl.url;
+  return withoutUrl as T;
+}
 
 export interface LandingTrial {
   id: string;
@@ -265,7 +282,7 @@ export function buildLandingData(
     entryCount,
     entryLimit,
     fees,
-    accommodations: supplemental?.accommodations ?? [],
+    accommodations: (supplemental?.accommodations ?? []).map(canonicalizeAccommodationUrl),
     vetClinic: supplemental?.vetClinic ?? null,
     coverImageUrl: supplemental?.coverImageUrl ?? null,
     pullQuote:

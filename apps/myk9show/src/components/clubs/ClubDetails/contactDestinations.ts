@@ -1,6 +1,9 @@
+import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
+
 export interface ContactDestinations {
   email: string | null;
   phone: string | null;
+  /** Canonical http(s) URL (no credentials), or null when absent/unsafe. */
   website: string | null;
 }
 
@@ -16,43 +19,10 @@ export function normalizeContactDestinations(input: {
 }): ContactDestinations {
   const email = normalizedText(input.email);
   const phone = normalizedText(input.phone);
-  const websiteValue = normalizedText(input.website);
 
-  if (!websiteValue)
-    return {
-      email: email ? `mailto:${email}` : null,
-      phone: phone ? `tel:${phone}` : null,
-      website: null,
-    };
-
-  const hasExplicitScheme = /^[a-z][a-z\d+.-]*:/i.test(websiteValue);
-  if (hasExplicitScheme && !/^https?:\/\//i.test(websiteValue)) {
-    return {
-      email: email ? `mailto:${email}` : null,
-      phone: phone ? `tel:${phone}` : null,
-      website: null,
-    };
-  }
-
-  const website = /^https?:\/\//i.test(websiteValue) ? websiteValue : `https://${websiteValue}`;
-  try {
-    const parsed = new URL(website);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
-      return {
-        email: email ? `mailto:${email}` : null,
-        phone: phone ? `tel:${phone}` : null,
-        website: null,
-      };
-    return {
-      email: email ? `mailto:${email}` : null,
-      phone: phone ? `tel:${phone}` : null,
-      website: parsed.toString(),
-    };
-  } catch {
-    return {
-      email: email ? `mailto:${email}` : null,
-      phone: phone ? `tel:${phone}` : null,
-      website: null,
-    };
-  }
+  return {
+    email: email ? `mailto:${email}` : null,
+    phone: phone ? `tel:${phone}` : null,
+    website: canonicalizeWebsiteUrl(input.website),
+  };
 }

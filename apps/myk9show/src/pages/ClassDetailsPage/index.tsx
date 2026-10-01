@@ -184,7 +184,12 @@ const ClassDetailsPage: React.FC = () => {
   // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
     if (classId && currentClass) {
-      await saveClass(classId, data as Partial<ClassData>, currentClass.trialId);
+      await saveClass(
+        classId,
+        data as Partial<ClassData>,
+        currentClass.trialId,
+        (currentClass as unknown as Record<string, unknown>).judgeId as string | undefined
+      );
     }
   };
 

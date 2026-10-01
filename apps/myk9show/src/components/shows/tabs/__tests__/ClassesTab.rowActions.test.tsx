@@ -1,5 +1,6 @@
 import { render, screen, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useTrialStore } from '@/store/trialStore';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
 // MYK9-900: Setup → Classes rows get Edit / Delete that open the SAME ClassEditPanel and
@@ -67,11 +68,6 @@ const storeClasses = vi.hoisted(() => [
     judgeId: 'j1',
   },
 ]);
-// The tab resolves a row's class itself (replicated store, else this by-id read) before any
-// dialog mounts; the cold replica here means the by-id read answers.
-vi.mock('@/services/database/classes', () => ({
-  getPublicClassById: async (id: string) => storeClasses.find(c => c.id === id) ?? null,
-}));
 vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: storeClasses, updateClass, deleteClass }),
 }));
@@ -112,6 +108,13 @@ const renderTab = () => render(<ClassesTab classes={classes} showId="s1" userHas
 
 describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
   beforeEach(() => {
+    // The tab resolves a row's class from the authenticated replicated store.
+    // A confirmed delete reloads the store from the replica; keep that reload inert so it cannot
+    // land after the next test's seed.
+    useTrialStore.setState({
+      trialClasses: { t1: storeClasses as never },
+      loadTrialClasses: async () => undefined,
+    });
     mockNavigate.mockClear();
     deleteClass.mockReset();
     deleteClass.mockResolvedValue(undefined);

@@ -37,7 +37,14 @@ export function useClassEditActions({
   const saveClass = async (
     classId: string,
     data: Partial<ClassData>,
-    trialId: string | undefined
+    trialId: string | undefined,
+    /**
+     * The judge the class had when the editor opened. The judge assignment is written only when
+     * the user actually changed it relative to this: an unknown or empty original judge (a read
+     * that carries no assignments maps it to '') is NOT a removal, and writing '' through
+     * `upsertClassJudgeAssignment` would delete the existing assignment.
+     */
+    originalJudgeId?: string | null
   ): Promise<void> => {
     if (connectionHint) {
       throw new Error(`Can't save this class: ${connectionHint.toLowerCase()}.`);
@@ -46,7 +53,9 @@ export function useClassEditActions({
       // Save the judge assignment FIRST (with replication sync) before updateClass,
       // so React Query's onSuccess refetch reads fresh judge data from replication cache
       const judgeId = (data as Record<string, unknown>).judgeId as string | undefined;
-      if (judgeId !== undefined && showId) {
+      const judgeChanged =
+        judgeId !== undefined && judgeId !== '' && judgeId !== (originalJudgeId ?? undefined);
+      if (judgeChanged && showId) {
         try {
           await upsertClassJudgeAssignment(showId, classId, judgeId);
           // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data

@@ -58,6 +58,7 @@ const renderDialogs = () =>
       showId="s1"
       pending={{
         action: 'edit',
+        trialId: 't1',
         classSnapshot: {
           id: 'c1',
           trialId: 't1',

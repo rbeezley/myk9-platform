@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,11 +143,16 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
   // never open a dialog for a trial the store cannot resolve.
   const [hydratingTrialId, setHydratingTrialId] = useState<string | null>(null);
+  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
+  // from the latest request is ignored.
+  const latestActionRequest = useRef(0);
   const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
+    const request = ++latestActionRequest.current;
     const fromStore = () => useTrialStore.getState().trials.find(trial => trial.id === trialId);
     setHydratingTrialId(trialId);
     try {
       if (!fromStore()) await useTrialStore.getState().loadTrials();
+      if (request !== latestActionRequest.current) return;
       const trial = fromStore();
       if (!trial) {
         toast.error("We couldn't load this trial. Please refresh and try again.");
@@ -155,7 +160,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       }
       setPendingTrialAction({ trial, action });
     } finally {
-      setHydratingTrialId(null);
+      if (request === latestActionRequest.current) setHydratingTrialId(null);
     }
   };
   const trialRowMenu = (trialId: string, label: string) => (
@@ -163,6 +168,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       subject="Trial"
       rowLabel={label}
       busy={hydratingTrialId === trialId}
+      locked={hydratingTrialId !== null || pendingTrialAction !== null}
       onEdit={() => void openTrialAction(trialId, 'edit')}
       onDelete={() => void openTrialAction(trialId, 'delete')}
     />
@@ -183,7 +189,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           ]
         : baseTrialColumns,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
-    [canManageThisShow, hydratingTrialId]
+    [canManageThisShow, hydratingTrialId, pendingTrialAction]
   );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);

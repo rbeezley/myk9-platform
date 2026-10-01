@@ -1,37 +1,40 @@
-import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolveClassFromStores } from '@/hooks/resolveClassFromStores';
-import { getPublicClassById } from '@/services/database/classes';
+import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 
 /** The class a Setup row action works on, resolved once when the action starts. */
-export type SetupClassSnapshot = ClassData | SyncableTrialClass;
+export type SetupClassSnapshot = SyncableTrialClass;
 
 export interface SetupClassAction {
   action: 'edit' | 'delete';
   classSnapshot: SetupClassSnapshot;
+  /** The class's trial (a replicated trial class does not carry it), for cache invalidation. */
+  trialId: string;
 }
+
+const fromStore = (classId: string) =>
+  resolveClassFromStores<SetupClassSnapshot>(classId, [], useTrialStore.getState().trialClasses);
 
 /**
- * Resolve the class for a Setup row action, BEFORE any dialog mounts: the replicated store
- * first (what Setup's rows come from when warm), else the by-id class read Class Details uses
- * for a cold session. Resolves `null` when neither has it; the caller says so and stops.
+ * Resolve the class for a Setup row action, BEFORE any dialog mounts, from the authenticated
+ * replicated store only (the same source the editor saves through). A class the store does not
+ * hold yet is hydrated through the store's own load: sync that trial's classes into the
+ * replica, reload the store, read again. Resolves `null` when it is still absent; the caller
+ * says so and stops. Deliberately NOT the public by-id read: it carries no judge assignment, so
+ * an editor seeded from it would see an unassigned class.
  */
-export async function resolveSetupClass(classId: string): Promise<SetupClassSnapshot | null> {
-  const replicated = resolveClassFromStores<SetupClassSnapshot>(
-    classId,
-    [],
-    useTrialStore.getState().trialClasses
-  );
-  if (replicated) return replicated;
+export async function resolveSetupClass(
+  classId: string,
+  trialId: string
+): Promise<SetupClassSnapshot | null> {
+  const warm = fromStore(classId);
+  if (warm) return warm;
   try {
-    return ((await getPublicClassById(classId)) as SetupClassSnapshot | null) ?? null;
+    await replicatedClassesTable.sync(trialId, { forceFullSync: true });
+    await useTrialStore.getState().loadTrialClasses();
   } catch {
-    return null;
+    // Fall through: the re-read below decides.
   }
-}
-
-/** The owning trial, when the snapshot carries it (a replicated trial class does not). */
-export function snapshotTrialId(snapshot: SetupClassSnapshot): string | undefined {
-  return 'trialId' in snapshot ? snapshot.trialId : undefined;
+  return fromStore(classId);
 }

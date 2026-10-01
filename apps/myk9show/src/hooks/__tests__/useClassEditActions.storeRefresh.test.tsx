@@ -11,7 +11,8 @@ const replicatedDelete = vi.hoisted(() => vi.fn());
 const replicatedSync = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
-vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
+const upsertJudge = vi.hoisted(() => vi.fn());
+vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: upsertJudge }));
 vi.mock('@/services/replication', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/replication')>();
   return {
@@ -90,5 +91,49 @@ describe('useClassEditActions store refresh', () => {
 
     expect(replicatedSync).toHaveBeenCalled();
     expect(loadTrialClasses).toHaveBeenCalled();
+  });
+
+  describe('judge assignment on save (data-loss guard)', () => {
+    const save = async (data: Record<string, unknown>, original: string | null | undefined) => {
+      const { result } = renderHook(() =>
+        useClassEditActions({
+          showId: 's1',
+          updateClass: vi.fn().mockResolvedValue(undefined),
+          deleteClass: vi.fn(),
+        })
+      );
+      await result.current.saveClass('c1', data as never, 't1', original);
+    };
+
+    beforeEach(() => {
+      upsertJudge.mockReset().mockResolvedValue(undefined);
+    });
+
+    it('a status-only save with an UNKNOWN original judge does not touch the assignment', async () => {
+      // A read that carries no assignments maps the judge to ''. That is not a removal.
+      await save({ id: 'c1', status: 'Completed', judgeId: '' }, '');
+      await save({ id: 'c1', status: 'Completed', judgeId: '' }, undefined);
+      expect(upsertJudge).not.toHaveBeenCalled();
+    });
+
+    it('a status-only save with the judge unchanged does not rewrite the assignment', async () => {
+      await save({ id: 'c1', status: 'Completed', judgeId: 'j1' }, 'j1');
+      expect(upsertJudge).not.toHaveBeenCalled();
+    });
+
+    it('an empty judge never becomes a delete, even when the original judge was real', async () => {
+      await save({ id: 'c1', judgeId: '' }, 'j1');
+      expect(upsertJudge).not.toHaveBeenCalled();
+    });
+
+    it('a real judge change writes the new assignment', async () => {
+      await save({ id: 'c1', judgeId: 'j2' }, 'j1');
+      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'j2');
+    });
+
+    it('an explicit move to TBD is still honoured', async () => {
+      await save({ id: 'c1', judgeId: 'TBD' }, 'j1');
+      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'TBD');
+    });
   });
 });

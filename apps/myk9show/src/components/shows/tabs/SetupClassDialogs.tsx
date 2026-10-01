@@ -1,7 +1,7 @@
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
 import type { ClassData } from '@/components/classes/types/classTypes';
-import { snapshotTrialId, type SetupClassAction } from './setupClassSnapshot';
+import type { SetupClassAction } from './setupClassSnapshot';
 import { useClassEditActions } from '@/hooks/useClassEditActions';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 
@@ -30,7 +30,8 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
     await saveClass(
       currentClass.id,
       { ...currentClass, ...data } as Partial<ClassData>,
-      snapshotTrialId(currentClass)
+      pending.trialId,
+      currentClass.judgeId
     );
   };
 

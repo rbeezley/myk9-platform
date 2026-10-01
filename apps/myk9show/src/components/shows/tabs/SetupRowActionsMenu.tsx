@@ -10,6 +10,8 @@ interface SetupRowActionsMenuProps {
   onDelete: () => void;
   /** The row's data is still being prepared: the menu is disabled and announces it. */
   busy?: boolean;
+  /** Another row's action is being prepared: disabled, but this row's own label is kept. */
+  locked?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export function SetupRowActionsMenu({
   onEdit,
   onDelete,
   busy = false,
+  locked = false,
 }: SetupRowActionsMenuProps) {
   const actions: RowAction[] = [
     { id: 'edit', label: `Edit ${subject}`, icon: <Pencil />, onSelect: onEdit },
@@ -45,7 +48,7 @@ export function SetupRowActionsMenu({
       <RowActionMenu
         actions={actions}
         size="touch"
-        disabled={busy}
+        disabled={busy || locked}
         label={
           busy
             ? `Opening ${subject.toLowerCase()} ${rowLabel}`

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
@@ -147,17 +147,23 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   // Resolve the class BEFORE any dialog mounts (replicated store, else the by-id read Class
   // Details uses for a cold session), and keep that snapshot: the dialogs never re-resolve.
   const [hydratingClassId, setHydratingClassId] = useState<string | null>(null);
-  const openClassAction = async (classId: string, action: SetupClassAction['action']) => {
-    setHydratingClassId(classId);
+  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
+  // from the latest request is ignored, so a slow earlier request can never replace the dialog
+  // the user is editing in.
+  const latestActionRequest = useRef(0);
+  const openClassAction = async (cls: ClassInfo, action: SetupClassAction['action']) => {
+    const request = ++latestActionRequest.current;
+    setHydratingClassId(cls.id);
     try {
-      const classSnapshot = await resolveSetupClass(classId);
+      const classSnapshot = await resolveSetupClass(cls.id, cls.trialId);
+      if (request !== latestActionRequest.current) return;
       if (!classSnapshot) {
         toast.error("We couldn't load this class. Please refresh and try again.");
         return;
       }
-      setPendingAction({ action, classSnapshot });
+      setPendingAction({ action, classSnapshot, trialId: cls.trialId });
     } finally {
-      setHydratingClassId(null);
+      if (request === latestActionRequest.current) setHydratingClassId(null);
     }
   };
 
@@ -166,8 +172,9 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       subject="Class"
       rowLabel={[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
       busy={hydratingClassId === cls.id}
-      onEdit={() => void openClassAction(cls.id, 'edit')}
-      onDelete={() => void openClassAction(cls.id, 'delete')}
+      locked={hydratingClassId !== null || pendingAction !== null}
+      onEdit={() => void openClassAction(cls, 'edit')}
+      onDelete={() => void openClassAction(cls, 'delete')}
     />
   );
 
@@ -263,7 +270,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- classRowMenu only closes over stable setters and hydratingClassId
-  }, [hideRing, canManageThisShow, hydratingClassId]);
+  }, [hideRing, canManageThisShow, hydratingClassId, pendingAction]);
 
   if (classes.length === 0) {
     return (

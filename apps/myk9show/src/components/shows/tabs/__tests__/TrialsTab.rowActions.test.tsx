@@ -252,6 +252,29 @@ describe('TrialsTab row actions with a cold trial store', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
+  it('locks every other row menu while one trial resolves', async () => {
+    let finishLoad: () => void = () => undefined;
+    useTrialStore.setState({
+      loadTrials: () =>
+        new Promise<void>(resolve => {
+          finishLoad = () => {
+            useTrialStore.setState({ trials: trials.map(syncable) });
+            resolve();
+          };
+        }),
+    });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Trial' }));
+
+    expect(screen.getByLabelText('Trial actions for Saturday Trial 1')).toBeDisabled();
+    expect(screen.getByLabelText('Opening trial Sunday Trial 2')).toBeDisabled();
+
+    finishLoad();
+    expect(await screen.findByRole('dialog')).toBeVisible();
+  });
+
   it('shows an error and opens nothing when the trial cannot be resolved', async () => {
     useTrialStore.setState({ loadTrials: vi.fn(async () => undefined) });
     const { user } = renderTab();

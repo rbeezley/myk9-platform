@@ -35,8 +35,14 @@ const updateClass = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [], updateClass, deleteClass }),
 }));
-const getPublicClassById = vi.hoisted(() => vi.fn());
-vi.mock('@/services/database/classes', () => ({ getPublicClassById }));
+const replicatedSync = vi.hoisted(() => vi.fn());
+vi.mock('@/services/replication', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication')>();
+  return {
+    ...actual,
+    replicatedClassesTable: { ...actual.replicatedClassesTable, sync: replicatedSync },
+  };
+});
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 
 const replicatedClass: SyncableTrialClass = {
@@ -55,6 +61,14 @@ const replicatedClass: SyncableTrialClass = {
   entries: 3,
 };
 
+const secondClass: SyncableTrialClass = {
+  ...replicatedClass,
+  id: 'c2',
+  element: 'Interior',
+  level: 'Advanced',
+  section: 'B',
+};
+
 const rows: ClassInfo[] = [
   {
     id: 'c1',
@@ -70,6 +84,20 @@ const rows: ClassInfo[] = [
     entryCount: 3,
     userHasEntry: false,
   },
+  {
+    id: 'c2',
+    name: 'Advanced Interior',
+    element: 'Interior',
+    level: 'Advanced',
+    section: 'B',
+    judgeName: 'Test Judge',
+    trialId: 't1',
+    time: '10:30 AM',
+    ring: 1,
+    status: 'Scheduled',
+    entryCount: 1,
+    userHasEntry: false,
+  },
 ];
 
 const renderTab = () => render(<ClassesTab classes={rows} showId="s1" userHasEntries={false} />);
@@ -77,7 +105,8 @@ const renderTab = () => render(<ClassesTab classes={rows} showId="s1" userHasEnt
 describe('ClassesTab row actions with a cold, offline class query', () => {
   beforeEach(() => {
     toastError.mockClear();
-    getPublicClassById.mockReset().mockResolvedValue(null);
+    replicatedSync.mockReset().mockResolvedValue(undefined);
+    useTrialStore.setState({ loadTrialClasses: async () => undefined });
     deleteClass.mockReset();
     updateClass.mockReset();
     mockConnectionHint = undefined;
@@ -151,7 +180,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('a class that cannot be resolved anywhere shows an error and opens nothing', async () => {
+  it('a class that cannot be hydrated shows an error and opens nothing', async () => {
     useTrialStore.setState({ trialClasses: {} });
     const { user } = renderTab();
 
@@ -161,12 +190,13 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/couldn't load this class/i))
     );
+    expect(replicatedSync).toHaveBeenCalledWith('t1', expect.anything());
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('a failing by-id read is also an error, not a silent no-op', async () => {
+  it('a failing hydration is also an error, not a silent no-op', async () => {
     useTrialStore.setState({ trialClasses: {} });
-    getPublicClassById.mockRejectedValue(new Error('network'));
+    replicatedSync.mockRejectedValue(new Error('network'));
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
@@ -176,45 +206,71 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
-  it('cold replica and a slow list query: the by-id read resolves, the dialog opens populated and stays', async () => {
+  it('cold store: hydrates that trial from the replica, then opens the dialog with the real judge', async () => {
     useTrialStore.setState({ trialClasses: {} });
-    let resolveRead: (cls: unknown) => void = () => undefined;
-    getPublicClassById.mockReturnValue(
-      new Promise(resolve => {
-        resolveRead = resolve;
+    let finishSync: () => void = () => undefined;
+    replicatedSync.mockReturnValue(
+      new Promise<void>(resolve => {
+        finishSync = resolve;
       })
     );
+    useTrialStore.setState({
+      loadTrialClasses: async () => {
+        useTrialStore.setState({ trialClasses: { t1: [replicatedClass] } });
+      },
+    });
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Class' }));
 
-    // While resolving: the trigger is disabled and says so, and nothing has mounted or errored.
+    // While hydrating: the trigger is disabled and says so; nothing mounted, nothing errored.
     expect(await screen.findByLabelText('Opening class Containers Novice A')).toBeDisabled();
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    resolveRead({
-      id: 'c1',
-      trialId: 't1',
-      trial: 'Saturday Trial',
-      element: 'Containers',
-      level: 'Novice',
-      section: 'A',
-    });
-
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText(/Containers Novice A/)).toBeVisible();
-    expect(getPublicClassById).toHaveBeenCalledWith('c1');
+    finishSync();
+    const panel = await screen.findByRole('dialog');
+    // The real assigned judge is what the editor shows, not an unassigned class.
+    expect(within(panel).getByText(/Test Judge/)).toBeVisible();
+    expect(replicatedSync).toHaveBeenCalledWith('t1', expect.anything());
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('with the class in the replicated store the by-id read is never made', async () => {
+  it('with the class in the replicated store nothing is hydrated', async () => {
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Edit Class' }));
 
     expect(await screen.findByRole('dialog')).toBeVisible();
-    expect(getPublicClassById).not.toHaveBeenCalled();
+    expect(replicatedSync).not.toHaveBeenCalled();
+  });
+
+  it('locks every row menu while one class resolves, and only the latest request opens', async () => {
+    useTrialStore.setState({ trialClasses: {} });
+    const finishers: Array<() => void> = [];
+    replicatedSync.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finishers.push(resolve);
+        })
+    );
+    useTrialStore.setState({
+      loadTrialClasses: async () => {
+        useTrialStore.setState({ trialClasses: { t1: [replicatedClass, secondClass] } });
+      },
+    });
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Class' }));
+
+    // The OTHER row's menu is locked while the first resolves.
+    expect(screen.getByLabelText('Class actions for Interior Advanced B')).toBeDisabled();
+    expect(screen.getByLabelText('Opening class Containers Novice A')).toBeDisabled();
+
+    finishers[0]?.();
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(replicatedSync).toHaveBeenCalledTimes(1);
   });
 });

@@ -46,17 +46,16 @@ export async function updateSelfCheckInStatus(
 /**
  * Show Day's "Pull / no-show" fast path. MYK9-918: it is the SAME mutation as
  * Entry Management's Pull (`updateEntryStatus` → `buildReplicatedEntryStatusUpdate`),
- * so both write identical fields — `scratched`, `check_in_status='pulled'`,
+ * so both write identical fields — `scratched`, `check_in_status='pulled'`, the
+ * typed reason in `withdrawal_reason` (shown as "Pulled · <reason>"),
  * `withdrawal_reason_code` cleared — and neither overwrites the exhibitor's
- * `special_requests`. Entry Management's Pull records no reason on the row, so
- * the reason Show Day prompts for lands in the audit log only (`reason` on the
- * `scratch_entry_day_of` entry), not in `withdrawal_reason`.
+ * `special_requests`. The reason is also kept in the audit log.
  */
 export async function updateReplicatedDayOfScratch(
   entryId: string,
   reason: string
 ): Promise<string | null> {
-  const { data, error } = await updateEntryStatus(entryId, 'scratched');
+  const { data, error } = await updateEntryStatus(entryId, 'scratched', reason);
   if (error) throw error;
 
   await logReplicatedEntryStatusChange({

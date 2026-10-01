@@ -35,6 +35,11 @@ BEGIN
 END;
 $$;
 
+-- Schema-only databases carry no seeded roles; match entries_insert_show_scope_test.sql.
+INSERT INTO public.roles (id, name, description, is_system)
+VALUES ('00000000-0000-0000-0000-000000878a81', 'secretary', 'MYK9-878 fixture', true)
+ON CONFLICT (name) DO NOTHING;
+
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000878a10', 'MYK9-878 Submit Club');
 
@@ -129,9 +134,13 @@ VALUES
   ('00000000-0000-0000-0000-000000878c02', 'AKC', 'SR8780102', true),
   ('00000000-0000-0000-0000-000000878c03', 'AKC', 'SR8780103', true);
 
--- e1: the junior exhibitor's own. e2: the adult owner's (mail-in, secretary keys).
--- e3: the adult owner's on the no-junior-fee show. e4: the junior's, keyed by the
--- secretary with cash received (its own so the ledger asserts are not shared).
+-- One enrollment per (show, handler): idx_enrollments_show_handler is UNIQUE, so the
+-- cash case (7) shares e1 with case 1. That is safe for the ledger asserts because
+-- case 1 sends no p_payment, so e1 carries no total, no payment and no ledger row
+-- until case 7 (asserted below as the exact amounts).
+-- e1: the junior exhibitor's (self-service in case 1, secretary-keyed cash in case 7).
+-- e2: the adult owner's (mail-in, secretary keys). e3: the adult owner's on the
+-- no-junior-fee show.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 VALUES
   ('00000000-0000-0000-0000-000000878d01', '00000000-0000-0000-0000-000000878a11',
@@ -139,9 +148,7 @@ VALUES
   ('00000000-0000-0000-0000-000000878d02', '00000000-0000-0000-0000-000000878a11',
    '00000000-0000-0000-0000-000000878a02', 'pending'),
   ('00000000-0000-0000-0000-000000878d03', '00000000-0000-0000-0000-000000878a12',
-   '00000000-0000-0000-0000-000000878a02', 'pending'),
-  ('00000000-0000-0000-0000-000000878d04', '00000000-0000-0000-0000-000000878a11',
-   '00000000-0000-0000-0000-000000878a01', 'pending');
+   '00000000-0000-0000-0000-000000878a02', 'pending');
 
 SET LOCAL ROLE authenticated;
 
@@ -245,7 +252,7 @@ BEGIN
 
   -- 7. cash received with an explicit override: the ledger follows the server fee.
   result := public.submit_show_entries(
-    s1, '00000000-0000-0000-0000-000000878d04',
+    s1, '00000000-0000-0000-0000-000000878d01',
     jsonb_build_array(jsonb_build_object(
       'dog_id', jr_dog, 'class_id', '00000000-0000-0000-0000-000000878302',
       'handler_name', 'MYK9-878 JuniorExhibitor', 'client_fee_cents', 3000,
@@ -315,12 +322,12 @@ SELECT pg_temp.expect('7 cash: stamped with the secretary''s people id',
   pg_temp.stamp_of('case7', 0), '00000000-0000-0000-0000-000000878a04');
 SELECT pg_temp.expect('7 cash: the ledger row is the junior fee, not the client''s 30.00',
   (SELECT sum(amount)::numeric(10, 2)::text FROM public.show_payments
-    WHERE enrollment_id = '00000000-0000-0000-0000-000000878d04'), '15.00');
+    WHERE enrollment_id = '00000000-0000-0000-0000-000000878d01'), '15.00');
 SELECT pg_temp.expect('7 cash: the enrollment total (cents) is the junior fee',
   (SELECT total_amount::text FROM public.enrollments
-    WHERE id = '00000000-0000-0000-0000-000000878d04'), '1500');
+    WHERE id = '00000000-0000-0000-0000-000000878d01'), '1500');
 SELECT pg_temp.expect('7 cash: paid equals the junior fee',
   (SELECT paid_amount::numeric(10, 2)::text FROM public.enrollments
-    WHERE id = '00000000-0000-0000-0000-000000878d04'), '15.00');
+    WHERE id = '00000000-0000-0000-0000-000000878d01'), '15.00');
 
 ROLLBACK;

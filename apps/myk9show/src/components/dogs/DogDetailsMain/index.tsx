@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
-import { useViewerOwnsDog } from '@/hooks/useViewerOwnsDog';
 import { UserRole } from '@/types/auth-types';
+import { deriveDogPageGates, type DogPageGates } from './dogViewerAccess';
+import { useDogViewerRelationship } from './useDogViewerRelationship';
+import { DogPageSkeleton } from './Skeletons';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
@@ -29,7 +31,28 @@ import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/D
 import ManageRegistrationsPanel from '@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel';
 import type { DogDetailsMainProps } from './types';
 
-const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
+/**
+ * The whole page is gated on the viewer's relationship to the dog. While that is
+ * `pending` (roles or person identity still loading) neither layout renders and
+ * none of the page's effects run: DogDetailsLoaded mounts only once it is known,
+ * so no effect can strip a deep link or settle focus on a guess.
+ */
+const DogDetailsMain: React.FC<DogDetailsMainProps> = props => {
+  const relationship = useDogViewerRelationship(props.dog);
+  const { hasRole } = useAuthContext();
+  const gates = deriveDogPageGates(relationship, hasRole);
+  if (!gates) {
+    return (
+      <PageShell>
+        <DogPageSkeleton />
+      </PageShell>
+    );
+  }
+  return <DogDetailsLoaded {...props} gates={gates} />;
+};
+
+const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> = ({
+  gates,
   dog,
   fromPerson,
   onDeleteStart,
@@ -41,10 +64,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
-  // MYK9-912: the narrow secretary surface is for a secretary looking at someone
-  // else's dog. A secretary who owns or co-owns the dog gets the full view.
-  const viewerOwnsDog = useViewerOwnsDog(dog);
-  const isSecretary = userRole === 'secretary' && !viewerOwnsDog;
+  // MYK9-912 / MYK9-935: narrow surface and registration rights come from the one
+  // resolved relationship (dogViewerAccess), never from role or ownership checks here.
+  const isSecretary = gates.narrowSurface;
+  const canManageRegistrations = gates.canManageRegistrations;
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
@@ -80,11 +103,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // section the link pointed at stays selected underneath it.
   useEffect(() => {
     if (searchParams.get('addRegistration') !== 'true') return;
+    // The server refuses registration writes to this viewer: drop the param, raise nothing.
     const next = new URLSearchParams(searchParams);
     next.delete('addRegistration');
-    setAddRegistrationDogId(dog.id);
+    if (canManageRegistrations) setAddRegistrationDogId(dog.id);
     setSearchParams(next, { replace: true });
-  }, [dog.id, searchParams, setSearchParams]);
+  }, [dog.id, searchParams, setSearchParams, canManageRegistrations]);
 
   // Owner — try store first, fall back to Supabase query
   const storeOwner: Owner | null = React.useMemo(() => {
@@ -298,8 +322,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             dog={updatedDog}
             owner={owner}
             registrations={dbRegistrations}
-            onAddRegistration={openAddRegistration}
-            onManageRegistrations={() => setIsManageRegistrationsOpen(true)}
+            onAddRegistration={canManageRegistrations ? openAddRegistration : undefined}
+            onManageRegistrations={
+              canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
+            }
             registrationsFailed={registrationsFailed}
             registrationsLoading={registrationsLoading}
             onRetryRegistrations={() => void refetchRegistrations()}
@@ -307,7 +333,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             canOpenOwnerRecord={canOpenOwnerRecord}
           />
           <main className="flex-1 min-w-0">
-            <DogDetailsTabs dog={updatedDog} role={isSecretary ? 'secretary' : 'exhibitor'} />
+            <DogDetailsTabs
+              dog={updatedDog}
+              role={isSecretary ? 'secretary' : 'exhibitor'}
+              canEditRegistrations={canManageRegistrations}
+            />
           </main>
         </div>
       </PageShell>
@@ -319,21 +349,23 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           and since Overview no longer carries a registrations list, that is the
           exhibitor's only route to edit or delete one. Pinned by a DOM-order
           test in ownerResolution.test.tsx. */}
-      {!isSecretary && (
+      {canManageRegistrations && (
         <ManageRegistrationsPanel
           open={isManageRegistrationsOpen}
           onClose={() => setIsManageRegistrationsOpen(false)}
           dog={updatedDog}
         />
       )}
-      {/* Mounted once, for every role: the rail's Add, the list's per-row Edit
+      {/* Mounted once, for every viewer allowed to change registrations: the rail's Add, the list's per-row Edit
           and Delete, and the `?addRegistration=true` deep link all raise these,
           so they must not depend on any list being on screen. */}
-      <DogRegistrationDialogs
-        dog={updatedDog}
-        autoOpenAddDialog={addRegistrationDogId === dog.id}
-        onAddRequestConsumed={() => setAddRegistrationDogId(null)}
-      />
+      {canManageRegistrations && (
+        <DogRegistrationDialogs
+          dog={updatedDog}
+          autoOpenAddDialog={addRegistrationDogId === dog.id}
+          onAddRequestConsumed={() => setAddRegistrationDogId(null)}
+        />
+      )}
 
       <DogDialogs
         dog={updatedDog}

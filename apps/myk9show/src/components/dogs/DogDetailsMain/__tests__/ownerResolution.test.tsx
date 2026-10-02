@@ -43,6 +43,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // mockPeople is mutated per-test; the factory closure reads it at call time
 let mockPeople: User[] = [];
 let mockRole = 'secretary';
+let mockViewerPersonId: string | undefined;
 let mockRegistrations: { organization: string; registration_number: string }[] = [];
 
 vi.mock('@/store/userStore', () => ({
@@ -59,6 +60,7 @@ vi.mock('@/store/entryStore', () => ({
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
+    userWithRoles: { databaseUserId: mockViewerPersonId },
     getUserRoles: () => [mockRole],
     hasRole: (role: string) => role === mockRole,
   }),
@@ -151,6 +153,7 @@ describe('DogDetailsMain — owner resolution', () => {
     vi.clearAllMocks();
     mockPeople = [];
     mockRole = 'secretary';
+    mockViewerPersonId = undefined;
     mockRegistrations = [];
     usePageEditTargetStore.setState({ target: null, owner: null });
   });
@@ -279,6 +282,7 @@ describe('DogDetailsMain — owner resolution', () => {
   // Overview: the rail summarises them and raises this panel on demand.
   it('opens the registrations panel from the rail, leaving Overview alone', async () => {
     mockRole = 'exhibitor';
+    mockViewerPersonId = DOG_OWNER_ID;
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
     render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1' });
@@ -309,6 +313,7 @@ describe('DogDetailsMain — owner resolution', () => {
 
   it('opens Add registration from a deep link without moving the reader off their section', async () => {
     mockRole = 'exhibitor';
+    mockViewerPersonId = DOG_OWNER_ID;
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     render(<DogDetailsMain dog={mockDog} />, {
       initialRoute: '/dogs/dog-1?section=career&addRegistration=true',

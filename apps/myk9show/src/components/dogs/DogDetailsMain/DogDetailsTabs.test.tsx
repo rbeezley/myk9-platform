@@ -106,7 +106,7 @@ function setUntrustedPremium() {
 function renderAt(initialRoute: string, dog: Dog = mockDog) {
   return render(
     <Routes>
-      <Route path="/dogs/:id" element={<DogDetailsTabs dog={dog} />} />
+      <Route path="/dogs/:id" element={<DogDetailsTabs dog={dog} canEditRegistrations={false} />} />
     </Routes>,
     { initialRoute }
   );
@@ -242,7 +242,10 @@ describe('DogDetailsTabs navigation', () => {
       window.history.pushState({}, '', '/dogs/dog-1');
       const { user } = render(
         <Routes>
-          <Route path="/dogs/:id" element={<DogDetailsTabs dog={mockDog} />} />
+          <Route
+            path="/dogs/:id"
+            element={<DogDetailsTabs dog={mockDog} canEditRegistrations={false} />}
+          />
         </Routes>,
         { initialRoute: '' }
       );
@@ -319,7 +322,7 @@ describe('DogDetailsTabs navigation', () => {
 
   describe('secretary role', () => {
     it('renders Registrations and a vaccinations-only Health Records section, no Overview/Career/Records strip', () => {
-      render(<DogDetailsTabs dog={mockDog} role="secretary" />);
+      render(<DogDetailsTabs dog={mockDog} role="secretary" canEditRegistrations={false} />);
       expect(screen.getByRole('heading', { name: 'Health Records' })).toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: 'Career' })).not.toBeInTheDocument();
     });

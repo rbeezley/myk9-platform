@@ -61,6 +61,8 @@ export interface DogSummaryCardProps {
 export interface DogDetailsTabsProps {
   dog: Dog;
   role?: 'exhibitor' | 'secretary';
+  /** `canManageDogRegistrations` for this viewer; gates the narrow surface's registration controls. */
+  canEditRegistrations: boolean;
 }
 
 export interface DogDialogsProps {

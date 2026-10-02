@@ -143,14 +143,16 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Registrations
           </span>
-          <button
-            type="button"
-            onClick={onAddRegistration}
-            className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add registration
-          </button>
+          {onAddRegistration && (
+            <button
+              type="button"
+              onClick={onAddRegistration}
+              className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add registration
+            </button>
+          )}
         </div>
         {/* Rows first: React Query keeps `data` across a failed refetch and the
             `dog.registrations` fallback is often already populated by the dogs
@@ -181,11 +183,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
-        {/* Always mounted for an exhibitor — not gated on the row count, and not
+        {/* Always mounted for anyone allowed to manage (canManageDogRegistrations) — not gated on the row count, and not
             on the read succeeding. Unmounting it while the panel is open (last
             registration deleted, or a refetch failing) takes away the element
             SlideOverPanel returns focus to, dropping focus on <body>. */}
-        {!isSecretary && onManageRegistrations && (
+        {onManageRegistrations && (
           <button
             type="button"
             onClick={onManageRegistrations}

@@ -363,6 +363,10 @@ describe('AppHeader Actions trigger — the wordmark has to fit beside it', () =
     // The control is still a named, expandable button — only its label is visual-free.
     expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // MYK9-932: the standard "more" glyph, not the lightning bolt.
+    const icon = trigger.querySelector('svg');
+    expect(icon).toHaveClass('lucide-ellipsis');
+    expect(icon).not.toHaveClass('lucide-zap');
   });
 
   it('shows the written label from sm up, where the header has the room', () => {

@@ -32,7 +32,7 @@ export function ClassEntryBreakdownLine({
           <Link
             to={getClassReviewHref({ showId, trialId, classId })}
             aria-label={`${text.pending} in ${className}`}
-            className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0"
+            className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-6"
           >
             {text.pending}
           </Link>

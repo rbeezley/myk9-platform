@@ -1,3 +1,4 @@
+import { fillTrialStartTime } from '../helpers/wizardTrial';
 import { test, expect, Page } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
 import { chooseAction } from '../helpers/actionsMenu';
@@ -384,6 +385,9 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
       .first()
       .fill(labelTestEventNumber);
 
+    // Start time is required and never defaulted (MYK9-931).
+    await fillTrialStartTime(page);
+
     await page.getByRole('button', { name: /^Next$/ }).click();
     await page
       .getByRole('button', { name: 'Select All', exact: true })
@@ -453,6 +457,9 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
       .getByLabel(/^Event Number/)
       .first()
       .fill(eventNumber);
+
+    // Start time is required and never defaulted (MYK9-931).
+    await fillTrialStartTime(page);
 
     // Advance to Step 3 (Classes).
     await page.getByRole('button', { name: /^Next$/ }).click();

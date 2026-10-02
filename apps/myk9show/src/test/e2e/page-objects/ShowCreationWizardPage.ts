@@ -1,3 +1,4 @@
+import { fillTrialStartTime } from '../helpers/wizardTrial';
 import { Page, expect, Locator } from '@playwright/test';
 import { format, addDays, addMonths } from 'date-fns';
 
@@ -605,10 +606,7 @@ export class ShowCreationWizardPage {
     }
 
     // The start time is its own required field and is never defaulted (MYK9-931).
-    const startTime = lastTrialCard.getByLabel(/^Start Time/);
-    if (await startTime.isVisible().catch(() => false)) {
-      await startTime.fill('09:00 AM');
-    }
+    await fillTrialStartTime(lastTrialCard);
   }
 
   async addMultipleTrials(trials: TrialDetails[]) {

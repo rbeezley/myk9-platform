@@ -132,15 +132,23 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // forget to memoize initialData would otherwise wipe in-progress user edits
   // on every parent re-render — deep-equality guards against that. Legacy path
   // skips the stringify cost entirely.
+  // Edits outlive a changed baseline. A failed save can change `initialData`
+  // underneath the form (a caller's optimistic update, then its rollback), and
+  // resetting then would wipe what the user typed while the toast says "Your
+  // changes are still here". So initial data re-seeds the form only when the
+  // panel (re)opens or the form holds no edits of its own.
+  const wasOpenRef = useRef(open);
   const lastInitialDataJsonRef = useRef<string | null>(null);
   useEffect(() => {
     if (!useSchemaPath) return;
+    const reopened = open && !wasOpenRef.current;
     const nextJson = JSON.stringify(initialData);
-    if (nextJson === lastInitialDataJsonRef.current) return;
+    if (nextJson === lastInitialDataJsonRef.current && !reopened) return;
+    if (open && !reopened && form.hasChanges) return;
     lastInitialDataJsonRef.current = nextJson;
     form.reset(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, useSchemaPath]);
+  }, [initialData, useSchemaPath, open]);
 
   // --- Legacy path: useState owns state ---
   const [legacyData, setLegacyData] = useState<T>(initialData);
@@ -154,13 +162,19 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Update legacy data when initialData changes
   useEffect(() => {
-    if (!useSchemaPath) {
-      setLegacyData(initialData);
-      setLegacyHasChanges(false);
-      setIsTouched(false);
-      setLastAutoSave(Date.now());
-    }
-  }, [initialData, useSchemaPath]);
+    if (useSchemaPath) return;
+    if (open && wasOpenRef.current && legacyHasChanges) return;
+    setLegacyData(initialData);
+    setLegacyHasChanges(false);
+    setIsTouched(false);
+    setLastAutoSave(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, useSchemaPath, open]);
+
+  // Declared after both re-seed effects so they read the previous open state.
+  useEffect(() => {
+    wasOpenRef.current = open;
+  }, [open]);
 
   // Unified accessors
   const data = useSchemaPath ? form.data : legacyData;

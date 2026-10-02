@@ -324,6 +324,10 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Failed to update club';
       logger.error('Failed to update club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
+      // Callers confirm a save on resolve and report a failure on reject; a
+      // swallowed failure made the edit panel close and announce a save that
+      // never happened.
+      throw error;
     }
   },
 

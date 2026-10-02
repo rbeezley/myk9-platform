@@ -6,6 +6,7 @@ import { ShowBulkActionsBar } from './ShowBulkActionsBar';
 import { updateShow } from '@/services/database/shows';
 import { deleteShowRecord as deleteShow } from '@/services/showDeletion';
 import { notifications } from '@/lib/notifications';
+import { replicatedShowsTable } from '@/services/replication';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 vi.mock('@/services/database/shows', () => ({
@@ -16,9 +17,22 @@ vi.mock('@/services/showDeletion', () => ({
   deleteShowRecord: vi.fn().mockResolvedValue({ data: {}, error: null }),
 }));
 
-const purgeDeletedShow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+// A tiny stand-in for the show store that really applies setState, so the test
+// asserts the OUTCOME (the show is gone from the local copy), not a call.
+const showStoreState = vi.hoisted(() => ({
+  current: { shows: [] as { id: string }[], selectedShowId: '' },
+}));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: { getState: () => ({ purgeDeletedShow }), setState: vi.fn() },
+  useShowStore: {
+    getState: () => showStoreState.current,
+    setState: (update: unknown) => {
+      const patch =
+        typeof update === 'function'
+          ? (update as (s: typeof showStoreState.current) => object)(showStoreState.current)
+          : update;
+      showStoreState.current = { ...showStoreState.current, ...(patch as object) };
+    },
+  },
 }));
 
 // The shared delete dialog reads its counts from delete_preview; nothing blocks here.
@@ -65,13 +79,24 @@ function makeShow(id: string, name: string): EnhancedShow {
 
 const shows = [makeShow('show-1', 'Summer Classic'), makeShow('show-2', 'Fall Trial')];
 
+const deleteRowsIfClean = vi.hoisted(() => vi.fn());
+
 describe('ShowBulkActionsBar', () => {
   const onClearSelection = vi.fn();
   const onBulkComplete = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    purgeDeletedShow.mockResolvedValue(undefined);
+    vi.spyOn(replicatedShowsTable, 'deleteRowsIfClean').mockImplementation(deleteRowsIfClean);
+    showStoreState.current = {
+      shows: [{ id: 'show-1' }, { id: 'show-2' }],
+      selectedShowId: '',
+    };
+    // Atomic replica purge: every id is clean, so every id is deleted.
+    deleteRowsIfClean.mockImplementation(async (ids: Iterable<string>) => ({
+      deleted: [...ids],
+      kept: [],
+    }));
     vi.mocked(updateShow).mockResolvedValue({ data: {}, error: null } as Awaited<
       ReturnType<typeof updateShow>
     >);
@@ -149,10 +174,9 @@ describe('ShowBulkActionsBar', () => {
 
     // The server soft-deleted them; the replica never delivers that, so each
     // must be purged locally or it stays in the list until a full sync.
-    await waitFor(() => {
-      expect(purgeDeletedShow).toHaveBeenCalledWith('show-1');
-      expect(purgeDeletedShow).toHaveBeenCalledWith('show-2');
-    });
+    await waitFor(() => expect(showStoreState.current.shows).toEqual([]));
+    const purgedIds = deleteRowsIfClean.mock.calls.flatMap(([ids]) => [...ids]);
+    expect(purgedIds.sort()).toEqual(['show-1', 'show-2']);
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
@@ -171,7 +195,10 @@ describe('ShowBulkActionsBar', () => {
 
     await confirmBulkDelete(user);
 
-    await waitFor(() => expect(purgeDeletedShow).toHaveBeenCalledWith('show-1'));
+    await waitFor(() =>
+      expect(showStoreState.current.shows.map(show => show.id)).not.toContain('show-1')
+    );
+    expect(deleteRowsIfClean.mock.calls.flatMap(([ids]) => [...ids])).toContain('show-1');
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
@@ -191,7 +218,8 @@ describe('ShowBulkActionsBar', () => {
     expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
       "Summer Classic: You don't have permission to delete this show."
     );
-    expect(purgeDeletedShow).not.toHaveBeenCalled();
+    expect(deleteRowsIfClean).not.toHaveBeenCalled();
+    expect(showStoreState.current.shows).toHaveLength(2);
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
 
@@ -209,7 +237,8 @@ describe('ShowBulkActionsBar', () => {
     expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
       "Summer Classic: Finish saving first: this device has changes that haven't uploaded yet."
     );
-    expect(purgeDeletedShow).not.toHaveBeenCalled();
+    expect(deleteRowsIfClean).not.toHaveBeenCalled();
+    expect(showStoreState.current.shows).toHaveLength(2);
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
 

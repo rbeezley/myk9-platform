@@ -32,7 +32,7 @@ vi.mock('./useClassDetailsDialogs', () => ({
     setEditClassPanelOpen: vi.fn(),
     openEditClassPanel: vi.fn(),
     closeEditClassPanel: vi.fn(),
-    deleteDialogOpen: true,
+    deleteDialogOpen: mockDeleteDialogOpen.current,
     setDeleteDialogOpen: vi.fn(),
     openDeleteDialog: vi.fn(),
     closeDeleteDialog: vi.fn(),
@@ -44,6 +44,8 @@ vi.mock('./useClassDetailsDialogs', () => ({
     closeDeleteEntryDialog: vi.fn(),
   }),
 }));
+// The modal delete dialog makes the rest of the page inert, so the save test keeps it closed.
+const mockDeleteDialogOpen = vi.hoisted(() => ({ current: true }));
 const updateClass = vi.hoisted(() => vi.fn());
 let mockConnectionHint: string | undefined;
 
@@ -124,6 +126,7 @@ function renderPage() {
 describe('ClassDetailsPage delete / save failure contract', () => {
   beforeEach(() => {
     mockConnectionHint = undefined;
+    mockDeleteDialogOpen.current = true;
     delete document.body.dataset.saveResult;
     deleteMocks.preview.mockReset().mockResolvedValue({
       trials: 0,
@@ -169,7 +172,7 @@ describe('ClassDetailsPage delete / save failure contract', () => {
   });
 
   async function pressDelete(user: ReturnType<typeof renderPage>['user']) {
-    const dialog = await screen.findByRole('dialog', {
+    const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the class Interior Novice A?',
     });
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
@@ -209,7 +212,7 @@ describe('ClassDetailsPage delete / save failure contract', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderPage();
 
-    const dialog = await screen.findByRole('dialog', {
+    const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the class Interior Novice A?',
     });
     expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
@@ -220,6 +223,7 @@ describe('ClassDetailsPage delete / save failure contract', () => {
   });
 
   it('rejects the panel save when the class update fails, resolves when it succeeds', async () => {
+    mockDeleteDialogOpen.current = false;
     updateClass.mockRejectedValueOnce(new Error('boom'));
     const { user } = renderPage();
 

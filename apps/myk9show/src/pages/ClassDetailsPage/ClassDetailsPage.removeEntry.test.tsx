@@ -137,7 +137,7 @@ describe('ClassDetailsPage remove-entry dialog', () => {
 
     await user.click(screen.getByRole('button', { name: /row trash/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Rex?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Rex?' });
     expect(
       within(dialog).getByText('Rex · handled by Jane Handler · Interior Novice A')
     ).toBeVisible();
@@ -152,7 +152,7 @@ describe('ClassDetailsPage remove-entry dialog', () => {
     });
 
     await user.click(screen.getByRole('button', { name: /row trash/i }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText(
         'This entry is scored. Use Withdraw or Pull instead of deleting it.'
@@ -173,7 +173,7 @@ describe('ClassDetailsPage remove-entry dialog', () => {
     });
 
     await user.click(screen.getByRole('button', { name: /row trash/i }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(deleteMocks.remove).not.toHaveBeenCalled();
     const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
     await waitFor(() => expect(confirm).toBeEnabled());
@@ -218,7 +218,7 @@ describe('ClassDetailsPage remove-entry dialog', () => {
 
     await user.click(screen.getByRole('button', { name: /row trash/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Rex?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Rex?' });
     expect(
       within(dialog).getByText('Rex · handled by Query Handler · Interior Novice A')
     ).toBeVisible();

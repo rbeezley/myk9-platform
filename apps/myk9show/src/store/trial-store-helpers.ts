@@ -87,7 +87,8 @@ export function mergeTrialClassData(
     // Preserve local-only fields from existing
     // A RESOLVED row with no judge means the assignment was removed, so it wins; an unresolved
     // row only means the judge lookup did not run, so the judge already held is kept.
-    judgeId: replicated.judgeResolved === true ? base.judgeId : base.judgeId || existing.judgeId || '',
+    judgeId:
+      replicated.judgeResolved === true ? base.judgeId : base.judgeId || existing.judgeId || '',
     entries: existing.entries || 0,
   };
 }

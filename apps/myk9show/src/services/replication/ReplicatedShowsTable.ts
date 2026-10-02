@@ -22,6 +22,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getLiveShowCount } from './liveShowCount';
+import { verifyShowsGone } from './showScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
@@ -268,6 +269,16 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       // overwritten or removed here. Once a full fetch proves complete against
       // the count above, rows the server no longer returns leave the replica.
       cleanupStaleRowsOnFullSync: true,
+      // The last show of a scope deleted elsewhere reads 0 of 0, the same as an
+      // RLS gap (MYK9-880). Only a per-id server answer that none of the shows
+      // this device holds still exists lets the replica clear (MYK9-913).
+      verifyScopeEmpty: async ({ scope }) => {
+        const held = (await this.getAllOrThrow()).filter(
+          row => (row as { _localOnly?: unknown })._localOnly !== true
+        );
+        const inScope = scope.value ? held.filter(row => row.clubId === scope.value) : held;
+        return verifyShowsGone(inScope.map(row => row.id));
+      },
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('shows')

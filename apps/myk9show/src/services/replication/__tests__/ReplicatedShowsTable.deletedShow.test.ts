@@ -12,6 +12,11 @@ import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTab
 const server = vi.hoisted(() => ({
   rows: [] as Array<Record<string, unknown>>,
   liveCount: 0,
+  /** delete_preview answer per show id; absent id answers P0002 (gone). */
+  previewErrors: {} as Record<string, { code: string } | null>,
+  previewThrows: false,
+  /** Every id delete_preview was asked about, in order. */
+  previewCalls: [] as string[],
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -28,6 +33,13 @@ vi.mock('@/services/database/supabaseClient', () => {
   };
   return {
     supabase: {
+      rpc: async (_fn: string, args: { p_id: string }) => {
+        server.previewCalls.push(args.p_id);
+        if (server.previewThrows) throw new Error('network');
+        const error =
+          args.p_id in server.previewErrors ? server.previewErrors[args.p_id] : { code: 'P0002' };
+        return { data: error ? null : {}, error };
+      },
       from: () => ({
         select: (_cols: string, opts?: { head?: boolean }) =>
           builder(opts?.head ? 'count' : 'rows'),
@@ -55,6 +67,17 @@ const show = (id: string): ReplicatedShow => ({
   clubId: 'club-1',
 });
 
+/**
+ * Stale cleanup only removes rows last synced BEFORE the fetch started, and a
+ * row seeded with `set()` is stamped with the current time. Moving the clock
+ * forward (Date only, so IndexedDB is unaffected) makes the seeded rows older
+ * than the next fetch deterministically, instead of sleeping.
+ */
+const rowsSeededBeforeNextFetch = () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + 60_000);
+};
+
 const serverRow = (id: string) =>
   fromAny({
     id,
@@ -78,9 +101,13 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
     table = new ReplicatedShowsTable();
     server.rows = [];
     server.liveCount = 0;
+    server.previewErrors = {};
+    server.previewThrows = false;
+    server.previewCalls = [];
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
   });
@@ -91,6 +118,7 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
     // The server now serves only the live show (the other is soft-deleted).
     server.rows = [serverRow('live-show')];
     server.liveCount = 1;
+    rowsSeededBeforeNextFetch();
 
     await table.sync('');
 
@@ -99,16 +127,67 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
   });
 
   describe('when the last show of the scope is deleted elsewhere (count 0, fetch 0)', () => {
-    it('does NOT clear the replica: an empty answer is not proof, and the engine requires one', async () => {
+    const seedTwoAndSync = async () => {
       await table.set('deleted-a', show('deleted-a'));
       await table.set('deleted-b', show('deleted-b'));
       server.rows = [];
       server.liveCount = 0;
-      await new Promise(resolve => setTimeout(resolve, 5));
+      rowsSeededBeforeNextFetch();
+      await table.sync('');
+    };
+
+    it('clears the replica when the server proves every held show is gone', async () => {
+      await seedTwoAndSync();
+
+      expect(await table.get('deleted-a')).toBeNull();
+      expect(await table.get('deleted-b')).toBeNull();
+    });
+
+    it('keeps every row when one held show still exists server-side (an RLS gap)', async () => {
+      server.previewErrors = { 'deleted-b': { code: '42501' } };
+      await seedTwoAndSync();
+
+      expect(await table.get('deleted-a')).not.toBeNull();
+      expect(await table.get('deleted-b')).not.toBeNull();
+    });
+
+    it('asks delete_preview about each held show by id', async () => {
+      await seedTwoAndSync();
+
+      expect([...server.previewCalls].sort()).toEqual(['deleted-a', 'deleted-b']);
+    });
+
+    it('only proves the shows in the synced club scope', async () => {
+      await table.set('mine', show('mine'));
+      await table.set('other-club', { ...show('other-club'), clubId: 'club-2' });
+      rowsSeededBeforeNextFetch();
+
+      await table.sync('club-1');
+
+      expect(server.previewCalls).toEqual(['mine']);
+      expect(await table.get('mine')).toBeNull();
+      expect(await table.get('other-club')).not.toBeNull();
+    });
+
+    it('does not ask the server about a show that exists only on this device', async () => {
+      await table.set('deleted-a', show('deleted-a'));
+      await table.set('local-only', { ...show('local-only'), _localOnly: true } as ReplicatedShow);
+      rowsSeededBeforeNextFetch();
 
       await table.sync('');
 
-      // Known gap, tracked separately: indistinguishable from an RLS gap.
+      expect(server.previewCalls).toEqual(['deleted-a']);
+    });
+
+    it('keeps every row when the proof is ambiguous (other error, or the call throws)', async () => {
+      server.previewErrors = { 'deleted-a': { code: '57014' } };
+      await seedTwoAndSync();
+      expect(await table.get('deleted-a')).not.toBeNull();
+      expect(await table.get('deleted-b')).not.toBeNull();
+
+      server.previewErrors = {};
+      server.previewThrows = true;
+      await table.sync('');
       expect(await table.get('deleted-a')).not.toBeNull();
       expect(await table.get('deleted-b')).not.toBeNull();
     });

@@ -174,7 +174,15 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'A different premium list is already publishing for this show. Wait for it to finish, then try again.';
     case 'judges-syncing':
       return "Your judge changes haven't reached the server yet, so the premium list wasn't published. Wait for them to sync (the account menu shows unsynced changes), then publish again.";
-    default:
+    case 'app-updated':
+      return APP_UPDATED_MESSAGE;
+    case 'unknown':
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
+    default: {
+      // Exhaustive: a new PremiumPublishFailureCode fails typecheck here.
+      const unhandled: never = error.code;
+      void unhandled;
+      return GENERIC_PREMIUM_PUBLISH_FAILURE;
+    }
   }
 }

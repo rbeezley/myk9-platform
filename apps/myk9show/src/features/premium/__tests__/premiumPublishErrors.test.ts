@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  APP_UPDATED_MESSAGE,
   classifyPremiumPublishError,
   classifyPremiumFunctionError,
   premiumPublishFailureMessage,
@@ -8,6 +9,28 @@ import {
 } from '../premiumPublishErrors';
 
 describe('premium publish error contract', () => {
+  it.each([
+    ['Chrome', new TypeError('Failed to fetch dynamically imported module: https://x.test/a.js')],
+    ['Firefox', new TypeError('error loading dynamically imported module: https://x.test/a.js')],
+    ['Safari', new TypeError('Importing a module script failed.')],
+    ['webpack-style', Object.assign(new Error('boom'), { name: 'ChunkLoadError' })],
+    ['chunk message', new Error('Loading chunk 12 failed.')],
+  ])('maps a %s chunk-load failure to reload guidance', (_browser, error) => {
+    const classified = classifyPremiumPublishError(error, 'generation');
+    expect(classified.code).toBe('app-updated');
+    expect(classified.message).toBe(APP_UPDATED_MESSAGE);
+    expect(classified.originalError).toBe(error);
+  });
+
+  it('does not treat ordinary failures as an app update', () => {
+    expect(classifyPremiumPublishError(new Error('permission denied'), 'generation').code).toBe(
+      'permission'
+    );
+    expect(classifyPremiumPublishError(new Error('network lost'), 'generation').code).toBe(
+      'unknown'
+    );
+  });
+
   it('recognizes only structured missing-function/schema-cache errors for the expected RPC', () => {
     expect(
       isMissingPremiumPublishRpc({
@@ -114,6 +137,17 @@ describe('premium publish error contract', () => {
     expect(premiumPublishFailureMessage(classified)).toBe(
       "Set this show's organization to AKC or UKC in Show settings, then try again."
     );
+  });
+
+  it('shows the reload instruction, not the generic retry, for app-updated', () => {
+    const error = classifyPremiumPublishError(
+      new TypeError('Failed to fetch dynamically imported module: https://x.test/a.js'),
+      'generation'
+    );
+
+    expect(error.code).toBe('app-updated');
+    expect(premiumPublishFailureMessage(error)).toBe(APP_UPDATED_MESSAGE);
+    expect(premiumPublishFailureMessage(error)).toMatch(/reload the page/);
   });
 
   it('uses the generic retry message when the production body is not recognized', async () => {

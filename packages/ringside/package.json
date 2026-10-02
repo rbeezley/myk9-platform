@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./run-queue": {
+      "types": "./dist/run-queue.d.ts",
+      "import": "./dist/run-queue.js"
+    },
     "./styles": {
       "import": "./dist/styles/index.css"
     }

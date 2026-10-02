@@ -10,6 +10,7 @@ export type PremiumPublishFailureCode =
   | 'stale-attempt'
   | 'intent-conflict'
   | 'judges-syncing'
+  | 'app-updated'
   | 'unknown';
 
 export class PremiumPublishError extends Error {
@@ -54,6 +55,16 @@ function errorText(error: unknown): string {
   return '';
 }
 
+export const APP_UPDATED_MESSAGE = 'The app was updated — reload the page and publish again';
+
+/** A lazily loaded chunk that no longer exists, typically after a deploy. */
+function isChunkLoadFailure(error: unknown, message: string): boolean {
+  if (error instanceof Error && error.name === 'ChunkLoadError') return true;
+  return /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|chunkloaderror|loading (css )?chunk [\w-]+ failed/i.test(
+    message
+  );
+}
+
 function classifyMessage(message: string): PremiumPublishFailureCode {
   const normalized = message.toLowerCase();
   return /only supported for akc and ukc|organization.*(required|missing|invalid)|organization.*null/.test(
@@ -91,6 +102,9 @@ export function classifyPremiumPublishError(
   if (error instanceof PremiumPublishError) return error;
 
   const message = errorText(error);
+  if (isChunkLoadFailure(error, message)) {
+    return new PremiumPublishError(APP_UPDATED_MESSAGE, stage, 'app-updated', error);
+  }
   const code = classifyMessage(message);
 
   return new PremiumPublishError(message || 'Premium publishing failed', stage, code, error);
@@ -160,7 +174,15 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'A different premium list is already publishing for this show. Wait for it to finish, then try again.';
     case 'judges-syncing':
       return "Your judge changes haven't reached the server yet, so the premium list wasn't published. Wait for them to sync (the account menu shows unsynced changes), then publish again.";
-    default:
+    case 'app-updated':
+      return APP_UPDATED_MESSAGE;
+    case 'unknown':
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
+    default: {
+      // Exhaustive: a new PremiumPublishFailureCode fails typecheck here.
+      const unhandled: never = error.code;
+      void unhandled;
+      return GENERIC_PREMIUM_PUBLISH_FAILURE;
+    }
   }
 }

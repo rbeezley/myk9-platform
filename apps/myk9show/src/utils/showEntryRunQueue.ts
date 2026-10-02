@@ -18,7 +18,14 @@
  * `@/features/at-show/replicatedRunQueue`.
  */
 
-import { isInQueue, isInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside';
+// The run-queue subpath keeps the ringside UI out of the entry chunk: this
+// module is reached eagerly from App's notification monitor.
+import {
+  isInQueue,
+  isInRingEntry,
+  pendingByRunOrder,
+  type RunQueueEntry,
+} from '@myk9/ringside/run-queue';
 import type { ShowEntry } from '@/store/entry-store-types';
 
 /** A `ShowEntry` plus the normalized fields the run queue sorts on. */

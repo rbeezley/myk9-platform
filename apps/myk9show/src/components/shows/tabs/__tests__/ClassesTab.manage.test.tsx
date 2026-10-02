@@ -129,7 +129,7 @@ describe.each(['table', 'cards'])('ClassesTab manager controls (%s view)', view 
     await user.click(screen.getByRole('checkbox', { name: 'Select Novice Containers' }));
     await user.click(screen.getByRole('checkbox', { name: 'Select Advanced Interior' }));
     const bar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
-    await user.click(within(bar).getByRole('button', { name: 'Bulk class actions' }));
+    await user.click(within(bar).getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Mark 2 of 2 Completed' }));
 
     expect(applyManualClassStatus).toHaveBeenCalledTimes(2);

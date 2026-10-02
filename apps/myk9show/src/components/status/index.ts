@@ -3,6 +3,7 @@ export { StatusBadge } from './StatusBadge';
 export {
   CLASS_STATUS_VALUES,
   ENTRY_STATUS_VALUES,
+  SHOW_STATUS_VALUES,
   STATUS_COLOR_CLASSES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,

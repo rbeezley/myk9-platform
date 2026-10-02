@@ -14,7 +14,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import { DataTable, type ColumnDef } from './index';
+import { DataTable, DataTableToolbar, type ColumnDef } from './index';
+import { DataTableColumnToggle } from './data-table-column-toggle';
 
 interface Row {
   name: string;
@@ -30,10 +31,22 @@ const columns: ColumnDef<Row, unknown>[] = [
   { accessorKey: 'status', header: 'Status' },
 ];
 
-// `tableId` is what makes DataTable render its default toolbar, which is where
-// the column toggle lives.
+// Owner decision 4 (MYK9-929) took the Columns menu out of the default toolbar, so no list
+// mounts this toggle today. It is mounted through a custom toolbar here, which is how a table
+// would opt back in.
 function renderToggle() {
-  return render(<DataTable tableId="toggle-test" columns={columns} data={data} />);
+  return render(
+    <DataTable
+      tableId="toggle-test"
+      columns={columns}
+      data={data}
+      toolbar={({ table }) => (
+        <DataTableToolbar table={table}>
+          <DataTableColumnToggle />
+        </DataTableToolbar>
+      )}
+    />
+  );
 }
 
 const openToggle = async (user: ReturnType<typeof renderToggle>['user']) => {

@@ -93,7 +93,7 @@ describe('ShowsTableView columns (MYK9-427)', () => {
     expect(screen.queryByRole('checkbox', { name: 'Select Other Show' })).not.toBeInTheDocument();
   });
 
-  it('shows five columns by default — Organization and Status stay in the Columns menu', () => {
+  it('shows five columns on the public table — Organization and Status stay off it', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(
       <MemoryRouter>

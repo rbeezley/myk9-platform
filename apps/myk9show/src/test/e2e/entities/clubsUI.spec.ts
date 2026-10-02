@@ -163,8 +163,8 @@ test.describe('Clubs UI — Browse Page', () => {
     await gotoClubsBrowse(page);
     const search = page.getByRole('textbox', { name: /Search clubs by name/ });
     await search.fill('NoMatchXYZ123');
-    await expect(page.getByText(/No clubs match your filters/i)).toBeVisible();
-    await page.getByRole('button', { name: /Clear Filters/i }).click();
+    await expect(page.getByText(/No clubs match your search or filters/i)).toBeVisible();
+    await page.getByRole('button', { name: 'Show all clubs' }).first().click();
     await expect(search).toHaveValue('');
   });
 });

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { EmptyState } from '@/components/common/EmptyState';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
-import { ViewToggle } from '@/components/common/ViewToggle';
+import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
+import { getClassDetailHref } from '@/utils/classDetailHref';
 import { ClassCard } from './ClassCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
@@ -23,6 +24,8 @@ import { useClassRowActions } from './useClassRowActions';
 import type { ShowTrial } from './classesTabScope';
 
 export type { ClassInfo };
+
+const CLASS_NOUN = ['class', 'classes'] as const;
 
 interface ClassesTabProps {
   classes: ClassInfo[];
@@ -58,11 +61,6 @@ export function ClassesTab({
 }: ClassesTabProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
-    'classes',
-    userHasEntries ? 'cards' : 'table'
-  );
-  const [viewModeTouched, setViewModeTouched] = useState(false);
   // Always opens on the whole show (Oct 10 rehearsal: a secretary who also holds entries in
   // the show must land on "All", never auto-scoped to "Mine" — that scoping is one pressable
   // view among five, not a silent default). See `classesTabViews.ts`. Setup keeps the view in
@@ -82,13 +80,9 @@ export function ClassesTab({
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
   const canManageThisShow = useShowManageScope(showId).canManage;
-  const viewMode =
-    userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
-
-  const setViewMode = (mode: string) => {
-    setViewModeTouched(true);
-    setViewModePreference(mode);
-  };
+  // Staff open on the table, an exhibitor or visitor on cards, even one who holds entries in the
+  // show (decision 8). Her own choice is remembered.
+  const [viewMode, setViewMode] = useViewPreference('classes', defaultListView(canManageThisShow));
 
   // Managers work one trial at a time, so select-all, bulk status and bulk delete never span
   // trials; everyone else reads the whole show.
@@ -100,7 +94,7 @@ export function ClassesTab({
     viewId,
     setViewId,
   });
-  const { filteredClasses, viewFilters } = scope;
+  const { filteredClasses } = scope;
   const selectTrial = (nextTrialId: string) => {
     scope.setElement('all');
     (onTrialChange ?? setLocalTrialId)(nextTrialId);
@@ -226,9 +220,11 @@ export function ClassesTab({
 
   if (classes.length === 0) {
     return (
-      <EmptyState
+      <ListEmptyState
         icon={Search}
-        title="No classes scheduled"
+        noun={CLASS_NOUN}
+        filtered={false}
+        onShowAll={scope.clearFilters}
         description="Classes for this show haven't been set up yet."
         action={
           canManageThisShow
@@ -256,12 +252,13 @@ export function ClassesTab({
         views={visibleViews}
         activeViewId={scope.activeViewId}
         onSelectView={setViewId}
-        actions={
-          <>
-            <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-            {/* Add classes is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
-          </>
-        }
+        result={{
+          shown: filteredClasses.length,
+          total: scope.scopedClasses.length,
+          narrowed: scope.isNarrowed,
+          onClearFilters: scope.clearFilters,
+        }}
+        viewToggle={<ListViewToggle active={viewMode} onChange={setViewMode} />}
         {...(canManageThisShow
           ? {
               manage: {
@@ -271,34 +268,18 @@ export function ClassesTab({
                 search: scope.search,
                 onSearchChange: scope.setSearch,
                 elementField: scope.elementField,
-                shown: filteredClasses.length,
-                total: scope.scopedClasses.length,
-                narrowed: scope.isNarrowed,
-                onClearFilters: scope.clearFilters,
               },
             }
           : {})}
       />
 
       {filteredClasses.length === 0 ? (
-        <EmptyState
+        <ListEmptyState
           icon={Search}
-          variant="filter"
-          size="sm"
-          title={
-            scope.search !== '' || scope.element !== 'all'
-              ? 'No classes match the current filter.'
-              : viewFilters.mine
-                ? 'None of your entered classes match.'
-                : viewFilters.status === 'pending'
-                  ? 'All classes completed!'
-                  : viewFilters.status === 'in_progress'
-                    ? 'No classes in progress.'
-                    : viewFilters.status === 'completed'
-                      ? 'No classes completed yet.'
-                      : 'No classes match the current filter.'
-          }
-          action={{ label: 'Show all classes', onClick: scope.clearFilters }}
+          noun={CLASS_NOUN}
+          filtered
+          onShowAll={scope.clearFilters}
+          action={null}
         />
       ) : viewMode === 'table' ? (
         <DataTable
@@ -319,7 +300,7 @@ export function ClassesTab({
             { id: 'element', desc: false },
             { id: 'level', desc: false },
           ]}
-          onRowClick={cls => navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)}
+          onRowClick={cls => navigate(getClassDetailHref(showId, cls.trialId, cls.id))}
         />
       ) : (
         groupedByTrial.map(group => (
@@ -344,9 +325,7 @@ export function ClassesTab({
                         order: cls.classOrder,
                       }
                     : {})}
-                  onClick={() =>
-                    navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
-                  }
+                  onClick={() => navigate(getClassDetailHref(showId, cls.trialId, cls.id))}
                 />
               ))}
             </div>

@@ -1,29 +1,25 @@
 import { useState, useMemo, startTransition } from 'react';
 import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
+import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
+import { Layers, Plus } from 'lucide-react';
 import {
-  DataTable,
-  type DataTableColumnMeta,
-  DataTableToolbar,
-  DataTableSearch,
-  DataTableColumnToggle,
-} from '@/components/ui/data-table';
-import { Plus, Layers } from 'lucide-react';
-import { ViewToggle } from '@/components/common/ViewToggle';
+  ListEmptyState,
+  ListFilterBar,
+  ListResultLine,
+  ListViewToggle,
+} from '@/components/list-toolkit';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
+import { getClassDetailHref } from '@/utils/classDetailHref';
 import { TrialClassesCards } from './TrialClassesCards';
 import { StatusBadge } from '@/components/status';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareLevels } from '@/utils/schedule-summary';
 
-type ViewMode = 'table' | 'cards';
-
-const TRIAL_CLASSES_VIEW_MODES = [
-  { key: 'table', label: 'Table', icon: 'list' as const },
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-] as const;
+const CLASS_NOUN = ['class', 'classes'] as const;
 
 // The canonical progression (`compareLevels`, `@/utils/schedule-summary`) is
 // the same one the show wizard and `ClassesTab` use — an ad-hoc table here
@@ -35,6 +31,8 @@ const trialLevelSort: SortingFn<TrialClass> = (rowA, rowB) =>
 
 interface TrialClassesTableProps {
   classes: TrialClass[];
+  /** The show the trial belongs to; every class row opens the one class-detail URL under it. */
+  showId: string;
   trialId?: string;
   /** Staff-only gate for create/edit/delete affordances. Deny by default. */
   canManage?: boolean;
@@ -45,6 +43,7 @@ interface TrialClassesTableProps {
 
 export const TrialClassesTable = ({
   classes,
+  showId,
   trialId,
   canManage = false,
   onAddClassesFromTemplate,
@@ -52,7 +51,23 @@ export const TrialClassesTable = ({
   onDeleteClass,
 }: TrialClassesTableProps) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8).
+  const [viewMode, setViewMode] = useViewPreference('trial-classes', defaultListView(canManage));
+  const [search, setSearch] = useState('');
+  const searchText = search.trim().toLowerCase();
+  const visibleClasses = useMemo(
+    () =>
+      searchText === ''
+        ? classes
+        : classes.filter(cls =>
+            [cls.element, cls.level, cls.section, cls.judgeName ?? '', cls.name ?? ''].some(text =>
+              text.toLowerCase().includes(searchText)
+            )
+          ),
+    [classes, searchText]
+  );
+  const openClass = (classId: string) =>
+    startTransition(() => navigate(getClassDetailHref(showId, trialId ?? '', classId)));
   // Only staff may add classes — gate the handler at the source so the
   // empty-state and header buttons never render for read-only visitors.
   const canAddClasses = canManage && onAddClassesFromTemplate !== undefined;
@@ -150,7 +165,11 @@ export const TrialClassesTable = ({
                 return (
                   <div className="text-right" onClick={e => e.stopPropagation()}>
                     <ClassRowActionsMenu
-                      onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
+                      onView={() =>
+                        startTransition(() =>
+                          navigate(getClassDetailHref(showId, trialId ?? '', cls.id))
+                        )
+                      }
                       onEdit={() => onEditClass(cls)}
                       onDelete={() => onDeleteClass(cls)}
                     />
@@ -162,84 +181,77 @@ export const TrialClassesTable = ({
           ]
         : []),
     ],
-    [canManage, onEditClass, onDeleteClass, navigate]
+    [canManage, onEditClass, onDeleteClass, showId, trialId, navigate]
   );
 
   if (classes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div
-          className="mx-auto w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4"
-          data-testid="empty-state-icon"
-        >
-          <Layers className="h-7 w-7 text-muted-foreground" />
-        </div>
-        <div className="text-muted-foreground mb-6">
-          <div className="mb-2 text-lg font-medium">No classes yet</div>
-          <div className="text-sm">
-            {canManage
-              ? 'Add classes to start managing entries and scores'
-              : 'Classes for this trial have not been published yet'}
-          </div>
-        </div>
-        <div className="flex items-center justify-center gap-3">
-          {canAddClasses && (
-            <Button
-              onClick={onAddClassesFromTemplate}
-              className="myk9-action-button myk9-action-button-primary"
-            >
-              <Plus className="h-4 w-4" />
-              Add Classes
-            </Button>
-          )}
-        </div>
-      </div>
+      <ListEmptyState
+        icon={Layers}
+        noun={CLASS_NOUN}
+        filtered={false}
+        onShowAll={() => setSearch('')}
+        description={
+          canManage
+            ? 'Add classes to start managing entries and scores'
+            : 'Classes for this trial have not been published yet'
+        }
+        action={
+          canAddClasses
+            ? { label: 'Add Classes', onClick: onAddClassesFromTemplate, icon: Plus }
+            : null
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
-          {canManage && (
-            <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
-          )}
-        </div>
+      <div className="space-y-3">
+        <ListFilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search classes..."
+          fields={[]}
+        />
         {/* Add classes is the header Actions menu's; the empty state above keeps its own button. */}
-        <div className="flex items-center gap-2">
-          <ViewToggle
-            modes={TRIAL_CLASSES_VIEW_MODES}
-            active={viewMode}
-            onChange={v => setViewMode(v as ViewMode)}
-          />
-        </div>
+        <ListResultLine
+          shown={visibleClasses.length}
+          total={classes.length}
+          noun={CLASS_NOUN}
+          filtered={searchText !== ''}
+          onShowAll={() => setSearch('')}
+        >
+          <ListViewToggle active={viewMode} onChange={setViewMode} />
+        </ListResultLine>
       </div>
 
-      {viewMode === 'cards' && (
+      {visibleClasses.length === 0 ? (
+        <ListEmptyState
+          icon={Layers}
+          noun={CLASS_NOUN}
+          filtered
+          onShowAll={() => setSearch('')}
+          action={null}
+        />
+      ) : viewMode === 'cards' ? (
         <TrialClassesCards
-          classes={classes}
+          classes={visibleClasses}
+          showId={showId}
           trialId={trialId || ''}
           canManage={canManage}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}
         />
-      )}
-
-      {viewMode === 'table' && (
+      ) : (
         <DataTable<TrialClass>
           tableId="trialClasses"
           columns={columns}
-          data={classes}
+          data={visibleClasses}
           getRowId={cls => cls.id}
-          onRowClick={cls => startTransition(() => navigate(`/classes/${cls.id}`))}
+          showSearch={false}
+          onRowClick={cls => openClass(cls.id)}
           noResultsMessage="No classes found"
-          toolbar={({ table }) => (
-            <DataTableToolbar table={table}>
-              <DataTableSearch placeholder="Search classes..." />
-              <DataTableColumnToggle />
-            </DataTableToolbar>
-          )}
         />
       )}
     </div>

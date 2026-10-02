@@ -53,7 +53,7 @@ export function useRoleBasedDogs() {
 
 export function useRoleBasedPeople() {
   const { userWithRoles, hasRole } = useAuthContext();
-  const { data: allPeople = [], isLoading, error } = useUsersQuery();
+  const { data: allPeople = [], isLoading, error, refetch } = useUsersQuery();
 
   const filteredPeople = useMemo(() => {
     // Early return for loading, error, or empty data
@@ -78,7 +78,7 @@ export function useRoleBasedPeople() {
     return [];
   }, [userWithRoles, hasRole, allPeople, isLoading, error]);
 
-  return { people: filteredPeople, isLoading, error: error as Error | null };
+  return { people: filteredPeople, isLoading, error: error as Error | null, refetch };
 }
 
 /**

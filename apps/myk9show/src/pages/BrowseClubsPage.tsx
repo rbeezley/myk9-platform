@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Building2 } from 'lucide-react';
+import { Plus, Building2 } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper';
 import { useClubStore } from '@/store/clubStore';
@@ -12,7 +12,8 @@ import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAfterClubUpload';
@@ -20,10 +21,15 @@ import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAf
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
+import {
+  ListEmptyState,
+  ListFilterBar,
+  ListResultLine,
+  ListViewToggle,
+} from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
-import { EmptyState } from '@/components/common/EmptyState';
+
+const CLUB_NOUN = ['club', 'clubs'] as const;
 
 const BrowseClubsPage: React.FC = () => {
   const routerNavigate = useNavigate();
@@ -42,7 +48,7 @@ const BrowseClubsPage: React.FC = () => {
     );
   }, [userWithRoles]);
 
-  const [viewMode, setViewMode] = useViewPreference('clubs', 'table');
+  const [viewMode, setViewMode] = useViewPreference('clubs', defaultListView(true));
   const [createPanelRequested, setCreatePanelRequested] = useState(
     () => searchParams.get('create') === 'true'
   );
@@ -144,11 +150,13 @@ const BrowseClubsPage: React.FC = () => {
   );
 
   const renderContent = () => {
-    if (filteredClubs.length === 0 && !hasActiveFilters) {
+    if (filteredClubs.length === 0) {
       return (
-        <EmptyState
+        <ListEmptyState
           icon={Building2}
-          title="No clubs yet"
+          noun={CLUB_NOUN}
+          filtered={hasActiveFilters}
+          onShowAll={clearAllFilters}
           description={
             canCreateClub
               ? 'Get started by creating your first club to manage organizations and events.'
@@ -161,18 +169,6 @@ const BrowseClubsPage: React.FC = () => {
               ? { label: 'Add Club', onClick: () => setCreatePanelRequested(true), icon: Plus }
               : null
           }
-        />
-      );
-    }
-
-    if (filteredClubs.length === 0 && hasActiveFilters) {
-      return (
-        <EmptyState
-          icon={Search}
-          title="No clubs match your filters"
-          description="Try adjusting your search or filter criteria."
-          action={{ label: 'Clear Filters', onClick: clearAllFilters }}
-          variant="filter"
         />
       );
     }
@@ -224,11 +220,11 @@ const BrowseClubsPage: React.FC = () => {
             <ListResultLine
               shown={filteredClubs.length}
               total={clubs.length}
-              noun={['club', 'clubs']}
+              noun={CLUB_NOUN}
               filtered={hasActiveFilters}
               onShowAll={clearAllFilters}
             >
-              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+              <ListViewToggle active={viewMode} onChange={setViewMode} />
             </ListResultLine>
           </div>
 

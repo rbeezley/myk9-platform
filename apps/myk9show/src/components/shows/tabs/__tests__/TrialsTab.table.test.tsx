@@ -68,8 +68,8 @@ describe('TrialsTab table view', () => {
     expect(screen.queryByText('Saturday Trial 2')).not.toBeInTheDocument();
   });
 
-  it('renders column visibility toggle', async () => {
+  it('has no Columns control (owner decision 4)', async () => {
     await renderInTableView();
-    expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /toggle columns/i })).not.toBeInTheDocument();
   });
 });

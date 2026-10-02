@@ -182,11 +182,10 @@ export const UserTable: React.FC<UserTableProps> = ({
         <div className="myk9-table-container min-w-0 lg:min-w-[760px]">
           {/* pageSize is deliberately huge: the page already sliced these rows,
               so the table must render all of them and never paginate again.
-              That slicing is also why search and export are turned off here —
-              both built-ins operate on the rows the table was handed, so they
+              That slicing is also why search is turned off here —
+              the built-in operates on the rows the table was handed, so it
               would silently cover only the current page while the toolbar above
-              searches, and the header button exports, the whole filtered set.
-              Columns and density stay: they are genuinely per-table. */}
+              searches the whole filtered set. */}
           <DataTable
             tableId="adminUsers"
             columns={columns}
@@ -202,7 +201,6 @@ export const UserTable: React.FC<UserTableProps> = ({
             sorting={sorting}
             onSortingChange={handleSortingChange}
             showSearch={false}
-            showExport={false}
             scrollAreaLabel="Users table"
           />
         </div>

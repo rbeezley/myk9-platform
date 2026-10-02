@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
 
 describe('useViewPreference', () => {
   beforeEach(() => {
@@ -68,5 +69,32 @@ describe('useViewPreference', () => {
     localStorage.setItem('view-pref-classes', 'kanban');
     const { result } = renderHook(() => useViewPreference('classes', 'table'));
     expect(result.current[0]).toBe('table');
+  });
+
+  // MYK9-929 / owner decision 8: staff lists open on a table, exhibitor and public lists on cards.
+  it('defaults staff lists to table and exhibitor or public lists to cards', () => {
+    expect(defaultListView(true)).toBe('table');
+    expect(defaultListView(false)).toBe('cards');
+  });
+
+  it('remembers modes beyond cards and table when the list offers them', () => {
+    const { result } = renderHook(() =>
+      useViewPreference('shows-find', 'cards', ['cards', 'table', 'calendar', 'map'])
+    );
+    act(() => result.current[1]('calendar'));
+    expect(result.current[0]).toBe('calendar');
+    expect(localStorage.getItem('view-pref-shows-find')).toBe('calendar');
+  });
+
+  it('re-reads the remembered choice when the key changes (a list with two tabs)', () => {
+    localStorage.setItem('view-pref-shows-managing', 'cards');
+    const { result, rerender } = renderHook(
+      ({ tabKey }: { tabKey: string }) => useViewPreference(tabKey, 'table'),
+      { initialProps: { tabKey: 'shows-find' } }
+    );
+    expect(result.current[0]).toBe('table');
+    rerender({ tabKey: 'shows-managing' });
+    expect(result.current[0]).toBe('cards');
+    expect(result.current[2]).toBe(true);
   });
 });

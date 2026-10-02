@@ -2,10 +2,15 @@ import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Calendar, Plus } from 'lucide-react';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListViewTabs } from '@/components/list-toolkit';
-import { EmptyState } from '@/components/common/EmptyState';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
+import {
+  ListEmptyState,
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  ListViewToggle,
+} from '@/components/list-toolkit';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
@@ -35,6 +40,8 @@ export interface TrialStats {
   completedClasses: number;
   hasStarted?: boolean;
 }
+
+const TRIAL_NOUN = ['trial', 'trials'] as const;
 
 interface TrialsTabProps {
   trials: Trial[];
@@ -122,13 +129,15 @@ const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
 export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const [statusFilter, setStatusFilter] = useState<TrialsTabStatus>('all');
+  const [search, setSearch] = useState('');
   // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
   const canManageThisShow = useShowManageScope(showId).canManage;
+  // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8).
+  const [viewMode, setViewMode] = useViewPreference('trials', defaultListView(canManageThisShow));
   // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
   // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
   // the store while the dialog is still finishing, and the dialog must not vanish or re-resolve
@@ -208,10 +217,28 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
 
-  const filteredTrials = useMemo(
+  const viewTrials = useMemo(
     () => filterTrialsForTab(trials, trialStats, statusFilter),
     [trials, trialStats, statusFilter]
   );
+  const searchText = search.trim().toLowerCase();
+  const filteredTrials = useMemo(
+    () =>
+      searchText === ''
+        ? viewTrials
+        : viewTrials.filter(trial =>
+            [
+              formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
+              trial.trialType ? formatTrialTypeLabel(trial.trialType) : '',
+            ].some(text => text.toLowerCase().includes(searchText))
+          ),
+    [viewTrials, searchText]
+  );
+  const narrowed = statusFilter !== 'all' || searchText !== '';
+  const showAll = () => {
+    setStatusFilter('all');
+    setSearch('');
+  };
 
   const tableData = useMemo<TrialRow[]>(
     () =>
@@ -234,7 +261,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="space-y-3">
         {trialViews.length > 0 && (
           <ListViewTabs
             label="Trial views"
@@ -243,34 +270,46 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             onSelect={id => setStatusFilter(trialsTabViewFilters(id))}
           />
         )}
-        <div className="ml-auto flex items-center gap-2">
-          <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {/* Add Trial is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
-        </div>
+        {trials.length > 0 && (
+          <>
+            <ListFilterBar
+              searchValue={search}
+              onSearchChange={setSearch}
+              searchPlaceholder="Search trials..."
+              fields={[]}
+            />
+            <ListResultLine
+              shown={filteredTrials.length}
+              total={trials.length}
+              noun={TRIAL_NOUN}
+              filtered={narrowed}
+              onShowAll={showAll}
+            >
+              <ListViewToggle active={viewMode} onChange={setViewMode} />
+            </ListResultLine>
+          </>
+        )}
+        {/* Add Trial is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
       </div>
 
       {trials.length === 0 ? (
-        <EmptyState
+        <ListEmptyState
           icon={Calendar}
-          title="No Trials"
+          noun={TRIAL_NOUN}
+          filtered={false}
+          onShowAll={showAll}
           description="No trials have been created for this show yet."
           action={
             canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null
           }
         />
-      ) : filteredTrials.length === 0 && trials.length > 0 ? (
-        <EmptyState
+      ) : filteredTrials.length === 0 ? (
+        <ListEmptyState
           icon={Calendar}
-          variant="filter"
-          size="sm"
-          title={
-            statusFilter === 'pending'
-              ? 'All trials completed!'
-              : statusFilter === 'completed'
-                ? 'No trials completed yet.'
-                : 'No trials match the current filter.'
-          }
-          action={{ label: 'Show all trials', onClick: () => setStatusFilter('all') }}
+          noun={TRIAL_NOUN}
+          filtered
+          onShowAll={showAll}
+          action={null}
         />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -390,6 +429,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           tableId="trialsTab"
           columns={trialColumns}
           data={tableData}
+          showSearch={false}
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}

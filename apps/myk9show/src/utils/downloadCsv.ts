@@ -16,3 +16,19 @@ export function downloadCsv(filename: string, csvContent: string): void {
     URL.revokeObjectURL(url);
   }, 100);
 }
+
+function csvCell(value: unknown): string {
+  if (value == null) return '';
+  const text = String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+/** CSV text from rows (the first is the header). Quotes what needs it; null and undefined read blank. */
+export function buildCsv(rows: ReadonlyArray<ReadonlyArray<unknown>>): string {
+  return rows.map(row => row.map(csvCell).join(',')).join('\n');
+}
+
+/** The dated file name every bulk-bar Export uses: `dogs-export-2026-10-02.csv`. */
+export function exportFilename(noun: string): string {
+  return `${noun}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+}

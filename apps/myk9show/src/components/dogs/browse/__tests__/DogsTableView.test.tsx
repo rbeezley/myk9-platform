@@ -32,41 +32,6 @@ function makeSelection(overrides: Partial<DogsTableSelection> = {}): DogsTableSe
   };
 }
 
-type UserEvent = ReturnType<typeof render>['user'];
-
-/**
- * Click "Export CSV" and return what the download would have contained.
- * jsdom's Blob implements neither `text()` nor `arrayBuffer()`, hence FileReader.
- */
-async function exportCsv(user: UserEvent): Promise<string> {
-  let exported: Blob | undefined;
-  const createObjectURL = vi
-    .spyOn(URL, 'createObjectURL')
-    .mockImplementation((blob: Blob | MediaSource) => {
-      exported = blob as Blob;
-      return 'blob:dogs-table-test';
-    });
-  const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-
-  try {
-    await user.click(screen.getByRole('button', { name: /export csv/i }));
-    expect(anchorClick).toHaveBeenCalledTimes(1);
-  } finally {
-    createObjectURL.mockRestore();
-    revokeObjectURL.mockRestore();
-    anchorClick.mockRestore();
-  }
-
-  expect(exported).toBeInstanceOf(Blob);
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(exported as Blob);
-  });
-}
-
 describe('DogsTableView', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -80,9 +45,13 @@ describe('DogsTableView', () => {
     expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
   });
 
-  it('still exposes the column-visibility toggle', () => {
+  // Owner decision 4 (MYK9-929): no Columns, Export, density or Reset on the table. Export lives
+  // in the bulk bar (`DogsBulkActionsBar.namedButtons.test.tsx`).
+  it('carries no toolbar of its own', () => {
     render(<DogsTableView dogs={dogs} />);
-    expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /toggle columns|export|density|reset/i })
+    ).toBeNull();
   });
 
   describe('selection column', () => {
@@ -473,33 +442,6 @@ describe('DogsTableView', () => {
         ).toBeInTheDocument();
       }
     });
-
-    it('drops it from the Columns menu too, not just from the grid', async () => {
-      const { user } = render(<DogsTableView dogs={dogs} showOwner={false} />);
-      await user.click(screen.getByRole('button', { name: /toggle columns/i }));
-      await screen.findByRole('menu');
-      expect(await screen.findByRole('menuitemcheckbox', { name: /breed/i })).toBeInTheDocument();
-      expect(screen.queryByRole('menuitemcheckbox', { name: /owner/i })).not.toBeInTheDocument();
-    });
-
-    it('leaves Owner out of the CSV as well, since it carries nothing here', async () => {
-      const { user } = render(<DogsTableView dogs={dogs} showOwner={false} />);
-      const csv = await exportCsv(user);
-      expect(csv.split('\n')[0]).toBe('Name,Breed,Sex,Status');
-    });
-  });
-
-  // Trap: adding a ceiling or a hide to an existing view re-arms every
-  // downstream assumption written while the set was whole. `responsiveHide` is
-  // CSS-only, so the CSV must still carry every column — a viewport-dependent
-  // export would be a silent data-loss bug.
-  it('still exports Breed and Sex even though they are hidden at narrow widths', async () => {
-    const { user } = render(<DogsTableView dogs={dogs} />);
-
-    const csv = await exportCsv(user);
-    expect(csv.split('\n')[0]).toBe('Name,Breed,Sex,Owner,Status');
-    expect(csv).toContain('Labrador');
-    expect(csv).toContain('female');
   });
 });
 

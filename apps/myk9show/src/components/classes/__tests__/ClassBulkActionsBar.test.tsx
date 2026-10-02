@@ -66,11 +66,14 @@ describe('ClassBulkActionsBar', () => {
 
   it('offers bulk status change alongside Delete (MYK9-59)', async () => {
     const { user } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute(
+      'title',
+      'Delete 2 of 2 selected'
+    );
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     expect(
-      await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i })
+      await screen.findByRole('menuitem', { name: /mark 2 of 2 in progress/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /mark 2 of 2 in progress/i })).toBeInTheDocument();
     // Both selected classes are already Scheduled, so that bulk action has 0
     // eligible items and falls back to its unavailable-reason label.
     expect(screen.getByRole('menuitem', { name: /^mark scheduled/i })).toBeInTheDocument();
@@ -78,7 +81,7 @@ describe('ClassBulkActionsBar', () => {
 
   it('dispatches bulk status change with the eligible ids and target status', async () => {
     const { user, onBulkStatusChange } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 in progress/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(
@@ -90,10 +93,10 @@ describe('ClassBulkActionsBar', () => {
 
   it('clears the selection after a fully successful bulk status change', async () => {
     const { user, onClear } = setup([cls('1', 'Scheduled')]);
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 1 of 1 in progress/i }));
 
-    await screen.findByRole('button', { name: /bulk class actions/i });
+    await screen.findByRole('button', { name: 'Change status' });
     expect(onClear).toHaveBeenCalled();
   });
 
@@ -108,7 +111,7 @@ describe('ClassBulkActionsBar', () => {
         onClear={onClear}
       />
     );
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 1 of 1 in progress/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalled();
@@ -129,8 +132,7 @@ describe('ClassBulkActionsBar', () => {
     deleteMocks.remove.mockReset().mockResolvedValue(undefined);
     const { user } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
 
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
 
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
     expect(within(dialog).getByText('Class 1 and Class 2')).toBeInTheDocument();
@@ -153,8 +155,7 @@ describe('ClassBulkActionsBar', () => {
     deleteMocks.remove.mockReset().mockResolvedValue(undefined);
     const { user, onClear } = setup([cls('1', 'Scheduled')]);
 
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
 
     const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
@@ -169,7 +170,7 @@ describe('ClassBulkActionsBar', () => {
 
   it('disables the bulk menu trigger while busy', () => {
     setup([cls('1', 'Scheduled')], true);
-    expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Change status' })).toBeDisabled();
   });
 
   it('disables the Clear button while a bulk operation is running', () => {

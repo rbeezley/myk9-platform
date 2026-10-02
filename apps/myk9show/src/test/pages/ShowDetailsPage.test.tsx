@@ -1421,14 +1421,20 @@ describe('ShowDetailsPage', () => {
     getEntriesForShowMock.mockResolvedValue({ data: mockShowEntries, error: null });
     mockAuthContext.isSecretary = true;
 
-    renderPage('show-1', '', '?tab=trials');
+    // A manager opens Trials on the table (decision 8); this reads the card's count line.
+    localStorage.setItem('view-pref-trials', 'cards');
+    try {
+      renderPage('show-1', '', '?tab=trials');
 
-    // TrialsTab renders "<count> entries" — trialStats for trial-1 = 3 (class-a:2 + class-b:1)
-    // e4 has no class_id, so it must not be counted.
-    const strong = await screen.findByText((content, el) => {
-      return el?.tagName === 'STRONG' && content === '3';
-    });
-    expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
+      // TrialsTab renders "<count> entries" — trialStats for trial-1 = 3 (class-a:2 + class-b:1)
+      // e4 has no class_id, so it must not be counted.
+      const strong = await screen.findByText((content, el) => {
+        return el?.tagName === 'STRONG' && content === '3';
+      });
+      expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
+    } finally {
+      localStorage.removeItem('view-pref-trials');
+    }
   });
 
   describe('a club admin, who manages this show (MYK9-630 phase 3)', () => {

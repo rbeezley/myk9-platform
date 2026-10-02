@@ -347,6 +347,7 @@ function mockViewerLocation(location: { label: string; lat: number; lng: number 
 describe('BrowseShowsPage - Tab Rendering Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockViewerLocation(null);
   });
 
@@ -402,6 +403,29 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-table')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+
+    // MYK9-929 (M9): her own choice is remembered, not parked in the URL where the next visit
+    // loses it. Find Shows and Managing remember separately, since their defaults differ.
+    it('opens Find Shows on the view she last chose, with no ?view= in the URL', async () => {
+      localStorage.setItem('view-pref-shows-find', 'table');
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+
+    it('remembers the Managing view apart from Find Shows', async () => {
+      setupMocks({ user: createMockUser(UserRole.SECRETARY, 'secretary-1') });
+      localStorage.setItem('view-pref-shows-managing', 'cards');
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
     });
 
     it('renders the month scrubber with All upcoming selected', async () => {

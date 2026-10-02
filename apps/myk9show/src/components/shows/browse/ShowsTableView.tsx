@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/status';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
@@ -17,43 +17,12 @@ interface ShowsTableViewProps {
   onToggleSelect?: (item: EnhancedShow) => void;
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'completed':
-      return (
-        <Badge variant="secondary" className="text-xs bg-success/10 text-success ">
-          Completed
-        </Badge>
-      );
-    case 'cancelled':
-      return (
-        <Badge variant="secondary" className="text-xs bg-destructive/10 text-destructive ">
-          Cancelled
-        </Badge>
-      );
-    case 'archived':
-      return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400"
-        >
-          Archived
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="secondary" className="text-xs bg-info/10 text-info-strong">
-          {status ? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ') : 'Active'}
-        </Badge>
-      );
-  }
-}
-
-// Organization sits in the Show subline and Status is a secretary concern, so
-// both start hidden. They stay in the Columns menu and in every CSV export
-// (`exportHidden`), which is what keeps the public table at five columns with no horizontal
-// scroll (MYK9-427).
-const DEFAULT_COLUMN_VISIBILITY = { organization: false, status: false } as const;
+// Organization sits in the Show subline, so it starts hidden. Status is a secretary concern: it
+// shows on the Managing table (the viewer who can select rows) and stays off the public one,
+// which is what keeps that table at five columns with no horizontal scroll (MYK9-427). There is
+// no Columns menu (owner decision 4), so what shows is decided here.
+const PUBLIC_COLUMN_VISIBILITY = { organization: false, status: false } as const;
+const MANAGING_COLUMN_VISIBILITY = { organization: false } as const;
 
 const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
   {
@@ -163,7 +132,13 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
       exportValue: (show: unknown) => (show as EnhancedShow).status || '',
       exportHidden: true,
     },
-    cell: ({ row }) => getStatusBadge(row.original.status),
+    cell: ({ row }) => (
+      <StatusBadge
+        family="show"
+        status={row.original.status}
+        className="whitespace-nowrap text-xs"
+      />
+    ),
   },
   {
     accessorKey: 'clubName',
@@ -214,10 +189,12 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
       tableId="showsBrowse"
       data={shows}
       columns={columns}
-      defaultColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+      defaultColumnVisibility={
+        onToggleSelect ? MANAGING_COLUMN_VISIBILITY : PUBLIC_COLUMN_VISIBILITY
+      }
       // The page-level ListFilterBar owns search, and ListResultLine owns
       // "select all matching" (list-toolkit, MYK9-798) — the table keeps only
-      // its own Columns control and per-row checkboxes.
+      // its per-row checkboxes.
       showSearch={false}
       getRowId={show => show.id}
       onRowClick={show => navigate(entryDogLink(`/shows/${show.id}`))}

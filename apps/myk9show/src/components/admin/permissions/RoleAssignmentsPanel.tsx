@@ -33,7 +33,6 @@ import {
   DataTable,
   DataTableToolbar,
   DataTableSearch,
-  DataTableColumnToggle,
   type ColumnDef,
 } from '@/components/ui/data-table';
 import type { DataTableColumnMeta } from '@/components/ui/data-table';
@@ -368,7 +367,6 @@ export const RoleAssignmentsPanel: React.FC = () => {
           toolbar={({ table }) => (
             <DataTableToolbar table={table}>
               <DataTableSearch placeholder="Search by user, role, or scope..." />
-              <DataTableColumnToggle />
             </DataTableToolbar>
           )}
         />

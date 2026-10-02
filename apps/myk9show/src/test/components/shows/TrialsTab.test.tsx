@@ -167,7 +167,7 @@ describe('TrialsTab', () => {
     expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
   });
 
-  it('lets the toolbar row wrap so the view select, toggle and Add Trial fit a phone', () => {
+  it('lets the result line wrap so the sentence and the view toggle fit a phone', () => {
     const trials = [
       makeTrial({ id: 't1', status: 'Scheduled' }),
       makeTrial({ id: 't2', status: 'Completed' }),
@@ -178,9 +178,7 @@ describe('TrialsTab', () => {
     };
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    const row = screen
-      .getByRole('combobox', { name: 'Show: Trial views' })
-      .closest('div')?.parentElement;
+    const row = screen.getByTestId('view-toggle').parentElement?.parentElement;
     expect(row?.className).toContain('flex-wrap');
   });
 
@@ -196,7 +194,7 @@ describe('TrialsTab', () => {
   it('shows empty state when no trials', () => {
     render(<TrialsTab trials={[]} showId="show-1" trialStats={{}} />);
 
-    expect(screen.getByText('No Trials')).toBeInTheDocument();
+    expect(screen.getByText('No trials yet')).toBeInTheDocument();
   });
 
   it('displays trial type and start time', () => {

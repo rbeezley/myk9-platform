@@ -34,7 +34,7 @@ describe('ClubsListView', () => {
     localStorage.clear();
   });
 
-  it('renders clubs in the shared DataTable with standard controls', () => {
+  it('renders clubs in the shared DataTable with no toolbar of its own', () => {
     render(<ClubsListView clubs={clubs} clubShowCounts={new Map([['club-1', 3]])} />);
 
     expect(screen.getByTestId('clubs-list')).toBeInTheDocument();
@@ -42,8 +42,8 @@ describe('ClubsListView', () => {
     expect(screen.getByRole('columnheader', { name: /upcoming shows/i })).toBeInTheDocument();
     expect(screen.getByText('Golden State Dog Club')).toBeInTheDocument();
     expect(screen.getByText('Sacramento, CA')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /compact density/i })).toBeInTheDocument();
+    // Owner decision 4 (MYK9-929): the table carries no toolbar of its own.
+    expect(screen.queryByRole('button', { name: /export csv|density|columns|reset/i })).toBeNull();
   });
 });
 

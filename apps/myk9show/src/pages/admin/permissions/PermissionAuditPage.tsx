@@ -18,7 +18,6 @@ import {
   DataTable,
   DataTableToolbar,
   DataTableSearch,
-  DataTableColumnToggle,
   type ColumnDef,
 } from '@/components/ui/data-table';
 import type { DataTableColumnMeta } from '@/components/ui/data-table';
@@ -378,7 +377,6 @@ const PermissionAuditPage: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <DataTableColumnToggle />
                   <Button
                     variant="outline"
                     className="h-11"

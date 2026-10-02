@@ -12,6 +12,9 @@ import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTab
 const server = vi.hoisted(() => ({
   rows: [] as Array<Record<string, unknown>>,
   liveCount: 0,
+  /** delete_preview answer per show id; absent id answers P0002 (gone). */
+  previewErrors: {} as Record<string, { code: string } | null>,
+  previewThrows: false,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -28,6 +31,12 @@ vi.mock('@/services/database/supabaseClient', () => {
   };
   return {
     supabase: {
+      rpc: async (_fn: string, args: { p_id: string }) => {
+        if (server.previewThrows) throw new Error('network');
+        const error =
+          args.p_id in server.previewErrors ? server.previewErrors[args.p_id] : { code: 'P0002' };
+        return { data: error ? null : {}, error };
+      },
       from: () => ({
         select: (_cols: string, opts?: { head?: boolean }) =>
           builder(opts?.head ? 'count' : 'rows'),
@@ -78,6 +87,8 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
     table = new ReplicatedShowsTable();
     server.rows = [];
     server.liveCount = 0;
+    server.previewErrors = {};
+    server.previewThrows = false;
   });
 
   afterEach(async () => {
@@ -91,6 +102,8 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
     // The server now serves only the live show (the other is soft-deleted).
     server.rows = [serverRow('live-show')];
     server.liveCount = 1;
+    // Cleanup only removes rows written before the fetch started.
+    await new Promise(resolve => setTimeout(resolve, 5));
 
     await table.sync('');
 
@@ -99,16 +112,39 @@ describe('ReplicatedShowsTable sync of a show deleted on the server', () => {
   });
 
   describe('when the last show of the scope is deleted elsewhere (count 0, fetch 0)', () => {
-    it('does NOT clear the replica: an empty answer is not proof, and the engine requires one', async () => {
+    const seedTwoAndSync = async () => {
       await table.set('deleted-a', show('deleted-a'));
       await table.set('deleted-b', show('deleted-b'));
       server.rows = [];
       server.liveCount = 0;
       await new Promise(resolve => setTimeout(resolve, 5));
-
       await table.sync('');
+    };
 
-      // Known gap, tracked separately: indistinguishable from an RLS gap.
+    it('clears the replica when the server proves every held show is gone', async () => {
+      await seedTwoAndSync();
+
+      expect(await table.get('deleted-a')).toBeNull();
+      expect(await table.get('deleted-b')).toBeNull();
+    });
+
+    it('keeps every row when one held show still exists server-side (an RLS gap)', async () => {
+      server.previewErrors = { 'deleted-b': { code: '42501' } };
+      await seedTwoAndSync();
+
+      expect(await table.get('deleted-a')).not.toBeNull();
+      expect(await table.get('deleted-b')).not.toBeNull();
+    });
+
+    it('keeps every row when the proof is ambiguous (other error, or the call throws)', async () => {
+      server.previewErrors = { 'deleted-a': { code: '57014' } };
+      await seedTwoAndSync();
+      expect(await table.get('deleted-a')).not.toBeNull();
+      expect(await table.get('deleted-b')).not.toBeNull();
+
+      server.previewErrors = {};
+      server.previewThrows = true;
+      await table.sync('');
       expect(await table.get('deleted-a')).not.toBeNull();
       expect(await table.get('deleted-b')).not.toBeNull();
     });

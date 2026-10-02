@@ -68,3 +68,24 @@ export const TabContentSkeleton: React.FC = () => (
     </Card>
   </div>
 );
+
+/** The dog page's loading state: also shown while the viewer's relationship to the dog is unresolved. */
+export const DogPageSkeleton: React.FC = () => (
+  <div role="status" aria-label="Loading dog" className="space-y-6">
+    <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
+    <div className="flex gap-6">
+      <div className="h-48 w-48 bg-muted/50 rounded-xl animate-pulse shrink-0" />
+      <div className="flex-1 space-y-4">
+        <div className="h-6 w-64 bg-muted/50 rounded animate-pulse" />
+        <div className="h-4 w-40 bg-muted/50 rounded animate-pulse" />
+        <div className="h-4 w-56 bg-muted/50 rounded animate-pulse" />
+        <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-4">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
+      ))}
+    </div>
+  </div>
+);

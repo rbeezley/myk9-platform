@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
-import { useViewerOwnsDog } from '@/hooks/useViewerOwnsDog';
 import { UserRole } from '@/types/auth-types';
-import { canManageDogRegistrations, usesNarrowDogSurface } from './dogViewerAccess';
+import { deriveDogPageGates, type DogPageGates } from './dogViewerAccess';
+import { useDogViewerRelationship } from './useDogViewerRelationship';
+import { DogPageSkeleton } from './Skeletons';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
@@ -30,7 +31,28 @@ import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/D
 import ManageRegistrationsPanel from '@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel';
 import type { DogDetailsMainProps } from './types';
 
-const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
+/**
+ * The whole page is gated on the viewer's relationship to the dog. While that is
+ * `pending` (roles or person identity still loading) neither layout renders and
+ * none of the page's effects run: DogDetailsLoaded mounts only once it is known,
+ * so no effect can strip a deep link or settle focus on a guess.
+ */
+const DogDetailsMain: React.FC<DogDetailsMainProps> = props => {
+  const relationship = useDogViewerRelationship(props.dog);
+  const { hasRole } = useAuthContext();
+  const gates = deriveDogPageGates(relationship, hasRole);
+  if (!gates) {
+    return (
+      <PageShell>
+        <DogPageSkeleton />
+      </PageShell>
+    );
+  }
+  return <DogDetailsLoaded {...props} gates={gates} />;
+};
+
+const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> = ({
+  gates,
   dog,
   fromPerson,
   onDeleteStart,
@@ -42,13 +64,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
-  // MYK9-912 / MYK9-935: the narrow surface is for a secretary or club admin
-  // looking at someone else's dog, decided by role membership. An owner or
-  // co-owner gets the full view whatever their roles.
-  const viewerOwnsDog = useViewerOwnsDog(dog);
-  const viewer = { hasRole, viewerOwnsDog };
-  const isSecretary = usesNarrowDogSurface(viewer);
-  const canManageRegistrations = canManageDogRegistrations(viewer);
+  // MYK9-912 / MYK9-935: narrow surface and registration rights come from the one
+  // resolved relationship (dogViewerAccess), never from role or ownership checks here.
+  const isSecretary = gates.narrowSurface;
+  const canManageRegistrations = gates.canManageRegistrations;
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not

@@ -58,6 +58,7 @@ describe('matchesListSearch', () => {
     ['rex', '1'],
     ['Novice A', '1'],
     ['Not started', '1'],
+    ['Scheduled', '1'],
     ['Done', '2'],
     ['Tulsa', '1'],
     ['dallas', '2'],

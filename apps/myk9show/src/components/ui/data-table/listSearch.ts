@@ -43,11 +43,12 @@ export function searchableValues<TData>(
           ? readPath(row, def.accessorKey)
           : undefined;
     const meta = column.meta as DataTableColumnMeta | undefined;
-    // What the column SHOWS wins over its stored value ("Not started" over "Scheduled", "MAY 10"
-    // over "2026-05-10"): she searches what she reads, and a stored ISO date would otherwise make
-    // every digit match every row.
+    // Both what the column SHOWS ("Not started", "MAY 10") and its stored value ("Scheduled",
+    // "2026-05-10") are findable. Words start at a space or any punctuation, so "2026-05-10" and
+    // "05" both find the stored date, and a short word only matches where a word begins.
     const shown = asSearchable(meta?.searchValue?.(row));
-    const raw = shown !== null && shown !== '' ? shown : asSearchable(accessed);
+    if (shown !== null && shown !== '') values.push(String(shown));
+    const raw = asSearchable(accessed);
     if (raw !== null) values.push(String(raw));
   });
   return values;

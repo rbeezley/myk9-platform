@@ -185,6 +185,8 @@ describe('TrialsTab list toolkit', () => {
     const cases: Array<[string, string, string]> = [
       ['name', 'Alpha', 'Alpha'],
       ['date as shown', 'JUN 21', 'Bravo'],
+      ['raw date', '2026-05-10', 'Alpha'],
+      ['raw date part', '05', 'Alpha'],
       ['time', '13:30', 'Bravo'],
       ['status label', 'Completed', 'Bravo'],
       ['status label (not started)', 'Not started', 'Alpha'],

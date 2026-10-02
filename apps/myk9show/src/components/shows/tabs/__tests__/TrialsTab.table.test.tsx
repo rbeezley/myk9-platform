@@ -62,7 +62,7 @@ describe('TrialsTab table view', () => {
 
   it('filters rows on search', async () => {
     const { user } = await renderInTableView();
-    await user.type(screen.getByPlaceholderText(/search/i), 'Saturday Trial 2');
+    await user.type(screen.getByPlaceholderText(/search/i), '25');
     await new Promise(r => setTimeout(r, 400));
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
     expect(screen.queryByText('Saturday Trial 1')).not.toBeInTheDocument();

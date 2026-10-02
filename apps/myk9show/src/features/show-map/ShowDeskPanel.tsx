@@ -12,7 +12,7 @@ import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
-import { buildMoveUpTargets } from './buildMoveUpTargets';
+import { useMoveUpTargets } from './useMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
@@ -171,7 +171,7 @@ export default function ShowDeskPanel({
   );
 
   const registryId = getTrialRegistry(trials[0]).id;
-  const moveUpTargets = buildMoveUpTargets(classes, moveUpAction?.classId, registryId);
+  const moveUpTargets = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;

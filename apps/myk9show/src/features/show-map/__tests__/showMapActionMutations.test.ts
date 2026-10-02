@@ -130,7 +130,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',
@@ -440,6 +440,25 @@ describe('showMapActionMutations', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it('refuses a move-up into a class in ANOTHER trial (MYK9-920), writing nothing', async () => {
+    mockGetReplicatedClassById.mockImplementation((id: string) =>
+      Promise.resolve({
+        id,
+        trialId: id === 'class-1' ? 'trial-1' : 'trial-2',
+        name: id === 'class-1' ? 'Novice A' : 'Advanced A',
+        element: 'Container',
+        level: id === 'class-1' ? 'Novice' : 'Advanced',
+        maxEntries: 50,
+      })
+    );
+
+    await expect(
+      moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
+    ).rejects.toThrow('not a valid move-up target');
+    expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+  });
+
   it('does not touch the source when the server refuses the move', async () => {
     // The RPC is the whole operation: if it fails, nothing happened. There is no
     // half-landed state left for a rollback to repair, which is the shape the
@@ -470,7 +489,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',
@@ -508,7 +527,7 @@ describe('showMapActionMutations', () => {
               }
             : {
                 id: 'class-2',
-                trialId: 'trial-2',
+                trialId: 'trial-1',
                 name: 'Advanced A',
                 element: 'Container',
                 level: 'Advanced',
@@ -539,7 +558,7 @@ describe('showMapActionMutations', () => {
             }
           : {
               id: 'class-2',
-              trialId: 'trial-2',
+              trialId: 'trial-1',
               name: 'Advanced A',
               element: 'Container',
               level: 'Advanced',
@@ -575,7 +594,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',

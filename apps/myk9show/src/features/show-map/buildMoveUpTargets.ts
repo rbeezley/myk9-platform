@@ -9,7 +9,7 @@
  */
 import { formatTrialLabel } from '@myk9/core';
 import { buildClassDisambiguator, buildFullClassLabel } from '@/features/_shared/classLabel';
-import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { selectMoveUpTargetClasses } from '@/utils/moveUpTargetSelection';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { RegistryId } from '@/features/registries';
@@ -20,16 +20,22 @@ import type { RegistryId } from '@/features/registries';
  * UKC/ASCA-only levels (Superior/Elite, Open) are recognized. See
  * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
  *
- * Restricted to the entry's OWN trial (MYK9-825): a UKC show's two same-day
- * trials both offer the same element/level ladder, so without this a class in
- * trial 2 read as a valid, indistinguishable-looking move-up target for an
- * entry in trial 1, and confirming it silently moved the entry across trials.
+ * Restricted to the entry's OWN trial (MYK9-825, now enforced inside
+ * isEligibleMoveUpTarget itself, MYK9-920) and, when `availableSpotsByClassId`
+ * is supplied, to classes with a free seat. Capacity is advisory: a class with
+ * no entry in the map is offered, and the write path refuses a full class.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
   currentClassId: string | undefined,
-  registryId: RegistryId = 'AKC'
+  registryId: RegistryId = 'AKC',
+  availableSpotsByClassId?: ReadonlyMap<string, number>
 ): ShowMapMoveUpTarget[] {
+  // Same trial, same element, higher level AND capacity: the one shared rule
+  // (MYK9-920), identical to the Entries Management approve dialog.
+  const targets = selectMoveUpTargetClasses(classes, currentClassId, registryId, cls =>
+    availableSpotsByClassId?.get(cls.id)
+  );
   const current = currentClassId ? classes.find(cls => cls.id === currentClassId) : undefined;
   if (!current) return [];
 
@@ -45,8 +51,7 @@ export function buildMoveUpTargets(
     }))
   );
 
-  return sameTrial
-    .filter(cls => cls.id !== currentClassId && isEligibleMoveUpTarget(current, cls, registryId))
+  return targets
     .map(cls => {
       const identity = {
         name: cls.name,

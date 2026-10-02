@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData';
+import { useRoleBasedPeople, usePersonAccess } from '@/hooks/useRoleBasedData';
 import { useDeletedUserQuery } from '@/hooks/queries/useUsersQuery';
 import { useRBAC } from '@/hooks/useRBAC';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
@@ -24,8 +24,8 @@ const PersonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = useRBAC();
 
-  const { people, isLoading } = useRoleBasedPeople();
-  const canAccessPerson = useCanAccessPerson(id || '');
+  const { people, isLoading, error: rosterError, refetch: refetchRoster } = useRoleBasedPeople();
+  const access = usePersonAccess(id || '');
 
   const livePerson = useMemo(() => {
     if (!id) return null;
@@ -43,17 +43,23 @@ const PersonDetailPage: React.FC = () => {
   } = useDeletedUserQuery(id || '', !isLoading && !livePerson && canReadRemoved);
 
   const person = livePerson ?? removedPerson ?? null;
-  const stillLooking = isLoading || (!livePerson && canReadRemoved && isLoadingRemoved);
+  // An unresolved viewer identity is "still looking" too: useRoleBasedPeople returns an
+  // empty roster until it resolves, and an empty roster must not read as "no such person".
+  const stillLooking =
+    isLoading || access === 'unresolved' || (!livePerson && canReadRemoved && isLoadingRemoved);
 
   // A FAILED read is not a missing person. Redirecting on error turns a
   // transient network blip into "no such record" and throws away the URL the
-  // admin was on, so the error gets its own state with a retry.
-  const readFailed = Boolean(removedError) && !livePerson;
+  // admin was on, so the error gets its own state with a retry. The roster read
+  // failing is the same shape: it returns an empty roster, not an answer.
+  const readError = (removedError ?? rosterError) as Error | null;
+  const readFailed = Boolean(readError) && !livePerson;
 
-  // A person that is not on the roster, or one this viewer may not open, is the shared
+  // A record the viewer may not open says so; a person that is on no roster is the shared
   // Not Found state (MYK9-930, audit H8), not a silent bounce to the list. A read that is
   // still running or has failed is neither (see above).
-  const personNotFound = !stillLooking && !readFailed && !!id && (!canAccessPerson || !person);
+  const personDenied = !stillLooking && !readFailed && access === 'denied';
+  const personNotFound = !stillLooking && !readFailed && !personDenied && !!id && !person;
 
   if (stillLooking) {
     return <DetailPageSkeleton />;
@@ -64,8 +70,25 @@ const PersonDetailPage: React.FC = () => {
       <PageShell>
         <ErrorState
           message="Couldn't load this person."
-          description={getUserFriendlyError(removedError, 'Check your connection and try again.')}
-          onRetry={() => refetchRemoved()}
+          description={getUserFriendlyError(readError, 'Check your connection and try again.')}
+          onRetry={() => {
+            if (removedError) void refetchRemoved();
+            if (rosterError) void refetchRoster?.();
+          }}
+        />
+      </PageShell>
+    );
+  }
+
+  if (personDenied) {
+    return (
+      <PageShell>
+        <NotFoundState
+          entityName="Person"
+          heading="You can't open this person"
+          description="This record belongs to someone else, so it isn't available to you."
+          backTo="/people"
+          backLabel="Back to People"
         />
       </PageShell>
     );

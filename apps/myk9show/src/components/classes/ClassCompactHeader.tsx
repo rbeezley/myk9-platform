@@ -5,28 +5,8 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { DetailHero, type HeroBadge } from '@/components/common/DetailHero';
-import { NotSet } from '@/components/common/NotSet';
+import { FactCell } from '@/components/common/FactCell';
 import { useClassEntryFee, type ClassFeeShow } from './useClassEntryFee';
-
-// --- Facts row cell ---
-
-interface MetadataItemProps {
-  label: string;
-  /** `null` is a blank the secretary should fill: it reads "Not set". */
-  value: string | null;
-}
-
-function MetadataItem({ label, value }: MetadataItemProps) {
-  return (
-    <div
-      data-testid="metadata-item"
-      className="flex-1 min-w-[120px] px-4 py-2.5 border-r border-border/50 last:border-r-0"
-    >
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-sm font-medium mt-0.5">{value ?? <NotSet />}</div>
-    </div>
-  );
-}
 
 // --- Date formatting (matches ClassDetailsPage pattern) ---
 
@@ -77,7 +57,7 @@ export function ClassCompactHeader({
 
   // Owner decision 6: a field the secretary should fill reads "Not set"; an
   // optional blank field is hidden.
-  const facts: MetadataItemProps[] = [
+  const facts: Array<{ label: string; value: string | null }> = [
     { label: 'Judge', value: classData.judge || null },
     { label: 'Date', value: formatClassDate(classData.trialDate) },
     { label: 'Entry Fee', value: entryFee != null ? formatFee(entryFee) : null },
@@ -102,7 +82,12 @@ export function ClassCompactHeader({
       footer={
         <div className="flex flex-wrap">
           {facts.map(field => (
-            <MetadataItem key={field.label} label={field.label} value={field.value} />
+            <FactCell
+              key={field.label}
+              label={field.label}
+              value={field.value}
+              testId="metadata-item"
+            />
           ))}
         </div>
       }

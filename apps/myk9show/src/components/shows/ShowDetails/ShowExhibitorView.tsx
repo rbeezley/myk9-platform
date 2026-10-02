@@ -77,7 +77,7 @@ export function ShowExhibitorView({
         }
         name={show.name || 'Untitled Show'}
         headingLevel={1}
-        parent={showHeroParent(show)}
+        parent={showHeroParent(show, { canOpenClub: tabs.isAuthenticated })}
         badges={[
           ...(show.organization ? [{ label: show.organization, variant: 'default' as const }] : []),
           {

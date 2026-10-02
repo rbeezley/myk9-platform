@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { PageShell } from '@/components/common/PageShell';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { useUserStore } from '@/store/userStore';
-import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
+import { useRoleBasedDogs, useDogAccess } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
 import type { Dog } from '@/types/dog-types';
@@ -28,7 +28,7 @@ const DogDetailPage: React.FC = () => {
 
   const dogs = useRoleBasedDogs();
   const { isLoading, isFetching, updateDog } = useDogStoreCompat();
-  const canAccessDog = useCanAccessDog(id || '');
+  const access = useDogAccess(id || '');
   const people = useUserStore(state => state.people);
 
   // Get fromPerson context for breadcrumbs (Users > Person > Dog)
@@ -57,14 +57,12 @@ const DogDetailPage: React.FC = () => {
   // Not while isFetching -- a post-create refetch may not have resolved yet, nor while
   // createdDog is available (just created, valid), nor while a delete this page started
   // is in flight (see above).
+  // Neither while the viewer's identity is unresolved: that is "still looking", not "no".
+  const settled =
+    !createdDog && !isLoading && !isFetching && !isDeleteInFlight && access !== 'unresolved';
+  const dogDenied = settled && !!id && access === 'denied';
   const dogNotFound =
-    !createdDog &&
-    !isLoading &&
-    !isFetching &&
-    !isDeleteInFlight &&
-    dogs.length > 0 &&
-    !!id &&
-    (!canAccessDog || !dogs.find(d => d.id === id));
+    settled && !dogDenied && dogs.length > 0 && !!id && !dogs.find(d => d.id === id);
 
   // The id as of NOW: a delete that lands after the user moved to another dog
   // reports itself in the toast without moving their page.
@@ -108,6 +106,28 @@ const DogDetailPage: React.FC = () => {
             <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
           ))}
         </div>
+      </PageShell>
+    );
+  }
+
+  if (access === 'unresolved' && !createdDog && !dog) {
+    return (
+      <PageShell>
+        <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" role="status" />
+      </PageShell>
+    );
+  }
+
+  if (dogDenied) {
+    return (
+      <PageShell>
+        <NotFoundState
+          entityName="Dog"
+          heading="You can't open this dog"
+          description="This dog belongs to someone else, so it isn't available to you."
+          backTo="/dogs"
+          backLabel="Back to Dogs"
+        />
       </PageShell>
     );
   }

@@ -24,7 +24,8 @@ interface HeroAction {
 
 export interface HeroParent {
   label: string;
-  href: string;
+  /** Omit when the viewer cannot open the parent: it then reads as plain text. */
+  href?: string | undefined;
 }
 
 interface DetailHeroProps {
@@ -145,12 +146,17 @@ export function DetailHero({
           </div>
           {parent && (
             <div className="text-sm font-medium">
-              <Link
-                to={parent.href}
-                className="inline-flex min-h-11 items-center text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm sm:min-h-0"
-              >
-                {parent.label}
-              </Link>
+              {parent.href ? (
+                // 44x44 at every width (docs/INTENT.md): no breakpoint shrinks it.
+                <Link
+                  to={parent.href}
+                  className="inline-flex min-h-11 min-w-11 items-center text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                >
+                  {parent.label}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">{parent.label}</span>
+              )}
             </div>
           )}
           {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}

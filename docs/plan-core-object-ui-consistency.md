@@ -97,7 +97,7 @@ Each phase is one PR (or a few small ones), independently verifiable. A phase is
 - Every class row opens the one class-detail URL (H13).
 - Tests: render tests for toolbar contents, the default view for each role, and the row click target.
 
-**Phase 5: Detail pages.**
+**Phase 5: Detail pages.** _Done in MYK9-930 (#2664)._
 
 - `PageShell` and `PageHeader` breadcrumb on every detail page (decision 11, H5).
 - `DetailHero` on Club, Class, Dog and Person (H9).

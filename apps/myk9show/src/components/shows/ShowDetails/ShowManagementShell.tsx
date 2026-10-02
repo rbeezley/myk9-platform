@@ -234,7 +234,7 @@ function AuthorizedShowManagementShell({
               }
               name={show.name || 'Untitled Show'}
               headingLevel={1}
-              parent={showHeroParent(show)}
+              parent={showHeroParent(show, { canOpenClub: true })}
               badges={
                 show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
               }

@@ -15,6 +15,7 @@ import { Plus, Layers } from 'lucide-react';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { TrialClassesCards } from './TrialClassesCards';
 import { StatusBadge } from '@/components/status';
+import { NotSet } from '@/components/common/NotSet';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -83,20 +84,23 @@ export const TrialClassesTable = ({
       {
         id: 'judgeName',
         header: 'Judge',
-        accessorFn: cls => cls.judgeName || 'TBD',
+        accessorFn: cls => cls.judgeName || '',
+        cell: ({ row }) => row.original.judgeName || <NotSet />,
       },
       {
         accessorKey: 'startTime',
         header: 'Start Time',
         sortingFn: 'datetime',
         cell: ({ row }) =>
-          row.original.startTime
-            ? new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              })
-            : 'TBD',
+          row.original.startTime ? (
+            new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+          ) : (
+            <NotSet />
+          ),
       },
       {
         accessorKey: 'entries',

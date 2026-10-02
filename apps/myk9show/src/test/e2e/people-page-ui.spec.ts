@@ -60,7 +60,7 @@ test.describe('People Page UI Improvements', () => {
   });
 
   test.describe('Quick Actions', () => {
-    test('should display quick action buttons in hero card', async ({ page }) => {
+    test('should link the person email in the contact card', async ({ page }) => {
       await testSetup.signIn('admin');
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
@@ -71,13 +71,11 @@ test.describe('People Page UI Improvements', () => {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
 
-        // Check for Email button (mailto link)
-        const emailButton = page.locator('a[href^="mailto:"]').first();
-        const emailButtonVisible = await emailButton.isVisible();
-
-        // At least one quick action should be visible if person has email
-        if (emailButtonVisible) {
-          await expect(emailButton).toContainText('Email');
+        // The hero has no Email button (MYK9-930); the contact card links the address.
+        const emailLink = page.locator('a[href^="mailto:"]').first();
+        if (await emailLink.isVisible()) {
+          const href = (await emailLink.getAttribute('href')) ?? '';
+          await expect(emailLink).toContainText(href.replace('mailto:', ''));
         }
       }
     });

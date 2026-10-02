@@ -35,6 +35,13 @@ describe('QuickInfoCards', () => {
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
 
+  it('shows a free show (fee 0) as a fee, not Not set', () => {
+    const free = { ...baseShow, preEntryFee: 0 as unknown as string };
+    render(<QuickInfoCards show={free as Show} />);
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+  });
+
   it('shows Not set for a missing location and a missing entry fee', () => {
     const bare = { ...baseShow, location: '', preEntryFee: '', entryCloseDate: '' };
     render(<QuickInfoCards show={bare as Show} />);

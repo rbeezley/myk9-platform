@@ -32,7 +32,7 @@ const deletedQuerySpy = vi.fn();
 
 vi.mock('@/hooks/useRoleBasedData', () => ({
   useRoleBasedPeople: () => roleBasedPeople,
-  useCanAccessPerson: () => canAccess.value,
+  usePersonAccess: () => (canAccess.value ? 'allowed' : 'denied'),
 }));
 
 vi.mock('@/hooks/useRBAC', () => ({
@@ -140,12 +140,12 @@ describe('PersonDetailPage — removed people', () => {
     expect(await screen.findByTestId('browse')).toHaveTextContent('/people');
   });
 
-  it('treats a person the viewer may not open as not found', () => {
+  it("tells a viewer who may not open the record so, rather than that it doesn't exist", () => {
     canAccess.value = false;
 
     renderAt('live-1');
 
-    expect(screen.getByRole('heading', { name: 'Person Not Found' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: "You can't open this person" })).toBeInTheDocument();
     expect(screen.queryByTestId('details')).not.toBeInTheDocument();
   });
 

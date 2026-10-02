@@ -25,6 +25,22 @@ describe('DetailHero as the one detail-page header (MYK9-930)', () => {
     expect(screen.getByText('Saturday')).toBeInTheDocument();
   });
 
+  it('keeps the parent link a 44px tap target at every width', () => {
+    render(
+      <DetailHero name="Spring Classic" parent={{ label: 'Bergen KC', href: '/clubs/c-1' }} />
+    );
+    const link = screen.getByRole('link', { name: 'Bergen KC' });
+    expect(link).toHaveClass('min-h-11', 'min-w-11');
+    // No breakpoint may shrink it back below 44px (docs/INTENT.md).
+    expect(link.className).not.toMatch(/min-h-0|min-w-0/);
+  });
+
+  it('renders a parent without an href as plain text, not a dead link', () => {
+    render(<DetailHero name="Spring Classic" parent={{ label: 'Bergen KC' }} />);
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('renders no parent link when none is given', () => {
     render(<DetailHero name="Spring Classic" />);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();

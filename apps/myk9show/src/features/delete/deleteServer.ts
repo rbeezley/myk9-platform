@@ -16,6 +16,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { deleteDog, forceDeleteDog, restoreDog } from '@/services/database/dogs/reads';
 import { deleteUser, restoreUser } from '@/services/database/users/reads';
 import { deleteClub, restoreClub } from '@/services/database/clubs/reads';
+import { describeRestoreDog } from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
 import type { DeleteObjectKind } from './deleteTypes';
 
 interface ServiceResult {
@@ -24,6 +25,12 @@ interface ServiceResult {
 
 function unwrap(result: ServiceResult): void {
   if (result.error) throw result.error;
+}
+
+/** `unwrap` for a restore that has no warning to report. */
+function unwrapped(result: ServiceResult): undefined {
+  unwrap(result);
+  return undefined;
 }
 
 export interface ServerDeleteOptions {
@@ -68,24 +75,34 @@ export async function softDeleteOnServer(
   }
 }
 
-/** Undo: the deleter within 10 minutes, or a site admin. The server decides. */
-export async function restoreOnServer(kind: DeleteObjectKind, id: string): Promise<void> {
+/**
+ * Undo: the deleter within 10 minutes, or a site admin. The server decides.
+ * Resolves with a warning to show the person when the restore succeeded but
+ * was not whole (a dog's placements another dog now holds, MYK9-607).
+ */
+export async function restoreOnServer(
+  kind: DeleteObjectKind,
+  id: string
+): Promise<string | undefined> {
   switch (kind) {
     case 'show':
-      return unwrap(await restoreShow(id));
+      return unwrapped(await restoreShow(id));
     case 'trial':
-      return unwrap(await restoreTrial(id));
+      return unwrapped(await restoreTrial(id));
     case 'class':
-      return unwrap(await restoreClass(id));
+      return unwrapped(await restoreClass(id));
     case 'entry':
       // The RPC alone: `restoreEntry` (admin Deleted Items) reads the row back
       // afterwards, and a failed read-back must not report a done Undo as failed.
-      return unwrap(await supabase.rpc('restore_entry', { p_entry_id: id }));
-    case 'dog':
-      return unwrap(await restoreDog(id));
+      return unwrapped(await supabase.rpc('restore_entry', { p_entry_id: id }));
+    case 'dog': {
+      const result = await restoreDog(id);
+      unwrap(result);
+      return describeRestoreDog(result) ?? undefined;
+    }
     case 'person':
-      return unwrap(await restoreUser(id));
+      return unwrapped(await restoreUser(id));
     case 'club':
-      return unwrap(await restoreClub(id));
+      return unwrapped(await restoreClub(id));
   }
 }

@@ -35,8 +35,6 @@ import {
 
 export interface DeleteBlockedAction {
   to: string;
-  /** Runs before navigation, e.g. selecting the show the Cancel card acts on. */
-  onNavigate?: (() => void) | undefined;
 }
 
 export interface DeleteObjectDialogViewProps {
@@ -206,7 +204,6 @@ export function DeleteObjectDialogView({
                   <Link
                     to={blockedAction.to}
                     onClick={() => {
-                      blockedAction.onNavigate?.();
                       // The link may point at the page already open, so the route
                       // never changes and nothing else would close this dialog.
                       onCancel();

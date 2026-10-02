@@ -17,6 +17,8 @@ import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './dele
 
 /** How long the toast stays up. The Undo window itself is the server's 10 minutes. */
 export const DELETE_TOAST_MS = 15_000;
+/** A placement warning needs a human to act on it, so it stays up longer. */
+const WARNING_TOAST_MS = 30_000;
 
 export interface OfferUndoParams {
   kind: DeleteObjectKind;
@@ -41,10 +43,13 @@ export async function undoDelete({
     toast.error(undoExpiredMessage(deleted.length));
     return;
   }
-  const { restored, failed } = await restoreRecords(kind, deleted);
+  const { restored, warnings, failed } = await restoreRecords(kind, deleted);
   invalidateAfterDelete(queryClient, kind);
   if (restored.length > 0) {
-    toast.success(restoredToast(kind, restored.length));
+    // A restore that was not whole says so in its own words, never a plain "restored".
+    const whole = restored.length - warnings.length;
+    if (whole > 0) toast.success(restoredToast(kind, whole));
+    for (const { message } of warnings) toast.warning(message, { duration: WARNING_TOAST_MS });
     onRestored?.(restored);
   }
   if (failed.length > 0) {

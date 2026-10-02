@@ -17,7 +17,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@/lib/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { useShowStore } from '@/store/showStore';
 import { ForceDeleteOverride } from '@/components/dogs/common/ForceDeleteOverride';
 import {
   alreadyDeletedToast,
@@ -32,7 +31,8 @@ import {
   type DeleteRecordsResult,
 } from './deleteRecords';
 import { offerUndoToast } from './deleteUndoToast';
-import { DeleteObjectDialogView, type DeleteBlockedAction } from './DeleteObjectDialogView';
+import { DeleteObjectDialogView } from './DeleteObjectDialogView';
+import { blockedActionFor } from './deleteBlockedAction';
 import { useDeletePreview } from './useDeletePreview';
 import { useUnsavedWork, type UnsavedWorkState } from './useUnsavedWork';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
@@ -53,27 +53,6 @@ export interface DeleteObjectDialogProps {
   onDeleteStart?: (() => void) | undefined;
   /** Nothing was deleted (refused or failed); the dialog stays open with the reason. */
   onDeleteFailed?: (() => void) | undefined;
-}
-
-/** Where a blocked delete points: Cancel show, or Withdraw / Pull on the entries page. */
-function blockedActionFor(
-  kind: DeleteObjectKind,
-  targets: readonly DeleteTarget[]
-): DeleteBlockedAction | undefined {
-  const first = targets[0];
-  if (!first || targets.length !== 1) return undefined;
-  if (kind === 'show') {
-    // The Cancel show control lives on Show Settings, which acts on the selected show.
-    return {
-      to: '/secretary/settings',
-      onNavigate: () => useShowStore.getState().selectShow(first.id),
-    };
-  }
-  const showId = first.context?.showId;
-  if ((kind === 'trial' || kind === 'class' || kind === 'entry') && showId) {
-    return { to: `/shows/${showId}/entries` };
-  }
-  return undefined;
 }
 
 export function DeleteObjectDialog({

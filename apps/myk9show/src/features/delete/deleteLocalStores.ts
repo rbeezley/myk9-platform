@@ -39,6 +39,26 @@ export const LOCAL_STORES_BY_KIND: Record<DeleteObjectKind, readonly LocalStoreN
   person: ['people'],
 };
 
+/**
+ * React Query roots a delete or an Undo of each kind must invalidate: the other
+ * half of the same per-kind declaration. `deleteRecords.invalidateAfterDelete`
+ * (delete AND Undo) reads this and nothing else. Every kind that reaches
+ * `'entries'` above must name every root a query holding entries lives under
+ * (`deleteQueryRoots.test.ts` derives them from the `queryKeys` factories), so
+ * one entry-bearing family cannot go stale after Undo while another refreshes.
+ */
+const ENTRY_QUERY_ROOTS = ['entries', 'shows', 'trials', 'classes'] as const;
+
+export const QUERY_ROOTS_BY_KIND: Record<DeleteObjectKind, readonly string[]> = {
+  club: ['clubs', 'shows'],
+  show: [...ENTRY_QUERY_ROOTS, 'clubs'],
+  trial: ENTRY_QUERY_ROOTS,
+  class: ENTRY_QUERY_ROOTS,
+  entry: [...ENTRY_QUERY_ROOTS, 'dogs'],
+  dog: [...ENTRY_QUERY_ROOTS, 'dogs', 'users', 'people'],
+  person: ['users', 'people', 'dogs'],
+};
+
 interface RestoreInput {
   kind: DeleteObjectKind;
   target: DeleteTarget;

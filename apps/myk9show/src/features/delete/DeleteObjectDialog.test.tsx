@@ -287,7 +287,7 @@ describe('DeleteObjectDialog three states', () => {
     ).toBeVisible();
     expect(within(dialog).getByRole('link', { name: 'Cancel show' })).toHaveAttribute(
       'href',
-      '/secretary/settings'
+      '/shows?tab=managing'
     );
     expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
   });

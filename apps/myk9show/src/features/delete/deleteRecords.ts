@@ -15,6 +15,7 @@ import {
   isRetryableRestoreError,
   restoreErrorMessage,
 } from './deleteErrors';
+import { QUERY_ROOTS_BY_KIND } from './deleteLocalStores';
 import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
 import { fetchDeletePreview } from './deletePreview';
@@ -150,6 +151,8 @@ export function canStillUndo(deletedAt: number, now: number = Date.now()): boole
 
 export interface RestoreRecordsResult {
   restored: DeleteTarget[];
+  /** Restored, but not whole: the message to show instead of a plain "restored". */
+  warnings: { target: DeleteTarget; message: string }[];
   failed: DeleteFailure[];
 }
 
@@ -167,10 +170,12 @@ export async function restoreRecords(
   targets: readonly DeleteTarget[]
 ): Promise<RestoreRecordsResult> {
   const restored: DeleteTarget[] = [];
+  const warnings: RestoreRecordsResult['warnings'] = [];
   const failed: DeleteFailure[] = [];
   await forEachLimited(targets, async target => {
     try {
-      await restoreOnServer(kind, target.id);
+      const warning = await restoreOnServer(kind, target.id);
+      if (warning) warnings.push({ target, message: warning });
     } catch (error) {
       // P0002 on a retry may mean the FIRST restore committed and only its
       // response was lost. The server's own read says which: a record it can
@@ -187,22 +192,12 @@ export async function restoreRecords(
     restored.push(target);
     await reconcileLocalRestore(kind, target);
   });
-  return { restored, failed };
+  return { restored, warnings, failed };
 }
 
-/** React Query caches each kind of delete can change. */
-const AFFECTED_QUERY_ROOTS: Record<DeleteObjectKind, readonly string[]> = {
-  club: ['clubs', 'shows'],
-  show: ['shows', 'trials', 'classes', 'entries', 'clubs'],
-  trial: ['trials', 'classes', 'entries', 'shows'],
-  class: ['classes', 'entries', 'trials', 'shows'],
-  entry: ['entries', 'classes', 'shows', 'dogs'],
-  dog: ['dogs', 'entries', 'users', 'people'],
-  person: ['users', 'people', 'dogs'],
-};
-
+/** Delete and Undo alike: the roots come from the per-kind table in `deleteLocalStores.ts`. */
 export function invalidateAfterDelete(queryClient: QueryClient, kind: DeleteObjectKind): void {
-  for (const root of AFFECTED_QUERY_ROOTS[kind]) {
+  for (const root of QUERY_ROOTS_BY_KIND[kind]) {
     void queryClient.invalidateQueries({ queryKey: [root] });
   }
 }

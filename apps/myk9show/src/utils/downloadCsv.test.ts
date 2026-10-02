@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { downloadCsv } from './downloadCsv';
 import * as downloadCsvModule from './downloadCsv';
 import { exportRowsCsv, exportFilename } from './downloadCsv';
 import { classExportRows, CLASS_EXPORT_HEADERS } from '@/components/classes/classesExport';
@@ -109,5 +110,27 @@ describe('dog export columns', () => {
     expect(dogExportHeaders(false)).toEqual(['Name', 'Breed', 'Sex', 'Status']);
     expect(dogExportRows([dog], true)[0]).toEqual(['Rex', 'Lab', 'male', 'Ann', 'active']);
     expect(dogExportRows([dog], false)[0]).toEqual(['Rex', 'Lab', 'male', 'active']);
+  });
+});
+
+describe('downloadCsv cleanup', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The deferred cleanup used to touch `document` inside a timer, which outlives a test
+  // environment (an unhandled ReferenceError in CI). Only the URL revoke may be deferred.
+  it('removes the link synchronously and defers only revokeObjectURL', () => {
+    vi.useFakeTimers();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    downloadCsv('a.csv', 'x');
+
+    expect(document.querySelector('a[download="a.csv"]')).toBeNull();
+    expect(revoke).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(revoke).toHaveBeenCalledWith('blob:x');
   });
 });

@@ -411,10 +411,8 @@ export function useEntryManagementActions({
       link.download = `entries_export_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 100);
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
 
       await auditService.log({
         action: AuditAction.EXPORT,

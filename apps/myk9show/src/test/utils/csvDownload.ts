@@ -7,6 +7,13 @@ import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
  */
 export function captureCsvDownload() {
   const parts: string[] = [];
+  // The download defers its URL revoke by 100ms; drop just that timer so none outlives the test
+  // (other timers, such as user-event's, stay real).
+  const realSetTimeout = globalThis.setTimeout;
+  const timers = vi
+    .spyOn(globalThis, 'setTimeout')
+    .mockImplementation(((handler: TimerHandler, ms?: number, ...args: unknown[]) =>
+      ms === 100 ? 0 : realSetTimeout(handler, ms, ...args)) as typeof setTimeout);
   vi.stubGlobal(
     'Blob',
     class {
@@ -21,6 +28,7 @@ export function captureCsvDownload() {
   return {
     csv: () => parts.join(''),
     restore: () => {
+      timers.mockRestore();
       vi.unstubAllGlobals();
       create.mockRestore();
       revoke.mockRestore();

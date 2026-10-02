@@ -100,6 +100,19 @@ describe('PersonDetailPage with unresolved inputs (MYK9-930)', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
+  it('Codex round 4: an exhibitor with unresolved identity, no people and a failed roster read sees the error and its retry', () => {
+    const refetch = vi.fn();
+    auth.value = { userWithRoles: { id: 'auth-9' }, roles: ['exhibitor'] };
+    usersQuery.value = { data: [], isLoading: false, error: new Error('offline'), refetch };
+    people.value = [];
+
+    renderAt('p-9');
+
+    expect(screen.getByText(/couldn't load this person/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /try again|retry/i }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
   it('an exhibitor whose own person row has not loaded yet is still looking, not refused', () => {
     auth.value = { userWithRoles: { id: 'auth-9' }, roles: ['exhibitor'] };
     usersQuery.value = { data: [], isLoading: false, error: null, refetch: vi.fn() };

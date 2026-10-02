@@ -4,7 +4,7 @@
  * people store are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const auth = vi.hoisted(() => ({
@@ -16,6 +16,8 @@ const auth = vi.hoisted(() => ({
 const store = vi.hoisted(() => ({
   dogs: [] as Array<Record<string, unknown>>,
   people: [] as unknown[],
+  error: null as unknown,
+  refetch: vi.fn(),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -29,7 +31,8 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
     dogs: store.dogs,
     isLoading: false,
     isFetching: false,
-    error: null,
+    error: store.error,
+    refetch: store.refetch,
     updateDog: vi.fn(),
   }),
 }));
@@ -63,6 +66,8 @@ beforeEach(() => {
   auth.value = { userWithRoles: { id: 'auth-1', databaseUserId: 'p-1' }, roles: ['exhibitor'] };
   store.dogs = [maple, rex];
   store.people = [];
+  store.error = null;
+  store.refetch = vi.fn();
 });
 
 describe('DogDetailPage with unresolved inputs (MYK9-930)', () => {
@@ -85,6 +90,18 @@ describe('DogDetailPage with unresolved inputs (MYK9-930)', () => {
       screen.queryByRole('heading', { name: /not found|can't open/i })
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId('dog-page')).not.toBeInTheDocument();
+  });
+
+  it('Codex round 4: unresolved identity with a failed roster read shows the error and its retry', () => {
+    auth.value = { userWithRoles: { id: 'auth-1' }, roles: ['exhibitor'] };
+    store.dogs = [];
+    store.error = new Error('offline');
+
+    renderAt('dog-1');
+
+    expect(screen.getByText(/couldn't load this dog/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /try again|retry/i }));
+    expect(store.refetch).toHaveBeenCalled();
   });
 
   it('does not refuse an exhibitor whose person row has not resolved yet', () => {

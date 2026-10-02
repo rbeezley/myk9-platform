@@ -7,6 +7,7 @@ import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { ErrorState } from '@/components/common/ErrorState';
 import { NotFoundState } from '@/components/common/NotFoundState';
+import { resolveDetailPageState } from './detailPageState';
 import { PageShell } from '@/components/common/PageShell';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 
@@ -43,68 +44,61 @@ const PersonDetailPage: React.FC = () => {
   } = useDeletedUserQuery(id || '', !isLoading && !livePerson && canReadRemoved);
 
   const person = livePerson ?? removedPerson ?? null;
-  // An unresolved viewer identity is "still looking" too: useRoleBasedPeople returns an
-  // empty roster until it resolves, and an empty roster must not read as "no such person".
-  const stillLooking =
-    isLoading || access === 'unresolved' || (!livePerson && canReadRemoved && isLoadingRemoved);
 
-  // A FAILED read is not a missing person. Redirecting on error turns a
-  // transient network blip into "no such record" and throws away the URL the
-  // admin was on, so the error gets its own state with a retry. The roster read
-  // failing is the same shape: it returns an empty roster, not an answer.
+  // A FAILED read is not a missing person, and an empty roster is not an answer until the
+  // viewer's identity has resolved. The state is decided in ONE place (`detailPageState`):
+  // a read failure always wins, so its retry is reachable. A person already in hand keeps
+  // the page up (the error then belongs to a background refresh).
   const readError = (removedError ?? rosterError) as Error | null;
-  const readFailed = Boolean(readError) && !livePerson;
+  const state = resolveDetailPageState({
+    identity: access === 'unresolved' ? 'unresolved' : 'resolved',
+    read:
+      readError && !person
+        ? 'error'
+        : isLoading || (!livePerson && canReadRemoved && isLoadingRemoved)
+          ? 'loading'
+          : 'success',
+    recordPresent: !!id && !!person,
+    access: access === 'denied' ? 'denied' : 'allowed',
+  });
 
-  // A record the viewer may not open says so; a person that is on no roster is the shared
-  // Not Found state (MYK9-930, audit H8), not a silent bounce to the list. A read that is
-  // still running or has failed is neither (see above).
-  const personDenied = !stillLooking && !readFailed && access === 'denied';
-  const personNotFound = !stillLooking && !readFailed && !personDenied && !!id && !person;
-
-  if (stillLooking) {
-    return <DetailPageSkeleton />;
+  switch (state) {
+    case 'loading':
+      return <DetailPageSkeleton />;
+    case 'error':
+      return (
+        <PageShell>
+          <ErrorState
+            message="Couldn't load this person."
+            description={getUserFriendlyError(readError, 'Check your connection and try again.')}
+            onRetry={() => {
+              if (removedError) void refetchRemoved();
+              if (rosterError) void refetchRoster?.();
+            }}
+          />
+        </PageShell>
+      );
+    case 'denied':
+      return (
+        <PageShell>
+          <NotFoundState
+            entityName="Person"
+            heading="You can't open this person"
+            description="This record belongs to someone else, so it isn't available to you."
+            backTo="/people"
+            backLabel="Back to People"
+          />
+        </PageShell>
+      );
+    case 'notFound':
+      return (
+        <PageShell>
+          <NotFoundState entityName="Person" backTo="/people" backLabel="Back to People" />
+        </PageShell>
+      );
+    case 'ready':
+      return person ? <UserDetailsView person={person} /> : null;
   }
-
-  if (readFailed) {
-    return (
-      <PageShell>
-        <ErrorState
-          message="Couldn't load this person."
-          description={getUserFriendlyError(readError, 'Check your connection and try again.')}
-          onRetry={() => {
-            if (removedError) void refetchRemoved();
-            if (rosterError) void refetchRoster?.();
-          }}
-        />
-      </PageShell>
-    );
-  }
-
-  if (personDenied) {
-    return (
-      <PageShell>
-        <NotFoundState
-          entityName="Person"
-          heading="You can't open this person"
-          description="This record belongs to someone else, so it isn't available to you."
-          backTo="/people"
-          backLabel="Back to People"
-        />
-      </PageShell>
-    );
-  }
-
-  if (personNotFound) {
-    return (
-      <PageShell>
-        <NotFoundState entityName="Person" backTo="/people" backLabel="Back to People" />
-      </PageShell>
-    );
-  }
-
-  if (!person) return null;
-
-  return <UserDetailsView person={person} />;
 };
 
 export default PersonDetailPage;

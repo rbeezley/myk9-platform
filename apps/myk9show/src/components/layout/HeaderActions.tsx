@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,10 +25,11 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * empty list HIDES the button -- a permanently disabled control would be a
  * promise the app cannot keep.
  *
- * The label "Actions" shows at every width (MYK9-928): Edit and the Add verbs live only
- * here, and an icon-only lightning bolt is no way for a novice to find them. Below `sm`
- * the chevron is dropped to keep the brand wordmark's room (`header-wordmark-fits.spec.ts`
- * measures it).
+ * Below `sm` the trigger is ICON-ONLY with a screen-reader label. The labelled
+ * button cost the brand wordmark 45px it does not have at 360-414px, so signed
+ * in with actions the wordmark rendered as "myK9S..." on every phone
+ * (`src/test/e2e/header-wordmark-fits.spec.ts` measures it). The label returns
+ * from `sm` up, where the room exists.
  */
 export function HeaderActions() {
   const { actions } = useCurrentActions();
@@ -44,12 +45,20 @@ export function HeaderActions() {
           type="button"
           variant="outline"
           size="touch"
-          className={cn('gap-1', showsLabel ? 'px-3' : 'px-2')}
+          className={cn('gap-1', showsLabel ? 'px-3' : 'min-w-11 justify-center px-2')}
           data-testid="header-actions-trigger"
         >
-          <span>Actions</span>
-          {/* The chevron is the part that waits for room: the word never does. */}
-          {showsLabel ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : null}
+          {showsLabel ? (
+            <>
+              <span>Actions</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              <span className="sr-only">Actions</span>
+              <Zap className="h-4 w-4" aria-hidden="true" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

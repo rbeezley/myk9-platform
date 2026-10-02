@@ -74,6 +74,11 @@ export interface AppAction {
    * user will type that the label deliberately does not carry (MYK9-672).
    */
   aliases?: readonly string[];
+  /**
+   * Owned by the detail page on screen (its Edit, a trial's Add classes), not by the show or
+   * the viewer's role. The command palette offers these on every route, show or not.
+   */
+  pageOwned?: boolean;
 }
 
 export type ActionRouteContext =
@@ -297,13 +302,14 @@ function buildPageObjectActions(pageObject: PageObject | null | undefined): AppA
   if (!pageObject) return [];
   const { kind } = pageObject;
   const actions: AppAction[] = [
-    { id: `${kind}-edit`, label: `Edit ${kind}`, command: 'edit-object' },
+    { id: `${kind}-edit`, label: `Edit ${kind}`, command: 'edit-object', pageOwned: true },
   ];
   if (kind === 'trial' && pageObject.addClassesHref) {
     actions.push({
       id: 'trial-add-classes',
       label: 'Add classes',
       href: pageObject.addClassesHref,
+      pageOwned: true,
     });
   }
   return actions;

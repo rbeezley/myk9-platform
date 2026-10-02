@@ -19,7 +19,6 @@ import { useShowMapMoveUpReversal } from './useShowMapMoveUpReversal';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
-  entryIdFromShowMapNodeId,
   getShowMapHandlerMessageTarget,
   markShowMapClassComplete,
   markShowMapClassStarted,
@@ -32,8 +31,6 @@ import {
   type ShowMapMoveUpResult,
   type ShowMapMoveUpUndoInput,
   type ShowMapScratchUndoInput,
-  approveShowMapEntry,
-  bulkApproveShowMapEntries,
 } from './showMapActionMutations';
 
 interface UseShowMapActionExecutorInput {
@@ -72,7 +69,6 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
   const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
-  const [reviewAction, setReviewAction] = useState<ShowMapAction | null>(null);
   const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
   const moveUpClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
@@ -373,41 +369,6 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       [moveUpAction?.classId, ...classIds].forEach(id => invalidateShowMapActionQueries(id)),
   });
 
-  const bulkApproveMutation = useMutation({
-    mutationFn: async ({ entryIds }: { entryIds: string[]; classId?: string | undefined }) => {
-      if (entryIds.length === 0) return [];
-      return bulkApproveShowMapEntries(entryIds);
-    },
-    onSuccess: (_data, { entryIds }) => {
-      const count = entryIds.length;
-      toast.success(count === 1 ? 'Entry approved' : `${count} entries approved`);
-    },
-    onError: error => {
-      toast.error(getUserFriendlyError(error));
-    },
-    onSettled: (_data, _error, variables) => {
-      invalidateShowMapActionQueries(variables?.classId);
-    },
-  });
-
-  const approveEntryMutation = useMutation({
-    mutationFn: async ({ action }: { action: ShowMapAction }) => {
-      const entryId = entryIdFromShowMapNodeId(action.nodeId);
-      if (!entryId) throw new Error('Unable to find the entry for this action.');
-      return approveShowMapEntry(entryId);
-    },
-    onSuccess: () => {
-      toast.success('Entry approved');
-      setReviewAction(null);
-    },
-    onError: error => {
-      toast.error(getUserFriendlyError(error));
-    },
-    onSettled: (_data, _error, variables) => {
-      invalidateShowMapActionQueries(variables?.action.classId);
-    },
-  });
-
   const messageHandlerMutation = useMutation({
     mutationFn: async ({ action, body }: { action: ShowMapAction; body: string }) => {
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
@@ -443,10 +404,6 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         setMessageAction(action);
         return;
       }
-      if (execution.kind === 'dialog' && execution.dialog === 'review-entry') {
-        setReviewAction(action);
-        return;
-      }
       if (execution.kind === 'mutation') {
         mutation.mutate({ action, execution });
       }
@@ -477,23 +434,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     confirmMessageHandler: ({ body }: ConfirmShowMapMessageInput) => {
       if (messageAction) messageHandlerMutation.mutate({ action: messageAction, body });
     },
-    reviewAction,
-    closeReviewSheet: () => setReviewAction(null),
-    confirmReviewApprove: () => {
-      if (reviewAction) approveEntryMutation.mutate({ action: reviewAction });
-    },
-    isApprovingReview: approveEntryMutation.isPending,
-    bulkApproveEntries: (entryIds: string[], classId?: string) => {
-      if (entryIds.length === 0) return;
-      bulkApproveMutation.mutate({ entryIds, classId });
-    },
-    isBulkApproving: bulkApproveMutation.isPending,
     isExecuting:
       mutation.isPending ||
       scratchMutation.isPending ||
       moveUpMutation.isPending ||
-      messageHandlerMutation.isPending ||
-      approveEntryMutation.isPending ||
-      bulkApproveMutation.isPending,
+      messageHandlerMutation.isPending,
   };
 }

@@ -1,7 +1,6 @@
 import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
-export type ShowMapActionDialogKey =
-  'move-up-entry' | 'scratch-entry' | 'message-handler' | 'review-entry';
+export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
 
 export type ShowMapActionMutationKey =
   'mark-checked-in' | 'mark-class-started' | 'mark-class-complete';
@@ -44,7 +43,8 @@ export type ResolvedShowMapActionExecution =
     };
 
 export const showMapActionExecutionById = {
-  'review-entry': { kind: 'dialog', dialog: 'review-entry' },
+  // MYK9-919: a link to Entry Management's pending review queue, never an approve.
+  'review-entry': { kind: 'navigate' },
   'edit-score': { kind: 'navigate' },
   'score-class': { kind: 'navigate' },
   'open-class': { kind: 'navigate' },

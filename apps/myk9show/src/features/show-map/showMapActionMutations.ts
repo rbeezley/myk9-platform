@@ -54,36 +54,12 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
   return sourceId.length > 0 ? sourceId : null;
 }
 
-export function entryIdFromShowMapNodeId(nodeId: string): string | null {
-  return (
-    sourceIdFromShowMapNodeId(nodeId, 'entry') ?? sourceIdFromShowMapNodeId(nodeId, 'dog-entry')
-  );
-}
-
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
   await updateReplicatedCheckInStatus(entryId, 'checked-in');
 }
 
 function readEntryStatus(entry: Awaited<ReturnType<typeof replicatedEntriesTable.getEntryById>>) {
   return entry?.entryStatus ?? entry?.entry_status ?? entry?.status ?? null;
-}
-
-export async function approveShowMapEntry(entryId: string): Promise<string | null> {
-  const entry = await replicatedEntriesTable.getEntryById(entryId);
-  const mutationId = await replicatedEntriesTable.updateEntryStatus(entryId, 'confirmed');
-
-  await logReplicatedEntryStatusChange({
-    entryId,
-    fromStatus: readEntryStatus(entry),
-    toStatus: 'confirmed',
-    action: 'approve_entry',
-  });
-
-  return mutationId;
-}
-
-export async function bulkApproveShowMapEntries(entryIds: string[]): Promise<(string | null)[]> {
-  return Promise.all(entryIds.map(entryId => approveShowMapEntry(entryId)));
 }
 
 export async function markShowMapClassStarted(classId: string): Promise<void> {

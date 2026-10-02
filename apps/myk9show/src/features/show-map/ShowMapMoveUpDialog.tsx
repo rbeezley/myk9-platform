@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import type { MoveUpCapacityState } from './useMoveUpTargets';
 import type { ShowMapNode } from './showMapTypes';
 import { MOVE_UP_REVERSAL_REFUSALS, type MoveUpReversalState } from './moveUpSupersession';
 
@@ -37,6 +38,8 @@ interface ShowMapMoveUpDialogProps {
   node?: ShowMapNode | undefined;
   currentClass?: ShowMapNode | undefined;
   targets: ShowMapMoveUpTarget[];
+  /** Class-capacity read behind `targets` (MYK9-920). Defaults to ready. */
+  capacityState?: MoveUpCapacityState | undefined;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (input: ShowMapMoveUpConfirmInput) => void;
@@ -54,6 +57,7 @@ export function ShowMapMoveUpDialog({
   node,
   currentClass,
   targets,
+  capacityState,
   isSubmitting,
   onOpenChange,
   onConfirm,
@@ -86,6 +90,7 @@ export function ShowMapMoveUpDialog({
           node={node}
           currentClass={currentClass}
           targets={targets}
+          capacityState={capacityState}
           isSubmitting={isSubmitting}
           onOpenChange={onOpenChange}
           onConfirm={onConfirm}
@@ -104,6 +109,7 @@ function ShowMapMoveUpDialogFields({
   node,
   currentClass,
   targets,
+  capacityState = 'ready',
   isSubmitting,
   onOpenChange,
   onConfirm,
@@ -179,7 +185,15 @@ function ShowMapMoveUpDialogFields({
               ))}
             </SelectContent>
           </Select>
-          {targets.length === 0 && (
+          {capacityState === 'loading' && (
+            <p className="text-sm text-muted-foreground">Checking class capacity…</p>
+          )}
+          {capacityState === 'unavailable' && (
+            <p className="text-sm text-muted-foreground">
+              Capacity unavailable — the save will still refuse a full class.
+            </p>
+          )}
+          {targets.length === 0 && capacityState !== 'loading' && (
             <p className="text-sm text-muted-foreground">
               {reversal?.kind === 'available'
                 ? 'There is no higher class to move up to from here.'
@@ -206,7 +220,9 @@ function ShowMapMoveUpDialogFields({
         <Button
           type="button"
           onClick={handleConfirm}
-          disabled={isSubmitting || !targetClassId || targets.length === 0}
+          disabled={
+            isSubmitting || capacityState === 'loading' || !targetClassId || targets.length === 0
+          }
         >
           {isSubmitting ? 'Moving...' : 'Move entry'}
         </Button>

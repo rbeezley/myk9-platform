@@ -1,0 +1,116 @@
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { queryKeys } from '@/lib/queryClient';
+import type { ClassWithCapacity } from '@/services/database/day-of-operations';
+import type { ShowMapClassInput } from '../showMapTypes';
+import { useMoveUpTargets } from '../useMoveUpTargets';
+
+const mockGetClassesWithCapacity = vi.fn();
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: (...args: unknown[]) => mockGetClassesWithCapacity(...args),
+}));
+
+function showMapClass(id: string, level: string): ShowMapClassInput {
+  return { id, trialId: 'trial-1', name: id, element: 'Container', level };
+}
+const classes = [
+  showMapClass('novice', 'Novice'),
+  showMapClass('advanced', 'Advanced'),
+  showMapClass('master', 'Master'),
+];
+
+function capacity(id: string, availableSpots: number): ClassWithCapacity {
+  return {
+    id,
+    name: id,
+    class_number: null,
+    max_entries: 10,
+    trial_id: 'trial-1',
+    accepted_count: 10 - availableSpots,
+    available_spots: availableSpots,
+    element: 'Container',
+    level: null,
+    section: null,
+  };
+}
+
+let queryClient: QueryClient;
+function wrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+describe('useMoveUpTargets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
+  afterEach(() => {
+    onlineManager.setOnline(true);
+    queryClient.clear();
+  });
+
+  it('drops a full class once capacity loads', async () => {
+    mockGetClassesWithCapacity.mockResolvedValue({
+      data: [capacity('advanced', 3), capacity('master', 0)],
+      error: null,
+    });
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.capacityState).toBe('ready'));
+    expect(result.current.targets.map(t => t.id)).toEqual(['advanced']);
+  });
+
+  it('does not read capacity while no move-up dialog is open', () => {
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, undefined, 'AKC'), {
+      wrapper,
+    });
+    expect(mockGetClassesWithCapacity).not.toHaveBeenCalled();
+    expect(result.current.targets).toEqual([]);
+  });
+
+  it('still reads the replica while offline instead of parking at paused', async () => {
+    onlineManager.setOnline(false);
+    mockGetClassesWithCapacity.mockResolvedValue({
+      data: [capacity('advanced', 3), capacity('master', 0)],
+      error: null,
+    });
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.capacityState).toBe('ready'));
+    expect(result.current.targets.map(t => t.id)).toEqual(['advanced']);
+  });
+
+  it('reports unavailable (targets still listed) when the capacity read fails', async () => {
+    mockGetClassesWithCapacity.mockResolvedValue({ data: [], error: new Error('boom') });
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.capacityState).toBe('unavailable'));
+    expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
+  });
+
+  it('refetches when show classes or entries are invalidated while open', async () => {
+    mockGetClassesWithCapacity.mockResolvedValueOnce({
+      data: [capacity('advanced', 3), capacity('master', 2)],
+      error: null,
+    });
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.targets).toHaveLength(2));
+
+    mockGetClassesWithCapacity.mockResolvedValueOnce({
+      data: [capacity('advanced', 3), capacity('master', 0)],
+      error: null,
+    });
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.show('show-1') });
+    });
+    await waitFor(() => expect(result.current.targets.map(t => t.id)).toEqual(['advanced']));
+    expect(mockGetClassesWithCapacity).toHaveBeenCalledTimes(2);
+  });
+});

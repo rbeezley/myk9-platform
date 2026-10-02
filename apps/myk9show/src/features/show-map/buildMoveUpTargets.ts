@@ -1,11 +1,8 @@
 /**
- * Shared move-up target builder for the Show Map and Show Desk surfaces.
- *
- * Both surfaces previously built targets as "every class except the current
- * one", which offered the same semantically invalid options (lower levels,
- * cross-element) that Entries Management was fixed to exclude. This builder
- * applies the canonical same-element + strictly-higher-level rule from
- * `@/utils/moveUpEligibility` so all three surfaces agree.
+ * Move-up target builder for the Show Map and Show Desk surfaces. The rule
+ * itself (same trial, same element, strictly higher level, free seat) lives in
+ * `@/utils/moveUpTargetSelection`, shared with Entries Management; this adds
+ * the Show Map labels and trial detail.
  */
 import { formatTrialLabel } from '@myk9/core';
 import { buildClassDisambiguator, buildFullClassLabel } from '@/features/_shared/classLabel';
@@ -31,14 +28,14 @@ export function buildMoveUpTargets(
   registryId: RegistryId = 'AKC',
   availableSpotsByClassId?: ReadonlyMap<string, number>
 ): ShowMapMoveUpTarget[] {
-  // Same trial, same element, higher level AND capacity: the one shared rule
-  // (MYK9-920), identical to the Entries Management approve dialog.
-  const targets = selectMoveUpTargetClasses(classes, currentClassId, registryId, cls =>
-    availableSpotsByClassId?.get(cls.id)
-  );
   const current = currentClassId ? classes.find(cls => cls.id === currentClassId) : undefined;
   if (!current) return [];
 
+  // The one shared rule (MYK9-920), identical to the Entries Management approve
+  // dialog: same trial, same element, higher level, and a free seat when known.
+  const targets = selectMoveUpTargetClasses(classes, current.id, registryId, cls =>
+    availableSpotsByClassId?.get(cls.id)
+  );
   const sameTrial = classes.filter(cls => cls.trialId === current.trialId);
   // Scoped to the entry's own trial: a same-shaped class in another trial is
   // never a collision to disambiguate, it's excluded entirely by the filter above.

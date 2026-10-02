@@ -171,6 +171,27 @@ describe('EditPanelWrapper feedback', () => {
     vi.restoreAllMocks();
   });
 
+  it('ignores Escape while saving, so a failed save still has its form', async () => {
+    let rejectSave: (reason: unknown) => void = () => {};
+    const user = userEvent.setup();
+    const { onClose } = renderPanel(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        })
+    );
+    await editAndSave(user);
+    await screen.findByRole('button', { name: 'Saving...' });
+
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+
+    rejectSave(new Error('network down'));
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(screen.getByLabelText('Name')).toHaveValue('Rexy');
+  });
+
   it('prompts before Cancel discards changes', async () => {
     const user = userEvent.setup();
     const { onClose } = renderPanel(vi.fn());

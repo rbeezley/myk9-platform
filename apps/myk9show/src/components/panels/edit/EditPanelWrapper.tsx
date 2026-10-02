@@ -396,12 +396,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
+    // A save in flight may still fail, and closing now would drop the form it
+    // fails back to.
+    if (isLoading) return;
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
     }
     closeWithoutRouteGuard();
-  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard]);
+  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard, isLoading]);
 
   const routeLeaveGuard = (
     <UnsavedChangesRouteGuard

@@ -295,8 +295,9 @@ export function EntryEditDialog({
   // Cancel, Escape and the overlay ask first when edits are unsaved (H15). A
   // close after a save calls onOpenChange directly: nothing is lost there.
   const { requestClose, discardDialog } = useDiscardPrompt({
-    isDirty: hasChanges() && !isSaving,
+    isDirty: hasChanges(),
     close: () => onOpenChange(false),
+    blocked: isSaving,
   });
 
   const getClassStatus = (classEntry: EntryClass): EntryClass['status'] => {
@@ -413,7 +414,7 @@ export function EntryEditDialog({
           </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={requestClose}>
+            <Button variant="outline" onClick={requestClose} disabled={isSaving}>
               Cancel
             </Button>
             {canModify && !isLoading && (

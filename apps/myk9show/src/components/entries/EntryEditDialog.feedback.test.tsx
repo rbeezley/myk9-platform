@@ -101,4 +101,17 @@ describe('EntryEditDialog feedback', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
     expect(screen.getByDisplayValue('Patty')).toBeInTheDocument();
   });
+
+  it('ignores Escape and Cancel while the save is in flight', async () => {
+    mocks.saveEntryEdits.mockReturnValue(new Promise(() => {}));
+    const { user, onOpenChange } = await renderAndEdit();
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+    await screen.findByText('Saving...');
+
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+  });
 });

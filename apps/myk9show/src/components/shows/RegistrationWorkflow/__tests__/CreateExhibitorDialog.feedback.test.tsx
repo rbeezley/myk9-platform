@@ -118,6 +118,31 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     expect(screen.queryByText(/people_email_key/)).not.toBeInTheDocument();
   });
 
+  it('ignores Escape while the save is in flight, and the details survive a failure', async () => {
+    let rejectSave: (reason: unknown) => void = () => {};
+    createUserMock.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectSave = reject;
+      })
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    render(<CreateExhibitorDialog open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
+
+    await fillName(user);
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await screen.findByRole('button', { name: 'Saving...' });
+
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+
+    rejectSave(new Error('network down'));
+    expect(await screen.findByText(/Your changes are still here\./)).toBeInTheDocument();
+    expect(screen.getByLabelText(/First Name/i)).toHaveValue('Molly');
+    expect(screen.getByLabelText(/Last Name/i)).toHaveValue('Mailbox');
+  });
+
   it('uses the one pending label, Saving...', async () => {
     createUserMock.mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();

@@ -262,8 +262,9 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   // details (H15). Closing after a save or picking a duplicate calls
   // handleClose directly: nothing is lost there.
   const { requestClose, discardDialog } = useDiscardPrompt({
-    isDirty: form.hasChanges && !isCreating,
+    isDirty: form.hasChanges,
     close: handleClose,
+    blocked: isCreating,
   });
 
   // Handle selecting existing duplicate
@@ -427,7 +428,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
           </Tabs>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={requestClose}>
+            <Button variant="outline" onClick={requestClose} disabled={isCreating}>
               Cancel
             </Button>
             <Button

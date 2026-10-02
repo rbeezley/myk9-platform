@@ -49,16 +49,26 @@ export function DiscardChangesDialog({
  * with unsaved changes asks first. A close the surface makes on its own behalf
  * (after a save) calls `close` directly.
  */
-export function useDiscardPrompt({ isDirty, close }: { isDirty: boolean; close: () => void }) {
+export function useDiscardPrompt({
+  isDirty,
+  close,
+  blocked = false,
+}: {
+  isDirty: boolean;
+  close: () => void;
+  /** True while a save is in flight: every dismissal is ignored, as the save may still fail. */
+  blocked?: boolean;
+}) {
   const [promptOpen, setPromptOpen] = useState(false);
 
   const requestClose = useCallback(() => {
+    if (blocked) return;
     if (isDirty) {
       setPromptOpen(true);
       return;
     }
     close();
-  }, [isDirty, close]);
+  }, [blocked, isDirty, close]);
 
   const discardDialog = (
     <DiscardChangesDialog

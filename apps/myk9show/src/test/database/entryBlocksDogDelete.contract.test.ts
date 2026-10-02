@@ -3,7 +3,8 @@
  *
  *   * the server guard in soft_delete_dog (SQLSTATE MK002) — the authority;
  *   * count_blocking_entries_by_dog, the RPC the delete dialog calls to
- *     explain the refusal BEFORE the user clicks.
+ *     explain the refusal BEFORE the user clicks, and delete_preview's dog
+ *     branch (CRUD standard Phase 2), the read the shared delete dialog makes.
  *
  * Before MYK9-822 these were two independent copies of the same condition —
  * the server's SQL guard and a client-side PostgREST `.or()` filter — and
@@ -118,5 +119,17 @@ describe('delete-blocking entry predicate (MYK9-822)', () => {
     expect(body).toContain('p_dog_id: dogId');
     expect(body).not.toContain('.or(');
     expect(body).not.toContain("supabase.from('entries')");
+  });
+
+  it("delete_preview's dog branch counts with the same shared predicate", () => {
+    // The shared delete dialog reads delete_preview (CRUD standard Phase 2), not
+    // a client filter, to say up front that a dog's delete will be refused.
+    const migration = latestMigrationDefining('CREATE OR REPLACE FUNCTION public.delete_preview');
+    const body = sqlFunctionBody(migration, 'public.delete_preview(p_scope text, p_id uuid)');
+    const dogBranch = body.slice(
+      body.indexOf("p_scope = 'dog'"),
+      body.indexOf("p_scope = 'person'")
+    );
+    expect(dogBranch).toContain('private.count_dog_blocking_entries(p_id)');
   });
 });

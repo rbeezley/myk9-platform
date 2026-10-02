@@ -157,6 +157,8 @@ export interface Dog {
   sex: 'male' | 'female'; // Required field
   age?: number | undefined; // Or consider dateOfBirth for more precision
   ownerId: string; // Owner ID
+  /** Co-owner person id (`dogs.co_owner_id`). Carried through the offline replica too; devices that already synced pick it up on the 24h full sync. */
+  coOwnerId?: string | undefined;
   ownerName?: string | undefined; // Owner name for easier display
   owner?: Owner | undefined; // Owner object (can be populated later)
   description?: string | undefined;

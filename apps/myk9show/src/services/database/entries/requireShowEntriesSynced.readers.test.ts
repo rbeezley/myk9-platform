@@ -127,7 +127,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/database/entries/lifecycle', () => ({
   denyMoveUpRequest: vi.fn(),
-  pullEntryDayOf: vi.fn(),
 }));
 
 function entry(id: string, entryStatus: string, moveUp = false) {

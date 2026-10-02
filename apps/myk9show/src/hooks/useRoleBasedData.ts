@@ -4,9 +4,9 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
-import type { User } from '@/types/user-types';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
+import { getUserPersonFromAuthId, resolveViewerPersonId } from '@/utils/viewerPerson';
 
 // Re-export the pure predicate from the hook module for existing consumers.
 export { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
@@ -39,8 +39,7 @@ export function useRoleBasedDogs() {
 
     // Exhibitors only see their own dogs. Prefer the canonical people.id from RBAC;
     // the auth id lookup is only for legacy sessions that predate databaseUserId.
-    const userPersonId =
-      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
 
     if (!userPersonId) {
       return [];
@@ -83,14 +82,6 @@ export function useRoleBasedPeople() {
 }
 
 /**
- * Find the person record for an auth user by matching user_id.
- */
-function getUserPersonFromAuthId(authUserId?: string, allPeople: User[] = []): User | null {
-  if (!authUserId) return null;
-  return allPeople.find(p => p.user_id === authUserId) || null;
-}
-
-/**
  * Hook to check if the current user owns a specific dog
  */
 export function useCanAccessDog(dogId: string): boolean {
@@ -114,8 +105,7 @@ export function useCanAccessDog(dogId: string): boolean {
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return false;
 
-    const userPersonId =
-      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
     return dog.ownerId === userPersonId;
   }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
 }
@@ -128,8 +118,9 @@ export function useCanAccessDog(dogId: string): boolean {
  * Deliberately NARROWER than useCanAccessDog: secretaries and club admins can
  * *view* any dog but the RPC rejects their delete, so they must not see it.
  *
- * Co-owner is omitted: no dogs currently set co_owner_id and it is not on the
- * Dog type. Revisit if co-ownership ships (the RPC already allows it).
+ * Co-owner is deliberately omitted: delete stays owner-only in the UI even
+ * though the RPC also allows a co-owner. `Dog.coOwnerId` exists for the view
+ * choice in useViewerOwnsDog (MYK9-912), not for destructive rights.
  */
 export function useCanDeleteDog(dogId: string): boolean {
   const { userWithRoles, hasRole } = useAuthContext();
@@ -143,8 +134,7 @@ export function useCanDeleteDog(dogId: string): boolean {
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return false;
 
-    const userPersonId =
-      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
     return !!userPersonId && dog.ownerId === userPersonId;
   }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
 }
@@ -169,8 +159,7 @@ export function useCanAccessPerson(personId: string): boolean {
     }
 
     // Exhibitors can only access themselves
-    const userPersonId =
-      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
     return personId === userPersonId;
   }, [userWithRoles, hasRole, personId, allPeople]);
 }

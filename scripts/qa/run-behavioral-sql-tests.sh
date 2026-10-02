@@ -129,6 +129,7 @@ TEST_FILES=(
   "$TEST_DIR/force_delete_dog_test.sql"
   "$TEST_DIR/myk9_607_608_dog_delete_audit_restore_test.sql"
   "$TEST_DIR/crud_standard_soft_delete_restore_test.sql"
+  "$TEST_DIR/crud_standard_delete_preview_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"
   "$TEST_DIR/withdraw_own_entry_test.sql"

@@ -77,7 +77,10 @@ describe('useMoveUpTargets', () => {
       wrapper,
     });
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
-    expect(result.current.targets.map(t => t.id)).toEqual(['advanced']);
+    expect(result.current.targets.map(t => [t.id, t.isFull === true])).toEqual([
+      ['advanced', false],
+      ['master', true],
+    ]);
   });
 
   it('does not read capacity while no move-up dialog is open', () => {
@@ -98,7 +101,7 @@ describe('useMoveUpTargets', () => {
       wrapper,
     });
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
-    expect(result.current.targets.map(t => t.id)).toEqual(['advanced']);
+    expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
   });
 
   it('reports unavailable (targets still listed) when the capacity read fails', async () => {
@@ -120,7 +123,9 @@ describe('useMoveUpTargets', () => {
       const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
         wrapper,
       });
-      await waitFor(() => expect(result.current.targets.map(t => t.id)).toEqual(['advanced']));
+      await waitFor(() =>
+        expect(result.current.targets.find(t => t.id === 'master')?.isFull).toBe(true)
+      );
 
       mockGetClassesWithCapacity.mockResolvedValueOnce({
         data: [capacity('advanced', 3), capacity('master', 1)],
@@ -130,10 +135,29 @@ describe('useMoveUpTargets', () => {
         replicaListeners[table].forEach(listener => listener());
       });
       await waitFor(() =>
-        expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master'])
+        expect(result.current.targets.find(t => t.id === 'master')?.isFull).toBe(false)
       );
     }
   );
+
+  it('reports unavailable, keeping the stale data, when a refetch fails after success', async () => {
+    mockGetClassesWithCapacity.mockResolvedValueOnce({
+      data: [capacity('advanced', 3), capacity('master', 2)],
+      error: null,
+    });
+    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.capacityState).toBe('ready'));
+
+    mockGetClassesWithCapacity.mockResolvedValueOnce({ data: [], error: new Error('boom') });
+    await act(async () => {
+      replicaListeners.entries.forEach(listener => listener());
+    });
+    await waitFor(() => expect(result.current.capacityState).toBe('unavailable'));
+    expect(result.current.capacityIsStale).toBe(true);
+    expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
+  });
 
   it('does not subscribe to replica changes while no dialog is open', () => {
     renderHook(() => useMoveUpTargets('show-1', classes, undefined, 'AKC'), { wrapper });

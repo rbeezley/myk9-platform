@@ -26,6 +26,8 @@ export interface ShowMapMoveUpTarget {
   id: string;
   label: string;
   detail?: string | undefined;
+  /** Known to have no free seat; listed but not selectable (MYK9-920). */
+  isFull?: boolean | undefined;
 }
 
 export interface ShowMapMoveUpConfirmInput {
@@ -40,6 +42,8 @@ interface ShowMapMoveUpDialogProps {
   targets: ShowMapMoveUpTarget[];
   /** Class-capacity read behind `targets` (MYK9-920). Defaults to ready. */
   capacityState?: MoveUpCapacityState | undefined;
+  /** Capacity figures shown are from an earlier read; the latest refresh failed. */
+  capacityIsStale?: boolean | undefined;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (input: ShowMapMoveUpConfirmInput) => void;
@@ -58,6 +62,7 @@ export function ShowMapMoveUpDialog({
   currentClass,
   targets,
   capacityState,
+  capacityIsStale,
   isSubmitting,
   onOpenChange,
   onConfirm,
@@ -91,6 +96,7 @@ export function ShowMapMoveUpDialog({
           currentClass={currentClass}
           targets={targets}
           capacityState={capacityState}
+          capacityIsStale={capacityIsStale}
           isSubmitting={isSubmitting}
           onOpenChange={onOpenChange}
           onConfirm={onConfirm}
@@ -110,6 +116,7 @@ function ShowMapMoveUpDialogFields({
   currentClass,
   targets,
   capacityState = 'ready',
+  capacityIsStale = false,
   isSubmitting,
   onOpenChange,
   onConfirm,
@@ -123,8 +130,14 @@ function ShowMapMoveUpDialogFields({
   const entryName = display?.dogName ?? node?.label ?? 'this entry';
   const armband = display?.armband;
 
+  // Derived from the CURRENT targets, so a class that fills while selected
+  // reads "Full" and cannot be submitted with the stale id.
+  const selectedTarget = targets.find(target => target.id === targetClassId);
+  const canSubmit =
+    capacityState !== 'loading' && selectedTarget !== undefined && !selectedTarget.isFull;
+
   const handleConfirm = () => {
-    if (!targetClassId) return;
+    if (!canSubmit) return;
     onConfirm({ targetClassId, reason: reason.trim() || undefined });
   };
 
@@ -174,9 +187,14 @@ function ShowMapMoveUpDialogFields({
             </SelectTrigger>
             <SelectContent>
               {targets.map(target => (
-                <SelectItem key={target.id} value={target.id}>
+                <SelectItem key={target.id} value={target.id} disabled={target.isFull === true}>
                   <span className="flex flex-col">
-                    <span>{target.label}</span>
+                    <span>
+                      {target.label}
+                      {target.isFull && (
+                        <span className="ml-2 text-xs font-medium text-destructive">Full</span>
+                      )}
+                    </span>
                     {target.detail && (
                       <span className="text-xs text-muted-foreground">{target.detail}</span>
                     )}
@@ -190,7 +208,9 @@ function ShowMapMoveUpDialogFields({
           )}
           {capacityState === 'unavailable' && (
             <p className="text-sm text-muted-foreground">
-              Capacity unavailable — the save will still refuse a full class.
+              {capacityIsStale
+                ? 'Capacity may be out of date — the save will still refuse a full class.'
+                : 'Capacity unavailable — the save will still refuse a full class.'}
             </p>
           )}
           {targets.length === 0 && capacityState !== 'loading' && (
@@ -217,13 +237,7 @@ function ShowMapMoveUpDialogFields({
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button
-          type="button"
-          onClick={handleConfirm}
-          disabled={
-            isSubmitting || capacityState === 'loading' || !targetClassId || targets.length === 0
-          }
-        >
+        <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !canSubmit}>
           {isSubmitting ? 'Moving...' : 'Move entry'}
         </Button>
       </DialogFooter>

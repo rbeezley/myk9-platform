@@ -224,12 +224,11 @@ function ShowMapTabView({
   // A show's trials always share one registry (scoping §7) — resolve once from the
   // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open).
   const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
-  const { targets: moveUpTargets, capacityState: moveUpCapacityState } = useMoveUpTargets(
-    show.id,
-    classes,
-    moveUpAction?.classId,
-    registryId
-  );
+  const {
+    targets: moveUpTargets,
+    capacityState: moveUpCapacityState,
+    capacityIsStale: moveUpCapacityIsStale,
+  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
@@ -363,6 +362,7 @@ function ShowMapTabView({
             currentClass={moveUpCurrentClass}
             targets={moveUpTargets}
             capacityState={moveUpCapacityState}
+            capacityIsStale={moveUpCapacityIsStale}
             isSubmitting={isExecuting}
             onOpenChange={open => {
               if (!open) closeMoveUpDialog();

@@ -23,7 +23,12 @@ export function useMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
   currentClassId: string | undefined,
   registryId: RegistryId
-): { targets: ShowMapMoveUpTarget[]; capacityState: MoveUpCapacityState } {
+): {
+  targets: ShowMapMoveUpTarget[];
+  capacityState: MoveUpCapacityState;
+  /** Data is from an earlier read because the latest refresh failed. */
+  capacityIsStale: boolean;
+} {
   const { data, isError, refetch } = useQuery({
     queryKey: ['show-map', 'move-up-capacity', showId, currentClassId],
     enabled: Boolean(currentClassId),
@@ -59,6 +64,8 @@ export function useMoveUpTargets(
     return buildMoveUpTargets(classes, currentClassId, registryId, spots);
   }, [classes, currentClassId, registryId, data]);
 
-  const capacityState: MoveUpCapacityState = data ? 'ready' : isError ? 'unavailable' : 'loading';
-  return { targets, capacityState };
+  // From query status, explicitly: a failed refetch keeps the old data but is
+  // still 'unavailable', never 'ready'.
+  const capacityState: MoveUpCapacityState = isError ? 'unavailable' : data ? 'ready' : 'loading';
+  return { targets, capacityState, capacityIsStale: isError && data !== undefined };
 }

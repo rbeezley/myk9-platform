@@ -28,20 +28,27 @@ const fullMaster: TestClass = {
 const spotsOf = (cls: TestClass) => cls.spots;
 
 describe('selectMoveUpTargetClasses', () => {
-  it('excludes a class in another trial and a full class', () => {
+  it('excludes another trial but KEEPS a full class, flagged isFull', () => {
     const result = selectMoveUpTargetClasses(
       [novice, advanced, advancedOtherTrial, fullMaster],
       novice.id,
       'AKC',
       spotsOf
     );
-    expect(result.map(c => c.id)).toEqual(['adv']);
+    expect(result.map(t => [t.cls.id, t.isFull, t.spotsKnown])).toEqual([
+      ['adv', false, false],
+      ['master-full', true, true],
+    ]);
   });
 
-  it('treats unknown capacity as advisory-open (the write path still refuses a full class)', () => {
-    expect(
-      selectMoveUpTargetClasses([novice, advanced], novice.id, 'AKC', spotsOf).map(c => c.id)
-    ).toEqual(['adv']);
+  it('marks known free seats as known and not full', () => {
+    const result = selectMoveUpTargetClasses(
+      [novice, { ...advanced, spots: 4 }],
+      novice.id,
+      'AKC',
+      spotsOf
+    );
+    expect(result.map(t => [t.cls.id, t.isFull, t.spotsKnown])).toEqual([['adv', false, true]]);
   });
 
   it('returns [] when the current class cannot be resolved', () => {

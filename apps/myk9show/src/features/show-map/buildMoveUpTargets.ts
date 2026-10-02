@@ -18,9 +18,9 @@ import type { RegistryId } from '@/features/registries';
  * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
  *
  * Restricted to the entry's OWN trial (MYK9-825, now enforced inside
- * isEligibleMoveUpTarget itself, MYK9-920) and, when `availableSpotsByClassId`
- * is supplied, to classes with a free seat. Capacity is advisory: a class with
- * no entry in the map is offered, and the write path refuses a full class.
+ * isEligibleMoveUpTarget itself, MYK9-920). When `availableSpotsByClassId` is
+ * supplied, a class with no free seat stays listed, flagged `isFull`. Capacity
+ * is advisory: the write path refuses a full class either way.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
@@ -32,7 +32,7 @@ export function buildMoveUpTargets(
   if (!current) return [];
 
   // The one shared rule (MYK9-920), identical to the Entries Management approve
-  // dialog: same trial, same element, higher level, and a free seat when known.
+  // dialog: same trial, same element, higher level
   const targets = selectMoveUpTargetClasses(classes, current.id, registryId, cls =>
     availableSpotsByClassId?.get(cls.id)
   );
@@ -49,7 +49,7 @@ export function buildMoveUpTargets(
   );
 
   return targets
-    .map(cls => {
+    .map(({ cls, isFull }) => {
       const identity = {
         name: cls.name,
         element: cls.element,
@@ -58,6 +58,7 @@ export function buildMoveUpTargets(
       };
       return {
         id: cls.id,
+        isFull,
         label: buildFullClassLabel(identity, disambiguate(identity), cls.name),
         detail: [
           cls.trialDate,

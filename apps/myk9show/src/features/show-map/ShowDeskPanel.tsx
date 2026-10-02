@@ -171,12 +171,11 @@ export default function ShowDeskPanel({
   );
 
   const registryId = getTrialRegistry(trials[0]).id;
-  const { targets: moveUpTargets, capacityState: moveUpCapacityState } = useMoveUpTargets(
-    show.id,
-    classes,
-    moveUpAction?.classId,
-    registryId
-  );
+  const {
+    targets: moveUpTargets,
+    capacityState: moveUpCapacityState,
+    capacityIsStale: moveUpCapacityIsStale,
+  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
@@ -231,6 +230,7 @@ export default function ShowDeskPanel({
             currentClass={moveUpCurrentClass}
             targets={moveUpTargets}
             capacityState={moveUpCapacityState}
+            capacityIsStale={moveUpCapacityIsStale}
             isSubmitting={isExecuting}
             onOpenChange={open => !open && closeMoveUpDialog()}
             onConfirm={confirmMoveUp}

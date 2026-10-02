@@ -29,7 +29,10 @@ export function getAvailableMoveUpTargets(
   currentClassId: string | null,
   registryId: RegistryId = 'AKC'
 ): ClassWithCapacity[] {
-  return selectMoveUpTargetClasses(classes, currentClassId, registryId, cls => cls.available_spots);
+  // Entries Management has always hidden full classes; that stays its own view rule.
+  return selectMoveUpTargetClasses(classes, currentClassId, registryId, cls => cls.available_spots)
+    .filter(target => !target.isFull)
+    .map(target => target.cls);
 }
 
 /**

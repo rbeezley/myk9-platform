@@ -44,9 +44,14 @@ const withCapacity: ClassWithCapacity[] = all.map(cls => ({
 }));
 
 describe('move-up targets: Show Map vs Entries Management', () => {
-  it('drops a full class and a class in another trial', () => {
+  it('lists a full class as disabled, and drops a class in another trial', () => {
     const map = new Map(withCapacity.map(c => [c.id, c.available_spots]));
-    expect(buildMoveUpTargets(all, novice.id, 'AKC', map).map(t => t.id)).toEqual([advanced.id]);
+    expect(
+      buildMoveUpTargets(all, novice.id, 'AKC', map).map(t => [t.id, t.isFull === true])
+    ).toEqual([
+      [advanced.id, false],
+      [fullMaster.id, true],
+    ]);
   });
 
   it('offers identical targets for the same entry, from the real capacity source', async () => {
@@ -64,6 +69,11 @@ describe('move-up targets: Show Map vs Entries Management', () => {
       c => c.id
     );
     expect(entryManagementIds).toEqual([advanced.id]);
-    expect(result.current.targets.map(t => t.id)).toEqual(entryManagementIds);
+    // Show Map lists the full class too (disabled); its open targets match
+    // Entries Management, which keeps hiding full classes.
+    expect(result.current.targets.filter(t => !t.isFull).map(t => t.id)).toEqual(
+      entryManagementIds
+    );
+    expect(result.current.targets.map(t => t.id)).toEqual([advanced.id, fullMaster.id]);
   });
 });
